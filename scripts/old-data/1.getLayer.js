@@ -6,6 +6,7 @@ const depositManagerAddress = "0x56E465f654393fa48f007Ed7346105c7195CEe43";
 const seigManagerAddress = "0x710936500aC59e8551331871Cbad3D33d5e0D909";
 const pauseBlock = 18231450
 const startBlock = 10837675
+
 async function getLayer2s() {
 
   const layer2RegistryABI = JSON.parse(await fs.readFileSync("./abi/layer2Registry.json")).abi;
@@ -66,11 +67,20 @@ async function getTotBalances() {
   let tot_total = [];
   let tot_balances = [];
 
+  let last_seig_block = [];
+  let layer2_last_commit_block = [];
+
   //------------------
   let totalSupply = await tot.totalSupply()
   tot_total.push(totalSupply.toString())
   console.log("tot-total-supply: ", tot_total);
   await fs.writeFileSync("./data/tot-total-supply.json", JSON.stringify(tot_total));
+
+  //------------------
+  let lastSeigBlock = await seigManager.lastSeigBlock()
+  console.log("lastSeigBlock: ", lastSeigBlock);
+  last_seig_block.push(lastSeigBlock.toString())
+  await fs.writeFileSync("./data/last-seig-block.json", JSON.stringify(last_seig_block));
 
   let j = 0;
   //------------------
@@ -84,10 +94,18 @@ async function getTotBalances() {
       coinage: coinage,
       balance: balance.toString()
     })
+
+    let lastCommitBlock = await seigManager.lastCommitBlock(layer)
+    layer2_last_commit_block.push({
+      layer2: layer,
+      coinage: coinage,
+      last_commit_block: lastCommitBlock.toString()
+    });
   }
 
   console.log("tot-balances: ", tot_balances);
   await fs.writeFileSync("./data/tot-balances.json", JSON.stringify(tot_balances));
+  await fs.writeFileSync("./data/layer2_last_commit_block.json", JSON.stringify(layer2_last_commit_block));
 
   //------------------
   let coin_total = [];
@@ -242,10 +260,11 @@ async function main() {
   // await getLayer2s();  // 모든 레이어 , 코인에이지 목록
   // await getDepositTxs();  // 디파짓한 트랜잭션 목록
   // await getAccounts();  // 레이어별 디파짓한 적 있는 계정 목록
-  await getTotBalances();  // 코인에이지 정보
+  await getTotBalances();  // 코인에이지 정보 , last-seig-block, layer2_last_commit_block
   // await getAccountBalances(); // 레이어별 계정별 코인에이지 정보
 
   // 레이어별 가장 최근 커밋 블록 번호,
+
   // 가장 최근 커밋 블록 번호
 
 }
