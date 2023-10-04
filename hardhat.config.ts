@@ -139,13 +139,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 18231453
-        // blockNumber:18229970
-      },
-      allowUnlimitedContractSize: false,
-      deploy: ['deploy-migration']
+      // forking: {
+      //   url: `${process.env.ETH_NODE_URI_MAINNET}`,
+      //   blockNumber: 18231453
+      //   // blockNumber:18229970
+      // },
+      // allowUnlimitedContractSize: false,
+      // deploy: ['deploy-migration']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -161,7 +161,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.DEPLOYER}`],
       chainId: 5,
-      deploy: ['deploy']
+      deploy: ['deploy-migration-goerli']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
