@@ -60,13 +60,14 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
   function initialize (
     address wton_,
     address registry_,
+    address seigManager_,
     uint256 globalWithdrawalDelay_
-  ) external onlyOwner {
-
+  ) external {
     require(_wton == address(0), "already initialized");
 
     _wton = wton_;
     _registry = registry_;
+    _seigManager = seigManager_;
     globalWithdrawalDelay = globalWithdrawalDelay_;
     _registerInterface(IOnApprove.onApprove.selector);
   }

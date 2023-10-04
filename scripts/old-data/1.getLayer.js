@@ -4,7 +4,7 @@ const fs = require('fs');
 const layer2RegistryAddress = "0x0b3E174A2170083e770D5d4Cf56774D221b7063e";
 const depositManagerAddress = "0x56E465f654393fa48f007Ed7346105c7195CEe43";
 const seigManagerAddress = "0x710936500aC59e8551331871Cbad3D33d5e0D909";
-const pauseBlock = 18231450
+const pauseBlock = 18231453
 const startBlock = 10837675
 
 async function getLayer2s() {
@@ -258,14 +258,13 @@ async function getAccountBalances() {
 async function main() {
 
   // await getLayer2s();  // 모든 레이어 , 코인에이지 목록
-  // await getDepositTxs();  // 디파짓한 트랜잭션 목록
-  // await getAccounts();  // 레이어별 디파짓한 적 있는 계정 목록
-  await getTotBalances();  // 코인에이지 정보 , last-seig-block, layer2_last_commit_block
-  // await getAccountBalances(); // 레이어별 계정별 코인에이지 정보
 
-  // 레이어별 가장 최근 커밋 블록 번호,
+  await getDepositTxs();  // 디파짓한 트랜잭션 목록
+  await getAccounts();  // 레이어별 디파짓한 적 있는 계정 목록
 
-  // 가장 최근 커밋 블록 번호
+  // await getTotBalances();  // 코인에이지 정보 , last-seig-block, layer2_last_commit_block
+
+  await getAccountBalances(); // 레이어별 계정별 코인에이지 정보
 
 }
 

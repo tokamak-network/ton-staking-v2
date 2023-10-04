@@ -141,7 +141,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 18146037
+        blockNumber: 18231453
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
