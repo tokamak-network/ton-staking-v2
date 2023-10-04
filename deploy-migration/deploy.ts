@@ -185,18 +185,17 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         CandidateFactoryProxyDeployment.address
     )) as CandidateFactory;
 
-    //=== daoCommittee
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(candidateFactoryProxy.address)).wait()
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(seigManagerProxy.address)).wait()
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(layer2RegistryProxy.address)).wait()
-    await (await candidateFactory.connect(deploySigner).setAddress(
-        depositManagerProxy.address,
-        v1Infos.daoCommittee,
-        CandidateDeployment.address,
-        v1Infos.ton,
-        v1Infos.wton
-      )).wait()
-
+    //====== candidateFactory setAddress ==================
+    let depositManagerAddress = await candidateFactory.depositManager()
+    if (depositManagerAddress != depositManagerProxy.address ) {
+        await (await candidateFactory.connect(deploySigner).setAddress (
+             depositManagerProxy.address,
+             v1Infos.daoCommittee,
+             CandidateFactoryDeployment.address,
+             v1Infos.ton,
+             v1Infos.wton
+          )).wait()
+    }
 
     //==== RefactorCoinageSnapshot =================================
     const RefactorCoinageSnapshotDeployment = await deploy("RefactorCoinageSnapshot", {
@@ -278,22 +277,14 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
             layer2RegistryProxy.address
           )).wait()
     }
-    //====== candidateFactory setAddress ==================
-    let depositManagerAddress = await candidateFactory.depositManager()
-    if (depositManagerAddress != depositManagerProxy.address ) {
-        await (await seigManager.connect(deploySigner).setData (
-            v1Infos.powertonAddress,
-            v1Infos.daoVaultAddress,
-            seigManagerInfo.powerTONSeigRate,
-            seigManagerInfo.daoSeigRate,
-            seigManagerInfo.relativeSeigRate,
-            seigManagerInfo.adjustCommissionDelay,
-            seigManagerInfo.minimumAmount
-          )).wait()
-    }
 
 
     //====== WTON  addMinter to seigManagerV2 ==================
+
+    //=== daoCommittee
+    //   await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(candidateFactoryProxy.address)).wait()
+    //   await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(seigManagerProxy.address)).wait()
+    //   await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(layer2RegistryProxy.address)).wait()
 
 
     //==== verify =================================

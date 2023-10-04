@@ -145,7 +145,7 @@ const config: HardhatUserConfig = {
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
-      deploy: ['deploy']
+      deploy: ['deploy-migration']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
