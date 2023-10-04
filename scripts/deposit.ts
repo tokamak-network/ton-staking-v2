@@ -18,10 +18,9 @@ import { DAOCommitteeExtend } from "../typechain-types/contracts/dao/DAOCommitte
 import { CandidateFactory } from "../typechain-types/contracts/dao/factory/CandidateFactory.sol"
 import { CandidateFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateFactoryProxy"
 import { PowerTONUpgrade } from "../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
+import { hasUncaughtExceptionCaptureCallback } from "process";
 
-import DAOCommitteeProxy_Json from '../abi/DAOCommitteeProxy.json'
-
-let DAOCommitteeProxy = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26";
+const fs = require('fs');
 
 const v1Infos = {
     ton: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
@@ -45,7 +44,8 @@ const seigManagerInfo = {
   adjustCommissionDelay:  ethers.BigNumber.from("93096"),
 }
 
-const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+
+async function main() {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
 
@@ -53,31 +53,6 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     const { deploy } = hre.deployments;
 
     const deploySigner = await hre.ethers.getSigner(deployer);
-    const DaoCommitteeAdminAddress = "0xb4983da083a5118c903910db4f5a480b1d9f3687"
-
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        DaoCommitteeAdminAddress,
-      ]);
-    const daoCommitteeAdmin = await hre.ethers.getSigner(DaoCommitteeAdminAddress);
-
-    //=== DAOContract =================================
-    const daoCommitteeProxy = (await hre.ethers.getContractAt(
-        DAOCommitteeProxy_Json.abi,
-        DAOCommitteeProxy
-    ))
-
-    const daoCommitteeExtendDeployment = await deploy("DAOCommitteeExtend", {
-        from: deployer,
-        args: [],
-        log: true
-    });
-
-    const daoCommitteeExtend = (await hre.ethers.getContractAt(
-        daoCommitteeExtendDeployment.abi,
-        daoCommitteeExtendDeployment.address
-    ))
-
-    await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(daoCommitteeExtendDeployment.address)).wait()
 
     //==== PowerTONUpgrade =================================
 
@@ -307,21 +282,43 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
           )).wait()
     }
 
+    // hammer DAO addr == 0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764
+    const hammerDAOAddr = "0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764";
+    const layerHammerDAO = JSON.parse(await fs.readFileSync("./data/layer2-accounts-balances/0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764.json"));
+    
+    const hammerDAOdepositors = [];
+    const hammerDAOamounts = [];
 
-    //====== WTON  addMinter to seigManagerV2 ==================
-
-    //=== daoCommittee
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(candidateFactoryProxy.address)).wait()
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(seigManagerProxy.address)).wait()
-    //   await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(layer2RegistryProxy.address)).wait()
-
-
-    //==== verify =================================
-    if (hre.network.name != "hardhat") {
-        await hre.run("etherscan-verify", {
-            network: hre.network.name
-        });
+    for (let i = 0; i < layerHammerDAO.length; i++) {
+        if(layerHammerDAO[i].balance == 0){
+            continue;
+        } 
+        hammerDAOdepositors.push(layerHammerDAO[i].account);
+        hammerDAOamounts.push(layerHammerDAO[i].balance);
     }
-};
+    console.log(hammerDAOdepositors)
+    console.log(hammerDAOamounts)
 
-export default deployMigration;
+    console.log("error point1")
+    await depositManagerForMigration.depositWithoutTransfer(hammerDAOAddr,hammerDAOdepositors,hammerDAOamounts);
+    console.log("error point2")
+    for (let i = 0; i < layerHammerDAO.length; i++) {
+        let tx = await depositManagerForMigration.accStaked(hammerDAOAddr,layerHammerDAO[i].account)
+        if(Number(tx) == 0) {
+            continue;
+        }
+        if(tx != layerHammerDAO[i].balance) {
+            console.log("=====================error====================");
+            break;
+        }
+    }
+
+
+}
+
+main()
+    .then(() => process.exit(0))
+    .catch(error => {
+    console.error(error);
+    process.exit(1);
+    });
