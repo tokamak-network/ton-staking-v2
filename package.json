@@ -1,0 +1,33 @@
+{
+  "name": "ton-staking-v2",
+  "version": "0.0.1",
+  "description": "Tokamak TON Staking V2",
+  "main": "build/main/index.js",
+  "typings": "build/main/index.d.ts",
+  "module": "build/module/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tokamak-network/ton-staking-v2"
+  },
+  "license": "GPL",
+  "keywords": [],
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^3.1.5",
+    "dotenv": "^16.3.1",
+    "ethereum-waffle": "^4.0.10",
+    "ethers": "^5.0.0",
+    "hardhat": "^2.17.3",
+    "hardhat-deploy": "^0.11.25",
+    "hardhat-gas-reporter": "^1.0.9",
+    "web3-utils": "^4.0.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.2",
+    "@uniswap/v3-periphery": "^1.4.3"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test"
+  }
+}
