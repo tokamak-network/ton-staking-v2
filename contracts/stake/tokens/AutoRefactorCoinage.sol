@@ -94,11 +94,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   // -------- public
 
   function factor() public view returns (uint256) {
-    uint256 result = _factor;
-    for (uint256 i = 0; i < refactorCount; i++) {
-      result = result * REFACTOR_DIVIDER;
-    }
-    return result;
+    return _factor * REFACTOR_DIVIDER ** refactorCount;
   }
 
   function balanceOf(address account) public view returns (uint256) {

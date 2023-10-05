@@ -101,11 +101,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function factor() public view returns (uint256) {
       Factor memory _factor = _valueAtFactorLast();
-      uint256 result = _factor.factor;
-      for (uint256 i = 0; i < _factor.refactorCount; i++) {
-        result = result * REFACTOR_DIVIDER;
-      }
-      return result;
+      return _factor.factor * REFACTOR_DIVIDER ** _factor.refactorCount;
     }
 
     // -------- internal
