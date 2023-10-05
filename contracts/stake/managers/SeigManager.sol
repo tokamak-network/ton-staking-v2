@@ -32,8 +32,6 @@ interface IILayer2Registry {
 }
 
 interface IPowerTON {
-  function onDeposit(address layer2, address account, uint256 amount) external;
-  function onWithdraw(address layer2, address account, uint256 amount) external;
   function updateSeigniorage(uint256 amount) external;
 }
 
