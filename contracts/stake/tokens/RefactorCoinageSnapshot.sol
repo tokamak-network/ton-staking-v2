@@ -58,7 +58,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       uint256 count = 0;
       uint256 f = factor_;
       for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-        count = count++;
+        count++;
       }
 
       Factor memory nextFactor = Factor(f, count);
