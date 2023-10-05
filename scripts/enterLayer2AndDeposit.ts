@@ -10,6 +10,13 @@ const fs = require('fs');
 let layer2Info_level19 : any;
 let layer2Info_tokamak : any;
 let layer2Info_hammerDAO : any;
+let layer2Info_DXMCorp : any;
+let layer2Info_danalFintech : any;
+let layer2Info_DeSpread : any;
+let layer2Info_decipher : any;
+let layer2Info_Talken : any;
+let layer2Info_DSRV : any;
+let layer2Info_staked : any;
 
 let DAOCommitteeProxy = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26";
 
@@ -131,7 +138,106 @@ async function enterLayer2() {
         coinageContract: null
     }
 
-    const receipt = await (await daoCommittee.connect(
+    layer2Info_tokamak = {
+        operatorAdmin: tokamakAdminAddress,
+        isLayer2Candidate: false,
+        name: "level19_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_hammerDAO = {
+        operatorAdmin: hammerAdminAddress,
+        isLayer2Candidate: false,
+        name: "hammerDAO_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_DXMCorp = {
+        operatorAdmin: DXMCorpAdminAddress,
+        isLayer2Candidate: false,
+        name: "DXMCorp_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_danalFintech = {
+        operatorAdmin: danalFintechAdminAddress,
+        isLayer2Candidate: false,
+        name: "danalFintech_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_DeSpread = {
+        operatorAdmin: DeSpreadAdminAddress,
+        isLayer2Candidate: false,
+        name: "DeSpread_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_decipher = {
+        operatorAdmin: decipherAdminAddress,
+        isLayer2Candidate: false,
+        name: "DeSpread_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_Talken = {
+        operatorAdmin: TalkenAdminAddress,
+        isLayer2Candidate: false,
+        name: "Talken_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_DSRV = {
+        operatorAdmin: DSRVAdminAddress,
+        isLayer2Candidate: false,
+        name: "DSRV_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    layer2Info_staked = {
+        operatorAdmin: stakedAdminAddress,
+        isLayer2Candidate: false,
+        name: "staked_V2",
+        committee: daoCommittee.address,
+        layer2: null,
+        operator: null,
+        layerContract: null,
+        coinageContract: null
+    }
+
+    const receipt1 = await (await daoCommittee.connect(
         daoCommitteeAdmin
     )["createCandidate(string,address)"](
         layer2Info_level19.name,
@@ -139,17 +245,142 @@ async function enterLayer2() {
     )).wait()
 
     const topic = daoCommittee.interface.getEventTopic('CandidateContractCreated');
-    const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+    const log = receipt1.logs.find(x => x.topics.indexOf(topic) >= 0);
     const deployedEvent = daoCommittee.interface.parseLog(log);
-    layer2Info_level19.layer2 =  deployedEvent.args.candidateContract;
-    layer2Info_level19.operator =  deployedEvent.args.candidate;
-    console.log(deployedEvent.args.memo)
-    console.log(layer2Info_level19.name)
-    console.log("layer2Info_level19.layer2 :", layer2Info_level19.layer2);
+    layer2Info_level19.layer2 = deployedEvent.args.candidateContract;
+    layer2Info_level19.operator = deployedEvent.args.candidate;
+    // console.log(deployedEvent.args.memo)
+    // console.log(layer2Info_level19.name)
+    // console.log("layer2Info_level19.layer2 :", layer2Info_level19.layer2);
     newLayer2s.push(layer2Info_level19.layer2)
-    console.log(layer2Info_level19.operator)
-    console.log(layer2Info_level19.operatorAdmin)
+    // console.log(layer2Info_level19.operator)
+    // console.log(layer2Info_level19.operatorAdmin)
 
+    const receipt2 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_tokamak.name,
+        layer2Info_tokamak.operatorAdmin,
+    )).wait()
+
+    const topic2 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log2 = receipt2.logs.find(x => x.topics.indexOf(topic2) >= 0);
+    const deployedEvent2 = daoCommittee.interface.parseLog(log2);
+    layer2Info_tokamak.layer2 = deployedEvent2.args.candidateContract;
+    layer2Info_tokamak.operator = deployedEvent2.args.candidate;
+    newLayer2s.push(layer2Info_level19.layer2)
+
+    const receipt3 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_hammerDAO.name,
+        layer2Info_hammerDAO.operatorAdmin,
+    )).wait()
+
+    const topic3 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log3 = receipt3.logs.find(x => x.topics.indexOf(topic3) >= 0);
+    const deployedEvent3 = daoCommittee.interface.parseLog(log3);
+    layer2Info_hammerDAO.layer2 = deployedEvent3.args.candidateContract;
+    layer2Info_hammerDAO.operator = deployedEvent3.args.candidate;
+    newLayer2s.push(layer2Info_hammerDAO.layer2)
+
+    const receipt4 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_DXMCorp.name,
+        layer2Info_DXMCorp.operatorAdmin,
+    )).wait()
+
+    const topic4 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log4 = receipt4.logs.find(x => x.topics.indexOf(topic4) >= 0);
+    const deployedEvent4 = daoCommittee.interface.parseLog(log4);
+    layer2Info_DXMCorp.layer2 = deployedEvent4.args.candidateContract;
+    layer2Info_DXMCorp.operator = deployedEvent4.args.candidate;
+    newLayer2s.push(layer2Info_DXMCorp.layer2)
+
+    const receipt5 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_danalFintech.name,
+        layer2Info_danalFintech.operatorAdmin,
+    )).wait()
+
+    const topic5 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log5 = receipt5.logs.find(x => x.topics.indexOf(topic5) >= 0);
+    const deployedEvent5 = daoCommittee.interface.parseLog(log5);
+    layer2Info_danalFintech.layer2 = deployedEvent5.args.candidateContract;
+    layer2Info_danalFintech.operator = deployedEvent5.args.candidate;
+    newLayer2s.push(layer2Info_danalFintech.layer2)
+
+    const receipt6 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_DeSpread.name,
+        layer2Info_DeSpread.operatorAdmin,
+    )).wait()
+
+    const topic6 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log6 = receipt6.logs.find(x => x.topics.indexOf(topic6) >= 0);
+    const deployedEvent6 = daoCommittee.interface.parseLog(log6);
+    layer2Info_DeSpread.layer2 = deployedEvent6.args.candidateContract;
+    layer2Info_DeSpread.operator = deployedEvent6.args.candidate;
+    newLayer2s.push(layer2Info_DeSpread.layer2)
+
+    const receipt7 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_decipher.name,
+        layer2Info_decipher.operatorAdmin,
+    )).wait()
+
+    const topic7 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log7 = receipt7.logs.find(x => x.topics.indexOf(topic7) >= 0);
+    const deployedEvent7 = daoCommittee.interface.parseLog(log7);
+    layer2Info_decipher.layer2 = deployedEvent7.args.candidateContract;
+    layer2Info_decipher.operator = deployedEvent7.args.candidate;
+    newLayer2s.push(layer2Info_decipher.layer2)
+
+    const receipt8 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_Talken.name,
+        layer2Info_Talken.operatorAdmin,
+    )).wait()
+
+    const topic8 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log8 = receipt8.logs.find(x => x.topics.indexOf(topic8) >= 0);
+    const deployedEvent8 = daoCommittee.interface.parseLog(log8);
+    layer2Info_Talken.layer2 = deployedEvent8.args.candidateContract;
+    layer2Info_Talken.operator = deployedEvent8.args.candidate;
+    newLayer2s.push(layer2Info_Talken.layer2)
+
+    const receipt9 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_DSRV.name,
+        layer2Info_DSRV.operatorAdmin,
+    )).wait()
+
+    const topic9 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log9 = receipt9.logs.find(x => x.topics.indexOf(topic9) >= 0);
+    const deployedEvent9 = daoCommittee.interface.parseLog(log9);
+    layer2Info_DSRV.layer2 = deployedEvent9.args.candidateContract;
+    layer2Info_DSRV.operator = deployedEvent9.args.candidate;
+    newLayer2s.push(layer2Info_DSRV.layer2)
+
+    const receipt10 = await (await daoCommittee.connect(
+        daoCommitteeAdmin
+    )["createCandidate(string,address)"](
+        layer2Info_staked.name,
+        layer2Info_staked.operatorAdmin,
+    )).wait()
+
+    const topic10 = daoCommittee.interface.getEventTopic('CandidateContractCreated');
+    const log10 = receipt10.logs.find(x => x.topics.indexOf(topic10) >= 0);
+    const deployedEvent10 = daoCommittee.interface.parseLog(log10);
+    layer2Info_staked.layer2 = deployedEvent10.args.candidateContract;
+    layer2Info_staked.operator = deployedEvent10.args.candidate;
+    newLayer2s.push(layer2Info_staked.layer2)
 
     await fs.writeFileSync("./data/newlayer2s.json", JSON.stringify(newLayer2s));
 }
