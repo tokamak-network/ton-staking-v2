@@ -10,6 +10,7 @@ const dataFolder = './data-goerli'
 
 async function getLayer2s() {
 
+  const candidateABI = JSON.parse(await fs.readFileSync("./abi/Candidate.json")).abi;
   const layer2RegistryABI = JSON.parse(await fs.readFileSync("./abi/layer2Registry.json")).abi;
   const seigManagerABI = JSON.parse(await fs.readFileSync("./abi/seigManager.json")).abi;
 
@@ -26,20 +27,38 @@ async function getLayer2s() {
   );
   const layer2s = []
   const coinages = []
+  const names = []
   const numberOfLayer2s = await layer2Registry.numLayer2s()
+
   for (let i = 0; i < numberOfLayer2s; i++) {
 
     let layer2Address = await layer2Registry.layer2ByIndex(i)
     let coinageAddress = await seigManager.coinages(layer2Address)
 
-    layer2s.push(layer2Address)
-    coinages.push(coinageAddress)
+    const layerContract = new ethers.Contract(
+      layer2Address,
+      candidateABI,
+      ethers.provider
+    );
+    let operatorAddress = await layerContract.operator()
+
+    layer2s.push(layer2Address.toLowerCase())
+    coinages.push(coinageAddress.toLowerCase())
+    names.push({
+      oldLayer: layer2Address.toLowerCase(),
+      newLayer: '',
+      operator: operatorAddress.toLowerCase(),
+      name: ''
+    })
   }
   console.log({ layer2s });
   console.log({ coinages });
+  console.log({ names });
   console.log("length: ", layer2s.length);
+
   await fs.writeFileSync(dataFolder + "/layer2s.json", JSON.stringify(layer2s));
   await fs.writeFileSync(dataFolder + "/coinages.json", JSON.stringify(coinages));
+  await fs.writeFileSync(dataFolder + "/layer2_name_map.json", JSON.stringify(names));
 
   return layer2s;
 }
@@ -246,7 +265,7 @@ async function getAccountBalances() {
       let balance = await coin.balanceOf(depositor)
 
       deposits.push({
-        account: depositor,
+        account: depositor.toLowerCase(),
         balance: balance.toString()
       })
     }
@@ -258,14 +277,14 @@ async function getAccountBalances() {
 
 async function main() {
 
-  // await getLayer2s();  // 모든 레이어 , 코인에이지 목록
+  await getLayer2s();  // 모든 레이어 , 코인에이지 목록
 
   // await getDepositTxs();  // 디파짓한 트랜잭션 목록
   // await getAccounts();  // 레이어별 디파짓한 적 있는 계정 목록
 
   // await getTotBalances();  // 코인에이지 정보 , last-seig-block, layer2_last_commit_block
 
-  await getAccountBalances(); // 레이어별 계정별 코인에이지 정보
+  // await getAccountBalances(); // 레이어별 계정별 코인에이지 정보
 
 }
 
