@@ -185,12 +185,12 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )) as CandidateFactory;
 
     //====== candidateFactory setAddress ==================
-    let depositManagerAddress = await candidateFactory.depositManager()
-    if (depositManagerAddress != depositManagerProxy.address ) {
+    let candidateDeploymentAddress = await candidateFactory.candidateImp()
+    if (candidateDeploymentAddress != CandidateDeployment.address ) {
         await (await candidateFactory.connect(deploySigner).setAddress (
              depositManagerProxy.address,
              v1Infos.daoCommittee,
-             CandidateFactoryDeployment.address,
+             CandidateDeployment.address,
              v1Infos.ton,
              v1Infos.wton
           )).wait()
