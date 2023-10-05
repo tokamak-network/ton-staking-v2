@@ -529,6 +529,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         uint256 tonAmount,
         bytes calldata data
     ) external returns (bool) {
+        require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
 
         _createAgenda(
