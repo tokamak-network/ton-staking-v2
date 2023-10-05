@@ -214,17 +214,17 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         CandidateFactoryProxyDeployment.address
     )) as CandidateFactory;
 
-    //====== candidateFactory setAddress ==================
-    let depositManagerAddress = await candidateFactory.depositManager()
-    if (depositManagerAddress != depositManagerProxy.address ) {
-        await (await candidateFactory.connect(deploySigner).setAddress (
-             depositManagerProxy.address,
-             v1Infos.daoCommittee,
-             CandidateFactoryDeployment.address,
-             v1Infos.ton,
-             v1Infos.wton
-          )).wait()
-    }
+     //====== candidateFactory setAddress ==================
+     let candidateDeploymentAddress = await candidateFactory.candidateImp()
+     if (candidateDeploymentAddress != CandidateDeployment.address ) {
+         await (await candidateFactory.connect(deploySigner).setAddress (
+              depositManagerProxy.address,
+              v1Infos.daoCommittee,
+              CandidateDeployment.address,
+              v1Infos.ton,
+              v1Infos.wton
+           )).wait()
+     }
 
     //==== RefactorCoinageSnapshot =================================
     const RefactorCoinageSnapshotDeployment = await deploy("RefactorCoinageSnapshot", {
