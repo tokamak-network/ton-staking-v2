@@ -75,6 +75,20 @@ async function changeDaoSetting() {
     console.log('candidateFactory', candidateFactory)
     console.log('CandidateFactoryProxy', contractInfos.abis["CandidateFactoryProxy"].address)
 
+    // powerTon
+    const powerTon = new ethers.Contract(
+        oldContractInfo.PowerTON,
+        contractInfos.abis["PowerTONUpgrade"].abi,
+        daoCommitteeAdmin
+    )
+
+    await (await powerTon.connect(daoCommitteeAdmin).setSeigManager(
+        contractInfos.abis["SeigManagerProxy"].address
+        )).wait()
+
+    seigManagerAddress = await powerTon.seigManager()
+    console.log('seigManagerAddress', seigManagerAddress)
+    console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
 
 }
 
