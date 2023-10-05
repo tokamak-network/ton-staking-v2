@@ -241,7 +241,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   // Withdrawal functions
   ////////////////////
 
-  function requestWithdrawalWithDeplay(address layer2, uint256 amount, uint256 delayBlocks) external returns (bool) {
+  function requestWithdrawalWithDelay(address layer2, uint256 amount, uint256 delayBlocks) external returns (bool) {
     AcceptDelayPeriod memory period = acceptDelayPeriod;
 
     require(period.start != 0 && period.start < period.end &&
