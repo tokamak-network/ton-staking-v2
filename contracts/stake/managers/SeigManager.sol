@@ -32,8 +32,6 @@ interface IILayer2Registry {
 }
 
 interface IPowerTON {
-  function onDeposit(address layer2, address account, uint256 amount) external;
-  function onWithdraw(address layer2, address account, uint256 amount) external;
   function updateSeigniorage(uint256 amount) external;
 }
 
@@ -348,9 +346,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     }
     _tot.mint(layer2, amount);
     _coinages[layer2].mint(account, amount);
-    if (address(_powerton) != address(0)) {
-      IPowerTON(_powerton).onDeposit(layer2, account, amount);
-    }
+
     return true;
   }
 
@@ -373,10 +369,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     // burn {v} {coinages[layer2]} tokens to the account
     _coinages[layer2].burnFrom(account, amount);
-
-    if (address(_powerton) != address(0)) {
-      IPowerTON(_powerton).onWithdraw(layer2, account, amount);
-    }
 
     emit UnstakeLog(amount, totAmount);
 
