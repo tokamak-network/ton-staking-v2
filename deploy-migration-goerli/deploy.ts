@@ -65,6 +65,12 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
+    const SeigManagerMigrationDeployment = await deploy("SeigManagerMigration", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
     const SeigManagerProxyDeployment = await deploy("SeigManagerProxy", {
         from: deployer,
         args: [],
@@ -83,8 +89,8 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
 
     let seigManagerImpl = await seigManagerProxy.implementation()
-    if (seigManagerImpl != SeigManagerDeployment.address) {
-        await (await seigManagerProxy.connect(deploySigner).upgradeTo(SeigManagerDeployment.address)).wait()
+    if (seigManagerImpl != SeigManagerMigrationDeployment.address) {
+        await (await seigManagerProxy.connect(deploySigner).upgradeTo(SeigManagerMigrationDeployment.address)).wait()
     }
 
     //==== DepositManager =================================
@@ -122,7 +128,6 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     if (depositManagerImpl != DepositManagerForMigration.address) {
         await (await depositManagerProxy.connect(deploySigner).upgradeTo(DepositManagerForMigration.address)).wait()
     }
-
 
     //==== Layer2Registry =================================
 
