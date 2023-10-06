@@ -21,6 +21,31 @@ let layer2Info_staked : any;
 let DAOCommitteeProxy = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26";
 
 async function enterLayer2() {
+    /* layer 등록 순서
+        1. level19
+        2. tokamak
+        3. hammerDAO
+        4. DXMCorp
+        5. danalFintech
+        6. DeSpread
+        7. decipher
+        8. Talken
+        9. DSRV
+        10. staked
+    */
+
+    const level19Addr = "0x42ccf0769e87cb2952634f607df1c7d62e0bbc52";
+    const tokamak1Addr = "0x39a13a796a3cd9f480c28259230d2ef0a7026033";
+    const hammerDAOAddr = "0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764";
+    const DXMCorpAddr = "0x41fb4bad6fba9e9b6e45f3f96ba3ad7ec2ff5b3c";
+    const danalFintechAddr = "0x97d0a5880542ab0e699c67e7f4ff61f2e5200484"
+    const DeSpreadAddr = "0x2000fc16911fc044130c29c1aa49d3e0b101716a";
+    const decipherAddr = "0x17602823b5fe43a65ad7122946a73b019e77fd33"
+    const TalkenAddr = "0xb9d336596ea2662488641c4ac87960bfdcb94c6e";
+    const DSRVAddr = "0xbc8896ebb2e3939b1849298ef8da59e09946cf66";
+    const stakedAddr = "0xcc38c7aaf2507da52a875e93f57451e58e8c6372";
+
+
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
     
