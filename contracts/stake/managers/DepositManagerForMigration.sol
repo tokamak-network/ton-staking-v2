@@ -8,6 +8,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface IOnApprove {
   function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
 }
@@ -38,7 +40,9 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
   ////////////////////
 
   modifier onlyLayer2(address layer2) {
+    console.log("onlyLayer2 in");
     require(ILayer2Registry(_registry).layer2s(layer2));
+    console.log("onlyLayer2 pass");
     _;
   }
 
@@ -82,8 +86,11 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
     require(accounts.length == amounts.length, 'wrong lenth');
 
     for (uint256 i = 0; i < accounts.length; i++){
+      console.log("1");
       require(accounts[i] != address(0) && amounts[i] != 0, "zero amount or zero address");
+      console.log("2");
       require(_deposit(layer2, accounts[i], amounts[i]));
+      console.log("3");
     }
 
     return true;

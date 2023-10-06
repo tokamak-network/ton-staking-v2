@@ -87,6 +87,12 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
+    const PowerTONHammerDAODeployment = await deploy("PowerTONHammerDAO", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
     //==== SeigManager =================================
 
     const SeigManagerDeployment = await deploy("SeigManager", {
