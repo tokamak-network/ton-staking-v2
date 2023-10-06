@@ -86,11 +86,8 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
     require(accounts.length == amounts.length, 'wrong lenth');
 
     for (uint256 i = 0; i < accounts.length; i++){
-      console.log("1");
       require(accounts[i] != address(0) && amounts[i] != 0, "zero amount or zero address");
-      console.log("2");
       require(_deposit(layer2, accounts[i], amounts[i]));
-      console.log("3");
     }
 
     return true;
