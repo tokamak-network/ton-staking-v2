@@ -74,7 +74,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   }
 
   function burnFrom(address account, uint256 amount) public onlyMinter {
-      _burnFrom(account, amount);
+      _burn(account, amount);
   }
 
   // -------- external
@@ -159,10 +159,6 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     emit ChangedBalance(account, rbAmount, refactorCount);
 
     emit Transfer(account, address(0), _toRAYFactored(rbAmount));
-  }
-
-  function _burnFrom(address account, uint256 amount) internal {
-    _burn(account, amount);
   }
 
   /**
