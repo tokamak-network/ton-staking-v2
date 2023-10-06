@@ -149,7 +149,7 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      accounts: [`${process.env.DEPLOYER}`],
+      // accounts: [`${process.env.DEPLOYER}`],
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
