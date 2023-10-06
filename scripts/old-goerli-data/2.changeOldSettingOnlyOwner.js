@@ -90,6 +90,7 @@ async function changeDaoSetting() {
     console.log('seigManagerAddress', seigManagerAddress)
     console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
 
+    // 파워톤의 로직 변경
 }
 
 
