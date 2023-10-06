@@ -145,7 +145,7 @@ const config: HardhatUserConfig = {
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
-      deploy: ['deploy']
+      // deploy: ['deploy']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -155,13 +155,13 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       gasPrice: 18000000000,
-      deploy: ['deploy']
+      // deploy: ['deploy']
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.DEPLOYER}`],
       chainId: 5,
-      deploy: ['deploy']
+      // deploy: ['deploy']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,

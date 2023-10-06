@@ -107,6 +107,12 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   const daoCommittee = (await ethers.getContractAt("DAOCommitteeExtend", DAOCommitteeProxy, daoCommitteeAdmin)) as DAOCommitteeExtend;
   console.log('daoCommittee', daoCommittee.address)
 
+  let daoImpl = await daoCommitteeProxy.implementation()
+  console.log('daoImpl', daoImpl)
+
+  let pauseProxy = await daoCommitteeProxy.pauseProxy()
+  console.log('pauseProxy', pauseProxy)
+
   //-- 기존 디파짓 매니저의 세그매니저를 0으로 설정한다.
   await (await daoCommittee.connect(daoCommitteeAdmin).setTargetSeigManager(
     depositManagerV1.address, ethers.constants.AddressZero)).wait()
