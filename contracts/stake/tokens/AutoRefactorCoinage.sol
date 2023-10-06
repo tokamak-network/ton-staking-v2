@@ -83,7 +83,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
       _burn(msg.sender, amount);
   }
 
-  function decimals() external view virtual returns (uint8) {
+  function decimals() external pure returns (uint8) {
       return 27;
   }
 
