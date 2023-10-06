@@ -80,22 +80,43 @@ async function changeDaoSetting() {
 
     let autoCoinageSnapshot = "0x85Ca9f611C363065252EA9462c90743922767b55"
     let lockTOSDividendPool = "0x17332F84Cc0bbaD551Cd16675F406A0a2c55E28C"
-    // powerTon
-    const powerTon = new ethers.Contract(
+
+    const PowerTONSwapperProxyABI = JSON.parse(await fs.readFileSync("./abi/PowerTONSwapperProxy.json")).abi;
+
+    const powerTonProxy = new ethers.Contract(
         oldContractInfo.PowerTON,
-        contractInfos.abis["PowerTONHammerDAO"].abi,
+        PowerTONSwapperProxyABI,
         powerTONAdmin
     )
 
-    // await (await powerTon.connect(powerTONAdmin).setSeigManager(
-    //     contractInfos.abis["SeigManagerProxy"].address
-    //     )).wait()
-    await (await powerTon.connect(powerTONAdmin).setInfo(
-        oldContractInfo.WTON,
-        autoCoinageSnapshot,
-        contractInfos.abis["SeigManagerProxy"].address,
-        lockTOSDividendPool
+    await (await powerTonProxy.connect(powerTONAdmin).upgradeTo(
+        contractInfos.abis["PowerTONUpgrade"].address
         )).wait()
+
+    // powerTon
+
+    const powerTon = new ethers.Contract(
+        oldContractInfo.PowerTON,
+        contractInfos.abis["PowerTONUpgrade"].abi,
+        powerTONAdmin
+    )
+    
+    await (await powerTon.connect(powerTONAdmin).setSeigManager(
+        contractInfos.abis["SeigManagerProxy"].address
+        )).wait()
+
+    // const powerTon = new ethers.Contract(
+    //     oldContractInfo.PowerTON,
+    //     contractInfos.abis["PowerTONHammerDAO"].abi,
+    //     powerTONAdmin
+    // )
+
+    // await (await powerTon.connect(powerTONAdmin).setInfo(
+    //     oldContractInfo.WTON,
+    //     autoCoinageSnapshot,
+    //     contractInfos.abis["SeigManagerProxy"].address,
+    //     lockTOSDividendPool
+    //     )).wait()
 
     seigManagerAddress = await powerTon.seigManager()
     console.log('seigManagerAddress', seigManagerAddress)

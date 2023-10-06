@@ -464,8 +464,8 @@ async function deposit() {
 
 
 async function main() {
-    // await enterLayer2();
-    await deposit();
+    await enterLayer2();
+    // await deposit();
 }
   
 main()
