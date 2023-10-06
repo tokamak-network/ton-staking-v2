@@ -168,13 +168,8 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     if (v == 0) {
       return 0;
     }
-
     v = rmul2(v, _factor);
-
-    for (uint256 i = refactoredCount; i < refactorCount; i++) {
-      v = v * REFACTOR_DIVIDER;
-    }
-
+    v = v * REFACTOR_DIVIDER ** (refactorCount - refactoredCount);
     return v;
   }
 
