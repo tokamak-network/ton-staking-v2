@@ -267,9 +267,9 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     _tot.mint(layer, amount);
   }
 
-  function adjustCoinageBalance(address layer, address account, uint256 amount) external onlyOwner {
-    _coinages[layer].mint(account, amount);
-  }
+  // function adjustCoinageBalance(address layer, address account, uint256 amount) external onlyOwner {
+  //   _coinages[layer].mint(account, amount);
+  // }
 
   //////////////////////////////
   // onlyRegistry

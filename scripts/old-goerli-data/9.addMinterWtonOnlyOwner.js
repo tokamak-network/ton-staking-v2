@@ -7,6 +7,7 @@ const pauseBlock = 9768417
 const startBlock = 8437208
 const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
+const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 
 // goerli network
 const oldContractInfo = {
@@ -25,56 +26,34 @@ const oldContractInfo = {
     DAOCommitteeProxy: "0x3C5ffEe61A384B384ed38c0983429dcDb49843F6"
 }
 
-async function createCandidates(deployer) {
+//====== WTON  addMinter to seigManagerV2 ==================
+
+async function addMinter() {
+    const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
+
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
-    let layer2s = JSON.parse(await fs.readFileSync(dataFolder + "/layer2_name_map.json"));
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         daoAdminAddress,
     ]);
     const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
 
-    let createdLayers = []
-    // dao
-    const daoCommittee = new ethers.Contract(
-        oldContractInfo.DAOCommitteeProxy,
-        contractInfos.abis["DAOCommitteeExtend"].abi,
+    // WTON
+    const wton = new ethers.Contract(
+        oldContractInfo.WTON,
+        WTONABI,
         daoCommitteeAdmin
     )
-    console.log('daoCommittee', daoCommittee.address)
 
-    for (let layer2 of layer2s) {
-        console.log('layer2', layer2)
-        const receipt = await (await daoCommittee.connect(daoCommitteeAdmin)["createCandidate(string,address)"](layer2.name, layer2.operator)).wait()
-        const topic = daoCommittee.interface.getEventTopic('CandidateContractCreated');
-        const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-        const deployedEvent = daoCommittee.interface.parseLog(log);
+    await (await wton.connect(daoCommitteeAdmin).addMinter(
+        contractInfos.abis["SeigManagerProxy"].address
+        )).wait()
 
-        console.log('deployedEvent.args', deployedEvent.args)
-
-        layer2.newLayer = deployedEvent.args.candidateContract.toLowerCase()
-
-         // layer2Registry
-        const layer2Registry = new ethers.Contract(
-            contractInfos.abis["Layer2RegistryProxy"].address,
-            contractInfos.abis["Layer2Registry"].abi,
-            daoCommitteeAdmin
-        )
-
-        let isRegistered = await layer2Registry.layer2s(layer2.newLayer)
-        console.log('isRegistered', isRegistered)
-
-        createdLayers.push(layer2)
-    }
-    await fs.writeFileSync(dataFolder + "/layer2_name_map_created.json", JSON.stringify(createdLayers));
 }
 
 
 async function main() {
-    const [ deployer ] = await ethers.getSigners()
-    console.log(deployer.address)
-
-    await createCandidates(deployer)
+      await addMinter()
 }
 
 main()

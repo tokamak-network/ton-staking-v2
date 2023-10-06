@@ -120,6 +120,7 @@ async function changeDaoSetting() {
     console.log('seigManagerAddress', seigManagerAddress)
     console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
 
+
 }
 
 
