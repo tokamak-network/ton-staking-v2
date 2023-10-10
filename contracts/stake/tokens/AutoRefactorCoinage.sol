@@ -74,7 +74,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   }
 
   function burnFrom(address account, uint256 amount) public onlyMinter {
-      _burnFrom(account, amount);
+      _burn(account, amount);
   }
 
   // -------- external
@@ -83,7 +83,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
       _burn(msg.sender, amount);
   }
 
-  function decimals() external view virtual returns (uint8) {
+  function decimals() external pure returns (uint8) {
       return 27;
   }
 
@@ -161,10 +161,6 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     emit Transfer(account, address(0), _toRAYFactored(rbAmount));
   }
 
-  function _burnFrom(address account, uint256 amount) internal {
-    _burn(account, amount);
-  }
-
   /**
    * @param v the value to be factored
    */
@@ -172,13 +168,8 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     if (v == 0) {
       return 0;
     }
-
     v = rmul2(v, _factor);
-
-    for (uint256 i = refactoredCount; i < refactorCount; i++) {
-      v = v * REFACTOR_DIVIDER;
-    }
-
+    v = v * REFACTOR_DIVIDER ** (refactorCount - refactoredCount);
     return v;
   }
 
