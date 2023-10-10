@@ -130,7 +130,9 @@ async function level19() {
 
     if(layerlevel19.length >= lengthstandard) {
         console.log("1")
-        await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],level19depositors,level19amounts);
+        await (
+            await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],level19depositors,level19amounts)
+        ).wait();
         console.log("2")
         await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors2,amounts2);
         console.log("3")
