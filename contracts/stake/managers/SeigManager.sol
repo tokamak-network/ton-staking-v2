@@ -553,13 +553,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   function onSnapshot() external returns (uint256 snapshotId) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    for (uint256 i = 0 ; i < num; i++){
-        address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-        IRefactorCoinageSnapshot(address(_coinages[layer2])).snapshot();
-    }
-    snapshotId = IRefactorCoinageSnapshot(address(_tot)).snapshot();
+    snapshotId = lastSnapshotId;
     emit OnSnapshot(snapshotId);
+    lastSnapshotId++;
   }
 
   function updateSeigniorageLayer(address layer2) external returns (bool){
@@ -815,5 +811,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   //=====
+
+  function progressSnapshotId() public view returns (uint256) {
+      return lastSnapshotId;
+  }
 
 }

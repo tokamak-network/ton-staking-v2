@@ -121,7 +121,7 @@ describe('New Simple Staking Test', () => {
         it('deposit will be reverted ', async () => {
             let layer2Address = deployed.level19Address
             let tonAmount = ethers.utils.parseEther("100")
-            await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+            await (await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount)).wait()
 
             const data = marshalString(
                 [deployed.depositManagerV1.address, layer2Address]
@@ -142,7 +142,7 @@ describe('New Simple Staking Test', () => {
         it('deposit(address,uint256) will be reverted ', async () => {
             let layer2Address = deployed.level19Address
             let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
-            await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
+            await (await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount)).wait()
 
             const beforeBalance = await deployed.WTON.balanceOf(addr1.address);
             expect(beforeBalance).to.be.gte(wtonAmount)
@@ -222,14 +222,14 @@ describe('New Simple Staking Test', () => {
                   .map(unmarshalString)
                   .map(str => padLeft(str, 64))
                   .join(''),
-              );
+            );
 
-            await deployed.TON.connect(addr1).approveAndCall(
+            await (await deployed.TON.connect(addr1).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
                 data,
                 {from: addr1.address}
-            );
+            )).wait()
 
             const afterBalance = await deployed.TON.balanceOf(addr1.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
@@ -257,14 +257,14 @@ describe('New Simple Staking Test', () => {
                   .map(unmarshalString)
                   .map(str => padLeft(str, 64))
                   .join(''),
-              );
+            );
 
-            await deployed.TON.connect(addr1).approveAndCall(
+            await (await deployed.TON.connect(addr1).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
                 data,
                 {from: addr1.address}
-            );
+            )).wait()
 
             const afterBalance = await deployed.TON.balanceOf(addr1.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
@@ -289,10 +289,10 @@ describe('New Simple Staking Test', () => {
 
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
-            await deployed.depositManagerV2.connect(addr1)["deposit(address,uint256)"](
+            await (await deployed.depositManagerV2.connect(addr1)["deposit(address,uint256)"](
                 layer2Info_level19.layer2,
                 wtonAmount
-            );
+            )).wait()
 
             const afterBalance = await deployed.WTON.balanceOf(addr1.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
@@ -317,11 +317,11 @@ describe('New Simple Staking Test', () => {
 
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
 
-            await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
                 layer2Info_tokamak.layer2,
                 addr1.address,
                 wtonAmount
-            );
+            )).wait()
 
             const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
             expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
@@ -349,11 +349,11 @@ describe('New Simple Staking Test', () => {
             let stakedA1 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
             let stakedA2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr2.address)
 
-            await deployed.depositManagerV2.connect(deployer)["deposit(address,address[],uint256[])"](
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address[],uint256[])"](
                 layer2Info_tokamak.layer2,
                 [addr1.address, addr2.address],
                 [wtonAmount1, wtonAmount2]
-            );
+            )).wait()
 
             const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
             expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
@@ -397,7 +397,7 @@ describe('New Simple Staking Test', () => {
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
             let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
-            await layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()
+            await (await layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()).wait()
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
@@ -418,10 +418,10 @@ describe('New Simple Staking Test', () => {
             let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
             let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
 
-            await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
+            await (await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
                 layer2Info_level19.layer2,
                 wtonAmount
-            );
+            )).wait()
 
             const afterBalance = await deployed.WTON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance)
@@ -476,10 +476,10 @@ describe('New Simple Staking Test', () => {
 
             await mine(globalWithdrawalDelay, { interval: 12 });
 
-            await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
+            await (await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
                 layer2,
                 true
-            )
+            )).wait()
 
             const afterBalance = await deployed.TON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance.add(pendingUnstakedA.div(BigNumber.from("1"+"0".repeat(9)))))
@@ -525,11 +525,11 @@ describe('New Simple Staking Test', () => {
 
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, operator)
 
-            await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
                 layer2,
                 operator,
                 wtonAmount
-            );
+            )).wait()
 
             const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
             expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
@@ -574,14 +574,14 @@ describe('New Simple Staking Test', () => {
                   .map(unmarshalString)
                   .map(str => padLeft(str, 64))
                   .join(''),
-              );
+            );
 
-            await deployed.TON.connect(account).approveAndCall(
+            await (await deployed.TON.connect(account).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
                 data,
                 {from: account.address}
-            );
+            )).wait()
 
             const afterBalance = await deployed.TON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
@@ -620,10 +620,10 @@ describe('New Simple Staking Test', () => {
 
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
 
-            await deployed.depositManagerV2.connect(account)["deposit(address,uint256)"](
+            await (await deployed.depositManagerV2.connect(account)["deposit(address,uint256)"](
                 layer2,
                 wtonAmount
-            );
+            )).wait()
 
             const afterBalance = await deployed.WTON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
@@ -667,10 +667,10 @@ describe('New Simple Staking Test', () => {
             let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
             let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
 
-            await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
+            await (await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
                 layer2Info_level19.layer2,
                 wtonAmount
-            );
+            )).wait();
 
             const afterBalance = await deployed.WTON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance)

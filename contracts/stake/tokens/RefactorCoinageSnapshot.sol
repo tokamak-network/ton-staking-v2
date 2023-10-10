@@ -9,6 +9,9 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlCoinage } from "../../common/AuthControlCoinage.sol";
 import { RefactorCoinageSnapshotStorage } from "./RefactorCoinageSnapshotStorage.sol";
 
+interface IIISeigManager {
+  function progressSnapshotId() external view returns (uint256);
+}
 
 /**
  * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
@@ -30,12 +33,13 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     event Transfer(address indexed from, address indexed to, uint256 value);
     event ChangedBalance(address indexed account, Balance oldBalance, Balance newBalance, Balance oldTotalBalance, Balance newTotalBalance);
     event ChangedFactor(Factor previous, Factor next);
-    event Snapshotted(uint256 id);
+    // event Snapshotted(uint256 id);
 
     function initialize (
       string memory name_,
       string memory symbol_,
-      uint256 factor_
+      uint256 factor_,
+      address seigManager_
     ) external {
 
       require(factorSnapshots[0].factor == 0, "already initialized");
@@ -43,7 +47,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       name = name_;
       symbol = symbol_;
       factorSnapshots[0] = Factor(factor_, 0);
-
+      seigManager = seigManager_;
     }
 
 
@@ -68,6 +72,10 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       return true;
     }
 
+    function setSeigManager(address _seigManager) external onlyOwner {
+      seigManager = _seigManager;
+    }
+
     /**
      *  onlyMinter
      **/
@@ -85,12 +93,6 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
-    }
-
-    function snapshot() external onlyMinter returns (uint256 id) {
-      id = lastSnapshotId;
-      emit Snapshotted(id);
-      lastSnapshotId++;
     }
 
     function decimals() external view virtual returns (uint8) {
@@ -245,7 +247,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     }
 
     function progressSnapshotId() public view returns (uint256) {
-        return lastSnapshotId;
+        return IIISeigManager(seigManager).progressSnapshotId();
     }
 
     function applyFactor(Balance memory _balance) public view returns (uint256 amount) {

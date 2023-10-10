@@ -10,7 +10,11 @@ import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
 import { Layer2RegistryProxy } from "../../typechain-types/contracts/stake/Layer2RegistryProxy"
 import { CoinageFactory } from "../../typechain-types/contracts/stake/factory/CoinageFactory.sol"
-import { RefactorCoinageSnapshot } from "../../typechain-types/contracts/stake/tokens/RefactorCoinageSnapshot"
+import { AutoRefactorCoinageFactory } from "../../typechain-types/contracts/stake/factory/AutoRefactorCoinageFactory.sol"
+
+import { RefactorCoinageSnapshot } from "../../typechain-types/contracts/stake/tokens/RefactorCoinageSnapshot.sol"
+import { AutoRefactorCoinage } from "../../typechain-types/contracts/stake/tokens/AutoRefactorCoinage"
+
 import { Candidate } from "../../typechain-types/contracts/dao/Candidate.sol"
 import { CandidateProxy } from "../../typechain-types/contracts/dao/CandidateProxy"
 import { DAOCommitteeExtend } from "../../typechain-types/contracts/dao/DAOCommitteeExtend.sol"

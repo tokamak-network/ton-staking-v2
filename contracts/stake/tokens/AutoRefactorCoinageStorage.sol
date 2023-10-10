@@ -14,6 +14,8 @@ contract AutoRefactorCoinageStorage   {
     uint256 public REFACTOR_BOUNDARY = 10 ** 28;
     uint256 public REFACTOR_DIVIDER = 2;
 
+    address public seigManager;
+
     uint256 public refactorCount;
 
     mapping (address => Balance) public balances;
