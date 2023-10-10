@@ -7,7 +7,7 @@ const pauseBlock = 9768417
 const startBlock = 8437208
 const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
-
+const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 // goerli network
 const oldContractInfo = {
     TON: "0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00",
@@ -38,7 +38,7 @@ async function createCandidates(deployer) {
     // dao
     const daoCommittee = new ethers.Contract(
         oldContractInfo.DAOCommitteeProxy,
-        contractInfos.abis["DAOCommitteeExtend"].abi,
+        DAOCommitteeExtendABI,
         daoCommitteeAdmin
     )
     console.log('daoCommittee', daoCommittee.address)

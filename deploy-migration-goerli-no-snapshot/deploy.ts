@@ -49,6 +49,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     const deploySigner = await hre.ethers.getSigner(deployer);
 
+
     //==== PowerTONUpgrade =================================
 
     const PowerTONUpgradeDeployment = await deploy("PowerTONUpgrade", {
@@ -201,8 +202,23 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
           )).wait()
     }
 
-    //==== RefactorCoinageSnapshot =================================
-    const coinageDeployment = await deploy("RefactorCoinageSnapshot", {
+    // //==== RefactorCoinageSnapshot =================================
+    // const coinageDeployment = await deploy("RefactorCoinageSnapshot", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
+
+    // //==== CoinageFactory =================================
+
+    // const CoinageFactoryDeployment = await deploy("CoinageFactory", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
+
+    //==== AutoRefactorCoinage =================================
+    const coinageDeployment = await deploy("AutoRefactorCoinage", {
         from: deployer,
         args: [],
         log: true
@@ -210,7 +226,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     //==== CoinageFactory =================================
 
-    const CoinageFactoryDeployment = await deploy("CoinageFactory", {
+    const CoinageFactoryDeployment = await deploy("AutoRefactorCoinageFactory", {
         from: deployer,
         args: [],
         log: true

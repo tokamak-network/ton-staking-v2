@@ -93,7 +93,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       lastSnapshotId++;
     }
 
-    function decimals() external view virtual returns (uint8) {
+    function decimals() external pure returns (uint8) {
         return 27;
     }
 
@@ -280,7 +280,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       // }
     }
 
-    function _valueAtTotalSupplyLast() internal view
+    function _valueAtTotalSupplyLast() public view
       returns (Balance memory)
     {
       uint256 index = 0;
@@ -288,7 +288,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       return totalSupplySnapshots[index];
     }
 
-    function _valueAtFactorLast() internal view
+    function _valueAtFactorLast() public view
       returns (Factor memory)
     {
       uint256 index = 0;
@@ -296,7 +296,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       return factorSnapshots[index];
     }
 
-    function _valueAtAccountBalanceLast(address account) internal view
+    function _valueAtAccountBalanceLast(address account) public view
       returns (Balance memory)
     {
       uint256 index = 0;
@@ -304,7 +304,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       return accountBalanceSnapshots[account][index];
     }
 
-    function _valueAtTotalSupply(uint256 snapshotId) internal view
+    function _valueAtTotalSupply(uint256 snapshotId) public view
       returns (bool snapshotted, Balance memory balance)
     {
       if (snapshotId == 0) {
@@ -328,7 +328,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     }
 
-    function _valueAtFactor(uint256 snapshotId) internal view
+    function _valueAtFactor(uint256 snapshotId) public view
       returns (bool snapshotted, Factor memory factor_)
     {
       if (snapshotId == 0) {
@@ -350,7 +350,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     }
 
-    function _valueAtAccount(uint256 snapshotId, address account) internal view
+    function _valueAtAccount(uint256 snapshotId, address account) public view
         returns (bool snapshotted, Balance memory balance)
     {
       if (snapshotId == 0) {

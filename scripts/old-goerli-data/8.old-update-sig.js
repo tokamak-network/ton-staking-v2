@@ -4,6 +4,8 @@ const fs = require('fs');
 const { mine } = require("@nomicfoundation/hardhat-network-helpers")
 
 const { readContracts, deployedContracts } = require("../common_func");
+const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
+
 const networkName = "goerli"
 const pauseBlock = 9768417
 const startBlock = 8437208
@@ -35,7 +37,7 @@ async function oldContractRecovery(daoCommitteeAdmin) {
 
     const daoCommittee = new ethers.Contract(
         oldContractInfo.DAOCommitteeProxy,
-        contractInfos.abis["DAOCommitteeExtend"].abi,
+        DAOCommitteeExtendABI,
         daoCommitteeAdmin
     )
 

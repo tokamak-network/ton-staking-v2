@@ -149,7 +149,7 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      // accounts: [`${process.env.DEPLOYER}`],
+      accounts: [`${process.env.DEPLOYER}`],
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
@@ -161,7 +161,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.DEPLOYER}`],
       chainId: 5,
-      deploy: ['deploy-migration-goerli']
+      deploy: ['deploy-migration-goerli-no-snapshot']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
