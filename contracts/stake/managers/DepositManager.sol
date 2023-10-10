@@ -233,15 +233,15 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     withdrawalDelay[l2chain] = withdrawalDelay_;
   }
 
-  function setAcceptDelayPeriod(uint256 start, uint256 end, uint256 minimumDelayBlocks) external onlyOwner {
-    acceptDelayPeriod = AcceptDelayPeriod(start, end, minimumDelayBlocks);
+  function setAcceptDelayPeriod(uint256 start, uint256 end, uint256 minDelay) external onlyOwner {
+    acceptDelayPeriod = AcceptDelayPeriod(start, end, minDelay);
   }
 
   ////////////////////
   // Withdrawal functions
   ////////////////////
 
-  function requestWithdrawalWithDelay(address layer2, uint256 amount, uint256 delayBlocks) external returns (bool) {
+  function requestWithdrawalWithDeplay(address layer2, uint256 amount, uint256 delayBlocks) external returns (bool) {
     AcceptDelayPeriod memory period = acceptDelayPeriod;
 
     require(period.start != 0 && period.start < period.end &&
