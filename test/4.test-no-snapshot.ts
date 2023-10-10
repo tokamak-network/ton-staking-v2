@@ -448,115 +448,115 @@ describe('New Simple Staking Test', () => {
 
         })
 
-        // it('processRequest to level19 will be fail when delay time didn\'t pass.', async () => {
-        //     let layer2 = layer2Info_level19.layer2
-        //     let account = addr1
+        it('processRequest to level19 will be fail when delay time didn\'t pass.', async () => {
+            let layer2 = layer2Info_level19.layer2
+            let account = addr1
 
-        //     await expect(
-        //             deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
-        //             layer2,
-        //             true
-        //         )
-        //     ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
+            await expect(
+                    deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
+                    layer2,
+                    true
+                )
+            ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
 
-        // });
+        });
 
-        // it('processRequest to level19.', async () => {
-        //     let layer2 = layer2Info_level19.layer2
-        //     let account = addr1
-        //     const beforeBalance = await deployed.TON.balanceOf(account.address)
-        //     let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-        //     let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
-        //     let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+        it('processRequest to level19.', async () => {
+            let layer2 = layer2Info_level19.layer2
+            let account = addr1
+            const beforeBalance = await deployed.TON.balanceOf(account.address)
+            let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+            let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
+            let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
 
-        //     let accUnstakedA = await deployed.depositManagerV2.accUnstaked(layer2, account.address)
-        //     let accUnstakedLayer2A = await deployed.depositManagerV2.accUnstakedLayer2(layer2)
-        //     let accUnstakedAccountA = await deployed.depositManagerV2.accUnstakedAccount(account.address)
+            let accUnstakedA = await deployed.depositManagerV2.accUnstaked(layer2, account.address)
+            let accUnstakedLayer2A = await deployed.depositManagerV2.accUnstakedLayer2(layer2)
+            let accUnstakedAccountA = await deployed.depositManagerV2.accUnstakedAccount(account.address)
 
 
-        //     let globalWithdrawalDelay = await deployed.depositManagerV2.globalWithdrawalDelay()
+            let globalWithdrawalDelay = await deployed.depositManagerV2.globalWithdrawalDelay()
 
-        //     await mine(globalWithdrawalDelay, { interval: 12 });
+            await mine(globalWithdrawalDelay, { interval: 12 });
 
-        //     await (await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
-        //         layer2,
-        //         true
-        //     )).wait()
+            await (await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
+                layer2,
+                true
+            )).wait()
 
-        //     const afterBalance = await deployed.TON.balanceOf(account.address);
-        //     expect(afterBalance).to.be.eq(beforeBalance.add(pendingUnstakedA.div(BigNumber.from("1"+"0".repeat(9)))))
+            const afterBalance = await deployed.TON.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.add(pendingUnstakedA.div(BigNumber.from("1"+"0".repeat(9)))))
 
-        //     expect(
-        //         await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-        //     ).to.be.eq(ethers.constants.Zero)
+            expect(
+                await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+            ).to.be.eq(ethers.constants.Zero)
 
-        //     expect(
-        //         await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
-        //     ).to.be.eq(pendingUnstakedLayer2A.sub(pendingUnstakedA))
+            expect(
+                await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
+            ).to.be.eq(pendingUnstakedLayer2A.sub(pendingUnstakedA))
 
-        //     expect(
-        //         await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-        //     ).to.be.eq(pendingUnstakedAccountA.sub(pendingUnstakedA))
+            expect(
+                await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+            ).to.be.eq(pendingUnstakedAccountA.sub(pendingUnstakedA))
 
-        //     expect(
-        //         await deployed.depositManagerV2.accUnstaked(layer2, account.address)
-        //     ).to.be.eq(accUnstakedA.add(pendingUnstakedA))
+            expect(
+                await deployed.depositManagerV2.accUnstaked(layer2, account.address)
+            ).to.be.eq(accUnstakedA.add(pendingUnstakedA))
 
-        //     expect(
-        //         await deployed.depositManagerV2.accUnstakedLayer2(layer2 )
-        //     ).to.be.eq(accUnstakedLayer2A.add(pendingUnstakedA))
+            expect(
+                await deployed.depositManagerV2.accUnstakedLayer2(layer2 )
+            ).to.be.eq(accUnstakedLayer2A.add(pendingUnstakedA))
 
-        //     expect(
-        //         await deployed.depositManagerV2.accUnstakedAccount(account.address)
-        //     ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
+            expect(
+                await deployed.depositManagerV2.accUnstakedAccount(account.address)
+            ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
 
-        // });
+        });
 
     });
 
-    // describe('updateSeigniorage', () => {
+    describe('updateSeigniorage', () => {
 
-    //     it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
-    //         let layer2 = layer2Info_tokamak.layer2
-    //         let operator = layer2Info_tokamak.operatorAdmin
-    //         let wtonAmount = ethers.utils.parseEther("1000"+"0".repeat(9))
-    //         const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(beforeSenderBalance).to.be.gte(wtonAmount)
+        it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
+            let layer2 = layer2Info_tokamak.layer2
+            let operator = layer2Info_tokamak.operatorAdmin
+            let wtonAmount = ethers.utils.parseEther("1000"+"0".repeat(9))
+            const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(beforeSenderBalance).to.be.gte(wtonAmount)
 
-    //         await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
+            await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, operator)
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, operator)
 
-    //         await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
-    //             layer2,
-    //             operator,
-    //             wtonAmount
-    //         )).wait()
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+                layer2,
+                operator,
+                wtonAmount
+            )).wait()
 
-    //         const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
+            const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, operator)
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, operator)
 
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(wtonAmount), 1)
-    //         )
-    //     })
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 1)
+            )
+        })
 
-    //     // 업데이트 시뇨리지를 모든 레이어를 한번에 , 한 트랜잭션에 실행 할 수 없다.
-    //     // tot 업데이트를 매번 실행하기 때문에 이미 tot 업데이트를 했으므로.
-    //     it('updateSeigniorageAll ', async () => {
+        // 업데이트 시뇨리지를 모든 레이어를 한번에 , 한 트랜잭션에 실행 할 수 없다.
+        // tot 업데이트를 매번 실행하기 때문에 이미 tot 업데이트를 했으므로.
+        it('updateSeigniorageAll ', async () => {
 
-    //         let num = await deployed.layer2RegistryV2.numLayer2s();
-    //         let i = 0
-    //         for(i = 0; i < num.toNumber() ; i++){
-    //             await mine(3, { interval: 12 });
-    //             let layer2 = await deployed.layer2RegistryV2.layer2ByIndex(i);
-    //             await (await deployed.seigManagerV2.connect(deployer)["updateSeigniorageLayer(address)"](layer2)).wait()
-    //         }
+            let num = await deployed.layer2RegistryV2.numLayer2s();
+            let i = 0
+            for(i = 0; i < num.toNumber() ; i++){
+                await mine(3, { interval: 12 });
+                let layer2 = await deployed.layer2RegistryV2.layer2ByIndex(i);
+                await (await deployed.seigManagerV2.connect(deployer)["updateSeigniorageLayer(address)"](layer2)).wait()
+            }
 
-    //     });
-    // })
+        });
+    })
 
 
     // describe('snapshot functions', () => {
