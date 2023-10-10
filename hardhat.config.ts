@@ -161,7 +161,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.DEPLOYER}`],
       chainId: 5,
-      deploy: ['deploy-migration-goerli-no-snapshot']
+      deploy: ['deploy-migration-goerli']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
