@@ -171,10 +171,9 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       v = rmul2(v, _factor.factor);
 
-      for (uint256 i = refactoredCount; i < _factor.refactorCount; i++) {
-        v = v * REFACTOR_DIVIDER;
+      if (_factor.refactorCount > refactoredCount) {
+        v = v * REFACTOR_DIVIDER ** (_factor.refactorCount - refactoredCount);
       }
-
       return v;
     }
 
