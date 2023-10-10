@@ -104,7 +104,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   }
 
   function balanceOf(address account) public view returns (uint256) {
-    Balance memory b = balances[account];
+    Balance storage b = balances[account];
 
     return _applyFactor(b.balance, b.refactoredCount) + b.remain;
   }
