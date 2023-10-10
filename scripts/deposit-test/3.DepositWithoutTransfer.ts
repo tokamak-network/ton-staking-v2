@@ -45,66 +45,66 @@ async function level19() {
     const depositors4 = [];
     const amounts4 = [];
     
-    const lengthstandard = 40
+    const lengthstandard = 100
 
-    // if(layerlevel19.length >= lengthstandard) {
-    //     for (let i = 0; i < lengthstandard; i++) {
-    //         if(layerlevel19[i].balance == 0){
-    //             continue;
-    //         } 
-    //         level19depositors.push(layerlevel19[i].account);
-    //         level19amounts.push(layerlevel19[i].balance);
-    //     }
+    if(layerlevel19.length >= lengthstandard) {
+        for (let i = 0; i < lengthstandard; i++) {
+            if(layerlevel19[i].balance == 0){
+                continue;
+            } 
+            level19depositors.push(layerlevel19[i].account);
+            level19amounts.push(layerlevel19[i].balance);
+        }
 
-    //     for (let j = lengthstandard; j < layerlevel19.length; j++) {
-    //         if(layerlevel19[j].balance == 0){
-    //             continue;
-    //         } 
-    //         depositors2.push(layerlevel19[j].account);
-    //         amounts2.push(layerlevel19[j].balance);
-    //     }
-    // } else {
-    //     for (let i = 0; i < layerlevel19.length; i++) {
-    //         if(layerlevel19[i].balance == 0){
-    //             continue;
-    //         } 
-    //         level19depositors.push(layerlevel19[i].account);
-    //         level19amounts.push(layerlevel19[i].balance);
-    //     }
+        for (let j = lengthstandard; j < layerlevel19.length; j++) {
+            if(layerlevel19[j].balance == 0){
+                continue;
+            } 
+            depositors2.push(layerlevel19[j].account);
+            amounts2.push(layerlevel19[j].balance);
+        }
+    } else {
+        for (let i = 0; i < layerlevel19.length; i++) {
+            if(layerlevel19[i].balance == 0){
+                continue;
+            } 
+            level19depositors.push(layerlevel19[i].account);
+            level19amounts.push(layerlevel19[i].balance);
+        }
 
+    }
+
+    // for (let i = 0; i < lengthstandard; i++) {
+    //     if(layerlevel19[i].balance == 0){
+    //         continue;
+    //     } 
+    //     level19depositors.push(layerlevel19[i].account);
+    //     level19amounts.push(layerlevel19[i].balance);
     // }
 
-    for (let i = 0; i < lengthstandard; i++) {
-        if(layerlevel19[i].balance == 0){
-            continue;
-        } 
-        level19depositors.push(layerlevel19[i].account);
-        level19amounts.push(layerlevel19[i].balance);
-    }
+    // for (let j = lengthstandard; j < (lengthstandard*2); j++) {
+    //     if(layerlevel19[j].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors2.push(layerlevel19[j].account);
+    //     amounts2.push(layerlevel19[j].balance);
+    // }
 
-    for (let j = lengthstandard; j < (lengthstandard*2); j++) {
-        if(layerlevel19[j].balance == 0){
-            continue;
-        } 
-        depositors2.push(layerlevel19[j].account);
-        amounts2.push(layerlevel19[j].balance);
-    }
+    // for (let k = (lengthstandard*2); k < (lengthstandard*3); k++) {
+    //     if(layerlevel19[k].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors3.push(layerlevel19[k].account);
+    //     amounts3.push(layerlevel19[k].balance);
+    // }
 
-    for (let k = (lengthstandard*2); k < (lengthstandard*3); k++) {
-        if(layerlevel19[k].balance == 0){
-            continue;
-        } 
-        depositors3.push(layerlevel19[k].account);
-        amounts3.push(layerlevel19[k].balance);
-    }
-
-    for (let l = (lengthstandard*3); l < layerlevel19.length; l++) {
-        if(layerlevel19[l].balance == 0){
-            continue;
-        } 
-        depositors4.push(layerlevel19[l].account);
-        amounts4.push(layerlevel19[l].balance);
-    }
+    // for (let l = (lengthstandard*3); l < layerlevel19.length; l++) {
+    //     if(layerlevel19[l].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors4.push(layerlevel19[l].account);
+    //     amounts4.push(layerlevel19[l].balance);
+    // }
 
     
     // console.log(level19depositors)
@@ -136,10 +136,10 @@ async function level19() {
         console.log("2")
         await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors2,amounts2);
         console.log("3")
-        await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors3,amounts3);
-        console.log("4")
-        await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors4,amounts4);
-        console.log("5")
+        // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors3,amounts3);
+        // console.log("4")
+        // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors4,amounts4);
+        // console.log("5")
     } else {
         await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],level19depositors,level19amounts);
     }
@@ -768,15 +768,15 @@ async function staked() {
 
 async function main() {
     await level19();
-    await tokamak();
-    await hammerDAO();
-    await DXMCorp();
-    await danalFintech();
-    await DeSpread();
-    await decipher();
-    await Talken();
-    await DSRV();
-    await staked();
+    // await tokamak();
+    // await hammerDAO();
+    // await DXMCorp();
+    // await danalFintech();
+    // await DeSpread();
+    // await decipher();
+    // await Talken();
+    // await DSRV();
+    // await staked();
 }
   
 main()
