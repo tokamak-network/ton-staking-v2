@@ -117,6 +117,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     function _mint(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: mint to the zero address");
 
+      Factor memory f = _valueAtFactorLast();
       Balance memory _totalBalance = _valueAtTotalSupplyLast();
       Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
@@ -126,8 +127,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       uint256 rbAmountAccount = _toRAYBased(currentAccountBalance + amount);
       uint256 rbAmountTotal = _toRAYBased(currentTotalBalance + amount);
 
-      Balance memory newAccountBalance = Balance(rbAmountAccount, _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(rbAmountTotal, _totalBalance.refactoredCount);
+      Balance memory newAccountBalance = Balance(rbAmountAccount, f.refactorCount);
+      Balance memory newTotalBalance = Balance(rbAmountTotal, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 

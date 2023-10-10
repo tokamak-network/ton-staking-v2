@@ -556,6 +556,44 @@ describe('New Simple Staking Test', () => {
             }
 
         });
+
+        it('deposit to level19', async () => {
+            let layer2 = layer2Info_level19.layer2
+            let account = addr1
+            let tonAmount = ethers.utils.parseEther("100")
+            await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
+
+            const beforeBalance = await deployed.TON.balanceOf(account.address);
+            expect(beforeBalance).to.be.gte(tonAmount)
+
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+
+            const data = marshalString(
+                [deployed.depositManagerV2.address, layer2]
+                  .map(unmarshalString)
+                  .map(str => padLeft(str, 64))
+                  .join(''),
+            );
+
+            await (await deployed.TON.connect(account).approveAndCall(
+                deployed.WTON.address,
+                tonAmount,
+                data,
+                {from: account.address}
+            )).wait()
+
+            const afterBalance = await deployed.TON.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+
+            let wtonAmount = tonAmount.mul(ethers.BigNumber.from("1"+"0".repeat(9)))
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 1)
+            )
+
+        })
+
     })
 
 
