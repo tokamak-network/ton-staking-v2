@@ -54,7 +54,8 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     uint256 count = 0;
     uint256 f = factor_;
     for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-      count = count++;
+      count = count + 1;
+      // count = count++;
     }
 
     refactorCount = count;

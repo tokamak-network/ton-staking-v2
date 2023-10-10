@@ -163,6 +163,8 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   const coinageFactoryV2 = (await (await ethers.getContractFactory("CoinageFactory")).connect(deployer).deploy()) as CoinageFactory;
   await (await coinageFactoryV2.connect(deployer).setAutoCoinageLogic(refactorCoinageSnapshot.address)).wait()
 
+  console.log('coinageFactoryV2', coinageFactoryV2.address)
+  console.log('refactorCoinageSnapshot', refactorCoinageSnapshot.address)
 
   //====== set v2 ==================
 
