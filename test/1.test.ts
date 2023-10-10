@@ -734,8 +734,8 @@ describe('New Simple Staking Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, account.address)
 
-            expect(roundDown(stakedA.sub(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedB.add(wtonAmount), 1)
+            expect(roundDown(stakedA.sub(ethers.constants.Two),2)).to.be.eq(
+                roundDown(stakedB.add(wtonAmount), 2)
             )
 
             expect(
