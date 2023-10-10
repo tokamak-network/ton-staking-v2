@@ -53,13 +53,15 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
 
     uint256 count = 0;
     uint256 f = factor_;
+
+
     for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-      count = count + 1;
-      // count = count++;
+      count++;
     }
 
     refactorCount = count;
     _factor = f;
+
     emit FactorSet(previous, f, count);
     return true;
   }
@@ -159,6 +161,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     uint256 newBalance = currentBalance - amount;
 
     uint256 rbAmount = _toRAYBased(newBalance);
+
     b.balance = rbAmount;
     b.refactoredCount = refactorCount;
 

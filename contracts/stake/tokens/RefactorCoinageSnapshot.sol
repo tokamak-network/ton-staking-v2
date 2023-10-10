@@ -61,13 +61,14 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       uint256 count = 0;
       uint256 f = factor_;
+
       for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-        count = count++;
-        // count = count+1;
+        count++;
       }
 
       Factor memory nextFactor = Factor(f, count);
       _updateFactor(nextFactor);
+
 
       emit ChangedFactor(previous, nextFactor);
       return true;
@@ -137,21 +138,21 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function _burn(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: burn from the zero address");
-
+      Factor memory f = _valueAtFactorLast();
       Balance memory _totalBalance = _valueAtTotalSupplyLast();
       Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
-      uint256 currentAccountBalance = applyFactor(_accountBalance);
       uint256 currentTotalBalance = applyFactor(_totalBalance);
+      uint256 currentAccountBalance = applyFactor(_accountBalance);
 
       require(currentAccountBalance >= amount
         && currentTotalBalance >= amount, "insufficient balance");
 
-      // uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
-      // uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
 
-      Balance memory newAccountBalance = Balance( _toRAYBased(currentAccountBalance - amount), _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(_toRAYBased(currentTotalBalance - amount), _totalBalance.refactoredCount);
+      Balance memory newTotalBalance = Balance(rbAmountTotal, f.refactorCount);
+      Balance memory newAccountBalance = Balance(rbAmountAccount, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
@@ -220,6 +221,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       if (factorIndex < currentId) factorSnapshotIds.push(currentId);
       factorSnapshots[currentId] = _factor;
+
     }
 
     function _update(
