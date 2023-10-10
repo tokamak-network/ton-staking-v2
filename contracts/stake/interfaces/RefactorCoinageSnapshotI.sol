@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 interface RefactorCoinageSnapshotI {
   function factor() external view returns (uint256);
   function setFactor(uint256 factor) external returns (bool);
+  function setSeigManager(address _seigManager) external  ;
   function burn(uint256 amount) external;
   function burnFrom(address account, uint256 amount) external;
   function mint(address account, uint256 amount) external returns (bool);

@@ -9,6 +9,9 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlCoinage } from "../../common/AuthControlCoinage.sol";
 import { RefactorCoinageSnapshotStorage } from "./RefactorCoinageSnapshotStorage.sol";
 
+interface IIISeigManager {
+  function progressSnapshotId() external view returns (uint256);
+}
 
 /**
  * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
@@ -30,12 +33,13 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     event Transfer(address indexed from, address indexed to, uint256 value);
     event ChangedBalance(address indexed account, Balance oldBalance, Balance newBalance, Balance oldTotalBalance, Balance newTotalBalance);
     event ChangedFactor(Factor previous, Factor next);
-    event Snapshotted(uint256 id);
+    // event Snapshotted(uint256 id);
 
     function initialize (
       string memory name_,
       string memory symbol_,
-      uint256 factor_
+      uint256 factor_,
+      address seigManager_
     ) external {
 
       require(factorSnapshots[0].factor == 0, "already initialized");
@@ -43,7 +47,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       name = name_;
       symbol = symbol_;
       factorSnapshots[0] = Factor(factor_, 0);
-
+      seigManager = seigManager_;
     }
 
 
@@ -57,6 +61,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       uint256 count = 0;
       uint256 f = factor_;
+
       for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
         count++;
       }
@@ -64,8 +69,13 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       Factor memory nextFactor = Factor(f, count);
       _updateFactor(nextFactor);
 
+
       emit ChangedFactor(previous, nextFactor);
       return true;
+    }
+
+    function setSeigManager(address _seigManager) external onlyOwner {
+      seigManager = _seigManager;
     }
 
     /**
@@ -87,12 +97,6 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         _burn(msg.sender, amount);
     }
 
-    function snapshot() external onlyMinter returns (uint256 id) {
-      id = lastSnapshotId;
-      emit Snapshotted(id);
-      lastSnapshotId++;
-    }
-
     function decimals() external pure returns (uint8) {
         return 27;
     }
@@ -109,6 +113,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     function _mint(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: mint to the zero address");
 
+      Factor memory f = _valueAtFactorLast();
       Balance memory _totalBalance = _valueAtTotalSupplyLast();
       Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
@@ -118,8 +123,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       uint256 rbAmountAccount = _toRAYBased(currentAccountBalance + amount);
       uint256 rbAmountTotal = _toRAYBased(currentTotalBalance + amount);
 
-      Balance memory newAccountBalance = Balance(rbAmountAccount, _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(rbAmountTotal, _totalBalance.refactoredCount);
+      Balance memory newAccountBalance = Balance(rbAmountAccount, f.refactorCount);
+      Balance memory newTotalBalance = Balance(rbAmountTotal, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
@@ -130,21 +135,21 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function _burn(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: burn from the zero address");
-
+      Factor memory f = _valueAtFactorLast();
       Balance memory _totalBalance = _valueAtTotalSupplyLast();
       Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
-      uint256 currentAccountBalance = applyFactor(_accountBalance);
       uint256 currentTotalBalance = applyFactor(_totalBalance);
+      uint256 currentAccountBalance = applyFactor(_accountBalance);
 
       require(currentAccountBalance >= amount
         && currentTotalBalance >= amount, "insufficient balance");
 
-      // uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
-      // uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
 
-      Balance memory newAccountBalance = Balance( _toRAYBased(currentAccountBalance - amount), _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(_toRAYBased(currentTotalBalance - amount), _totalBalance.refactoredCount);
+      Balance memory newTotalBalance = Balance(rbAmountTotal, f.refactorCount);
+      Balance memory newAccountBalance = Balance(rbAmountAccount, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
@@ -213,6 +218,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       if (factorIndex < currentId) factorSnapshotIds.push(currentId);
       factorSnapshots[currentId] = _factor;
+
     }
 
     function _update(
@@ -241,7 +247,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     }
 
     function progressSnapshotId() public view returns (uint256) {
-        return lastSnapshotId;
+        return IIISeigManager(seigManager).progressSnapshotId();
     }
 
     function applyFactor(Balance memory _balance) public view returns (uint256 amount) {

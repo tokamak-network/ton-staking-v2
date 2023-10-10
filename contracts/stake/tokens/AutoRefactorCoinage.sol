@@ -31,7 +31,8 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   function initialize (
     string memory name_,
     string memory symbol_,
-    uint256 factor_
+    uint256 factor_,
+    address seigManager_
   ) external {
 
     require(_factor == 0, "already initialized");
@@ -39,9 +40,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     name = name_;
     symbol = symbol_;
     _factor = factor_;
-    //_factorIncrement = factorIncrement;
-    //_lastBlock = block.number;
-    //_transfersEnabled = transfersEnabled;
+    seigManager = seigManager_;
   }
 
 
@@ -54,14 +53,21 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
 
     uint256 count = 0;
     uint256 f = factor_;
+
+
     for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
       count++;
     }
 
     refactorCount = count;
     _factor = f;
+
     emit FactorSet(previous, f, count);
     return true;
+  }
+
+  function setSeigManager(address _seigManager) external onlyOwner {
+    seigManager = _seigManager;
   }
 
   /**
@@ -151,6 +157,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
     uint256 newBalance = currentBalance - amount;
 
     uint256 rbAmount = _toRAYBased(newBalance);
+
     b.balance = rbAmount;
     b.refactoredCount = refactorCount;
 

@@ -18,6 +18,8 @@ contract RefactorCoinageSnapshotStorage   {
     uint256 public REFACTOR_BOUNDARY = 10 ** 28;
     uint256 public REFACTOR_DIVIDER = 2;
 
+    address public seigManager;
+
     //=== ERC20
     string public name;
     string public symbol;

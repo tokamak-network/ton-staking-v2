@@ -10,7 +10,11 @@ import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
 import { Layer2RegistryProxy } from "../../typechain-types/contracts/stake/Layer2RegistryProxy"
 import { CoinageFactory } from "../../typechain-types/contracts/stake/factory/CoinageFactory.sol"
-import { RefactorCoinageSnapshot } from "../../typechain-types/contracts/stake/tokens/RefactorCoinageSnapshot"
+import { AutoRefactorCoinageFactory } from "../../typechain-types/contracts/stake/factory/AutoRefactorCoinageFactory.sol"
+
+import { RefactorCoinageSnapshot } from "../../typechain-types/contracts/stake/tokens/RefactorCoinageSnapshot.sol"
+import { AutoRefactorCoinage } from "../../typechain-types/contracts/stake/tokens/AutoRefactorCoinage"
+
 import { Candidate } from "../../typechain-types/contracts/dao/Candidate.sol"
 import { CandidateProxy } from "../../typechain-types/contracts/dao/CandidateProxy"
 import { DAOCommitteeExtend } from "../../typechain-types/contracts/dao/DAOCommitteeExtend.sol"
@@ -159,6 +163,8 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   const coinageFactoryV2 = (await (await ethers.getContractFactory("CoinageFactory")).connect(deployer).deploy()) as CoinageFactory;
   await (await coinageFactoryV2.connect(deployer).setAutoCoinageLogic(refactorCoinageSnapshot.address)).wait()
 
+  console.log('coinageFactoryV2', coinageFactoryV2.address)
+  console.log('refactorCoinageSnapshot', refactorCoinageSnapshot.address)
 
   //====== set v2 ==================
 

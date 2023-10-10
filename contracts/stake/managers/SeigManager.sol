@@ -545,13 +545,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   function onSnapshot() external returns (uint256 snapshotId) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    for (uint256 i = 0 ; i < num; i++){
-        address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-        IRefactorCoinageSnapshot(address(_coinages[layer2])).snapshot();
-    }
-    snapshotId = IRefactorCoinageSnapshot(address(_tot)).snapshot();
+    snapshotId = lastSnapshotId;
     emit OnSnapshot(snapshotId);
+    lastSnapshotId++;
   }
 
   function updateSeigniorageLayer(address layer2) external returns (bool){
@@ -706,7 +702,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 maxSeig = _calcNumSeigBlocks() * _seigPerBlock;
 
     // total supply of (W)TON
-    uint256 tos = ((ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton)) * (10 ** 9)) + (_tot.totalSupply());  // consider additional TOT balance as total supply
+    uint256 tos = (
+      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
+    ) * (10 ** 9)) + (_tot.totalSupply());  // consider additional TOT balance as total supply
 
     // maximum seigniorages * staked rate
     uint256 stakedSeig = rdiv(
@@ -805,5 +803,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   //=====
+
+  function progressSnapshotId() public view returns (uint256) {
+      return lastSnapshotId;
+  }
 
 }
