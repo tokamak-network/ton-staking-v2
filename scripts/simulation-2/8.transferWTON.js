@@ -127,18 +127,53 @@ async function burnAndMint(amount) {
     console.log('receiptMint tx:', receiptMint.transactionHash)
 }
 
+
+async function transferWTON(deployer, amount) {
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+        daoAdminAddress,
+    ]);
+    const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
+    const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
+    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
+
+    // let layer2s = JSON.parse(await fs.readFileSync(dataFolder + "/layer2_name_map_created.json"));
+    let oldLayers = JSON.parse(await fs.readFileSync(dataFolder + "/tot-balances.json"));
+
+    const depositManager = new ethers.Contract(
+        contractInfos.abis["DepositManagerProxy"].address,
+        contractInfos.abis["DepositManagerMigration"].abi,
+        deployer
+    )
+
+    let oldLayer = oldLayers[0].layer2
+    console.log(oldLayer);
+
+    await (await depositManager.connect(deployer).oldRequestWithdrawal(oldLayer, amount)).wait()
+    await (await depositManager.connect(deployer).oldProcessRequest(oldLayer)).wait()
+
+}
+
+
+
 async function main() {
-    // const [ deployer ] = await ethers.getSigners()
-    // console.log(deployer.address)
+    const [ deployer ] = await ethers.getSigners()
+    console.log(deployer.address)
 
     // getDepositManager Infos
     let burnAmount = await getDepositManagerInfos()
 
-    //============= only DAO Owner !!!
     if(burnAmount != null && burnAmount.gt(ethers.constants.Zero)) {
-        await burnAndMint(burnAmount)
+        await transferWTON(deployer, burnAmount)
     }
+
+
+    //============= only DAO Owner !!!
+    // if(burnAmount != null && burnAmount.gt(ethers.constants.Zero)) {
+    //     await burnAndMint(burnAmount)
+    // }
     //=============
+
+
 }
 
 main()
