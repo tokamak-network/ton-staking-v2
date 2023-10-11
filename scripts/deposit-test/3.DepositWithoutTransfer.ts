@@ -768,15 +768,15 @@ async function staked() {
 
 async function main() {
     await level19();
-    // await tokamak();
-    // await hammerDAO();
-    // await DXMCorp();
-    // await danalFintech();
-    // await DeSpread();
-    // await decipher();
-    // await Talken();
-    // await DSRV();
-    // await staked();
+    await tokamak();
+    await hammerDAO();
+    await DXMCorp();
+    await danalFintech();
+    await DeSpread();
+    await decipher();
+    await Talken();
+    await DSRV();
+    await staked();
 }
   
 main()
