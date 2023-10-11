@@ -16,20 +16,6 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 
-interface IICandidateFactory {
-    function setLayerInTimestamp(address _candidateContract) external;
-    function deploy(
-        address _sender,
-        bool _isLayer2Candidate,
-        string memory _name,
-        address _committee,
-        address _seigManager,
-        bool flag
-    )
-        external
-        returns (address operatorAddress, address layer2Address);
-}
-
 interface ITarget {
     function setSeigManager(address _seigManager) external;
     function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
@@ -958,7 +944,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         // return 0;
     }
 
-    function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
+    function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
     }
 }
