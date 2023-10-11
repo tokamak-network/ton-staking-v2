@@ -85,12 +85,14 @@ const config: HardhatUserConfig = {
     DaoCommitteeAdminAddress: {
       default: 14,
       mainnet: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
+      local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
       goerli: '',
       hardhat: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
     },
     powerTonAddress: {
       default: 15,
       mainnet: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
+      local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
       goerli: '',
       hardhat: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
     },
@@ -127,6 +129,7 @@ const config: HardhatUserConfig = {
     powerTonAdminAddress: {
       default: 21,
       mainnet: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
+      local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       goerli: '',
       hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
     },
@@ -139,17 +142,17 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      // forking: {
-      //   url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      //   blockNumber: 18231453
-      //   // blockNumber:18229970
-      // },
+      forking: {
+        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        blockNumber: 18231453
+        // blockNumber:18229970
+      },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      timeout: 400000,
+      // timeout: 400000,
       // accounts: [`${process.env.DEPLOYER}`],
       // deploy: ['deploy-migration']
     },

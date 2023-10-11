@@ -101,6 +101,11 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   await hre.network.provider.send("hardhat_impersonateAccount", [
     DaoCommitteeAdminAddress,
   ]);
+  await hre.network.provider.send("hardhat_setBalance", [
+    DaoCommitteeAdminAddress,
+    "0x10000000000000000000000000",
+  ]);
+
   const daoCommitteeAdmin = await hre.ethers.getSigner(DaoCommitteeAdminAddress);
 
   console.log('DaoCommitteeAdminAddress', DaoCommitteeAdminAddress)

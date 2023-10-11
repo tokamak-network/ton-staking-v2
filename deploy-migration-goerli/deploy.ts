@@ -44,7 +44,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
 
-    const { deployer } = await hre.getNamedAccounts();
+    const { deployer, DepositManager } = await hre.getNamedAccounts();
     const { deploy } = hre.deployments;
 
     const deploySigner = await hre.ethers.getSigner(deployer);
@@ -234,7 +234,8 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
             v1Infos.wton,
             layer2RegistryProxy.address,
             seigManagerProxy.address,
-            v1Infos.globalWithdrawalDelay
+            v1Infos.globalWithdrawalDelay,
+            DepositManager
           )).wait()
     }
 
