@@ -774,8 +774,8 @@ async function staked() {
 
 
 async function main() {
-    // await level19();
-    // await tokamak();
+    await level19();
+    await tokamak();
     await hammerDAO();
     await DXMCorp();
     await danalFintech();
