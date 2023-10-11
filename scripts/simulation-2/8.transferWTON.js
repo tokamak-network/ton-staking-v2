@@ -148,8 +148,8 @@ async function transferWTON(deployer, amount) {
     let oldLayer = oldLayers[0].layer2
     console.log(oldLayer);
 
-    await (await depositManager.connect(deployer).oldRequestWithdrawal(oldLayer, amount)).wait()
-    await (await depositManager.connect(deployer).oldProcessRequest(oldLayer)).wait()
+    // await (await depositManager.connect(deployer).oldRequestWithdrawal(oldLayer, amount)).wait()
+    // await (await depositManager.connect(deployer).oldProcessRequest(oldLayer)).wait()
 
 }
 

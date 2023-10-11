@@ -18,6 +18,7 @@ import { DAOCommitteeExtend } from "../typechain-types/contracts/dao/DAOCommitte
 import { CandidateFactory } from "../typechain-types/contracts/dao/factory/CandidateFactory.sol"
 import { CandidateFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateFactoryProxy"
 import { PowerTONUpgrade } from "../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
+import { TestSeigManager } from "../typechain-types/contracts/test/TestSeigManager.sol"
 
 const v1Infos = {
     ton: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
@@ -28,8 +29,8 @@ const v1Infos = {
     pauseBlock: ethers.BigNumber.from("18231453"),
     seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
     powertonAddress: "0x970298189050aBd4dc4F119ccae14ee145ad9371",
-    daoVaultAddress : "0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303"
-
+    daoVaultAddress : "0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303",
+    depositManager: "0x56E465f654393fa48f007Ed7346105c7195CEe43"
 }
 
 const seigManagerInfo = {
@@ -55,6 +56,14 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         deployer,
         "0x10000000000000000000000000",
       ]);
+
+    //==== TestSeigManager =================================
+    const TestSeigManagerDeployment = await deploy("TestSeigManager", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
 
     //==== PowerTONUpgrade =================================
 
@@ -290,6 +299,22 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
           )).wait()
     }
 
+    //====== TestSeigManager setAddresses ==================
+
+    const testSeigManager = (await hre.ethers.getContractAt(
+        TestSeigManagerDeployment.abi,
+        TestSeigManagerDeployment.address
+    )) as TestSeigManager;
+
+
+    let wton1 = await testSeigManager.wton()
+    if (wton1 != v1Infos.wton) {
+        await (await testSeigManager.connect(deploySigner).setAddresses(
+            v1Infos.depositManager,
+            SeigManagerProxyDeployment.address,
+            v1Infos.wton
+          )).wait()
+    }
 
     //====== WTON  addMinter to seigManagerV2 ==================
 

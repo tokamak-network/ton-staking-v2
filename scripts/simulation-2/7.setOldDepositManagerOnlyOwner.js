@@ -53,7 +53,7 @@ async function setOldDepositManager(deployer) {
 
     await (await daoCommittee.connect(daoCommitteeAdmin).setTargetSeigManager(
         oldContractInfo.DepositManager,
-        newSeigMaagerAddress
+        contractInfos.abis["TestSeigManager"].address,
     )).wait()
 
 
