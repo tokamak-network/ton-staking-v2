@@ -32,7 +32,6 @@ interface IICandidateFactory {
 
 interface ITarget {
     function setSeigManager(address _seigManager) external;
-    function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
 }
 
 interface IPauser {
@@ -158,10 +157,6 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
 
     function setSeigUnpause() external onlyOwner {
        IPauser(address(seigManager)).unpause();
-    }
-
-    function setTargetGlobalWithdrawalDelay(address target, uint256 globalWithdrawalDelay_) external onlyOwner {
-        ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
     }
 
     /// @notice Set SeigManager contract address on candidate contracts
