@@ -80,5 +80,6 @@ contract SeigManagerStorage   {
 
     bool public paused;
     uint256 public lastSnapshotId;
+    uint256 public oldDepositManagerBurnAmount;
 
 }
