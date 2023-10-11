@@ -34,34 +34,32 @@ const oldContractInfo = {
 }
 
 
-//====== WTON  addMinter to seigManagerV2 ==================
-
-async function addMinter() {
-    const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
+async function snapshot(deployer) {
 
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        daoAdminAddress,
-    ]);
-    const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
-
-    // WTON
-    const wton = new ethers.Contract(
-        oldContractInfo.WTON,
-        WTONABI,
-        daoCommitteeAdmin
+    const seigManager = new ethers.Contract(
+        contractInfos.abis["SeigManagerProxy"].address,
+        contractInfos.abis["SeigManagerMigration"].abi,
+        ethers.provider
     )
 
-    await (await wton.connect(daoCommitteeAdmin).addMinter(
-        contractInfos.abis["SeigManagerProxy"].address
-        )).wait()
-
+    let prevProgressSnapshotId = await seigManager.progressSnapshotId()
+    console.log('prev ProgressSnapshotId', prevProgressSnapshotId)
+    await (await seigManager.connect(deployer).onSnapshot()).wait()
+    let afterProgressSnapshotId = await seigManager.progressSnapshotId()
+    console.log('after ProgressSnapshotId', afterProgressSnapshotId)
 }
 
 
+
 async function main() {
-      await addMinter()
+    const [ deployer ] = await ethers.getSigners()
+    console.log(deployer.address)
+
+    await snapshot(deployer)
+
+
 }
 
 main()

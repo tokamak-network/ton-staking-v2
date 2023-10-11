@@ -34,8 +34,9 @@ const oldContractInfo = {
 }
 
 
-async function setOldDepositManager(deployer) {
+async function setOldDepositManagerAndMinter(deployer) {
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
+    const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         daoAdminAddress,
@@ -89,21 +90,44 @@ async function setOldDepositManager(deployer) {
     //     oldContractInfo.DepositManager, ethers.BigNumber.from("1"))
 
     // console.log('gos', gos)
+    if(globalWithdrawalDelay.gt(ethers.constants.Zero)) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
+            oldContractInfo.DepositManager,
+            ethers.constants.Zero
+        )).wait()
 
-    await (await daoCommittee.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
-        oldContractInfo.DepositManager,
-        ethers.constants.Zero
-    )).wait()
+        globalWithdrawalDelay = await DepositManager.globalWithdrawalDelay()
+        console.log('globalWithdrawalDelay ', globalWithdrawalDelay )
+    }
 
-    globalWithdrawalDelay = await DepositManager.globalWithdrawalDelay()
-    console.log('globalWithdrawalDelay ', globalWithdrawalDelay )
+    //==============================================
+    // WTON
+    const wton = new ethers.Contract(
+        oldContractInfo.WTON,
+        WTONABI,
+        daoCommitteeAdmin
+    )
+
+    let isMinter = await wton.isMinter(contractInfos.abis["SeigManagerProxy"].address)
+    console.log('isMinter of WTON ', isMinter )
+
+    if(isMinter == false) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setTargetAddMinter(
+            oldContractInfo.WTON,
+            contractInfos.abis["SeigManagerProxy"].address
+        )).wait()
+
+        isMinter = await wton.isMinter(contractInfos.abis["SeigManagerProxy"].address)
+        console.log('isMinter of WTON ', isMinter )
+    }
+
 }
 
 async function main() {
     const [ deployer ] = await ethers.getSigners()
     console.log(deployer.address)
 
-    await setOldDepositManager(deployer)
+    await setOldDepositManagerAndMinter(deployer)
 }
 
 main()
