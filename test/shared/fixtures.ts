@@ -172,7 +172,8 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
     WTONContract.address,
     layer2RegistryProxy.address,
     seigManagerV2.address,
-    globalWithdrawalDelay
+    globalWithdrawalDelay,
+    DepositManager
   )).wait()
 
   console.log('depositManagerV2 initialized ')
@@ -378,7 +379,8 @@ export const tonStakingV2NoSnapshotFixture = async function (): Promise<TonStaki
     WTONContract.address,
     layer2RegistryProxy.address,
     seigManagerV2.address,
-    globalWithdrawalDelay
+    globalWithdrawalDelay,
+    DepositManager
   )).wait()
 
   console.log('depositManagerV2 initialized ')

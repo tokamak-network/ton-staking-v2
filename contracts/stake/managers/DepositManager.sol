@@ -59,7 +59,8 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     address wton_,
     address registry_,
     address seigManager_,
-    uint256 globalWithdrawalDelay_
+    uint256 globalWithdrawalDelay_,
+    address oldDepositManager_
   ) external {
     require(_wton == address(0), "already initialized");
 
@@ -67,6 +68,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     _registry = registry_;
     _seigManager = seigManager_;
     globalWithdrawalDelay = globalWithdrawalDelay_;
+    oldDepositManager = oldDepositManager_;
     _registerInterface(IOnApprove.onApprove.selector);
   }
 

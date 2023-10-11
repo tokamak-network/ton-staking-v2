@@ -11,6 +11,7 @@ contract DepositManagerStorage   {
     address internal _wton;
     address internal _registry;
     address internal _seigManager;
+    address public oldDepositManager;
 
     ////////////////////
     // Storage - token amount
