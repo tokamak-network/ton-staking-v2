@@ -19,6 +19,7 @@ import "./StorageStateCommitteeV2.sol";
 interface ITarget {
     function setSeigManager(address _seigManager) external;
     function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
+    function addMinter(address account) external;
 }
 
 interface IPauser {
@@ -150,6 +151,10 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
     }
 
+    function setTargetAddMinter(address token, address account) external onlyOwner {
+        ITarget(token).addMinter(account);
+    }
+
     /// @notice Set SeigManager contract address on candidate contracts
     /// @param _candidateContracts Candidate contracts to be set
     /// @param _seigManager New SeigManager contract address
@@ -182,11 +187,10 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     //     }
     // }
 
-    /// @notice Set DAOVault contract address
-    /// @param _daoVault New DAOVault contract address
-    function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
-        daoVault = IDAOVault(_daoVault);
-    }
+
+    // function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
+    //     daoVault = IDAOVault(_daoVault);
+    // }
 
     /// @notice Set Layer2Registry contract address
     /// @param _layer2Registry New Layer2Registry contract address
@@ -438,18 +442,15 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         return true;
     }
 
-    /// @notice Set memo
-    /// @param _candidate candidate address
-    /// @param _memo New memo on this candidate
-    function setMemoOnCandidate(
-        address _candidate,
-        string calldata _memo
-    )
-        external
-    {
-        address candidateContract = candidateContract(_candidate);
-        setMemoOnCandidateContract(candidateContract, _memo);
-    }
+    // function setMemoOnCandidate(
+    //     address _candidate,
+    //     string calldata _memo
+    // )
+    //     external
+    // {
+    //     address candidateContract = candidateContract(_candidate);
+    //     setMemoOnCandidateContract(candidateContract, _memo);
+    // }
 
     /// @notice Set memo
     /// @param _candidateContract candidate contract address
