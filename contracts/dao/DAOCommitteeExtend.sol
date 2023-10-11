@@ -220,36 +220,32 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         candidateFactory = ICandidateFactory(_candidateFactory);
     }
 
-    /// @notice Set TON contract address
-    /// @param _ton New TON contract address
     // function setTon(address _ton) external onlyOwner nonZero(_ton) {
     //     ton = _ton;
     // }
 
-    /// @notice Set activity reward amount
-    /// @param _value New activity reward per second
     // function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
     //     activityRewardPerSecond = _value;
     //     emit ActivityRewardChanged(_value);
     // }
 
-    /// @notice Increases the number of member slot
-    /// @param _newMaxMember New number of member slot
-    /// @param _quorum New quorum
-    function increaseMaxMember(
-        uint256 _newMaxMember,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-    {
-        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
-        uint256 prevMaxMember = maxMember;
-        maxMember = _newMaxMember;
-        fillMemberSlot();
-        setQuorum(_quorum);
-        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
-    }
+    // / @notice Increases the number of member slot
+    // / @param _newMaxMember New number of member slot
+    // / @param _quorum New quorum
+    // function increaseMaxMember(
+    //     uint256 _newMaxMember,
+    //     uint256 _quorum
+    // )
+    //     external
+    //     onlyOwner
+    // {
+    //     require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
+    //     uint256 prevMaxMember = maxMember;
+    //     maxMember = _newMaxMember;
+    //     fillMemberSlot();
+    //     setQuorum(_quorum);
+    //     emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    // }
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
@@ -962,7 +958,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         // return 0;
     }
 
-    // function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
-    //     return _oldCandidateInfos[_oldCandidate];
-    // }
+    function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
+        return _oldCandidateInfos[_oldCandidate];
+    }
 }
