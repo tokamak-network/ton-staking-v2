@@ -47,32 +47,40 @@ async function level19() {
     
     const lengthstandard = 100
 
-    if(layerlevel19.length >= lengthstandard) {
-        for (let i = 0; i < lengthstandard; i++) {
-            if(layerlevel19[i].balance == 0){
-                continue;
-            } 
-            level19depositors.push(layerlevel19[i].account);
-            level19amounts.push(layerlevel19[i].balance);
-        }
-
-        for (let j = lengthstandard; j < layerlevel19.length; j++) {
-            if(layerlevel19[j].balance == 0){
-                continue;
-            } 
-            depositors2.push(layerlevel19[j].account);
-            amounts2.push(layerlevel19[j].balance);
-        }
-    } else {
-        for (let i = 0; i < layerlevel19.length; i++) {
-            if(layerlevel19[i].balance == 0){
-                continue;
-            } 
-            level19depositors.push(layerlevel19[i].account);
-            level19amounts.push(layerlevel19[i].balance);
-        }
-
+    for (let i = 0; i < layerlevel19.length; i++) {
+        if(layerlevel19[i].balance == 0){
+            continue;
+        } 
+        level19depositors.push(layerlevel19[i].account);
+        level19amounts.push(layerlevel19[i].balance);
     }
+
+    // if(layerlevel19.length >= lengthstandard) {
+    //     for (let i = 0; i < lengthstandard; i++) {
+    //         if(layerlevel19[i].balance == 0){
+    //             continue;
+    //         } 
+    //         level19depositors.push(layerlevel19[i].account);
+    //         level19amounts.push(layerlevel19[i].balance);
+    //     }
+
+    //     for (let j = lengthstandard; j < layerlevel19.length; j++) {
+    //         if(layerlevel19[j].balance == 0){
+    //             continue;
+    //         } 
+    //         depositors2.push(layerlevel19[j].account);
+    //         amounts2.push(layerlevel19[j].balance);
+    //     }
+    // } else {
+    //     for (let i = 0; i < layerlevel19.length; i++) {
+    //         if(layerlevel19[i].balance == 0){
+    //             continue;
+    //         } 
+    //         level19depositors.push(layerlevel19[i].account);
+    //         level19amounts.push(layerlevel19[i].balance);
+    //     }
+
+    // }
 
     // for (let i = 0; i < lengthstandard; i++) {
     //     if(layerlevel19[i].balance == 0){
@@ -134,8 +142,8 @@ async function level19() {
             await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],level19depositors,level19amounts)
         ).wait();
         console.log("2")
-        await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors2,amounts2);
-        console.log("3")
+        // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors2,amounts2);
+        // console.log("3")
         // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors3,amounts3);
         // console.log("4")
         // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[0],depositors4,amounts4);
@@ -209,92 +217,91 @@ async function tokamak() {
     const amounts10 = [];
 
     let i
-    // console.log("1");
-    for (i = 0; i < lengthstandard; i++) {
-        // console.log("============== [", i, "] ==============")
-        // console.log(layertokamak[i].account)
-        // console.log(layertokamak[i].balance)
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        // console.log("============== [", i, "] ==============")
-        depositors.push(layertokamak[i].account);
-        amounts.push(layertokamak[i].balance);
-    }
-    for (i = lengthstandard; i < (lengthstandard*2); i++) {
-        // console.log("============== [", i, "] ==============")
-        // console.log(layertokamak[i].account)
-        // console.log(layertokamak[i].balance)
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors2.push(layertokamak[i].account);
-        amounts2.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*2); i < (lengthstandard*3); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors3.push(layertokamak[i].account);
-        amounts3.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*3); i < (lengthstandard*4); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors4.push(layertokamak[i].account);
-        amounts4.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*4); i < (lengthstandard*5); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors5.push(layertokamak[i].account);
-        amounts5.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*5); i < (lengthstandard*6); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors6.push(layertokamak[i].account);
-        amounts6.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*6); i < (lengthstandard*7); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors7.push(layertokamak[i].account);
-        amounts7.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*7); i < (lengthstandard*8); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors8.push(layertokamak[i].account);
-        amounts8.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*8); i < (lengthstandard*9); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors9.push(layertokamak[i].account);
-        amounts9.push(layertokamak[i].balance);
-    }
-    for (i = (lengthstandard*9); i < (layertokamak.length); i++) {
-        if(layertokamak[i].balance == 0){
-            continue;
-        } 
-        depositors10.push(layertokamak[i].account);
-        amounts10.push(layertokamak[i].balance);
-    }
-
-    // for (i = 0; i < layertokamak.length; i++) {
+    // for (i = 0; i < lengthstandard; i++) {
+    //     // console.log("============== [", i, "] ==============")
+    //     // console.log(layertokamak[i].account)
+    //     // console.log(layertokamak[i].balance)
     //     if(layertokamak[i].balance == 0){
     //         continue;
     //     } 
+    //     // console.log("============== [", i, "] ==============")
     //     depositors.push(layertokamak[i].account);
     //     amounts.push(layertokamak[i].balance);
     // }
+    // for (i = lengthstandard; i < (lengthstandard*2); i++) {
+    //     // console.log("============== [", i, "] ==============")
+    //     // console.log(layertokamak[i].account)
+    //     // console.log(layertokamak[i].balance)
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors2.push(layertokamak[i].account);
+    //     amounts2.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*2); i < (lengthstandard*3); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors3.push(layertokamak[i].account);
+    //     amounts3.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*3); i < (lengthstandard*4); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors4.push(layertokamak[i].account);
+    //     amounts4.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*4); i < (lengthstandard*5); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors5.push(layertokamak[i].account);
+    //     amounts5.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*5); i < (lengthstandard*6); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors6.push(layertokamak[i].account);
+    //     amounts6.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*6); i < (lengthstandard*7); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors7.push(layertokamak[i].account);
+    //     amounts7.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*7); i < (lengthstandard*8); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors8.push(layertokamak[i].account);
+    //     amounts8.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*8); i < (lengthstandard*9); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors9.push(layertokamak[i].account);
+    //     amounts9.push(layertokamak[i].balance);
+    // }
+    // for (i = (lengthstandard*9); i < (layertokamak.length); i++) {
+    //     if(layertokamak[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors10.push(layertokamak[i].account);
+    //     amounts10.push(layertokamak[i].balance);
+    // }
+
+    for (i = 0; i < layertokamak.length; i++) {
+        if(layertokamak[i].balance == 0){
+            continue;
+        } 
+        depositors.push(layertokamak[i].account);
+        amounts.push(layertokamak[i].balance);
+    }
     
     //before input
     for (let i = 0; i < layertokamak.length; i++) {
@@ -322,15 +329,15 @@ async function tokamak() {
     console.log("depositors.length :", depositors9.length)
     console.log("depositors.length :", depositors10.length)
     await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors,amounts);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors2,amounts2);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors3,amounts3);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors4,amounts4);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors5,amounts5);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors6,amounts6);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors7,amounts7);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors8,amounts8);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors9,amounts9);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors10,amounts10);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors2,amounts2);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors3,amounts3);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors4,amounts4);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors5,amounts5);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors6,amounts6);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors7,amounts7);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors8,amounts8);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors9,amounts9);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[1],depositors10,amounts10);
     console.log("tokamak end")
     //check
     for (let i = 0; i < layertokamak.length; i++) {
@@ -515,35 +522,35 @@ async function DeSpread() {
     const amounts2 = [];
 
     let i
-    for (i = 0; i < lengthstandard; i++) {
-        // console.log("============== [", i, "] ==============")
-        // console.log(layertokamak[i].account)
-        // console.log(layertokamak[i].balance)
-        if(layerDeSpread[i].balance == 0){
-            continue;
-        } 
-        // console.log("============== [", i, "] ==============")
-        depositors.push(layerDeSpread[i].account);
-        amounts.push(layerDeSpread[i].balance);
-    }
-    for (i = lengthstandard; i < layerDeSpread.length; i++) {
-        // console.log("============== [", i, "] ==============")
-        // console.log(layertokamak[i].account)
-        // console.log(layertokamak[i].balance)
-        if(layerDeSpread[i].balance == 0){
-            continue;
-        } 
-        depositors2.push(layerDeSpread[i].account);
-        amounts2.push(layerDeSpread[i].balance);
-    }
-
-    // for (let i = 0; i < layerDeSpread.length; i++) {
+    // for (i = 0; i < lengthstandard; i++) {
+    //     // console.log("============== [", i, "] ==============")
+    //     // console.log(layertokamak[i].account)
+    //     // console.log(layertokamak[i].balance)
     //     if(layerDeSpread[i].balance == 0){
     //         continue;
     //     } 
+    //     // console.log("============== [", i, "] ==============")
     //     depositors.push(layerDeSpread[i].account);
     //     amounts.push(layerDeSpread[i].balance);
     // }
+    // for (i = lengthstandard; i < layerDeSpread.length; i++) {
+    //     // console.log("============== [", i, "] ==============")
+    //     // console.log(layertokamak[i].account)
+    //     // console.log(layertokamak[i].balance)
+    //     if(layerDeSpread[i].balance == 0){
+    //         continue;
+    //     } 
+    //     depositors2.push(layerDeSpread[i].account);
+    //     amounts2.push(layerDeSpread[i].balance);
+    // }
+
+    for (let i = 0; i < layerDeSpread.length; i++) {
+        if(layerDeSpread[i].balance == 0){
+            continue;
+        } 
+        depositors.push(layerDeSpread[i].account);
+        amounts.push(layerDeSpread[i].balance);
+    }
     // console.log(depositors)
     // console.log(amounts)
     // console.log(newLayerAddr)
@@ -552,7 +559,7 @@ async function DeSpread() {
     console.log("length :", layerDeSpread.length)
     console.log("depositors.length :", depositors.length)
     await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[5],depositors,amounts);
-    await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[5],depositors2,amounts2);
+    // await depositManagerForMigration.connect(deployer).depositWithoutTransfer(newLayerAddr[5],depositors2,amounts2);
     console.log("DeSpread end")
 
     //check
@@ -767,8 +774,8 @@ async function staked() {
 
 
 async function main() {
-    await level19();
-    await tokamak();
+    // await level19();
+    // await tokamak();
     await hammerDAO();
     await DXMCorp();
     await danalFintech();
