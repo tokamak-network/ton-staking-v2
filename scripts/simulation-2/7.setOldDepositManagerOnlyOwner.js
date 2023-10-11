@@ -14,7 +14,7 @@ const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 const mainnetPowerTonAdmin = "0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1"
 
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
-const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
+const DepositManagerABI = require("../../abi/DepositManager.json").abi;
 
 // mainnet network
 const oldContractInfo = {
@@ -33,13 +33,19 @@ const oldContractInfo = {
     DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
 }
 
-const newSeigMaagerAddress= ''
 
 async function setOldDepositManager(deployer) {
+    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         daoAdminAddress,
     ]);
+
+    await hre.network.provider.send("hardhat_setBalance", [
+        daoAdminAddress,
+        "0x10000000000000000000000000",
+      ]);
+
     const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
 
     //==============================================
@@ -47,20 +53,50 @@ async function setOldDepositManager(deployer) {
     const daoCommittee = new ethers.Contract(
         oldContractInfo.DAOCommitteeProxy,
         DAOCommitteeExtendABI,
-        daoCommitteeAdmin
+        ethers.provider
     )
     console.log('daoCommittee', daoCommittee.address)
-
-    await (await daoCommittee.connect(daoCommitteeAdmin).setTargetSeigManager(
+    const DepositManager = new ethers.Contract(
         oldContractInfo.DepositManager,
-        contractInfos.abis["TestSeigManager"].address,
-    )).wait()
+        DepositManagerABI,
+        ethers.provider
+    )
 
+    let seig = await DepositManager.seigManager()
+    console.log('seig', seig)
+
+    // console.log('contractInfos.abis["TestSeigManager"].address ', contractInfos.abis["TestSeigManager"].address)
+
+    if(seig != contractInfos.abis["TestSeigManager"].address) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setTargetSeigManager(
+            oldContractInfo.DepositManager,
+            contractInfos.abis["TestSeigManager"].address,
+        )).wait()
+    }
+
+    console.log('setTargetSeigManager done ' )
+
+    let owner = await DepositManager.owner()
+    console.log('owner ', owner )
+    console.log('daoCommittee.address ', daoCommittee.address )
+
+
+    let globalWithdrawalDelay = await DepositManager.globalWithdrawalDelay()
+    console.log('globalWithdrawalDelay ', globalWithdrawalDelay )
+    console.log('oldContractInfo.DepositManager ', oldContractInfo.DepositManager )
+
+    // const gos = await daoCommittee.connect(daoCommitteeAdmin).estimateGas["setTargetGlobalWithdrawalDelay(address,uint256)"](
+    //     oldContractInfo.DepositManager, ethers.BigNumber.from("1"))
+
+    // console.log('gos', gos)
 
     await (await daoCommittee.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
         oldContractInfo.DepositManager,
         ethers.constants.Zero
     )).wait()
+
+    globalWithdrawalDelay = await DepositManager.globalWithdrawalDelay()
+    console.log('globalWithdrawalDelay ', globalWithdrawalDelay )
 }
 
 async function main() {

@@ -129,28 +129,38 @@ async function burnAndMint(amount) {
 
 
 async function transferWTON(deployer, amount) {
+    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
+
     await hre.network.provider.send("hardhat_impersonateAccount", [
         daoAdminAddress,
     ]);
-    const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
+    // const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
     const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
-    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
 
     // let layer2s = JSON.parse(await fs.readFileSync(dataFolder + "/layer2_name_map_created.json"));
     let oldLayers = JSON.parse(await fs.readFileSync(dataFolder + "/tot-balances.json"));
+    const wton = new ethers.Contract(
+        oldContractInfo.WTON,
+        WTONABI,
+        deployer
+    )
 
     const depositManager = new ethers.Contract(
         contractInfos.abis["DepositManagerProxy"].address,
-        contractInfos.abis["DepositManagerMigration"].abi,
+        contractInfos.abis["DepositManagerForMigration"].abi,
         deployer
     )
 
     let oldLayer = oldLayers[0].layer2
     console.log(oldLayer);
+    console.log(amount);
 
-    // await (await depositManager.connect(deployer).oldRequestWithdrawal(oldLayer, amount)).wait()
-    // await (await depositManager.connect(deployer).oldProcessRequest(oldLayer)).wait()
-
+    let preBalance = await wton.balanceOf(contractInfos.abis["DepositManagerProxy"].address)
+    console.log('preBalance',preBalance);
+    await (await depositManager.connect(deployer).oldRequestWithdrawal(oldLayer, amount)).wait()
+    await (await depositManager.connect(deployer).oldProcessRequest(oldLayer)).wait()
+    let afterBalance = await wton.balanceOf(contractInfos.abis["DepositManagerProxy"].address)
+    console.log('afterBalance',afterBalance);
 }
 
 

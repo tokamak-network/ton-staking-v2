@@ -84,8 +84,8 @@ async function deposit(deployer) {
             let layer2s = await layer2Registry.layer2s(layer2.newLayer)
             console.log('layer2s', layer2s)
 
-            const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
-            console.log('gos', gos)
+            // const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
+            // console.log('gos', gos)
 
             let receipt = await (await depositManager.connect(deployer)["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)).wait();
             console.log('receipt transactionHash', receipt.transactionHash)

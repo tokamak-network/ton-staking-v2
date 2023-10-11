@@ -57,8 +57,17 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
         "0x10000000000000000000000000",
       ]);
 
+
+
     //==== TestSeigManager =================================
     const TestSeigManagerDeployment = await deploy("TestSeigManager", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    //==== DAOCommitteeExtend =========================
+    const DAOCommitteeExtendDeployment = await deploy("DAOCommitteeExtend", {
         from: deployer,
         args: [],
         log: true
@@ -307,11 +316,11 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )) as TestSeigManager;
 
 
-    let wton1 = await testSeigManager.wton()
-    if (wton1 != v1Infos.wton) {
+    let newDepositManager = await testSeigManager.newDepositManager()
+    if (newDepositManager != v1Infos.wton) {
         await (await testSeigManager.connect(deploySigner).setAddresses(
             v1Infos.depositManager,
-            SeigManagerProxyDeployment.address,
+            DepositManagerProxyDeployment.address,
             v1Infos.wton
           )).wait()
     }

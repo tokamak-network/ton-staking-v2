@@ -74,6 +74,9 @@ async function changeDaoSetting() {
     pauseProxy = await daoCommitteeProxy.pauseProxy()
     console.log('pauseProxy', pauseProxy)
 
+    await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+        contractInfos.abis["DAOCommitteeExtend"].address)).wait()
+
     //========================
 
 
@@ -151,7 +154,6 @@ async function changeDaoSetting() {
     seigManagerAddress = await powerTon.seigManager()
     console.log('seigManagerAddress', seigManagerAddress)
     console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
-
 
 }
 

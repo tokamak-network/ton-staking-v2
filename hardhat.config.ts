@@ -25,12 +25,14 @@ const config: HardhatUserConfig = {
     DepositManager: {
       default: 4,
       mainnet: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
+      local: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
       goerli: '0x0ad659558851f6ba8a8094614303F56d42f8f39A',
       hardhat: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
     },
     L2Registry: {
       default: 5,
       mainnet: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
+      local: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
       goerli: '0x6817e1c04748eae68EBFF13216280Df1ec15ba86',
       hardhat: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
     },
@@ -152,7 +154,7 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      // timeout: 400000,
+      timeout: 400000,
       // accounts: [`${process.env.DEPLOYER}`],
       // deploy: ['deploy-migration']
     },
