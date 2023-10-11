@@ -233,29 +233,12 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     withdrawalDelay[l2chain] = withdrawalDelay_;
   }
 
-  function setAcceptDelayPeriod(uint256 start, uint256 end, uint256 minDelay) external onlyOwner {
-    acceptDelayPeriod = AcceptDelayPeriod(start, end, minDelay);
-  }
-
   ////////////////////
   // Withdrawal functions
   ////////////////////
 
-  function requestWithdrawalWithDeplay(address layer2, uint256 amount, uint256 delayBlocks) external returns (bool) {
-    AcceptDelayPeriod memory period = acceptDelayPeriod;
-
-    require(period.start != 0 && period.start < period.end &&
-      block.number >= period.start && block.number < period.end, 'Now is not acceptable for setting delay.');
-
-    require(delayBlocks >= period.minimumDelayBlocks, 'delayBlocks is less than minimum');
-
-    return _requestWithdrawal(layer2, amount, delayBlocks);
-  }
-
-
   function requestWithdrawal(address layer2, uint256 amount) external returns (bool) {
     return _requestWithdrawal(layer2, amount, getDelayBlocks(layer2));
-
   }
 
   function _requestWithdrawal(address layer2, uint256 amount, uint256 delay) internal onlyLayer2(layer2) returns (bool) {
@@ -315,7 +298,6 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function requestWithdrawalAll(address layer2) external onlyLayer2(layer2) returns (bool) {
     uint256 amount = ISeigManager(_seigManager).stakeOf(layer2, msg.sender);
-
     return _requestWithdrawal(layer2, amount, getDelayBlocks(layer2));
   }
 

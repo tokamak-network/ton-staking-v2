@@ -8,8 +8,6 @@ import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
 
-import "hardhat/console.sol";
-
 interface IOnApprove {
   function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
 }
@@ -28,6 +26,11 @@ interface ISeigManager {
   function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
 }
 
+interface IOldDepositManager {
+  function requestWithdrawal(address layer2, uint256 amount) external returns (bool);
+  function processRequest(address layer2, bool receiveTON) external returns (bool);
+}
+
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
  */
@@ -40,9 +43,7 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
   ////////////////////
 
   modifier onlyLayer2(address layer2) {
-    console.log("onlyLayer2 in");
     require(ILayer2Registry(_registry).layer2s(layer2));
-    console.log("onlyLayer2 pass");
     _;
   }
 
@@ -65,7 +66,8 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
     address wton_,
     address registry_,
     address seigManager_,
-    uint256 globalWithdrawalDelay_
+    uint256 globalWithdrawalDelay_,
+    address oldDepositManager_
   ) external {
     require(_wton == address(0), "already initialized");
 
@@ -73,6 +75,7 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
     _registry = registry_;
     _seigManager = seigManager_;
     globalWithdrawalDelay = globalWithdrawalDelay_;
+    oldDepositManager = oldDepositManager_;
     _registerInterface(IOnApprove.onApprove.selector);
   }
 
@@ -95,6 +98,19 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
 
   function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external onlyOwner {
     globalWithdrawalDelay = globalWithdrawalDelay_;
+  }
+
+  function setOldDepositManager(address oldDepositManager_) external onlyOwner {
+    oldDepositManager = oldDepositManager_;
+  }
+
+  function oldRequestWithdrawal(address layer2, uint256 amounts) external onlyOwner returns (bool) {
+    require(IERC20(_wton).balanceOf(oldDepositManager) >= amounts, "excceed the oldDepositManager's balance");
+    return IOldDepositManager(oldDepositManager).requestWithdrawal(layer2, amounts);
+  }
+
+  function oldProcessRequest(address layer2) external onlyOwner returns (bool) {
+    return IOldDepositManager(oldDepositManager).processRequest(layer2, false);
   }
 
   // ---------  external
