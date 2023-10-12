@@ -1,6 +1,7 @@
 import hre from 'hardhat'
-import { ethers } from 'hardhat'
+import { ethers , deployments, getNamedAccounts} from 'hardhat'
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
+
 import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture } from './fixtureInterfaces'
 
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
@@ -277,7 +278,6 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   }
 }
 
-
 export const tonStakingV2NoSnapshotFixture = async function (): Promise<TonStakingV2NoSnapshotFixtures> {
   const [deployer, addr1, addr2 ] = await ethers.getSigners();
   const {
@@ -482,4 +482,212 @@ export const tonStakingV2NoSnapshotFixture = async function (): Promise<TonStaki
     daoAdmin: daoAdmin,
     powerTON: powerTON
   }
+}
+
+
+export const deployedTonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtures> {
+    const [deployer, addr1, addr2 ] = await ethers.getSigners();
+    const {
+      DepositManager, SeigManager, L2Registry, CoinageFactory, TON, WTON, TOS, DAOCommitteeProxy,
+      CandidateFactory, DAOAgendaManager, AutoCoinageSnapshot2, DaoCommitteeAdminAddress ,
+      powerTonAddress, daoVaultAddress,
+      level19Address, level19Admin, tokamakAddress, tokamakAdmin,
+      powerTonAdminAddress
+    } = await getNamedAccounts();
+
+    const contractJson = await jsonFixtures()
+
+    //-------------------------------
+    const depositManagerV1 = new ethers.Contract( DepositManager, contractJson.DepositManager.abi, deployer)
+    const seigManagerV1 = new ethers.Contract(SeigManager, contractJson.SeigManager.abi,  deployer)
+    const layer2RegistryV1 = new ethers.Contract( L2Registry,contractJson.L2Registry.abi, deployer)
+    const coinageFactoryV1= new ethers.Contract(CoinageFactory, contractJson.CoinageFactory.abi,  deployer)
+    const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
+    const WTONContract = new ethers.Contract(WTON,  contractJson.WTON.abi, deployer)
+    const TOSContract = new ethers.Contract(TOS,  contractJson.TOS.abi, deployer)
+    const candidateFactoryV1 = new ethers.Contract(CandidateFactory,  contractJson.CandidateFactory.abi, deployer)
+    const daoCommitteeProxy = new ethers.Contract(DAOCommitteeProxy, contractJson.DAOCommitteeProxy.abi, deployer)
+    const daoAgendaManager = new ethers.Contract(DAOAgendaManager,  contractJson.DAOAgendaManager.abi, deployer)
+    const powerTonProxy= new ethers.Contract(powerTonAddress,  contractJson.PowerTON.abi, deployer)
+    console.log('DAOCommitteeProxy', DAOCommitteeProxy)
+
+    //==========================
+    //-- DAOCommittee 로직 업데이트
+    //--- 1. change  CandidateFactory in DAOCommittee
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+      DaoCommitteeAdminAddress,
+    ]);
+    const daoCommitteeAdmin = await hre.ethers.getSigner(DaoCommitteeAdminAddress);
+
+    const daoCommitteeExtend = (await ethers.getContractAt("DAOCommitteeExtend", (await deployments.get("DAOCommitteeExtend")).address, daoCommitteeAdmin)) as DAOCommitteeExtend;
+    await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(daoCommitteeExtend.address)).wait()
+
+    const daoCommittee = (await ethers.getContractAt("DAOCommitteeExtend", DAOCommitteeProxy, daoCommitteeAdmin)) as DAOCommitteeExtend;
+    console.log('daoCommittee', daoCommittee.address)
+
+
+    //-- 기존 디파짓 매니저의 세그매니저를 0으로 설정한다.
+    await (await daoCommittee.connect(daoCommitteeAdmin).setTargetSeigManager(
+      depositManagerV1.address, ethers.constants.AddressZero)).wait()
+
+    //=====================
+    //--파워톤 로직 업데이트
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+      powerTonAdminAddress,
+    ]);
+    await hre.network.provider.send("hardhat_setBalance", [
+      powerTonAdminAddress,
+      "0x10000000000000000000000000",
+    ]);
+    const powerTonAdmin = await hre.ethers.getSigner(powerTonAdminAddress);
+
+    const powerTONUpgradeLogic = (await ethers.getContractAt("PowerTONUpgrade", (await deployments.get("PowerTONUpgrade")).address, deployer)) as PowerTONUpgrade;
+    await (await powerTonProxy.connect(powerTonAdmin).upgradeTo(powerTONUpgradeLogic.address)).wait()
+    const powerTON = (await ethers.getContractAt("PowerTONUpgrade", powerTonProxy.address, daoCommitteeAdmin)) as PowerTONUpgrade;
+    console.log('powerTON', powerTON.address)
+
+    //===================== v2
+    const depositManagerV2Imp = (await ethers.getContractAt("DepositManager", (await deployments.get("DepositManager")).address, deployer)) as DepositManager;
+    const depositManagerProxy = (await ethers.getContractAt("DepositManagerProxy", (await deployments.get("DepositManagerProxy")).address, deployer)) as DepositManagerProxy;
+    await depositManagerProxy.connect(deployer).upgradeTo(depositManagerV2Imp.address);
+    const depositManagerV2 = (await ethers.getContractAt("DepositManager", depositManagerProxy.address, deployer)) as DepositManager;
+
+    const seigManagerV2Imp = (await ethers.getContractAt("SeigManager", (await deployments.get("SeigManager")).address, deployer)) as SeigManager;
+    const seigManagerProxy = (await ethers.getContractAt("SeigManagerProxy", (await deployments.get("SeigManagerProxy")).address, deployer)) as SeigManagerProxy;
+    await seigManagerProxy.connect(deployer).upgradeTo(seigManagerV2Imp.address);
+    const seigManagerV2 = (await ethers.getContractAt("SeigManager", seigManagerProxy.address, deployer)) as SeigManager;
+
+    const layer2RegistryV2Imp = (await ethers.getContractAt("Layer2Registry", (await deployments.get("Layer2Registry")).address, deployer)) as Layer2Registry;
+    const layer2RegistryProxy = (await ethers.getContractAt("Layer2RegistryProxy", (await deployments.get("Layer2RegistryProxy")).address, deployer)) as Layer2RegistryProxy;
+    await layer2RegistryProxy.connect(deployer).upgradeTo(layer2RegistryV2Imp.address);
+    const layer2RegistryV2 = (await ethers.getContractAt("Layer2Registry", layer2RegistryProxy.address, deployer)) as Layer2Registry;
+
+    const candidateImp = (await ethers.getContractAt("Candidate", (await deployments.get("Candidate")).address, deployer)) as Candidate;
+    const candidateFactoryLogic = (await ethers.getContractAt("CandidateFactory", (await deployments.get("CandidateFactory")).address, deployer)) as CandidateFactory;
+    const candidateFactoryProxy = (await ethers.getContractAt("CandidateFactoryProxy", (await deployments.get("CandidateFactoryProxy")).address, deployer)) as CandidateFactoryProxy;
+    await candidateFactoryProxy.connect(deployer).upgradeTo(candidateFactoryLogic.address);
+    const candidateFactory = (await ethers.getContractAt("CandidateFactory", candidateFactoryProxy.address, deployer)) as CandidateFactory;
+
+    await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(candidateFactoryProxy.address)).wait()
+    await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(seigManagerProxy.address)).wait()
+    await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(layer2RegistryProxy.address)).wait()
+
+    const refactorCoinageSnapshot = (await ethers.getContractAt("RefactorCoinageSnapshot", (await deployments.get("RefactorCoinageSnapshot")).address, deployer)) as RefactorCoinageSnapshot;
+    const coinageFactoryV2 = (await ethers.getContractAt("CoinageFactory", (await deployments.get("CoinageFactory")).address, deployer)) as CoinageFactory;
+    await (await coinageFactoryV2.connect(deployer).setAutoCoinageLogic(refactorCoinageSnapshot.address)).wait()
+
+    console.log('coinageFactoryV2', coinageFactoryV2.address)
+    console.log('refactorCoinageSnapshot', refactorCoinageSnapshot.address)
+
+    //======= set v2 =============
+
+    await (await depositManagerV2.connect(deployer).initialize (
+      WTONContract.address,
+      layer2RegistryProxy.address,
+      seigManagerV2.address,
+      globalWithdrawalDelay,
+      DepositManager
+    )).wait()
+
+    console.log('depositManagerV2 initialized ')
+
+    await (await seigManagerV2.connect(deployer).initialize (
+      TONContract.address,
+      WTONContract.address,
+      layer2RegistryProxy.address,
+      depositManagerV2.address,
+      seigManagerInfo.seigPerBlock,
+      coinageFactoryV2.address,
+      lastSeigBlock
+    )).wait()
+    console.log('seigManagerV2 initialized ')
+
+    await (await seigManagerV2.connect(deployer).setData (
+      powerTonAddress,
+      daoVaultAddress,
+      seigManagerInfo.powerTONSeigRate,
+      seigManagerInfo.daoSeigRate,
+      seigManagerInfo.relativeSeigRate,
+      seigManagerInfo.adjustCommissionDelay,
+      seigManagerInfo.minimumAmount
+    )).wait()
+    console.log('seigManagerV2 setData ')
+
+
+    await (await layer2RegistryV2.connect(deployer).addMinter(
+      daoCommittee.address
+    )).wait()
+
+    await (await seigManagerV2.connect(deployer).addMinter(
+      layer2RegistryV2.address
+    )).wait()
+
+    //==========================
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+      DAOCommitteeProxy,
+    ]);
+
+    await hre.network.provider.send("hardhat_setBalance", [
+      DAOCommitteeProxy,
+      "0x10000000000000000000000000",
+    ]);
+
+    // const daoAdmin = await hre.ethers.getSigner(DAOCommitteeProxy);
+    const daoAdmin = await hre.ethers.getSigner(DAOCommitteeProxy);
+
+    // for version 2
+    await (await daoCommittee.connect(daoAdmin).setTargetAddMinter(WTONContract.address, seigManagerV2.address)).wait()
+
+    // for test :
+    await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+    await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"+"0".repeat(9)))).wait()
+
+    //-- v2 배포후에 설정
+    await (await candidateFactory.connect(deployer).setAddress(
+      depositManagerV2.address,
+      DAOCommitteeProxy,
+      candidateImp.address,
+      TONContract.address,
+      WTONContract.address
+    )).wait()
+    console.log('candidateFactory setAddress ')
+
+
+    return {
+      deployer: deployer,
+      addr1: addr1,
+      addr2: addr2,
+      depositManagerV1: depositManagerV1 ,
+      seigManagerV1: seigManagerV1 ,
+      layer2RegistryV1: layer2RegistryV1 ,
+      coinageFactoryV1: coinageFactoryV1 ,
+      powerTonProxy: powerTonProxy ,
+      TON: TONContract,
+      WTON: WTONContract ,
+      daoCommitteeProxy: daoCommitteeProxy ,
+      daoAgendaManager: daoAgendaManager,
+      candidateFactoryV1: candidateFactoryV1 ,
+      daoCommitteeExtend: daoCommitteeExtend,
+      daoCommitteeAdmin: daoCommitteeAdmin,
+      daoCommittee: daoCommittee,
+      depositManagerV2: depositManagerV2 ,
+      depositManagerProxy: depositManagerProxy,
+      seigManagerV2: seigManagerV2 ,
+      seigManagerProxy: seigManagerProxy,
+      layer2RegistryV2: layer2RegistryV2 ,
+      layer2RegistryProxy: layer2RegistryProxy,
+      candidateFactoryV2: candidateFactory ,
+      candidateFactoryProxy: candidateFactoryProxy ,
+      candidateImp: candidateImp ,
+      refactorCoinageSnapshot: refactorCoinageSnapshot,
+      coinageFactoryV2 : coinageFactoryV2,
+      powerTonAddress: powerTonAddress,
+      daoVaultAddress: daoVaultAddress,
+      level19Address: level19Address,
+      tokamakAddress: tokamakAddress,
+      level19Admin: level19Admin,
+      tokamakAdmin: tokamakAdmin,
+      daoAdmin: daoAdmin,
+      powerTON: powerTON
+    }
 }
