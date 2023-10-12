@@ -104,7 +104,7 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
   }
 
   function balanceOf(address account) public view returns (uint256) {
-    Balance memory b = balances[account];
+    Balance storage b = balances[account];
 
     return _applyFactor(b.balance, b.refactoredCount) + b.remain;
   }
@@ -176,7 +176,9 @@ contract AutoRefactorCoinage is ProxyStorage, AuthControlCoinage, AutoRefactorCo
       return 0;
     }
     v = rmul2(v, _factor);
-    v = v * REFACTOR_DIVIDER ** (refactorCount - refactoredCount);
+    if (refactorCount > refactoredCount) {
+      v = v * REFACTOR_DIVIDER ** (refactorCount - refactoredCount);
+    }
     return v;
   }
 
