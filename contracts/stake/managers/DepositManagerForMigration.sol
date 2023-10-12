@@ -45,9 +45,7 @@ contract DepositManagerForMigration is ProxyStorage, AccessibleCommon, DepositMa
   ////////////////////
 
   modifier onlyLayer2(address layer2) {
-    console.log("onlyLayer2 in");
     require(ILayer2Registry(_registry).layer2s(layer2));
-    console.log("onlyLayer2 pass");
     _;
   }
 
