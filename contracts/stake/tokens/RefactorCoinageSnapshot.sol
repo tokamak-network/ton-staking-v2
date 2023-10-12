@@ -177,18 +177,14 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       return v;
     }
 
-    function _applyFactorAt(Balance memory _balance, Factor memory _factor) internal view returns (uint256) {
-
+    function _applyFactorAt(Balance memory _balance, Factor memory _factor) internal pure returns (uint256) {
       if (_balance.balance == 0) {
         return 0;
       }
-
       _balance.balance = rmul2(_balance.balance, _factor.factor);
-
       if(_factor.refactorCount > _balance.refactoredCount) {
         _balance.balance = _balance.balance * REFACTOR_DIVIDER ** (_factor.refactorCount - _balance.refactoredCount);
       }
-
       return _balance.balance;
     }
 
