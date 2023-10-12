@@ -289,7 +289,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       returns (Balance memory)
     {
       uint256 index = 0;
-      if(totalSupplySnapshotIds.length != 0) index = totalSupplySnapshotIds.length;
+      uint256 length = totalSupplySnapshotIds.length;
+      if(length != 0) index = totalSupplySnapshotIds[length - 1];
       return totalSupplySnapshots[index];
     }
 
@@ -297,7 +298,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       returns (Factor memory)
     {
       uint256 index = 0;
-      if(factorSnapshotIds.length != 0) index = factorSnapshotIds.length;
+      uint256 length = factorSnapshotIds.length;
+      if(length != 0) index = factorSnapshotIds[length - 1];
       return factorSnapshots[index];
     }
 
@@ -305,7 +307,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       returns (Balance memory)
     {
       uint256 index = 0;
-      if(accountBalanceIds[account].length != 0) index = accountBalanceIds[account].length ;
+      uint256 length = accountBalanceIds[account].length;
+      if(length != 0) index = accountBalanceIds[account][length - 1];
       return accountBalanceSnapshots[account][index];
     }
 
