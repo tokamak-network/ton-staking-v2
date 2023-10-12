@@ -17,7 +17,7 @@ const oldContractInfo = {
     CoinageFactory: "0x09207BdB146E41dadad015aB3d835f66498b0A0c",
     OldDAOVaultMock: "0xFD7C2c54a0A755a46793A91449806A4b14E3eEe8",
     SeigManager: "0x446ece59ef429B774Ff116432bbB123f1915D9E3",
-    PowerTON: "0x7F379E61F2F1cAf23Ccd4EBaa92797FbCDF00d68",
+    PowerTON: "0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94",
     DAOVault: "0xb0B9c6076D46E333A8314ccC242992A625931C99",
     DAOAgendaManager: "0x0e1583da47cf641305eDD1e4C6dB6DD18e138a21",
     CandidateFactory: "0xd1c4fE0Ac211F8A41817c26D1801fd549D56E31e",
@@ -25,18 +25,9 @@ const oldContractInfo = {
     DAOCommitteeProxy: "0x3C5ffEe61A384B384ed38c0983429dcDb49843F6"
 }
 
-// new candidates
-const layer2sCandidates = [
-    {"oldLayer":"0xaeb5675424c4bd3074ba363bfffdb0e2c0a1011b","newLayer":"0x77cD463C6F3D6c4a2D7d5a92F13B9785B5E8FA12","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"TokamakOperator"},
-    {"oldLayer":"0xc811b0eca34f154e10afba0178ca037e4fb159c4","newLayer":"0xc809158D92863988cE96Da02b81f8c4055189456","operator":"0xf0b595d10a92a5a9bc3ffea7e79f5d266b6035ea","name":"ContractTeam_DAO"},
-    {"oldLayer":"0xa6ccdb6b2384bbf35cfb190ce41667a1f0dbdc53","newLayer":"0xF5B11a272959593c275a996bBf1bC010C38DF647","operator":"0x195c1d13fc588c0b1ca8a78dd5771e0ee5a2eae4","name":"ContractTeam_DAO2"}
-]
-
 async function deposit(deployer) {
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
     let layer2s = JSON.parse(await fs.readFileSync(dataFolder + "/layer2_name_map_created.json"));
-
-    let createdLayers = []
 
     const depositManager = new ethers.Contract(
         contractInfos.abis["DepositManagerProxy"].address,
@@ -84,7 +75,7 @@ async function deposit(deployer) {
             console.log('gos', gos)
 
             let receipt = await (await depositManager.connect(deployer)["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)).wait();
-            console.log('receipt', receipt)
+            console.log('receipt transactionHash', receipt.transactionHash)
         }
 
     }

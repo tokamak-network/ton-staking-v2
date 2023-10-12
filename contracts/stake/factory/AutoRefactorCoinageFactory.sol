@@ -9,7 +9,8 @@ interface IIAutoRefactorCoinage {
   function initialize (
       string memory name_,
       string memory symbol_,
-      uint256 factor_
+      uint256 factor_,
+      address seigManager_
     ) external;
 }
 
@@ -19,6 +20,7 @@ contract AutoRefactorCoinageFactory is CoinageFactoryI, Ownable {
   uint256 constant internal _DEFAULT_FACTOR = RAY;
 
   address public autoCoinageLogic;
+
 
   function setAutoCoinageLogic(address newLogic) external onlyOwner {
     autoCoinageLogic = newLogic;
@@ -32,7 +34,8 @@ contract AutoRefactorCoinageFactory is CoinageFactoryI, Ownable {
     IIAutoRefactorCoinage(address(c)).initialize(
       "StakedWTON",
       "sWTON",
-      _DEFAULT_FACTOR
+      _DEFAULT_FACTOR,
+      msg.sender
     );
 
     c.renounceMinter();

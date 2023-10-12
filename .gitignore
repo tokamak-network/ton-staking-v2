@@ -9,3 +9,7 @@ typechain-types
 cache
 artifacts
 
+backup
+backup/data-mainnet
+backup/deployments
+deployments/local

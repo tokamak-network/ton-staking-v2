@@ -7,6 +7,8 @@ const pauseBlock = 9768417
 const startBlock = 8437208
 const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
+const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 
 // goerli network
 const oldContractInfo = {
@@ -17,7 +19,7 @@ const oldContractInfo = {
     CoinageFactory: "0x09207BdB146E41dadad015aB3d835f66498b0A0c",
     OldDAOVaultMock: "0xFD7C2c54a0A755a46793A91449806A4b14E3eEe8",
     SeigManager: "0x446ece59ef429B774Ff116432bbB123f1915D9E3",
-    PowerTON: "0x7F379E61F2F1cAf23Ccd4EBaa92797FbCDF00d68",
+    PowerTON: "0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94",
     DAOVault: "0xb0B9c6076D46E333A8314ccC242992A625931C99",
     DAOAgendaManager: "0x0e1583da47cf641305eDD1e4C6dB6DD18e138a21",
     CandidateFactory: "0xd1c4fE0Ac211F8A41817c26D1801fd549D56E31e",
@@ -44,7 +46,7 @@ async function changeDaoSetting() {
     // dao
     const daoCommittee = new ethers.Contract(
         oldContractInfo.DAOCommitteeProxy,
-        contractInfos.abis["DAOCommitteeExtend"].abi,
+        DAOCommitteeExtendABI,
         daoCommitteeAdmin
     )
     console.log('daoCommittee', daoCommittee.address)
@@ -76,19 +78,49 @@ async function changeDaoSetting() {
     console.log('CandidateFactoryProxy', contractInfos.abis["CandidateFactoryProxy"].address)
 
     // powerTon
+    const PowerTONSwapperProxyABI = JSON.parse(await fs.readFileSync("./abi/PowerTONSwapperProxy.json")).abi;
+
+    const powerTonProxy = new ethers.Contract(
+        oldContractInfo.PowerTON,
+        PowerTONSwapperProxyABI,
+        daoCommitteeAdmin
+    )
+    console.log('powerTonProxy', powerTonProxy.address)
+    console.log('PowerTONUpgrade', contractInfos.abis["PowerTONUpgrade"].address)
+    let powerTOnImpl = await powerTonProxy.implementation()
+
+    console.log('powerTOnImpl', powerTOnImpl)
+
+    let powerTonAdmin = daoCommitteeAdmin;
+    if(networkName == "goerli")  {
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            goerliPowerTonAdmin,
+        ]);
+        powerTonAdmin = await hre.ethers.getSigner(goerliPowerTonAdmin);
+    }
+
+
+    if(powerTOnImpl.toLowerCase() != contractInfos.abis["PowerTONUpgrade"].address.toLowerCase()) {
+        let receipt = await (await powerTonProxy.connect(powerTonAdmin).upgradeTo(
+            contractInfos.abis["PowerTONUpgrade"].address
+            )).wait()
+        console.log('receipt transactionHash', receipt.transactionHash)
+    }
+
     const powerTon = new ethers.Contract(
         oldContractInfo.PowerTON,
         contractInfos.abis["PowerTONUpgrade"].abi,
         daoCommitteeAdmin
     )
 
-    await (await powerTon.connect(daoCommitteeAdmin).setSeigManager(
+    await (await powerTon.connect(powerTonAdmin).setSeigManager(
         contractInfos.abis["SeigManagerProxy"].address
         )).wait()
 
     seigManagerAddress = await powerTon.seigManager()
     console.log('seigManagerAddress', seigManagerAddress)
     console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
+
 
 }
 
