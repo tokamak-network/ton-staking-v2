@@ -704,7 +704,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     // total supply of (W)TON
     uint256 tos = (
       (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-    ) * (10 ** 9)) + _tot.totalSupply() - oldDepositManagerBurnAmount;  // consider additional TOT balance as total supply
+    ) * (10 ** 9)) + _tot.totalSupply();  // consider additional TOT balance as total supply
 
     // maximum seigniorages * staked rate
     uint256 stakedSeig = rdiv(
