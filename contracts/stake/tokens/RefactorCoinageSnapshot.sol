@@ -97,7 +97,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         _burn(msg.sender, amount);
     }
 
-    function decimals() external view virtual returns (uint8) {
+    function decimals() external pure returns (uint8) {
         return 27;
     }
 
@@ -171,10 +171,9 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       v = rmul2(v, _factor.factor);
 
-      for (uint256 i = refactoredCount; i < _factor.refactorCount; i++) {
-        v = v * REFACTOR_DIVIDER;
+      if (_factor.refactorCount > refactoredCount) {
+        v = v * REFACTOR_DIVIDER ** (_factor.refactorCount - refactoredCount);
       }
-
       return v;
     }
 
@@ -186,8 +185,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       _balance.balance = rmul2(_balance.balance, _factor.factor);
 
-      for (uint256 i = _balance.refactoredCount; i < _factor.refactorCount; i++) {
-        _balance.balance = _balance.balance * REFACTOR_DIVIDER;
+      if(_factor.refactorCount > _balance.refactoredCount) {
+        _balance.balance = _balance.balance * REFACTOR_DIVIDER ** (_factor.refactorCount - _balance.refactoredCount);
       }
 
       return _balance.balance;
