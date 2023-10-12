@@ -71,14 +71,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -104,14 +106,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -137,14 +141,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -170,14 +176,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -204,14 +212,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -237,14 +247,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -270,14 +282,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -303,14 +317,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -336,14 +352,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     let subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     let subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
@@ -369,14 +387,16 @@ async function verifyTotalSupply() {
                 deployer
             )
             let totalSupply =  await coinageContract.totalSupply()
+            console.log("new totalSupply :", totalSupply)
+            console.log("old totalSupply :", oldCoinageBalance[i].balance)
 
             if(!totalSupply.eq(ethers.BigNumber.from(oldCoinageBalance[i].balance))) {
                 if(totalSupply > oldCoinageBalance[i].balance){
                     subSupply = totalSupply - oldCoinageBalance[i].balance
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 } else {
                     subSupply = oldCoinageBalance[i].balance - totalSupply
-                    console.log("========== subSupply : ", subSupply, " ============");
+                    // console.log("========== subSupply : ", subSupply, " ============");
                 }
                 if(subSupply == 0){
                     console.log("================== PASS ==================");
