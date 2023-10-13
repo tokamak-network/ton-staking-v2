@@ -587,13 +587,13 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
     // console.log('powerTON', powerTON.address)
 
     //===================== v2
-    const DepositManagerForMigrationDep = await deployments.get("DepositManagerForMigration")
-    const depositManagerV2Imp = (await ethers.getContractAt("DepositManagerForMigration", DepositManagerForMigrationDep.address, deployer)) as DepositManagerForMigration;
+    const DepositManagerDep = await deployments.get("DepositManager")
+    const depositManagerV2Imp = (await ethers.getContractAt("DepositManager", DepositManagerDep.address, deployer)) as DepositManager;
 
     const depositManagerProxy = (await ethers.getContractAt("DepositManagerProxy",getContractAddress(contractInfos, 'DepositManagerProxy'), deployer)) as DepositManagerProxy;
 
-    if ( (await depositManagerProxy.implementation()) != DepositManagerForMigrationDep.address) {
-      await (await depositManagerProxy.connect(deployer).upgradeTo(DepositManagerForMigrationDep.address)).wait()
+    if ( (await depositManagerProxy.implementation()) != DepositManagerDep.address) {
+      await (await depositManagerProxy.connect(deployer).upgradeTo(DepositManagerDep.address)).wait()
     }
     const depositManagerV2 = (await ethers.getContractAt("DepositManager", depositManagerProxy.address, deployer)) as DepositManager;
     // console.log('depositManagerV2', depositManagerV2.address)
