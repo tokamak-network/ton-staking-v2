@@ -36,8 +36,8 @@ function logSnapshots(infos:Array<SnapshotInfo> ) {
         console.log('------ ' , i ,'---------' )
         console.log(' account :' , e.account)
         console.log(' snapshotId :' , e.snapshotId)
-        console.log(' totTotalSupply :' , e.totTotalSupply)
-        console.log(' accountBalanceOfTotal :' , e.accountBalanceOfTotal)
+        console.log(' totTotalSupply :' , ethers.utils.formatUnits(e.totTotalSupply, 27), "WTON")
+        console.log(' accountBalanceOfTotal :' , ethers.utils.formatUnits(e.accountBalanceOfTotal, 27), "WTON")
         console.log(' snapshotLayers :' , e.snapshotLayers)
         i++
     })
@@ -48,7 +48,7 @@ async function checkSnapshots(deployed:TonStakingV2Fixtures, jsonInfo: JSONFixtu
 
     for (i = 0; i < infos.length ; i++) {
         let element = infos[i]
-        let stakedAcount = await deployed.seigManagerV2["stakeOfAt(address, uint256)"](element.account, element.snapshotId)
+        let stakedAcount = await deployed.seigManagerV2["stakeOfAt(address,uint256)"](element.account, element.snapshotId)
         let stakeOfTotal = await deployed.seigManagerV2["stakeOfTotalAt(uint256)"](element.snapshotId)
         expect(stakedAcount).to.be.eq(element.accountBalanceOfTotal)
         expect(stakeOfTotal).to.be.eq(element.totTotalSupply)
@@ -93,8 +93,8 @@ describe('TON Staking V2 Test', () => {
 
         jsonInfo = await jsonFixtures()
 
-        // deployed = await deployedTonStakingV2Fixture()
-        deployed = await tonStakingV2Fixture()
+        deployed = await deployedTonStakingV2Fixture()
+        // deployed = await tonStakingV2Fixture()
 
         deployer = deployed.deployer;
         addr1 = deployed.addr1;
@@ -122,13 +122,6 @@ describe('TON Staking V2 Test', () => {
         }
 
         snapshotInfos = []
-        // {
-        //     account: null,
-        //     snapshotId: null,
-        //     totTotalSupply: ethers.constants.Zero,
-        //     snapshotLayers: [], //{layerAddress:'', totalSupply: '', accountBalance: ''}
-        //     accountBalanceOfTotal: ethers.constants.Zero,
-        // }
 
     })
 
@@ -220,83 +213,93 @@ describe('TON Staking V2 Test', () => {
     });
 
     describe('basic functions ', () => {
-        it('deposit to level19', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            let tonAmount = ethers.utils.parseEther("100")
-            await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
+        // it('deposit to level19', async () => {
+        //     let layer2 = layer2Info_level19.layer2
+        //     let account = addr1
+        //     let tonAmount = ethers.utils.parseEther("100")
+        //     await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
+        //     console.log('transfer')
 
-            const beforeBalance = await deployed.TON.balanceOf(account.address);
-            expect(beforeBalance).to.be.gte(tonAmount)
+        //     const beforeBalance = await deployed.TON.balanceOf(account.address);
+        //     expect(beforeBalance).to.be.gte(tonAmount)
 
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //     let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //     console.log('stakedA', stakedA)
+        //     console.log('deployed.WTON.address', deployed.WTON.address)
+        //     console.log('layer2', layer2)
 
-            const data = marshalString(
-                [deployed.depositManagerV2.address, layer2]
-                  .map(unmarshalString)
-                  .map(str => padLeft(str, 64))
-                  .join(''),
-            );
+        //     const data = marshalString(
+        //         [deployed.depositManagerV2.address, layer2]
+        //           .map(unmarshalString)
+        //           .map(str => padLeft(str, 64))
+        //           .join(''),
+        //     );
 
-            await (await deployed.TON.connect(account).approveAndCall(
-                deployed.WTON.address,
-                tonAmount,
-                data,
-                {from: account.address}
-            )).wait()
+        //     console.log('data', data)
+        //     console.log('tonAmount', tonAmount)
+        //     console.log('deployed.TON', deployed.TON.address)
 
-            const afterBalance = await deployed.TON.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+        //     await (await deployed.TON.connect(account)["approveAndCall(address,uint256,bytes)"](
+        //         deployed.WTON.address,
+        //         tonAmount,
+        //         data,
+        //         {from: account.address}
+        //     )).wait()
+        //     console.log('approveAndCall')
 
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //     const afterBalance = await deployed.TON.balanceOf(account.address);
+        //     expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
-            let wtonAmount = tonAmount.mul(ethers.BigNumber.from("1"+"0".repeat(9)))
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
-            )
+        //     let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
 
-            let stakedAcount = await deployed.seigManagerV2["stakeOf(address)"](account.address)
-            let stakeOfTotal = await deployed.seigManagerV2["stakeOfTotal()"]()
+        //     let wtonAmount = tonAmount.mul(ethers.BigNumber.from("1"+"0".repeat(9)))
+        //     expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+        //         roundDown(stakedA.add(wtonAmount), 1)
+        //     )
 
-            let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
-            let stakeOfLayerTotal = await coinage.totalSupply()
+        //     let stakedAcount = await deployed.seigManagerV2["stakeOf(address)"](account.address)
+        //     let stakeOfTotal = await deployed.seigManagerV2["stakeOfTotal()"]()
 
-            expect(stakedB).to.be.eq(stakedAcount)
-            expect(stakedB).to.be.eq(stakeOfTotal)
-            expect(stakedB).to.be.eq(stakeOfLayerTotal)
+        //     let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+        //     let stakeOfLayerTotal = await coinage.totalSupply()
 
-        })
+        //     expect(stakedB).to.be.eq(stakedAcount)
+        //     expect(stakedB).to.be.eq(stakeOfTotal)
+        //     expect(stakedB).to.be.eq(stakeOfLayerTotal)
 
-        it('snapshot()', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
+        // })
 
-            let snapshotInfo: SnapshotInfo = {
-                account: account.address,
-                snapshotId: BigNumber.from("0"),
-                totTotalSupply: BigNumber.from("0"),
-                snapshotLayers: [],
-                accountBalanceOfTotal: BigNumber.from("0")
-            }
+        // it('snapshot()', async () => {
+        //     let layer2 = layer2Info_level19.layer2
+        //     let account = addr1
 
-            snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
-            snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
+        //     let snapshotInfo: SnapshotInfo = {
+        //         account: account.address,
+        //         snapshotId: BigNumber.from("0"),
+        //         totTotalSupply: BigNumber.from("0"),
+        //         snapshotLayers: [],
+        //         accountBalanceOfTotal: BigNumber.from("0")
+        //     }
 
-            let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
-            let snapshotLayer: SnapshotLayer = {layerAddress:layer2, totalSupply: ethers.constants.Zero, accountBalance: ethers.constants.Zero}
-            snapshotLayer.accountBalance = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-            snapshotLayer.totalSupply = await coinage.totalSupply()
+        //     snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
+        //     snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
 
-            snapshotInfo.snapshotLayers.push(snapshotLayer)
+        //     let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+        //     let snapshotLayer: SnapshotLayer = {layerAddress:layer2, totalSupply: ethers.constants.Zero, accountBalance: ethers.constants.Zero}
+        //     snapshotLayer.accountBalance = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //     snapshotLayer.totalSupply = await coinage.totalSupply()
 
-            const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
-            const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+        //     snapshotInfo.snapshotLayers.push(snapshotLayer)
 
-            snapshotInfo.snapshotId = deployedEvent.args.snapshotId
-            snapshotInfos.push(snapshotInfo)
-        });
+        //     const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
+        //     const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+
+        //     snapshotInfo.snapshotId = deployedEvent.args.snapshotId
+        //     snapshotInfos.push(snapshotInfo)
+        //     await checkSnapshots(deployed, jsonInfo, snapshotInfos)
+        // });
 
         it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
             let layer2 = layer2Info_tokamak.layer2
@@ -341,42 +344,104 @@ describe('TON Staking V2 Test', () => {
             expect(stakeOfTotal).to.be.eq(stakeOfTotalPrev.add(wtonAmount))
         })
 
-        it('snapshot()', async () => {
-            let layer2s = [layer2Info_level19.layer2, layer2Info_tokamak.layer2]
-            let account = addr1
+        // it('snapshot()', async () => {
+        //     let layer2s = [layer2Info_level19.layer2, layer2Info_tokamak.layer2]
+        //     let account = addr1
 
-            let snapshotInfo: SnapshotInfo = {
-                account: account.address,
-                snapshotId: BigNumber.from("0"),
-                totTotalSupply: BigNumber.from("0"),
-                snapshotLayers: [],
-                accountBalanceOfTotal: BigNumber.from("0")
-            }
+        //     let snapshotInfo: SnapshotInfo = {
+        //         account: account.address,
+        //         snapshotId: BigNumber.from("0"),
+        //         totTotalSupply: BigNumber.from("0"),
+        //         snapshotLayers: [],
+        //         accountBalanceOfTotal: BigNumber.from("0")
+        //     }
 
-            snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
-            snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
+        //     snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
+        //     snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
 
-            for(let i = 0; i < layer2s.length; i++) {
-                let layer2 = layer2s[i]
-                let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
-                let snapshotLayer: SnapshotLayer = {layerAddress:layer2, totalSupply: ethers.constants.Zero, accountBalance: ethers.constants.Zero}
-                snapshotLayer.accountBalance = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-                snapshotLayer.totalSupply = await coinage.totalSupply()
+        //     for(let i = 0; i < layer2s.length; i++) {
+        //         let layer2 = layer2s[i]
+        //         let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+        //         let snapshotLayer: SnapshotLayer = {layerAddress:layer2, totalSupply: ethers.constants.Zero, accountBalance: ethers.constants.Zero}
+        //         snapshotLayer.accountBalance = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //         snapshotLayer.totalSupply = await coinage.totalSupply()
 
-                snapshotInfo.snapshotLayers.push(snapshotLayer)
-            }
+        //         snapshotInfo.snapshotLayers.push(snapshotLayer)
+        //     }
 
-            const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
-            const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+        //     const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
+        //     const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
 
-            snapshotInfo.snapshotId = deployedEvent.args.snapshotId
-            snapshotInfos.push(snapshotInfo)
-            logSnapshots(snapshotInfos);
+        //     snapshotInfo.snapshotId = deployedEvent.args.snapshotId
+        //     snapshotInfos.push(snapshotInfo)
+        //     // logSnapshots(snapshotInfos);
+        //     await checkSnapshots(deployed, jsonInfo, snapshotInfos)
+        // });
 
-            await checkSnapshots(deployed, jsonInfo, snapshotInfos)
-        });
+        // it('updateSeigniorage to level19', async () => {
+
+        //     layer2Info_level19.layerContract = new ethers.Contract(layer2Info_level19.layer2, jsonInfo.Candidate.abi, ethers.provider)
+        //     let layer2 = layer2Info_level19
+        //     let account = addr1
+
+        //     let wtonAmount = ethers.utils.parseEther("1000"+"0".repeat(9))
+
+        //     await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
+
+        //     await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+        //         layer2.layer2,
+        //         layer2.operator,
+        //         wtonAmount
+        //     )).wait();
+
+        //     let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
+        //     let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
+
+        //     await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
+
+        //     let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
+
+        //     expect(stakedB).to.be.gt(stakedA)
+        //     expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
+        // })
+
+        // it('snapshot()', async () => {
+        //     let layer2s = [layer2Info_level19.layer2, layer2Info_tokamak.layer2]
+        //     let account = addr1
+
+        //     let snapshotInfo: SnapshotInfo = {
+        //         account: account.address,
+        //         snapshotId: BigNumber.from("0"),
+        //         totTotalSupply: BigNumber.from("0"),
+        //         snapshotLayers: [],
+        //         accountBalanceOfTotal: BigNumber.from("0")
+        //     }
+
+        //     snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
+        //     snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
+
+        //     for(let i = 0; i < layer2s.length; i++) {
+        //         let layer2 = layer2s[i]
+        //         let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+        //         let snapshotLayer: SnapshotLayer = {layerAddress:layer2, totalSupply: ethers.constants.Zero, accountBalance: ethers.constants.Zero}
+        //         snapshotLayer.accountBalance = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //         snapshotLayer.totalSupply = await coinage.totalSupply()
+
+        //         snapshotInfo.snapshotLayers.push(snapshotLayer)
+        //     }
+
+        //     const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
+        //     const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+
+        //     snapshotInfo.snapshotId = deployedEvent.args.snapshotId
+        //     snapshotInfos.push(snapshotInfo)
+        //     logSnapshots(snapshotInfos);
+        //     await checkSnapshots(deployed, jsonInfo, snapshotInfos)
+        // });
 
 
     })

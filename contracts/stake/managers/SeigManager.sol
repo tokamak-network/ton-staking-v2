@@ -540,10 +540,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     }
   }
 
-  function stakeOfAt(address layer2, address account, uint256 snapshotId) external view returns (uint256 amount) {
-    return _coinages[layer2].balanceOfAt(account, snapshotId);
-  }
-
   function stakeOfTotal() external view returns (uint256 amount) {
     amount = _tot.totalSupply();
   }

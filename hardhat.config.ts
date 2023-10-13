@@ -63,7 +63,7 @@ const config: HardhatUserConfig = {
       mainnet: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       goerli: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
       hardhat: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
-      local: '0x5b40841eeCfB429452AB25216Afc1e1650C07747',
+      local: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
     },
     DAOCommitteeProxy: {
       default: 10,
@@ -164,7 +164,7 @@ const config: HardhatUserConfig = {
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
-      deploy: ['deploy-migration']
+      // deploy: ['deploy-migration']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
