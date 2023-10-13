@@ -396,7 +396,7 @@ describe('TON Staking V2 Test', () => {
             console.log(deployedEvent.args)
 
             let toBlock = deployedEvent.args.blockNumber
-            let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber())
+            let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber(), layer2.layer2)
 
             console.log('calcSeigs' , calcSeigs)
 
