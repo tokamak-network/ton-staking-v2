@@ -27,6 +27,13 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
+//-----------------------------------------
+// Test process ( using nvm use v16.10.0)
+// 1. First terminal : npx hardhat node --fork https://mainnet.infura.io/v3/000000  --fork-block-number xxxxx
+//                        fork-block-number must be greater than 18169346 (lastSeigBlock)
+// 2. Second terminal : npx hardhat deploy --reset --network local
+// 3. Second terminal : npx hardhat test test/0.test.sample.ts --network local
+
 
 describe('TON Staking V2 Test', () => {
     let networkName: string
