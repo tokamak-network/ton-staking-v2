@@ -22,7 +22,22 @@ const SeigManagerAbi = [
             "payable": false,
             "stateMutability": "view",
             "type": "function"
-        }
+        },
+        {
+          "constant": true,
+          "inputs": [],
+          "name": "lastSeigBlock",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
     ]
 
 const AutoRefactorCoinageAbi = [
@@ -65,25 +80,43 @@ const AutoRefactorCoinageAbi = [
           }
     ]
 
-async function main() {
-    const [deployer] = await ethers.getSigners();
-    let seigManager = '0x710936500aC59e8551331871Cbad3D33d5e0D909'
-    let layer2 = '0x' // 특정 레이어 주소
-    let account = "0x" // 특정 타겟 주소
 
-    let SeigManagerContract = new ethers.Contract(seigManager, SeigManagerAbi, deployer)
-    let coinage = await SeigManagerContract.coinages(layer2)
-    let coinagesContract = new ethers.Contract(coinage, AutoRefactorCoinageAbi, deployer)
+    async function test(){
+      let seigManager = '0x710936500aC59e8551331871Cbad3D33d5e0D909'
+      let layer2 = '0x' // 특정 레이어 주소
+      let account = "0x" // 특정 타겟 주소
 
-    let balanceOfAddr1 = await coinagesContract.balanceOf(account)
-    console.log('balanceOfAddr1', balanceOfAddr1)
+      let SeigManagerContract = new ethers.Contract(seigManager, SeigManagerAbi, deployer)
+      let coinage = await SeigManagerContract.coinages(layer2)
+      let coinagesContract = new ethers.Contract(coinage, AutoRefactorCoinageAbi, deployer)
 
-    // 갖고 있는 잔액의 절반을 없앰
-    await (await coinagesContract.burnFrom(account, balanceOfAddr1.div(ethers.BigNumber.from("2")))).wait()
+      let balanceOfAddr1 = await coinagesContract.balanceOf(account)
+      console.log('balanceOfAddr1', balanceOfAddr1)
 
-    let balanceOfAddr2 = await coinagesContract.balanceOf(account)
-    console.log('balanceOfAddr2', balanceOfAddr2)
+      // 갖고 있는 잔액의 절반을 없앰
+      await (await coinagesContract.burnFrom(account, balanceOfAddr1.div(ethers.BigNumber.from("2")))).wait()
 
+      let balanceOfAddr2 = await coinagesContract.balanceOf(account)
+      console.log('balanceOfAddr2', balanceOfAddr2)
+
+    }
+
+
+    async function lastSeigBlock(){
+      let seigManager = '0x710936500aC59e8551331871Cbad3D33d5e0D909'
+      let SeigManagerContract = new ethers.Contract(seigManager, SeigManagerAbi, ethers.provider)
+
+      let lastSeigBlock = await SeigManagerContract.lastSeigBlock();
+      console.log("lastSeigBlock", lastSeigBlock)
+
+      // mainnet
+      // lastSeigBlock BigNumber { value: "18169346" }
+
+    }
+
+  async function main() {
+    // const [deployer] = await ethers.getSigners();
+    await lastSeigBlock()
   }
 
   main()
