@@ -11,6 +11,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["./deploy", "./test"],
+  "include": ["./test"],
   "files": ["./hardhat.config.ts"]
 }
