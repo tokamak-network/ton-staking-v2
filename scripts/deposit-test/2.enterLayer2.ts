@@ -7,6 +7,22 @@ import DAOCommitteeProxy_Json from '../../abi/DAOCommitteeProxy.json'
 
 const fs = require('fs');
 
+const oldContractInfo = {
+    TON: "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5",
+    WTON: "0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2",
+    Layer2Registry: "0x0b3E174A2170083e770D5d4Cf56774D221b7063e",
+    DepositManager: "0x56E465f654393fa48f007Ed7346105c7195CEe43",
+    CoinageFactory: "0x5b40841eeCfB429452AB25216Afc1e1650C07747",
+    OldDAOVaultMock: "",
+    SeigManager: "0x710936500aC59e8551331871Cbad3D33d5e0D909",
+    PowerTON: "0x970298189050aBd4dc4F119ccae14ee145ad9371",
+    DAOVault: "0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303",
+    DAOAgendaManager: "0xcD4421d082752f363E1687544a09d5112cD4f484",
+    CandidateFactory: "0xE6713aF11aDB0cFD3C60e15b23E43f5548C32942",
+    DAOCommittee: "0xd1A3fDDCCD09ceBcFCc7845dDba666B7B8e6D1fb",
+    DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+}
+
 let layer2Info_level19 : any;
 let layer2Info_tokamak : any;
 let layer2Info_hammerDAO : any;
@@ -49,6 +65,22 @@ async function enterLayer2() {
 
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
+
+    const candidateABI = JSON.parse(await fs.readFileSync("./abi/Candidate.json")).abi;
+    const layer2RegistryABI = JSON.parse(await fs.readFileSync("./abi/layer2Registry.json")).abi;
+    const seigManagerABI = JSON.parse(await fs.readFileSync("./abi/seigManager.json")).abi;
+
+    const layer2Registry = new ethers.Contract(
+        oldContractInfo.Layer2Registry,
+        layer2RegistryABI,
+        ethers.provider
+      );
+    
+    const seigManager = new ethers.Contract(
+        oldContractInfo.SeigManager,
+        seigManagerABI,
+        ethers.provider
+    );
     
     // const [deployer2, addr1, addr2 ] = await ethers.getSigners();
     // const { deployer } = await hre.getNamedAccounts();
@@ -57,93 +89,187 @@ async function enterLayer2() {
     // const deploySigner = await hre.ethers.getSigner(deployer);
     const newLayer2s = []
 
+    
     const deployerAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
     
     await hre.network.provider.send("hardhat_impersonateAccount", [
         deployerAddress,
     ]);
     const deployer = await hre.ethers.getSigner(deployerAddress);
-
-    //--------------level19-----------------1
-    const level19AdminAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
     
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        level19AdminAddress,
-    ]);
-    const level19Admin = await hre.ethers.getSigner(level19AdminAddress);
+    //--------------level19-----------------1
+    let coinageAddress = await seigManager.coinages(level19Addr)
+
+    let layerContract = new ethers.Contract(
+        level19Addr,
+        candidateABI,
+        ethers.provider
+    );
+    let operatorAddress = await layerContract.operator()
+    const level19AdminAddress = operatorAddress
 
     //--------------tokamak1-----------------2
-    const tokamakAdminAddress = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+
+    // let coinageAddress = await seigManager.coinages(tokamak1Addr)
+
+    layerContract = new ethers.Contract(
+        tokamak1Addr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const tokamakAdminAddress = operatorAddress
     
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        tokamakAdminAddress,
-    ]);
-    const tokamakAdmin = await hre.ethers.getSigner(tokamakAdminAddress);
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     tokamakAdminAddress,
+    // ]);
+    // const tokamakAdmin = await hre.ethers.getSigner(tokamakAdminAddress);
 
     //--------------hammerDAO-----------------3
-    const hammerAdminAddress = "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        hammerAdminAddress,
-    ]);
-    const hammerAdmin = await hre.ethers.getSigner(hammerAdminAddress);
+    layerContract = new ethers.Contract(
+        hammerDAOAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const hammerAdminAddress = operatorAddress
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     hammerAdminAddress,
+    // ]);
+    // const hammerAdmin = await hre.ethers.getSigner(hammerAdminAddress);
 
     //--------------DXMCorp-----------------4
-    const DXMCorpAdminAddress = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        DXMCorpAdminAddress,
-    ]);
-    const DXMCorpAdmin = await hre.ethers.getSigner(DXMCorpAdminAddress);
+    layerContract = new ethers.Contract(
+        DXMCorpAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const DXMCorpAdminAddress = operatorAddress
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     DXMCorpAdminAddress,
+    // ]);
+    // const DXMCorpAdmin = await hre.ethers.getSigner(DXMCorpAdminAddress);
 
     //--------------danalFintech-----------------5
-    const danalFintechAdminAddress = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        danalFintechAdminAddress,
-    ]);
-    const danalFintechAdmin = await hre.ethers.getSigner(danalFintechAdminAddress);
+    layerContract = new ethers.Contract(
+        danalFintechAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const danalFintechAdminAddress = operatorAddress
+
+
+    // const danalFintechAdminAddress = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     danalFintechAdminAddress,
+    // ]);
+    // const danalFintechAdmin = await hre.ethers.getSigner(danalFintechAdminAddress);
 
     //--------------DeSpread-----------------6
-    const DeSpreadAdminAddress = "0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        DeSpreadAdminAddress,
-    ]);
-    const DeSpreadAdmin = await hre.ethers.getSigner(DeSpreadAdminAddress);
+    layerContract = new ethers.Contract(
+        DeSpreadAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const DeSpreadAdminAddress = operatorAddress
+
+    // const DeSpreadAdminAddress = "0x976EA74026E726554dB657fA54763abd0C3a0aa9"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     DeSpreadAdminAddress,
+    // ]);
+    // const DeSpreadAdmin = await hre.ethers.getSigner(DeSpreadAdminAddress);
 
     //--------------decipher-----------------7
-    const decipherAdminAddress = "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        decipherAdminAddress,
-    ]);
-    const decipherAdmin = await hre.ethers.getSigner(decipherAdminAddress);
+    layerContract = new ethers.Contract(
+        decipherAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const decipherAdminAddress = operatorAddress
+
+    // const decipherAdminAddress = "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     decipherAdminAddress,
+    // ]);
+    // const decipherAdmin = await hre.ethers.getSigner(decipherAdminAddress);
 
     //--------------Talken-----------------8
-    const TalkenAdminAddress = "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        TalkenAdminAddress,
-    ]);
-    const TalkenAdmin = await hre.ethers.getSigner(TalkenAdminAddress);
+    layerContract = new ethers.Contract(
+        TalkenAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const TalkenAdminAddress = operatorAddress
+
+    
+    // const TalkenAdminAddress = "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     TalkenAdminAddress,
+    // ]);
+    // const TalkenAdmin = await hre.ethers.getSigner(TalkenAdminAddress);
 
     //--------------DSRV-----------------9
-    const DSRVAdminAddress = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        DSRVAdminAddress,
-    ]);
-    const DSRVAdmin = await hre.ethers.getSigner(DSRVAdminAddress);
+    layerContract = new ethers.Contract(
+        DSRVAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const DSRVAdminAddress = operatorAddress
+
+
+    // const DSRVAdminAddress = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     DSRVAdminAddress,
+    // ]);
+    // const DSRVAdmin = await hre.ethers.getSigner(DSRVAdminAddress);
 
     //--------------staked-----------------10
-    const stakedAdminAddress = "0xBcd4042DE499D14e55001CcbB24a551F3b954096"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        stakedAdminAddress,
-    ]);
-    const stakedAdmin = await hre.ethers.getSigner(stakedAdminAddress);
-    
+    layerContract = new ethers.Contract(
+        stakedAddr,
+        candidateABI,
+        ethers.provider
+    );
+    operatorAddress = await layerContract.operator()
+
+    const stakedAdminAddress = operatorAddress
+
+
+    // const stakedAdminAddress = "0xBcd4042DE499D14e55001CcbB24a551F3b954096"
+
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     stakedAdminAddress,
+    // ]);
+    // const stakedAdmin = await hre.ethers.getSigner(stakedAdminAddress);
+
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         DaoCommitteeAdminAddress,
