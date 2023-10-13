@@ -126,10 +126,30 @@ interface SnapshotLayer {
     accountBalance: BigNumber
 }
 
+
+interface CalculatedSeig {
+    tonTotalSupply: BigNumber,
+    tonBalanceOfWton: BigNumber,
+    totTotalSupply: BigNumber,
+    coinageTotalSupply: BigNumber,
+    totFactor: BigNumber,
+    coinageFactor: BigNumber,
+    maxSeig: BigNumber,
+    stakedSeig: BigNumber,
+    daoSeig: BigNumber,
+    powerTonSeig: BigNumber,
+    nextTonTotalSupply: BigNumber,
+    nextTotTotalSupply: BigNumber,
+    nextCoinageTotalSupply: BigNumber,
+    newTotFactor: BigNumber,
+    newCoinageFactor: BigNumber
+}
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     JSONFixture,
     SnapshotInfo,
-    SnapshotLayer
+    SnapshotLayer,
+    CalculatedSeig
 }

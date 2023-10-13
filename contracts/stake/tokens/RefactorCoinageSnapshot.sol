@@ -260,12 +260,22 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       amount = applyFactor(_valueAtAccountBalanceLast(account));
     }
 
+    function balanceOfSet(address account) external view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtAccountBalanceLast(account), _valueAtFactorLast());
+    }
+
     function totalSupplyAt(uint256 snapshotId) external view returns (uint256 amount)
     {
       Balance memory _balance = _valueAtTotalSupply(snapshotId);
       Factor memory _factor = _valueAtFactor(snapshotId);
 
       amount = _applyFactorAt(_balance, _factor);
+    }
+
+    function totalSupplyAtSet(uint256 snapshotId) external view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtTotalSupply(snapshotId), _valueAtFactor(snapshotId));
     }
 
     function balanceOfAt(address account, uint256 snapshotId) external view
@@ -275,6 +285,11 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       Factor memory _factor = _valueAtFactor(snapshotId);
 
       amount = _applyFactorAt(_balance, _factor);
+    }
+
+    function balanceOfAtSet(address account, uint256 snapshotId) external view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtAccount(snapshotId, account), _valueAtFactor(snapshotId));
     }
 
     function _valueAtTotalSupplyLast() internal view
@@ -303,7 +318,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       if(length != 0) index = accountBalanceIds[account][length - 1];
       return accountBalanceSnapshots[account][index];
     }
-    
+
     function _valueAtTotalSupply(uint256 snapshotId) internal view
       returns (Balance memory balance)
     {

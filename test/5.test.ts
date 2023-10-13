@@ -1,6 +1,6 @@
 import { expect } from './shared/expect'
 import { ethers, deployments, getNamedAccounts, network } from 'hardhat'
-import { BigNumber, Signer, BigNumber } from 'ethers'
+import { BigNumber, Signer } from 'ethers'
 import { mine } from "@nomicfoundation/hardhat-network-helpers"
 
 import {
@@ -11,11 +11,12 @@ import {
         seigManagerInfo,
         jsonFixtures } from './shared/fixtures'
 
-import { TonStakingV2Fixtures, JSONFixture, SnapshotInfo, SnapshotLayer } from './shared/fixtureInterfaces'
+import { TonStakingV2Fixtures, JSONFixture, SnapshotInfo, SnapshotLayer, CalculatedSeig } from './shared/fixtureInterfaces'
 import { padLeft } from 'web3-utils'
 import { marshalString, unmarshalString } from './shared/marshal';
 
 import { readContracts, deployedContracts } from "./common_func"
+import { calcSeigniorage , calcSeigniorageWithTonStakingV2Fixtures } from "./common_seig_func"
 
 function roundDown(val:BigNumber, decimals:number) {
     return ethers.utils.formatUnits(val, decimals).split(".")[0]
@@ -57,7 +58,7 @@ async function checkSnapshots(deployed:TonStakingV2Fixtures, jsonInfo: JSONFixtu
             let layer2 = element.snapshotLayers[j]
             let stakeOfLayerAccount = await deployed.seigManagerV2["stakeOfAt(address,address,uint256)"](layer2.layerAddress, element.account, element.snapshotId)
             let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2.layerAddress)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
-            let stakeOfLayerTotal = await coinage.totalSupply()
+            let stakeOfLayerTotal = await coinage.totalSupplyAt(element.snapshotId)
 
             expect(stakeOfLayerAccount).to.be.eq(layer2.accountBalance)
             expect(stakeOfLayerTotal).to.be.eq(layer2.totalSupply)
@@ -92,7 +93,6 @@ describe('TON Staking V2 Test', () => {
         console.log('networkName', networkName)
 
         jsonInfo = await jsonFixtures()
-
         // deployed = await deployedTonStakingV2Fixture()
         deployed = await tonStakingV2Fixture()
 
@@ -389,9 +389,26 @@ describe('TON Staking V2 Test', () => {
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
             let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
 
-            await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
+            const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
+            const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+            console.log(deployedEvent.args)
+
+            let toBlock = deployedEvent.args.blockNumber
+            let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber())
+
+            console.log('calcSeigs' , calcSeigs)
+
+            expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
+            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.totTotalSupply)
+            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotTotalSupply)
+            // expect(deployedEvent.args.oldCoinageFactor).to.be.eq(layer2.layer2)
+            expect(deployedEvent.args.nextTotFactor).to.be.eq(layer2.newTotFactor)
+            // expect(deployedEvent.args.nextCoinageFactor).to.be.eq(layer2.layer2)
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
+
 
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
