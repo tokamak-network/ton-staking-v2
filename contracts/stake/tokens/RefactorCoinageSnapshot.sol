@@ -255,6 +255,11 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       amount = applyFactor(_valueAtTotalSupplyLast());
     }
 
+    function totalSupplySet() public view returns (Factor memory)
+    {
+      return _valueAtFactorLast();
+    }
+
     function balanceOf(address account) external view returns (uint256 amount)
     {
       amount = applyFactor(_valueAtAccountBalanceLast(account));
