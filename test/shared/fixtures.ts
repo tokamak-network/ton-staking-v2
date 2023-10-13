@@ -496,13 +496,14 @@ const getContractAbi = function (contractInfos:any, name:string): string {
   return contractInfos.abis[name].abi ;
 }
 
-const getContract = function (contractInfos:any, name:string) : string{
+const getContract = function (contractInfos:any, name:string) : Contract {
   return new ethers.Contract(
       contractInfos.abis[name].address,
       contractInfos.abis[name].abi,
       ethers.provider
   );
 }
+
 
 export const deployedTonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtures> {
     const [deployer, addr1, addr2 ] = await ethers.getSigners();

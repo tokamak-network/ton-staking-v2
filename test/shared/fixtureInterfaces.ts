@@ -1,6 +1,6 @@
 
 import { ethers } from 'hardhat'
-import {  Wallet, Signer, Contract } from 'ethers'
+import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
@@ -112,8 +112,24 @@ interface JSONFixture {
     PowerTON: any
 }
 
+interface SnapshotInfo {
+    account: string,
+    snapshotId: BigNumber,
+    totTotalSupply: BigNumber,
+    snapshotLayers: Array<SnapshotLayer>,
+    accountBalanceOfTotal: BigNumber,
+}
+
+interface SnapshotLayer {
+    layerAddress: string,
+    totalSupply: BigNumber,
+    accountBalance: BigNumber
+}
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
-    JSONFixture
+    JSONFixture,
+    SnapshotInfo,
+    SnapshotLayer
 }
