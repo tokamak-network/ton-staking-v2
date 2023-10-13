@@ -340,26 +340,6 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             network: hre.network.name
         });
     }
-};
+}
 
 export default deployTonStakingV2;
-deployTonStakingV2.tags = [
-    "all",
-    "TestSeigManager",
-    "DAOCommitteeExtend",
-    "PowerTONUpgrade",
-    "SeigManager",
-    "SeigManagerMigration",
-    "SeigManagerProxy",
-    "DepositManager",
-    "DepositManagerForMigration",
-    "DepositManagerProxy",
-    "Layer2Registry",
-    "Layer2RegistryProxy",
-    "Candidate",
-    "CandidateFactory",
-    "CandidateFactoryProxy",
-    "RefactorCoinageSnapshot",
-    "CoinageFactory"
-];
-

@@ -1,5 +1,5 @@
 import { expect } from './shared/expect'
-import { ethers, network } from 'hardhat'
+import { ethers, deployments, getNamedAccounts, network } from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 import { mine } from "@nomicfoundation/hardhat-network-helpers"
 
@@ -14,6 +14,8 @@ import { TonStakingV2Fixtures, JSONFixture } from './shared/fixtureInterfaces'
 import { padLeft } from 'web3-utils'
 import { marshalString, unmarshalString } from './shared/marshal';
 
+import { readContracts, deployedContracts } from "./common_func"
+
 function roundDown(val:BigNumber, decimals:number) {
     return ethers.utils.formatUnits(val, decimals).split(".")[0]
 }
@@ -27,19 +29,24 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 
 describe('TON Staking V2 Test', () => {
+    let networkName: string
     let deployer: Signer, addr1: Signer, addr2:Signer;
     let deployed: TonStakingV2Fixtures
     let jsonInfo: JSONFixture
+    let contractInfos : any;
+
     let layer2Info_level19 : any;
     let layer2Info_tokamak : any;
     let Operator : any;
     let Candidate : any;
     let snapshotInfo : any;
 
-    before('create fixture loader', async () => {
-        deployed = await deployedTonStakingV2Fixture()
-        jsonInfo = await jsonFixtures()
 
+    before('create fixture loader', async () => {
+        networkName = network.name;
+        jsonInfo = await jsonFixtures()
+        // contractInfos = await readContracts(__dirname+'/../deployments/'+networkName);
+        deployed = await deployedTonStakingV2Fixture()
         deployer = deployed.deployer;
         addr1 = deployed.addr1;
         addr2 = deployed.addr2;
@@ -76,6 +83,7 @@ describe('TON Staking V2 Test', () => {
 
     describe('New SeigManager ', () => {
         it('check storages', async () => {
+
             expect(await deployed.seigManagerV2.factory()).to.be.eq(deployed.coinageFactoryV2.address)
             expect(await deployed.seigManagerV2.registry()).to.be.eq(deployed.layer2RegistryProxy.address)
             expect(await deployed.seigManagerV2.depositManager()).to.be.eq(deployed.depositManagerV2.address)
