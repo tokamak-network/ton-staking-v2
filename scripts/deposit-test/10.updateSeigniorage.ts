@@ -111,8 +111,9 @@ async function updateSeigniorage() {
     )
 
     let i;
-    for(i = 0; i < 1; i++) {
-        if(i == 8) {
+    for(i = 0; i < newLayerAddr.length; i++) {
+        if(i == 7) {
+            console.log("Talken seig update no")
             continue;
         } else {
             const coinAddress = seigManager.coinages(newLayerAddr[i])
