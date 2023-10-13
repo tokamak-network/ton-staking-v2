@@ -19,6 +19,7 @@ let layer2Info_DSRV : any;
 let layer2Info_staked : any;
 
 let DAOCommitteeProxy = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26";
+const DaoCommitteeAdminAddress = "0xb4983da083a5118c903910db4f5a480b1d9f3687"
 
 async function enterLayer2() {
     /* layer 등록 순서
@@ -143,7 +144,6 @@ async function enterLayer2() {
     ]);
     const stakedAdmin = await hre.ethers.getSigner(stakedAdminAddress);
     
-    const DaoCommitteeAdminAddress = "0xb4983da083a5118c903910db4f5a480b1d9f3687"
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         DaoCommitteeAdminAddress,
