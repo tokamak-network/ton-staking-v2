@@ -705,14 +705,16 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     //    staked rate = total staked amount / total supply of (W)TON
 
     prevTotalSupply = _tot.totalSupply();
+    console.log("_increaseTot prevTotalSupply %s ", prevTotalSupply);
 
     // maximum seigniorages
     uint256 maxSeig = _calcNumSeigBlocks() * _seigPerBlock;
+    console.log("_increaseTot maxSeig %s ", maxSeig);
 
     // total supply of (W)TON
     uint256 tos = (
-      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-    ) * (10 ** 9)) + (_tot.totalSupply());  // consider additional TOT balance as total supply
+      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton)) * (10 ** 9)) + _tot.totalSupply() - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1));  // consider additional TOT balance as total supply
+    console.log("_increaseTot tos %s ", tos);
 
     // maximum seigniorages * staked rate
     uint256 stakedSeig = rdiv(
@@ -723,11 +725,19 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       ),
       tos
     );
+    console.log("_increaseTot stakedSeig %s ", stakedSeig);
 
     // pseig
     uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
+    console.log("_increaseTot totalPseig %s ", totalPseig);
+
+    console.log("_increaseTot stakedSeig total %s ", stakedSeig + totalPseig);
+
 
     nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+    console.log("_increaseTot nextTotalSupply %s ", nextTotalSupply);
+
+
     _lastSeigBlock = block.number;
 
     _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
@@ -745,6 +755,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 powertonSeig;
     uint256 daoSeig;
     uint256 relativeSeig;
+    console.log("_increaseTot unstakedSeig %s ", unstakedSeig);
 
     if (address(_powerton) != address(0)) {
       powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
@@ -761,6 +772,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       relativeSeig = totalPseig;
       accRelativeSeig = accRelativeSeig + relativeSeig;
     }
+    console.log("_increaseTot daoSeig %s ", daoSeig);
+    console.log("_increaseTot powertonSeig %s ", powertonSeig);
 
     emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, relativeSeig);
 

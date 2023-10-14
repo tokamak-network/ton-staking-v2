@@ -193,19 +193,19 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     // 총 (w)ton total supply = ((ton.totalSupply - ton.balanceOf(wton)) *1e9) + totalmem.totalSupply
     let tonTotalSupply = await tonContract.totalSupply()
     let tonBalanceOfWton = await tonContract.balanceOf(oldContractInfo.WTON)
+    let tonBalanceOfZero = await tonContract.balanceOf(ethers.constants.AddressZero)
+    let tonBalanceOfOne = await tonContract.balanceOf('0x0000000000000000000000000000000000000001')
     let totTotalSupply = await totContract.totalSupply()
+    let tos = tonTotalSupply.sub(tonBalanceOfWton).sub(tonBalanceOfZero).sub(tonBalanceOfOne)
+
     let totBalanceLayer = await totContract.balanceOf(layer2)
     let totFactor = await totContract.factor()
-    let totFactorSet = await totContract.totalSupplySet()
+    let totTotalAndFactor = await totContract.getTotalAndFactor()
+    let totBalanceAndFactor = await totContract.getBalanceAndFactor(layer2)
 
     let coinageTotalSupply = await coinage.totalSupply()
-    console.log('coinageTotalSupply', coinageTotalSupply)
-
     let coinageFactor = await coinage.factor()
-    let coinageFactorSet = await coinage.totalSupplySet()
-
-    let prevTotBalanceSet = await totContract.balanceOfSet(layer2)
-    console.log('prevTotBalanceSet' ,prevTotBalanceSet)
+    let coinageTotalAndFactor = await coinage.getTotalAndFactor()
 
     // console.log('tonTotalSupply' , ethers.utils.formatUnits(tonTotalSupply, 27))
     // console.log('tonBalanceOfWton' , ethers.utils.formatUnits(tonBalanceOfWton, 27))
@@ -219,17 +219,17 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
 
     // let block = await ethers.provider.getBlock('latest')
     let maxSeig = await calcMaxSeigs(seigManager, toBlock)
-    // console.log('maxSeig' , ethers.utils.formatUnits(maxSeig, 27) )
+    console.log('maxSeig' , ethers.utils.formatUnits(maxSeig, 27) )
 
     // 스테이킹을 한 사람들의 시뇨리지 stakedSeig
     let stakedSeig1 = maxSeig.mul(totTotalSupply).div(currentTonTotal)
-    // console.log('stakedSeig1' , ethers.utils.formatUnits(stakedSeig1, 27)  )
+    console.log('stakedSeig1' , ethers.utils.formatUnits(stakedSeig1, 27)  )
 
     let unstakedSeig = maxSeig.sub(stakedSeig1)
     // console.log('unstakedSeig' ,  ethers.utils.formatUnits(unstakedSeig, 27) )
 
     let stakedSeig = stakedSeig1.add(unstakedSeig.mul(relativeSeigRate).div(RAY))
-    // console.log('stakedSeig' , ethers.utils.formatUnits(stakedSeig, 27) )
+    console.log('stakedSeig' , ethers.utils.formatUnits(stakedSeig, 27) )
 
     // dao 시뇨리지
     let daoSeig = unstakedSeig.mul(daoSeigRate).div(RAY)
@@ -255,18 +255,22 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     console.log('newFactorSet' ,newFactorSet)
 
 
-    let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, prevTotBalanceSet[0].balance, prevTotBalanceSet[0].refactoredCount)
+    let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, totBalanceAndFactor[0].balance, totBalanceAndFactor[0].refactoredCount)
 
     let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
 
     return {
+        toBlock: toBlock,
         layer2Address: layer2,
         tonTotalSupply: tonTotalSupply,
         tonBalanceOfWton: tonBalanceOfWton,
         totTotalSupply: totTotalSupply,
         totBalanceLayer: totBalanceLayer,
-        coinageTotalSupply: coinageTotalSupply,
+        totTotalAndFactor: totTotalAndFactor,
+        totBalanceAndFactor: totBalanceAndFactor,
         totFactor: totFactor,
+        coinageTotalSupply: coinageTotalSupply,
+        coinageTotalAndFactor: coinageTotalAndFactor,
         coinageFactor: coinageFactor,
         maxSeig: maxSeig,
         stakedSeig: stakedSeig,

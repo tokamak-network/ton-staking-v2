@@ -126,14 +126,33 @@ interface SnapshotLayer {
     accountBalance: BigNumber
 }
 
+interface Balance {
+    balance: BigNumber,
+    refactoredCount: BigNumber
+}
+
+interface Factor {
+    factor: BigNumber,
+    refactorCount: BigNumber
+}
+
+interface BalanceAndFactor {
+    balance: Balance,
+    factor: Factor
+}
 
 interface CalculatedSeig {
+    toBlock: BigNumber,
+    layer2Address: string,
     tonTotalSupply: BigNumber,
     tonBalanceOfWton: BigNumber,
     totTotalSupply: BigNumber,
     totBalanceLayer: BigNumber,
-    coinageTotalSupply: BigNumber,
+    totTotalAndFactor: BalanceAndFactor,
+    totBalanceAndFactor: BalanceAndFactor,
     totFactor: BigNumber,
+    coinageTotalSupply: BigNumber,
+    coinageTotalAndFactor: BalanceAndFactor,
     coinageFactor: BigNumber,
     maxSeig: BigNumber,
     stakedSeig: BigNumber,
