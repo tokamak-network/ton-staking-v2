@@ -146,6 +146,7 @@ interface CalculatedSeig {
     layer2Address: string,
     tonTotalSupply: BigNumber,
     tonBalanceOfWton: BigNumber,
+    tos: BigNumber,
     totTotalSupply: BigNumber,
     totBalanceLayer: BigNumber,
     totTotalAndFactor: BalanceAndFactor,

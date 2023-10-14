@@ -81,15 +81,4 @@ contract SeigManagerStorage   {
     bool public paused;
     uint256 public lastSnapshotId;
 
-
-    // struct Balance {
-    //     uint256 balance;
-    //     uint256 refactoredCount;
-    // }
-
-    // struct Factor {
-    //     uint256 factor;
-    //     uint256 refactorCount;
-    // }
-
 }

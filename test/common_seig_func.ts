@@ -36,20 +36,11 @@ async function calcMaxSeigs (seigManager, blockNumber){
 }
 
 async function calcNewFactor (prevTotal, nxtTotal, oldFactor){
-    // console.log('--- calcNewFactor ---')
-    // console.log('prevTotal', prevTotal)
-    // console.log('nxtTotal', nxtTotal)
-    // console.log('oldFactor', oldFactor)
 
     return nxtTotal.mul(oldFactor).div(prevTotal)
 }
 
 async function applyFactor (factor:BigNumber, refactorCount: BigNumber, balance: BigNumber, refactoredCount:BigNumber) {
-    // console.log('--- applyFactor ---')
-    // console.log('factor', factor)
-    // console.log('refactorCount', refactorCount)
-    // console.log('balance', balance)
-    // console.log('refactoredCount', refactoredCount)
 
     let v = balance.mul(factor).div(RAY)
     v = v.mul(REFACTOR_DIVIDER.pow(refactorCount.sub(refactoredCount)))
@@ -60,14 +51,14 @@ async function setFactor (factor_){
     let count = 0;
     let f = factor_;
 
-    for (; f >= REFACTOR_BOUNDARY; f = f.div(REFACTOR_DIVIDER)) {
+    for (; f.gte(REFACTOR_BOUNDARY); f = f.div(REFACTOR_DIVIDER)) {
         count++;
     }
     return {factor: f, refactorCount: BigNumber.from(''+count)}
 }
 
 
-export const calcSeigniorage  = async (contractInfos, toBlock) =>  {
+export const calcSeigniorage  = async (contractInfos, toBlock,  layer2: string) =>  {
     const RefactorCoinageSnapshotABI = JSON.parse(await fs.readFileSync("./abi/RefactorCoinageSnapshot.json")).abi;
 
     const AutoRefactorCoinageABI = JSON.parse(await fs.readFileSync("./abi/AutoRefactorCoinage.json")).abi;
@@ -99,6 +90,7 @@ export const calcSeigniorage  = async (contractInfos, toBlock) =>  {
         RefactorCoinageSnapshotABI,
         ethers.provider
     )
+    let coinage = new ethers.Contract((await seigManager.coinages(layer2)), RefactorCoinageSnapshotABI, ethers.provider)
 
     let relativeSeigRate = await seigManager.relativeSeigRate()
     let powerTONSeigRate = await seigManager.powerTONSeigRate()
@@ -109,64 +101,58 @@ export const calcSeigniorage  = async (contractInfos, toBlock) =>  {
     // 총 (w)ton total supply = ((ton.totalSupply - ton.balanceOf(wton)) *1e9) + totalmem.totalSupply
     let tonTotalSupply = await tonContract.totalSupply()
     let tonBalanceOfWton = await tonContract.balanceOf(oldContractInfo.WTON)
+    let tonBalanceOfZero = await tonContract.balanceOf(ethers.constants.AddressZero)
+    let tonBalanceOfOne = await tonContract.balanceOf('0x0000000000000000000000000000000000000001')
     let totTotalSupply = await totContract.totalSupply()
+    let tos = (tonTotalSupply.sub(tonBalanceOfWton).sub(tonBalanceOfZero).sub(tonBalanceOfOne)).mul(RAYDIFF).add(totTotalSupply)
+
+    let totBalanceLayer = await totContract.balanceOf(layer2)
     let totFactor = await totContract.factor()
-    // console.log('tonTotalSupply' , ethers.utils.formatUnits(tonTotalSupply, 27))
-    // console.log('tonBalanceOfWton' , ethers.utils.formatUnits(tonBalanceOfWton, 27))
-    // console.log('totTotalSupply' , ethers.utils.formatUnits(totTotalSupply, 27))
-    // console.log('totFactor' , ethers.utils.formatUnits(totFactor, 27))
+    let totTotalAndFactor = await totContract.getTotalAndFactor()
+    let totBalanceAndFactor = await totContract.getBalanceAndFactor(layer2)
 
-    // console.log('RAY',ethers.utils.formatUnits(RAY, 27))
+    let coinageTotalSupply = await coinage.totalSupply()
+    let coinageFactor = await coinage.factor()
+    let coinageTotalAndFactor = await coinage.getTotalAndFactor()
 
-    let currentTonTotal = (tonTotalSupply.sub(tonBalanceOfWton)).mul(RAYDIFF).add(totTotalSupply)
-     // 현재 총발행량에서 주소0과 주소1에 있는 것은 빼주어야 하지 않을까요?
-
-    // let block = await ethers.provider.getBlock('latest')
     let maxSeig = await calcMaxSeigs(seigManager, toBlock)
-    // console.log('maxSeig' , ethers.utils.formatUnits(maxSeig, 27) )
-
-    // 스테이킹을 한 사람들의 시뇨리지 stakedSeig
-    let stakedSeig1 = maxSeig.mul(totTotalSupply).div(currentTonTotal)
-    // console.log('stakedSeig1' , ethers.utils.formatUnits(stakedSeig1, 27)  )
-
+    let stakedSeig1 = maxSeig.mul(totTotalSupply).div(tos)
     let unstakedSeig = maxSeig.sub(stakedSeig1)
-    // console.log('unstakedSeig' ,  ethers.utils.formatUnits(unstakedSeig, 27) )
-
     let stakedSeig = stakedSeig1.add(unstakedSeig.mul(relativeSeigRate).div(RAY))
-    // console.log('stakedSeig' , ethers.utils.formatUnits(stakedSeig, 27) )
 
-    // dao 시뇨리지
     let daoSeig = unstakedSeig.mul(daoSeigRate).div(RAY)
-    // console.log('daoSeig' , ethers.utils.formatUnits(daoSeig, 27)  )
-
-    // powerton 시뇨리지
     let powerTonSeig = unstakedSeig.mul(powerTONSeigRate).div(RAY)
-    // console.log('powerTonSeig' , ethers.utils.formatUnits(powerTonSeig, 27) )
-
-    // 시뇨리지가 발행한 다음의 총 스테이킹 양
     let nextTonTotalSupply = tonTotalSupply.add(maxSeig) ;
     let nextTotTotalSupply = totTotalSupply.add(stakedSeig) ;
-
-    // console.log('nextTonTotalSupply' , ethers.utils.formatUnits(nextTonTotalSupply, 27) )
-    // console.log('nextTotTotalSupply' , ethers.utils.formatUnits(nextTotTotalSupply, 27) )
-
-    // 팩터변경 : tot의 Factor가 변경된다. -> tot.balance 레이어별 잔액이 변경된다.
-
     let newTotFactor = await calcNewFactor (totTotalSupply, nextTotTotalSupply, totFactor)
-    // console.log('tot  newFactor' , ethers.utils.formatUnits(newTotFactor, 27))
+    let newFactorSet = await setFactor(newTotFactor)
+    let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, totBalanceAndFactor[0].balance, totBalanceAndFactor[0].refactoredCount)
+    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
 
     return {
+        toBlock: toBlock,
+        layer2Address: layer2,
         tonTotalSupply: tonTotalSupply,
         tonBalanceOfWton: tonBalanceOfWton,
+        tos: tos,
         totTotalSupply: totTotalSupply,
+        totBalanceLayer: totBalanceLayer,
+        totTotalAndFactor: totTotalAndFactor,
+        totBalanceAndFactor: totBalanceAndFactor,
         totFactor: totFactor,
+        coinageTotalSupply: coinageTotalSupply,
+        coinageTotalAndFactor: coinageTotalAndFactor,
+        coinageFactor: coinageFactor,
         maxSeig: maxSeig,
         stakedSeig: stakedSeig,
         daoSeig: daoSeig,
         powerTonSeig: powerTonSeig,
         nextTonTotalSupply: nextTonTotalSupply,
         nextTotTotalSupply: nextTotTotalSupply,
-        newTotFactor: newTotFactor
+        nextTotBalanceLayer: nextBalanceOfLayerInTot,
+        // nextCoinageTotalSupply: nextBalanceOfLayerInTot,
+        newTotFactor: newTotFactor,
+        newCoinageFactor: newCoinageFactor
     }
 }
 
@@ -196,7 +182,7 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let tonBalanceOfZero = await tonContract.balanceOf(ethers.constants.AddressZero)
     let tonBalanceOfOne = await tonContract.balanceOf('0x0000000000000000000000000000000000000001')
     let totTotalSupply = await totContract.totalSupply()
-    let tos = tonTotalSupply.sub(tonBalanceOfWton).sub(tonBalanceOfZero).sub(tonBalanceOfOne)
+    let tos = (tonTotalSupply.sub(tonBalanceOfWton).sub(tonBalanceOfZero).sub(tonBalanceOfOne)).mul(RAYDIFF).add(totTotalSupply)
 
     let totBalanceLayer = await totContract.balanceOf(layer2)
     let totFactor = await totContract.factor()
@@ -207,56 +193,18 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let coinageFactor = await coinage.factor()
     let coinageTotalAndFactor = await coinage.getTotalAndFactor()
 
-    // console.log('tonTotalSupply' , ethers.utils.formatUnits(tonTotalSupply, 27))
-    // console.log('tonBalanceOfWton' , ethers.utils.formatUnits(tonBalanceOfWton, 27))
-    // console.log('totTotalSupply' , ethers.utils.formatUnits(totTotalSupply, 27))
-    // console.log('totFactor' , ethers.utils.formatUnits(totFactor, 27))
-
-    // console.log('RAY',ethers.utils.formatUnits(RAY, 27))
-
-    let currentTonTotal = (tonTotalSupply.sub(tonBalanceOfWton)).mul(RAYDIFF).add(totTotalSupply)
-     // 현재 총발행량에서 주소0과 주소1에 있는 것은 빼주어야 하지 않을까요?
-
-    // let block = await ethers.provider.getBlock('latest')
     let maxSeig = await calcMaxSeigs(seigManager, toBlock)
-    console.log('maxSeig' , ethers.utils.formatUnits(maxSeig, 27) )
-
-    // 스테이킹을 한 사람들의 시뇨리지 stakedSeig
-    let stakedSeig1 = maxSeig.mul(totTotalSupply).div(currentTonTotal)
-    console.log('stakedSeig1' , ethers.utils.formatUnits(stakedSeig1, 27)  )
-
+    let stakedSeig1 = maxSeig.mul(totTotalSupply).div(tos)
     let unstakedSeig = maxSeig.sub(stakedSeig1)
-    // console.log('unstakedSeig' ,  ethers.utils.formatUnits(unstakedSeig, 27) )
-
     let stakedSeig = stakedSeig1.add(unstakedSeig.mul(relativeSeigRate).div(RAY))
-    console.log('stakedSeig' , ethers.utils.formatUnits(stakedSeig, 27) )
 
-    // dao 시뇨리지
     let daoSeig = unstakedSeig.mul(daoSeigRate).div(RAY)
-    // console.log('daoSeig' , ethers.utils.formatUnits(daoSeig, 27)  )
-
-    // powerton 시뇨리지
     let powerTonSeig = unstakedSeig.mul(powerTONSeigRate).div(RAY)
-    // console.log('powerTonSeig' , ethers.utils.formatUnits(powerTonSeig, 27) )
-
-    // 시뇨리지가 발행한 다음의 총 스테이킹 양
     let nextTonTotalSupply = tonTotalSupply.add(maxSeig) ;
     let nextTotTotalSupply = totTotalSupply.add(stakedSeig) ;
-
-    // console.log('nextTonTotalSupply' , ethers.utils.formatUnits(nextTonTotalSupply, 27) )
-    // console.log('nextTotTotalSupply' , ethers.utils.formatUnits(nextTotTotalSupply, 27) )
-
-    // 팩터변경 : tot의 Factor가 변경된다. -> tot.balance 레이어별 잔액이 변경된다.
-
     let newTotFactor = await calcNewFactor (totTotalSupply, nextTotTotalSupply, totFactor)
-    // console.log('tot  newFactor' , ethers.utils.formatUnits(newTotFactor, 27))
-
     let newFactorSet = await setFactor(newTotFactor)
-    console.log('newFactorSet' ,newFactorSet)
-
-
     let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, totBalanceAndFactor[0].balance, totBalanceAndFactor[0].refactoredCount)
-
     let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
 
     return {
@@ -264,6 +212,7 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
         layer2Address: layer2,
         tonTotalSupply: tonTotalSupply,
         tonBalanceOfWton: tonBalanceOfWton,
+        tos: tos,
         totTotalSupply: totTotalSupply,
         totBalanceLayer: totBalanceLayer,
         totTotalAndFactor: totTotalAndFactor,
