@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
 import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
@@ -134,8 +135,18 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
   // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
-
   event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
+
+  // event UpdatedSeigniorage(
+  //     address indexed layer2,
+  //     uint256 blockNumber,
+  //     uint256 prevTotTotal,
+  //     uint256 prevTotBalance,
+  //     uint256 nextTotTotal,
+  //     uint256 nextTotBalance,
+  //     uint256 prevCoinageTotal,
+  //     uint256 nextCoinageTotal);
+
   event OnSnapshot(uint256 snapshotId);
 
   //////////////////////////////
@@ -399,6 +410,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 oldCoinageFactor = coinage.factor();
     uint256 oldTotFactor = _tot.factor();
 
+    // uint256 prevTotTotal = _tot.totalSupply();
+    // uint256 prevTotBalance = _tot.balanceOf(msg.sender);
+    // uint256 prevCoinageTotal = coinage.totalSupply();
+
     _increaseTot();
 
     _lastCommitBlock[msg.sender] = block.number;
@@ -454,10 +469,17 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 newCoinageFactor = coinage.factor();
     uint256 newTotFactor = _tot.factor();
 
+    // uint256 nextTotTotal = _tot.totalSupply();
+    // uint256 nextTotBalance = _tot.balanceOf(msg.sender);
+    // uint256 nextCoinageTotal = coinage.totalSupply();
+
     IWTON(_wton).mint(address(_depositManager), seigs);
 
     emit Comitted(msg.sender);
+
     emit UpdatedSeigniorage(msg.sender, block.number, prevTotalSupply, nextTotalSupply, oldTotFactor, oldCoinageFactor, newTotFactor, newCoinageFactor);
+    // emit UpdatedSeigniorage(msg.sender, block.number, prevTotTotal, prevTotBalance, nextTotTotal, nextTotBalance, prevCoinageTotal, nextCoinageTotal);
+
     return true;
   }
 
