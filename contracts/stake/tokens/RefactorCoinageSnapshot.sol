@@ -255,40 +255,40 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       amount = applyFactor(_valueAtTotalSupplyLast());
     }
 
-    function totalSupplySet() public view returns (Factor memory)
-    {
-      return _valueAtFactorLast();
-    }
-
     function balanceOf(address account) external view returns (uint256 amount)
     {
       amount = applyFactor(_valueAtAccountBalanceLast(account));
     }
 
-    function balanceOfSet(address account) public view returns (Balance memory, Factor memory)
-    {
-      return (_valueAtAccountBalanceLast(account), _valueAtFactorLast());
-    }
-
     function totalSupplyAt(uint256 snapshotId) external view returns (uint256 amount)
     {
-      (Balance memory _balance,  Factor memory _factor) = totalSupplyAtSet(snapshotId);
+      (Balance memory _balance,  Factor memory _factor) = getTotalAndFactorAt(snapshotId);
       amount = _applyFactorAt(_balance, _factor);
-    }
-
-    function totalSupplyAtSet(uint256 snapshotId) public view returns (Balance memory, Factor memory)
-    {
-      return (_valueAtTotalSupply(snapshotId), _valueAtFactor(snapshotId));
     }
 
     function balanceOfAt(address account, uint256 snapshotId) external view
       returns (uint256 amount)
     {
-      (Balance memory _balance,  Factor memory _factor) = balanceOfAtSet(account, snapshotId);
+      (Balance memory _balance,  Factor memory _factor) = getBalanceAndFactorAt(account, snapshotId);
       amount = _applyFactorAt(_balance, _factor);
     }
 
-    function balanceOfAtSet(address account, uint256 snapshotId) public view returns (Balance memory, Factor memory)
+    function getTotalAndFactor() public view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtTotalSupplyLast(), _valueAtFactorLast());
+    }
+
+    function getBalanceAndFactor(address account) public view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtAccountBalanceLast(account), _valueAtFactorLast());
+    }
+
+    function getTotalAndFactorAt(uint256 snapshotId) public view returns (Balance memory, Factor memory)
+    {
+      return (_valueAtTotalSupply(snapshotId), _valueAtFactor(snapshotId));
+    }
+
+    function getBalanceAndFactorAt(address account, uint256 snapshotId) public view returns (Balance memory, Factor memory)
     {
       return (_valueAtAccount(snapshotId, account), _valueAtFactor(snapshotId));
     }
