@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IRefactor } from "../interfaces/IRefactor.sol";
 interface RefactorCoinageSnapshotI {
 
   function factor() external view returns (uint256);
@@ -18,9 +19,8 @@ interface RefactorCoinageSnapshotI {
   function totalSupplyAt(uint256 snapshotId) external view returns (uint256 amount);
   function balanceOfAt(address account, uint256 snapshotId) external view returns (uint256 amount);
 
-  // function totalSupplySet() external view returns (Factor memory);
-  // function balanceOfSet(address account) external view returns (Balance memory, Factor memory);
-  // function totalSupplyAtSet(uint256 snapshotId) external view returns (Balance memory, Factor memory);
-  // function balanceOfAtSet(address account, uint256 snapshotId) external view returns (Balance memory, Factor memory);
-
+  function getTotalAndFactor() external view returns (IRefactor.Balance memory, IRefactor.Factor memory);
+  function getBalanceAndFactor(address account) external view returns (IRefactor.Balance memory, IRefactor.Factor memory);
+  function getTotalAndFactorAt(uint256 snapshotId) external view returns (IRefactor.Balance memory, IRefactor.Factor memory);
+  function getBalanceAndFactorAt(address account, uint256 snapshotId) external view returns (IRefactor.Balance memory, IRefactor.Factor memory);
 }

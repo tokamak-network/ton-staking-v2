@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
 import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
@@ -126,19 +127,26 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   //////////////////////////////
 
   event CoinageCreated(address indexed layer2, address coinage);
-  event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 pseig);
+  event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig);
   event Comitted(address indexed layer2);
   event CommissionRateSet(address indexed layer2, uint256 previousRate, uint256 newRate);
   event Paused(address account);
   event Unpaused(address account);
 
   // DEV ONLY
-  event CommitLog1(uint256 totalStakedAmount, uint256 totalSupplyOfWTON, uint256 prevTotalSupply, uint256 nextTotalSupply);
-
-  // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
-
   event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
+
+  // event UpdatedSeigniorage(
+  //     address indexed layer2,
+  //     uint256 blockNumber,
+  //     uint256 prevTotTotal,
+  //     uint256 prevTotBalance,
+  //     uint256 nextTotTotal,
+  //     uint256 nextTotBalance,
+  //     uint256 prevCoinageTotal,
+  //     uint256 nextCoinageTotal);
+
   event OnSnapshot(uint256 snapshotId);
 
   //////////////////////////////
@@ -402,6 +410,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 oldCoinageFactor = coinage.factor();
     uint256 oldTotFactor = _tot.factor();
 
+    // uint256 prevTotTotal = _tot.totalSupply();
+    // uint256 prevTotBalance = _tot.balanceOf(msg.sender);
+    // uint256 prevCoinageTotal = coinage.totalSupply();
+
     _increaseTot();
 
     _lastCommitBlock[msg.sender] = block.number;
@@ -458,10 +470,17 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 newCoinageFactor = coinage.factor();
     uint256 newTotFactor = _tot.factor();
 
+    // uint256 nextTotTotal = _tot.totalSupply();
+    // uint256 nextTotBalance = _tot.balanceOf(msg.sender);
+    // uint256 nextCoinageTotal = coinage.totalSupply();
+
     IWTON(_wton).mint(address(_depositManager), seigs);
 
     emit Comitted(msg.sender);
+
     emit UpdatedSeigniorage(msg.sender, block.number, prevTotalSupply, nextTotalSupply, oldTotFactor, oldCoinageFactor, newTotFactor, newCoinageFactor);
+    // emit UpdatedSeigniorage(msg.sender, block.number, prevTotTotal, prevTotBalance, nextTotTotal, nextTotBalance, prevCoinageTotal, nextCoinageTotal);
+
     return true;
   }
 
@@ -730,15 +749,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
 
-    // TODO: reduce computation
-    // DEV ONLY
-    emit CommitLog1(
-      _tot.totalSupply(),
-      tos,
-      prevTotalSupply,
-      nextTotalSupply
-    );
-
     uint256 unstakedSeig = maxSeig - stakedSeig;
     uint256 powertonSeig;
     uint256 daoSeig;
@@ -760,7 +770,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       accRelativeSeig = accRelativeSeig + relativeSeig;
     }
 
-    emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, relativeSeig);
+    emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
 
     return true;
   }
