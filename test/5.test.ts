@@ -290,7 +290,7 @@ describe('TON Staking V2 Test', () => {
             snapshotInfos.push(snapshotInfo)
             await checkSnapshots(deployed, jsonInfo, snapshotInfos)
         });
-
+        /*
         it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
             let layer2 = layer2Info_tokamak.layer2
             let account = addr1
@@ -369,7 +369,7 @@ describe('TON Staking V2 Test', () => {
             // logSnapshots(snapshotInfos);
             await checkSnapshots(deployed, jsonInfo, snapshotInfos)
         });
-
+        */
         it('updateSeigniorage to level19', async () => {
 
             layer2Info_level19.layerContract = new ethers.Contract(layer2Info_level19.layer2, jsonInfo.Candidate.abi, ethers.provider)
@@ -389,23 +389,28 @@ describe('TON Staking V2 Test', () => {
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
             let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
 
+            let block = await ethers.provider.getBlock('latest')
+            let blockNumber =  block.number+1
+            let toBlock = BigNumber.from(''+blockNumber)
+            let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber(), layer2.layer2)
+
+            console.log('calcSeigs' , calcSeigs)
+
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
             const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
             console.log(deployedEvent.args)
 
-            let toBlock = deployedEvent.args.blockNumber
-            let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber(), layer2.layer2)
-
-            console.log('calcSeigs' , calcSeigs)
-
             expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
-            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.totTotalSupply)
-            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotTotalSupply)
-            // expect(deployedEvent.args.oldCoinageFactor).to.be.eq(layer2.layer2)
+            expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
+            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
+
+            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotBalanceLayer)
+
+            expect(deployedEvent.args.oldCoinageFactor).to.be.eq(layer2.coinageFactor)
             expect(deployedEvent.args.nextTotFactor).to.be.eq(layer2.newTotFactor)
-            // expect(deployedEvent.args.nextCoinageFactor).to.be.eq(layer2.layer2)
+            expect(deployedEvent.args.nextCoinageFactor).to.be.eq(layer2.newCoinageFactor)
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
 

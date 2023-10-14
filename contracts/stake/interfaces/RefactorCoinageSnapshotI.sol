@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 interface RefactorCoinageSnapshotI {
+
   function factor() external view returns (uint256);
   function setFactor(uint256 factor) external returns (bool);
   function setSeigManager(address _seigManager) external  ;
@@ -16,4 +17,10 @@ interface RefactorCoinageSnapshotI {
   function snapshot() external returns (uint256 id);
   function totalSupplyAt(uint256 snapshotId) external view returns (uint256 amount);
   function balanceOfAt(address account, uint256 snapshotId) external view returns (uint256 amount);
+
+  // function totalSupplySet() external view returns (Factor memory);
+  // function balanceOfSet(address account) external view returns (Balance memory, Factor memory);
+  // function totalSupplyAtSet(uint256 snapshotId) external view returns (Balance memory, Factor memory);
+  // function balanceOfAtSet(address account, uint256 snapshotId) external view returns (Balance memory, Factor memory);
+
 }

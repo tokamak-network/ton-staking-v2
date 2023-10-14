@@ -36,10 +36,21 @@ async function calcMaxSeigs (seigManager, blockNumber){
 }
 
 async function calcNewFactor (prevTotal, nxtTotal, oldFactor){
+    // console.log('--- calcNewFactor ---')
+    // console.log('prevTotal', prevTotal)
+    // console.log('nxtTotal', nxtTotal)
+    // console.log('oldFactor', oldFactor)
+
     return nxtTotal.mul(oldFactor).div(prevTotal)
 }
 
 async function applyFactor (factor:BigNumber, refactorCount: BigNumber, balance: BigNumber, refactoredCount:BigNumber) {
+    // console.log('--- applyFactor ---')
+    // console.log('factor', factor)
+    // console.log('refactorCount', refactorCount)
+    // console.log('balance', balance)
+    // console.log('refactoredCount', refactoredCount)
+
     let v = balance.mul(factor).div(RAY)
     v = v.mul(REFACTOR_DIVIDER.pow(refactorCount.sub(refactoredCount)))
     return v
@@ -183,9 +194,18 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let tonTotalSupply = await tonContract.totalSupply()
     let tonBalanceOfWton = await tonContract.balanceOf(oldContractInfo.WTON)
     let totTotalSupply = await totContract.totalSupply()
+    let totBalanceLayer = await totContract.balanceOf(layer2)
     let totFactor = await totContract.factor()
+    let totFactorSet = await totContract.totalSupplySet()
+
     let coinageTotalSupply = await coinage.totalSupply()
+    console.log('coinageTotalSupply', coinageTotalSupply)
+
     let coinageFactor = await coinage.factor()
+    let coinageFactorSet = await coinage.totalSupplySet()
+
+    let prevTotBalanceSet = await totContract.balanceOfSet(layer2)
+    console.log('prevTotBalanceSet' ,prevTotBalanceSet)
 
     // console.log('tonTotalSupply' , ethers.utils.formatUnits(tonTotalSupply, 27))
     // console.log('tonBalanceOfWton' , ethers.utils.formatUnits(tonBalanceOfWton, 27))
@@ -234,29 +254,29 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let newFactorSet = await setFactor(newTotFactor)
     console.log('newFactorSet' ,newFactorSet)
 
-    let prevBalanceSet = await totContract.balanceOf(layer2)
-    //=======coinage
-    let balanceOfLayerInTot =  applyFactor(newFactorSet.factor, newFactorSet.refactorCount, balance, refactoredCount)
-    let nextCoinageTotalSupply = coinageTotalSupply.add(maxSeig) ;
 
-    let newCoinageFactor = await coinage.factor()
+    let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, prevTotBalanceSet[0].balance, prevTotBalanceSet[0].refactoredCount)
 
+    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
 
     return {
+        layer2Address: layer2,
         tonTotalSupply: tonTotalSupply,
         tonBalanceOfWton: tonBalanceOfWton,
         totTotalSupply: totTotalSupply,
+        totBalanceLayer: totBalanceLayer,
         coinageTotalSupply: coinageTotalSupply,
         totFactor: totFactor,
-        coinageFactor: BigNumber,
+        coinageFactor: coinageFactor,
         maxSeig: maxSeig,
         stakedSeig: stakedSeig,
         daoSeig: daoSeig,
         powerTonSeig: powerTonSeig,
         nextTonTotalSupply: nextTonTotalSupply,
         nextTotTotalSupply: nextTotTotalSupply,
-        nextCoinageTotalSupply: BigNumber,
+        nextTotBalanceLayer: nextBalanceOfLayerInTot,
+        // nextCoinageTotalSupply: nextBalanceOfLayerInTot,
         newTotFactor: newTotFactor,
-        newCoinageFactor: BigNumber
+        newCoinageFactor: newCoinageFactor
     }
 }

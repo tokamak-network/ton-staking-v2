@@ -131,6 +131,7 @@ interface CalculatedSeig {
     tonTotalSupply: BigNumber,
     tonBalanceOfWton: BigNumber,
     totTotalSupply: BigNumber,
+    totBalanceLayer: BigNumber,
     coinageTotalSupply: BigNumber,
     totFactor: BigNumber,
     coinageFactor: BigNumber,
@@ -140,7 +141,7 @@ interface CalculatedSeig {
     powerTonSeig: BigNumber,
     nextTonTotalSupply: BigNumber,
     nextTotTotalSupply: BigNumber,
-    nextCoinageTotalSupply: BigNumber,
+    nextTotBalanceLayer: BigNumber,
     newTotFactor: BigNumber,
     newCoinageFactor: BigNumber
 }

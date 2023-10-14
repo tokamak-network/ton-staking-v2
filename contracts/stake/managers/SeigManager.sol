@@ -12,6 +12,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -410,8 +412,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     // RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
 
     uint256 prevTotalSupply = coinage.totalSupply();
-    uint256 nextTotalSupply = _tot.balanceOf(msg.sender);
+    console.log('prevTotalSupply %s' , prevTotalSupply);
 
+    uint256 nextTotalSupply = _tot.balanceOf(msg.sender);
+    console.log('nextTotalSupply %s' , nextTotalSupply);
     // short circuit if there is no seigs for the layer2
     if (prevTotalSupply >= nextTotalSupply) {
       emit Comitted(msg.sender);

@@ -169,11 +169,17 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       Factor memory _factor = _valueAtFactorLast();
 
+      console.log('_applyFactor Factor factor %s , refactorCount %s', _factor.factor, _factor.refactorCount);
+      console.log('_applyFactor balance %s , refactoredCount %s', v, refactoredCount);
+
       v = rmul2(v, _factor.factor);
 
       if (_factor.refactorCount > refactoredCount) {
         v = v * REFACTOR_DIVIDER ** (_factor.refactorCount - refactoredCount);
       }
+
+      console.log('_applyFactor balance  %s', v);
+
       return v;
     }
 
@@ -181,10 +187,15 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       if (_balance.balance == 0) {
         return 0;
       }
+      console.log('_applyFactorAt Factor factor %s , refactorCount %s', _factor.factor, _factor.refactorCount);
+      console.log('_applyFactorAt balance %s , refactoredCount %s', _balance.balance, _balance.refactoredCount);
+
       _balance.balance = rmul2(_balance.balance, _factor.factor);
       if(_factor.refactorCount > _balance.refactoredCount) {
         _balance.balance = _balance.balance * REFACTOR_DIVIDER ** (_factor.refactorCount - _balance.refactoredCount);
       }
+      console.log('_applyFactorAt balance %s', _balance.balance);
+
       return _balance.balance;
     }
 
@@ -246,7 +257,6 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     }
 
     function applyFactor(Balance memory _balance) public view returns (uint256 amount) {
-
       return _applyFactor(_balance.balance, _balance.refactoredCount);
     }
 
@@ -262,6 +272,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function balanceOf(address account) external view returns (uint256 amount)
     {
+      console.log('balanceOf');
       amount = applyFactor(_valueAtAccountBalanceLast(account));
     }
 
