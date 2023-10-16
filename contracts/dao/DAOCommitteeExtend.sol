@@ -28,7 +28,6 @@ interface IPauser {
 }
 
 contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
-    using LibAgenda for *;
 
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
 
