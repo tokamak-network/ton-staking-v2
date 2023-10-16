@@ -63,7 +63,7 @@ contract CandidateFactory is ProxyStorage, AccessibleCommon, CandidateFactorySto
         returns (address)
     {
         require(msg.sender == daoCommittee, "sender is not daoCommittee");
-        require(daoCommittee == _committee, "different daoCommittee");
+        // require(daoCommittee == _committee, "different daoCommittee");
         CandidateProxy c = new CandidateProxy();
         require(address(c) != address(0), "zero CandidateFwProxy");
 
