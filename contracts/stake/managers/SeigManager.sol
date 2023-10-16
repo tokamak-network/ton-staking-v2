@@ -232,17 +232,17 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   function setPowerTONSeigRate(uint256 powerTONSeigRate_) external onlyOwner {
-    require(powerTONSeigRate_ > 0 && powerTONSeigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate_ + daoSeigRate + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     powerTONSeigRate = powerTONSeigRate_;
   }
 
   function setDaoSeigRate(uint256 daoSeigRate_) external onlyOwner {
-    require(daoSeigRate_ > 0 && daoSeigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate + daoSeigRate_ + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     daoSeigRate = daoSeigRate_;
   }
 
   function setPseigRate(uint256 pseigRate_) external onlyOwner {
-    require(pseigRate_ > 0 && pseigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate + daoSeigRate + pseigRate_ <= RAY, "exceeded seigniorage rate");
     relativeSeigRate = pseigRate_;
   }
 
