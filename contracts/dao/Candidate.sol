@@ -40,11 +40,6 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
         _;
     }
 
-    modifier onlyOperator() {
-        require(candidate == msg.sender, "Candidate: sender is not an operator");
-        _;
-    }
-
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return  _supportedInterfaces[interfaceId] || super.supportsInterface(interfaceId) ;
     }
