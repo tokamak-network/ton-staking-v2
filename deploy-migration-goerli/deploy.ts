@@ -18,6 +18,7 @@ import { DAOCommitteeExtend } from "../typechain-types/contracts/dao/DAOCommitte
 import { CandidateFactory } from "../typechain-types/contracts/dao/factory/CandidateFactory.sol"
 import { CandidateFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateFactoryProxy"
 import { PowerTONUpgrade } from "../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
+import { TestSeigManager } from "../typechain-types/contracts/test/TestSeigManager.sol"
 
 const v1Infos = {
     ton: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
@@ -28,7 +29,8 @@ const v1Infos = {
     pauseBlock: ethers.BigNumber.from("9768417"),
     seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
     powertonAddress: "0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94",
-    daoVaultAddress : "0x0000000000000000000000000000000000000000"
+    daoVaultAddress : "0x0000000000000000000000000000000000000000",
+    depositManager: "0x0ad659558851f6ba8a8094614303F56d42f8f39A"
 }
 
 const seigManagerInfo = {
@@ -48,6 +50,22 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     const { deploy } = hre.deployments;
 
     const deploySigner = await hre.ethers.getSigner(deployer);
+
+
+    //==== TestSeigManager =================================
+    const TestSeigManagerDeployment = await deploy("TestSeigManager", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+
+    //==== DAOCommitteeExtend =========================
+    const DAOCommitteeExtendDeployment = await deploy("DAOCommitteeExtend", {
+        from: deployer,
+        args: [],
+        log: true
+    });
 
     //==== PowerTONUpgrade =================================
 
@@ -283,6 +301,22 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
           )).wait()
     }
 
+    //====== TestSeigManager setAddresses ==================
+
+    const testSeigManager = (await hre.ethers.getContractAt(
+        TestSeigManagerDeployment.abi,
+        TestSeigManagerDeployment.address
+    )) as TestSeigManager;
+
+
+    let newDepositManager = await testSeigManager.newDepositManager()
+    if (newDepositManager != v1Infos.wton) {
+        await (await testSeigManager.connect(deploySigner).setAddresses(
+            v1Infos.depositManager,
+            DepositManagerProxyDeployment.address,
+            v1Infos.wton
+          )).wait()
+    }
 
     //====== WTON  addMinter to seigManagerV2 ==================
 
