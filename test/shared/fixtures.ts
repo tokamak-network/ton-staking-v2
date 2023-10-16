@@ -586,22 +586,22 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
     // console.log('powerTON', powerTON.address)
 
     //===================== v2
-    const DepositManagerForMigrationDep = await deployments.get("DepositManagerForMigration")
-    const depositManagerV2Imp = (await ethers.getContractAt("DepositManagerForMigration", DepositManagerForMigrationDep.address, deployer)) as DepositManagerForMigration;
+    const DepositManagerDep = await deployments.get("DepositManager")
+    const depositManagerV2Imp = (await ethers.getContractAt("DepositManager", DepositManagerDep.address, deployer)) as DepositManager;
 
     const depositManagerProxy = (await ethers.getContractAt("DepositManagerProxy",getContractAddress(contractInfos, 'DepositManagerProxy'), deployer)) as DepositManagerProxy;
 
-    if ( (await depositManagerProxy.implementation()) != DepositManagerForMigrationDep.address) {
-      await (await depositManagerProxy.connect(deployer).upgradeTo(DepositManagerForMigrationDep.address)).wait()
+    if ( (await depositManagerProxy.implementation()) != DepositManagerDep.address) {
+      await (await depositManagerProxy.connect(deployer).upgradeTo(DepositManagerDep.address)).wait()
     }
     const depositManagerV2 = (await ethers.getContractAt("DepositManager", depositManagerProxy.address, deployer)) as DepositManager;
     // console.log('depositManagerV2', depositManagerV2.address)
 
-    const SeigManagerMigrationDep = await deployments.get("SeigManagerMigration")
-    const seigManagerV2Imp = (await ethers.getContractAt("SeigManagerMigration", SeigManagerMigrationDep.address, deployer)) as SeigManager;
+    const SeigManagerDep = await deployments.get("SeigManager")
+    const seigManagerV2Imp = (await ethers.getContractAt("SeigManager", SeigManagerDep.address, deployer)) as SeigManager;
     const seigManagerProxy = (await ethers.getContractAt("SeigManagerProxy", getContractAddress(contractInfos, 'SeigManagerProxy'), deployer)) as SeigManagerProxy;
-    if ( (await seigManagerProxy.implementation()) != SeigManagerMigrationDep.address) {
-      await (await seigManagerProxy.connect(deployer).upgradeTo(SeigManagerMigrationDep.address)).wait()
+    if ( (await seigManagerProxy.implementation()) != SeigManagerDep.address) {
+      await (await seigManagerProxy.connect(deployer).upgradeTo(SeigManagerDep.address)).wait()
     }
     const seigManagerV2 = (await ethers.getContractAt("SeigManager", seigManagerProxy.address, deployer)) as SeigManager;
     // console.log('seigManagerV2', seigManagerV2.address)
