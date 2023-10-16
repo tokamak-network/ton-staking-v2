@@ -203,6 +203,19 @@ describe('New Simple Staking Test', () => {
             expect(await deployed.layer2RegistryV2.numLayer2s()).to.be.eq(BigNumber.from("2"))
 
         })
+
+        it("check the coinageMinterRole", async () => {
+            let layer2coinageAddr = await deployed.seigManagerV2.coinages(layer2Info_tokamak.layer2);
+            const coinageSnapshotProxy = (await ethers.getContractAt("RefactorCoinageSnapshotProxy", layer2coinageAddr, deployer));
+            let check1 = await coinageSnapshotProxy.isMinter(deployed.coinageFactoryV2.address);
+            let check2 = await coinageSnapshotProxy.isMinter(deployed.seigManagerProxy.address);
+            
+            // console.log("check1 : ", check1);
+            // console.log("check2 : ", check2);
+            
+            expect(check1).to.be.equal(false)
+            expect(check2).to.be.equal(true)
+        })
     });
 
     // // deposit, unstake, withdraw , updateSeignorage

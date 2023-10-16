@@ -38,7 +38,7 @@ contract CoinageFactory is CoinageFactoryI, Ownable {
       msg.sender
     );
 
-    c.renounceMinter();
+    // c.renounceMinter();
     c.transferOwnership(msg.sender);
 
     return address(c);
