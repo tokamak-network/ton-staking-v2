@@ -67,18 +67,18 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
             || _seigManager != address(0),
             "Candidate: input is zero"
         );
-        candidate = _candidate;
-        isLayer2Candidate = _isLayer2Candidate;
-        if (isLayer2Candidate) {
+        if (_isLayer2Candidate) {
             require(
-                ILayer2(candidate).isLayer2(),
+                ILayer2(_candidate).isLayer2(),
                 "Candidate: invalid layer2 contract"
             );
         }
+        candidate = _candidate;
+        isLayer2Candidate = _isLayer2Candidate;
         committee = _committee;
         seigManager = _seigManager;
         memo = _memo;
-
+        
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
     }
 
