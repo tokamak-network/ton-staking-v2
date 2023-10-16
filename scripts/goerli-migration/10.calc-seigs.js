@@ -4,16 +4,13 @@ const fs = require('fs');
 const { mine } = require("@nomicfoundation/hardhat-network-helpers")
 
 const { readContracts, deployedContracts } = require("../common_func");
+
 const networkName = "goerli"
 const pauseBlock = 9768417
 const startBlock = 8437208
 const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
-const passToBlock = 9917261
-
-const RAYDIFF = ethers.BigNumber.from("1"+"0".repeat(9))
-const RAY = ethers.BigNumber.from("1"+"0".repeat(27))
-const REFACTOR_DIVIDER = 2;
+const testBlock = 9869217
 
 // goerli network
 const oldContractInfo = {
@@ -31,6 +28,14 @@ const oldContractInfo = {
     DAOCommittee: "0xF7368a07653de908a8510e5d768c9C71b71cB2Ae",
     DAOCommitteeProxy: "0x3C5ffEe61A384B384ed38c0983429dcDb49843F6"
 }
+
+
+// 9768417 + 100800 (2주)
+const passToBlock = 9869217
+
+const RAYDIFF = ethers.BigNumber.from("1"+"0".repeat(9))
+const RAY = ethers.BigNumber.from("1"+"0".repeat(27))
+const REFACTOR_DIVIDER = 2;
 
 
 function getNewLayerAddress (layerList, oldLayer){
@@ -188,70 +193,75 @@ async function updateSeigniorage (deployer){
         ethers.provider
     )
 
+    let i = 1;
     for (let oldLayer of oldLayers) {
 
-        let layerAddress = getNewLayerAddress(layer2s, oldLayer.layer2)
+        // if( i > 4 ) {
+            let layerAddress = getNewLayerAddress(layer2s, oldLayer.layer2)
 
-        console.log('======================== layer ',oldLayer, layerAddress)
+            console.log('======================== layer ',oldLayer, layerAddress)
 
-        const coinAddress = seigManager.coinages(layerAddress)
+            const coinAddress = seigManager.coinages(layerAddress)
 
-        const coinageContract = new ethers.Contract(
-            coinAddress,
-            RefactorCoinageSnapshotABI,
-            deployer
-        )
+            const coinageContract = new ethers.Contract(
+                coinAddress,
+                RefactorCoinageSnapshotABI,
+                deployer
+            )
 
-        const layerContract = new ethers.Contract(
-            layerAddress,
-            CandidateABI,
-            deployer
-        )
+            const layerContract = new ethers.Contract(
+                layerAddress,
+                CandidateABI,
+                deployer
+            )
 
-        // 현재 블록 확인
-        let block = await ethers.provider.getBlock('latest')
-        let toBlock = block.number+1
-        let seigCalc = await calcSeigniorage(toBlock)
-        console.log(' toBlock', toBlock, ', seigCalc ', seigCalc)
+            // 현재 블록 확인
+            let block = await ethers.provider.getBlock('latest')
+            let toBlock = block.number+1
+            let seigCalc = await calcSeigniorage(toBlock)
+            console.log(' toBlock', toBlock, ', seigCalc ', seigCalc)
 
-        console.log('------- prev update seig ')
-        let totalSupply = await totContract.totalSupply()
-        console.log(' totalSupply of tot ', ethers.utils.formatUnits(totalSupply, 27) )
+            console.log('------- prev update seig ')
+            let totalSupply = await totContract.totalSupply()
+            console.log(' totalSupply of tot ', ethers.utils.formatUnits(totalSupply, 27) )
 
-        let balanceOf  = await totContract.balanceOf(layerAddress)
-        console.log('balanceOf layerAddress of tot ', ethers.utils.formatUnits(balanceOf, 27) )
+            let balanceOf  = await totContract.balanceOf(layerAddress)
+            console.log('balanceOf layerAddress of tot ', ethers.utils.formatUnits(balanceOf, 27) )
 
-        let factor0  = await totContract.factor()
-        console.log(' factor  of tot ',  ethers.utils.formatUnits(factor0, 27))
+            let factor0  = await totContract.factor()
+            console.log(' factor  of tot ',  ethers.utils.formatUnits(factor0, 27))
 
-        let totalSupplyCoin = await coinageContract.totalSupply()
-        console.log(' totalSupply of coinage ',  ethers.utils.formatUnits(totalSupplyCoin, 27))
+            let totalSupplyCoin = await coinageContract.totalSupply()
+            console.log(' totalSupply of coinage ',  ethers.utils.formatUnits(totalSupplyCoin, 27))
 
-        let oldFactorOfCoin= await coinageContract.factor()
-        console.log(' oldFactorOfCoin of coinage ', ethers.utils.formatUnits(oldFactorOfCoin, 27))
+            let oldFactorOfCoin= await coinageContract.factor()
+            console.log(' oldFactorOfCoin of coinage ', ethers.utils.formatUnits(oldFactorOfCoin, 27))
 
 
-        // 업데이트 시뇨리지
-        let receipt = await (await layerContract.connect(deployer).updateSeigniorage()).wait()
-        console.log('updateSeigniorage : ',layerAddress,', tx:  ', receipt.transactionHash)
+            // 업데이트 시뇨리지
+            let receipt = await (await layerContract.connect(deployer).updateSeigniorage()).wait()
+            console.log('updateSeigniorage : ',layerAddress,', tx:  ', receipt.transactionHash)
 
-        console.log('------- after update seig ')
+            console.log('------- after update seig ')
 
-        let totalSupply1 = await totContract.totalSupply()
-        console.log(' totalSupply of tot ', ethers.utils.formatUnits(totalSupply1, 27))
+            let totalSupply1 = await totContract.totalSupply()
+            console.log(' totalSupply of tot ', ethers.utils.formatUnits(totalSupply1, 27))
 
-        let balanceOf1  = await totContract.balanceOf(layerAddress)
-        console.log('balanceOf layerAddress of tot ', ethers.utils.formatUnits(balanceOf1, 27))
+            let balanceOf1  = await totContract.balanceOf(layerAddress)
+            console.log('balanceOf layerAddress of tot ', ethers.utils.formatUnits(balanceOf1, 27))
 
-        let factor1  = await totContract.factor()
-        console.log(' factor  of tot ',  ethers.utils.formatUnits(factor1, 27))
+            let factor1  = await totContract.factor()
+            console.log(' factor  of tot ',  ethers.utils.formatUnits(factor1, 27))
 
-        let totalSupplyCoin1 = await coinageContract.totalSupply()
-        console.log(' totalSupply of coinage ',  ethers.utils.formatUnits(totalSupplyCoin1, 27))
+            let totalSupplyCoin1 = await coinageContract.totalSupply()
+            console.log(' totalSupply of coinage ',  ethers.utils.formatUnits(totalSupplyCoin1, 27))
 
-        let factor2 = await coinageContract.factor()
-        console.log(' factor of coinage ',  ethers.utils.formatUnits(factor2, 27))
+            let factor2 = await coinageContract.factor()
+            console.log(' factor of coinage ',  ethers.utils.formatUnits(factor2, 27))
 
+        // }
+
+        i++;
     }
 }
 

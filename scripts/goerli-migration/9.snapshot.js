@@ -2,12 +2,13 @@ const hre = require("hardhat");
 const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
+
 const networkName = "goerli"
 const pauseBlock = 9768417
 const startBlock = 8437208
 const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
-const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+const testBlock = 9869217
 
 // goerli network
 const oldContractInfo = {
@@ -26,34 +27,33 @@ const oldContractInfo = {
     DAOCommitteeProxy: "0x3C5ffEe61A384B384ed38c0983429dcDb49843F6"
 }
 
-//====== WTON  addMinter to seigManagerV2 ==================
 
-async function addMinter() {
-    const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
+async function snapshot(deployer) {
 
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        daoAdminAddress,
-    ]);
-    const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
-
-    // WTON
-    const wton = new ethers.Contract(
-        oldContractInfo.WTON,
-        WTONABI,
-        daoCommitteeAdmin
+    const seigManager = new ethers.Contract(
+        contractInfos.abis["SeigManagerProxy"].address,
+        contractInfos.abis["SeigManagerMigration"].abi,
+        ethers.provider
     )
 
-    await (await wton.connect(daoCommitteeAdmin).addMinter(
-        contractInfos.abis["SeigManagerProxy"].address
-        )).wait()
-
+    let prevProgressSnapshotId = await seigManager.progressSnapshotId()
+    console.log('prev ProgressSnapshotId', prevProgressSnapshotId)
+    await (await seigManager.connect(deployer).onSnapshot()).wait()
+    let afterProgressSnapshotId = await seigManager.progressSnapshotId()
+    console.log('after ProgressSnapshotId', afterProgressSnapshotId)
 }
 
 
+
 async function main() {
-      await addMinter()
+    const [ deployer ] = await ethers.getSigners()
+    console.log(deployer.address)
+
+    await snapshot(deployer)
+
+
 }
 
 main()

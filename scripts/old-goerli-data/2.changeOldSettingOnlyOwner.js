@@ -9,6 +9,7 @@ const dataFolder = './data-goerli'
 const daoAdminAddress = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
 const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
+const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 
 // goerli network
 const oldContractInfo = {
@@ -51,19 +52,51 @@ async function changeDaoSetting() {
     )
     console.log('daoCommittee', daoCommittee.address)
 
-    await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(
-        contractInfos.abis["CandidateFactoryProxy"].address
-        )).wait()
+    //== 다오 프록시 막은것 풀기 ======================
+    const daoCommitteeProxy = new ethers.Contract(
+        oldContractInfo.DAOCommitteeProxy,
+        DAOCommitteeProxyABI,
+        daoCommitteeAdmin
+    )
 
+    let pauseProxy = await daoCommitteeProxy.pauseProxy()
+    console.log('pauseProxy', pauseProxy)
 
-    await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(
-        contractInfos.abis["SeigManagerProxy"].address
-        )).wait()
+    if (pauseProxy == true) {
+        await (await daoCommitteeProxy.connect(daoCommitteeAdmin).setProxyPause(false)).wait()
+    }
+    pauseProxy = await daoCommitteeProxy.pauseProxy()
+    console.log('pauseProxy', pauseProxy)
 
-    await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(
-        contractInfos.abis["Layer2RegistryProxy"].address
-        )).wait()
+    let imp = await daoCommitteeProxy.implementation()
+    if(imp.toLowerCase() != contractInfos.abis["DAOCommitteeExtend"].address.toLowerCase()) {
+        await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+            contractInfos.abis["DAOCommitteeExtend"].address)).wait()
 
+    }
+    //========================
+
+    let  candidateFactory_ = await daoCommittee.candidateFactory()
+    if (candidateFactory_.toLowerCase() != contractInfos.abis["CandidateFactoryProxy"].address.toLowerCase()) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setCandidateFactory(
+            contractInfos.abis["CandidateFactoryProxy"].address
+            )).wait()
+    }
+
+    let  seigManagerAddress_ = await daoCommittee.seigManager()
+    if (seigManagerAddress_.toLowerCase() != contractInfos.abis["SeigManagerProxy"].address.toLowerCase()) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setSeigManager(
+            contractInfos.abis["SeigManagerProxy"].address
+            )).wait()
+
+    }
+
+    let  layer2RegistryAddress_ = await daoCommittee.layer2Registry()
+    if (layer2RegistryAddress_.toLowerCase() != contractInfos.abis["Layer2RegistryProxy"].address.toLowerCase()) {
+        await (await daoCommittee.connect(daoCommitteeAdmin).setLayer2Registry(
+            contractInfos.abis["Layer2RegistryProxy"].address
+            )).wait()
+    }
 
     let  layer2RegistryAddress = await daoCommittee.layer2Registry()
     console.log('layer2RegistryAddress', layer2RegistryAddress)
@@ -86,7 +119,7 @@ async function changeDaoSetting() {
         daoCommitteeAdmin
     )
     console.log('powerTonProxy', powerTonProxy.address)
-    console.log('PowerTONUpgrade', contractInfos.abis["PowerTONUpgrade"].address)
+    console.log('PowerTONUpgrade', contractInfos.abis["PowerTONUpgrade"].address )
     let powerTOnImpl = await powerTonProxy.implementation()
 
     console.log('powerTOnImpl', powerTOnImpl)
@@ -98,14 +131,15 @@ async function changeDaoSetting() {
         ]);
         powerTonAdmin = await hre.ethers.getSigner(goerliPowerTonAdmin);
     }
-
+    console.log('powerTonAdmin  ', powerTonAdmin.address )
 
     if(powerTOnImpl.toLowerCase() != contractInfos.abis["PowerTONUpgrade"].address.toLowerCase()) {
         let receipt = await (await powerTonProxy.connect(powerTonAdmin).upgradeTo(
-            contractInfos.abis["PowerTONUpgrade"].address
+            contractInfos.abis["PowerTONUpgrade"].address.toLowerCase()
             )).wait()
         console.log('receipt transactionHash', receipt.transactionHash)
     }
+    console.log('PowerTONUpgrade upgradeTo' )
 
     const powerTon = new ethers.Contract(
         oldContractInfo.PowerTON,
@@ -113,9 +147,16 @@ async function changeDaoSetting() {
         daoCommitteeAdmin
     )
 
-    await (await powerTon.connect(powerTonAdmin).setSeigManager(
-        contractInfos.abis["SeigManagerProxy"].address
-        )).wait()
+    let  seigManagerOfPowerTon = await powerTon.seigManager()
+    console.log('seigManagerOfPowerTon', seigManagerOfPowerTon )
+
+    if(seigManagerOfPowerTon.toLowerCase() != contractInfos.abis["SeigManagerProxy"].address.toLowerCase()) {
+        await (await powerTon.connect(powerTonAdmin).setSeigManager(
+            contractInfos.abis["SeigManagerProxy"].address
+            )).wait()
+        console.log('setSeigManager done'  )
+
+    }
 
     seigManagerAddress = await powerTon.seigManager()
     console.log('seigManagerAddress', seigManagerAddress)
