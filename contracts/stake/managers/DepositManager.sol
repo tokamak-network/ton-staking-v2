@@ -117,7 +117,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
    */
 
   function deposit(address layer2, uint256 amount) external returns (bool) {
-    require(_deposit(layer2, msg.sender, amount));
+    require(_deposit(layer2, msg.sender, amount, msg.sender));
     return true;
   }
 
@@ -135,10 +135,6 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     }
 
     return true;
-  }
-
-  function _deposit(address layer2, address account, uint256 amount) internal onlyLayer2(layer2) returns (bool) {
-     return _deposit(layer2, account, amount, account);
   }
 
   function _deposit(address layer2, address account, uint256 amount, address payer) internal onlyLayer2(layer2) returns (bool) {
