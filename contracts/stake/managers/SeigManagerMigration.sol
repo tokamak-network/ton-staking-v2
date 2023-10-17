@@ -138,6 +138,10 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
   event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
   event OnSnapshot(uint256 snapshotId);
 
+  event SetPowerTONSeigRate(uint256 powerTONSeigRate);
+  event SetDaoSeigRate(uint256 daoSeigRate);
+  event SetPseigRate(uint256 pseigRate);
+
   //////////////////////////////
   // Constuctor
   //////////////////////////////
@@ -210,6 +214,10 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     relativeSeigRate = relativeSeigRate_;
     adjustCommissionDelay = adjustDelay_;
     minimumAmount = minimumAmount_;
+
+    emit SetPowerTONSeigRate (powerTONSeigRate_);
+    emit SetDaoSeigRate (daoSeigRate_) ;
+    emit SetDaoSeigRate (daoSeigRate_) ;
   }
 
   function setPowerTON(address powerton_) external onlyOwner {
@@ -221,18 +229,21 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
   }
 
   function setPowerTONSeigRate(uint256 powerTONSeigRate_) external onlyOwner {
-    require(powerTONSeigRate_ > 0 && powerTONSeigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate_ + daoSeigRate + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     powerTONSeigRate = powerTONSeigRate_;
+    emit SetPowerTONSeigRate (powerTONSeigRate_);
   }
 
   function setDaoSeigRate(uint256 daoSeigRate_) external onlyOwner {
-    require(daoSeigRate_ > 0 && daoSeigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate + daoSeigRate_ + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     daoSeigRate = daoSeigRate_;
+    emit SetDaoSeigRate (daoSeigRate_) ;
   }
 
   function setPseigRate(uint256 pseigRate_) external onlyOwner {
-    require(pseigRate_ > 0 && pseigRate_ < RAY, "exceeded seigniorage rate");
+    require(powerTONSeigRate + daoSeigRate + pseigRate_ <= RAY, "exceeded seigniorage rate");
     relativeSeigRate = pseigRate_;
+    emit SetPseigRate (pseigRate_);
   }
 
   function setCoinageFactory(address factory_) external onlyOwner {
