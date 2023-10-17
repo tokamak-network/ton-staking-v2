@@ -40,11 +40,6 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
         _;
     }
 
-    modifier onlyOperator() {
-        require(candidate == msg.sender, "Candidate: sender is not an operator");
-        _;
-    }
-
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return  _supportedInterfaces[interfaceId] || super.supportsInterface(interfaceId) ;
     }
@@ -60,25 +55,25 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
         string memory _memo,
         address _committee,
         address _seigManager
-    ) external  {
+    ) external onlyOwner  {
         require(
             _candidate != address(0)
             || _committee != address(0)
             || _seigManager != address(0),
             "Candidate: input is zero"
         );
-        candidate = _candidate;
-        isLayer2Candidate = _isLayer2Candidate;
-        if (isLayer2Candidate) {
+        if (_isLayer2Candidate) {
             require(
-                ILayer2(candidate).isLayer2(),
+                ILayer2(_candidate).isLayer2(),
                 "Candidate: invalid layer2 contract"
             );
         }
+        candidate = _candidate;
+        isLayer2Candidate = _isLayer2Candidate;
         committee = _committee;
         seigManager = _seigManager;
         memo = _memo;
-
+        
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
     }
 

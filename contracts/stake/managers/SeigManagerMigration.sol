@@ -521,6 +521,10 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     return _coinages[layer2].balanceOf(account);
   }
 
+  function stakeOfAt(address layer2, address account, uint256 snapshotId) external view returns (uint256 amount) {
+    return _coinages[layer2].balanceOfAt(account, snapshotId);
+  }
+
   function stakeOf(address account) external view returns (uint256 amount) {
     uint256 num = IILayer2Registry(_registry).numLayer2s();
     // amount = 0;
