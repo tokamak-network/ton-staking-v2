@@ -6,16 +6,6 @@ import { IRefactor } from "../interfaces/IRefactor.sol";
 /// @notice
 contract RefactorCoinageSnapshotStorage   {
 
-    // struct Balance {
-    //     uint256 balance;
-    //     uint256 refactoredCount;
-    // }
-
-    // struct Factor {
-    //     uint256 factor;
-    //     uint256 refactorCount;
-    // }
-
     uint256 public constant REFACTOR_BOUNDARY = 10 ** 28;
     uint256 public constant REFACTOR_DIVIDER = 2;
 
