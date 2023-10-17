@@ -306,6 +306,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         //     "DAOCommittee: The candidate already has contract"
         // );
 
+        //operator가 이미 candidate로 등록하였으면
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
 
             require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
