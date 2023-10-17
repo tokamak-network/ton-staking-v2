@@ -211,7 +211,9 @@ describe('New Simple Staking Test', () => {
                 "TEST1"
             );
         })
+    });
 
+    describe("audit test", async () => {
         it("check the coinageMinterRole", async () => {
             let layer2coinageAddr = await deployed.seigManagerV2.coinages(layer2Info_tokamak.layer2);
             const coinageSnapshotProxy = (await ethers.getContractAt("RefactorCoinageSnapshotProxy", layer2coinageAddr, deployer));
@@ -224,7 +226,46 @@ describe('New Simple Staking Test', () => {
             expect(check1).to.be.equal(false)
             expect(check2).to.be.equal(true)
         })
-    });
+
+        it("check the removeMinter from AuthControlCoinage", async () => {
+            let check = await deployed.layer2RegistryV2.isMinter(deployed.daoCommittee.address);
+            expect(check).to.be.equal(true)
+            
+            await deployed.layer2RegistryV2.connect(deployer).revokeMinter(deployed.daoCommittee.address);
+            
+            check = await deployed.layer2RegistryV2.isMinter(deployed.daoCommittee.address);
+            expect(check).to.be.equal(false)
+
+            await deployed.layer2RegistryV2.connect(deployer).addMinter(deployed.daoCommittee.address);
+
+            check = await deployed.layer2RegistryV2.isMinter(deployed.daoCommittee.address);
+            expect(check).to.be.equal(true)
+
+            await expect(
+                deployed.layer2RegistryV2.connect(deployer).removeMinter(deployed.daoCommittee.address)
+            ).to.be.revertedWith("AccessControl: can only renounce roles for self");
+        })
+
+        it("check the removeOperator from AuthControlCoinage", async () => {
+            let check = await deployed.layer2RegistryV2.isOperator(deployed.daoCommittee.address);
+            expect(check).to.be.equal(false)
+            
+            await deployed.layer2RegistryV2.connect(deployer).addOperator(deployed.daoCommittee.address);
+
+            check = await deployed.layer2RegistryV2.isOperator(deployed.daoCommittee.address);
+            expect(check).to.be.equal(true)
+
+            await expect(
+                deployed.layer2RegistryV2.connect(deployer).removeOperator(deployed.daoCommittee.address)
+            ).to.be.revertedWith("AccessControl: can only renounce roles for self");
+
+            await deployed.layer2RegistryV2.connect(deployer).revokeOperator(deployed.daoCommittee.address);
+
+            check = await deployed.layer2RegistryV2.isOperator(deployed.daoCommittee.address);
+            expect(check).to.be.equal(false)
+
+        })
+    })
 
     // // deposit, unstake, withdraw , updateSeignorage
     // describe('basic functions ', () => {

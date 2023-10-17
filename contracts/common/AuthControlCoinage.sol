@@ -36,19 +36,19 @@ contract AuthControlCoinage is AuthRoleCoinage, ERC165Storage, AccessControl {
         grantRole(OPERATOR_ROLE, account);
     }
 
-    /// @dev remove admin
-    /// @param account  address to remove
-    function removeAdmin(address account) public virtual onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, account);
-    }
+    // /// @dev remove admin
+    // /// @param account  address to remove
+    // function removeAdmin(address account) public virtual onlyOwner {
+    //     renounceRole(DEFAULT_ADMIN_ROLE, account);
+    // }
 
-    function removeMinter(address account) public virtual onlyOwner {
-        renounceRole(MINTER_ROLE, account);
-    }
+    // function removeMinter(address account) public virtual onlyOwner {
+    //     renounceRole(MINTER_ROLE, account);
+    // }
 
-    function removeOperator(address account) public virtual onlyOwner {
-        renounceRole(OPERATOR_ROLE, account);
-    }
+    // function removeOperator(address account) public virtual onlyOwner {
+    //     renounceRole(OPERATOR_ROLE, account);
+    // }
 
     /// @dev transfer admin
     /// @param newAdmin new admin address
