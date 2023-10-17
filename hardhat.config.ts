@@ -174,8 +174,8 @@ const config: HardhatUserConfig = {
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
       timeout: 400000,
-      // accounts: [`${process.env.DEPLOYER}`],
-      deploy: ['deploy-migration']
+      accounts: [`${process.env.DEPLOYER}`],
+      // deploy: ['deploy-migration']
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
