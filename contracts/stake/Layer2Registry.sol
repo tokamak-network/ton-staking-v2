@@ -22,10 +22,10 @@ interface IILayer2 {
 // TODO: transfer coinages ownership to seig manager
 contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStorage, Layer2RegistryI {
 
-  modifier onlyMinterOrOperator(address layer2) {
-    require(hasRole(MINTER_ROLE, msg.sender) || IILayer2(layer2).operator() == msg.sender, "sender is neither admin nor operator");
-    _;
-  }
+  // modifier onlyMinterOrOperator(address layer2) {
+  //   require(hasRole(MINTER_ROLE, msg.sender) || IILayer2(layer2).operator() == msg.sender, "sender is neither admin nor operator");
+  //   _;
+  // }
 
   // ------ onlyOwner
 
@@ -34,7 +34,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
     address seigManager
   )
     external
-    onlyMinterOrOperator(layer2) override
+    onlyMinter override
     returns (bool)
   {
     return _deployCoinage(layer2, seigManager);
@@ -45,7 +45,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
     address seigManager
   )
     external
-    onlyMinterOrOperator(layer2) override
+    onlyMinter override
     returns (bool)
   {
     require(_register(layer2));
@@ -60,7 +60,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
     bool isCommissionRateNegative
   )
     external
-    onlyMinterOrOperator(layer2)
+    onlyMinter
     returns (bool)
   {
     require(_register(layer2));
@@ -71,7 +71,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
 
   function register(address layer2)
     external
-    onlyMinterOrOperator(layer2)  override
+    onlyMinter  override
     returns (bool)
   {
     return _register(layer2);

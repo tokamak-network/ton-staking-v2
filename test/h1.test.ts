@@ -204,6 +204,14 @@ describe('New Simple Staking Test', () => {
 
         })
 
+        it("create candidate from operator", async () => {
+            await deployed.daoCommittee.connect(
+                addr1
+            )["createCandidate(string)"](
+                "TEST1"
+            );
+        })
+
         it("check the coinageMinterRole", async () => {
             let layer2coinageAddr = await deployed.seigManagerV2.coinages(layer2Info_tokamak.layer2);
             const coinageSnapshotProxy = (await ethers.getContractAt("RefactorCoinageSnapshotProxy", layer2coinageAddr, deployer));
