@@ -598,7 +598,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
     //       note that coinageTotalSupply and totBalalnce are RAY values.
-    if (coinageTotalSupply > totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
+    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
       return 0;
     }
 
