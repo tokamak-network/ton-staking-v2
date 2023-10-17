@@ -275,6 +275,18 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     _tot.mint(layer, amount);
   }
 
+  function setCommissionRateOnlyOwner(
+    address layer2,
+    uint256 commissionRate,
+    bool isCommissionRateNegative_
+  )
+    external
+    onlyOwner
+    returns (bool)
+  {
+    return _setCommissionRate(layer2, commissionRate, isCommissionRateNegative_);
+  }
+
   //////////////////////////////
   // onlyRegistry
   //////////////////////////////
@@ -304,27 +316,9 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     onlyRegistryOrOperator(layer2)
     returns (bool)
   {
-    // check commission range
-    require(
-      (commissionRate == 0) ||
-      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
-      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
-    );
-
-    uint256 previous = _commissionRates[layer2];
-    if (adjustCommissionDelay == 0) {
-      _commissionRates[layer2] = commissionRate;
-      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    } else {
-      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
-      delayedCommissionRate[layer2] = commissionRate;
-      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    }
-
-    emit CommissionRateSet(layer2, previous, commissionRate);
-
-    return true;
+    return _setCommissionRate(layer2, commissionRate, isCommissionRateNegative_);
   }
+
 
   // No implementation in registry.
   // function addChallenger(address account) public onlyRegistry {
@@ -761,6 +755,36 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     }
 
     emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, relativeSeig);
+
+    return true;
+  }
+
+  function _setCommissionRate(
+    address layer2,
+    uint256 commissionRate,
+    bool isCommissionRateNegative_
+  )
+    internal
+    returns (bool)
+  {
+    // check commission range
+    require(
+      (commissionRate == 0) ||
+      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
+      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
+    );
+
+    uint256 previous = _commissionRates[layer2];
+    if (adjustCommissionDelay == 0) {
+      _commissionRates[layer2] = commissionRate;
+      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
+    } else {
+      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
+      delayedCommissionRate[layer2] = commissionRate;
+      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
+    }
+
+    emit CommissionRateSet(layer2, previous, commissionRate);
 
     return true;
   }
