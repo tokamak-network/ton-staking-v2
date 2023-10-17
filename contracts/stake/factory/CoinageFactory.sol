@@ -16,8 +16,9 @@ interface IIAutoRefactorCoinage {
 }
 
 contract CoinageFactory is CoinageFactoryI, Ownable {
-  uint256 constant public RAY = 10 ** 27; // 1 RAY
-  uint256 constant internal _DEFAULT_FACTOR = RAY;
+  // uint256 constant public RAY = 10 ** 27; // 1 RAY
+  // uint256 constant internal _DEFAULT_FACTOR = RAY;
+  uint256 constant internal _DEFAULT_FACTOR = 10 ** 27;
 
   address public autoCoinageLogic;
 
