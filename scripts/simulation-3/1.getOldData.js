@@ -119,6 +119,7 @@ async function getTotBalances() {
     let lastCommitBlock = await seigManager.lastCommitBlock(layer)
     let commissionRates = await seigManager.commissionRates(layer)
     let isCommissionRateNegative = await seigManager.isCommissionRateNegative(layer)
+    let delayedCommissionBlock = await seigManager.delayedCommissionBlock(layer)
 
     layer2_last_commit_block.push({
       layer2: layer,
@@ -126,6 +127,7 @@ async function getTotBalances() {
       last_commit_block: lastCommitBlock.toString(),
       commissionRates: commissionRates.toString(),
       isCommissionRateNegative: isCommissionRateNegative,
+      delayedCommissionBlock: delayedCommissionBlock.toString()
     });
   }
 

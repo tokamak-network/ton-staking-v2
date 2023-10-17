@@ -117,7 +117,7 @@ async function execAdjustTotBalances(deployer) {
 
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
     let adjustLayers = JSON.parse(await fs.readFileSync(dataFolder + "/adjust-tot-balances.json"));
-    let adjustTotal = JSON.parse(await fs.readFileSync(dataFolder + "/adjust-tot-balances.json"));
+    // let adjustTotal = JSON.parse(await fs.readFileSync(dataFolder + "/adjust-tot-balances.json"));
     const seigManager = new ethers.Contract(
         contractInfos.abis["SeigManagerProxy"].address,
         contractInfos.abis["SeigManagerMigration"].abi,
