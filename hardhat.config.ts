@@ -160,15 +160,17 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      accounts: [`${process.env.DEPLOYER}`],
+      timeout: 400000,
       gasPrice: 18000000000,
       // deploy: ['deploy']
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.DEPLOYER}`],
+      timeout: 400000,
       chainId: 5,
-      deploy: ['deploy-migration-goerli']
+      // deploy: ['deploy-migration-goerli']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
