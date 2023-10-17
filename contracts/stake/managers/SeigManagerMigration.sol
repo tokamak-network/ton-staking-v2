@@ -133,9 +133,6 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
   event Unpaused(address account);
 
   // DEV ONLY
-  event CommitLog1(uint256 totalStakedAmount, uint256 totalSupplyOfWTON, uint256 prevTotalSupply, uint256 nextTotalSupply);
-
-  // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
   event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
@@ -730,15 +727,6 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     _lastSeigBlock = block.number;
 
     _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
-
-    // TODO: reduce computation
-    // DEV ONLY
-    emit CommitLog1(
-      _tot.totalSupply(),
-      tos,
-      prevTotalSupply,
-      nextTotalSupply
-    );
 
     uint256 unstakedSeig = maxSeig - stakedSeig;
     uint256 powertonSeig;
