@@ -24,6 +24,7 @@ interface TonStakingV2Fixtures  {
     deployer: Signer,
     addr1: Signer,
     addr2: Signer,
+    addr3: Signer,
     depositManagerV1: any ,
     seigManagerV1: any ,
     layer2RegistryV1: any ,
@@ -53,6 +54,7 @@ interface TonStakingV2Fixtures  {
     level19Address: string,
     tokamakAddress: string,
     level19Admin: string,
+    level19AdminSigner: Signer,
     tokamakAdmin: string,
     daoAdmin: Signer,
     powerTON: PowerTONUpgrade

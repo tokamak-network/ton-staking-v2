@@ -25,6 +25,19 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
+// let commissionRateValue = 25000000000000000000000000;
+
+const seigManagerInfo = {
+    minimumAmount: ethers.BigNumber.from("1000000000000000000000000000000"),
+    powerTONSeigRate: ethers.BigNumber.from("100000000000000000000000000"),
+    relativeSeigRate: ethers.BigNumber.from("400000000000000000000000000"),
+    daoSeigRate: ethers.BigNumber.from("500000000000000000000000000"),
+    seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
+    adjustCommissionDelay:  ethers.BigNumber.from("93096"),
+}
+
+let commissionRateValue2 = ethers.utils.parseUnits("25000000", 18);
+
 describe('New Simple Staking Test', () => {
     let deployer: Signer, addr1: Signer, addr2:Signer;
     let deployed: TonStakingV2Fixtures
@@ -34,14 +47,19 @@ describe('New Simple Staking Test', () => {
     let Operator : any;
     let Candidate : any;
     let snapshotInfo : any;
+    let level19AdminSigner: Signer;
 
     before('create fixture loader', async () => {
+        // console.log(commissionRateValue)
+        console.log(commissionRateValue2)
         deployed = await tonStakingV2Fixture()
         jsonInfo = await jsonFixtures()
 
         deployer = deployed.deployer;
         addr1 = deployed.addr1;
         addr2 = deployed.addr2;
+        level19AdminSigner = deployed.level19AdminSigner;
+        
         layer2Info_level19 = {
             operatorAdmin: deployed.level19Admin,
             isLayer2Candidate: false,
@@ -267,313 +285,368 @@ describe('New Simple Staking Test', () => {
         })
     })
 
-    // // deposit, unstake, withdraw , updateSeignorage
-    // describe('basic functions ', () => {
-    //     it('deposit to level19 using approveAndCall', async () => {
-    //         // console.log(deployed.seigManagerV2)
+    describe("oprator functions", () => {
+        it("seigManager setData for check commissionRate change", async () => {
+            await (await deployed.seigManagerV2.connect(deployer).setData (
+                deployed.powerTonAddress,
+                deployed.daoVaultAddress,
+                seigManagerInfo.powerTONSeigRate,
+                seigManagerInfo.daoSeigRate,
+                seigManagerInfo.relativeSeigRate,
+                0,
+                seigManagerInfo.minimumAmount
+            )).wait()
+        })
+        it("not operator can't setCommissionRate", async () => {
+            await expect(deployed.seigManagerV2.connect(addr2).setCommissionRate(
+                layer2Info_tokamak.layer2,
+                commissionRateValue2,
+                false
+            )).to.be.rejectedWith("not onlyRegistryOrOperator");
+        })
+
+        it("Although it is an operator, it cannot be used unless it is layer 2", async () => {
+            await expect(deployed.seigManagerV2.connect(level19AdminSigner).setCommissionRate(
+                layer2Info_tokamak.layer2,
+                commissionRateValue2,
+                false
+            )).to.be.rejectedWith("not onlyRegistryOrOperator");
+        })
+
+        it("Layer2 operator can setCommissionRate", async () => {
+            let check = await deployed.seigManagerV2.commissionRates(layer2Info_level19.layer2)
+            expect(check).to.be.equal(0)
+
+            await deployed.seigManagerV2.connect(level19AdminSigner).setCommissionRate(
+                layer2Info_level19.layer2,
+                commissionRateValue2,
+                false
+            )
+            
+            check = await deployed.seigManagerV2.commissionRates(layer2Info_level19.layer2)
+            expect(check).to.be.equal(commissionRateValue2)
+        })
+
+        it("seigManager setData for check commissionRate change", async () => {
+            await (await deployed.seigManagerV2.connect(deployer).setData (
+                deployed.powerTonAddress,
+                deployed.daoVaultAddress,
+                seigManagerInfo.powerTONSeigRate,
+                seigManagerInfo.daoSeigRate,
+                seigManagerInfo.relativeSeigRate,
+                seigManagerInfo.adjustCommissionDelay,
+                seigManagerInfo.minimumAmount
+            )).wait()
+        })
+    })
+
+    // deposit, unstake, withdraw , updateSeignorage
+    describe('basic functions ', () => {
+        it('deposit to level19 using approveAndCall', async () => {
+            // console.log(deployed.seigManagerV2)
+
+            let tonAmount = ethers.utils.parseEther("100")
+            await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+
+            const beforeBalance = await deployed.TON.balanceOf(addr1.address);
+            expect(beforeBalance).to.be.gte(tonAmount)
+
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+
+            const data = marshalString(
+                [deployed.depositManagerV2.address, layer2Info_level19.layer2]
+                  .map(unmarshalString)
+                  .map(str => padLeft(str, 64))
+                  .join(''),
+            );
+
+            await (await deployed.TON.connect(addr1).approveAndCall(
+                deployed.WTON.address,
+                tonAmount,
+                data,
+                {from: addr1.address}
+            )).wait()
+
+            const afterBalance = await deployed.TON.balanceOf(addr1.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
+            )
+        })
+
+        it('deposit to tokamak using approveAndCall', async () => {
+            // console.log(deployed.seigManagerV2)
+
+            let tonAmount = ethers.utils.parseEther("100")
+            await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+
+            const beforeBalance = await deployed.TON.balanceOf(addr1.address);
+            expect(beforeBalance).to.be.gte(tonAmount)
+
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
 
-    //         let tonAmount = ethers.utils.parseEther("100")
-    //         await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+            const data = marshalString(
+                [deployed.depositManagerV2.address, layer2Info_tokamak.layer2]
+                  .map(unmarshalString)
+                  .map(str => padLeft(str, 64))
+                  .join(''),
+            );
 
-    //         const beforeBalance = await deployed.TON.balanceOf(addr1.address);
-    //         expect(beforeBalance).to.be.gte(tonAmount)
+            await (await deployed.TON.connect(addr1).approveAndCall(
+                deployed.WTON.address,
+                tonAmount,
+                data,
+                {from: addr1.address}
+            )).wait()
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+            const afterBalance = await deployed.TON.balanceOf(addr1.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
-    //         const data = marshalString(
-    //             [deployed.depositManagerV2.address, layer2Info_level19.layer2]
-    //               .map(unmarshalString)
-    //               .map(str => padLeft(str, 64))
-    //               .join(''),
-    //         );
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
 
-    //         await (await deployed.TON.connect(addr1).approveAndCall(
-    //             deployed.WTON.address,
-    //             tonAmount,
-    //             data,
-    //             {from: addr1.address}
-    //         )).wait()
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
+            )
+        })
 
-    //         const afterBalance = await deployed.TON.balanceOf(addr1.address);
-    //         expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+        it('deposit to level19 using deposit(address,uint256)', async () => {
+            // console.log(deployed.seigManagerV2)
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
+            await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
 
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-    //         )
-    //     })
+            const beforeBalance = await deployed.WTON.balanceOf(addr1.address);
+            expect(beforeBalance).to.be.gte(wtonAmount)
 
-    //     it('deposit to tokamak using approveAndCall', async () => {
-    //         // console.log(deployed.seigManagerV2)
+            await execAllowance(deployed.WTON, addr1, deployed.depositManagerV2.address, wtonAmount);
 
-    //         let tonAmount = ethers.utils.parseEther("100")
-    //         await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
-    //         const beforeBalance = await deployed.TON.balanceOf(addr1.address);
-    //         expect(beforeBalance).to.be.gte(tonAmount)
+            await (await deployed.depositManagerV2.connect(addr1)["deposit(address,uint256)"](
+                layer2Info_level19.layer2,
+                wtonAmount
+            )).wait()
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            const afterBalance = await deployed.WTON.balanceOf(addr1.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
 
-    //         const data = marshalString(
-    //             [deployed.depositManagerV2.address, layer2Info_tokamak.layer2]
-    //               .map(unmarshalString)
-    //               .map(str => padLeft(str, 64))
-    //               .join(''),
-    //         );
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
-    //         await (await deployed.TON.connect(addr1).approveAndCall(
-    //             deployed.WTON.address,
-    //             tonAmount,
-    //             data,
-    //             {from: addr1.address}
-    //         )).wait()
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 1)
+            )
+        })
 
-    //         const afterBalance = await deployed.TON.balanceOf(addr1.address);
-    //         expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+        it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
+            // console.log(deployed.seigManagerV2)
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
+            // await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
 
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-    //         )
-    //     })
+            const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(beforeSenderBalance).to.be.gte(wtonAmount)
 
-    //     it('deposit to level19 using deposit(address,uint256)', async () => {
-    //         // console.log(deployed.seigManagerV2)
+            await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
 
-    //         let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
-    //         await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
 
-    //         const beforeBalance = await deployed.WTON.balanceOf(addr1.address);
-    //         expect(beforeBalance).to.be.gte(wtonAmount)
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+                layer2Info_tokamak.layer2,
+                addr1.address,
+                wtonAmount
+            )).wait()
 
-    //         await execAllowance(deployed.WTON, addr1, deployed.depositManagerV2.address, wtonAmount);
+            const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
 
-    //         await (await deployed.depositManagerV2.connect(addr1)["deposit(address,uint256)"](
-    //             layer2Info_level19.layer2,
-    //             wtonAmount
-    //         )).wait()
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 1)
+            )
+        })
 
-    //         const afterBalance = await deployed.WTON.balanceOf(addr1.address);
-    //         expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
+        it('deposit to tokamak using deposit(address,address[],uint256[]) ', async () => {
+            // console.log(deployed.seigManagerV2)
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
+            let wtonAmount1 = ethers.utils.parseEther("30"+"0".repeat(9))
+            let wtonAmount2 = ethers.utils.parseEther("70"+"0".repeat(9))
+            // await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
 
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(wtonAmount), 1)
-    //         )
-    //     })
+            const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(beforeSenderBalance).to.be.gte(wtonAmount)
 
-    //     it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
-    //         // console.log(deployed.seigManagerV2)
+            await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
 
-    //         let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
-    //         // await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
+            let stakedA1 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            let stakedA2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr2.address)
 
-    //         const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(beforeSenderBalance).to.be.gte(wtonAmount)
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address[],uint256[])"](
+                layer2Info_tokamak.layer2,
+                [addr1.address, addr2.address],
+                [wtonAmount1, wtonAmount2]
+            )).wait()
 
-    //         await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
+            const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            let stakedB1 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            let stakedB2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr2.address)
 
-    //         await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
-    //             layer2Info_tokamak.layer2,
-    //             addr1.address,
-    //             wtonAmount
-    //         )).wait()
+            expect(roundDown(stakedB1.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA1.add(wtonAmount1), 1)
+            )
+            expect(roundDown(stakedB2.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA2.add(wtonAmount2), 1)
+            )
+        })
 
-    //         const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
+        it('updateSeigniorage to level19 will be fail when minimumAmount is insufficient.', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
+            layer2Info_level19.layerContract = new ethers.Contract(
+                layer2Info_level19.layer2, jsonInfo.Candidate.abi, deployer
+            );
 
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(wtonAmount), 1)
-    //         )
-    //     })
+            await expect(
+                layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()
+            ).to.be.rejectedWith("minimumAmount is insufficient")
 
-    //     it('deposit to tokamak using deposit(address,address[],uint256[]) ', async () => {
-    //         // console.log(deployed.seigManagerV2)
+        });
 
-    //         let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
-    //         let wtonAmount1 = ethers.utils.parseEther("30"+"0".repeat(9))
-    //         let wtonAmount2 = ethers.utils.parseEther("70"+"0".repeat(9))
-    //         // await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
+        it('updateSeigniorage to level19', async () => {
+            let wtonAmount = ethers.utils.parseEther("1000"+"0".repeat(9))
 
-    //         const beforeSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(beforeSenderBalance).to.be.gte(wtonAmount)
+            await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
 
-    //         await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
+            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+                layer2Info_level19.layer2,
+                layer2Info_level19.operator,
+                wtonAmount
+            )).wait();
 
-    //         let stakedA1 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
-    //         let stakedA2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr2.address)
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
-    //         await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address[],uint256[])"](
-    //             layer2Info_tokamak.layer2,
-    //             [addr1.address, addr2.address],
-    //             [wtonAmount1, wtonAmount2]
-    //         )).wait()
+            let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
+            await (await layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()).wait()
 
-    //         const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
-    //         expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
 
-    //         let stakedB1 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr1.address)
-    //         let stakedB2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_tokamak.layer2, addr2.address)
+            expect(stakedB).to.be.gt(stakedA)
+            expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
+        })
 
-    //         expect(roundDown(stakedB1.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA1.add(wtonAmount1), 1)
-    //         )
-    //         expect(roundDown(stakedB2.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA2.add(wtonAmount2), 1)
-    //         )
-    //     })
+        // it('requestWithdrawal to level19', async () => {
 
-    //     it('updateSeigniorage to level19 will be fail when minimumAmount is insufficient.', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
+        //     let layer2 = layer2Info_level19.layer2
+        //     let account = addr1
+        //     let wtonAmount = ethers.utils.parseEther("50"+"0".repeat(9))
 
-    //         layer2Info_level19.layerContract = new ethers.Contract(
-    //             layer2Info_level19.layer2, jsonInfo.Candidate.abi, deployer
-    //         );
+        //     const beforeBalance = await deployed.WTON.balanceOf(account.address)
 
-    //         await expect(
-    //             layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()
-    //         ).to.be.rejectedWith("minimumAmount is insufficient")
+        //     let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
+        //     let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+        //     let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
+        //     let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
 
-    //     });
+        //     await (await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
+        //         layer2Info_level19.layer2,
+        //         wtonAmount
+        //     )).wait()
 
-    //     it('updateSeigniorage to level19', async () => {
-    //         let wtonAmount = ethers.utils.parseEther("1000"+"0".repeat(9))
+        //     const afterBalance = await deployed.WTON.balanceOf(account.address);
+        //     expect(afterBalance).to.be.eq(beforeBalance)
 
-    //         await execAllowance(deployed.WTON, deployer, deployed.depositManagerV2.address, wtonAmount);
+        //     let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, account.address)
 
-    //         await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
-    //             layer2Info_level19.layer2,
-    //             layer2Info_level19.operator,
-    //             wtonAmount
-    //         )).wait();
+        //     expect(roundDown(stakedA.sub(ethers.constants.Two),1)).to.be.eq(
+        //         roundDown(stakedB.add(wtonAmount), 1)
+        //     )
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+        //     ).to.be.eq(pendingUnstakedA.add(wtonAmount))
 
-    //         let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
-    //         await (await layer2Info_level19.layerContract.connect(addr1).updateSeigniorage()).wait()
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
+        //     ).to.be.eq(pendingUnstakedLayer2A.add(wtonAmount))
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, addr1.address)
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+        //     ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
 
-    //         expect(stakedB).to.be.gt(stakedA)
-    //         expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
-    //     })
+        // })
 
-    //     it('requestWithdrawal to level19', async () => {
+        // it('processRequest to level19 will be fail when delay time didn\'t pass.', async () => {
+        //     let layer2 = layer2Info_level19.layer2
+        //     let account = addr1
 
-    //         let layer2 = layer2Info_level19.layer2
-    //         let account = addr1
-    //         let wtonAmount = ethers.utils.parseEther("50"+"0".repeat(9))
+        //     await expect(
+        //             deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
+        //             layer2,
+        //             true
+        //         )
+        //     ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
 
-    //         const beforeBalance = await deployed.WTON.balanceOf(account.address)
+        // });
 
-    //         let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-    //         let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-    //         let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
-    //         let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+        // it('processRequest to level19.', async () => {
+        //     let layer2 = layer2Info_level19.layer2
+        //     let account = addr1
+        //     const beforeBalance = await deployed.TON.balanceOf(account.address)
+        //     let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+        //     let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
+        //     let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
 
-    //         await (await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
-    //             layer2Info_level19.layer2,
-    //             wtonAmount
-    //         )).wait()
+        //     let accUnstakedA = await deployed.depositManagerV2.accUnstaked(layer2, account.address)
+        //     let accUnstakedLayer2A = await deployed.depositManagerV2.accUnstakedLayer2(layer2)
+        //     let accUnstakedAccountA = await deployed.depositManagerV2.accUnstakedAccount(account.address)
 
-    //         const afterBalance = await deployed.WTON.balanceOf(account.address);
-    //         expect(afterBalance).to.be.eq(beforeBalance)
 
-    //         let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, account.address)
+        //     let globalWithdrawalDelay = await deployed.depositManagerV2.globalWithdrawalDelay()
 
-    //         expect(roundDown(stakedA.sub(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedB.add(wtonAmount), 1)
-    //         )
+        //     await mine(globalWithdrawalDelay, { interval: 12 });
 
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-    //         ).to.be.eq(pendingUnstakedA.add(wtonAmount))
+        //     await (await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
+        //         layer2,
+        //         true
+        //     )).wait()
 
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
-    //         ).to.be.eq(pendingUnstakedLayer2A.add(wtonAmount))
+        //     const afterBalance = await deployed.TON.balanceOf(account.address);
+        //     expect(afterBalance).to.be.eq(beforeBalance.add(pendingUnstakedA.div(BigNumber.from("1"+"0".repeat(9)))))
 
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-    //         ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
+        //     ).to.be.eq(ethers.constants.Zero)
 
-    //     })
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
+        //     ).to.be.eq(pendingUnstakedLayer2A.sub(pendingUnstakedA))
 
-    //     it('processRequest to level19 will be fail when delay time didn\'t pass.', async () => {
-    //         let layer2 = layer2Info_level19.layer2
-    //         let account = addr1
+        //     expect(
+        //         await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+        //     ).to.be.eq(pendingUnstakedAccountA.sub(pendingUnstakedA))
 
-    //         await expect(
-    //                 deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
-    //                 layer2,
-    //                 true
-    //             )
-    //         ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
+        //     expect(
+        //         await deployed.depositManagerV2.accUnstaked(layer2, account.address)
+        //     ).to.be.eq(accUnstakedA.add(pendingUnstakedA))
 
-    //     });
+        //     expect(
+        //         await deployed.depositManagerV2.accUnstakedLayer2(layer2 )
+        //     ).to.be.eq(accUnstakedLayer2A.add(pendingUnstakedA))
 
-    //     it('processRequest to level19.', async () => {
-    //         let layer2 = layer2Info_level19.layer2
-    //         let account = addr1
-    //         const beforeBalance = await deployed.TON.balanceOf(account.address)
-    //         let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-    //         let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
-    //         let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
+        //     expect(
+        //         await deployed.depositManagerV2.accUnstakedAccount(account.address)
+        //     ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
 
-    //         let accUnstakedA = await deployed.depositManagerV2.accUnstaked(layer2, account.address)
-    //         let accUnstakedLayer2A = await deployed.depositManagerV2.accUnstakedLayer2(layer2)
-    //         let accUnstakedAccountA = await deployed.depositManagerV2.accUnstakedAccount(account.address)
+        // });
 
-
-    //         let globalWithdrawalDelay = await deployed.depositManagerV2.globalWithdrawalDelay()
-
-    //         await mine(globalWithdrawalDelay, { interval: 12 });
-
-    //         await (await  deployed.depositManagerV2.connect(account)["processRequest(address,bool)"](
-    //             layer2,
-    //             true
-    //         )).wait()
-
-    //         const afterBalance = await deployed.TON.balanceOf(account.address);
-    //         expect(afterBalance).to.be.eq(beforeBalance.add(pendingUnstakedA.div(BigNumber.from("1"+"0".repeat(9)))))
-
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-    //         ).to.be.eq(ethers.constants.Zero)
-
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
-    //         ).to.be.eq(pendingUnstakedLayer2A.sub(pendingUnstakedA))
-
-    //         expect(
-    //             await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-    //         ).to.be.eq(pendingUnstakedAccountA.sub(pendingUnstakedA))
-
-    //         expect(
-    //             await deployed.depositManagerV2.accUnstaked(layer2, account.address)
-    //         ).to.be.eq(accUnstakedA.add(pendingUnstakedA))
-
-    //         expect(
-    //             await deployed.depositManagerV2.accUnstakedLayer2(layer2 )
-    //         ).to.be.eq(accUnstakedLayer2A.add(pendingUnstakedA))
-
-    //         expect(
-    //             await deployed.depositManagerV2.accUnstakedAccount(account.address)
-    //         ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
-
-    //     });
-
-    // });
+    });
 
     // describe('updateSeigniorage', () => {
 

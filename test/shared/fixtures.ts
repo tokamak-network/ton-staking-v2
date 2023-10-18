@@ -75,7 +75,7 @@ export const jsonFixtures = async function (): Promise<JSONFixture> {
 }
 
 export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtures> {
-  const [deployer, addr1, addr2 ] = await ethers.getSigners();
+  const [deployer, addr1, addr2, addr3 ] = await ethers.getSigners();
   const {
     DepositManager, SeigManager, L2Registry, CoinageFactory, TON, WTON, TOS, DAOCommitteeProxy,
     CandidateFactory, DAOAgendaManager, AutoCoinageSnapshot2, DaoCommitteeAdminAddress ,
@@ -107,6 +107,11 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
     DaoCommitteeAdminAddress,
   ]);
   const daoCommitteeAdmin = await hre.ethers.getSigner(DaoCommitteeAdminAddress);
+
+  await hre.network.provider.send("hardhat_impersonateAccount", [
+    level19Admin,
+  ]);
+  const level19AdminSigner = await hre.ethers.getSigner(level19Admin);
 
   console.log('DaoCommitteeAdminAddress', DaoCommitteeAdminAddress)
 
@@ -247,6 +252,7 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
     deployer: deployer,
     addr1: addr1,
     addr2: addr2,
+    addr3: addr3,
     depositManagerV1: depositManagerV1 ,
     seigManagerV1: seigManagerV1 ,
     layer2RegistryV1: layer2RegistryV1 ,
@@ -276,6 +282,7 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
     level19Address: level19Address,
     tokamakAddress: tokamakAddress,
     level19Admin: level19Admin,
+    level19AdminSigner: level19AdminSigner,
     tokamakAdmin: tokamakAdmin,
     daoAdmin: daoAdmin,
     powerTON: powerTON

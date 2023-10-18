@@ -13,6 +13,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
