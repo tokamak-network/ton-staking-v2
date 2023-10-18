@@ -157,7 +157,14 @@ const calcSeigniorage  = async (contractInfos, toBlock,  layer2) =>  {
     let operator = await layer2Contract.operator();
     let isCommissionRateNegative = await  seigManager.isCommissionRateNegative(layer2);
 
-    let calcSeigsD = await calcSeigsDistribution (layer2, seigManager, coinage, totBalanceLayer, seigForLayer, isCommissionRateNegative, operator)
+    let calcSeigsD = await calcSeigsDistribution (
+        layer2,
+        seigManager,
+        coinage,
+        nextBalanceOfLayerInTot,
+        seigForLayer,
+        isCommissionRateNegative,
+        operator)
     console.log('calcSeigsD', calcSeigsD)
     // let calcCoinageFactor = await calcNewFactor (coinageTotalSupply, calcSeigsD.nextTotalSupply, coinageFactor)
     // let calcCoinageFactorSet = await setFactor(calcCoinageFactor)
