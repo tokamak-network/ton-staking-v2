@@ -460,32 +460,37 @@ describe('TON Staking V2 Test', () => {
 
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
 
-            const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
-            // console.log(deployedEvent.args)
-
             const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
             // console.log("AddedSeigAtLayer", deployedEvent1.args)
+            expect(deployedEvent1.args.layer2).to.be.eq(layer2.layer2)
+            expect(deployedEvent1.args.seigs).to.be.eq(calcSeigs.seigOfLayer)
+            expect(deployedEvent1.args.operatorSeigs).to.be.eq(calcSeigs.operatorSeigs)
+            expect(deployedEvent1.args.nextTotalSupply).to.be.eq(calcSeigs.nextLayerTotalSupply)
+            expect(deployedEvent1.args.prevTotalSupply).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
-            expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
-            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
+            // const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
+            // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            // const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+            // console.log(deployedEvent.args)
 
-            expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+            // expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
+            // expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
+            // expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
-                roundDown(calcSeigs.nextLayerTotalSupply, 6)
-            )
+            // expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
 
-            expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newTotFactor, 3)
-            )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 6)
-            )
+            // expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+            //     roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            // )
+
+            // expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
+            //     roundDown(calcSeigs.newTotFactor, 3)
+            // )
+            // expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+            //     roundDown(calcSeigs.newCoinageFactor, 6)
+            // )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
 
@@ -555,35 +560,40 @@ describe('TON Staking V2 Test', () => {
             let calcSeigs: CalculatedSeig = await calcSeigniorageWithTonStakingV2Fixtures(deployed, jsonInfo, toBlock.toNumber(), layer2.layer2)
 
             // console.log('calcSeigs' , calcSeigs)
-
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
-            const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
-
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
-            // console.log(deployedEvent.args)
 
             const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
             // console.log("AddedSeigAtLayer", deployedEvent1.args)
+            expect(deployedEvent1.args.layer2).to.be.eq(layer2.layer2)
+            expect(deployedEvent1.args.seigs).to.be.eq(calcSeigs.seigOfLayer)
+            expect(deployedEvent1.args.operatorSeigs).to.be.eq(calcSeigs.operatorSeigs)
+            expect(deployedEvent1.args.nextTotalSupply).to.be.eq(calcSeigs.nextLayerTotalSupply)
+            expect(deployedEvent1.args.prevTotalSupply).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
-            expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
-            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
+            // const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
 
-            expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+            // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            // const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+            // console.log(deployedEvent.args)
 
-            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
-                roundDown(calcSeigs.nextLayerTotalSupply, 6)
-            )
+            // expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
+            // expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
+            // expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newTotFactor, 3)
-            )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 6)
-            )
+            // expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+
+            // expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+            //     roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            // )
+
+            // expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
+            //     roundDown(calcSeigs.newTotFactor, 3)
+            // )
+            // expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+            //     roundDown(calcSeigs.newCoinageFactor, 6)
+            // )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
 
@@ -704,32 +714,38 @@ describe('TON Staking V2 Test', () => {
 
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
 
-            const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
-            // console.log(deployedEvent.args)
-
             const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
             // console.log("AddedSeigAtLayer", deployedEvent1.args)
+            expect(deployedEvent1.args.layer2).to.be.eq(layer2.layer2)
+            expect(deployedEvent1.args.seigs).to.be.eq(calcSeigs.seigOfLayer)
+            expect(deployedEvent1.args.operatorSeigs).to.be.eq(calcSeigs.operatorSeigs)
+            expect(deployedEvent1.args.nextTotalSupply).to.be.eq(calcSeigs.nextLayerTotalSupply)
+            expect(deployedEvent1.args.prevTotalSupply).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
-            expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
-            expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+            // const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
+            // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            // const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
+            // console.log(deployedEvent.args)
 
-            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
-                roundDown(calcSeigs.nextLayerTotalSupply, 6)
-            )
+            // expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
+            // expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
+            // expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
 
-            expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newTotFactor, 3)
-            )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 6)
-            )
+            // expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+
+            // expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+            //     roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            // )
+
+            // expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
+            //     roundDown(calcSeigs.newTotFactor, 3)
+            // )
+            // expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+            //     roundDown(calcSeigs.newCoinageFactor, 6)
+            // )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
 
