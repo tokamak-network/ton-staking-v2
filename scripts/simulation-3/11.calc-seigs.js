@@ -78,7 +78,7 @@ async function updateSeigniorage (deployer){
     let i = 1;
     for (let oldLayer of oldLayers) {
 
-        if( i == 1) {
+        if( i == 3 ) {
             let layerAddress = getNewLayerAddress(layer2s, oldLayer.layer2)
 
             console.log('======================== layer ',oldLayer, layerAddress)
@@ -103,7 +103,10 @@ async function updateSeigniorage (deployer){
             // 업데이트 시뇨리지
             let receipt = await (await layerContract.connect(deployer).updateSeigniorage()).wait()
             console.log('updateSeigniorage : ',layerAddress,', tx:  ', receipt.transactionHash)
-
+            const topic1 = seigManager.interface.getEventTopic('AddedSeigAtLayer');
+            const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
+            const deployedEvent1 = seigManager.interface.parseLog(log1);
+            console.log('------- AddedSeigAtLayer  ', deployedEvent1.args)
             console.log('------- after update seig ')
 
             let totalSupply1 = await totContract.totalSupply()

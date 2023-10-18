@@ -150,24 +150,26 @@ const calcSeigniorage  = async (contractInfos, toBlock,  layer2) =>  {
     let newTotFactor = await calcNewFactor (totTotalSupply, nextTotTotalSupply, totFactor)
     let newFactorSet = await setFactor(newTotFactor)
     let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, totBalanceAndFactor[0].balance, totBalanceAndFactor[0].refactoredCount)
-    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
 
-    //==============
-    let seigForLayer = nextBalanceOfLayerInTot.sub(coinageTotalSupply)
-    let operator = await layer2Contract.operator();
-    let isCommissionRateNegative = await  seigManager.isCommissionRateNegative(layer2);
+    //=================
+    let commissionRate = await seigManager.commissionRates(layer2)
+    let isCommissionRateNegative = await seigManager.isCommissionRateNegative(layer2)
+    let operator = await layer2Contract.operator()
 
-    let calcSeigsD = await calcSeigsDistribution (
-        layer2,
-        seigManager,
-        coinage,
-        nextBalanceOfLayerInTot,
-        seigForLayer,
-        isCommissionRateNegative,
-        operator)
-    console.log('calcSeigsD', calcSeigsD)
-    // let calcCoinageFactor = await calcNewFactor (coinageTotalSupply, calcSeigsD.nextTotalSupply, coinageFactor)
-    // let calcCoinageFactorSet = await setFactor(calcCoinageFactor)
+    let seigOfLayer = nextBalanceOfLayerInTot.sub(coinageTotalSupply)
+    // let operatorRate = operatorBalance.mul(RAY).div(coinageTotalSupply).div(RAY)
+    let operatorSeigs = ethers.constants.Zero
+    let nextLayerTotalSupply = nextBalanceOfLayerInTot
+
+    if(commissionRate != ethers.constants.Zero) {
+        if(!isCommissionRateNegative) {
+            operatorSeigs = seigOfLayer.mul(commissionRate).div(RAY)
+            nextLayerTotalSupply = nextLayerTotalSupply.sub(operatorSeigs)
+        }
+    }
+
+    //=================
+    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextLayerTotalSupply, coinageFactor)
 
     return {
         toBlock: toBlock,
@@ -192,11 +194,9 @@ const calcSeigniorage  = async (contractInfos, toBlock,  layer2) =>  {
         nextTotBalanceLayer: nextBalanceOfLayerInTot,
         newTotFactor: newTotFactor,
         newCoinageFactor: newCoinageFactor,
-        seigForLayer: seigForLayer,
-        operator: operator,
-        calcSeigsDistribution: calcSeigsD
-        // calcCoinageFactor: calcCoinageFactor,
-        // calcCoinageFactorSet: calcCoinageFactorSet
+        seigOfLayer : seigOfLayer,
+        operatorSeigs: operatorSeigs,
+        nextLayerTotalSupply : nextLayerTotalSupply
     }
 }
 

@@ -54,17 +54,22 @@ async function setCommossion(deployer) {
         let layerAddress = getNewLayerAddress(layer2s, commission.layer2)
         console.log(commission)
 
-        if(commission.commissionRates != "0") {
-            let rate = ethers.BigNumber.from(commission.commissionRates)
+        let commissionRates = await seigManager.commissionRates(layerAddress)
+        // let isCommissionRateNegative = await seigManager.isCommissionRateNegative(layer)
+        // console.log('commissionRates', commissionRates)
+        let commissionRatesIn = ethers.BigNumber.from(commission.commissionRates)
+        // console.log('commissionRatesIn', commissionRatesIn)
+
+        if(!(commissionRatesIn.eq(commissionRates))) {
             let isCommissionRateNegative = commission.isCommissionRateNegative
 
             let receipt = await (await seigManager.connect(deployer).setCommissionRateOnlyOwner(
                 layerAddress,
-                rate,
+                commissionRatesIn,
                 isCommissionRateNegative
             )).wait()
 
-            console.log('** setCommissionRateOnlyOwner :  ', layerAddress, rate.toString(), isCommissionRateNegative ,' , tx: ', receipt.transactionHash )
+            console.log('** setCommissionRateOnlyOwner :  ', layerAddress, commissionRatesIn.toString(), isCommissionRateNegative ,' , tx: ', receipt.transactionHash )
         }
 
     }
