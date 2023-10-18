@@ -78,7 +78,7 @@ async function updateSeigniorage (deployer){
     let i = 1;
     for (let oldLayer of oldLayers) {
 
-        if( i == 3 ) {
+        if( i == 1 ) {
             let layerAddress = getNewLayerAddress(layer2s, oldLayer.layer2)
 
             console.log('======================== layer ',oldLayer, layerAddress)
@@ -99,6 +99,8 @@ async function updateSeigniorage (deployer){
             let toBlock = block.number+1
             let seigCalc = await calcSeigniorage(contractInfos, toBlock, layerAddress)
             console.log(' calcSeigniorage  seigCalc ', seigCalc)
+            console.log(' estimated the conage total supply :  ',
+                ethers.utils.formatUnits(seigCalc.nextLayerTotalSupply.add(seigCalc.operatorSeigs), 27) , 'WTON' )
 
             // 업데이트 시뇨리지
             let receipt = await (await layerContract.connect(deployer).updateSeigniorage()).wait()
