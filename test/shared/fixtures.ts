@@ -43,6 +43,8 @@ import DAOCommittee_Json from '../abi/DAOCommittee.json'
 import Candidate_Json from '../../artifacts/contracts/dao/Candidate.sol/Candidate.json'
 import PowerTON_Json from '../abi/PowerTONSwapperProxy.json'
 
+import SeigManagerMigration_Json from '../../artifacts/contracts/stake/managers/SeigManagerMigration.sol/SeigManagerMigration.json'
+
 export const lastSeigBlock = ethers.BigNumber.from("18169346");
 export const globalWithdrawalDelay  = ethers.BigNumber.from("93046")
 
@@ -52,7 +54,7 @@ export const seigManagerInfo = {
   relativeSeigRate: ethers.BigNumber.from("400000000000000000000000000"),
   daoSeigRate: ethers.BigNumber.from("500000000000000000000000000"),
   seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
-  adjustCommissionDelay:  ethers.BigNumber.from("93096"),
+  adjustCommissionDelay:  ethers.BigNumber.from("0"),
 }
 
 export const jsonFixtures = async function (): Promise<JSONFixture> {
@@ -70,7 +72,8 @@ export const jsonFixtures = async function (): Promise<JSONFixture> {
     DAOAgendaManager: DAOAgendaManager_Json ,
     RefactorCoinageSnapshot: RefactorCoinageSnapshot_Json,
     Candidate: Candidate_Json,
-    PowerTON: PowerTON_Json
+    PowerTON: PowerTON_Json,
+    SeigManagerMigration: SeigManagerMigration_Json
   }
 }
 
@@ -144,6 +147,8 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
   const depositManagerV2 = (await ethers.getContractAt("DepositManager", depositManagerProxy.address, deployer)) as DepositManager;
 
   const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManager")).connect(deployer).deploy()) as SeigManager;
+  const seigManagerMigrationImp = (await (await ethers.getContractFactory("SeigManagerMigration")).connect(deployer).deploy()) as SeigManagerMigration;
+
   const seigManagerProxy = (await (await ethers.getContractFactory("SeigManagerProxy")).connect(deployer).deploy()) as SeigManagerProxy;
   await seigManagerProxy.connect(deployer).upgradeTo(seigManagerV2Imp.address);
   const seigManagerV2 = (await ethers.getContractAt("SeigManager", seigManagerProxy.address, deployer)) as SeigManager;
@@ -262,6 +267,8 @@ export const tonStakingV2Fixture = async function (): Promise<TonStakingV2Fixtur
     daoCommittee: daoCommittee,
     depositManagerV2: depositManagerV2 ,
     depositManagerProxy: depositManagerProxy,
+    seigManagerV2Imp: seigManagerV2Imp,
+    seigManagerMigrationImp: seigManagerMigrationImp,
     seigManagerV2: seigManagerV2 ,
     seigManagerProxy: seigManagerProxy,
     layer2RegistryV2: layer2RegistryV2 ,
@@ -352,6 +359,8 @@ export const tonStakingV2NoSnapshotFixture = async function (): Promise<TonStaki
   const depositManagerV2 = (await ethers.getContractAt("DepositManager", depositManagerProxy.address, deployer)) as DepositManager;
 
   const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManager")).connect(deployer).deploy()) as SeigManager;
+  const seigManagerMigrationImp = (await (await ethers.getContractFactory("SeigManagerMigration")).connect(deployer).deploy()) as SeigManagerMigration;
+
   const seigManagerProxy = (await (await ethers.getContractFactory("SeigManagerProxy")).connect(deployer).deploy()) as SeigManagerProxy;
   await seigManagerProxy.connect(deployer).upgradeTo(seigManagerV2Imp.address);
   const seigManagerV2 = (await ethers.getContractAt("SeigManager", seigManagerProxy.address, deployer)) as SeigManager;
@@ -468,6 +477,8 @@ export const tonStakingV2NoSnapshotFixture = async function (): Promise<TonStaki
     daoCommittee: daoCommittee,
     depositManagerV2: depositManagerV2 ,
     depositManagerProxy: depositManagerProxy,
+    seigManagerV2Imp: seigManagerV2Imp,
+    seigManagerMigrationImp: seigManagerMigrationImp,
     seigManagerV2: seigManagerV2 ,
     seigManagerProxy: seigManagerProxy,
     layer2RegistryV2: layer2RegistryV2 ,
@@ -600,6 +611,8 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
 
     const SeigManagerDep = await deployments.get("SeigManager")
     const seigManagerV2Imp = (await ethers.getContractAt("SeigManager", SeigManagerDep.address, deployer)) as SeigManager;
+    const seigManagerMigrationImp = (await (await ethers.getContractFactory("SeigManagerMigration")).connect(deployer).deploy()) as SeigManagerMigration;
+
     const seigManagerProxy = (await ethers.getContractAt("SeigManagerProxy", getContractAddress(contractInfos, 'SeigManagerProxy'), deployer)) as SeigManagerProxy;
     if ( (await seigManagerProxy.implementation()) != SeigManagerDep.address) {
       await (await seigManagerProxy.connect(deployer).upgradeTo(SeigManagerDep.address)).wait()
@@ -746,6 +759,8 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
       daoCommittee: daoCommittee,
       depositManagerV2: depositManagerV2 ,
       depositManagerProxy: depositManagerProxy,
+      seigManagerV2Imp: seigManagerV2Imp,
+      seigManagerMigrationImp: seigManagerMigrationImp,
       seigManagerV2: seigManagerV2 ,
       seigManagerProxy: seigManagerProxy,
       layer2RegistryV2: layer2RegistryV2 ,

@@ -107,7 +107,9 @@ describe('TON Staking V2 Test', () => {
             layer2: null,
             operator: null,
             layerContract: null,
-            coinageContract: null
+            coinageContract: null,
+            commissionRate: ethers.constants.Zero,
+            isCommissionRateNegative: false
         }
 
         layer2Info_tokamak = {
@@ -118,7 +120,9 @@ describe('TON Staking V2 Test', () => {
             layer2: null,
             operator: null,
             layerContract: null,
-            coinageContract: null
+            coinageContract: null,
+            commissionRate: ethers.BigNumber.from("25000000000000000000000000"),
+            isCommissionRateNegative: false
         }
 
         snapshotInfos = []
@@ -212,7 +216,65 @@ describe('TON Staking V2 Test', () => {
         })
     });
 
+    describe('setCommissionRate ', () => {
+        it('Operator can execute setCommissionRate ', async () => {
+            await expect(
+                deployed.seigManagerV2.connect(addr1).setCommissionRate(
+                    layer2Info_tokamak.layer2,
+                    layer2Info_tokamak.commissionRate,
+                    layer2Info_tokamak.isCommissionRateNegative
+                )
+            ).to.be.reverted;
+        })
+
+        it('onlyOwner can execute setCommissionRateOnlyOwner ', async () => {
+            await deployed.seigManagerProxy.connect(deployer).upgradeTo(deployed.seigManagerMigrationImp.address);
+            const seigManagerMigration = new ethers.Contract(
+                deployed.seigManagerV2.address,
+                jsonInfo.SeigManagerMigration.abi,
+                deployer
+            );
+            await expect(
+                seigManagerMigration.connect(addr1).setCommissionRateOnlyOwner(
+                    layer2Info_tokamak.layer2,
+                    layer2Info_tokamak.commissionRate,
+                    layer2Info_tokamak.isCommissionRateNegative
+                )
+            ).to.be.reverted;
+
+
+        })
+
+        it('setCommissionRateOnlyOwner ', async () => {
+
+            const seigManagerMigration = new ethers.Contract(
+                deployed.seigManagerV2.address,
+                jsonInfo.SeigManagerMigration.abi,
+                deployer
+            );
+
+            const receipt = await (await seigManagerMigration.connect(deployer).setCommissionRateOnlyOwner(
+                layer2Info_tokamak.layer2,
+                layer2Info_tokamak.commissionRate,
+                layer2Info_tokamak.isCommissionRateNegative
+            )).wait()
+            const topic = seigManagerMigration.interface.getEventTopic('CommissionRateSet');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = seigManagerMigration.interface.parseLog(log);
+
+            expect(deployedEvent.args.layer2).to.be.eq(layer2Info_tokamak.layer2)
+            expect(deployedEvent.args.newRate).to.be.eq(layer2Info_tokamak.commissionRate)
+            expect(await seigManagerMigration.commissionRates(layer2Info_tokamak.layer2)).to.be.eq(layer2Info_tokamak.commissionRate)
+            expect(await seigManagerMigration.isCommissionRateNegative(layer2Info_tokamak.layer2)).to.be.eq(layer2Info_tokamak.isCommissionRateNegative)
+
+            await deployed.seigManagerProxy.connect(deployer).upgradeTo(deployed.seigManagerV2Imp.address);
+
+        })
+
+    })
+
     describe('basic functions ', () => {
+
         it('deposit to level19', async () => {
             let layer2 = layer2Info_level19.layer2
             let account = addr1
@@ -402,17 +464,26 @@ describe('TON Staking V2 Test', () => {
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
             // console.log(deployedEvent.args)
 
+            const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
+            const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
+            const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
+            // console.log("AddedSeigAtLayer", deployedEvent1.args)
+
             expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
             expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
             expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
-            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotBalanceLayer)
+
             expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+
+            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+                roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            )
 
             expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
                 roundDown(calcSeigs.newTotFactor, 3)
             )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 3)
+            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+                roundDown(calcSeigs.newCoinageFactor, 6)
             )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
@@ -489,17 +560,26 @@ describe('TON Staking V2 Test', () => {
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
             // console.log(deployedEvent.args)
 
+            const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
+            const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
+            const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
+            // console.log("AddedSeigAtLayer", deployedEvent1.args)
+
             expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
             expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
             expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
-            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotBalanceLayer)
+
             expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+
+            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+                roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            )
 
             expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
                 roundDown(calcSeigs.newTotFactor, 3)
             )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 3)
+            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+                roundDown(calcSeigs.newCoinageFactor, 6)
             )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)
@@ -570,8 +650,8 @@ describe('TON Staking V2 Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
 
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
+            expect(roundDown(stakedB.add(ethers.BigNumber.from("4")),2)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 2)
             )
 
             let stakedAcount = await deployed.seigManagerV2["stakeOf(address)"](account.address)
@@ -583,12 +663,12 @@ describe('TON Staking V2 Test', () => {
             expect(stakedB).to.be.lte(stakeOfLayerTotal)
             expect(stakeOfTotal).to.be.gt(stakedB)
             expect(stakedAcount).to.be.gte(stakedB)
-            expect(roundDown(stakedAcount.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedAcountPrev.add(wtonAmount), 1)
+            expect(roundDown(stakedAcount.add(ethers.BigNumber.from("4")),2)).to.be.eq(
+                roundDown(stakedAcountPrev.add(wtonAmount), 2)
             )
 
-            expect(roundDown(stakeOfTotal.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakeOfTotalPrev.add(wtonAmount), 1)
+            expect(roundDown(stakeOfTotal.add(ethers.BigNumber.from("4")),2)).to.be.eq(
+                roundDown(stakeOfTotalPrev.add(wtonAmount), 2)
             )
         })
 
@@ -624,17 +704,26 @@ describe('TON Staking V2 Test', () => {
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
             // console.log(deployedEvent.args)
 
+            const topic1 = deployed.seigManagerV2.interface.getEventTopic('AddedSeigAtLayer');
+            const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
+            const deployedEvent1 = deployed.seigManagerV2.interface.parseLog(log1);
+            // console.log("AddedSeigAtLayer", deployedEvent1.args)
+
             expect(deployedEvent.args.layer2).to.be.eq(layer2.layer2)
             expect(deployedEvent.args.blockNumber).to.be.eq(toBlock)
             expect(deployedEvent.args.prevTotal).to.be.eq(calcSeigs.coinageTotalSupply)
-            expect(deployedEvent.args.nextTotal).to.be.eq(calcSeigs.nextTotBalanceLayer)
+
             expect(deployedEvent.args.oldCoinageFactor).to.be.eq(calcSeigs.coinageFactor)
+
+            expect(roundDown(deployedEvent.args.nextTotal, 6)).to.be.eq(
+                roundDown(calcSeigs.nextLayerTotalSupply, 6)
+            )
 
             expect(roundDown(deployedEvent.args.nextTotFactor,3)).to.be.eq(
                 roundDown(calcSeigs.newTotFactor, 3)
             )
-            expect(roundDown(deployedEvent.args.nextCoinageFactor,3)).to.be.eq(
-                roundDown(calcSeigs.newCoinageFactor, 3)
+            expect(roundDown(deployedEvent.args.nextCoinageFactor,6)).to.be.eq(
+                roundDown(calcSeigs.newCoinageFactor, 6)
             )
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2.layer2, account.address)

@@ -169,10 +169,15 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
         ethers.provider
     )
     let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+    let candidate = new ethers.Contract(layer2, jsonInfo.Candidate.abi, ethers.provider)
 
     let relativeSeigRate = await seigManager.relativeSeigRate()
     let powerTONSeigRate = await seigManager.powerTONSeigRate()
     let daoSeigRate = await seigManager.daoSeigRate()
+
+    let commissionRate = await seigManager.commissionRates(layer2)
+    let isCommissionRateNegative = await seigManager.isCommissionRateNegative(layer2)
+    let operator = await candidate.operator()
 
     //-------------------------------
     // 현재 상태를 조회한다.
@@ -192,6 +197,7 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let coinageTotalSupply = await coinage.totalSupply()
     let coinageFactor = await coinage.factor()
     let coinageTotalAndFactor = await coinage.getTotalAndFactor()
+    let operatorBalance = await coinage.balanceOf(operator)
 
     let maxSeig = await calcMaxSeigs(seigManager, toBlock)
     let stakedSeig1 = maxSeig.mul(totTotalSupply).div(tos)
@@ -202,10 +208,26 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
     let powerTonSeig = unstakedSeig.mul(powerTONSeigRate).div(RAY)
     let nextTonTotalSupply = tonTotalSupply.add(maxSeig) ;
     let nextTotTotalSupply = totTotalSupply.add(stakedSeig) ;
+
     let newTotFactor = await calcNewFactor (totTotalSupply, nextTotTotalSupply, totFactor)
     let newFactorSet = await setFactor(newTotFactor)
     let nextBalanceOfLayerInTot =  await applyFactor(newFactorSet.factor, newFactorSet.refactorCount, totBalanceAndFactor[0].balance, totBalanceAndFactor[0].refactoredCount)
-    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextBalanceOfLayerInTot, coinageFactor)
+
+    //=================
+    let seigOfLayer = nextBalanceOfLayerInTot.sub(coinageTotalSupply)
+    // let operatorRate = operatorBalance.mul(RAY).div(coinageTotalSupply).div(RAY)
+    let operatorSeigs = ethers.constants.Zero
+    let nextLayerTotalSupply = nextBalanceOfLayerInTot
+
+    if(commissionRate != ethers.constants.Zero) {
+        if(!isCommissionRateNegative) {
+            operatorSeigs = seigOfLayer.mul(commissionRate).div(RAY)
+            nextLayerTotalSupply = nextLayerTotalSupply.sub(operatorSeigs)
+        }
+    }
+     //=================
+    let newCoinageFactor = await calcNewFactor (coinageTotalSupply, nextLayerTotalSupply, coinageFactor)
+
 
     return {
         toBlock: toBlock,
@@ -230,6 +252,9 @@ export const calcSeigniorageWithTonStakingV2Fixtures  = async (deployed: TonStak
         nextTotBalanceLayer: nextBalanceOfLayerInTot,
         // nextCoinageTotalSupply: nextBalanceOfLayerInTot,
         newTotFactor: newTotFactor,
-        newCoinageFactor: newCoinageFactor
+        newCoinageFactor: newCoinageFactor,
+        seigOfLayer : seigOfLayer,
+        operatorSeigs: operatorSeigs,
+        nextLayerTotalSupply : nextLayerTotalSupply
     }
 }

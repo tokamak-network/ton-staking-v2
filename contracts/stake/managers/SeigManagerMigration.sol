@@ -11,6 +11,7 @@ import { SeigManagerI } from "../interfaces/SeigManagerI.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
+import "hardhat/console.sol";
 
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
@@ -775,37 +776,7 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
     );
 
     uint256 previous = _commissionRates[layer2];
-    if (adjustCommissionDelay == 0) {
-      _commissionRates[layer2] = commissionRate;
-      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    } else {
-      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
-      delayedCommissionRate[layer2] = commissionRate;
-      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    }
 
-    emit CommissionRateSet(layer2, previous, commissionRate);
-
-    return true;
-  }
-
-
-  function _setCommissionRate(
-    address layer2,
-    uint256 commissionRate,
-    bool isCommissionRateNegative_
-  )
-    internal
-    returns (bool)
-  {
-    // check commission range
-    require(
-      (commissionRate == 0) ||
-      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
-      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
-    );
-
-    uint256 previous = _commissionRates[layer2];
     if (adjustCommissionDelay == 0) {
       _commissionRates[layer2] = commissionRate;
       _isCommissionRateNegative[layer2] = isCommissionRateNegative_;

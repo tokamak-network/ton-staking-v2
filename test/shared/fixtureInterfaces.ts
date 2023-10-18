@@ -5,6 +5,8 @@ import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
+import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
+
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
 import { Layer2RegistryProxy } from "../../typechain-types/contracts/stake/Layer2RegistryProxy"
@@ -39,6 +41,8 @@ interface TonStakingV2Fixtures  {
     daoCommittee: DAOCommitteeExtend,
     depositManagerV2: DepositManager ,
     depositManagerProxy: DepositManagerProxy,
+    seigManagerV2Imp: SeigManager,
+    seigManagerMigrationImp: SeigManagerMigration,
     seigManagerV2: SeigManager ,
     seigManagerProxy: SeigManagerProxy,
     layer2RegistryV2: Layer2Registry ,
@@ -109,7 +113,8 @@ interface JSONFixture {
     DAOAgendaManager: any ,
     RefactorCoinageSnapshot: any,
     Candidate: any,
-    PowerTON: any
+    PowerTON: any,
+    SeigManagerMigration: any
 }
 
 interface SnapshotInfo {
@@ -163,7 +168,10 @@ interface CalculatedSeig {
     nextTotTotalSupply: BigNumber,
     nextTotBalanceLayer: BigNumber,
     newTotFactor: BigNumber,
-    newCoinageFactor: BigNumber
+    newCoinageFactor: BigNumber,
+    seigOfLayer : BigNumber,
+    operatorSeigs: BigNumber,
+    nextLayerTotalSupply : BigNumber
 }
 
 export {

@@ -13,6 +13,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -136,7 +138,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
-  event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
+  event AddedSeigAtLayer(address layer2, uint256 seigs, uint256 operatorSeigs, uint256 nextTotalSupply, uint256 prevTotalSupply);
+  event UpdatedSeigniorage(address layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
   event OnSnapshot(uint256 snapshotId);
 
   event SetPowerTONSeigRate(uint256 powerTONSeigRate);
@@ -422,7 +425,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     // RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
 
     uint256 prevTotalSupply = coinage.totalSupply();
-
     uint256 nextTotalSupply = _tot.balanceOf(msg.sender);
 
     // short circuit if there is no seigs for the layer2
@@ -473,7 +475,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     IWTON(_wton).mint(address(_depositManager), seigs);
 
     emit Comitted(msg.sender);
-
+    emit AddedSeigAtLayer(msg.sender, seigs, operatorSeigs, nextTotalSupply, prevTotalSupply);
     emit UpdatedSeigniorage(msg.sender, block.number, prevTotalSupply, nextTotalSupply, oldTotFactor, oldCoinageFactor, newTotFactor, newCoinageFactor);
 
     return true;
@@ -626,7 +628,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     }
 
     uint256 commissionRate = _commissionRates[msg.sender];
-
     nextTotalSupply = prevTotalSupply + seigs;
 
     // short circuit if there is no commission rate
@@ -723,7 +724,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     // total supply of (W)TON
     uint256 tos = (
       (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-    ) * (10 ** 9)) + (_tot.totalSupply());  // consider additional TOT balance as total supply
+    ) * (10 ** 9)) + _tot.totalSupply();  // consider additional TOT balance as total supply
 
     // maximum seigniorages * staked rate
     uint256 stakedSeig = rdiv(
@@ -739,7 +740,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
 
     nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
-
     _lastSeigBlock = block.number;
 
     _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
