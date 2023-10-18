@@ -135,20 +135,13 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
   // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
+
   event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
-
-  // event UpdatedSeigniorage(
-  //     address indexed layer2,
-  //     uint256 blockNumber,
-  //     uint256 prevTotTotal,
-  //     uint256 prevTotBalance,
-  //     uint256 nextTotTotal,
-  //     uint256 nextTotBalance,
-  //     uint256 prevCoinageTotal,
-  //     uint256 nextCoinageTotal);
-
   event OnSnapshot(uint256 snapshotId);
 
+  event SetPowerTONSeigRate(uint256 powerTONSeigRate);
+  event SetDaoSeigRate(uint256 daoSeigRate);
+  event SetPseigRate(uint256 pseigRate);
   //////////////////////////////
   // Constuctor
   //////////////////////////////
@@ -221,6 +214,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     relativeSeigRate = relativeSeigRate_;
     adjustCommissionDelay = adjustDelay_;
     minimumAmount = minimumAmount_;
+
+    emit SetPowerTONSeigRate (powerTONSeigRate_);
+    emit SetDaoSeigRate (daoSeigRate_) ;
+    emit SetDaoSeigRate (daoSeigRate_) ;
   }
 
   function setPowerTON(address powerton_) external onlyOwner {
@@ -234,16 +231,19 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   function setPowerTONSeigRate(uint256 powerTONSeigRate_) external onlyOwner {
     require(powerTONSeigRate_ + daoSeigRate + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     powerTONSeigRate = powerTONSeigRate_;
+    emit SetPowerTONSeigRate (powerTONSeigRate_);
   }
 
   function setDaoSeigRate(uint256 daoSeigRate_) external onlyOwner {
     require(powerTONSeigRate + daoSeigRate_ + relativeSeigRate <= RAY, "exceeded seigniorage rate");
     daoSeigRate = daoSeigRate_;
+    emit SetDaoSeigRate (daoSeigRate_) ;
   }
 
   function setPseigRate(uint256 pseigRate_) external onlyOwner {
     require(powerTONSeigRate + daoSeigRate + pseigRate_ <= RAY, "exceeded seigniorage rate");
     relativeSeigRate = pseigRate_;
+    emit SetPseigRate (pseigRate_);
   }
 
   function setCoinageFactory(address factory_) external onlyOwner {
@@ -470,16 +470,11 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 newCoinageFactor = coinage.factor();
     uint256 newTotFactor = _tot.factor();
 
-    // uint256 nextTotTotal = _tot.totalSupply();
-    // uint256 nextTotBalance = _tot.balanceOf(msg.sender);
-    // uint256 nextCoinageTotal = coinage.totalSupply();
-
     IWTON(_wton).mint(address(_depositManager), seigs);
 
     emit Comitted(msg.sender);
 
     emit UpdatedSeigniorage(msg.sender, block.number, prevTotalSupply, nextTotalSupply, oldTotFactor, oldCoinageFactor, newTotFactor, newCoinageFactor);
-    // emit UpdatedSeigniorage(msg.sender, block.number, prevTotTotal, prevTotBalance, nextTotTotal, nextTotBalance, prevCoinageTotal, nextCoinageTotal);
 
     return true;
   }
@@ -599,7 +594,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
     //       note that coinageTotalSupply and totBalalnce are RAY values.
-    if (coinageTotalSupply > totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
+    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
       return 0;
     }
 

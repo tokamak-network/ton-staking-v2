@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "hardhat/console.sol";
+
 /**
  * @dev Collection of functions related to array types.
  */
@@ -47,7 +47,6 @@ library SArrays {
     function findIndex(uint256[] storage array, uint256 element
     ) internal view returns (uint256) {
         if (array.length == 0) return 0;
-        // console.log('findIndex %s %s %s',array.length, array[0], element);
 
         // Shortcut for the actual value
         if (element >= array[array.length-1])
@@ -59,7 +58,6 @@ library SArrays {
         uint max = array.length-1;
         while (max > min) {
             uint mid = (max + min + 1)/ 2;
-            //console.log('findIndex mid %s %s',mid, array[mid]);
 
             if (array[mid] <= element) {
                 min = mid;
@@ -67,14 +65,13 @@ library SArrays {
                 max = mid-1;
             }
         }
-        //console.log('findIndex return min %s %s',min, array[min]);
+
         return min;
     }
 
     function findValue(uint256[] storage array, uint256 element
     ) internal view returns (uint256) {
         if (array.length == 0) return 0;
-        // console.log('findValue %s %s %s',array.length, array[0], element);
 
         // Shortcut for the actual value
         if (element >= array[array.length-1])
@@ -86,7 +83,6 @@ library SArrays {
         uint max = array.length-1;
         while (max > min) {
             uint mid = (max + min + 1)/ 2;
-            // console.log('findValue mid %s %s',mid, array[mid]);
 
             if (array[mid] <= element) {
                 min = mid;
@@ -94,7 +90,7 @@ library SArrays {
                 max = mid-1;
             }
         }
-        // console.log('findValue return min %s %s',min, array[min]);
+
         return array[min];
     }
 

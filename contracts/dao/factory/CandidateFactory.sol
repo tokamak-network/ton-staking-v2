@@ -6,7 +6,6 @@ import { CandidateProxy } from "../CandidateProxy.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./CandidateFactoryStorage.sol";
-// import "hardhat/console.sol";
 
 interface ICandidate {
     function initialize(

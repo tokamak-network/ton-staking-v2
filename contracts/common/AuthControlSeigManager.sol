@@ -5,8 +5,6 @@ import { ERC165Storage } from "@openzeppelin/contracts/utils/introspection/ERC16
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./AuthRoleSeigManager.sol";
 
-import "hardhat/console.sol";
-
 contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessControl {
     modifier onlyOwner() {
         require(isAdmin(msg.sender), "AuthControl: Caller is not an admin");
@@ -34,9 +32,6 @@ contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessCon
     }
 
     modifier onlyMinterOrAdmin() {
-        console.log('onlyMinterOrAdmin msg.sender ', msg.sender);
-        console.logBool(hasRole(MINTER_ROLE, msg.sender));
-
         require(isAdmin(msg.sender) || hasRole(MINTER_ROLE, msg.sender), "not onlyMinterOrAdmin");
         _;
     }
