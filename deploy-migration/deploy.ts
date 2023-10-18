@@ -39,7 +39,7 @@ const seigManagerInfo = {
   relativeSeigRate: ethers.BigNumber.from("400000000000000000000000000"),
   daoSeigRate: ethers.BigNumber.from("500000000000000000000000000"),
   seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
-  adjustCommissionDelay:  ethers.BigNumber.from("93096"),
+  adjustCommissionDelay:  ethers.BigNumber.from("0"),
 }
 
 const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
