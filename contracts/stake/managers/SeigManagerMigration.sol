@@ -134,8 +134,7 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
 
   // DEV ONLY
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
-
-  event UpdatedSeigniorage(address indexed layer2, uint256 blockNumber, uint256 prevTotal, uint256 nextTotal, uint256 oldTotFactor, uint256 oldCoinageFactor, uint256 nextTotFactor, uint256 nextCoinageFactor);
+  event AddedSeigAtLayer(address layer2, uint256 seigs, uint256 operatorSeigs, uint256 nextTotalSupply, uint256 prevTotalSupply);
   event OnSnapshot(uint256 snapshotId);
 
   event SetPowerTONSeigRate(uint256 powerTONSeigRate);
@@ -404,9 +403,6 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
 
     RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
 
-    uint256 oldCoinageFactor = coinage.factor();
-    uint256 oldTotFactor = _tot.factor();
-
     _increaseTot();
 
     _lastCommitBlock[msg.sender] = block.number;
@@ -459,13 +455,10 @@ contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManag
       }
     }
 
-    uint256 newCoinageFactor = coinage.factor();
-    uint256 newTotFactor = _tot.factor();
-
     IWTON(_wton).mint(address(_depositManager), seigs);
 
     emit Comitted(msg.sender);
-    emit UpdatedSeigniorage(msg.sender, block.number, prevTotalSupply, nextTotalSupply, oldTotFactor, oldCoinageFactor, newTotFactor, newCoinageFactor);
+    emit AddedSeigAtLayer(msg.sender, seigs, operatorSeigs, nextTotalSupply, prevTotalSupply);
     return true;
   }
 
