@@ -459,6 +459,7 @@ describe('TON Staking V2 Test', () => {
             // console.log('calcSeigs' , calcSeigs)
 
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
+
             const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
@@ -490,6 +491,7 @@ describe('TON Staking V2 Test', () => {
 
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
+
         })
 
         it('snapshot()', async () => {
@@ -556,6 +558,7 @@ describe('TON Staking V2 Test', () => {
 
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
             const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
+
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
             // console.log(deployedEvent.args)
@@ -586,6 +589,7 @@ describe('TON Staking V2 Test', () => {
 
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
+
         })
 
         it('snapshot()', async () => {
@@ -699,6 +703,7 @@ describe('TON Staking V2 Test', () => {
             // console.log('calcSeigs' , calcSeigs)
 
             const receipt = await (await layer2.layerContract.connect(account).updateSeigniorage()).wait()
+
             const topic = deployed.seigManagerV2.interface.getEventTopic('UpdatedSeigniorage');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
@@ -730,6 +735,7 @@ describe('TON Staking V2 Test', () => {
 
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
+
         })
 
         it('snapshot()', async () => {
