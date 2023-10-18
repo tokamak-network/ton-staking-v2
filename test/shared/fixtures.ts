@@ -5,7 +5,7 @@ import { readContracts, deployedContracts } from "../common_func"
 
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
-import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture } from './fixtureInterfaces'
+import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, NewTonStakingV2Fixtures } from './fixtureInterfaces'
 
 import { DepositManagerForMigration } from "../../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
@@ -768,4 +768,142 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
       daoAdmin: daoAdmin,
       powerTON: powerTON
     }
+}
+
+
+export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonStakingV2Fixtures> {
+
+  const DaoCommitteeAdminAddress = ""
+
+  // mainnet network
+  const oldContractInfo = {
+    TON: "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5",
+    WTON: "0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2",
+    Layer2Registry: "0x0b3E174A2170083e770D5d4Cf56774D221b7063e",
+    DepositManager: "0x56E465f654393fa48f007Ed7346105c7195CEe43",
+    CoinageFactory: "0x5b40841eeCfB429452AB25216Afc1e1650C07747",
+    OldDAOVaultMock: "",
+    SeigManager: "0x710936500aC59e8551331871Cbad3D33d5e0D909",
+    PowerTON: "0x970298189050aBd4dc4F119ccae14ee145ad9371",
+    DAOVault: "0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303",
+    DAOAgendaManager: "0xcD4421d082752f363E1687544a09d5112cD4f484",
+    CandidateFactory: "0xE6713aF11aDB0cFD3C60e15b23E43f5548C32942",
+    DAOCommittee: "0xd1A3fDDCCD09ceBcFCc7845dDba666B7B8e6D1fb",
+    DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+  }
+
+  // 새로 배포된 컨트랙
+  const newContractInfo = {
+    "TestSeigManager": "0xbe8808548c8e1179435448fB621EC5A7A60c178D",
+    "DAOCommitteeExtend": "0x5AB2B7df0529C28Bf2895CeD50F4a2999E238EDD",
+    "PowerTONUpgrade": "0x0950245941D6a5504c54D4b8c36bE71B066FABF2",
+    "SeigManager": "0xf158ac85B6d46ccA482675aA2D437c2B438FBEA4",
+    "SeigManagerMigration" : "0x580Fc28CBd9982b446BD9eC012158d2c40f896dC",
+    "SeigManagerProxy" : "0xb2d344984f92130AF8925eD283018d21673Bd17d",
+    "DepositManager" : "0xD95b5FDC4Aee54f30F864fAF2642DCCB413689c5",
+    "DepositManagerForMigration" :"0x2aD53C5501F9688dE51812c9DC3B05B916F81359",
+    "DepositManagerProxy":"0x4049A8842536Ff2fA2a1D23335b22710C2f0f1cd",
+    "Layer2Registry" : "0x1F5ec567655f2eA2DDeAcBa73411ec24AB765bf2",
+    "Layer2RegistryProxy" :  "0x97a713Fa14e863610555a9f737060b2f409344B9",
+    "Candidate": "0x69CC158F7E0103880aBC4f7d27daC22C1B62fFe5",
+    "CandidateFactory" :"0xE4faf76e8EDDb2a4EC05f5F009a9105cB0f309ec",
+    "CandidateFactoryProxy": "0x68d31C2d5B37741d8a06D72A43F999B53c53aDFa",
+    "RefactorCoinageSnapshot":"0x8b8B9a683d7Fa4E72B84415C3b5674a280832B46",
+    "CoinageFactory" : "0x2bf74c8Ae28DE991A0f88232C0168eAB60B0bbbb"
+  }
+
+  console.log('newTonStakingV2Fixture');
+  const [deployer, addr1, addr2 ] = await ethers.getSigners();
+
+  console.log('deployer', deployer.address);
+
+  const contractJson = await jsonFixtures()
+  console.log('DepositManager', oldContractInfo.DepositManager);
+
+  //-------------------------------
+  const depositManagerV1 = new ethers.Contract( oldContractInfo.DepositManager, contractJson.DepositManager.abi, deployer)
+  const seigManagerV1 = new ethers.Contract(oldContractInfo.SeigManager, contractJson.SeigManager.abi,  deployer)
+  const layer2RegistryV1 = new ethers.Contract( oldContractInfo.Layer2Registry,contractJson.L2Registry.abi, deployer)
+  const coinageFactoryV1= new ethers.Contract(oldContractInfo.CoinageFactory, contractJson.CoinageFactory.abi,  deployer)
+  const TONContract = new ethers.Contract(oldContractInfo.TON, contractJson.TON.abi,  deployer)
+  const WTONContract = new ethers.Contract(oldContractInfo.WTON,  contractJson.WTON.abi, deployer)
+  const candidateFactoryV1 = new ethers.Contract(oldContractInfo.CandidateFactory,  contractJson.CandidateFactory.abi, deployer)
+  const daoCommitteeProxy = new ethers.Contract(oldContractInfo.DAOCommitteeProxy, contractJson.DAOCommitteeProxy.abi, deployer)
+  const daoAgendaManager = new ethers.Contract(oldContractInfo.DAOAgendaManager,  contractJson.DAOAgendaManager.abi, deployer)
+  const powerTonProxy= new ethers.Contract(oldContractInfo.PowerTON,  contractJson.PowerTON.abi, deployer)
+  console.log('DAOCommitteeProxy', oldContractInfo.DAOCommitteeProxy)
+
+  const daoCommittee = (await ethers.getContractAt("DAOCommitteeExtend", oldContractInfo.DAOCommitteeProxy, deployer)) as DAOCommitteeExtend;
+  console.log('daoCommittee', daoCommittee.address)
+
+  const powerTON = (await ethers.getContractAt("PowerTONUpgrade", powerTonProxy.address, deployer)) as PowerTONUpgrade;
+  console.log('powerTON', powerTON.address)
+
+  //----------- v2 배포
+  const depositManagerV2 = (await ethers.getContractAt("DepositManager", newContractInfo.DepositManagerProxy, deployer)) as DepositManager;
+  const seigManagerV2 = (await ethers.getContractAt("SeigManager", newContractInfo.SeigManagerProxy, deployer)) as SeigManager;
+  const layer2RegistryV2 = (await ethers.getContractAt("Layer2Registry", newContractInfo.Layer2RegistryProxy, deployer)) as Layer2Registry;
+  console.log('DepositManagerProxy', depositManagerV2.address)
+
+  //-- 테스트 전에 세그매니저와 디파짓 매니저 로직 변경
+
+  const depositManagerV2Proxy = (await ethers.getContractAt("DepositManagerProxy", newContractInfo.DepositManagerProxy, deployer)) as DepositManagerProxy;
+  const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
+  let imp1 = await depositManagerV2Proxy.implementation()
+  if(imp1 != newContractInfo.DepositManager) {
+    await (await depositManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.DepositManager)).wait()
+  }
+  let imp2 = await seigManagerV2Proxy.implementation()
+  if(imp2 != newContractInfo.SeigManager) {
+    await (await seigManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.SeigManager)).wait()
+  }
+
+  //==========================
+  // const adminAddress =  "0x710936500ac59e8551331871cbad3d33d5e0d909"
+  // await hre.network.provider.send("hardhat_impersonateAccount", [
+  //   adminAddress,
+  // ]);
+  // await hre.network.provider.send("hardhat_setBalance", [
+  //   adminAddress,
+  //   "0x10000000000000000000000000",
+  // ]);
+  // const admin = await hre.ethers.getSigner(adminAddress);
+
+
+  // await hre.network.provider.send("hardhat_impersonateAccount", [
+  //   oldContractInfo.DAOCommitteeProxy,
+  // ]);
+  // await hre.network.provider.send("hardhat_setBalance", [
+  //   oldContractInfo.DAOCommitteeProxy,
+  //   "0x10000000000000000000000000",
+  // ]);
+  // const testadmin = await hre.ethers.getSigner(oldContractInfo.DAOCommitteeProxy);
+
+  // // for test :
+  // await (await TONContract.connect(testadmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+  // console.log('TON')
+
+  // await (await WTONContract.connect(admin).mint(deployer.address, ethers.utils.parseEther("10000"+"0".repeat(9)))).wait()
+  // console.log('WTONContract')
+  return  {
+    deployer: deployer,
+    addr1: addr1,
+    addr2: addr2,
+    depositManagerV1: depositManagerV1 ,
+    seigManagerV1: seigManagerV1 ,
+    layer2RegistryV1: layer2RegistryV1 ,
+    coinageFactoryV1: coinageFactoryV1 ,
+    powerTonProxy: powerTonProxy ,
+    TON: TONContract,
+    WTON: WTONContract ,
+    daoCommitteeProxy: daoCommitteeProxy ,
+    daoAgendaManager: daoAgendaManager,
+    candidateFactoryV1: candidateFactoryV1 ,
+    daoCommittee: daoCommittee,
+    depositManagerV2: depositManagerV2 ,
+    seigManagerV2: seigManagerV2 ,
+    layer2RegistryV2: layer2RegistryV2 ,
+    powerTON: powerTON,
+    powerTonAddress: oldContractInfo.PowerTON
+  }
 }

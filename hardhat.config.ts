@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
       local: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
       goerli: '0x0ad659558851f6ba8a8094614303F56d42f8f39A',
       hardhat: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
-      local: '0x56E465f654393fa48f007Ed7346105c7195CEe43',
+
     },
     L2Registry: {
       default: 5,
@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
       local: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
       goerli: '0x6817e1c04748eae68EBFF13216280Df1ec15ba86',
       hardhat: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
-      local: '0x0b3E174A2170083e770D5d4Cf56774D221b7063e',
+
     },
     CoinageFactory: {
       default: 6,
@@ -101,7 +101,7 @@ const config: HardhatUserConfig = {
       local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
       goerli: '',
       hardhat: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
-      local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
+
     },
     powerTonAddress: {
       default: 15,
@@ -109,7 +109,7 @@ const config: HardhatUserConfig = {
       local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
       goerli: '',
       hardhat: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
-      local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
+
     },
     daoVaultAddress: {
       default: 16,
@@ -152,7 +152,6 @@ const config: HardhatUserConfig = {
       local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       goerli: '',
       hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
-      local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
     },
     // tonAdminAddress: {
     //   default: 10,
@@ -174,7 +173,7 @@ const config: HardhatUserConfig = {
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
       timeout: 400000,
-      accounts: [`${process.env.DEPLOYER}`],
+      accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy-migration']
     },
     mainnet: {
