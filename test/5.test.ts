@@ -497,6 +497,10 @@ describe('TON Staking V2 Test', () => {
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(deployed.powerTonAddress)).to.be.gt(powerTonBalance)
 
+            let coinage = new ethers.Contract((await deployed.seigManagerV2.coinages(layer2.layer2)), jsonInfo.RefactorCoinageSnapshot.abi, ethers.provider)
+
+            expect(await coinage.totalSupply()).to.be.eq(calcSeigs.nextLayerTotalSupply.add(calcSeigs.operatorSeigs))
+
         })
 
         it('snapshot()', async () => {
