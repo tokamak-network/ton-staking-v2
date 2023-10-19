@@ -88,17 +88,17 @@ describe('Fork Simple Staking Test', () => {
 
     // deposit, unstake, withdraw , updateSeignorage
     describe('basic functions ', () => {
-        /*
+
         it('deposit to layer1 using approveAndCall', async () => {
             // console.log(deployed.seigManagerV2)
-
+            let account = deployer
             let tonAmount = ethers.utils.parseEther("1")
-            await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
+            // await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
 
-            const beforeBalance = await deployed.TON.balanceOf(addr1.address);
+            const beforeBalance = await deployed.TON.balanceOf(account.address);
             expect(beforeBalance).to.be.gte(tonAmount)
 
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, addr1.address)
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
 
             const data = marshalString(
                 [deployed.depositManagerV2.address, layer2Info_1.layer2]
@@ -107,34 +107,34 @@ describe('Fork Simple Staking Test', () => {
                   .join(''),
             );
 
-            await (await deployed.TON.connect(addr1).approveAndCall(
+            await (await deployed.TON.connect(account).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
                 data,
-                {from: addr1.address}
+                {from: account.address}
             )).wait()
 
-            // const afterBalance = await deployed.TON.balanceOf(addr1.address);
-            // expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+            const afterBalance = await deployed.TON.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
-            // let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, addr1.address)
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
 
-            // expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-            //     roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-            // )
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
+            )
         })
 
 
         it('deposit to layer2 using approveAndCall', async () => {
             // console.log(deployed.seigManagerV2)
+            let account = deployer
+            let tonAmount = ethers.utils.parseEther("1")
+            // await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
 
-            let tonAmount = ethers.utils.parseEther("100")
-            await deployed.TON.connect(deployer).transfer(addr1.address, tonAmount);
-
-            const beforeBalance = await deployed.TON.balanceOf(addr1.address);
+            const beforeBalance = await deployed.TON.balanceOf(account.address);
             expect(beforeBalance).to.be.gte(tonAmount)
 
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, addr1.address)
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
 
             const data = marshalString(
                 [deployed.depositManagerV2.address, layer2Info_2.layer2]
@@ -143,23 +143,23 @@ describe('Fork Simple Staking Test', () => {
                   .join(''),
             );
 
-            await (await deployed.TON.connect(addr1).approveAndCall(
+            await (await deployed.TON.connect(account).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
                 data,
-                {from: addr1.address}
+                {from: account.address}
             )).wait()
 
-            const afterBalance = await deployed.TON.balanceOf(addr1.address);
+            const afterBalance = await deployed.TON.balanceOf(account.address);
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, addr1.address)
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
 
             expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
                 roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
             )
         })
-            */
+
         it('deposit to layer1 using deposit(address,uint256)', async () => {
             // console.log(deployed.seigManagerV2)
 
@@ -183,8 +183,8 @@ describe('Fork Simple Staking Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, deployer.address)
 
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
+            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 3)
             )
         })
 
@@ -212,8 +212,8 @@ describe('Fork Simple Staking Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
 
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
+            expect(roundDown(stakedB.add(ethers.BigNumber.from("3")),3)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 3)
             )
         })
         /*
@@ -385,7 +385,7 @@ describe('Fork Simple Staking Test', () => {
         });
         */
     });
-    /*
+     /*
     describe('updateSeigniorage', () => {
 
         it('deposit to layer2 using deposit(address,address,uint256) ', async () => {
@@ -472,8 +472,8 @@ describe('Fork Simple Staking Test', () => {
     describe('snapshot functions', () => {
         it('deposit to layer1', async () => {
             let layer2 = layer2Info_1.layer2
-            let account = addr1
-            let tonAmount = ethers.utils.parseEther("100")
+            let account = deployer
+            let tonAmount = ethers.utils.parseEther("1")
             await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
 
             const beforeBalance = await deployed.TON.balanceOf(account.address);
@@ -509,7 +509,7 @@ describe('Fork Simple Staking Test', () => {
 
         it('snapshot()', async () => {
             let layer2 = layer2Info_1.layer2
-            let account = addr1
+            let account = deployer
             snapshotInfo.account = account.address
             snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
             snapshotInfo.accountBalanceOfLayer2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
@@ -526,9 +526,9 @@ describe('Fork Simple Staking Test', () => {
 
         it('deposit to layer1  ', async () => {
             let layer2 = layer2Info_1.layer2
-            let account = addr1
+            let account = deployer
 
-            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
+            let wtonAmount = ethers.utils.parseEther("1"+"0".repeat(9))
             await deployed.WTON.connect(deployer).transfer(account.address, wtonAmount);
 
             const beforeBalance = await deployed.WTON.balanceOf(account.address);
@@ -555,7 +555,7 @@ describe('Fork Simple Staking Test', () => {
 
         it('snapshot data is accurate ', async () => {
             let layer2 = layer2Info_1.layer2
-            let account = addr1
+            let account = deployer
 
             let accountBalanceOfTotal= await deployed.seigManagerV2["stakeOf(address)"](account.address)
             let totTotalSupply= await deployed.seigManagerV2["stakeOfTotal()"]()
