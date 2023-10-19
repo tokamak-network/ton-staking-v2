@@ -42,7 +42,7 @@ const seigManagerInfo = {
   adjustCommissionDelay:  ethers.BigNumber.from("93096"),
 }
 
-const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
 
@@ -52,12 +52,13 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     const deploySigner = await hre.ethers.getSigner(deployer);
     console.log(deployer)
 
-    await hre.network.provider.send("hardhat_setBalance", [
-        deployer,
-        "0x10000000000000000000000000",
-      ]);
+    if (hre.network.name == "hardhat" || hre.network.name == "local") {
 
-
+        await hre.network.provider.send("hardhat_setBalance", [
+            deployer,
+            "0x10000000000000000000000000",
+          ]);
+    }
 
     //==== TestSeigManager =================================
     const TestSeigManagerDeployment = await deploy("TestSeigManager", {
@@ -255,7 +256,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     let wtonAddress1 = await depositManagerForMigration.wton()
 
     if (wtonAddress1 != v1Infos.wton) {
-        await (await depositManagerForMigration.connect(deploySigner).initialize (
+        await (await depositManagerForMigration.connect(deploySigner).initialize(
             v1Infos.wton,
             layer2RegistryProxy.address,
             seigManagerProxy.address,
@@ -268,7 +269,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     let wtonAddress2 = await seigManager.wton()
 
     if (wtonAddress2 != v1Infos.wton) {
-        await (await seigManager.connect(deploySigner).initialize (
+        await (await seigManager.connect(deploySigner).initialize(
             v1Infos.ton,
             v1Infos.wton,
             layer2RegistryProxy.address,
@@ -317,7 +318,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
 
     let newDepositManager = await testSeigManager.newDepositManager()
-    if (newDepositManager != v1Infos.wton) {
+    if (newDepositManager != DepositManagerProxyDeployment.address) {
         await (await testSeigManager.connect(deploySigner).setAddresses(
             v1Infos.depositManager,
             DepositManagerProxyDeployment.address,
@@ -339,6 +340,6 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
             network: hre.network.name
         });
     }
-};
+}
 
-export default deployMigration;
+export default deployTonStakingV2;

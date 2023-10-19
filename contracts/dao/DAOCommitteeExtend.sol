@@ -28,7 +28,6 @@ interface IPauser {
 }
 
 contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
-    using LibAgenda for *;
 
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
 
@@ -307,6 +306,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         //     "DAOCommittee: The candidate already has contract"
         // );
 
+        //operator가 이미 candidate로 등록하였으면
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
 
             require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
@@ -346,11 +346,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     /// @notice Registers the exist layer2 on DAO
     /// @param _layer2 Layer2 contract address to be registered
     /// @param _memo A memo for the candidate
-    function registerLayer2Candidate(address _layer2, string memory _memo)
-        external
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
+    function registerLayer2Candidate(address _layer2, string memory _memo) external
     {
         _registerLayer2Candidate(msg.sender, _layer2, _memo);
     }
@@ -362,9 +358,6 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo)
         external
         onlyOwner
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
     {
         _registerLayer2Candidate(_operator, _layer2, _memo);
     }

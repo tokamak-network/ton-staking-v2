@@ -117,7 +117,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
    */
 
   function deposit(address layer2, uint256 amount) external returns (bool) {
-    require(_deposit(layer2, msg.sender, amount));
+    require(_deposit(layer2, msg.sender, amount, msg.sender));
     return true;
   }
 
@@ -131,18 +131,14 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     require(accounts.length == amounts.length, 'wrong lenth');
 
     for (uint256 i = 0; i < accounts.length; i++){
-      require(accounts[i] != address(0) && amounts[i] != 0, "zero amount or zero address");
       require(_deposit(layer2, accounts[i], amounts[i], msg.sender));
     }
 
     return true;
   }
 
-  function _deposit(address layer2, address account, uint256 amount) internal onlyLayer2(layer2) returns (bool) {
-     return _deposit(layer2, account, amount, account);
-  }
-
   function _deposit(address layer2, address account, uint256 amount, address payer) internal onlyLayer2(layer2) returns (bool) {
+    require(account != address(0) && amount != 0, "zero amount or zero address");
     _accStaked[layer2][account] = _accStaked[layer2][account] + amount;
     _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + amount;
     _accStakedAccount[account] = _accStakedAccount[account] + amount;

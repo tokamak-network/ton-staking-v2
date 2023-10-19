@@ -20,9 +20,7 @@ contract TestSeigManager is AccessibleCommon{
         wton = wton_;
     }
 
-    function onWithdraw(address layer2, address account, uint256 amount)
-    external
-    returns (bool) {
+    function onWithdraw(address layer2, address account, uint256 amount) external returns (bool) {
         require (msg.sender == oldDepositManager, "sender is not oldDepositManager");
         require (account == newDepositManager, "account is not newDepositManager");
         require (amount <=  ERC20(wton).balanceOf(oldDepositManager), "amount excceed oldDepositManager's balance");

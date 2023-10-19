@@ -13,3 +13,4 @@ backup
 backup/data-mainnet
 backup/deployments
 deployments/local
+deployments/localhost
