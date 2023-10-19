@@ -98,7 +98,7 @@ async function updateSeigniorage (deployer){
             let block = await ethers.provider.getBlock('latest')
             let toBlock = block.number+1
             let seigCalc = await calcSeigniorage(contractInfos, toBlock, layerAddress)
-            // console.log(' calcSeigniorage  seigCalc ', seigCalc)
+            console.log(' calcSeigniorage  seigCalc ', seigCalc)
             console.log(' estimated the conage total supply :  ',
                 ethers.utils.formatUnits(seigCalc.nextLayerTotalSupply.add(seigCalc.operatorSeigs), 27) , 'WTON' )
 

@@ -53,7 +53,11 @@ async function deposit(deployer) {
 
     const txs = 40
 
+    let kk = 1
+
     for (let layer2 of layer2s) {
+        console.log('=========================== ')
+        console.log('layer2 kk : ', kk )
         console.log('layer2', layer2)
         let balances = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+layer2.oldLayer.toLowerCase()+".json"));
         console.log('balances length ', balances.length)
@@ -84,13 +88,14 @@ async function deposit(deployer) {
             let layer2s = await layer2Registry.layer2s(layer2.newLayer)
             console.log('layer2s', layer2s)
 
-            // const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
-            // console.log('gos', gos)
+            const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
+            console.log('gos', gos)
 
             let receipt = await (await depositManager.connect(deployer)["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)).wait();
             console.log('receipt transactionHash', receipt.transactionHash)
         }
 
+        kk++;
     }
 
 }
