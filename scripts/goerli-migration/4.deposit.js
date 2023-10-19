@@ -43,40 +43,45 @@ async function deposit(deployer) {
 
     const txs = 2
 
+    let kk = 1;
     for (let layer2 of layer2s) {
-        console.log('layer2', layer2)
-        let balances = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+layer2.oldLayer.toLowerCase()+".json"));
-        // console.log('balances length ', balances.length)
+        if (kk == 3) {
 
-        let start = 0;
-        let end = balances.length;
-        let txCounts = Math.ceil(end/txs);
+            console.log('layer2', layer2)
+            let balances = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+layer2.oldLayer.toLowerCase()+".json"));
+            // console.log('balances length ', balances.length)
 
-        // console.log('end', end)
-        // console.log('txCounts', txCounts)
-        for (let i = 0; i < txCounts; i++) {
-            let accounts = []
-            let amounts = []
-            for (let j = i * txs ; j < i * txs + txs ; j++){
-                if(j >= end ) break;
-                accounts.push(balances[j].account)
-                amounts.push(ethers.BigNumber.from(balances[j].balance))
+            let start = 0;
+            let end = balances.length;
+            let txCounts = Math.ceil(end/txs);
+
+            // console.log('end', end)
+            // console.log('txCounts', txCounts)
+            for (let i = 0; i < txCounts; i++) {
+                let accounts = []
+                let amounts = []
+                for (let j = i * txs ; j < i * txs + txs ; j++){
+                    if(j >= end ) break;
+                    accounts.push(balances[j].account)
+                    amounts.push(ethers.BigNumber.from(balances[j].balance))
+                }
+                console.log('accounts', accounts)
+                console.log('amounts', amounts)
+                console.log('layer2.newLayer', layer2.newLayer)
+
+
+                let layer2s = await layer2Registry.layer2s(layer2.newLayer)
+                console.log('layer2s', layer2s)
+
+                const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
+                console.log('gos', gos)
+
+                let receipt = await (await depositManager.connect(deployer)["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)).wait();
+                console.log('receipt transactionHash', receipt.transactionHash)
             }
-            console.log('accounts', accounts)
-            console.log('amounts', amounts)
-            console.log('layer2.newLayer', layer2.newLayer)
-
-
-            let layer2s = await layer2Registry.layer2s(layer2.newLayer)
-            console.log('layer2s', layer2s)
-
-            const gos = await depositManager.connect(deployer).estimateGas["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)
-            console.log('gos', gos)
-
-            let receipt = await (await depositManager.connect(deployer)["depositWithoutTransfer(address,address[],uint256[])"](layer2.newLayer, accounts, amounts)).wait();
-            console.log('receipt transactionHash', receipt.transactionHash)
         }
 
+        kk++;
     }
 
 }

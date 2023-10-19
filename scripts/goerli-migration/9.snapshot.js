@@ -31,7 +31,7 @@ const oldContractInfo = {
 async function snapshot(deployer) {
 
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
-
+    console.log('SeigManagerProxy', contractInfos.abis["SeigManagerProxy"].address)
     const seigManager = new ethers.Contract(
         contractInfos.abis["SeigManagerProxy"].address,
         contractInfos.abis["SeigManagerMigration"].abi,
