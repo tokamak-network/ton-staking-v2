@@ -96,7 +96,10 @@ async function burnFromCoinage(deployer) {
 
     let i;
     let j;
-    for (i = 0; i < coinageInfo.length; i++) {
+    let totalgos;
+    // for (i = 0; i < coinageInfo.length; i++) {
+    for (i = 9; i < 10; i++) {
+        totalgos = 0;
         let layer2Info = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+coinageInfo[i].layer2+".json"));
         console.log("============ Addr ", i ," Check PASS ============");
         console.log("============ Layer2Addr ", coinageInfo[i].layer2 ," ============");
@@ -119,6 +122,9 @@ async function burnFromCoinage(deployer) {
         for(j = 0; j < layer2Info.length -1; j++){
             console.log("layer2Info.account : ",layer2Info[j].account)
             console.log("layer2Info.balance : ",layer2Info[j].balance)
+            const gos = await oldAutoRefactoryCoinage.connect(deployer).estimateGas["burnFrom(address,uint256)"](layer2Info[j].account, layer2Info[j].balance)
+            console.log('gos', gos)
+            totalgos = Number(totalgos) + Number(gos);
             await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
                 layer2Info[j].account,
                 layer2Info[j].balance
@@ -130,12 +136,19 @@ async function burnFromCoinage(deployer) {
 
         console.log("layer2Info.account : ",layer2Info[layer2Info.length-1].account)
         console.log("layer2Info.balance : ",layer2Info[layer2Info.length-1].balance)
+        const gos2 = await oldAutoRefactoryCoinage.connect(deployer).estimateGas["burnFrom(address,uint256)"](
+            layer2Info[layer2Info.length-1].account,             
+            checkBalance
+        )
+        console.log('gos2', gos2)
+        totalgos = Number(totalgos) + Number(gos2);
         await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
             layer2Info[layer2Info.length-1].account,
             checkBalance
         )   
         let diffBalance = Number(layer2Info[layer2Info.length-1].balance) - Number(checkBalance)
         checkBalance = await oldAutoRefactoryCoinage.totalSupply();
+        console.log("totalgos :", totalgos);
         console.log("final checkBalance : ", checkBalance);
         console.log("diff balance :", diffBalance);
     }
