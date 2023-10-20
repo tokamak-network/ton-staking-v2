@@ -45,7 +45,7 @@ const oldContractInfo = {
     DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
 }
 
-async function burnFromCoinage(deployer) {
+async function burnFrombeforeCheck(deployer) {
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
     let coinageInfo = JSON.parse(await fs.readFileSync(dataFolder + "/coinages-total-supply.json"));
     // const seigManager = new ethers.Contract(
@@ -53,6 +53,40 @@ async function burnFromCoinage(deployer) {
     //     contractInfos.abis["SeigManager"].abi,
     //     deployer
     // )
+    const oldseigManager =  new ethers.Contract(
+        oldContractInfo.SeigManager,
+        contractInfos.abis["SeigManager"].abi,
+        deployer
+    )
+
+    let i;
+    for (i = 0; i < coinageInfo.length; i++) {
+        let getOldCoinageAddr = (await oldseigManager.connect(deployer).coinages(coinageInfo[i].layer2)).toLowerCase()
+        if(getOldCoinageAddr == coinageInfo[i].coinage) {
+            const oldAutoRefactoryCoinage = new ethers.Contract(
+                getOldCoinageAddr,
+                oldAutoRefactoryCoinageABI,
+                deployer
+            )
+            
+            let checkBalance = await oldAutoRefactoryCoinage.totalSupply();
+            if(checkBalance != coinageInfo[i].balance) {
+                console.log("============ Coinage totalSupply DATA ERROR ============");
+            } else {
+                console.log("============ before ", i ," Check PASS ============");
+            }
+        } else {
+            console.log("getOldCoinageAddr :", getOldCoinageAddr)
+            console.log("coinageInfo[i].coinage :", coinageInfo[i].coinage)
+            console.log("============ Coinage Addr DATA ERROR ============");
+        }
+    }
+
+}
+
+async function burnFromCoinage(deployer) {
+    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
+    let coinageInfo = JSON.parse(await fs.readFileSync(dataFolder + "/coinages-total-supply.json"));
 
     const oldseigManager =  new ethers.Contract(
         oldContractInfo.SeigManager,
@@ -60,20 +94,118 @@ async function burnFromCoinage(deployer) {
         deployer
     )
 
+    let i;
+    let j;
+    for (i = 0; i < coinageInfo.length; i++) {
+        let layer2Info = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+coinageInfo[i].layer2+".json"));
+        console.log("============ Addr ", i ," Check PASS ============");
+        console.log("============ Layer2Addr ", coinageInfo[i].layer2 ," ============");
+        console.log("============ CoinageAddr ", coinageInfo[i].coinage ," ============");
+        const oldAutoRefactoryCoinage = new ethers.Contract(
+            coinageInfo[i].coinage,
+            oldAutoRefactoryCoinageABI,
+            deployer
+        )
+
+        console.log("layer2Info.length : ", layer2Info.length);
+        // for(j = 150; j < layer2Info.length; j++){
+        //     console.log("layer2Info.account : ",layer2Info[j].account)
+        //     console.log("layer2Info.balance : ",layer2Info[j].balance)
+        //     await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
+        //         layer2Info[j].account,
+        //         layer2Info[j].balance
+        //     )
+        // }
+        for(j = 0; j < layer2Info.length -1; j++){
+            console.log("layer2Info.account : ",layer2Info[j].account)
+            console.log("layer2Info.balance : ",layer2Info[j].balance)
+            await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
+                layer2Info[j].account,
+                layer2Info[j].balance
+            )
+        }
+
+        let checkBalance = await oldAutoRefactoryCoinage.totalSupply();
+        console.log("before final checkBalance : ", checkBalance);
+
+        console.log("layer2Info.account : ",layer2Info[layer2Info.length-1].account)
+        console.log("layer2Info.balance : ",layer2Info[layer2Info.length-1].balance)
+        await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
+            layer2Info[layer2Info.length-1].account,
+            checkBalance
+        )   
+        let diffBalance = Number(layer2Info[layer2Info.length-1].balance) - Number(checkBalance)
+        checkBalance = await oldAutoRefactoryCoinage.totalSupply();
+        console.log("final checkBalance : ", checkBalance);
+        console.log("diff balance :", diffBalance);
+    }
+
+    // for (i = 0; i < coinageInfo.length; i++) {
+    //     let layer2Info = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+coinageInfo[i].layer2+".json"));
+    //     console.log("============ Addr ", i ," Check PASS ============");
+    //     console.log("============ Layer2Addr ", coinageInfo[i].layer2 ," ============");
+    //     console.log("============ CoinageAddr ", coinageInfo[i].coinage ," ============");
+    //     const oldAutoRefactoryCoinage = new ethers.Contract(
+    //         coinageInfo[i].coinage,
+    //         oldAutoRefactoryCoinageABI,
+    //         deployer
+    //     )
+
+    //     for(j = 0; j < layer2Info.length; j++){
+    //         console.log("layer2Info.account : ",layer2Info[j].account)
+    //         await oldAutoRefactoryCoinage.connect(deployer).burnFrom(
+    //             layer2Info[j].account,
+    //             layer2Info[j].balance
+    //         )
+    //     }
+    // }
+
+}
+
+async function burnFromCoinageAfterCheck(deployer) {
+    let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
+    let coinageInfo = JSON.parse(await fs.readFileSync(dataFolder + "/coinages-total-supply.json"));
+    // const seigManager = new ethers.Contract(
+    //     contractInfos.abis["SeigManagerProxy"].address,
+    //     contractInfos.abis["SeigManager"].abi,
+    //     deployer
+    // )
+    const oldseigManager =  new ethers.Contract(
+        oldContractInfo.SeigManager,
+        contractInfos.abis["SeigManager"].abi,
+        deployer
+    )
 
     let i;
     for (i = 0; i < coinageInfo.length; i++) {
-
+        let getOldCoinageAddr = (await oldseigManager.connect(deployer).coinages(coinageInfo[i].layer2)).toLowerCase()
+        if(getOldCoinageAddr == coinageInfo[i].coinage) {
+            const oldAutoRefactoryCoinage = new ethers.Contract(
+                getOldCoinageAddr,
+                oldAutoRefactoryCoinageABI,
+                deployer
+            )
+            
+            let checkBalance = await oldAutoRefactoryCoinage.totalSupply();
+            if(checkBalance != 0) {
+                console.log("============ Coinage totalSupply DATA ERROR ============");
+            } else {
+                console.log("checkBalance[", i ,"] : ", checkBalance);
+            }
+        } else {
+            console.log("============ Coinage Addr DATA ERROR ============");
+        }
     }
-
 }
 
 
 async function main() {
     const [ deployer ] = await ethers.getSigners()
-    // console.log(deployer.address)
+    console.log(deployer.address)
 
+    // await burnFrombeforeCheck(deployer)
     await burnFromCoinage(deployer)
+    // await burnFromCoinageAfterCheck(deployer)
 }
 
 main()
