@@ -12,6 +12,8 @@ import "../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import "./CandidateStorage.sol";
 
+import "hardhat/console.sol";
+
 interface ICoinage {
   function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
@@ -104,8 +106,9 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
             !isLayer2Candidate,
             "Candidate: you should update seigniorage from layer2 contract"
         );
-
+        console.log("candidateContract in");
         require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        console.log("candidateContract finish");
         return true;
     }
 

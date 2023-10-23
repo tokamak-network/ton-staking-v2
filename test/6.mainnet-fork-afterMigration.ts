@@ -53,6 +53,7 @@ describe('Fork Simple Staking Test', () => {
     let pastDepositor: Signer;
     let wtonHave: Signer;
     let tonHave: Signer;
+    let daoAdmin: Signer;
 
     before('create fixture loader', async () => {
         deployed = await newTonStakingV2MainnetFixture2(true, testAddress)
@@ -111,9 +112,22 @@ describe('Fork Simple Staking Test', () => {
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             tonHaveAddr,
-          ]);
+        ]);
 
         tonHave = await hre.ethers.getSigner(tonHaveAddr);
+
+        let daoAddr = deployed.daoCommitteeProxy.address
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            daoAddr,
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            daoAddr,
+            "0x10000000000000000000000000",
+          ]);
+
+        daoAdmin = await hre.ethers.getSigner(daoAddr);
 
     })
 
@@ -232,25 +246,27 @@ describe('Fork Simple Staking Test', () => {
             // let account = deployer
             let account = pastDepositor
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-            // await deployed.WTON.connect(deployer).transfer(addr1.address, wtonAmount);
+            await deployed.WTON.connect(wtonHave).transfer(account.address, wtonAmount);
 
             const beforeSenderBalance = await deployed.WTON.balanceOf(account.address);
+            console.log("beforeSenderBalance :", beforeSenderBalance);
             expect(beforeSenderBalance).to.be.gte(wtonAmount)
 
             await execAllowance(deployed.WTON, account, deployed.depositManagerV2.address, wtonAmount);
+            // await deployed.WTON.connect(account).approve(deployed.depositManagerV2.address, wtonAmount);
 
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
+            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, addr1.address)
 
-            await (await deployed.depositManagerV2.connect(deployer)["deposit(address,address,uint256)"](
+            await (await deployed.depositManagerV2.connect(pastDepositor)["deposit(address,address,uint256)"](
                 layer2Info_2.layer2,
-                account.address,
+                addr1.address,
                 wtonAmount
             )).wait()
 
-            const afterSenderBalance = await deployed.WTON.balanceOf(deployer.address);
+            const afterSenderBalance = await deployed.WTON.balanceOf(account.address);
             expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
 
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
+            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, addr1.address)
 
             expect(roundDown(stakedB.add(ethers.BigNumber.from("3")),3)).to.be.eq(
                 roundDown(stakedA.add(wtonAmount), 3)
@@ -307,6 +323,7 @@ describe('Fork Simple Staking Test', () => {
 
         });
         it('updateSeigniorage to layer1', async () => {
+            await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
 
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 

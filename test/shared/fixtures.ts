@@ -851,6 +851,8 @@ export const newTonStakingV2MainnetFixture = async function (boolApplyLogic: any
   const layer2RegistryV2 = (await ethers.getContractAt("Layer2Registry", newContractInfo.Layer2RegistryProxy, deployer)) as Layer2Registry;
   console.log('DepositManagerProxy', depositManagerV2.address)
 
+  await (await WTONContract.connect(daoAdmin).addMinter(seigManagerV2.address)).wait()
+
   //-- 테스트 전에 세그매니저와 디파짓 매니저 로직 변경
   if (boolApplyLogic) {
     const depositManagerV2Proxy = (await ethers.getContractAt("DepositManagerProxy", newContractInfo.DepositManagerProxy, deployer)) as DepositManagerProxy;
@@ -1010,10 +1012,12 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
     const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
     let imp1 = await depositManagerV2Proxy.implementation()
     if(imp1 != newContractInfo.DepositManager) {
+      console.log("depositManager upgradeTo")
       await (await depositManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.DepositManager)).wait()
     }
     let imp2 = await seigManagerV2Proxy.implementation()
     if(imp2 != newContractInfo.SeigManager) {
+      console.log("seigManager upgradeTo")
       await (await seigManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.SeigManager)).wait()
     }
   }

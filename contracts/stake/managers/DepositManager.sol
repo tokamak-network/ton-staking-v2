@@ -8,6 +8,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface IOnApprove {
   function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
 }
