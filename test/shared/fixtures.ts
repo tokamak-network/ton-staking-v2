@@ -1005,6 +1005,7 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
 
   //-- 테스트 전에 세그매니저와 디파짓 매니저 로직 변경
   if (boolApplyLogic) {
+    console.log("seigManager, depositManager logic change")
     const depositManagerV2Proxy = (await ethers.getContractAt("DepositManagerProxy", newContractInfo.DepositManagerProxy, deployer)) as DepositManagerProxy;
     const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
     let imp1 = await depositManagerV2Proxy.implementation()
@@ -1018,6 +1019,7 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
   }
 
   if( testAddress != ''){
+    console.log("in testAddr")
     await hre.network.provider.send("hardhat_impersonateAccount", [
       testAddress,
     ]);
@@ -1027,7 +1029,10 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
     ]);
 
    deployer = await hre.ethers.getSigner(testAddress);
+  } else {
+    console.log("no testAddr")
   }
+  
 
   //==========================
   // const adminAddress =  "0x710936500ac59e8551331871cbad3d33d5e0d909"
