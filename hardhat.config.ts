@@ -164,10 +164,15 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 18231453
-        // blockNumber:18229970
-      },
+          url: `${process.env.ETH_NODE_URI_goerli}`,
+          blockNumber: 9914925
+          // blockNumber:18229970
+        },
+      // forking: {
+      //   url: `${process.env.ETH_NODE_URI_MAINNET}`,
+      //   blockNumber: 18231453
+      //   // blockNumber:18229970
+      // },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']
     },

@@ -791,6 +791,28 @@ export const newTonStakingV2Fixture = async function (): Promise<NewTonStakingV2
     DAOCommittee: "0xF7368a07653de908a8510e5d768c9C71b71cB2Ae",
     DAOCommitteeProxy: "0x3C5ffEe61A384B384ed38c0983429dcDb49843F6"
   }
+
+  const newContractInfo = {
+    "TestSeigManager": "0xAEaF225b558A29D27caA6BE21256fdb0002D6FF1",
+    "DAOCommitteeExtend": "0x22479E215a927F152db09b59Ffd48B036eca92bf",
+    "PowerTONUpgrade": "0x1F7CB23e4A0DE64CD837130691C100f00077B610",
+    "SeigManager": "0x21913b743b533D0ff9AC4A90B61303a606C68BfA",
+    "SeigManagerMigration" : "0x7F54aEAF368Cb189CEa7CE21Ce2227e0A33805E5",
+    "SeigManagerProxy" : "0x50255c955d0F760C8512ff556453AEe6502ef47f",
+    "DepositManager" : "0x4E777711dE705DfcBDf7d93592a27088Bfd1abA1",
+    "DepositManagerForMigration" :"0x2b72a681C71Bc189F232fB783532cB71d3e7612B",
+    "DepositManagerProxy":"0x0e1EF78939F9d3340e63A7a1077d50999CC6B64f",
+    "Layer2Registry" : "0x9ff632422d671ceaC8BdD12C98E0f7FB6ef3B44a",
+    "Layer2RegistryProxy" :  "0xFF2258eAa1c82d09a9ed0198116d9557c34104Fa",
+    "Candidate": "0x23279597a87381e85c841eF249020e7FD915E18a",
+    "CandidateFactory" :"0x41C8622c15e6e164103FA30De23F1Aa43F6Db3E0",
+    "CandidateFactoryProxy": "0xF7Fea9ddDc88b1E6D6507F2507438FB2e4Aa2D67",
+    "RefactorCoinageSnapshot":"0xC747915eA0CDc3587F931D2d99c730d2FB628A0f",
+    "CoinageFactory" : "0x1c2b22d20dE2fEEB57AA6D0CC0e406dC8328236E"
+  }
+
+
+  /*
   const newContractInfo = {
     "TestSeigManager": "0x8F6265eDe57f0a324Be02dC817F2B357779bd2c7",
     "DAOCommitteeExtend": "0xfE4bA125422BAbf58Ef12fd7F099517dc4A928F5",
@@ -809,7 +831,7 @@ export const newTonStakingV2Fixture = async function (): Promise<NewTonStakingV2
     "RefactorCoinageSnapshot":"0x8616B4409Eb47737f92479fc25C9B88Bab13EE5b",
     "CoinageFactory" : "0x42634D16b4c7Bb9A448eA14170416C917FeE8B9E"
   }
-
+  */
   console.log('newTonStakingV2Fixture');
   const [deployer, addr1, addr2 ] = await ethers.getSigners();
 
