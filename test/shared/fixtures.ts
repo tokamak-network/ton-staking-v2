@@ -771,7 +771,7 @@ export const deployedTonStakingV2Fixture = async function (): Promise<TonStaking
 }
 
 
-export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonStakingV2Fixtures> {
+export const newTonStakingV2MainnetFixture = async function (boolApplyLogic: any, testAddress: string): Promise<NewTonStakingV2Fixtures> {
 
   const DaoCommitteeAdminAddress = ""
 
@@ -813,7 +813,7 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
   }
 
   console.log('newTonStakingV2Fixture');
-  const [deployer, addr1, addr2 ] = await ethers.getSigners();
+  let [deployer, addr1, addr2 ] = await ethers.getSigners();
 
   console.log('deployer', deployer.address);
 
@@ -846,16 +846,29 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
   console.log('DepositManagerProxy', depositManagerV2.address)
 
   //-- 테스트 전에 세그매니저와 디파짓 매니저 로직 변경
-
-  const depositManagerV2Proxy = (await ethers.getContractAt("DepositManagerProxy", newContractInfo.DepositManagerProxy, deployer)) as DepositManagerProxy;
-  const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
-  let imp1 = await depositManagerV2Proxy.implementation()
-  if(imp1 != newContractInfo.DepositManager) {
-    await (await depositManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.DepositManager)).wait()
+  if (boolApplyLogic) {
+    const depositManagerV2Proxy = (await ethers.getContractAt("DepositManagerProxy", newContractInfo.DepositManagerProxy, deployer)) as DepositManagerProxy;
+    const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
+    let imp1 = await depositManagerV2Proxy.implementation()
+    if(imp1 != newContractInfo.DepositManager) {
+      await (await depositManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.DepositManager)).wait()
+    }
+    let imp2 = await seigManagerV2Proxy.implementation()
+    if(imp2 != newContractInfo.SeigManager) {
+      await (await seigManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.SeigManager)).wait()
+    }
   }
-  let imp2 = await seigManagerV2Proxy.implementation()
-  if(imp2 != newContractInfo.SeigManager) {
-    await (await seigManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.SeigManager)).wait()
+
+  if( testAddress != ''){
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+      testAddress,
+    ]);
+    await hre.network.provider.send("hardhat_setBalance", [
+      testAddress,
+      "0x10000000000000000000000000",
+    ]);
+
+   deployer = await hre.ethers.getSigner(testAddress);
   }
 
   //==========================
@@ -868,7 +881,6 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
   //   "0x10000000000000000000000000",
   // ]);
   // const admin = await hre.ethers.getSigner(adminAddress);
-
 
   // await hre.network.provider.send("hardhat_impersonateAccount", [
   //   oldContractInfo.DAOCommitteeProxy,
@@ -885,6 +897,8 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
 
   // await (await WTONContract.connect(admin).mint(deployer.address, ethers.utils.parseEther("10000"+"0".repeat(9)))).wait()
   // console.log('WTONContract')
+
+
   return  {
     deployer: deployer,
     addr1: addr1,

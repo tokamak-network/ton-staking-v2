@@ -36,8 +36,9 @@ const layers = [
     {"oldLayer":"0x97d0a5880542ab0e699c67e7f4ff61f2e5200484","newLayer":"0x8b18be97df416a32bd98ebddd406e14e473fdc3d","operator":"0x887af02970781a088962dbaa299a1eba8d573321","name":"Danal Fintech"},
     {"oldLayer":"0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764","newLayer":"0x8de5c2277ebc639a0ea5a3766084c9e8c984798f","operator":"0x42adfaae7db56b294225ddcfebef48b337b34b23","name":"Hammer DAO"}
 ]
+const testAddress = "0x0c4a118Cd6aAffA1dC3e18A86D1f3c1218a3451d"
 
-describe('Fork Simple Staking Test', () => {
+describe('Fork Simple Staking Test #1', () => {
     let deployer: Signer, addr1: Signer, addr2:Signer;
     let deployed: NewTonStakingV2Fixtures
     let jsonInfo: JSONFixture
@@ -48,7 +49,7 @@ describe('Fork Simple Staking Test', () => {
     let snapshotInfo : any;
 
     before('create fixture loader', async () => {
-        deployed = await newTonStakingV2MainnetFixture()
+        deployed = await newTonStakingV2MainnetFixture(false, testAddress)
         jsonInfo = await jsonFixtures()
 
         deployer = deployed.deployer;
@@ -183,7 +184,7 @@ describe('Fork Simple Staking Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, deployer.address)
 
-            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+            expect(roundDown(stakedB.add(ethers.constants.One),3)).to.be.eq(
                 roundDown(stakedA.add(wtonAmount), 3)
             )
         })
@@ -212,7 +213,7 @@ describe('Fork Simple Staking Test', () => {
 
             let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
 
-            expect(roundDown(stakedB.add(ethers.BigNumber.from("3")),3)).to.be.eq(
+            expect(roundDown(stakedB.add(ethers.BigNumber.from("1")),3)).to.be.eq(
                 roundDown(stakedA.add(wtonAmount), 3)
             )
         })
