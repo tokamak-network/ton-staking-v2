@@ -799,6 +799,24 @@ export const newTonStakingV2MainnetFixture = async function (boolApplyLogic: any
   }
 
   // 새로 배포된 컨트랙
+  // const newContractInfo = {
+  //   "TestSeigManager": "0xbe8808548c8e1179435448fB621EC5A7A60c178D",
+  //   "DAOCommitteeExtend": "0x5AB2B7df0529C28Bf2895CeD50F4a2999E238EDD",
+  //   "PowerTONUpgrade": "0x0950245941D6a5504c54D4b8c36bE71B066FABF2",
+  //   "SeigManager": "0xf158ac85B6d46ccA482675aA2D437c2B438FBEA4",
+  //   "SeigManagerMigration" : "0x580Fc28CBd9982b446BD9eC012158d2c40f896dC",
+  //   "SeigManagerProxy" : "0xb2d344984f92130AF8925eD283018d21673Bd17d",
+  //   "DepositManager" : "0xD95b5FDC4Aee54f30F864fAF2642DCCB413689c5",
+  //   "DepositManagerForMigration" :"0x2aD53C5501F9688dE51812c9DC3B05B916F81359",
+  //   "DepositManagerProxy":"0x4049A8842536Ff2fA2a1D23335b22710C2f0f1cd",
+  //   "Layer2Registry" : "0x1F5ec567655f2eA2DDeAcBa73411ec24AB765bf2",
+  //   "Layer2RegistryProxy" :  "0x97a713Fa14e863610555a9f737060b2f409344B9",
+  //   "Candidate": "0x69CC158F7E0103880aBC4f7d27daC22C1B62fFe5",
+  //   "CandidateFactory" :"0xE4faf76e8EDDb2a4EC05f5F009a9105cB0f309ec",
+  //   "CandidateFactoryProxy": "0x68d31C2d5B37741d8a06D72A43F999B53c53aDFa",
+  //   "RefactorCoinageSnapshot":"0x8b8B9a683d7Fa4E72B84415C3b5674a280832B46",
+  //   "CoinageFactory" : "0x2bf74c8Ae28DE991A0f88232C0168eAB60B0bbbb"
+  // }
   const newContractInfo = {
     "TestSeigManager": "0xDA05C647BA01fB02A0a0258b0210b852428c2234",
     "DAOCommitteeExtend": "0x72655449e82211624d5f4d2abb235bb6fe2fe989",
@@ -953,6 +971,24 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
   }
 
   // Harvey mainnet fork environment
+  // const newContractInfo = {
+  //   "TestSeigManager": "0xDC57724Ea354ec925BaFfCA0cCf8A1248a8E5CF1",
+  //   "DAOCommitteeExtend": "0xfc073209b7936A771F77F63D42019a3a93311869",
+  //   "PowerTONUpgrade": "0xb4e9A5BC64DC07f890367F72941403EEd7faDCbB",
+  //   "SeigManager": "0xa8d297D643a11cE83b432e87eEBce6bee0fd2bAb",
+  //   "SeigManagerMigration" : "0x6Da3D07a6BF01F02fB41c02984a49B5d9Aa6ea92",
+  //   "SeigManagerProxy" : "0x68d2Ecd85bDEbfFd075Fb6D87fFD829AD025DD5C",
+  //   "DepositManager" : "0xc4Fe39a1588807CfF8d8897050c39F065eBAb0B8",
+  //   "DepositManagerForMigration" :"0x8731d45ff9684d380302573cCFafd994Dfa7f7d3",
+  //   "DepositManagerProxy":"0x969E3128DB078b179E9F3b3679710d2443cCDB72",
+  //   "Layer2Registry" : "0x4653251486a57f90Ee89F9f34E098b9218659b83",
+  //   "Layer2RegistryProxy" :  "0x89ec9355b1Bcc964e576211c8B011BD709083f8d",
+  //   "Candidate": "0x52bad4A8584909895C22bdEcf8DBF33314468Fb0",
+  //   "CandidateFactory" :"0xed12bE400A07910E4d4E743E4ceE26ab1FC9a961",
+  //   "CandidateFactoryProxy": "0x1B25157F05B25438441bF7CDe38A95A55ccf8E50",
+  //   "RefactorCoinageSnapshot":"0x43b9Ef43D415e84aD9964567002d648b11747A8f",
+  //   "CoinageFactory" : "0xFCa5Bb3732185AE6AaFC65aD8C9A4fBFf21DbaaD"
+  // }
   const newContractInfo = {
     "TestSeigManager": "0xDA05C647BA01fB02A0a0258b0210b852428c2234",
     "DAOCommitteeExtend": "0x72655449e82211624d5f4d2abb235bb6fe2fe989",
@@ -976,6 +1012,13 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
   let [deployer, addr1, addr2 ] = await ethers.getSigners();
 
   console.log('deployer', deployer.address);
+
+  let deployerAdminAddr = "0x796C1f28c777b8a5851D356EBbc9DeC2ee51137F"
+  await hre.network.provider.send("hardhat_impersonateAccount", [
+    deployerAdminAddr,
+  ]);
+
+  let deployerAdmin = await hre.ethers.getSigner(deployerAdminAddr);
 
   const contractJson = await jsonFixtures()
   console.log('DepositManager', oldContractInfo.DepositManager);
@@ -1013,12 +1056,12 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
     let imp1 = await depositManagerV2Proxy.implementation()
     if(imp1 != newContractInfo.DepositManager) {
       console.log("depositManager upgradeTo")
-      await (await depositManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.DepositManager)).wait()
+      await (await depositManagerV2Proxy.connect(deployerAdmin).upgradeTo(newContractInfo.DepositManager)).wait()
     }
     let imp2 = await seigManagerV2Proxy.implementation()
     if(imp2 != newContractInfo.SeigManager) {
       console.log("seigManager upgradeTo")
-      await (await seigManagerV2Proxy.connect(deployer).upgradeTo(newContractInfo.SeigManager)).wait()
+      await (await seigManagerV2Proxy.connect(deployerAdmin).upgradeTo(newContractInfo.SeigManager)).wait()
     }
   }
 
