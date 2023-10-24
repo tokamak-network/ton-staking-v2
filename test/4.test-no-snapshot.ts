@@ -3,14 +3,15 @@ import { ethers, network } from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 import { mine } from "@nomicfoundation/hardhat-network-helpers"
 
+
 import {
-        tonStakingV2Fixture,
+        tonStakingV2NoSnapshotFixture,
         lastSeigBlock,
         globalWithdrawalDelay,
         seigManagerInfo,
         jsonFixtures } from './shared/fixtures'
 
-import { TonStakingV2Fixtures, JSONFixture } from './shared/fixtureInterfaces'
+import { TonStakingV2NoSnapshotFixtures, JSONFixture } from './shared/fixtureInterfaces'
 import { padLeft } from 'web3-utils'
 import { marshalString, unmarshalString } from './shared/marshal';
 
@@ -27,7 +28,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 describe('New Simple Staking Test', () => {
     let deployer: Signer, addr1: Signer, addr2:Signer;
-    let deployed: TonStakingV2Fixtures
+    let deployed: TonStakingV2NoSnapshotFixtures
     let jsonInfo: JSONFixture
     let layer2Info_level19 : any;
     let layer2Info_tokamak : any;
@@ -36,7 +37,7 @@ describe('New Simple Staking Test', () => {
     let snapshotInfo : any;
 
     before('create fixture loader', async () => {
-        deployed = await tonStakingV2Fixture()
+        deployed = await tonStakingV2NoSnapshotFixture()
         jsonInfo = await jsonFixtures()
 
         deployer = deployed.deployer;
@@ -95,7 +96,7 @@ describe('New Simple Staking Test', () => {
             expect(await deployed.seigManagerV2.seigPerBlock()).to.be.eq(seigManagerInfo.seigPerBlock)
             expect(await deployed.seigManagerV2.lastSeigBlock()).to.be.eq(lastSeigBlock)
 
-            expect(await deployed.coinageFactoryV2.autoCoinageLogic()).to.be.eq(deployed.refactorCoinageSnapshot.address)
+            expect(await deployed.coinageFactoryV2.autoCoinageLogic()).to.be.eq(deployed.autoRefactorCoinage.address)
 
         })
     });
@@ -594,229 +595,6 @@ describe('New Simple Staking Test', () => {
         })
 
     })
-
-
-    describe('snapshot functions', () => {
-        it('deposit to level19', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            let tonAmount = ethers.utils.parseEther("100")
-            await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
-
-            const beforeBalance = await deployed.TON.balanceOf(account.address);
-            expect(beforeBalance).to.be.gte(tonAmount)
-
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-
-            const data = marshalString(
-                [deployed.depositManagerV2.address, layer2]
-                  .map(unmarshalString)
-                  .map(str => padLeft(str, 64))
-                  .join(''),
-            );
-
-            await (await deployed.TON.connect(account).approveAndCall(
-                deployed.WTON.address,
-                tonAmount,
-                data,
-                {from: account.address}
-            )).wait()
-
-            const afterBalance = await deployed.TON.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
-
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-
-            let wtonAmount = tonAmount.mul(ethers.BigNumber.from("1"+"0".repeat(9)))
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
-            )
-
-        })
-
-        it('snapshot()', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            snapshotInfo.account = account.address
-            snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
-            snapshotInfo.accountBalanceOfLayer2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-            snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
-
-            const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
-            const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
-
-            snapshotInfo.snapshotId = deployedEvent.args.snapshotId
-
-        });
-
-        it('deposit to level19  ', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-
-            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
-            await deployed.WTON.connect(deployer).transfer(account.address, wtonAmount);
-
-            const beforeBalance = await deployed.WTON.balanceOf(account.address);
-            expect(beforeBalance).to.be.gte(wtonAmount)
-
-            await execAllowance(deployed.WTON, account, deployed.depositManagerV2.address, wtonAmount);
-
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-
-            await (await deployed.depositManagerV2.connect(account)["deposit(address,uint256)"](
-                layer2,
-                wtonAmount
-            )).wait()
-
-            const afterBalance = await deployed.WTON.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
-
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-
-            expect(roundDown(stakedB.add(ethers.constants.Two),2)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 2)
-            )
-        })
-
-        it('snapshot data is accurate ', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-
-            let accountBalanceOfTotal= await deployed.seigManagerV2["stakeOf(address)"](account.address)
-            let totTotalSupply= await deployed.seigManagerV2["stakeOfTotal()"]()
-
-            let accountBalanceOfTotalAt = await deployed.seigManagerV2["stakeOfAt(address,uint256)"](account.address, snapshotInfo.snapshotId)
-            let totTotalSupplyAt = await deployed.seigManagerV2["stakeOfTotalAt(uint256)"](snapshotInfo.snapshotId)
-
-            expect(accountBalanceOfTotal).to.be.gt(accountBalanceOfTotalAt)
-            expect(totTotalSupply).to.be.gt(totTotalSupplyAt)
-
-            expect(accountBalanceOfTotalAt).to.be.eq(snapshotInfo.accountBalanceOfTotal)
-            expect(totTotalSupplyAt).to.be.eq(snapshotInfo.totTotalSupply)
-
-        });
-
-
-        it('requestWithdrawal to level19', async () => {
-
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            let wtonAmount = ethers.utils.parseEther("50"+"0".repeat(9))
-
-            const beforeBalance = await deployed.WTON.balanceOf(account.address)
-
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-            let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-            let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
-            let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-
-            await (await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
-                layer2Info_level19.layer2,
-                wtonAmount
-            )).wait();
-
-            const afterBalance = await deployed.WTON.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance)
-
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, account.address)
-
-            expect(roundDown(stakedA.sub(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedB.add(wtonAmount), 1)
-            )
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-            ).to.be.eq(pendingUnstakedA.add(wtonAmount))
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
-            ).to.be.eq(pendingUnstakedLayer2A.add(wtonAmount))
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-            ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
-
-        })
-
-        it('snapshot()', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            snapshotInfo.account = account.address
-            snapshotInfo.totTotalSupply = await deployed.seigManagerV2.stakeOfTotal()
-            snapshotInfo.accountBalanceOfLayer2 = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-            snapshotInfo.accountBalanceOfTotal = await deployed.seigManagerV2["stakeOf(address)"](account.address)
-
-            const receipt = await (await deployed.seigManagerV2.connect(account).onSnapshot()).wait()
-            const topic = deployed.seigManagerV2.interface.getEventTopic('OnSnapshot');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = deployed.seigManagerV2.interface.parseLog(log);
-
-            snapshotInfo.snapshotId = deployedEvent.args.snapshotId
-        });
-
-        it('requestWithdrawal to level19', async () => {
-
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-            let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-
-            const beforeBalance = await deployed.WTON.balanceOf(account.address)
-
-            let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2, account.address)
-            let pendingUnstakedA = await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-            let pendingUnstakedLayer2A = await deployed.depositManagerV2.pendingUnstakedLayer2(layer2)
-            let pendingUnstakedAccountA = await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-
-            await deployed.depositManagerV2.connect(account)["requestWithdrawal(address,uint256)"](
-                layer2Info_level19.layer2,
-                wtonAmount
-            );
-
-            const afterBalance = await deployed.WTON.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance)
-
-            let stakedB = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_level19.layer2, account.address)
-
-            expect(roundDown(stakedA.sub(ethers.constants.Two),2)).to.be.eq(
-                roundDown(stakedB.add(wtonAmount), 2)
-            )
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstaked(layer2, account.address)
-            ).to.be.eq(pendingUnstakedA.add(wtonAmount))
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstakedLayer2(layer2 )
-            ).to.be.eq(pendingUnstakedLayer2A.add(wtonAmount))
-
-            expect(
-                await deployed.depositManagerV2.pendingUnstakedAccount(account.address)
-            ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
-
-        })
-
-        it('snapshot data is accurate ', async () => {
-            let layer2 = layer2Info_level19.layer2
-            let account = addr1
-
-            let accountBalanceOfTotal= await deployed.seigManagerV2["stakeOf(address)"](account.address)
-            let totTotalSupply= await deployed.seigManagerV2["stakeOfTotal()"]()
-
-            let accountBalanceOfTotalAt = await deployed.seigManagerV2["stakeOfAt(address,uint256)"](account.address, snapshotInfo.snapshotId)
-            let totTotalSupplyAt = await deployed.seigManagerV2["stakeOfTotalAt(uint256)"](snapshotInfo.snapshotId)
-
-            expect(accountBalanceOfTotal).to.be.lt(accountBalanceOfTotalAt)
-            expect(totTotalSupply).to.be.lt(totTotalSupplyAt)
-
-            expect(accountBalanceOfTotalAt).to.be.eq(snapshotInfo.accountBalanceOfTotal)
-            expect(totTotalSupplyAt).to.be.eq(snapshotInfo.totTotalSupply)
-
-        });
-
-
-    });
 
 
 });

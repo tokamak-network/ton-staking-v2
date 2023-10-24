@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IRefactor } from "../interfaces/IRefactor.sol";
 import { AutoRefactorCoinageI } from "../interfaces/AutoRefactorCoinageI.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import "../../libraries/SArrays.sol";
@@ -10,6 +11,9 @@ import { AuthControlCoinage } from "../../common/AuthControlCoinage.sol";
 import { RefactorCoinageSnapshotStorage } from "./RefactorCoinageSnapshotStorage.sol";
 
 
+interface IIISeigManager {
+  function progressSnapshotId() external view returns (uint256);
+}
 /**
  * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
  *
@@ -28,22 +32,23 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     event FactorSet(uint256 previous, uint256 current, uint256 shiftCount);
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event ChangedBalance(address indexed account, Balance oldBalance, Balance newBalance, Balance oldTotalBalance, Balance newTotalBalance);
-    event ChangedFactor(Factor previous, Factor next);
-    event Snapshotted(uint256 id);
+    event ChangedBalance(address indexed account, IRefactor.Balance oldBalance, IRefactor.Balance newBalance, IRefactor.Balance oldTotalBalance, IRefactor.Balance newTotalBalance);
+    event ChangedFactor(IRefactor.Factor previous, IRefactor.Factor next);
+    // event Snapshotted(uint256 id);
 
     function initialize (
       string memory name_,
       string memory symbol_,
-      uint256 factor_
+      uint256 factor_,
+      address seigManager_
     ) external {
 
       require(factorSnapshots[0].factor == 0, "already initialized");
 
       name = name_;
       symbol = symbol_;
-      factorSnapshots[0] = Factor(factor_, 0);
-
+      factorSnapshots[0] = IRefactor.Factor(factor_, 0);
+      seigManager = seigManager_;
     }
 
 
@@ -52,20 +57,26 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
      **/
 
     function setFactor(uint256 factor_) external onlyOwner returns (bool) {
-      Factor memory previous = _valueAtFactorLast();
+      IRefactor.Factor memory previous = _valueAtFactorLast();
       // uint256 previous = _factor;
 
       uint256 count = 0;
       uint256 f = factor_;
+
       for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-        count = count++;
+        count++;
       }
 
-      Factor memory nextFactor = Factor(f, count);
+      IRefactor.Factor memory nextFactor = IRefactor.Factor(f, count);
       _updateFactor(nextFactor);
+
 
       emit ChangedFactor(previous, nextFactor);
       return true;
+    }
+
+    function setSeigManager(address _seigManager) external onlyOwner {
+      seigManager = _seigManager;
     }
 
     /**
@@ -87,25 +98,15 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         _burn(msg.sender, amount);
     }
 
-    function snapshot() external onlyMinter returns (uint256 id) {
-      id = lastSnapshotId;
-      emit Snapshotted(id);
-      lastSnapshotId++;
-    }
-
-    function decimals() external view virtual returns (uint8) {
+    function decimals() external pure returns (uint8) {
         return 27;
     }
 
     // -------- public
 
     function factor() public view returns (uint256) {
-      Factor memory _factor = _valueAtFactorLast();
-      uint256 result = _factor.factor;
-      for (uint256 i = 0; i < _factor.refactorCount; i++) {
-        result = result * REFACTOR_DIVIDER;
-      }
-      return result;
+      IRefactor.Factor memory _factor = _valueAtFactorLast();
+      return _factor.factor * REFACTOR_DIVIDER ** _factor.refactorCount;
     }
 
     // -------- internal
@@ -113,8 +114,9 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     function _mint(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: mint to the zero address");
 
-      Balance memory _totalBalance = _valueAtTotalSupplyLast();
-      Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
+      IRefactor.Factor memory f = _valueAtFactorLast();
+      IRefactor.Balance memory _totalBalance = _valueAtTotalSupplyLast();
+      IRefactor.Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
       uint256 currentAccountBalance = applyFactor(_accountBalance);
       uint256 currentTotalBalance = applyFactor(_totalBalance);
@@ -122,8 +124,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       uint256 rbAmountAccount = _toRAYBased(currentAccountBalance + amount);
       uint256 rbAmountTotal = _toRAYBased(currentTotalBalance + amount);
 
-      Balance memory newAccountBalance = Balance(rbAmountAccount, _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(rbAmountTotal, _totalBalance.refactoredCount);
+      IRefactor.Balance memory newAccountBalance = IRefactor.Balance(rbAmountAccount, f.refactorCount);
+      IRefactor.Balance memory newTotalBalance = IRefactor.Balance(rbAmountTotal, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
@@ -134,21 +136,21 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function _burn(address account, uint256 amount) internal {
       require(account != address(0), "AutoRefactorCoinage: burn from the zero address");
+      IRefactor.Factor memory f = _valueAtFactorLast();
+      IRefactor.Balance memory _totalBalance = _valueAtTotalSupplyLast();
+      IRefactor.Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
 
-      Balance memory _totalBalance = _valueAtTotalSupplyLast();
-      Balance memory _accountBalance = _valueAtAccountBalanceLast(account);
-
-      uint256 currentAccountBalance = applyFactor(_accountBalance);
       uint256 currentTotalBalance = applyFactor(_totalBalance);
+      uint256 currentAccountBalance = applyFactor(_accountBalance);
 
       require(currentAccountBalance >= amount
         && currentTotalBalance >= amount, "insufficient balance");
 
-      // uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
-      // uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountTotal = _toRAYBased(currentTotalBalance - amount);
+      uint256 rbAmountAccount = _toRAYBased(currentAccountBalance - amount);
 
-      Balance memory newAccountBalance = Balance( _toRAYBased(currentAccountBalance - amount), _accountBalance.refactoredCount);
-      Balance memory newTotalBalance = Balance(_toRAYBased(currentTotalBalance - amount), _totalBalance.refactoredCount);
+      IRefactor.Balance memory newTotalBalance = IRefactor.Balance(rbAmountTotal, f.refactorCount);
+      IRefactor.Balance memory newAccountBalance = IRefactor.Balance(rbAmountAccount, f.refactorCount);
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
@@ -166,29 +168,24 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         return 0;
       }
 
-      Factor memory _factor = _valueAtFactorLast();
+      IRefactor.Factor memory _factor = _valueAtFactorLast();
 
       v = rmul2(v, _factor.factor);
 
-      for (uint256 i = refactoredCount; i < _factor.refactorCount; i++) {
-        v = v * REFACTOR_DIVIDER;
+      if (_factor.refactorCount > refactoredCount) {
+        v = v * REFACTOR_DIVIDER ** (_factor.refactorCount - refactoredCount);
       }
-
       return v;
     }
 
-    function _applyFactorAt(Balance memory _balance, Factor memory _factor) internal view returns (uint256) {
-
+    function _applyFactorAt(IRefactor.Balance memory _balance, IRefactor.Factor memory _factor) internal pure returns (uint256) {
       if (_balance.balance == 0) {
         return 0;
       }
-
       _balance.balance = rmul2(_balance.balance, _factor.factor);
-
-      for (uint256 i = _balance.refactoredCount; i < _factor.refactorCount; i++) {
-        _balance.balance = _balance.balance * REFACTOR_DIVIDER;
+      if(_factor.refactorCount > _balance.refactoredCount) {
+        _balance.balance = _balance.balance * REFACTOR_DIVIDER ** (_factor.refactorCount - _balance.refactoredCount);
       }
-
       return _balance.balance;
     }
 
@@ -210,18 +207,19 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         return (ids.length == 0? 0: ids[ids.length - 1]);
     }
 
-    function _updateFactor(Factor memory _factor) internal {
+    function _updateFactor(IRefactor.Factor memory _factor) internal {
 
       uint256 currentId = progressSnapshotId();
       uint256 factorIndex = _lastSnapshotId(factorSnapshotIds);
 
       if (factorIndex < currentId) factorSnapshotIds.push(currentId);
       factorSnapshots[currentId] = _factor;
+
     }
 
     function _update(
-      Balance memory _accountBalance,
-      Balance memory _totalBalance,
+      IRefactor.Balance memory _accountBalance,
+      IRefactor.Balance memory _totalBalance,
       address account,
       bool accountBool,
       bool totalBool
@@ -245,10 +243,10 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
     }
 
     function progressSnapshotId() public view returns (uint256) {
-        return lastSnapshotId;
+        return IIISeigManager(seigManager).progressSnapshotId();
     }
 
-    function applyFactor(Balance memory _balance) public view returns (uint256 amount) {
+    function applyFactor(IRefactor.Balance memory _balance) public view returns (uint256 amount) {
 
       return _applyFactor(_balance.balance, _balance.refactoredCount);
     }
@@ -265,117 +263,85 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
     function totalSupplyAt(uint256 snapshotId) external view returns (uint256 amount)
     {
-      (, Balance memory _balance) = _valueAtTotalSupply(snapshotId);
-      (, Factor memory _factor) = _valueAtFactor(snapshotId);
-
-      // if (snapshotted1) {
-          amount = _applyFactorAt(_balance, _factor);
-      // }
+      (IRefactor.Balance memory _balance,  IRefactor.Factor memory _factor) = getTotalAndFactorAt(snapshotId);
+      amount = _applyFactorAt(_balance, _factor);
     }
 
     function balanceOfAt(address account, uint256 snapshotId) external view
       returns (uint256 amount)
     {
-      (, Balance memory _balance) = _valueAtAccount(snapshotId, account);
-      (, Factor memory _factor) = _valueAtFactor(snapshotId);
+      (IRefactor.Balance memory _balance,  IRefactor.Factor memory _factor) = getBalanceAndFactorAt(account, snapshotId);
+      amount = _applyFactorAt(_balance, _factor);
+    }
 
-      // if (snapshotted1 ) {
-          amount = _applyFactorAt(_balance, _factor);
-      // }
+    function getTotalAndFactor() public view returns (IRefactor.Balance memory, IRefactor.Factor memory)
+    {
+      return (_valueAtTotalSupplyLast(), _valueAtFactorLast());
+    }
+
+    function getBalanceAndFactor(address account) public view returns (IRefactor.Balance memory, IRefactor.Factor memory)
+    {
+      return (_valueAtAccountBalanceLast(account), _valueAtFactorLast());
+    }
+
+    function getTotalAndFactorAt(uint256 snapshotId) public view returns (IRefactor.Balance memory, IRefactor.Factor memory)
+    {
+      return (_valueAtTotalSupply(snapshotId), _valueAtFactor(snapshotId));
+    }
+
+    function getBalanceAndFactorAt(address account, uint256 snapshotId) public view returns (IRefactor.Balance memory, IRefactor.Factor memory)
+    {
+      return (_valueAtAccount(snapshotId, account), _valueAtFactor(snapshotId));
     }
 
     function _valueAtTotalSupplyLast() internal view
-      returns (Balance memory)
+      returns (IRefactor.Balance memory)
     {
       uint256 index = 0;
-      if(totalSupplySnapshotIds.length != 0) index = totalSupplySnapshotIds.length;
+      uint256 length = totalSupplySnapshotIds.length;
+      if(length != 0) index = totalSupplySnapshotIds[length - 1];
       return totalSupplySnapshots[index];
     }
 
     function _valueAtFactorLast() internal view
-      returns (Factor memory)
+      returns (IRefactor.Factor memory)
     {
       uint256 index = 0;
-      if(factorSnapshotIds.length != 0) index = factorSnapshotIds.length;
+      uint256 length = factorSnapshotIds.length;
+      if(length != 0) index = factorSnapshotIds[length - 1];
       return factorSnapshots[index];
     }
 
     function _valueAtAccountBalanceLast(address account) internal view
-      returns (Balance memory)
+      returns (IRefactor.Balance memory)
     {
       uint256 index = 0;
-      if(accountBalanceIds[account].length != 0) index = accountBalanceIds[account].length ;
+      uint256 length = accountBalanceIds[account].length;
+      if(length != 0) index = accountBalanceIds[account][length - 1];
       return accountBalanceSnapshots[account][index];
     }
 
     function _valueAtTotalSupply(uint256 snapshotId) internal view
-      returns (bool snapshotted, Balance memory balance)
+      returns (IRefactor.Balance memory balance)
     {
-      if (snapshotId == 0) {
-        if(progressSnapshotId() > 0 ) {
-           snapshotted = true;
-           balance = totalSupplySnapshots[0];
-        }
-      } else if (snapshotId <= progressSnapshotId()) {
-
-        uint256 index = totalSupplySnapshotIds.findValue(snapshotId);
-
-        if(totalSupplySnapshotIds.length > 0) {
-          snapshotted = true;
-          balance = totalSupplySnapshots[index];
-        } else {
-          // snapshotted = false;
-          balance = totalSupplySnapshots[0];
-        }
-
-      }
-
+      require(snapshotId <= progressSnapshotId(), "snapshotId > progressSnapshotId");
+      uint256 index = totalSupplySnapshotIds.findValue(snapshotId);
+      return totalSupplySnapshots[index];
     }
 
     function _valueAtFactor(uint256 snapshotId) internal view
-      returns (bool snapshotted, Factor memory factor_)
+      returns (IRefactor.Factor memory factor_)
     {
-      if (snapshotId == 0) {
-        if(progressSnapshotId() > 0 ) {
-           snapshotted = true;
-           factor_ = factorSnapshots[0];
-        }
-      } else if (snapshotId <= progressSnapshotId()) {
-        uint256 index = factorSnapshotIds.findValue(snapshotId);
-
-        if(factorSnapshotIds.length > 0) {
-          snapshotted = true;
-          factor_ = factorSnapshots[index];
-        } else {
-          snapshotted = false;
-          factor_ = factorSnapshots[0];
-        }
-      }
-
+      require(snapshotId <= progressSnapshotId(), "snapshotId > progressSnapshotId");
+      uint256 index = factorSnapshotIds.findValue(snapshotId);
+      return factorSnapshots[index];
     }
 
     function _valueAtAccount(uint256 snapshotId, address account) internal view
-        returns (bool snapshotted, Balance memory balance)
+        returns (IRefactor.Balance memory balance)
     {
-      if (snapshotId == 0) {
-
-        if(progressSnapshotId() > 0 ) {
-           snapshotted = true;
-           balance = accountBalanceSnapshots[account][0];
-        }
-
-      } else if (snapshotId <= progressSnapshotId()) {
-
-          uint256 index = accountBalanceIds[account].findValue(snapshotId);
-          if(accountBalanceIds[account].length > 0) {
-            snapshotted = true;
-            balance = accountBalanceSnapshots[account][index];
-          } else {
-            snapshotted = false;
-            balance = accountBalanceSnapshots[account][0];
-          }
-
-        }
+      require(snapshotId <= progressSnapshotId(), "snapshotId > progressSnapshotId");
+      uint256 index = accountBalanceIds[account].findValue(snapshotId);
+      return accountBalanceSnapshots[account][index];
     }
-
 }

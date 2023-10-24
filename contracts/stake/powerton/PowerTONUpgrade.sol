@@ -64,8 +64,7 @@ contract PowerTONUpgrade is
         address account,
         uint256 amount
     ) external  {
-        // IAutoCoinageSnapshot(autocoinageSnapshot).addSync(layer2, account);
-        //emit OnDeposit(layer2, account, amount);
+
     }
 
     function onWithdraw(
@@ -73,8 +72,7 @@ contract PowerTONUpgrade is
         address account,
         uint256 amount
     ) external  {
-        // IAutoCoinageSnapshot(autocoinageSnapshot).addSync(layer2, account);
-        //emit OnWithdraw(layer2, account, amount);
+
     }
 
     function updateSeigniorage(

@@ -7,8 +7,6 @@ import "../proxy/ProxyStorage.sol";
 import { AuthControlCoinage } from "../common/AuthControlCoinage.sol";
 import { Layer2RegistryStorage } from "./Layer2RegistryStorage.sol";
 
-import "hardhat/console.sol";
-
 interface IISeigManager {
   function deployCoinage(address layer2) external returns (bool);
   function setCommissionRate(address layer2, uint256 commission, bool isCommissionRateNegative) external returns (bool);

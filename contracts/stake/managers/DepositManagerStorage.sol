@@ -11,6 +11,7 @@ contract DepositManagerStorage   {
     address internal _wton;
     address internal _registry;
     address internal _seigManager;
+    address public oldDepositManager;
 
     ////////////////////
     // Storage - token amount
@@ -55,17 +56,9 @@ contract DepositManagerStorage   {
     uint256 public globalWithdrawalDelay;
     mapping (address => uint256) public withdrawalDelay;
 
-    AcceptDelayPeriod public acceptDelayPeriod;
-
     struct WithdrawalReqeust {
         uint128 withdrawableBlockNumber;
         uint128 amount;
         bool processed;
-    }
-
-    struct AcceptDelayPeriod {
-        uint256 start;
-        uint256 end;
-        uint256 minimumDelayBlocks;
     }
 }

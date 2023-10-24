@@ -16,22 +16,10 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 
-interface IICandidateFactory {
-    function setLayerInTimestamp(address _candidateContract) external;
-    function deploy(
-        address _sender,
-        bool _isLayer2Candidate,
-        string memory _name,
-        address _committee,
-        address _seigManager,
-        bool flag
-    )
-        external
-        returns (address operatorAddress, address layer2Address);
-}
-
 interface ITarget {
     function setSeigManager(address _seigManager) external;
+    function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
+    function addMinter(address account) external;
 }
 
 interface IPauser {
@@ -40,7 +28,6 @@ interface IPauser {
 }
 
 contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
-    using LibAgenda for *;
 
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
 
@@ -159,6 +146,14 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
        IPauser(address(seigManager)).unpause();
     }
 
+    function setTargetGlobalWithdrawalDelay(address target, uint256 globalWithdrawalDelay_) external onlyOwner {
+        ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
+    }
+
+    function setTargetAddMinter(address token, address account) external onlyOwner {
+        ITarget(token).addMinter(account);
+    }
+
     /// @notice Set SeigManager contract address on candidate contracts
     /// @param _candidateContracts Candidate contracts to be set
     /// @param _seigManager New SeigManager contract address
@@ -191,11 +186,10 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     //     }
     // }
 
-    /// @notice Set DAOVault contract address
-    /// @param _daoVault New DAOVault contract address
-    function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
-        daoVault = IDAOVault(_daoVault);
-    }
+
+    // function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
+    //     daoVault = IDAOVault(_daoVault);
+    // }
 
     /// @notice Set Layer2Registry contract address
     /// @param _layer2Registry New Layer2Registry contract address
@@ -215,36 +209,32 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         candidateFactory = ICandidateFactory(_candidateFactory);
     }
 
-    /// @notice Set TON contract address
-    /// @param _ton New TON contract address
     // function setTon(address _ton) external onlyOwner nonZero(_ton) {
     //     ton = _ton;
     // }
 
-    /// @notice Set activity reward amount
-    /// @param _value New activity reward per second
     // function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
     //     activityRewardPerSecond = _value;
     //     emit ActivityRewardChanged(_value);
     // }
 
-    /// @notice Increases the number of member slot
-    /// @param _newMaxMember New number of member slot
-    /// @param _quorum New quorum
-    function increaseMaxMember(
-        uint256 _newMaxMember,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-    {
-        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
-        uint256 prevMaxMember = maxMember;
-        maxMember = _newMaxMember;
-        fillMemberSlot();
-        setQuorum(_quorum);
-        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
-    }
+    // / @notice Increases the number of member slot
+    // / @param _newMaxMember New number of member slot
+    // / @param _quorum New quorum
+    // function increaseMaxMember(
+    //     uint256 _newMaxMember,
+    //     uint256 _quorum
+    // )
+    //     external
+    //     onlyOwner
+    // {
+    //     require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
+    //     uint256 prevMaxMember = maxMember;
+    //     maxMember = _newMaxMember;
+    //     fillMemberSlot();
+    //     setQuorum(_quorum);
+    //     emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    // }
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
@@ -316,6 +306,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         //     "DAOCommittee: The candidate already has contract"
         // );
 
+        //operator가 이미 candidate로 등록하였으면
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
 
             require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
@@ -355,11 +346,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     /// @notice Registers the exist layer2 on DAO
     /// @param _layer2 Layer2 contract address to be registered
     /// @param _memo A memo for the candidate
-    function registerLayer2Candidate(address _layer2, string memory _memo)
-        external
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
+    function registerLayer2Candidate(address _layer2, string memory _memo) external
     {
         _registerLayer2Candidate(msg.sender, _layer2, _memo);
     }
@@ -371,9 +358,6 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
     function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo)
         external
         onlyOwner
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
     {
         _registerLayer2Candidate(_operator, _layer2, _memo);
     }
@@ -451,18 +435,15 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         return true;
     }
 
-    /// @notice Set memo
-    /// @param _candidate candidate address
-    /// @param _memo New memo on this candidate
-    function setMemoOnCandidate(
-        address _candidate,
-        string calldata _memo
-    )
-        external
-    {
-        address candidateContract = candidateContract(_candidate);
-        setMemoOnCandidateContract(candidateContract, _memo);
-    }
+    // function setMemoOnCandidate(
+    //     address _candidate,
+    //     string calldata _memo
+    // )
+    //     external
+    // {
+    //     address candidateContract = candidateContract(_candidate);
+    //     setMemoOnCandidateContract(candidateContract, _memo);
+    // }
 
     /// @notice Set memo
     /// @param _candidateContract candidate contract address
@@ -529,6 +510,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         uint256 tonAmount,
         bytes calldata data
     ) external returns (bool) {
+        require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
 
         _createAgenda(
@@ -956,7 +938,7 @@ contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, St
         // return 0;
     }
 
-    // function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
-    //     return _oldCandidateInfos[_oldCandidate];
-    // }
+    function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
+        return _oldCandidateInfos[_oldCandidate];
+    }
 }

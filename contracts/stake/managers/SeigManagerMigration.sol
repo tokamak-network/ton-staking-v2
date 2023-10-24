@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
 import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
@@ -77,7 +76,7 @@ interface ICandidate {
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerI, DSMath {
+contract SeigManagerMigration is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerI, DSMath {
 
   //////////////////////////////
   // Modifiers
@@ -127,7 +126,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   //////////////////////////////
 
   event CoinageCreated(address indexed layer2, address coinage);
-  event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig);
+  event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 pseig);
   event Comitted(address indexed layer2);
   event CommissionRateSet(address indexed layer2, uint256 previousRate, uint256 newRate);
   event Paused(address account);
@@ -141,6 +140,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   event SetPowerTONSeigRate(uint256 powerTONSeigRate);
   event SetDaoSeigRate(uint256 daoSeigRate);
   event SetPseigRate(uint256 pseigRate);
+
   //////////////////////////////
   // Constuctor
   //////////////////////////////
@@ -270,6 +270,21 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     minimumAmount = minimumAmount_;
   }
 
+  function adjustTotBalance(address layer, uint256 amount) external onlyOwner {
+    _tot.mint(layer, amount);
+  }
+
+  function setCommissionRateOnlyOwner(
+    address layer2,
+    uint256 commissionRate,
+    bool isCommissionRateNegative_
+  )
+    external
+    onlyOwner
+    returns (bool)
+  {
+    return _setCommissionRate(layer2, commissionRate, isCommissionRateNegative_);
+  }
 
   //////////////////////////////
   // onlyRegistry
@@ -300,27 +315,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     onlyRegistryOrOperator(layer2)
     returns (bool)
   {
-    // check commission range
-    require(
-      (commissionRate == 0) ||
-      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
-      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
-    );
-
-    uint256 previous = _commissionRates[layer2];
-    if (adjustCommissionDelay == 0) {
-      _commissionRates[layer2] = commissionRate;
-      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    } else {
-      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
-      delayedCommissionRate[layer2] = commissionRate;
-      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    }
-
-    emit CommissionRateSet(layer2, previous, commissionRate);
-
-    return true;
+    return _setCommissionRate(layer2, commissionRate, isCommissionRateNegative_);
   }
+
 
   // No implementation in registry.
   // function addChallenger(address account) public onlyRegistry {
@@ -462,7 +459,6 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     emit Comitted(msg.sender);
     emit AddedSeigAtLayer(msg.sender, seigs, operatorSeigs, nextTotalSupply, prevTotalSupply);
-
     return true;
   }
 
@@ -751,7 +747,37 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       accRelativeSeig = accRelativeSeig + relativeSeig;
     }
 
-    emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
+    emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, relativeSeig);
+
+    return true;
+  }
+
+  function _setCommissionRate(
+    address layer2,
+    uint256 commissionRate,
+    bool isCommissionRateNegative_
+  )
+    internal
+    returns (bool)
+  {
+    // check commission range
+    require(
+      (commissionRate == 0) ||
+      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
+      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
+    );
+
+    uint256 previous = _commissionRates[layer2];
+    if (adjustCommissionDelay == 0) {
+      _commissionRates[layer2] = commissionRate;
+      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
+    } else {
+      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
+      delayedCommissionRate[layer2] = commissionRate;
+      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
+    }
+
+    emit CommissionRateSet(layer2, previous, commissionRate);
 
     return true;
   }
@@ -806,3 +832,5 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
 }
+
+

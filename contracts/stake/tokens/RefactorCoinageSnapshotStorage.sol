@@ -1,22 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
+import { IRefactor } from "../interfaces/IRefactor.sol";
 
 /// @title
 /// @notice
 contract RefactorCoinageSnapshotStorage   {
 
-    struct Balance {
-        uint256 balance;
-        uint256 refactoredCount;
-    }
+    uint256 public constant REFACTOR_BOUNDARY = 10 ** 28;
+    uint256 public constant REFACTOR_DIVIDER = 2;
 
-    struct Factor {
-        uint256 factor;
-        uint256 refactorCount;
-    }
-
-    uint256 public REFACTOR_BOUNDARY = 10 ** 28;
-    uint256 public REFACTOR_DIVIDER = 2;
+    address public seigManager;
 
     //=== ERC20
     string public name;
@@ -26,13 +19,13 @@ contract RefactorCoinageSnapshotStorage   {
 
     //---------------
     uint256[] public totalSupplySnapshotIds;
-    mapping (uint256 => Balance) public totalSupplySnapshots;
+    mapping (uint256 => IRefactor.Balance) public totalSupplySnapshots;
 
     uint256[] public factorSnapshotIds;
-    mapping (uint256 => Factor) public factorSnapshots;
+    mapping (uint256 => IRefactor.Factor) public factorSnapshots;
 
     mapping (address => uint256[]) public accountBalanceIds;
-    mapping (address => mapping (uint256 => Balance)) public accountBalanceSnapshots;
+    mapping (address => mapping (uint256 => IRefactor.Balance)) public accountBalanceSnapshots;
 
     uint256 public lastSnapshotId;
 }

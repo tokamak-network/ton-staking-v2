@@ -10,14 +10,15 @@ interface IIAutoRefactorCoinage {
   function initialize (
       string memory name_,
       string memory symbol_,
-      uint256 factor_
+      uint256 factor_,
+      address seigManager_
     ) external;
 }
 
-
 contract CoinageFactory is CoinageFactoryI, Ownable {
-  uint256 constant public RAY = 10 ** 27; // 1 RAY
-  uint256 constant internal _DEFAULT_FACTOR = RAY;
+  // uint256 constant public RAY = 10 ** 27; // 1 RAY
+  // uint256 constant internal _DEFAULT_FACTOR = RAY;
+  uint256 constant internal _DEFAULT_FACTOR = 10 ** 27;
 
   address public autoCoinageLogic;
 
@@ -30,13 +31,15 @@ contract CoinageFactory is CoinageFactoryI, Ownable {
     c.upgradeTo(autoCoinageLogic);
     c.addMinter(msg.sender);
 
+
     IIAutoRefactorCoinage(address(c)).initialize(
       "StakedWTON",
       "sWTON",
-      _DEFAULT_FACTOR
+      _DEFAULT_FACTOR,
+      msg.sender
     );
 
-    c.renounceMinter();
+    // c.renounceMinter();
     c.transferOwnership(msg.sender);
 
     return address(c);

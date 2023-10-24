@@ -79,4 +79,6 @@ contract SeigManagerStorage   {
     uint256 public accRelativeSeig;
 
     bool public paused;
+    uint256 public lastSnapshotId;
+
 }
