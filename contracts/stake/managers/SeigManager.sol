@@ -13,6 +13,8 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -395,8 +397,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     checkCoinage(msg.sender)
     returns (bool)
   {
+    console.log("1");
     // short circuit if paused
     if (paused) {
+      console.log("pause");
       return true;
     }
     require(block.number > _lastSeigBlock, "last seig block is not past");
@@ -406,7 +410,9 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
 
+    console.log("2");
     _increaseTot();
+    console.log("3");
 
     _lastCommitBlock[msg.sender] = block.number;
 
@@ -447,6 +453,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       )
     );
 
+    console.log("4");
     // give commission to operator or delegators
     if (operatorSeigs != 0) {
       if (isCommissionRateNegative_) {
@@ -456,9 +463,11 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       } else {
         coinage.mint(operator, operatorSeigs);
       }
-    }
+    } 
 
+    console.log("check seig");
     IWTON(_wton).mint(address(_depositManager), seigs);
+    console.log("PASS");
 
     emit Comitted(msg.sender);
     emit AddedSeigAtLayer(msg.sender, seigs, operatorSeigs, nextTotalSupply, prevTotalSupply);
