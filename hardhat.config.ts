@@ -178,10 +178,10 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      accounts: [`${process.env.DEPLOYER}`],
+      accounts: [`${process.env.PRIVATE_KEY}`],
       timeout: 400000,
-      gasPrice: 18000000000,
-      // deploy: ['deploy']
+      gasPrice: 30000000000,
+      // deploy: ['deploy-migration']
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,
@@ -220,6 +220,7 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
+      mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
       titan: "verify",
       titangoerli: "verify"

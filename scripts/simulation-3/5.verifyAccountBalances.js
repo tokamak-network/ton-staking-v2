@@ -2,7 +2,7 @@ const hre = require("hardhat");
 const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
-const networkName = "local"
+const networkName = "mainnet"
 const pauseBlock = 18231453
 const startBlock = 10837675
 
@@ -46,6 +46,7 @@ async function verifyAccountBalance(deployer) {
     for (let layer2 of layer2s) {
 
         let layerAddress = layer2.newLayer
+        console.log('---- ',layerAddress,' ----')
         let accounts = JSON.parse(await fs.readFileSync(dataFolder + "/layer2-accounts-balances/"+layer2.oldLayer.toLowerCase()+".json"));
 
         for (let account of accounts) {

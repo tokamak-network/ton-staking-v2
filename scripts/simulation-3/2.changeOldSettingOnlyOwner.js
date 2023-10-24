@@ -3,7 +3,7 @@ const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
 
-const networkName = "local"
+const networkName = "mainnet"
 const pauseBlock = 18231453
 const startBlock = 10837675
 

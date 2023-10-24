@@ -2,7 +2,7 @@ const hre = require("hardhat");
 const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
-const networkName = "local"
+const networkName = "mainnet"
 const pauseBlock = 18231453
 const startBlock = 10837675
 
@@ -97,9 +97,9 @@ async function getDepositManagerInfos() {
 async function transferWTON(deployer, amount) {
     let contractInfos = await readContracts(__dirname+'/../../deployments/'+networkName);
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        daoAdminAddress,
-    ]);
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     daoAdminAddress,
+    // ]);
     // const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
     const WTONABI = JSON.parse(await fs.readFileSync("./abi/WTON.json")).abi;
 

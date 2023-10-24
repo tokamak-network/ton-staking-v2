@@ -6,7 +6,7 @@ const { mine } = require("@nomicfoundation/hardhat-network-helpers")
 const { readContracts, deployedContracts } = require("../common_func");
 const { calcSeigniorage } = require("../common_seig_func");
 
-const networkName = "local"
+const networkName = "mainnet"
 const pauseBlock = 18231453
 const startBlock = 10837675
 
