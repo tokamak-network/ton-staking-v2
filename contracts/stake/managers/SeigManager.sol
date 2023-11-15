@@ -805,4 +805,10 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       return lastSnapshotId;
   }
 
+  function totalSupplyOfTon() external view returns (uint256 tos) {
+    tos = (
+      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
+      ) + ITON(_wton).totalSupply();
+  }
+
 }
