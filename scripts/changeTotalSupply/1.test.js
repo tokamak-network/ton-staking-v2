@@ -10,6 +10,7 @@ const daoAdminAddress = '0xb4983da083a5118c903910db4f5a480b1d9f3687'
 const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 const mainnetPowerTonAdmin = "0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1"
 
+const TonABI = require("../../abi/TON.json").abi;
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 const DAOCommitteeOwnerABI = require("../../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
@@ -48,6 +49,28 @@ async function changeSeigManagerLogic() {
     ]);
     const daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
 
+
+    //== 다오 프록시 막은것 풀기 ======================
+    const ton = new ethers.Contract(
+        oldContractInfo.TON,
+        TonABI,
+        daoCommitteeAdmin
+    )
+
+   let balanceOfZero = await ton.balanceOf(ethers.constants.AddressZero)
+   let balanceOfdaoAdminAddress = await ton.balanceOf(daoAdminAddress)
+   console.log('balanceOfZero' , balanceOfZero)
+   console.log('balanceOfdaoAdminAddress' , balanceOfdaoAdminAddress)
+
+   await (await ton.connect(daoCommitteeAdmin).transfer(
+    '0x0000000000000000000000000000000000000001',
+    ethers.BigNumber.from("1")
+   )).wait()
+
+   balanceOfdaoAdminAddress = await ton.balanceOf(daoAdminAddress)
+   console.log('balanceOfdaoAdminAddress' , balanceOfdaoAdminAddress)
+
+
     //========================
     const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
     const daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
@@ -77,11 +100,13 @@ async function changeSeigManagerLogic() {
 
     //== daoCommitteeProxy updateTo  ======================
     let imp1 = await daoCommitteeProxy.implementation()
+    console.log('imp1', imp1)
+
     if(imp1.toLowerCase() != daoCommitteeOwnerLogic.address.toLowerCase()) {
         await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
             daoCommitteeOwnerLogic.address)).wait()
     }
-
+    console.log('upgradeTo done')
     //== daoCommittee  ======================
     const daoCommittee = new ethers.Contract(
         daoCommitteeProxy.address,
@@ -97,6 +122,8 @@ async function changeSeigManagerLogic() {
     )
 
     let imp = await seigManagerProxy.implementation()
+    console.log('seigManagerProxy imp', imp)
+
     if(imp.toLowerCase() != seigManagerLogic.address.toLowerCase()) {
         await (await daoCommittee.connect(daoCommitteeAdmin).setTargetUpgradeTo(
             seigManagerProxy.address, seigManagerLogic.address)).wait()
