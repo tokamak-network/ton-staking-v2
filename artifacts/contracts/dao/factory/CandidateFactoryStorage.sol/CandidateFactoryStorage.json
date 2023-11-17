@@ -1,0 +1,76 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "CandidateFactoryStorage",
+  "sourceName": "contracts/dao/factory/CandidateFactoryStorage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "candidateImp",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "daoCommittee",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "depositManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "wton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060e78061001f6000396000f3fe6080604052348015600f57600080fd5b5060043610605f5760003560e01c80638d62d94911604a5780638d62d9491460a4578063cc48b9471460b6578063eeac94311460c857600080fd5b80636c7ac9d814606457806383eeaa7b146092575b600080fd5b6000546076906001600160a01b031681565b6040516001600160a01b03909116815260200160405180910390f35b6002546076906001600160a01b031681565b6004546076906001600160a01b031681565b6003546076906001600160a01b031681565b6001546076906001600160a01b03168156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b5060043610605f5760003560e01c80638d62d94911604a5780638d62d9491460a4578063cc48b9471460b6578063eeac94311460c857600080fd5b80636c7ac9d814606457806383eeaa7b146092575b600080fd5b6000546076906001600160a01b031681565b6040516001600160a01b03909116815260200160405180910390f35b6002546076906001600160a01b031681565b6004546076906001600160a01b031681565b6003546076906001600160a01b031681565b6001546076906001600160a01b03168156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
