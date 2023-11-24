@@ -43,7 +43,7 @@ const nowContractInfo = {
     SeigManager: "0x0b55a0f463b6defb81c6063973763951712d0e5f",
 }
 
-async function changeSeigManagerLogic() {
+async function changeDAOCommitteeDAOVault() {
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
         daoAdminAddress,
@@ -73,15 +73,21 @@ async function changeSeigManagerLogic() {
 
 
     //========================
-    const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
-    const daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
-    await daoCommitteeOwnerLogic.deployed();
-    console.log('daoCommitteeOwnerLogic' , daoCommitteeOwnerLogic.address)
-    //========================
-    const SeigManagerDep = await ethers.getContractFactory("SeigManager");
-    const seigManagerLogic = await SeigManagerDep.deploy();
-    await seigManagerLogic.deployed();
-    console.log('seigManagerLogic' , seigManagerLogic.address)
+    // const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
+    // const daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
+    // await daoCommitteeOwnerLogic.deployed();
+    // console.log('daoCommitteeOwnerLogic' , daoCommitteeOwnerLogic.address)
+    // //========================
+    // const SeigManagerDep = await ethers.getContractFactory("SeigManager");
+    // const seigManagerLogic = await SeigManagerDep.deploy();
+    // await seigManagerLogic.deployed();
+    // console.log('seigManagerLogic' , seigManagerLogic.address)
+
+    //deploy New DAOCommitteeDAOVault
+    const DAOCommitteeDAOVaultDep = await ethers.getContractFactory("DAOCommitteeDAOVault");
+    const daoCommitteeDAOVaultLogic = await DAOCommitteeDAOVaultDep.deploy();
+    await daoCommitteeDAOVaultLogic.deployed();
+    console.log('daoCommitteeDAOVaultLogic' , daoCommitteeDAOVaultLogic.address)
 
     //== 다오 프록시 막은것 풀기 ======================
     const daoCommitteeProxy = new ethers.Contract(
@@ -103,48 +109,49 @@ async function changeSeigManagerLogic() {
     let imp1 = await daoCommitteeProxy.implementation()
     console.log('imp1', imp1)
 
-    if(imp1.toLowerCase() != daoCommitteeOwnerLogic.address.toLowerCase()) {
+    if(imp1.toLowerCase() != daoCommitteeDAOVaultLogic.address.toLowerCase()) {
         await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-            daoCommitteeOwnerLogic.address)).wait()
+            daoCommitteeDAOVaultLogic.address)).wait()
     }
     console.log('upgradeTo done')
+
     //== daoCommittee  ======================
     const daoCommittee = new ethers.Contract(
         daoCommitteeProxy.address,
-        DAOCommitteeOwnerABI,
+        DAOCommitteeDAOVaultABI,
         daoCommitteeAdmin
     )
 
-    //== SeigManager updateTo  ======================
-    const seigManagerProxy = new ethers.Contract(
-        nowContractInfo.SeigManager,
-        SeigManagerProxyABI,
-        daoCommitteeAdmin
-    )
+    // //== SeigManager updateTo  ======================
+    // const seigManagerProxy = new ethers.Contract(
+    //     nowContractInfo.SeigManager,
+    //     SeigManagerProxyABI,
+    //     daoCommitteeAdmin
+    // )
 
-    let imp = await seigManagerProxy.implementation()
-    console.log('seigManagerProxy imp', imp)
+    // let imp = await seigManagerProxy.implementation()
+    // console.log('seigManagerProxy imp', imp)
 
-    if(imp.toLowerCase() != seigManagerLogic.address.toLowerCase()) {
-        await (await daoCommittee.connect(daoCommitteeAdmin).setTargetUpgradeTo(
-            seigManagerProxy.address, seigManagerLogic.address)).wait()
-    }
+    // if(imp.toLowerCase() != seigManagerLogic.address.toLowerCase()) {
+    //     await (await daoCommittee.connect(daoCommitteeAdmin).setTargetUpgradeTo(
+    //         seigManagerProxy.address, seigManagerLogic.address)).wait()
+    // }
 
-    //========================
-    const seigManager = new ethers.Contract(
-        nowContractInfo.SeigManager,
-        SeigManagerABI,
-        daoCommitteeAdmin
-    )
+    // //========================
+    // const seigManager = new ethers.Contract(
+    //     nowContractInfo.SeigManager,
+    //     SeigManagerABI,
+    //     daoCommitteeAdmin
+    // )
 
-    let totalSupplyOfTon = await seigManager.totalSupplyOfTon()
-    console.log('totalSupplyOfTon', totalSupplyOfTon)
+    // let totalSupplyOfTon = await seigManager.totalSupplyOfTon()
+    // console.log('totalSupplyOfTon', totalSupplyOfTon)
 
 }
 
 
 async function main() {
-      await changeSeigManagerLogic()
+      await changeDAOCommitteeDAOVault()
 }
 
 main()
