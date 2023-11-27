@@ -3,6 +3,9 @@ const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
 
+const Web3EthAbi = require('web3-eth-abi');
+const { padLeft } = require('web3-utils');
+
 const networkName = "mainnet"
 
 const daoAdminAddress = '0xb4983da083a5118c903910db4f5a480b1d9f3687'
@@ -17,6 +20,7 @@ const DAOCommitteeDAOVaultABI = require("../../artifacts/contracts/dao/DAOCommit
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
+
 
 // mainnet network
 const oldContractInfo = {

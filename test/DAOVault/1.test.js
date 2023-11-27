@@ -2,6 +2,15 @@ const hre = require("hardhat");
 const { ethers } = hre;
 const fs = require('fs');
 const { readContracts, deployedContracts } = require("../common_func");
+const chai = require("chai");
+const { solidity } = require("ethereum-waffle");
+
+const { expect, assert } = chai;
+chai.use(solidity);
+require("chai").should();
+
+const Web3EthAbi = require('web3-eth-abi');
+const { padLeft } = require('web3-utils');
 
 const networkName = "mainnet"
 
@@ -10,6 +19,8 @@ const daoAdminAddress = '0xb4983da083a5118c903910db4f5a480b1d9f3687'
 const goerliPowerTonAdmin = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 const mainnetPowerTonAdmin = "0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1"
 
+let daoAgendaMangerAddress = "0xcD4421d082752f363E1687544a09d5112cD4f484"; //DAOAgendaManager Address
+
 const TonABI = require("../../abi/TON.json").abi;
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 const DAOCommitteeOwnerABI = require("../../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
@@ -17,6 +28,8 @@ const DAOCommitteeDAOVaultABI = require("../../artifacts/contracts/dao/DAOCommit
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
+
+const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 
 
 describe("DAOAgenda Test", () => {
@@ -27,6 +40,10 @@ describe("DAOAgenda Test", () => {
     let ton;
 
     let daoCommittee;
+    let daoagendaManager;
+
+    let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
+    let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
 
     // mainnet network
     const oldContractInfo = {
@@ -121,17 +138,199 @@ describe("DAOAgenda Test", () => {
             console.log('upgradeTo done')
         })
 
-        it("set DAO NewLogic", async () =>{
+        it("set DAO NewLogic", async () => {
             daoCommittee = new ethers.Contract(
                 daoCommitteeProxy.address,
                 DAOCommitteeDAOVaultABI,
                 daoCommitteeAdmin
             )
         })
+
+        it("set DAOAgendaManager", async () => {
+            daoagendaManager = new ethers.Contract(
+                oldContractInfo.DAOAgendaManager,
+                DAOAgendaManagerABI,
+                daoCommitteeAdmin
+            )
+        })
     })
 
     describe("Agenda Test", () => {
-        
+        it("DAOVault Agenda claimTON Test", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("claimTON(address,uint256)");
+            // console.log("selector1 : ", selector1);
+            // console.log("selector1.length : ", selector1.length);
+            const claimAmount = 100000000000000000000
+
+            const data1 = padLeft(testAddr.toString(), 64);
+            // console.log("data1 : ", data1);
+            const data2 = padLeft(claimAmount.toString(16), 64);
+            // console.log("data2 : ", data2)
+            const data3 = data1 + data2
+            // console.log("data3 : ", data3);
+
+            const functionBytecode1 = selector1.concat(data3)
+            // console.log("functionBytecode1 :", functionBytecode1);
+            // console.log("functionBytecode1.length :", functionBytecode1.length);
+
+            targets.push(oldContractInfo.DAOVault);
+            functionBytecodes.push(functionBytecode1)
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
+            if (agendaFee.gt(beforeBalance))
+                    await (await ton.connect(daoCommitteeAdmin).mint(daoCommitteeAdmin.address, agendaFee)).wait();
+
+            let agendaID = (await daoagendaManager.numAgendas()).sub(1);
+
+
+            // await ton.connect(daoCommitteeAdmin).approveAndCall(
+            //     daoCommitteeProxy.address,
+            //     agendaFee,
+            //     param
+            // );
+
+            await expect(
+                ton.connect(daoCommitteeAdmin).approveAndCall(
+                    daoCommitteeProxy.address,
+                    agendaFee,
+                    param
+            )).to.be.reverted;
+
+        })
+
+        it("DAOVault Agenda claimERC20 Test", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("claimERC20(address,address,uint256)");
+            // console.log("selector1 : ", selector1);
+            // console.log("selector1.length : ", selector1.length);
+            const claimAmount = 100000000000000000000
+
+            const data1 = padLeft(tonAddr.toString(), 64);
+            // console.log("data1 : ", data1);
+            const data2 = padLeft(testAddr.toString(), 64);
+            // console.log("data2 : ", data2)
+            const data3 = padLeft(claimAmount.toString(16), 64);
+            // console.log("data3 : ", data3);
+            const data4 = data1 + data2 + data3
+            // console.log("data4 : ", data4);
+
+            const functionBytecode1 = selector1.concat(data4)
+            // console.log("functionBytecode1 :", functionBytecode1);
+
+            targets.push(oldContractInfo.DAOVault);
+            functionBytecodes.push(functionBytecode1)
+            // console.log("functionBytecode1.length :", functionBytecode1.length);
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
+            if (agendaFee.gt(beforeBalance))
+                    await (await ton.connect(daoCommitteeAdmin).mint(daoCommitteeAdmin.address, agendaFee)).wait();
+
+            let agendaID = (await daoagendaManager.numAgendas()).sub(1);
+
+
+            // await ton.connect(daoCommitteeAdmin).approveAndCall(
+            //     daoCommitteeProxy.address,
+            //     agendaFee,
+            //     param
+            // );
+
+            await expect(
+                ton.connect(daoCommitteeAdmin).approveAndCall(
+                    daoCommitteeProxy.address,
+                    agendaFee,
+                    param
+            )).to.be.reverted;
+        })
+
+        it("DAOVault Agenda claimWTON Test", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("claimWTON(address,uint256)");
+            console.log("selector1 : ", selector1);
+            console.log("selector1.length : ", selector1.length);
+            const claimAmount = 100000000000000000000
+
+            const data1 = padLeft(testAddr.toString(), 64);
+            console.log("data1 : ", data1);
+            const data2 = padLeft(claimAmount.toString(16), 64);
+            console.log("data2 : ", data2)
+            const data3 = data1 + data2
+            console.log("data3 : ", data3);
+
+            const functionBytecode1 = selector1.concat(data3)
+            console.log("functionBytecode1 :", functionBytecode1);
+            console.log("functionBytecode1.length :", functionBytecode1.length);
+
+            targets.push(oldContractInfo.DAOVault);
+            functionBytecodes.push(functionBytecode1)
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
+            if (agendaFee.gt(beforeBalance))
+                    await (await ton.connect(daoCommitteeAdmin).mint(daoCommitteeAdmin.address, agendaFee)).wait();
+
+            let agendaID = (await daoagendaManager.numAgendas()).sub(1);
+
+
+            await ton.connect(daoCommitteeAdmin).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
+        })
     })
 })
 
