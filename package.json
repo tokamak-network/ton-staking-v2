@@ -15,6 +15,7 @@
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.5",
     "@types/bluebird": "^3.5.40",
+    "chai": "^4.3.10",
     "dotenv": "^16.3.1",
     "ethereum-waffle": "^4.0.10",
     "ethers": "^5.0.0",
