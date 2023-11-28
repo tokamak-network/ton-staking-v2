@@ -485,8 +485,8 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                     bytes memory amount1 = amount.slice(14,32);
                     // console.logBytes(amount1);
                     uint256 inputWTONamount = parseRevertReason(amount1);
-                    console.log("daoWTONamount :", daoWTONamount);
-                    console.log("inputWTONamount :", inputWTONamount);
+                    // console.log("daoWTONamount :", daoWTONamount);
+                    // console.log("inputWTONamount :", inputWTONamount);
                     require(daoWTONamount >= inputWTONamount, "amount over");
                 }
                 // console.log("3");
