@@ -138,107 +138,86 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         seigManager = ISeigManager(_seigManager);
     }
 
-    function setTargetSeigManager(address target, address _seigManager) external onlyOwner {
-        ITarget(target).setSeigManager(_seigManager);
+    /// @notice Set SeigManager contract address on candidate contracts
+    /// @param _candidateContracts Candidate contracts to be set
+    /// @param _seigManager New SeigManager contract address
+    function setCandidatesSeigManager(
+        address[] calldata _candidateContracts,
+        address _seigManager
+    )
+        external
+        onlyOwner
+        nonZero(_seigManager)
+    {
+        for (uint256 i = 0; i < _candidateContracts.length; i++) {
+            ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
+        }
     }
 
-    function setSeigPause() external onlyOwner {
-       IPauser(address(seigManager)).pause();
+    /// @notice Set DAOCommitteeProxy contract address on candidate contracts
+    /// @param _candidateContracts Candidate contracts to be set
+    /// @param _committee New DAOCommitteeProxy contract address
+    function setCandidatesCommittee(
+        address[] calldata _candidateContracts,
+        address _committee
+    )
+        external
+        onlyOwner
+        nonZero(_committee)
+    {
+        for (uint256 i = 0; i < _candidateContracts.length; i++) {
+            ICandidate(_candidateContracts[i]).setCommittee(_committee);
+        }
     }
 
-    function setSeigUnpause() external onlyOwner {
-       IPauser(address(seigManager)).unpause();
+    function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
+        daoVault = IDAOVault(_daoVault);
     }
 
-    function setTargetGlobalWithdrawalDelay(address target, uint256 globalWithdrawalDelay_) external onlyOwner {
-        ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
+    /// @notice Set Layer2Registry contract address
+    /// @param _layer2Registry New Layer2Registry contract address
+    function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
+        layer2Registry = ILayer2Registry(_layer2Registry);
     }
 
-    function setTargetAddMinter(address token, address account) external onlyOwner {
-        ITarget(token).addMinter(account);
+    /// @notice Set DAOAgendaManager contract address
+    /// @param _agendaManager New DAOAgendaManager contract address
+    function setAgendaManager(address _agendaManager) external onlyOwner nonZero(_agendaManager) {
+        agendaManager = IDAOAgendaManager(_agendaManager);
     }
 
-    // /// @notice Set SeigManager contract address on candidate contracts
-    // /// @param _candidateContracts Candidate contracts to be set
-    // /// @param _seigManager New SeigManager contract address
-    // function setCandidatesSeigManager(
-    //     address[] calldata _candidateContracts,
-    //     address _seigManager
-    // )
-    //     external
-    //     onlyOwner
-    //     nonZero(_seigManager)
-    // {
-    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
-    //         ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
-    //     }
-    // }
+    /// @notice Set CandidateFactory contract address
+    /// @param _candidateFactory New CandidateFactory contract address
+    function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
+        candidateFactory = ICandidateFactory(_candidateFactory);
+    }
 
-    // /// @notice Set DAOCommitteeProxy contract address on candidate contracts
-    // /// @param _candidateContracts Candidate contracts to be set
-    // /// @param _committee New DAOCommitteeProxy contract address
-    // function setCandidatesCommittee(
-    //     address[] calldata _candidateContracts,
-    //     address _committee
-    // )
-    //     external
-    //     onlyOwner
-    //     nonZero(_committee)
-    // {
-    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
-    //         ICandidate(_candidateContracts[i]).setCommittee(_committee);
-    //     }
-    // }
+    function setTon(address _ton) external onlyOwner nonZero(_ton) {
+        ton = _ton;
+    }
 
+    function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
+        activityRewardPerSecond = _value;
+        emit ActivityRewardChanged(_value);
+    }
 
-    // function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
-    //     daoVault = IDAOVault(_daoVault);
-    // }
-
-    // /// @notice Set Layer2Registry contract address
-    // /// @param _layer2Registry New Layer2Registry contract address
-    // function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
-    //     layer2Registry = ILayer2Registry(_layer2Registry);
-    // }
-
-    // /// @notice Set DAOAgendaManager contract address
-    // /// @param _agendaManager New DAOAgendaManager contract address
-    // function setAgendaManager(address _agendaManager) external override onlyOwner nonZero(_agendaManager) {
-    //     agendaManager = IDAOAgendaManager(_agendaManager);
-    // }
-
-    // /// @notice Set CandidateFactory contract address
-    // /// @param _candidateFactory New CandidateFactory contract address
-    // function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
-    //     candidateFactory = ICandidateFactory(_candidateFactory);
-    // }
-
-    // function setTon(address _ton) external onlyOwner nonZero(_ton) {
-    //     ton = _ton;
-    // }
-
-    // function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
-    //     activityRewardPerSecond = _value;
-    //     emit ActivityRewardChanged(_value);
-    // }
-
-    // / @notice Increases the number of member slot
-    // / @param _newMaxMember New number of member slot
-    // / @param _quorum New quorum
-    // function increaseMaxMember(
-    //     uint256 _newMaxMember,
-    //     uint256 _quorum
-    // )
-    //     external
-    //     onlyOwner
-    // {
-    //     require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
-    //     uint256 prevMaxMember = maxMember;
-    //     maxMember = _newMaxMember;
-    //     fillMemberSlot();
-    //     setQuorum(_quorum);
-    //     emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
-    // }
+    /// @notice Increases the number of member slot
+    /// @param _newMaxMember New number of member slot
+    /// @param _quorum New quorum
+    function increaseMaxMember(
+        uint256 _newMaxMember,
+        uint256 _quorum
+    )
+        external
+        onlyOwner
+    {
+        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
+        uint256 prevMaxMember = maxMember;
+        maxMember = _newMaxMember;
+        fillMemberSlot();
+        setQuorum(_quorum);
+        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    }
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
@@ -284,68 +263,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     }
 
-    // function createCandidate(string calldata _memo, address _operatorAddress)
-    //     public
-    //     validSeigManager
-    //     validLayer2Registry
-    //     validCommitteeL2Factory
-    //     onlyOwner
-    // {
-    //     // Candidate
-    //     address candidateContract = candidateFactory.deploy(
-    //         _operatorAddress,
-    //         false,
-    //         _memo,
-    //         address(this),
-    //         address(seigManager)
-    //     );
-
-    //     require(
-    //         candidateContract != address(0),
-    //         "DAOCommittee: deployed candidateContract is zero"
-    //     );
-
-    //     // require(
-    //     //     _candidateInfos[_operatorAddress].candidateContract == address(0),
-    //     //     "DAOCommittee: The candidate already has contract"
-    //     // );
-
-    //     //operator가 이미 candidate로 등록하였으면
-    //     if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
-
-    //         require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
-
-    //         _oldCandidateInfos[_operatorAddress] = CandidateInfo2({
-    //             candidateContract: _candidateInfos[_operatorAddress].candidateContract,
-    //             newCandidate: candidateContract,
-    //             memberJoinedTime: _candidateInfos[_operatorAddress].memberJoinedTime,
-    //             indexMembers: _candidateInfos[_operatorAddress].indexMembers,
-    //             rewardPeriod: _candidateInfos[_operatorAddress].rewardPeriod,
-    //             claimedTimestamp: _candidateInfos[_operatorAddress].claimedTimestamp
-    //         });
-
-    //         _candidateInfos[_operatorAddress].candidateContract = candidateContract;
-
-    //     } else {
-
-    //         _candidateInfos[_operatorAddress] = CandidateInfo({
-    //             candidateContract: candidateContract,
-    //             memberJoinedTime: 0,
-    //             indexMembers: 0,
-    //             rewardPeriod: 0,
-    //             claimedTimestamp: 0
-    //         });
-
-    //         candidates.push(_operatorAddress);
-    //     }
-
-    //     require(
-    //         layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-    //         "DAOCommittee: failed to registerAndDeployCoinage"
-    //     );
-
-    //     emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
-    // }
 
     /// @notice Registers the exist layer2 on DAO
     /// @param _layer2 Layer2 contract address to be registered
@@ -439,15 +356,15 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         return true;
     }
 
-    // function setMemoOnCandidate(
-    //     address _candidate,
-    //     string calldata _memo
-    // )
-    //     external
-    // {
-    //     address candidateContract = candidateContract(_candidate);
-    //     setMemoOnCandidateContract(candidateContract, _memo);
-    // }
+    function setMemoOnCandidate(
+        address _candidate,
+        string calldata _memo
+    )
+        external
+    {
+        address candidateContract = candidateContract(_candidate);
+        setMemoOnCandidateContract(candidateContract, _memo);
+    }
 
     /// @notice Set memo
     /// @param _candidateContract candidate contract address
@@ -529,49 +446,51 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
                 //_functionBytecodes[i] 값 체크
-                console.log("in if");
+                // console.log("in if");
                 bytes memory abc = agendaData.functionBytecode[i];
-                console.logBytes(abc);
-                console.log("length");
-                console.log(agendaData.functionBytecode[i].length);
+                // console.logBytes(abc);
+                // console.log("length");
+                // console.log(agendaData.functionBytecode[i].length);
                 bytes memory selector1 = abc.slice(0, 4);
-                console.log("selector1.length :", selector1.length);
-                console.logBytes(selector1);
+                // console.log("selector1.length :", selector1.length);
+                // console.logBytes(selector1);
+                
                 // claimTON function 실행불가
-                console.log("1");
+                // console.log("1");
                 bytes memory claimTONBytes = hex"ef0d5594";
                 bytes memory claimERC20Bytes = hex"f848091a";
                 bytes memory claimWTONBytes = hex"f52bba70";
-                console.log("2");
+                // console.log("2");
                 check1 = selector1.equal(claimTONBytes);
                 check2 = selector1.equal(claimERC20Bytes);
                 check4 = selector1.equal(claimWTONBytes);
-                console.log("check1 :", check1);
-                console.log("check2 :", check2);
-                console.log("check4 :", check4);
+                // console.log("check1 :", check1);
+                // console.log("check2 :", check2);
+                // console.log("check4 :", check4);
                 if(check2){
-                    bytes memory tonaddr = hex"002be5e8c109e2197d077d13a82daead6a9b3433c500";
-                    bytes memory ercaddr = abc.slice(15,22);
-                    console.log("ercAddr");
-                    console.logBytes(ercaddr);
-                    console.log("tonAddr");
-                    console.logBytes(tonaddr);
+                    bytes memory tonaddr = hex"2be5e8c109e2197d077d13a82daead6a9b3433c5";
+                    bytes memory ercaddr = abc.slice(16,20);
+                    // console.log("ercAddr");
+                    // console.logBytes(ercaddr);
+                    // console.log("tonAddr");
+                    // console.logBytes(tonaddr);
                     bool check3 = ercaddr.equal(tonaddr); //claimERC20일때 TON주소 호출하는지 확인   
-                    console.log("check3 :", check3);
+                    // console.log("check3 :", check3);
                     require(!check3, "claimERC20 ton dont use");
                 }
                 if(check4){
                     uint256 daoWTONamount = IERC20(wton).balanceOf(address(daoVault));
                     bytes memory amount = abc.slice(22,46);
-                    console.logBytes(amount);
+                    // console.logBytes(amount);
                     bytes memory amount1 = amount.slice(14,32);
-                    console.logBytes(amount1);
+                    // console.logBytes(amount1);
                     uint256 inputWTONamount = parseRevertReason(amount1);
                     console.log("daoWTONamount :", daoWTONamount);
                     console.log("inputWTONamount :", inputWTONamount);
+                    require(daoWTONamount >= inputWTONamount, "amount over");
                 }
-                console.log("3");
-                console.log("out if");
+                // console.log("3");
+                // console.log("out if");
             }
         }
         require(!check1, "claimTON dont use");
@@ -793,13 +712,18 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         );
 
         uint256 amount = getClaimableActivityReward(candidate);
-        require(amount > 0, "DAOCommittee: you don't have claimable ton");
+        require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
-        daoVault.claimTON(_receiver, amount);
+        uint256 wtonAmount = _toRAY(amount);
+        daoVault.claimWTON(_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
 
         emit ClaimedActivityReward(candidate, _receiver, amount);
+    }
+
+    function _toRAY(uint256 v) internal pure returns (uint256) {
+        return v * 10 ** 9;
     }
 
     function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
@@ -888,21 +812,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         validAgendaManager
         returns (uint256)
     {
-        //_Tragets가 DAOVault주소일때 
-        // 1.claimTON function 실행불가
-        // 2.claimERC20에서 _token주소에 TON주소 실행불가
-        // 3.claimWTON 실행시 _amount가 DAOVault에 있는 WTON양을 넘으면 안됨
-        // console.log("_createAgenda execute");
-        // for (uint256 i = 0; i < _targets.length; i++) {
-        //     if(_targets[i] == address(daoVault)) {
-        //         //_functionBytecodes[i] 값 체크
-        //         console.log("in if");
-        //         console.logBytes(_functionBytecodes[i]);
-        //         _decodeFunctionBytes(_functionBytecodes[i]);
-        //         console.log("out if");
-        //     }
-        // }
-        
         // pay to create agenda, burn ton.
         payCreatingAgendaFee(_creator);
 
