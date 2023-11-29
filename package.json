@@ -21,6 +21,7 @@
     "hardhat": "^2.17.3",
     "hardhat-deploy": "^0.11.25",
     "hardhat-gas-reporter": "^1.0.9",
+    "web3-eth-abi": "^4.1.4",
     "web3-utils": "^4.0.5"
   },
   "dependencies": {
