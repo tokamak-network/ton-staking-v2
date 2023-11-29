@@ -1,0 +1,102 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "L2SeigManagerStorage",
+  "sourceName": "contracts/L2/L2SeigManagerStorage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "MAX_VALID_COMMISSION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MIN_VALID_COMMISSION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "RAY",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "_DEFAULT_FACTOR",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "factory",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1StakedTonInL2",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastSnapshotId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060fe8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060735760003560e01c80638c09d4ee1160545780638c09d4ee1460a557806399ce04f6146078578063a7dcc8501460ce578063c45a01551460df57600080fd5b80634123196f146078578063552033c4146078578063837afbc014609d575b600080fd5b608a6b033b2e3c9fd0803ce800000081565b6040519081526020015b60405180910390f35b608a60035481565b60045460b7906001600160a01b031681565b6040516001600160a01b0390911681526020016094565b608a6a084595161401484a00000081565b60005460b7906001600160a01b03168156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060735760003560e01c80638c09d4ee1160545780638c09d4ee1460a557806399ce04f6146078578063a7dcc8501460ce578063c45a01551460df57600080fd5b80634123196f146078578063552033c4146078578063837afbc014609d575b600080fd5b608a6b033b2e3c9fd0803ce800000081565b6040519081526020015b60405180910390f35b608a60035481565b60045460b7906001600160a01b031681565b6040516001600160a01b0390911681526020016094565b608a6a084595161401484a00000081565b60005460b7906001600160a01b03168156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -14,19 +14,7 @@ import { L2RefactorCoinageSnapshotStorage } from "./L2RefactorCoinageSnapshotSto
 interface IIISeigManager {
   function progressSnapshotId() external view returns (uint256);
 }
-/**
- * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
- *
- * AutoRefactorCoinage stores `_totalSupply` and `_balances` as RAY BASED value,
- * `_allowances` as RAY FACTORED value.
- *
- * This takes public function (including _approve) parameters as RAY FACTORED value
- * and internal function (including approve) parameters as RAY BASED value, and emits event in RAY FACTORED value.
- *
- * `RAY BASED` = `RAY FACTORED`  / factor
- *
- *  factor increases exponentially for each block mined.
- */
+
 contract L2RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, L2RefactorCoinageSnapshotStorage, DSMath {
     using SArrays for uint256[];
 
@@ -56,24 +44,24 @@ contract L2RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, L2Refact
      *  onlyOwner
      **/
 
-    function setFactor(uint256 factor_) external onlyOwner returns (bool) {
-      IRefactor.Factor memory previous = _valueAtFactorLast();
-      // uint256 previous = _factor;
+    // function setFactor(uint256 factor_) external onlyOwner returns (bool) {
+    //   IRefactor.Factor memory previous = _valueAtFactorLast();
+    //   // uint256 previous = _factor;
 
-      uint256 count = 0;
-      uint256 f = factor_;
+    //   uint256 count = 0;
+    //   uint256 f = factor_;
 
-      for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
-        count++;
-      }
+    //   for (; f >= REFACTOR_BOUNDARY; f = f / REFACTOR_DIVIDER) {
+    //     count++;
+    //   }
 
-      IRefactor.Factor memory nextFactor = IRefactor.Factor(f, count);
-      _updateFactor(nextFactor);
+    //   IRefactor.Factor memory nextFactor = IRefactor.Factor(f, count);
+    //   _updateFactor(nextFactor);
 
 
-      emit ChangedFactor(previous, nextFactor);
-      return true;
-    }
+    //   emit ChangedFactor(previous, nextFactor);
+    //   return true;
+    // }
 
     function setSeigManager(address _seigManager) external onlyOwner {
       seigManager = _seigManager;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
-import { RefactorCoinageSnapshotI } from "../stake/interfaces/RefactorCoinageSnapshotI.sol";
+import { L2RefactorCoinageSnapshotI } from "../stake/interfaces/L2RefactorCoinageSnapshotI.sol";
 
 /// @title
 /// @notice
@@ -20,17 +20,21 @@ contract L2SeigManagerStorage   {
     // Common contracts
     //////////////////////////////
 
-    address internal _registry;
     // contract factory
     address public factory;
 
     // track total deposits of each layer2.
-    RefactorCoinageSnapshotI internal _tot;
+    L2RefactorCoinageSnapshotI internal _tot;
 
     // coinage token for each layer2.
-    mapping (address => RefactorCoinageSnapshotI) internal _coinages;
+    mapping (address => L2RefactorCoinageSnapshotI) internal _coinages;
 
     uint256 public lastSnapshotId;
 
     address public l1StakedTonInL2;
+
+    mapping (address => bool) internal _l1layer2s;
+    uint256 internal _numLayer2s;
+    mapping (uint256 => address) internal _l1layer2ByIndex;
+
 }
