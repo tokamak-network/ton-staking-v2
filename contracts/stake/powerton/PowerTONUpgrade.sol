@@ -33,6 +33,14 @@ contract PowerTONUpgrade is
         seigManager = _seigManager;
     }
 
+    function setDividiedPool(address _dividiedPool)
+        external
+        onlyOwner
+    {
+        dividiedPool = ILockTOSDividend(_dividiedPool) ;
+    }
+
+
     /// @notice PowerTON으로 쌓인 WTON 전체를 LockTOSDividendProxy 컨트랙트에 위임
     function approveToDividendPool() private {
         IERC20(wton).approve(address(dividiedPool), type(uint256).max);

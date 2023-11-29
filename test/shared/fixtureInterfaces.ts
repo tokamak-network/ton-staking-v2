@@ -133,9 +133,30 @@ interface NewTonStakingV2Fixtures  {
     powerTON: PowerTONUpgrade,
     powerTonAddress : string
 }
+
+
+interface TonStakingV2HoleskyFixtures  {
+    admin: Signer,
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    TON: any ,
+    WTON: any ,
+    daoCommitteeProxy: any ,
+    daoAgendaManager: any,
+    powerTonProxy: any ,
+    daoCommittee: DAOCommitteeExtend,
+    depositManagerV2: DepositManager ,
+    seigManagerV2: SeigManager ,
+    layer2RegistryV2: Layer2Registry ,
+    powerTON: PowerTONUpgrade,
+    powerTonAddress : string
+}
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     NewTonStakingV2Fixtures,
+    TonStakingV2HoleskyFixtures,
     JSONFixture
 }

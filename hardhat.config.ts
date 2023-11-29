@@ -163,9 +163,8 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 18575278
-        // blockNumber:18229970
+        url: `https://ethereum-holesky.publicnode.com`,
+        blockNumber: 415214
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']

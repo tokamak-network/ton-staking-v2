@@ -25,13 +25,13 @@ const oldDepositManager = "0x0000000000000000000000000000000000000000"
 const v1Infos = {
     ton: '0x3d15587A41851749982CDcB2880B0D3C380F84c9',
     wton: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
-    daoCommittee: null,
+    daoCommittee: "0x5D212352D790e03Bf905a8152330ff4595E1A70b",
     globalWithdrawalDelay: ethers.BigNumber.from("93046"),
     lastSeigBlock : ethers.BigNumber.from("0"),
     pauseBlock: ethers.BigNumber.from("0"),
     seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
     powertonAddress: "0x5BFb4BF760227ca68bb0d5C36cCaCEBbb466Dfc7",
-    daoVaultAddress : null,
+    daoVaultAddress : "0xeB725ff92b9c9Db4F6f4f8af26703e5F8C908F6c",
     depositManager: null
 }
 
