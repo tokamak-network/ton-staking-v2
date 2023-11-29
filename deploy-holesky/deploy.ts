@@ -25,7 +25,7 @@ const oldDepositManager = "0x0000000000000000000000000000000000000000"
 const v1Infos = {
     ton: '0x3d15587A41851749982CDcB2880B0D3C380F84c9',
     wton: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
-    daoCommittee: "0x5D212352D790e03Bf905a8152330ff4595E1A70b",
+    daoCommittee: "0xfAe1b058b73D91cfcfb6b4E163DF9f905041F7b5",
     globalWithdrawalDelay: ethers.BigNumber.from("93046"),
     lastSeigBlock : ethers.BigNumber.from("0"),
     pauseBlock: ethers.BigNumber.from("0"),
@@ -101,8 +101,8 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
 
     let seigManagerImpl = await seigManagerProxy.implementation()
-    if (seigManagerImpl != SeigManagerMigrationDeployment.address) {
-        await (await seigManagerProxy.connect(deploySigner).upgradeTo(SeigManagerMigrationDeployment.address)).wait()
+    if (seigManagerImpl != SeigManagerDeployment.address) {
+        await (await seigManagerProxy.connect(deploySigner).upgradeTo(SeigManagerDeployment.address)).wait()
     }
 
     //==== DepositManager =================================
@@ -195,7 +195,10 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     //====== candidateFactory setAddress ==================
     let candidateDeploymentAddress = await candidateFactory.candidateImp()
-    if (v1Infos.daoCommittee != null && candidateDeploymentAddress != CandidateDeployment.address ) {
+    let daoCommittee_candidateFactory = await candidateFactory.daoCommittee()
+
+    // if (v1Infos.daoCommittee != null && candidateDeploymentAddress != CandidateDeployment.address ) {
+    if (v1Infos.daoCommittee != null && daoCommittee_candidateFactory != v1Infos.daoCommittee ) {
         await (await candidateFactory.connect(deploySigner).setAddress (
              depositManagerProxy.address,
              v1Infos.daoCommittee,

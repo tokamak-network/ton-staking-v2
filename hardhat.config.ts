@@ -164,7 +164,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `https://ethereum-holesky.publicnode.com`,
-        blockNumber: 415214
+        blockNumber: 416083,
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']
@@ -172,7 +172,7 @@ const config: HardhatUserConfig = {
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
       timeout: 400000,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      // accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy-migration']
     },
     mainnet: {
@@ -229,7 +229,7 @@ const config: HardhatUserConfig = {
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
       titan: "verify",
       titangoerli: "verify",
-      holesky: `${process.env.ETHERSCAN_API_KEY}`,
+      holesky: `${process.env.API_KEY}`,
     } ,
     customChains: [
       {

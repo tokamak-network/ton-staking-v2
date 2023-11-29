@@ -922,7 +922,7 @@ export const tonStakingV2HolskyFixture = async function (): Promise<TonStakingV2
     "DAOVault": "0xeB725ff92b9c9Db4F6f4f8af26703e5F8C908F6c",
     "DAOAgendaManager": "0xEdd48aC58f1C6607Cff5874F69f5BaC39B93F90F",
     "DAOCommittee": "0x04423381065C55ab6852Cc432080e87fd3066758",
-    "DAOCommitteeProxy": "0x5D212352D790e03Bf905a8152330ff4595E1A70b"
+    "DAOCommitteeProxy": "0xfAe1b058b73D91cfcfb6b4E163DF9f905041F7b5"
   }
 
   // 새로 배포된 컨트랙
