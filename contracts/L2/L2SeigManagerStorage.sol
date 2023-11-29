@@ -16,8 +16,11 @@ contract L2SeigManagerStorage   {
     uint256 constant public MAX_VALID_COMMISSION = RAY; // 1 RAY
     uint256 constant public MIN_VALID_COMMISSION = 10 ** 25; // 0.01 RAY
 
-    address public _registry;
+    //////////////////////////////
+    // Common contracts
+    //////////////////////////////
 
+    address internal _registry;
     // contract factory
     address public factory;
 
@@ -29,4 +32,5 @@ contract L2SeigManagerStorage   {
 
     uint256 public lastSnapshotId;
 
+    address public l1StakedTonInL2;
 }

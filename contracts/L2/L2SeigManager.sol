@@ -1,58 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { IRefactor } from "../interfaces/IRefactor.sol";
-import { DSMath } from "../../libraries/DSMath.sol";
-import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
+import { IRefactor } from "../stake/interfaces/IRefactor.sol";
+import { DSMath } from "../libraries/DSMath.sol";
+import { RefactorCoinageSnapshotI } from "../stake/interfaces/RefactorCoinageSnapshotI.sol";
+import { CoinageFactoryI } from "../dao/interfaces/CoinageFactoryI.sol";
 
-// import { Layer2I } from "../../dao/interfaces/Layer2I.sol";
-import { SeigManagerI } from "../interfaces/SeigManagerI.sol";
+import { Layer2I } from "../dao/interfaces/Layer2I.sol";
 
-import "../../proxy/ProxyStorage.sol";
-import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
-import { SeigManagerStorage } from "./SeigManagerStorage.sol";
+import "../proxy/ProxyStorage.sol";
+import { AuthControlSeigManager } from "../common/AuthControlSeigManager.sol";
+import { L2SeigManagerStorage } from "./L2SeigManagerStorage.sol";
 
-// interface MinterRoleRenounceTarget {
-//   function renounceMinter() external;
-// }
-
-// interface PauserRoleRenounceTarget {
-//   function renouncePauser() external;
-// }
-
-// interface OwnableTarget {
-//   function renounceOwnership() external;
-//   function transferOwnership(address newOwner) external;
-// }
-
-// interface IILayer2Registry {
-//   function layer2s(address layer2) external view returns (bool);
-//   function numLayer2s() external view  returns (uint256);
-//   function layer2ByIndex(uint256 index) external view returns (address);
-// }
-
-// interface IPowerTON {
-//   function updateSeigniorage(uint256 amount) external;
-// }
-
-// interface ITON {
-//   function totalSupply() external view returns (uint256);
-//   function balanceOf(address account) external view returns (uint256);
-// }
+interface IILayer2Registry {
+  function layer2s(address layer2) external view returns (bool);
+  function numLayer2s() external view  returns (uint256);
+  function layer2ByIndex(uint256 index) external view returns (address);
+}
 
 interface IRefactorCoinageSnapshot {
   function snapshot() external returns (uint256 id);
 }
 
-// interface ICandidate {
-//   function updateSeigniorage() external returns (bool);
-// }
-
-contract L2SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerI, DSMath {
+contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerStorage, DSMath {
 
   //////////////////////////////
   // Modifiers
   //////////////////////////////
+
+  modifier onlyL1StakedTonInL2() {
+    require(msg.sender == l1StakedTonInL2, "not l1StakedTonInL2");
+    _;
+  }
 
   modifier onlyRegistry() {
     require(msg.sender == _registry, "not onlyRegistry");
@@ -63,6 +42,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStora
     require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
     _;
   }
+  event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
   event CoinageCreated(address indexed layer2, address coinage);
   event OnSnapshot(uint256 snapshotId);
@@ -114,51 +94,49 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStora
   }
 
   //////////////////////////////
-  // onlyDepositManager
+  // onlyL1StakedTonInL2
   //////////////////////////////
 
   /**
    * @dev Callback for a new deposit
    */
-  function onDeposit(address layer2, address account, uint256 amount)
+  function updateFactorNBalance(
+    address layer2,
+    address account,
+    IRefactor.Factor memory totFactor,
+    IRefactor.Balance memory totTotalBalance,
+    IRefactor.Balance memory totLayerBalance,
+    IRefactor.Factor memory layerFactor,
+    IRefactor.Balance memory layerTotalBalance,
+    IRefactor.Balance memory layerAccountBalance)
     external
-    onlyDepositManager
+    onlyL1StakedTonInL2
     checkCoinage(layer2)
     returns (bool)
   {
-    if (_isOperator(layer2, account)) {
-      uint256 newAmount = _coinages[layer2].balanceOf(account) + amount;
-      require(newAmount >= minimumAmount, "minimum amount is required");
-    }
-    _tot.mint(layer2, amount);
-    _coinages[layer2].mint(account, amount);
-    return true;
-  }
+    _tot.updateFactor(totFactor);
+    _coinages[layer2].updateFactor(layerFactor);
 
-  function onWithdraw(address layer2, address account, uint256 amount)
-    external
-    onlyDepositManager
-    checkCoinage(layer2)
-    returns (bool)
-  {
-    require(_coinages[layer2].balanceOf(account) >= amount, "SeigManager: insufficiant balance to unstake");
-
-    if (_isOperator(layer2, account)) {
-      uint256 newAmount = _coinages[layer2].balanceOf(account) - amount;
-      require(newAmount >= minimumAmount, "minimum amount is required");
-    }
-
-    // burn {v + ⍺} {tot} tokens to the layer2 contract,
-    uint256 totAmount = _additionalTotBurnAmount(layer2, account, amount);
-    _tot.burnFrom(layer2, amount+totAmount);
-
-    // burn {v} {coinages[layer2]} tokens to the account
-    _coinages[layer2].burnFrom(account, amount);
-
-    emit UnstakeLog(amount, totAmount);
+    _tot.updateBalance(totLayerBalance, totTotalBalance, layer2, true, true);
+    _coinages[layer2].updateBalance(layerTotalBalance, layerAccountBalance, account, true, true);
 
     return true;
   }
+
+  function updateFactor(
+      address layer2,
+      IRefactor.Factor memory totFactor,
+      IRefactor.Factor memory layerFactor)
+      external
+      onlyL1StakedTonInL2
+      checkCoinage(layer2)
+      returns (bool)
+    {
+       _tot.updateFactor(totFactor);
+       _coinages[layer2].updateFactor(layerFactor);
+      return true;
+    }
+
 
   //////////////////////////////
   // checkCoinage
@@ -217,6 +195,33 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStora
   //////////////////////////////
   // Internal functions
   //////////////////////////////
+
+  function _isOperator(address layer2, address operator) internal view returns (bool) {
+    return operator == Layer2I(layer2).operator();
+  }
+
+  function _additionalTotBurnAmount(address layer2, address account, uint256 amount)
+    internal
+    view
+    returns (uint256 totAmount)
+  {
+    uint256 coinageTotalSupply = _coinages[layer2].totalSupply();
+    uint256 totBalalnce = _tot.balanceOf(layer2);
+
+    // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
+    //       note that coinageTotalSupply and totBalalnce are RAY values.
+    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
+      return 0;
+    }
+
+    return rdiv(
+      rmul(
+        totBalalnce - coinageTotalSupply,
+        amount
+      ),
+      coinageTotalSupply
+    );
+  }
 
   //////////////////////////////
   // Storage getters
