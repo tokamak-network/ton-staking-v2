@@ -710,19 +710,18 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
-
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
-        uint256 wtonAmount = _toRAY(amount);
+        uint256 wtonAmount = _toRAY(amount);   
         daoVault.claimWTON(_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
 
-        emit ClaimedActivityReward(candidate, _receiver, amount);
+        emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
 
-    function _toRAY(uint256 v) internal pure returns (uint256) {
+    function _toRAY(uint256 v) public pure returns (uint256) {
         return v * 10 ** 9;
     }
 
