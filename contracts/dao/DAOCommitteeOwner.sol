@@ -64,4 +64,30 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl {
         ITarget(target).setTON(tonAddr);
     }
 
+    function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
+        daoVault = IDAOVault(_daoVault);
+    }
+
+    /// @notice Set Layer2Registry contract address
+    /// @param _layer2Registry New Layer2Registry contract address
+    function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
+        layer2Registry = ILayer2Registry(_layer2Registry);
+    }
+
+    /// @notice Set DAOAgendaManager contract address
+    /// @param _agendaManager New DAOAgendaManager contract address
+    function setAgendaManager(address _agendaManager) external onlyOwner nonZero(_agendaManager) {
+        agendaManager = IDAOAgendaManager(_agendaManager);
+    }
+
+    /// @notice Set CandidateFactory contract address
+    /// @param _candidateFactory New CandidateFactory contract address
+    function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
+        candidateFactory = ICandidateFactory(_candidateFactory);
+    }
+
+    function setTon(address _ton) external onlyOwner nonZero(_ton) {
+        ton = _ton;
+    }
+
 }

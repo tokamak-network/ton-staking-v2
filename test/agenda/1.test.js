@@ -31,6 +31,7 @@ const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/Se
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
 
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
+const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 
 
 describe("DAOAgenda Test", () => {
@@ -38,11 +39,14 @@ describe("DAOAgenda Test", () => {
     let daoCommitteeAdmin;
     let daoCommitteeProxy;
     let daoCommitteeDAOVaultLogic;
+    let daoCommitteeOwnerLogic;
     let ton;
     let wton;
 
     let daoCommittee;
+    let daoCommitteeOwner;
     let daoagendaManager;
+    let daovault;
 
     let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
     let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
@@ -70,6 +74,8 @@ describe("DAOAgenda Test", () => {
     let wtonCheck = "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
 
     let sendether = "0xDE0B6B3A7640000"
+
+    let zeroAddr = "0x0000000000000000000000000000000000000000";
 
     // mainnet network
     const oldContractInfo = {
@@ -614,6 +620,63 @@ describe("DAOAgenda Test", () => {
             console.log("calculAmount :", calculAmount);
 
             expect(afterDAOVault).to.be.equal(calculAmount)
+        })
+    })
+    
+    describe("setTON test", () => {
+        it("Deploy the DAOCommitteeOwner", async () => {
+            const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
+            daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
+            await daoCommitteeOwnerLogic.deployed();
+            console.log('daoCommitteeOwnerLogic' , daoCommitteeOwnerLogic.address)
+        })
+
+        it("DAO upgradeTo newLogic", async () => {
+            let imp1 = await daoCommitteeProxy.implementation()
+            console.log('imp1', imp1)
+
+            if(imp1.toLowerCase() != daoCommitteeOwnerLogic.address.toLowerCase()) {
+                await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+                    daoCommitteeOwnerLogic.address)).wait()
+            }
+
+            let imp2 = await daoCommitteeProxy.implementation()
+            console.log('imp2', imp2)
+            console.log('upgradeTo done')
+        })
+
+        it("set DAO Owner logic", async () => {
+            daoCommitteeOwner = new ethers.Contract(
+                daoCommitteeProxy.address,
+                DAOCommitteeOwnerABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("set DAOVault", async () => {
+            daovault = new ethers.Contract(
+                oldContractInfo.DAOVault,
+                DAOVaultABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("setTargetSetTON Test", async () => {
+            //DAOVault setTON 주소 확인
+            let beforeTON = await daovault.ton();
+            console.log(beforeTON)
+            expect(beforeTON).to.be.equal(oldContractInfo.TON)
+            
+            //DAOlogic에서 변경 실행
+            await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetTON(
+                daovault.address,
+                oldContractInfo.CoinageFactory
+            )
+
+            //DAOVault setTON 주소 확인
+            let afterTON = await daovault.ton();
+            console.log(afterTON)
+            expect(afterTON).to.be.equal(oldContractInfo.CoinageFactory)
         })
     })
 })
