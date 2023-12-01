@@ -4,6 +4,8 @@ pragma solidity ^0.8.4;
 import { AccessControl } from "../accessControl/AccessControl.sol";
 import "./StorageStateCommittee.sol";
 
+import { ICandidate } from "./interfaces/ICandidate.sol";
+
 interface ITarget {
     function hasRole(bytes32 role, address account) external view returns (bool);
     function setSeigManager(address _seigManager) external;
@@ -19,6 +21,10 @@ interface IPauser {
 }
 
 contract DAOCommitteeOwner is StorageStateCommittee, AccessControl {
+
+    event ActivityRewardChanged(
+        uint256 newReward
+    );
 
     modifier onlyOwner() {
         require(
@@ -88,6 +94,44 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl {
 
     function setTon(address _ton) external onlyOwner nonZero(_ton) {
         ton = _ton;
+    }
+
+    function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
+        activityRewardPerSecond = _value;
+        emit ActivityRewardChanged(_value);
+    }
+
+
+     /// @notice Set SeigManager contract address on candidate contracts
+    /// @param _candidateContracts Candidate contracts to be set
+    /// @param _seigManager New SeigManager contract address
+    function setCandidatesSeigManager(
+        address[] calldata _candidateContracts,
+        address _seigManager
+    )
+        external
+        onlyOwner
+        nonZero(_seigManager)
+    {
+        for (uint256 i = 0; i < _candidateContracts.length; i++) {
+            ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
+        }
+    }
+
+    /// @notice Set DAOCommitteeProxy contract address on candidate contracts
+    /// @param _candidateContracts Candidate contracts to be set
+    /// @param _committee New DAOCommitteeProxy contract address
+    function setCandidatesCommittee(
+        address[] calldata _candidateContracts,
+        address _committee
+    )
+        external
+        onlyOwner
+        nonZero(_committee)
+    {
+        for (uint256 i = 0; i < _candidateContracts.length; i++) {
+            ICandidate(_candidateContracts[i]).setCommittee(_committee);
+        }
     }
 
 }

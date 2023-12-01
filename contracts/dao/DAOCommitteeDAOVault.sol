@@ -19,17 +19,6 @@ import "./lib/BytesLib.sol";
 
 // import "hardhat/console.sol";
 
-interface ITarget {
-    function setSeigManager(address _seigManager) external;
-    function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
-    function addMinter(address account) external;
-}
-
-interface IPauser {
-    function pause() external ;
-    function unpause() external;
-}
-
 contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
 
@@ -106,9 +95,9 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         string newMemo
     );
 
-    event ActivityRewardChanged(
-        uint256 newReward
-    );
+    // event ActivityRewardChanged(
+    //     uint256 newReward
+    // );
 
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
@@ -138,37 +127,37 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     //     seigManager = ISeigManager(_seigManager);
     // }
 
-    /// @notice Set SeigManager contract address on candidate contracts
-    /// @param _candidateContracts Candidate contracts to be set
-    /// @param _seigManager New SeigManager contract address
-    function setCandidatesSeigManager(
-        address[] calldata _candidateContracts,
-        address _seigManager
-    )
-        external
-        onlyOwner
-        nonZero(_seigManager)
-    {
-        for (uint256 i = 0; i < _candidateContracts.length; i++) {
-            ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
-        }
-    }
+    // /// @notice Set SeigManager contract address on candidate contracts
+    // /// @param _candidateContracts Candidate contracts to be set
+    // /// @param _seigManager New SeigManager contract address
+    // function setCandidatesSeigManager(
+    //     address[] calldata _candidateContracts,
+    //     address _seigManager
+    // )
+    //     external
+    //     onlyOwner
+    //     nonZero(_seigManager)
+    // {
+    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
+    //         ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
+    //     }
+    // }
 
-    /// @notice Set DAOCommitteeProxy contract address on candidate contracts
-    /// @param _candidateContracts Candidate contracts to be set
-    /// @param _committee New DAOCommitteeProxy contract address
-    function setCandidatesCommittee(
-        address[] calldata _candidateContracts,
-        address _committee
-    )
-        external
-        onlyOwner
-        nonZero(_committee)
-    {
-        for (uint256 i = 0; i < _candidateContracts.length; i++) {
-            ICandidate(_candidateContracts[i]).setCommittee(_committee);
-        }
-    }
+    // /// @notice Set DAOCommitteeProxy contract address on candidate contracts
+    // /// @param _candidateContracts Candidate contracts to be set
+    // /// @param _committee New DAOCommitteeProxy contract address
+    // function setCandidatesCommittee(
+    //     address[] calldata _candidateContracts,
+    //     address _committee
+    // )
+    //     external
+    //     onlyOwner
+    //     nonZero(_committee)
+    // {
+    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
+    //         ICandidate(_candidateContracts[i]).setCommittee(_committee);
+    //     }
+    // }
 
     // function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
     //     daoVault = IDAOVault(_daoVault);
@@ -196,10 +185,10 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     //     ton = _ton;
     // }
 
-    function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
-        activityRewardPerSecond = _value;
-        emit ActivityRewardChanged(_value);
-    }
+    // function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
+    //     activityRewardPerSecond = _value;
+    //     emit ActivityRewardChanged(_value);
+    // }
 
     /// @notice Increases the number of member slot
     /// @param _newMaxMember New number of member slot
