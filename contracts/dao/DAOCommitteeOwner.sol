@@ -99,6 +99,10 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
         ton = _ton;
     }
 
+    function setWton(address _wton) external onlyOwner nonZero(_wton) {
+        wton = _wton;
+    }
+
     function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
         activityRewardPerSecond = _value;
         emit ActivityRewardChanged(_value);

@@ -121,75 +121,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     //////////////////////////////////////////////////////////////////////
     // setters
 
-    // /// @notice Set SeigManager contract address
-    // /// @param _seigManager New SeigManager contract address
-    // function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
-    //     seigManager = ISeigManager(_seigManager);
-    // }
-
-    // /// @notice Set SeigManager contract address on candidate contracts
-    // /// @param _candidateContracts Candidate contracts to be set
-    // /// @param _seigManager New SeigManager contract address
-    // function setCandidatesSeigManager(
-    //     address[] calldata _candidateContracts,
-    //     address _seigManager
-    // )
-    //     external
-    //     onlyOwner
-    //     nonZero(_seigManager)
-    // {
-    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
-    //         ICandidate(_candidateContracts[i]).setSeigManager(_seigManager);
-    //     }
-    // }
-
-    // /// @notice Set DAOCommitteeProxy contract address on candidate contracts
-    // /// @param _candidateContracts Candidate contracts to be set
-    // /// @param _committee New DAOCommitteeProxy contract address
-    // function setCandidatesCommittee(
-    //     address[] calldata _candidateContracts,
-    //     address _committee
-    // )
-    //     external
-    //     onlyOwner
-    //     nonZero(_committee)
-    // {
-    //     for (uint256 i = 0; i < _candidateContracts.length; i++) {
-    //         ICandidate(_candidateContracts[i]).setCommittee(_committee);
-    //     }
-    // }
-
-    // function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
-    //     daoVault = IDAOVault(_daoVault);
-    // }
-
-    // /// @notice Set Layer2Registry contract address
-    // /// @param _layer2Registry New Layer2Registry contract address
-    // function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
-    //     layer2Registry = ILayer2Registry(_layer2Registry);
-    // }
-
-    // /// @notice Set DAOAgendaManager contract address
-    // /// @param _agendaManager New DAOAgendaManager contract address
-    // function setAgendaManager(address _agendaManager) external onlyOwner nonZero(_agendaManager) {
-    //     agendaManager = IDAOAgendaManager(_agendaManager);
-    // }
-
-    // /// @notice Set CandidateFactory contract address
-    // /// @param _candidateFactory New CandidateFactory contract address
-    // function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
-    //     candidateFactory = ICandidateFactory(_candidateFactory);
-    // }
-
-    // function setTon(address _ton) external onlyOwner nonZero(_ton) {
-    //     ton = _ton;
-    // }
-
-    // function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
-    //     activityRewardPerSecond = _value;
-    //     emit ActivityRewardChanged(_value);
-    // }
-
     /// @notice Increases the number of member slot
     /// @param _newMaxMember New number of member slot
     /// @param _quorum New quorum
@@ -479,8 +410,8 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     function onApprove(
         address owner,
-        address spender,
-        uint256 tonAmount,
+        address ,
+        uint256 ,
         bytes calldata data
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
@@ -490,7 +421,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         // 1.claimTON function 실행불가
         // 2.claimERC20에서 _token주소에 TON주소 실행불가
         // 3.claimWTON 실행시 _amount가 DAOVault에 있는 WTON양을 넘으면 안됨
-        address wton = 0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2;
 
         bool check1;    //claimTON 인지 확인
         bool check2;    //claimERC20 인지 확인
@@ -765,7 +695,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
-        uint256 wtonAmount = _toRAY(amount);   
+        uint256 wtonAmount = _toRAY(amount);
         daoVault.claimWTON(_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;

@@ -16,4 +16,6 @@ contract StorageStateCommitteeV2 {
         uint128 rewardPeriod;
         uint128 claimedTimestamp;
     }
+
+    address public wton;
 }

@@ -76,6 +76,8 @@ describe("DAOAgenda Test", () => {
     let sendether = "0xDE0B6B3A7640000"
 
     let zeroAddr = "0x0000000000000000000000000000000000000000";
+    let oneAddr = "0x0000000000000000000000000000000000000001";
+    let tosAddr = "0x409c4D8cd5d2924b9bc5509230d16a61289c8153";
 
     // mainnet network
     const oldContractInfo = {
@@ -243,7 +245,91 @@ describe("DAOAgenda Test", () => {
         })
     })
 
+    describe("setTON test", () => {
+        it("Deploy the DAOCommitteeOwner", async () => {
+            const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
+            daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
+            await daoCommitteeOwnerLogic.deployed();
+            console.log('daoCommitteeOwnerLogic' , daoCommitteeOwnerLogic.address)
+        })
+
+        it("DAO upgradeTo newLogic", async () => {
+            let imp1 = await daoCommitteeProxy.implementation()
+            console.log('imp1', imp1)
+
+            if(imp1.toLowerCase() != daoCommitteeOwnerLogic.address.toLowerCase()) {
+                await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+                    daoCommitteeOwnerLogic.address)).wait()
+            }
+
+            let imp2 = await daoCommitteeProxy.implementation()
+            console.log('imp2', imp2)
+            console.log('upgradeTo done')
+        })
+
+        it("set DAO Owner logic", async () => {
+            daoCommitteeOwner = new ethers.Contract(
+                daoCommitteeProxy.address,
+                DAOCommitteeOwnerABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("set DAOVault", async () => {
+            daovault = new ethers.Contract(
+                oldContractInfo.DAOVault,
+                DAOVaultABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("setTargetSetTON Test", async () => {
+            //DAOVault setTON 주소 확인
+            let beforeTON = await daovault.ton();
+            console.log(beforeTON)
+            expect(beforeTON).to.be.equal(oldContractInfo.TON)
+            
+            //DAOlogic에서 변경 실행
+            await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetTON(
+                daovault.address,
+                tosAddr
+            )
+
+            //DAOVault setTON 주소 확인
+            let afterTON = await daovault.ton();
+            console.log(afterTON)
+            expect(afterTON).to.be.equal(tosAddr)
+        })
+
+        it("setWTON Test", async () => {
+            let beforeWTON = await daoCommitteeOwner.wton();
+            expect(beforeWTON).to.be.equal(zeroAddr)
+
+            await daoCommitteeOwner.connect(daoCommitteeAdmin).setWton(
+                oldContractInfo.WTON
+            )
+
+            let afterWTON = await daoCommitteeOwner.wton();
+            expect(afterWTON).to.be.equal(oldContractInfo.WTON)
+        })
+    })
+
     describe("Agenda Test", () => {
+        it("DAO upgradeTo DAOVaultLogic", async () => {
+            let imp1 = await daoCommitteeProxy.implementation()
+            console.log('imp1', imp1)
+
+            if(imp1.toLowerCase() != daoCommitteeDAOVaultLogic.address.toLowerCase()) {
+                await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+                    daoCommitteeDAOVaultLogic.address)).wait()
+            }
+
+            let imp2 = await daoCommitteeProxy.implementation()
+            expect(imp2).to.be.equal(daoCommitteeDAOVaultLogic.address)
+            // console.log('imp2', imp2)
+            console.log('upgradeTo done')
+        })
+
         it("DAOVault Agenda claimTON Test", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -609,74 +695,16 @@ describe("DAOAgenda Test", () => {
             expect(afterclaimAmount).to.be.equal(0)
             
             let afterWTON = await wton.balanceOf(wtonCheck)
-            console.log("afterWTON :", afterWTON);
-            console.log("wtonClaimAmount :", wtonClaimAmount);
+            // console.log("afterWTON :", afterWTON);
             expect(afterWTON).to.be.equal(claimWTONAmount);
 
             let afterDAOVault = await wton.balanceOf(oldContractInfo.DAOVault)
             let calculAmount = beforeDAOVault.sub(claimWTONAmount)
             
-            console.log("afterDAOVault :", afterDAOVault);
-            console.log("calculAmount :", calculAmount);
+            // console.log("afterDAOVault :", afterDAOVault);
+            // console.log("calculAmount :", calculAmount);
 
             expect(afterDAOVault).to.be.equal(calculAmount)
-        })
-    })
-    
-    describe("setTON test", () => {
-        it("Deploy the DAOCommitteeOwner", async () => {
-            const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
-            daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
-            await daoCommitteeOwnerLogic.deployed();
-            console.log('daoCommitteeOwnerLogic' , daoCommitteeOwnerLogic.address)
-        })
-
-        it("DAO upgradeTo newLogic", async () => {
-            let imp1 = await daoCommitteeProxy.implementation()
-            console.log('imp1', imp1)
-
-            if(imp1.toLowerCase() != daoCommitteeOwnerLogic.address.toLowerCase()) {
-                await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-                    daoCommitteeOwnerLogic.address)).wait()
-            }
-
-            let imp2 = await daoCommitteeProxy.implementation()
-            console.log('imp2', imp2)
-            console.log('upgradeTo done')
-        })
-
-        it("set DAO Owner logic", async () => {
-            daoCommitteeOwner = new ethers.Contract(
-                daoCommitteeProxy.address,
-                DAOCommitteeOwnerABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("set DAOVault", async () => {
-            daovault = new ethers.Contract(
-                oldContractInfo.DAOVault,
-                DAOVaultABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("setTargetSetTON Test", async () => {
-            //DAOVault setTON 주소 확인
-            let beforeTON = await daovault.ton();
-            console.log(beforeTON)
-            expect(beforeTON).to.be.equal(oldContractInfo.TON)
-            
-            //DAOlogic에서 변경 실행
-            await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetTON(
-                daovault.address,
-                oldContractInfo.CoinageFactory
-            )
-
-            //DAOVault setTON 주소 확인
-            let afterTON = await daovault.ton();
-            console.log(afterTON)
-            expect(afterTON).to.be.equal(oldContractInfo.CoinageFactory)
         })
     })
 })
