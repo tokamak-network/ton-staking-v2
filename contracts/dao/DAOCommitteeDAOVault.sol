@@ -442,6 +442,8 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 bytes memory claimWTONBytes = hex"f52bba70";
 
                 check1 = selector1.equal(claimTONBytes);
+                require(!check1, "claimTON dont use");
+                
                 check2 = selector1.equal(claimERC20Bytes);
                 check4 = selector1.equal(claimWTONBytes);
                 // console.log("check1 :", check1);
@@ -471,7 +473,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 // console.log("out if");
             }
         }
-        require(!check1, "claimTON dont use");
 
         _createAgenda(
             owner,
