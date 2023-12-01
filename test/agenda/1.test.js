@@ -286,7 +286,7 @@ describe("DAOAgenda Test", () => {
         it("setTargetSetTON Test", async () => {
             //DAOVault setTON 주소 확인
             let beforeTON = await daovault.ton();
-            console.log(beforeTON)
+            // console.log(beforeTON)
             expect(beforeTON).to.be.equal(oldContractInfo.TON)
             
             //DAOlogic에서 변경 실행
@@ -297,7 +297,7 @@ describe("DAOAgenda Test", () => {
 
             //DAOVault setTON 주소 확인
             let afterTON = await daovault.ton();
-            console.log(afterTON)
+            // console.log(afterTON)
             expect(afterTON).to.be.equal(tosAddr)
         })
 

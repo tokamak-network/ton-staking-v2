@@ -18,4 +18,8 @@ contract StorageStateCommitteeV2 {
     }
 
     address public wton;
+
+    // bytes internal claimTONBytes = hex"ef0d5594";
+    // bytes internal claimERC20Bytes = hex"f848091a";
+    // bytes internal claimWTONBytes = hex"f52bba70";
 }

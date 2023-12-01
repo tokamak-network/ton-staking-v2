@@ -22,6 +22,10 @@ import "./lib/BytesLib.sol";
 contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
 
+    // bytes internal claimTONBytes = hex"ef0d5594";
+    // bytes internal claimERC20Bytes = hex"f848091a";
+    // bytes internal claimWTONBytes = hex"f52bba70";
+
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
 
     struct AgendaCreatingData {
@@ -430,19 +434,13 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 //_functionBytecodes[i] 값 체크
                 // console.log("in if");
                 bytes memory abc = agendaData.functionBytecode[i];
-                // console.logBytes(abc);
-                // console.log("length");
-                // console.log(agendaData.functionBytecode[i].length);
                 bytes memory selector1 = abc.slice(0, 4);
-                // console.log("selector1.length :", selector1.length);
-                // console.logBytes(selector1);
                 
                 // claimTON function 실행불가
-                // console.log("1");
                 bytes memory claimTONBytes = hex"ef0d5594";
                 bytes memory claimERC20Bytes = hex"f848091a";
                 bytes memory claimWTONBytes = hex"f52bba70";
-                // console.log("2");
+
                 check1 = selector1.equal(claimTONBytes);
                 check2 = selector1.equal(claimERC20Bytes);
                 check4 = selector1.equal(claimWTONBytes);
@@ -450,11 +448,9 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 // console.log("check2 :", check2);
                 // console.log("check4 :", check4);
                 if(check2){
-                    bytes memory tonaddr = hex"2be5e8c109e2197d077d13a82daead6a9b3433c5";
+                    bytes memory tonaddr = toBytes(ton);
                     bytes memory ercaddr = abc.slice(16,20);
-                    // console.log("ercAddr");
-                    // console.logBytes(ercaddr);
-                    // console.log("tonAddr");
+
                     // console.logBytes(tonaddr);
                     bool check3 = ercaddr.equal(tonaddr); //claimERC20일때 TON주소 호출하는지 확인   
                     // console.log("check3 :", check3);
@@ -489,7 +485,11 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         return true;
     }
 
-    function parseRevertReason(bytes memory reason) private pure returns (uint256) {
+    function toBytes(address a) internal pure returns (bytes memory) {
+        return abi.encodePacked(a);
+    }
+
+    function parseRevertReason(bytes memory reason) internal pure returns (uint256) {
         if (reason.length != 32) {
             if (reason.length < 68) revert('Unexpected error');
             assembly {
