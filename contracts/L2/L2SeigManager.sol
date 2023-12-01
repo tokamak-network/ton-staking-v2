@@ -43,10 +43,21 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
     _;
   }
-  event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
   event CoinageCreated(address indexed layer2, address coinage);
   event OnSnapshot(uint256 snapshotId);
+  event Updated(
+    address layer2,
+    address account,
+    IRefactor.Factor totFactor,
+    IRefactor.Balance totTotalBalance,
+    IRefactor.Balance totLayerBalance,
+    IRefactor.Factor layerFactor,
+    IRefactor.Balance layerTotalBalance,
+    IRefactor.Balance layerAccountBalance
+    );
+  event UpdatedSeigniorage(address layer2,  IRefactor.Factor totFactor, IRefactor.Factor layerFactor);
+
 
   //////////////////////////////
   // Constuctor
@@ -123,6 +134,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     _coinages[layer2].updateFactor(layerFactor);
     _coinages[layer2].updateBalance(layerTotalBalance, layerAccountBalance, account, true, true);
 
+    emit Updated(layer2, account, totFactor, totTotalBalance, totLayerBalance, layerFactor, layerTotalBalance, layerAccountBalance );
     return true;
   }
 
@@ -137,7 +149,10 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   {
       _tot.updateFactor(totFactor);
       _coinages[layer2].updateFactor(layerFactor);
-    return true;
+
+      emit UpdatedSeigniorage(layer2,  totFactor, layerFactor);
+
+      return true;
   }
 
 

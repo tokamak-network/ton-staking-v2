@@ -16,11 +16,8 @@ contract L2SeigManagerStorage   {
     uint256 constant public MAX_VALID_COMMISSION = RAY; // 1 RAY
     uint256 constant public MIN_VALID_COMMISSION = 10 ** 25; // 0.01 RAY
 
-    //////////////////////////////
-    // Common contracts
-    //////////////////////////////
 
-    // contract factory
+    // coinage factory
     address public factory;
 
     // track total deposits of each layer2.
