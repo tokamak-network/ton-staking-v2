@@ -443,7 +443,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
                 check1 = selector1.equal(claimTONBytes);
                 require(!check1, "claimTON dont use");
-                
+
                 check2 = selector1.equal(claimERC20Bytes);
                 check4 = selector1.equal(claimWTONBytes);
                 // console.log("check1 :", check1);
@@ -464,7 +464,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                     // console.logBytes(amount);
                     bytes memory amount1 = amount.slice(14,32);
                     // console.logBytes(amount1);
-                    uint256 inputWTONamount = parseRevertReason(amount1);
+                    uint256 inputWTONamount = byteToUnit256(amount1);
                     // console.log("daoWTONamount :", daoWTONamount);
                     // console.log("inputWTONamount :", inputWTONamount);
                     require(daoWTONamount >= inputWTONamount, "amount over");
@@ -490,7 +490,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         return abi.encodePacked(a);
     }
 
-    function parseRevertReason(bytes memory reason) internal pure returns (uint256) {
+    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
         if (reason.length != 32) {
             if (reason.length < 68) revert('Unexpected error');
             assembly {
