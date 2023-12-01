@@ -421,22 +421,14 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
         
-        //_Tragets가 DAOVault주소일때 
-        // 1.claimTON function 실행불가
-        // 2.claimERC20에서 _token주소에 TON주소 실행불가
-        // 3.claimWTON 실행시 _amount가 DAOVault에 있는 WTON양을 넘으면 안됨
-
-        bool check1;    //claimTON 인지 확인
-        bool check2;    //claimERC20 인지 확인
-        bool check4;    //claimWTON 인지 확인
+        bool check1;    
+        bool check2;    
+        bool check4;    
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
-                //_functionBytecodes[i] 값 체크
-                // console.log("in if");
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
                 
-                // claimTON function 실행불가
                 bytes memory claimTONBytes = hex"ef0d5594";
                 bytes memory claimERC20Bytes = hex"f848091a";
                 bytes memory claimWTONBytes = hex"f52bba70";
@@ -446,31 +438,19 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
                 check2 = selector1.equal(claimERC20Bytes);
                 check4 = selector1.equal(claimWTONBytes);
-                // console.log("check1 :", check1);
-                // console.log("check2 :", check2);
-                // console.log("check4 :", check4);
                 if(check2){
                     bytes memory tonaddr = toBytes(ton);
                     bytes memory ercaddr = abc.slice(16,20);
-
-                    // console.logBytes(tonaddr);
-                    bool check3 = ercaddr.equal(tonaddr); //claimERC20일때 TON주소 호출하는지 확인   
-                    // console.log("check3 :", check3);
+                    bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, "claimERC20 ton dont use");
                 }
                 if(check4){
                     uint256 daoWTONamount = IERC20(wton).balanceOf(address(daoVault));
                     bytes memory amount = abc.slice(22,46);
-                    // console.logBytes(amount);
                     bytes memory amount1 = amount.slice(14,32);
-                    // console.logBytes(amount1);
                     uint256 inputWTONamount = byteToUnit256(amount1);
-                    // console.log("daoWTONamount :", daoWTONamount);
-                    // console.log("inputWTONamount :", inputWTONamount);
                     require(daoWTONamount >= inputWTONamount, "amount over");
                 }
-                // console.log("3");
-                // console.log("out if");
             }
         }
 
@@ -515,54 +495,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         quorum = _quorum;
         emit QuorumChanged(quorum);
     }
-
-    // /// @notice Set fee amount of creating an agenda
-    // /// @param _fees Fee amount on TON
-    // function setCreateAgendaFees(
-    //     uint256 _fees
-    // )
-    //     external
-    //     onlyOwner
-    //     validAgendaManager
-    // {
-    //     agendaManager.setCreateAgendaFees(_fees);
-    // }
-
-    // /// @notice Set the minimum notice period
-    // /// @param _minimumNoticePeriod New minimum notice period in second
-    // function setMinimumNoticePeriodSeconds(
-    //     uint256 _minimumNoticePeriod
-    // )
-    //     external
-    //     onlyOwner
-    //     validAgendaManager
-    // {
-    //     agendaManager.setMinimumNoticePeriodSeconds(_minimumNoticePeriod);
-    // }
-
-    // /// @notice Set the minimum voting period
-    // /// @param _minimumVotingPeriod New minimum voting period in second
-    // function setMinimumVotingPeriodSeconds(
-    //     uint256 _minimumVotingPeriod
-    // )
-    //     external
-    //     onlyOwner
-    //     validAgendaManager
-    // {
-    //     agendaManager.setMinimumVotingPeriodSeconds(_minimumVotingPeriod);
-    // }
-
-    // /// @notice Set the executing period
-    // /// @param _executingPeriodSeconds New executing period in second
-    // function setExecutingPeriodSeconds(
-    //     uint256 _executingPeriodSeconds
-    // )
-    //     external
-    //     onlyOwner
-    //     validAgendaManager
-    // {
-    //     agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
-    // }
 
     /// @notice Vote on an agenda
     /// @param _agendaID The agenda ID
@@ -915,7 +847,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         }
 
         return period * activityRewardPerSecond;
-        // return 0;
     }
 
     function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
