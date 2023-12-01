@@ -17,7 +17,7 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 interface ITarget {
     function setSeigManager(address _seigManager) external;
