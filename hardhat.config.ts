@@ -209,6 +209,12 @@ const config: HardhatUserConfig = {
       chainId: 17000,
       deploy: ['deploy-holesky']
     },
+    sepolia: {
+      url: `${process.env.ETH_NODE_URI_sepolia}`,
+      accounts: [`${process.env.PRIVATE_KEY}`],
+      chainId: 11155111,
+      deploy: ['deploy-sepolia']
+    },
   },
   deterministicDeployment: (network: string) => {
     // Skip on hardhat's local network.
@@ -230,6 +236,7 @@ const config: HardhatUserConfig = {
       titan: "verify",
       titangoerli: "verify",
       holesky: `${process.env.API_KEY}`,
+      sepolia: `${process.env.ETHERSCAN_API_KEY}`
     } ,
     customChains: [
       {
