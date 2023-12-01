@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { AccessControl } from "../accessControl/AccessControl.sol";
-import "./StorageStateCommittee.sol";
-
 import { ICandidate } from "./interfaces/ICandidate.sol";
+
+import { AccessControl } from "../accessControl/AccessControl.sol";
+import {ERC165A}  from "../accessControl/ERC165A.sol";
+
+import "./StorageStateCommittee.sol";
+import "./StorageStateCommitteeV2.sol";
 
 interface ITarget {
     function hasRole(bytes32 role, address account) external view returns (bool);
@@ -20,7 +23,7 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is StorageStateCommittee, AccessControl {
+contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2{
 
     event ActivityRewardChanged(
         uint256 newReward
@@ -134,4 +137,51 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl {
         }
     }
 
+     /// @notice Set fee amount of creating an agenda
+    /// @param _fees Fee amount on TON
+    function setCreateAgendaFees(
+        uint256 _fees
+    )
+        external
+        onlyOwner
+        validAgendaManager
+    {
+        agendaManager.setCreateAgendaFees(_fees);
+    }
+
+    /// @notice Set the minimum notice period
+    /// @param _minimumNoticePeriod New minimum notice period in second
+    function setMinimumNoticePeriodSeconds(
+        uint256 _minimumNoticePeriod
+    )
+        external
+        onlyOwner
+        validAgendaManager
+    {
+        agendaManager.setMinimumNoticePeriodSeconds(_minimumNoticePeriod);
+    }
+
+    /// @notice Set the minimum voting period
+    /// @param _minimumVotingPeriod New minimum voting period in second
+    function setMinimumVotingPeriodSeconds(
+        uint256 _minimumVotingPeriod
+    )
+        external
+        onlyOwner
+        validAgendaManager
+    {
+        agendaManager.setMinimumVotingPeriodSeconds(_minimumVotingPeriod);
+    }
+
+    /// @notice Set the executing period
+    /// @param _executingPeriodSeconds New executing period in second
+    function setExecutingPeriodSeconds(
+        uint256 _executingPeriodSeconds
+    )
+        external
+        onlyOwner
+        validAgendaManager
+    {
+        agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
+    }
 }

@@ -210,47 +210,47 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
-    // function createCandidate(string calldata _memo)
-    //     external
-    // {
-    //     address _operator = msg.sender;
-    //     require(!isExistCandidate(_operator), "DAOCommittee: candidate already registerd");
+    function createCandidate(string calldata _memo)
+        external
+    {
+        address _operator = msg.sender;
+        require(!isExistCandidate(_operator), "DAOCommittee: candidate already registerd");
 
-    //     // Candidate
-    //     address candidateContract = candidateFactory.deploy(
-    //         _operator,
-    //         false,
-    //         _memo,
-    //         address(this),
-    //         address(seigManager)
-    //     );
+        // Candidate
+        address candidateContract = candidateFactory.deploy(
+            _operator,
+            false,
+            _memo,
+            address(this),
+            address(seigManager)
+        );
 
-    //     require(
-    //         candidateContract != address(0),
-    //         "DAOCommittee: deployed candidateContract is zero"
-    //     );
-    //     require(
-    //         _candidateInfos[_operator].candidateContract == address(0),
-    //         "DAOCommittee: The candidate already has contract"
-    //     );
-    //     require(
-    //         layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-    //         "DAOCommittee: failed to registerAndDeployCoinage"
-    //     );
+        require(
+            candidateContract != address(0),
+            "DAOCommittee: deployed candidateContract is zero"
+        );
+        require(
+            _candidateInfos[_operator].candidateContract == address(0),
+            "DAOCommittee: The candidate already has contract"
+        );
+        require(
+            layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
+            "DAOCommittee: failed to registerAndDeployCoinage"
+        );
 
-    //     _candidateInfos[_operator] = CandidateInfo({
-    //         candidateContract: candidateContract,
-    //         memberJoinedTime: 0,
-    //         indexMembers: 0,
-    //         rewardPeriod: 0,
-    //         claimedTimestamp: 0
-    //     });
+        _candidateInfos[_operator] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
 
-    //     candidates.push(_operator);
+        candidates.push(_operator);
 
-    //     emit CandidateContractCreated(_operator, candidateContract, _memo);
+        emit CandidateContractCreated(_operator, candidateContract, _memo);
 
-    // }
+    }
 
     function createCandidate(string calldata _memo, address _operatorAddress)
         public
@@ -585,53 +585,53 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         emit QuorumChanged(quorum);
     }
 
-    /// @notice Set fee amount of creating an agenda
-    /// @param _fees Fee amount on TON
-    function setCreateAgendaFees(
-        uint256 _fees
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setCreateAgendaFees(_fees);
-    }
+    // /// @notice Set fee amount of creating an agenda
+    // /// @param _fees Fee amount on TON
+    // function setCreateAgendaFees(
+    //     uint256 _fees
+    // )
+    //     external
+    //     onlyOwner
+    //     validAgendaManager
+    // {
+    //     agendaManager.setCreateAgendaFees(_fees);
+    // }
 
-    /// @notice Set the minimum notice period
-    /// @param _minimumNoticePeriod New minimum notice period in second
-    function setMinimumNoticePeriodSeconds(
-        uint256 _minimumNoticePeriod
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setMinimumNoticePeriodSeconds(_minimumNoticePeriod);
-    }
+    // /// @notice Set the minimum notice period
+    // /// @param _minimumNoticePeriod New minimum notice period in second
+    // function setMinimumNoticePeriodSeconds(
+    //     uint256 _minimumNoticePeriod
+    // )
+    //     external
+    //     onlyOwner
+    //     validAgendaManager
+    // {
+    //     agendaManager.setMinimumNoticePeriodSeconds(_minimumNoticePeriod);
+    // }
 
-    /// @notice Set the minimum voting period
-    /// @param _minimumVotingPeriod New minimum voting period in second
-    function setMinimumVotingPeriodSeconds(
-        uint256 _minimumVotingPeriod
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setMinimumVotingPeriodSeconds(_minimumVotingPeriod);
-    }
+    // /// @notice Set the minimum voting period
+    // /// @param _minimumVotingPeriod New minimum voting period in second
+    // function setMinimumVotingPeriodSeconds(
+    //     uint256 _minimumVotingPeriod
+    // )
+    //     external
+    //     onlyOwner
+    //     validAgendaManager
+    // {
+    //     agendaManager.setMinimumVotingPeriodSeconds(_minimumVotingPeriod);
+    // }
 
-    /// @notice Set the executing period
-    /// @param _executingPeriodSeconds New executing period in second
-    function setExecutingPeriodSeconds(
-        uint256 _executingPeriodSeconds
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
-    }
+    // /// @notice Set the executing period
+    // /// @param _executingPeriodSeconds New executing period in second
+    // function setExecutingPeriodSeconds(
+    //     uint256 _executingPeriodSeconds
+    // )
+    //     external
+    //     onlyOwner
+    //     validAgendaManager
+    // {
+    //     agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
+    // }
 
     /// @notice Vote on an agenda
     /// @param _agendaID The agenda ID
