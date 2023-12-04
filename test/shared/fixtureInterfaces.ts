@@ -112,8 +112,31 @@ interface JSONFixture {
     PowerTON: any
 }
 
+interface NewTonStakingV2Fixtures2  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    depositManagerV1: any ,
+    seigManagerV1: any ,
+    layer2RegistryV1: any ,
+    coinageFactoryV1: any ,
+    TON: any ,
+    WTON: any ,
+    daoCommitteeProxy: any ,
+    daoAgendaManager: any,
+    candidateFactoryV1: any ,
+    powerTonProxy: any ,
+    daoCommittee: DAOCommitteeExtend,
+    depositManagerV2: DepositManager ,
+    seigManagerV2: SeigManager ,
+    layer2RegistryV2: Layer2Registry ,
+    powerTON: PowerTONUpgrade,
+    powerTonAddress : string
+}
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
-    JSONFixture
+    JSONFixture,
+    NewTonStakingV2Fixtures2
 }

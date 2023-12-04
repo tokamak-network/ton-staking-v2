@@ -811,8 +811,20 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       return 0;
     }
 
-    tos = (50_000_000 * (10 ** 27)) - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
-      - 178111666909855730000000000000000 + (_seigPerBlock * (block.number - 1083769));
+    tos = (50000000 * (10 ** 27)) + (_seigPerBlock * (block.number - 1083769))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
+  }
+
+  function totalSupplyOfTon_1() public view returns (uint256 tos) {
+    tos = (
+      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
+      ) + ITON(_wton).totalSupply();
+  }
+
+  function totalSupplyOfTon_2() public view returns (uint256 tos) {
+    tos = (
+        (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
+      ) * (10 ** 9)) + (_tot.totalSupply());
   }
 
 }
