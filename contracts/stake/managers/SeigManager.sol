@@ -807,11 +807,11 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
   function totalSupplyOfTon() public view returns (uint256 tos) {
 
-    if(block.number < 10837698) {
+    if(_lastSeigBlock < 10837698) {
       return 0;
     }
 
-    tos = (50000000 * (10 ** 27)) + (_seigPerBlock * (block.number - 1083769))
+    tos = (50000000 * (10 ** 27)) + (_seigPerBlock * (_lastSeigBlock - 1083769))
       - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
   }
 
