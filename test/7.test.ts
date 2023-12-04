@@ -3,8 +3,8 @@ import { ethers, network } from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 import { mine } from "@nomicfoundation/hardhat-network-helpers"
 
-import {
-    tonStakingV2HolskyFixture,
+import {tonStakingV2SepoliaFixture,
+        tonStakingV2HolskyFixture,
         lastSeigBlock,
         globalWithdrawalDelay,
         seigManagerInfo,
@@ -39,7 +39,7 @@ describe(' Simple Staking Test', () => {
 
 
     before('create fixture loader', async () => {
-        deployed = await tonStakingV2HolskyFixture()
+        deployed = await tonStakingV2SepoliaFixture()
         jsonInfo = await jsonFixtures()
 
         deployer = deployed.deployer;

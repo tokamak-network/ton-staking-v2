@@ -25,13 +25,13 @@ const oldDepositManager = "0x0000000000000000000000000000000000000000"
 const v1Infos = {
     ton: '0xa30fe40285b8f5c0457dbc3b7c8a280373c40044',
     wton: '0x79e0d92670106c85e9067b56b8f674340dca0bbd',
-    daoCommittee: null,
+    daoCommittee: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
     globalWithdrawalDelay: ethers.BigNumber.from("93046"),
     lastSeigBlock : ethers.BigNumber.from("0"),
     pauseBlock: ethers.BigNumber.from("0"),
     seigPerBlock: ethers.BigNumber.from("3920000000000000000000000000"),
     powertonAddress: "0xbe16830EeD019227892938Ae13C54Ec218772f48",
-    daoVaultAddress : null,
+    daoVaultAddress : "0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4",
     depositManager: null
 }
 
@@ -229,14 +229,14 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )) as CoinageFactory;
 
     let autoCoinageLogic = await coinageFactory.autoCoinageLogic()
-    if (autoCoinageLogic != coinageDeployment.address) {
+    if (autoCoinageLogic.toLowerCase() != coinageDeployment.address.toLowerCase()) {
         await (await coinageFactory.connect(deploySigner).setAutoCoinageLogic(coinageDeployment.address)).wait()
     }
 
     //====== depositManagerV2 initialize ==================
     let wtonAddress1 = await depositManager.wton()
 
-    if (wtonAddress1 != v1Infos.wton) {
+    if (wtonAddress1.toLowerCase() != v1Infos.wton.toLowerCase()) {
         await (await depositManager.connect(deploySigner).initialize (
             v1Infos.wton,
             layer2RegistryProxy.address,
@@ -249,7 +249,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     //====== seigManagerV2 setData ==================
     let wtonAddress2 = await seigManager.wton()
 
-    if (wtonAddress2 != v1Infos.wton) {
+    if (wtonAddress2.toLowerCase() != v1Infos.wton.toLowerCase()) {
         await (await seigManager.connect(deploySigner).initialize (
             v1Infos.ton,
             v1Infos.wton,
@@ -264,7 +264,7 @@ const deployMigration: DeployFunction = async function (hre: HardhatRuntimeEnvir
     let powertonAddress = await seigManager.powerton()
     if (v1Infos.powertonAddress != null &&
         v1Infos.daoVaultAddress != null &&
-        powertonAddress != v1Infos.powertonAddress ) {
+        powertonAddress.toLowerCase() != v1Infos.powertonAddress.toLowerCase() ) {
         await (await seigManager.connect(deploySigner).setData (
             v1Infos.powertonAddress,
             v1Infos.daoVaultAddress,

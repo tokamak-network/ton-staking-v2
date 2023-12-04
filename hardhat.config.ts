@@ -163,8 +163,8 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://ethereum-holesky.publicnode.com`,
-        blockNumber: 416083,
+        url: `${process.env.ETH_NODE_URI_sepolia}`,
+        blockNumber: 4817878,
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']

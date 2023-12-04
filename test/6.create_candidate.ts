@@ -3,7 +3,7 @@ import { ethers, network } from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 import { mine } from "@nomicfoundation/hardhat-network-helpers"
 
-import {
+import {tonStakingV2SepoliaFixture,
     tonStakingV2HolskyFixture,
         lastSeigBlock,
         globalWithdrawalDelay,
@@ -38,7 +38,7 @@ describe('Candidate Test', () => {
 
 
     before('create fixture loader', async () => {
-        deployed = await tonStakingV2HolskyFixture()
+        deployed = await tonStakingV2SepoliaFixture()
         jsonInfo = await jsonFixtures()
 
         deployer = deployed.deployer;
@@ -91,6 +91,16 @@ describe('Candidate Test', () => {
     // candidate 생성
     describe('candidate ', () => {
         it('create candidate of TokamakOperator_v2 by daoCommitteeAdmin', async () => {
+
+            console.log('deployed.admin',deployed.admin.address)
+
+            const gas = await deployed.daoCommittee.connect(
+                deployed.admin
+            ).estimateGas["createCandidate(string,address)"](
+                layer2Info_num1.name,
+                layer2Info_num1.operatorAdmin,
+            )
+            console.log('gas',gas)
 
             const receipt = await (await deployed.daoCommittee.connect(
                 deployed.admin
