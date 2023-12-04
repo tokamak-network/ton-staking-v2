@@ -620,7 +620,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
         uint256 wtonAmount = _toRAY(amount);
-        daoVault.claimWTON(_receiver, wtonAmount);
+        daoVault.claimERC20(wton,_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
 
