@@ -420,27 +420,22 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
-        
-        bool check1;    
-        bool check2;    
-        bool check4;    
+         
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
 
-                check1 = selector1.equal(claimTONBytes);
+                bool check1 = selector1.equal(claimTONBytes);
                 require(!check1, "claimTON dont use");
 
-                check2 = selector1.equal(claimERC20Bytes);
-                check4 = selector1.equal(claimWTONBytes);
-                if(check2){
+                if(selector1.equal(claimERC20Bytes)){
                     bytes memory tonaddr = toBytes(ton);
                     bytes memory ercaddr = abc.slice(16,20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, "claimERC20 ton dont use");
                 }
-                if(check4){
+                if(selector1.equal(claimWTONBytes)){
                     uint256 daoWTONamount = IERC20(wton).balanceOf(address(daoVault));
                     bytes memory amount = abc.slice(22,46);
                     bytes memory amount1 = amount.slice(14,32);
