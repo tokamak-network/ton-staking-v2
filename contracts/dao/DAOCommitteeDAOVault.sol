@@ -22,9 +22,9 @@ import "./lib/BytesLib.sol";
 contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
 
-    // bytes internal claimTONBytes = hex"ef0d5594";
-    // bytes internal claimERC20Bytes = hex"f848091a";
-    // bytes internal claimWTONBytes = hex"f52bba70";
+    bytes constant claimTONBytes = hex"ef0d5594";
+    bytes constant claimERC20Bytes = hex"f848091a";
+    bytes constant claimWTONBytes = hex"f52bba70";
 
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
 
@@ -428,10 +428,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
             if(agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
-                
-                bytes memory claimTONBytes = hex"ef0d5594";
-                bytes memory claimERC20Bytes = hex"f848091a";
-                bytes memory claimWTONBytes = hex"f52bba70";
 
                 check1 = selector1.equal(claimTONBytes);
                 require(!check1, "claimTON dont use");
