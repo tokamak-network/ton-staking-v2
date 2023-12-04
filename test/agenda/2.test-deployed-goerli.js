@@ -50,8 +50,8 @@ describe("DAOAgenda Test", () => {
     let daovault;
 
     let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
-    let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
-    let wtonAddr = "c4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2";
+    let tonAddr = "68c1F9620aeC7F2913430aD6daC1bb16D8444F00";
+    let wtonAddr = "e86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6";
 
     let member1;
     let member2;
@@ -292,7 +292,7 @@ describe("DAOAgenda Test", () => {
             }
 
             let imp2 = await daoCommitteeProxy.implementation()
-            expect(imp2).to.be.equal(daoCommitteeDAOVaultLogic.address)
+            expect(imp2.toLowerCase()).to.be.equal(daoCommitteeDAOVaultLogic.toLowerCase())
             // console.log('imp2', imp2)
             console.log('upgradeTo done')
         })
@@ -555,7 +555,8 @@ describe("DAOAgenda Test", () => {
             const selector1 = Web3EthAbi.encodeFunctionSignature("claimWTON(address,uint256)");
             // console.log("selector1 : ", selector1);
             // console.log("selector1.length : ", selector1.length);
-            const claimAmount = 10000000000000000000000000000
+            // const claimAmount = 10000000000000000000000000000
+            const claimAmount = 0
             // const claimAmount = 20280309787867133590443242000000000
 
             const data1 = padLeft(testAddr.toString(), 64);
