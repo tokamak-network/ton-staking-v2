@@ -65,8 +65,10 @@ describe("DAOAgenda Test", () => {
     let member3Addr = "0x42adfaae7db56b294225ddcfebef48b337b34b23"
 
     let member1ContractAddr = "0x576c7a48fcef1c70db632bb1504d9a5c0d0190d3"
-    let member2ContractAddr = "0x42ccf0769e87cb2952634f607df1c7d62e0bbc52"
-    let member3ContractAddr = "0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764"
+    // let member2ContractAddr = "0x42ccf0769e87cb2952634f607df1c7d62e0bbc52"
+    let member2ContractAddr = "0x0F42D1C40b95DF7A1478639918fc358B4aF5298D"
+    // let member3ContractAddr = "0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764"
+    let member3ContractAddr = "0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2"
 
     let beforeclaimAmount;
     let afterclaimAmount;

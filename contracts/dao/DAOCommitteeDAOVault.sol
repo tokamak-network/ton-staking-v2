@@ -99,10 +99,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         string newMemo
     );
 
-    // event ActivityRewardChanged(
-    //     uint256 newReward
-    // );
-
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
         _;
@@ -208,12 +204,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
             "DAOCommittee: deployed candidateContract is zero"
         );
 
-        // require(
-        //     _candidateInfos[_operatorAddress].candidateContract == address(0),
-        //     "DAOCommittee: The candidate already has contract"
-        // );
-
-        //operator가 이미 candidate로 등록하였으면
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
 
             require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
@@ -426,21 +416,18 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
 
-                bool check1 = selector1.equal(claimTONBytes);
-                require(!check1, "claimTON dont use");
-
-                if(selector1.equal(claimERC20Bytes)){
+                if (selector1.equal(claimTONBytes)) revert('claimTON dont use');
+                else if (selector1.equal(claimERC20Bytes)) {
                     bytes memory tonaddr = toBytes(ton);
-                    bytes memory ercaddr = abc.slice(16,20);
+                    bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
-                    require(!check3, "claimERC20 ton dont use");
-                }
-                if(selector1.equal(claimWTONBytes)){
+                    require(!check3, 'claimERC20 ton dont use');
+                } else if (selector1.equal(claimWTONBytes)) {
                     uint256 daoWTONamount = IERC20(wton).balanceOf(address(daoVault));
-                    bytes memory amount = abc.slice(22,46);
-                    bytes memory amount1 = amount.slice(14,32);
+                    bytes memory amount = abc.slice(22, 46);
+                    bytes memory amount1 = amount.slice(14, 32);
                     uint256 inputWTONamount = byteToUnit256(amount1);
-                    require(daoWTONamount >= inputWTONamount, "amount over");
+                    require(daoWTONamount >= inputWTONamount, 'amount over');
                 }
             }
         }
