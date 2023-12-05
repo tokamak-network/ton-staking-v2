@@ -813,24 +813,22 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
   function totalSupplyOfTon() public view returns (uint256 tos) {
 
-    // if(block.number < 10837698) {
-    //   return 0;
-    // }
-
-    tos = (50000000 * (10 ** 27)) + (_seigPerBlock * (block.number - 1083769))
+    tos = 50000000000000000000000000000000000 + (_seigPerBlock * (block.number - 10837698))
       - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
   }
 
-  function totalSupplyOfTon_1() public view returns (uint256 tos) {
-    tos = (
-      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
-      ) + ITON(_wton).totalSupply();
-  }
+  // 실제 wton 과 ton 발행량
+  // function totalSupplyOfTon_1() public view returns (uint256 tos) {
+  //   tos = (
+  //     (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
+  //     ) + ITON(_wton).totalSupply();
+  // }
 
-  function totalSupplyOfTon_2() public view returns (uint256 tos) {
-    tos = (
-        (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-      ) * (10 ** 9)) + (_tot.totalSupply());
-  }
+  // 언스테이킹 된 wton 반영안됨
+  // function totalSupplyOfTon_2() public view returns (uint256 tos) {
+  //   tos = (
+  //       (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
+  //     ) * (10 ** 9)) + (_tot.totalSupply());
+  // }
 
 }

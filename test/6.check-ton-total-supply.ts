@@ -336,17 +336,11 @@ describe('Fork Simple Staking Test', () => {
             let totalSupplyOfTon = await deployed.seigManagerV2["totalSupplyOfTon()"]()
             console.log( ' tonTotalSupply      ', ethers.utils.formatUnits(totalSupplyOfTon,27) , 'WTON')
 
-            let totalSupplyOfTon_1 = await deployed.seigManagerV2["totalSupplyOfTon_1()"]()
-            console.log( ' tonTotalSupply_1    ', ethers.utils.formatUnits(totalSupplyOfTon_1,27) , 'WTON' )
-
-            let totalSupplyOfTon_2 = await deployed.seigManagerV2["totalSupplyOfTon_2()"]()
-            console.log( ' totalSupplyOfTon_2  ', ethers.utils.formatUnits(totalSupplyOfTon_2,27) , 'WTON' )
-
             let stakedA = await deployed.seigManagerV2["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
             let powerTonBalance = await deployed.WTON.balanceOf(deployed.powerTonAddress);
 
-            console.log('\n updateSeigniorage... block span : ', block1.number+1-lastSeigBlock.toNumber(), 'blocks' )
+            console.log('\n updateSeigniorage... ' )
 
             await (await layer2Info_1.layerContract.connect(pastDepositor).updateSeigniorage()).wait()
 
@@ -361,24 +355,10 @@ describe('Fork Simple Staking Test', () => {
             let totalSupplyOfTon_after = await deployed.seigManagerV2["totalSupplyOfTon()"]()
             console.log( ' totalSupplyOfTon    ', ethers.utils.formatUnits(totalSupplyOfTon_after,27) , 'WTON')
 
-            let totalSupplyOfTon_1_after = await deployed.seigManagerV2["totalSupplyOfTon_1()"]()
-            console.log( ' totalSupplyOfTon_1  ',  ethers.utils.formatUnits(totalSupplyOfTon_1_after,27) , 'WTON')
-
-            let totalSupplyOfTon_2_after = await deployed.seigManagerV2["totalSupplyOfTon_2()"]()
-            console.log( ' totalSupplyOfTon_2  ',  ethers.utils.formatUnits(totalSupplyOfTon_2_after,27) , 'WTON')
-
             console.log('\ntotalSupplyOfTon_after.sub(totalSupplyOfTon)     :', ethers.utils.formatUnits(totalSupplyOfTon_after.sub(totalSupplyOfTon),27) , 'WTON')
-            console.log('totalSupplyOfTon_1_after.sub(totalSupplyOfTon_1) :',  ethers.utils.formatUnits(totalSupplyOfTon_1_after.sub(totalSupplyOfTon_1),27) , 'WTON')
-            console.log('totalSupplyOfTon_2_after.sub(totalSupplyOfTon_2) :',  ethers.utils.formatUnits(totalSupplyOfTon_2_after.sub(totalSupplyOfTon_2),27) , 'WTON')
 
             let seigPerBlock =  await deployed.seigManagerV2.seigPerBlock();
             console.log('\nseigPerBlock ', ethers.utils.formatUnits(seigPerBlock,27) , 'WTON')
-
-            // expect(
-            //     totalSupplyOfTon_after.sub(totalSupplyOfTon).div(
-            //         ethers.BigNumber.from(block1.number+1+"").sub(lastSeigBlock)
-            //     )
-            // ).to.be.eq(seigPerBlock)
 
             expect(
                 totalSupplyOfTon_after.sub(totalSupplyOfTon)
