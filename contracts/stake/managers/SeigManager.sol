@@ -48,6 +48,12 @@ interface IRefactorCoinageSnapshot {
 interface ICandidate {
   function updateSeigniorage() external returns (bool);
 }
+
+
+interface IDepositManager {
+  function updateSeigniorage() external returns (bool);
+}
+
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
  * For each commit by operator, operator (or user) will get seigniorage
