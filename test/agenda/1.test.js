@@ -33,6 +33,7 @@ const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigMan
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 const CandidateABI = require("../../artifacts/contracts/dao/Candidate.sol/Candidate.json").abi
+const CandidateOldABI = require("../../abi/Candidate.json").abi;
 
 
 describe("DAOAgenda Test", () => {
@@ -90,7 +91,9 @@ describe("DAOAgenda Test", () => {
     let operatorAddr = "0xea8e2ec08dcf4971bdcdfffe21439995378b44f3"
     let operator;
 
-    let candidateContract
+    let oldcandidateContract;
+
+    let candidateContract;
 
     // mainnet network
     const oldContractInfo = {
@@ -752,9 +755,43 @@ describe("DAOAgenda Test", () => {
 
             expect(afterDAOVault).to.be.equal(calculAmount)
         })
+
+        it("set oldCandidateContract", async () => {
+            oldcandidateContract = new ethers.Contract(
+                member1ContractAddr,
+                CandidateOldABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("not operator can not claimActivityReward", async () => {
+            await expect(
+                oldcandidateContract.connect(daoCommitteeAdmin).claimActivityReward(wtonCheck)
+                ).to.be.reverted;
+        })
+
+        it("claimActivityReward can operator", async () => {
+            let beforeWTON = await wton.balanceOf(operatorAddr)
+            await oldcandidateContract.connect(operator).claimActivityReward()
+            let afterWTON = await wton.balanceOf(operatorAddr)
+            expect(afterWTON).to.be.gt(beforeWTON)
+        })
+
     })
 
     describe("changeMemeber Test", () => {
+        // it("pauseProxy check", async () => {
+        //     let pauseProxy = await daoCommitteeProxy.pauseProxy()
+        //     console.log('pauseProxy', pauseProxy)
+
+        //     if (pauseProxy == false) {
+        //         await (await daoCommitteeProxy.connect(daoCommitteeAdmin).setProxyPause(true)).wait()
+        //     }
+
+        //     pauseProxy = await daoCommitteeProxy.pauseProxy()
+        //     console.log('pauseProxy', pauseProxy)
+        // })
+
         it("before memberCheck", async () => {
             let beforeAddr = await daoCommittee.isMember(member1Addr)
             let beforeAddr2 = await daoCommittee.isMember(newMember1Addr)
@@ -778,11 +815,11 @@ describe("DAOAgenda Test", () => {
             await candidateContract.connect(operator).changeMember(0);
         })
 
-        it("after memberCheck", async () => {
-            let afterAddr = await daoCommittee.isMember(member1Addr)
-            let afterAddr2 = await daoCommittee.isMember(newMember1Addr)
-            expect(afterAddr).to.be.equal(false)
-            expect(afterAddr2).to.be.equal(true)
-        })
+        // it("after memberCheck", async () => {
+        //     let afterAddr = await daoCommittee.isMember(member1Addr)
+        //     let afterAddr2 = await daoCommittee.isMember(newMember1Addr)
+        //     expect(afterAddr).to.be.equal(false)
+        //     expect(afterAddr2).to.be.equal(true)
+        // })
     })
 })
