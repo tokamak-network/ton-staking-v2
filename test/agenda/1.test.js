@@ -32,6 +32,7 @@ const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigMan
 
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 const DAOVaultABI = require("../../abi/DAOVault.json").abi;
+const CandidateABI = require("../../artifacts/contracts/dao/Candidate.sol/Candidate.json").abi
 
 
 describe("DAOAgenda Test", () => {
@@ -63,6 +64,7 @@ describe("DAOAgenda Test", () => {
     let member1Addr = "0x39a13a796a3cd9f480c28259230d2ef0a7026033"
     let member2Addr = "0xd1820b18be7f6429f1f44104e4e15d16fb199a43"
     let member3Addr = "0x42adfaae7db56b294225ddcfebef48b337b34b23"
+    let newMember1Addr = "0xea8e2ec08dcf4971bdcdfffe21439995378b44f3"
 
     let member1ContractAddr = "0x576c7a48fcef1c70db632bb1504d9a5c0d0190d3"
     // let member2ContractAddr = "0x42ccf0769e87cb2952634f607df1c7d62e0bbc52"
@@ -81,6 +83,14 @@ describe("DAOAgenda Test", () => {
     let oneAddr = "0x0000000000000000000000000000000000000001";
     let twoAddr = "0x0000000000000000000000000000000000000002";
     let tosAddr = "0x409c4D8cd5d2924b9bc5509230d16a61289c8153";
+
+    let memberChallange = "0xf3B17FDB808c7d0Df9ACd24dA34700ce069007DF"
+    let challangeContract;
+
+    let operatorAddr = "0xea8e2ec08dcf4971bdcdfffe21439995378b44f3"
+    let operator;
+
+    let candidateContract
 
     // mainnet network
     const oldContractInfo = {
@@ -143,6 +153,16 @@ describe("DAOAgenda Test", () => {
         ]);
         member3Contract = await hre.ethers.getSigner(member3ContractAddr);
         
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            memberChallange,
+        ]);
+        challangeContract = await hre.ethers.getSigner(memberChallange);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            operatorAddr,
+        ]);
+        operator = await hre.ethers.getSigner(operatorAddr);
+        
         await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
             sendether
@@ -155,6 +175,16 @@ describe("DAOAgenda Test", () => {
 
         await hre.network.provider.send("hardhat_setBalance", [
             member3ContractAddr,
+            sendether
+        ]);
+        
+        await hre.network.provider.send("hardhat_setBalance", [
+            memberChallange,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            operatorAddr,
             sendether
         ]);
     })
@@ -721,6 +751,38 @@ describe("DAOAgenda Test", () => {
             // console.log("calculAmount :", calculAmount);
 
             expect(afterDAOVault).to.be.equal(calculAmount)
+        })
+    })
+
+    describe("changeMemeber Test", () => {
+        it("before memberCheck", async () => {
+            let beforeAddr = await daoCommittee.isMember(member1Addr)
+            let beforeAddr2 = await daoCommittee.isMember(newMember1Addr)
+            expect(beforeAddr).to.be.equal(true)
+            expect(beforeAddr2).to.be.equal(false)
+        })
+
+        // it("changeMember Test", async () => {
+        //     await daoCommittee.connect(challangeContract).changeMember(0)
+        // })
+
+        it("set CandidateContract", async () => {
+            candidateContract = new ethers.Contract(
+                memberChallange,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("operator can changeMemeber", async () => {
+            await candidateContract.connect(operator).changeMember(0);
+        })
+
+        it("after memberCheck", async () => {
+            let afterAddr = await daoCommittee.isMember(member1Addr)
+            let afterAddr2 = await daoCommittee.isMember(newMember1Addr)
+            expect(afterAddr).to.be.equal(false)
+            expect(afterAddr2).to.be.equal(true)
         })
     })
 })
