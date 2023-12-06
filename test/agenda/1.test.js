@@ -79,6 +79,7 @@ describe("DAOAgenda Test", () => {
 
     let zeroAddr = "0x0000000000000000000000000000000000000000";
     let oneAddr = "0x0000000000000000000000000000000000000001";
+    let twoAddr = "0x0000000000000000000000000000000000000002";
     let tosAddr = "0x409c4D8cd5d2924b9bc5509230d16a61289c8153";
 
     // mainnet network
@@ -247,7 +248,7 @@ describe("DAOAgenda Test", () => {
         })
     })
 
-    describe("setTON test", () => {
+    describe("setTON, setWTON test", () => {
         it("Deploy the DAOCommitteeOwner", async () => {
             const DAOCommitteeOwnerDep = await ethers.getContractFactory("DAOCommitteeOwner");
             daoCommitteeOwnerLogic = await DAOCommitteeOwnerDep.deploy();
@@ -294,13 +295,26 @@ describe("DAOAgenda Test", () => {
             //DAOlogic에서 변경 실행
             await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetTON(
                 daovault.address,
-                tosAddr
+                twoAddr
             )
 
             //DAOVault setTON 주소 확인
             let afterTON = await daovault.ton();
             // console.log(afterTON)
-            expect(afterTON).to.be.equal(tosAddr)
+            expect(afterTON).to.be.equal(twoAddr)
+        })
+
+        it("setTargetSetWTON Test", async () => {
+            let beforeWTON = await daovault.wton();
+            expect(beforeWTON).to.be.equal(oldContractInfo.WTON)
+
+            await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetWTON(
+                daovault.address,
+                twoAddr
+            ) 
+
+            let afterWTON = await daovault.wton();
+            expect(afterWTON).to.be.equal(twoAddr)
         })
 
         it("setWTON Test", async () => {
@@ -624,18 +638,18 @@ describe("DAOAgenda Test", () => {
 
             let agendaID = (await daoagendaManager.numAgendas()).sub(1);
 
-            await ton.connect(daoCommitteeAdmin).approveAndCall(
-                daoCommitteeProxy.address,
-                agendaFee,
-                param
-            );
+            // await ton.connect(daoCommitteeAdmin).approveAndCall(
+            //     daoCommitteeProxy.address,
+            //     agendaFee,
+            //     param
+            // );
 
-            // await expect(
-            //     ton.connect(daoCommitteeAdmin).approveAndCall(
-            //         daoCommitteeProxy.address,
-            //         agendaFee,
-            //         param
-            // )).to.be.reverted;
+            await expect(
+                ton.connect(daoCommitteeAdmin).approveAndCall(
+                    daoCommitteeProxy.address,
+                    agendaFee,
+                    param
+            )).to.be.reverted;
         })
     })
 

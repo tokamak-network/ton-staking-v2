@@ -16,6 +16,7 @@ interface ITarget {
     function addMinter(address account) external;
     function upgradeTo(address logic) external;
     function setTON(address tonAddr) external;
+    function setWTON(address wtonAddr) external;
 }
 
 interface IPauser {
@@ -71,6 +72,10 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
 
     function setTargetSetTON(address target, address tonAddr) external onlyOwner {
         ITarget(target).setTON(tonAddr);
+    }
+
+    function setTargetSetWTON(address target, address wtonAddr) external onlyOwner {
+        ITarget(target).setWTON(wtonAddr);
     }
 
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
