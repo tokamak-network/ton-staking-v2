@@ -48,6 +48,12 @@ interface IRefactorCoinageSnapshot {
 interface ICandidate {
   function updateSeigniorage() external returns (bool);
 }
+
+
+interface IDepositManager {
+  function updateSeigniorage() external returns (bool);
+}
+
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
  * For each commit by operator, operator (or user) will get seigniorage
@@ -707,10 +713,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     // maximum seigniorages
     uint256 maxSeig = _calcNumSeigBlocks() * _seigPerBlock;
 
-    // total supply of (W)TON
-    uint256 tos = (
-      (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-    ) * (10 ** 9)) + (_tot.totalSupply());  // consider additional TOT balance as total supply
+    // total supply of (W)TON , https://github.com/tokamak-network/TON-total-supply
+    uint256 tos = totalSupplyOfTon();
 
     // maximum seigniorages * staked rate
     uint256 stakedSeig = rdiv(
@@ -804,5 +808,27 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   function progressSnapshotId() public view returns (uint256) {
       return lastSnapshotId;
   }
+
+  // https://github.com/tokamak-network/TON-total-supply
+  // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
+  function totalSupplyOfTon() public view returns (uint256 tos) {
+
+    tos = 50000000000000000000000000000000000 + (_seigPerBlock * (block.number - 10837698))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
+  }
+
+  // 실제 wton 과 ton 발행량
+  // function totalSupplyOfTon_1() public view returns (uint256 tos) {
+  //   tos = (
+  //     (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
+  //     ) + ITON(_wton).totalSupply();
+  // }
+
+  // 언스테이킹 된 wton 반영안됨
+  // function totalSupplyOfTon_2() public view returns (uint256 tos) {
+  //   tos = (
+  //       (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
+  //     ) * (10 ** 9)) + (_tot.totalSupply());
+  // }
 
 }
