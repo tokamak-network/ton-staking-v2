@@ -815,11 +815,11 @@ describe("DAOAgenda Test", () => {
             await candidateContract.connect(operator).changeMember(0);
         })
 
-        // it("after memberCheck", async () => {
-        //     let afterAddr = await daoCommittee.isMember(member1Addr)
-        //     let afterAddr2 = await daoCommittee.isMember(newMember1Addr)
-        //     expect(afterAddr).to.be.equal(false)
-        //     expect(afterAddr2).to.be.equal(true)
-        // })
+        it("after memberCheck", async () => {
+            let afterAddr = await daoCommittee.isMember(member1Addr)
+            let afterAddr2 = await daoCommittee.isMember(newMember1Addr)
+            expect(afterAddr).to.be.equal(false)
+            expect(afterAddr2).to.be.equal(true)
+        })
     })
 })

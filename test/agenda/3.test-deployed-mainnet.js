@@ -109,7 +109,7 @@ describe("DAOAgenda Test", () => {
         SeigManager: "0x0b55a0f463b6defb81c6063973763951712d0e5f",
     }
 
-    let daoCommitteeDAOVaultLogic = ""
+    let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
 
     before('create fixture loader', async () => {
         await hre.network.provider.send("hardhat_impersonateAccount", [
