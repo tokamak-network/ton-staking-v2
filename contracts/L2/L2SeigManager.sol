@@ -28,21 +28,21 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // Modifiers
   //////////////////////////////
 
-  modifier onlyL1StakedTonInL2() {
-    require(msg.sender == l1StakedTonInL2, "not l1StakedTonInL2");
+  modifier onlyMessengerAndL1StakedTonToL2() {
+
+      require(
+          l2CrossDomainMessenger == msg.sender &&
+          IL2CrossDomainMessenger(l2CrossDomainMessenger).xDomainMessageSender() == l1StakedTonToL2,
+          "not onlyMessengerAndL1StakedTonToL2");
+      _;
+  }
+
+  modifier onlyOwner() {
+    require(isAdmin(msg.sender)
+      , "not admin");
     _;
   }
 
-  modifier onlyL1StakedTonInL2OrOwner() {
-    require(msg.sender == l1StakedTonInL2 || isAdmin(msg.sender)
-      , "not l1StakedTonInL2 or admin");
-    _;
-  }
-
-  modifier checkCoinage(address layer2) {
-    require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
-    _;
-  }
 
   event CoinageCreated(address indexed layer2, address coinage);
   event OnSnapshot(uint256 snapshotId);
@@ -63,133 +63,86 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // Constuctor
   //////////////////////////////
 
-  function initialize (
-    address factory_
-  ) external {
-    factory = factory_;
-    address c = CoinageFactoryI(factory).deploy();
-    require(c != address(0), "zero tot");
-    _tot = L2RefactorCoinageSnapshotI(c);
-  }
-
   //////////////////////////////
   // onlyOwner
   //////////////////////////////
 
-  function transferCoinageOwnership(address newSeigManager, address[] calldata coinages_) external onlyOwner {
-    for (uint256 i = 0; i < coinages_.length; i++) {
-      L2RefactorCoinageSnapshotI c = L2RefactorCoinageSnapshotI(coinages_[i]);
-      c.addMinter(newSeigManager);
-      c.renounceMinter();
-      c.transferOwnership(newSeigManager);
-    }
+  function initialize (
+    address l1StakedTonToL2_
+  ) external onlyOwner {
+      l1StakedTonToL2 = l1StakedTonToL2_;
   }
 
   //////////////////////////////
-  // onlyL1StakedTonInL2OrOwner
+  // onlyMessengerAndL1StakedTonToL2
   //////////////////////////////
 
-  function register(address layer2)
+  function deposit(address account, uint256 amount)
     external
-    onlyL1StakedTonInL2OrOwner
+    onlyMessengerAndL1StakedTonToL2
     returns (bool)
   {
-    require(!_l1layer2s[layer2], "already register");
-    require(address(_coinages[layer2]) == address(0), "coinage not zero");
-
-    address c = CoinageFactoryI(factory).deploy();
-
-    _l1layer2s[layer2] = true;
-    _l1layer2ByIndex[_numLayer2s] = layer2;
-    _numLayer2s += 1;
-
-    _coinages[layer2] = L2RefactorCoinageSnapshotI(c);
-    emit CoinageCreated(layer2, c);
-
     return true;
   }
 
-
-  //////////////////////////////
-  // onlyL1StakedTonInL2
-  //////////////////////////////
-
-  function update(
-    address layer2,
-    address account,
-    IRefactor.Factor memory totFactor,
-    IRefactor.Balance memory totTotalBalance,
-    IRefactor.Balance memory totLayerBalance,
-    IRefactor.Factor memory layerFactor,
-    IRefactor.Balance memory layerTotalBalance,
-    IRefactor.Balance memory layerAccountBalance)
+  function unstaking(address account, uint256 amount)
     external
-    onlyL1StakedTonInL2
-    checkCoinage(layer2)
+    onlyMessengerAndL1StakedTonToL2
     returns (bool)
   {
-    _tot.updateFactor(totFactor);
-    _tot.updateBalance(totLayerBalance, totTotalBalance, layer2, true, true);
-
-    _coinages[layer2].updateFactor(layerFactor);
-    _coinages[layer2].updateBalance(layerTotalBalance, layerAccountBalance, account, true, true);
-
-    emit Updated(layer2, account, totFactor, totTotalBalance, totLayerBalance, layerFactor, layerTotalBalance, layerAccountBalance );
     return true;
   }
 
-  function updateSeigniorage(
-      address layer2,
-      IRefactor.Factor memory totFactor,
-      IRefactor.Factor memory layerFactor)
-      external
-      onlyL1StakedTonInL2
-      checkCoinage(layer2)
-      returns (bool)
+  function updatedSeigniorage(address layer2, uint256 amount)
+    external
+    onlyMessengerAndL1StakedTonToL2
+    returns (bool)
   {
-      _tot.updateFactor(totFactor);
-      _coinages[layer2].updateFactor(layerFactor);
-
-      emit UpdatedSeigniorage(layer2,  totFactor, layerFactor);
-
-      return true;
+    return true;
   }
-
-
 
   //////////////////////////////
   // External functions
   //////////////////////////////
 
   function stakeOf(address layer2, address account) public view returns (uint256) {
-    return _coinages[layer2].balanceOf(account);
+      return getLswtonToSwton(layer2, lswton[layer2][account]);
   }
 
-  function stakeOfAt(address layer2, address account, uint256 snapshotId) external view returns (uint256 amount) {
-    return _coinages[layer2].balanceOfAt(account, snapshotId);
-  }
+  // function stakeOfAt(address layer2, address account, uint256 snapshotId) external view returns (uint256 amount) {
+  //   return _coinages[layer2].balanceOfAt(account, snapshotId);
+  // }
 
   function stakeOf(address account) external view returns (uint256 amount) {
     uint256 num = _numLayer2s;
     for (uint256 i = 0 ; i < num; i++){
-      amount += _coinages[_l1layer2ByIndex[i]].balanceOf(account);
+      address layer2 = _l1layer2ByIndex[_l1layer2ByIndex[i]];
+      amount += getLswtonToSwton(layer2, lswton[layer2][account]);
     }
   }
 
-  function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
-    uint256 num = _numLayer2s;
-    for (uint256 i = 0 ; i < num; i++){
-      amount += _coinages[_l1layer2ByIndex[i]].balanceOfAt(account, snapshotId);
-    }
+  // function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
+  //   uint256 num = _numLayer2s;
+  //   for (uint256 i = 0 ; i < num; i++){
+  //     amount += _coinages[_l1layer2ByIndex[i]].balanceOfAt(account, snapshotId);
+  //   }
+  // }
+
+  function stakeOfTotal(address layer2) external view returns (uint256 amount) {
+    amount = getLswtonToSwton(layer2, totalLswton[layer2]);
   }
 
   function stakeOfTotal() external view returns (uint256 amount) {
-    amount = _tot.totalSupply();
+    uint256 num = _numLayer2s;
+    for (uint256 i = 0 ; i < num; i++){
+      address layer2 = _l1layer2ByIndex[_l1layer2ByIndex[i]];
+      amount += getLswtonToSwton(layer2, totalLswton[layer2]);
+    }
   }
 
-  function stakeOfTotalAt(uint256 snapshotId) external view returns (uint256 amount) {
-    amount = _tot.totalSupplyAt(snapshotId);
-  }
+  // function stakeOfTotalAt(uint256 snapshotId) external view returns (uint256 amount) {
+  //   amount = _tot.totalSupplyAt(snapshotId);
+  // }
 
   function onSnapshot() external returns (uint256 snapshotId) {
     snapshotId = lastSnapshotId;
@@ -201,6 +154,16 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // Public functions
   //////////////////////////////
 
+  function getSwtonToLswton(address layer2, uint256 amount) public view returns (uint256) {
+    if (amount == 0) return 0;
+    return (amount * 1e27) / index[layer2];
+  }
+
+  function getLswtonToSwton(address layer2, uint256 lswton_) public view returns (uint256) {
+    if (lswton_ == 0) return 0;
+    return (lswton_ * index[layer2]) / 1e27;
+  }
+
 
   //////////////////////////////
   // Internal functions
@@ -209,9 +172,6 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //////////////////////////////
   // Storage getters
   //////////////////////////////
-
-  function tot() external view returns (address) { return address(_tot); }
-  function coinages(address layer2) external view returns (address) { return address(_coinages[layer2]); }
 
   //=====
   function progressSnapshotId() public view returns (uint256) {

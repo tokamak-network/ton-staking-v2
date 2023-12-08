@@ -14,20 +14,15 @@ library LibRefactorSync {
         IRefactor.Balance accountBalance;
     }
 
-    struct CoinageSyncInfo {
+    struct CoinageSyncPacket{
         address layer2;
         RefactorCoinage refactor;
-        uint32 syncTime; // 동기화 시점
     }
 
-    struct FactorSyncInfo {
-        IRefactor.Factor factor;
+    struct CoinageSyncPackets {
         uint32 syncTime;
+        CoinageSyncPacket[] layerRefactors;
     }
 
-    struct RefactorSyncPackets {
-        address account;
-        CoinageSyncInfo[] packets;
-    }
 
 }

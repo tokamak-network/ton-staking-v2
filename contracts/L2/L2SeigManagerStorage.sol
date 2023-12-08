@@ -9,26 +9,18 @@ contract L2SeigManagerStorage   {
     //////////////////////////////
     // Constants
     //////////////////////////////
+    uint256 constant public DEFAULT_FACTOR = 10 ** 27;
 
-    uint256 constant public RAY = 10 ** 27; // 1 RAY
-    uint256 constant public _DEFAULT_FACTOR = RAY;
+    // layer2 - index
+    mapping(address => uint256) public index;
+    mapping(address => uint256) public totalLswton;
 
-    uint256 constant public MAX_VALID_COMMISSION = RAY; // 1 RAY
-    uint256 constant public MIN_VALID_COMMISSION = 10 ** 25; // 0.01 RAY
-
-
-    // coinage factory
-    address public factory;
-
-    // track total deposits of each layer2.
-    L2RefactorCoinageSnapshotI internal _tot;
-
-    // coinage token for each layer2.
-    mapping (address => L2RefactorCoinageSnapshotI) internal _coinages;
+    // address - layer2 - lswton
+    mapping(address => mapping(address => uint256)) public lswton;
 
     uint256 public lastSnapshotId;
-
-    address public l1StakedTonInL2;
+    address public l1StakedTonToL2;
+    address public l2CrossDomainMessenger;
 
     mapping (address => bool) internal _l1layer2s;
     uint256 internal _numLayer2s;
