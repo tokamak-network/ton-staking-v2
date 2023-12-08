@@ -19,6 +19,7 @@ import { CandidateFactoryProxy } from "../../typechain-types/contracts/dao/facto
 import { PowerTONUpgrade } from "../../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
 import { AutoRefactorCoinage } from "../../typechain-types/contracts/stake/tokens/AutoRefactorCoinage"
 import { AutoRefactorCoinageFactory } from "../../typechain-types/contracts/stake/factory/AutoRefactorCoinageFactory.sol"
+import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.sol"
 
 interface TonStakingV2Fixtures  {
     deployer: Signer,
@@ -133,6 +134,15 @@ interface NewTonStakingV2Fixtures  {
     powerTON: PowerTONUpgrade,
     powerTonAddress : string
 }
+
+interface L2SeigManagerFixtures  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    l2SeigManager: L2SeigManager
+}
+
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,

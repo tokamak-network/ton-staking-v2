@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import { LibL1StakedInfo } from "../libraries/LibL1StakedInfo.sol";
 import { IRefactor } from "../stake/interfaces/IRefactor.sol";
-import { LibRefactorSync } from "../libraries/LibRefactorSync.sol";
+import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import "../proxy/ProxyStorage.sol";
 import "./L1StakedTonToL2Storage.sol";
 // import "hardhat/console.sol";
+
+interface AddressManagerI {
+    function getAddress(string memory _name) external view returns (address);
+}
 
 interface IRegistry {
     function numLayer2s() external view returns (uint256);
@@ -13,8 +18,8 @@ interface IRegistry {
 }
 
 interface ISeigManager {
-    function tot() external view returns (address);
     function coinages(address layer2) external view returns (address);
+    function stakeOf(address layer2, address account) external view returns (uint256);
 }
 
 interface IRefactorCoinage {
@@ -22,8 +27,11 @@ interface IRefactorCoinage {
     function getBalanceAndFactor(address account) external view returns (IRefactor.Balance memory, IRefactor.Factor memory);
 }
 
-interface IL1StosInL2 {
+interface IL1StakedTonInL2 {
     function register(bytes memory data) external ;
+    function deposit(address layer2, address account, uint256 swton) external ;
+    function unstake(address layer2, address account, uint256 swton) external ;
+    function updateSeigniorage(address layer2, uint256 swton) external ;
 }
 
 interface L1CrossDomainMessengerI {
@@ -34,12 +42,12 @@ interface L1CrossDomainMessengerI {
     ) external;
 }
 
-contract L1StakedTonToL2 is ProxyStorage, L1StakedTonToL2Storage {
+contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Storage {
 
     event RegisteredAccount(address layer2, address account) ;
 
-    modifier onlyOwner() {
-        require(_owner == msg.sender, "not owner");
+    modifier onlySeigManager() {
+        require(seigManager == msg.sender, "not seigManager");
         _;
     }
 
@@ -50,140 +58,210 @@ contract L1StakedTonToL2 is ProxyStorage, L1StakedTonToL2Storage {
 
     function initialize (
         address manager_,
-        address seigManger_,
+        address seigManager_,
         address registry_,
         address addressManager_,
         uint32 minGasLimit_
     ) external onlyOwner {
         _manager = manager_;
-        seigManger = seigManger_;
+        seigManager = seigManager_;
         registry = registry_;
         addressManager = addressManager_;
         minGasLimit = minGasLimit_;
-
-        tot = ISeigManager(seigManger).tot();
     }
 
-    function setL2SeigManager(address l2SeigManager_) external onlyManager {
-        require(l2SeigManager != l2SeigManager_, "same");
-        l2SeigManager = l2SeigManager_;
+    function setL1StakedTonInL2(address l1StakedTonInL2_) external onlyOwner {
+        require(l1StakedTonInL2 != l1StakedTonInL2_, "same");
+        l1StakedTonInL2 = l1StakedTonInL2_;
     }
 
-    function setMinGasLimit(uint32 minGasLimit_) external onlyManager {
+    function setMinGasLimit(uint32 minGasLimit_) external onlyOwner {
         require(minGasLimit != minGasLimit_, "same");
         minGasLimit = minGasLimit_;
     }
 
+    /* ========== OnlySeigmanager ========== */
+    function deposit(address layer2, address account, uint256 swton) public onlySeigManager {
+
+        bytes memory callData = abi.encodeWithSelector(
+            IL1StakedTonInL2.deposit.selector, layer2, account, swton);
+
+        _sendMessage(
+            l1StakedTonInL2,
+            callData,
+            minGasLimit
+            );
+    }
+
+    function unstake(address layer2, address account, uint256 swton) public onlySeigManager {
+
+        bytes memory callData = abi.encodeWithSelector(
+            IL1StakedTonInL2.unstake.selector, layer2, account, swton);
+
+        _sendMessage(
+            l1StakedTonInL2,
+            callData,
+            minGasLimit
+            );
+    }
+
+    function updateSeigniorage(address layer2, uint256 swton) external {
+        bytes memory callData = abi.encodeWithSelector(
+            IL1StakedTonInL2.updateSeigniorage.selector, layer2, swton);
+
+        _sendMessage(
+            l1StakedTonInL2,
+            callData,
+            minGasLimit
+            );
+    }
+
     /* ========== Anybody can ========== */
 
-    function _coinage(address layer2) internal returns (address){
-        if(coinages[layer2] == address(0)) {
-            address coinageAddress = ISeigManager(seigManger).coinages(layer2);
-            if(coinageAddress != address(0)) coinages[layer2] = coinageAddress;
-        }
-        return coinages[layer2];
-    }
-
+    // register account's staked ton fro L1 to L2
+    // @param account account address
     function register(address account) public {
 
-        (address[] memory layer2s_, LibRefactorSync.RefactorCoinage[] memory syncInfos_, uint256 count) = needSyncLayer2s(account);
+        (LibL1StakedInfo.L1StakedPacket[] memory needSyncPackets, uint256 count) = needSyncData(account);
+
         require(count != 0, "no register data");
-        LibRefactorSync.CoinageSyncPacket[] memory info = new LibRefactorSync.CoinageSyncPacket[](count);
+        LibL1StakedInfo.L1StakedPacket[] memory sync = new LibL1StakedInfo.L1StakedPacket[](count);
 
         for(uint256 i ; i < count; i++){
-            info[i] = LibRefactorSync.CoinageSyncPacket(layer2s_[i],syncInfos_[i]);
+            sync[i] = needSyncPackets[i];
+            _record(sync[i].layer, account, sync[i].stakedAmount);
         }
 
-        _register(account, info);
+        _register(account, sync);
     }
-    /*
+
+    // register layer2's account's staked ton fro L1 to L2
+    // @param account account address
+    // @param layer2s layer2's addresses
     function register(address account, address[] memory layer2s) public {
-        uint256 num =  layer2s.length;
+        uint256 num = layer2s.length;
+        uint256 count = 0;
         require(layer2s.length != 0, "empty layer2s");
-
-        for (uint256 i = 0; i < num; i++) {
-            address coinageAddress = _coinage(layer2s[i]);
-
-            (IRefactor.Balance memory balance, IRefactor.Factor memory factor1) = IRefactorCoinage(coinageAddress).getBalanceAndFactor(account);
-            (IRefactor.Balance memory total, IRefactor.Factor memory factor2) = IRefactorCoinage(coinageAddress).getTotalAndFactor();
-
+        LibL1StakedInfo.L1StakedPacket[] memory needSyncInfo = new LibL1StakedInfo.L1StakedPacket[](num);
+        for(uint256 i = 0; i < num; i++){
+            address layer2 = layer2s[i];
+            (bool isNeed, uint256 amount) = isNeedSync(layer2, account);
+            if (isNeed) {
+                needSyncInfo[count] = LibL1StakedInfo.L1StakedPacket(layer2, amount);
+                count++;
+            }
         }
 
-        _register(account, lockIds);
+        require(count != 0, "no register data");
+        LibL1StakedInfo.L1StakedPacket[] memory sync = new LibL1StakedInfo.L1StakedPacket[](count);
+        for(uint256 i = 0; i < count; i++){
+            sync[i] = needSyncInfo[i];
+            _record(sync[i].layer, account, sync[i].stakedAmount);
+        }
+        _register(account, sync);
     }
-    */
+
     /* ========== VIEW ========== */
 
-    function needSyncLayer2s(address account)
+    function getBalanceFactor(address layer2, address account)
+        public view returns (uint256 balance, uint256 factor)
+    {
+        address coinage = ISeigManager(seigManager).coinages(layer2);
+        require(coinage != address(0), "zero coinage");
+        (IRefactor.Balance memory b, IRefactor.Factor memory f) = IRefactorCoinage(coinage).getBalanceAndFactor(account);
+        balance = b.balance;
+        factor = f.factor;
+    }
+
+    function isNeedSync(address layer2, address account) public view returns (bool isNeed, uint256 amount)
+    {
+        amount = ISeigManager(seigManager).stakeOf(layer2, account);
+        isNeed = true;
+        // (uint256 balance, uint256 factor) = getBalanceFactor(layer2, account);
+        // LibL1StakedInfo.L1Staked memory info = syncInfo[account][layer2];
+        // if (info.syncTime == 0 && amount != 0) isNeed = true;
+        // else if (info.balanceFactor != balance) isNeed = true;
+        // else if (info.factor != factor) isNeed = true;
+        // else if (info.stakedAmount != amount)  isNeed = true; // rebaseIndex ..
+    }
+
+    function needSyncData(address account)
         public view
-        returns (address[] memory layer2s, LibRefactorSync.RefactorCoinage[] memory syncInfos, uint256 count)
+        returns (LibL1StakedInfo.L1StakedPacket[] memory needSyncInfo, uint256 count)
     {
         uint256 num =  IRegistry(registry).numLayer2s();
 
         if (num != 0) {
-            layer2s = new address[](num);
-            syncInfos = new address[](num);
+            needSyncInfo = new LibL1StakedInfo.L1StakedPacket[](num);
             for(uint256 i = 0; i < num; i++){
                 address layer2 = IRegistry(registry).layer2ByIndex(i);
-                address coinageAddress = _coinage(layer2);
+                (bool isNeed, uint256 amount) = isNeedSync(layer2, account);
 
-                (IRefactor.Balance memory balance, IRefactor.Factor memory factor1) = IRefactorCoinage(coinageAddress).getBalanceAndFactor(account);
-                (IRefactor.Balance memory total, IRefactor.Factor memory factor2) = IRefactorCoinage(coinageAddress).getTotalAndFactor();
-
-                LibRefactorSync.RefactorCoinage memory curSync = coinageSyncInfo[account][layer2];
-                bool boolDiff = false;
-
-                if(curSync.refactor.accountBalance.balance != balance.balance)  boolDiff = true;
-                else if(curSync.refactor.totalSupply.balance != total.balance)  boolDiff = true;
-                else if(curSync.refactor.factor.factor != factor2.factor)  boolDiff = true;
-
-                if(boolDiff) {
-                    layer2s[count] = layer2;
-                    syncInfos[count] = curSync;
+                if (isNeed) {
+                    needSyncInfo[count] = LibL1StakedInfo.L1StakedPacket(layer2, amount);
                     count++;
                 }
             }
         }
     }
 
-    function viewCoinageSyncInfo(address account, address layer2) external view returns(LibRefactorSync.RefactorCoinage memory) {
-        return coinageSyncInfo[account][layer2];
+    function viewSyncInfo(address account, address layer2) external view returns(LibL1StakedInfo.L1Staked memory) {
+        return syncInfo[account][layer2];
+    }
+
+    function getL1CommunicationMessenger(address addressManager) public view returns(address _address) {
+        if (addressManager == address(0)) return address(0);
+        try
+            AddressManagerI(addressManager).getAddress('Proxy__OVM_L1CrossDomainMessenger') returns (address a) {
+                _address = a;
+        } catch (bytes memory ) {
+            _address = address(0);
+        }
     }
 
     /* === ======= internal ========== */
+    function _record(address layer2, address account, uint256 stakedAmount) internal {
+        /*
+        LibL1StakedInfo.L1Staked storage info = syncInfo[account][layer2];
+        (uint256 balance, uint256 factor) = getBalanceFactor(layer2, account);
 
-    function _register(address account, LibRefactorSync.CoinageSyncPacket[] memory syncInfos) internal {
+        info.syncTime = uint32(block.timestamp);
+        info.balanceFactor = balance;
+        info.factor = factor;
+        info.stakedAmount = stakedAmount;
+        */
+    }
+
+    function _register(address account, LibL1StakedInfo.L1StakedPacket[] memory syncInfos) internal {
+
+        require(syncInfos.length != 0, "no register data");
 
         bytes memory syncPackets ;
         uint256 count = syncInfos.length ;
 
-        // packet {account address: count to sync: 1st sync packet: 2nd sync packet: .....}
+        // packet {account address: 1st sync packet: 2nd sync packet: .....}
         // account address : 20 bytes
-        // count to sync : 1 byte (max 256 sync packets) but it is less than maxLockCountPerSync
-        // sync packets : count to sync * 104 bytes ( count * 104 )
-        // one sync packets : 104 bytes:  (32 byte) uint256 lockId, (32+32+4+4) syncInfo -> total 104
+        // sync packets : count to sync * 52 bytes ( count * 52 )
+            // one sync packets : 52 bytes:  (20 byte) address layer, (32) stakedAmount -> total 52
+        for (uint256 i = 0; i < count; i++){
+            syncPackets = bytes.concat(syncPackets,
+                abi.encodePacked(syncInfos[i].layer, syncInfos[i].stakedAmount));
+        }
 
-        LibRefactorSync.CoinageSyncPackets memory packets = LibRefactorSync.CoinageSyncPackets(
-            block.timestamp,
-            syncInfos
-        );
-
-        require(syncPackets.length > 0, "no register data");
-        // console.log('_register syncPackets.length  %s', syncPackets.length);
+        bytes memory callData = abi.encodeWithSelector(
+            IL1StakedTonInL2.register.selector,
+            abi.encodePacked(account, syncPackets));
 
         _sendMessage(
-            l2SeigManager,
-            abi.encodePacked(account, packets),
+            l1StakedTonInL2,
+            callData,
             minGasLimit
             );
     }
 
-
     function _sendMessage(address target, bytes memory data, uint32 minGasLimit) internal {
-        address l1Messenger = LibProject.getL1CommunicationMessenger(addressManager);
+        address l1Messenger = getL1CommunicationMessenger(addressManager);
         require(l1Messenger != address(0), "l1Messenger is ZeroAddress");
-
-        bytes memory callData = abi.encodeWithSelector(IL1StosInL2.register.selector, data);
 
         // console.log('_sendMessage target %s', target, ' data.length %s', data.length);
         // console.logBytes(data);
@@ -191,9 +269,10 @@ contract L1StakedTonToL2 is ProxyStorage, L1StakedTonToL2Storage {
 
         L1CrossDomainMessengerI(l1Messenger).sendMessage(
                 target,
-                callData,
+                data,
                 minGasLimit
             );
     }
+
 
 }
