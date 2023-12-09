@@ -2,6 +2,8 @@
 pragma solidity ^0.8.4;
 
 import { LibL1StakedInfo } from "../libraries/LibL1StakedInfo.sol";
+import { LibL2StakedInfo } from "../libraries/LibL2StakedInfo.sol";
+
 import "../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../common/AuthControlSeigManager.sol";
 import { L2SeigManagerStorage } from "./L2SeigManagerStorage.sol";
@@ -10,7 +12,7 @@ interface IL2CrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
 }
 
-contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerStorage, DSMath {
+contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerStorage {
 
   //////////////////////////////
   // Modifiers
@@ -33,10 +35,10 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //////////////////////////////
 
   function initialize (
-    address l1StakedTonToL2_,
+    address l1StakedTonInL2_,
     address l2messanger_
   ) external onlyOwner {
-      l1StakedTonToL2 = l1StakedTonToL2_;
+      l1StakedTonInL2 = l1StakedTonInL2_;
       l2CrossDomainMessenger =l2messanger_;
   }
 
@@ -48,8 +50,19 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
           _l1layer2s[layer2] = true;
           _l1layer2ByIndex[_numLayer2s] = layer2;
           _numLayer2s++;
+          if (index[layer2] == 0)  index[layer2] = 1e27;
       }
   }
+
+  function _replace(address layer2, address account, uint256 swtonAmount) internal {
+    uint256 lswton = getSwtonToLswton(layer2, swtonAmount);
+    LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
+    uint256 oldLswton = info.lswton;
+    info.deposit = swtonAmount;
+    info.lswton = lswton;
+    totalLswton[layer2] = totalLswton[layer2] - oldLswton + lswton;
+  }
+
 
   function register(address account, LibL1StakedInfo.L1StakedPacket[] memory packets)
     external
@@ -61,7 +74,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     for (uint256 i; i < num; i++) {
       address layer2 = packets[i].layer;
       _checkLayer(layer2);
-      // 기존에 이미 데이타가 있으면 초기화하고 다시 등록하자.
+      _replace(layer2, account, packets[i].stakedAmount);
     }
     return true;
   }
@@ -71,7 +84,9 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     onlyL1StakedTonInL2
     returns (bool)
   {
+    _checkLayer(layer2);
     uint256 lswton = getSwtonToLswton(layer2, swtonAmount);
+
     LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
     info.deposit += swtonAmount;
     info.lswton += lswton;
@@ -86,15 +101,18 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     onlyL1StakedTonInL2
     returns (bool)
   {
+    _checkLayer(layer2);
     uint256 lswton = getSwtonToLswton(layer2, swtonAmount);
-    LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
 
+    LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
     require(swtonAmount <= info.deposit, 'insufficient balance');
+
     if (info.lswton < lswton)  info.lswton = 0;
     else info.lswton -= lswton;
 
-    require(lswton <= totalLswton[layer2], 'insufficient');
+    require(lswton <= totalLswton[layer2], 'insufficient totalLswton');
     totalLswton[layer2] -= lswton;
+
     emit Unstaked(layer2, account, swtonAmount, lswton);
     return true;
   }
@@ -104,10 +122,13 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     onlyL1StakedTonInL2
     returns (bool)
   {
+    _checkLayer(layer2);
     uint256 totalSwton = getLswtonToSwton(layer2, totalLswton[layer2]);
+
     uint256 addAmount = (totalSwton * sharePerRay / 1e27);
     uint256 oldIndex = index[layer2];
     uint256 newIndex = oldIndex * (totalSwton + addAmount) / totalSwton ;
+    index[layer2] = newIndex;
 
     emit RebasedIndex(layer2, sharePerRay, oldIndex, newIndex);
     return true;
@@ -117,7 +138,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // External functions
   //////////////////////////////
 
-  function stakeOf(address layer2, address account) public view returns (uint256) {
+  function balanceOf(address layer2, address account) public view returns (uint256) {
       return getLswtonToSwton(layer2, stakedInfo[layer2][account].lswton);
   }
 
@@ -125,7 +146,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //   return _coinages[layer2].balanceOfAt(account, snapshotId);
   // }
 
-  function stakeOf(address account) external view returns (uint256 amount) {
+  function balanceOf(address account) external view returns (uint256 amount) {
     uint256 num = _numLayer2s;
     for (uint256 i = 0 ; i < num; i++){
       address layer2 = _l1layer2ByIndex[i];
@@ -140,11 +161,11 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //   }
   // }
 
-  function stakeOfTotal(address layer2) external view returns (uint256 amount) {
+  function totalSupply(address layer2) external view returns (uint256 amount) {
     amount = getLswtonToSwton(layer2, totalLswton[layer2]);
   }
 
-  function stakeOfTotal() external view returns (uint256 amount) {
+  function totalSupply() external view returns (uint256 amount) {
     uint256 num = _numLayer2s;
     for (uint256 i = 0 ; i < num; i++){
       address layer2 = _l1layer2ByIndex[i];
@@ -176,8 +197,20 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     return (lswton_ * index[layer2]) / 1e27;
   }
 
-  function viewStakedInfo(address layer2, address account) public view returns (LibL2StakedIndex.StakedInfo memory) {
+  function viewStakedInfo(address layer2, address account) public view returns (LibL2StakedInfo.StakedInfo memory) {
     return stakedInfo[layer2][account];
+  }
+
+  function name() public pure returns (string memory) {
+    return "Swton L1";
+  }
+
+  function symbol() public pure returns (string memory) {
+    return "SWTON_L1";
+  }
+
+  function decimals() public pure returns (uint256) {
+    return 27;
   }
 
   //////////////////////////////

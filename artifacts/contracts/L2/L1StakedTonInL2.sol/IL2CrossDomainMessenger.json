@@ -1,19 +1,19 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IRefactorCoinageSnapshot",
-  "sourceName": "contracts/L2/L2SeigManager.sol",
+  "contractName": "IL2CrossDomainMessenger",
+  "sourceName": "contracts/L2/L1StakedTonInL2.sol",
   "abi": [
     {
       "inputs": [],
-      "name": "snapshot",
+      "name": "xDomainMessageSender",
       "outputs": [
         {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     }
   ],

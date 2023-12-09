@@ -1,19 +1,19 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IDepositManager",
-  "sourceName": "contracts/stake/managers/SeigManager.sol",
+  "contractName": "IL2CrossDomainMessenger",
+  "sourceName": "contracts/L2/L2SeigManager.sol",
   "abi": [
     {
       "inputs": [],
-      "name": "updateSeigniorage",
+      "name": "xDomainMessageSender",
       "outputs": [
         {
-          "internalType": "bool",
+          "internalType": "address",
           "name": "",
-          "type": "bool"
+          "type": "address"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     }
   ],

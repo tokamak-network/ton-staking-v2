@@ -12,14 +12,14 @@ contract L1StakedTonToL2Proxy is Proxy, L1StakedTonToL2Storage
         _manager = msg.sender;
     }
 
-    function setSeigManger(address _seigManger) external onlyManager {
-        require(seigManger != _seigManger, "same");
-        seigManger = _seigManger;
+    function setSeigManger(address _seigManager) external onlyManager {
+        require(seigManager != _seigManager, "same");
+        seigManager = _seigManager;
     }
 
-    function setL2SeigManager(address _l2SeigManager) external onlyManager {
-        require(l2SeigManager != _l2SeigManager, "same");
-        l2SeigManager = _l2SeigManager;
+    function setL1StakedTonInL2(address _l1StakedTonInL2) external onlyManager {
+        require(l1StakedTonInL2 != _l1StakedTonInL2, "same");
+        l1StakedTonInL2 = _l1StakedTonInL2;
     }
 
     function setAddressManager(address addressManagerAddress) external onlyManager {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
-// import { L2RefactorCoinageSnapshotI } from "../stake/interfaces/L2RefactorCoinageSnapshotI.sol";
+
 import { LibL2StakedInfo } from "../libraries/LibL2StakedInfo.sol";
 
 /// @title
@@ -23,8 +23,9 @@ contract L2SeigManagerStorage   {
     address public l1StakedTonInL2;
     address public l2CrossDomainMessenger;
     bool internal _lock;
-    mapping (address => bool) internal _l1layer2s;
+
     uint256 internal _numLayer2s;
+    mapping (address => bool) internal _l1layer2s;
     mapping (uint256 => address) internal _l1layer2ByIndex;
 
     modifier ifFree {

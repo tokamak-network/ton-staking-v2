@@ -1,0 +1,141 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "L1StakedTonToL2Storage",
+  "sourceName": "contracts/L1/L1StakedTonToL2Storage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "_manager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "addressManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1StakedTonInL2",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "minGasLimit",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "registry",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "seigManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "syncInfo",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "syncTime",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "balanceFactor",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "factor",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "stakedAmount",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "tot",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b50610223806100206000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c80637b1039991161005b5780637b1039991461017b5780638c09d4ee1461018e578063a16d6aa7146101a1578063f0329f6b146101b457600080fd5b80633ab76e9f1461008d5780633eba3079146100bd5780635aeb4d771461012b5780636fb7f55814610168575b600080fd5b6001546100a0906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6101046100cb3660046101e3565b6006602090815260009283526040808420909152908252902080546001820154600283015460039093015463ffffffff90921692909184565b6040805163ffffffff909516855260208501939093529183015260608201526080016100b4565b6005546101539074010000000000000000000000000000000000000000900463ffffffff1681565b60405163ffffffff90911681526020016100b4565b6002546100a0906001600160a01b031681565b6003546100a0906001600160a01b031681565b6005546100a0906001600160a01b031681565b6004546100a0906001600160a01b031681565b6000546100a0906001600160a01b031681565b80356001600160a01b03811681146101de57600080fd5b919050565b600080604083850312156101f657600080fd5b6101ff836101c7565b915061020d602084016101c7565b9050925092905056fea164736f6c6343000813000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100885760003560e01c80637b1039991161005b5780637b1039991461017b5780638c09d4ee1461018e578063a16d6aa7146101a1578063f0329f6b146101b457600080fd5b80633ab76e9f1461008d5780633eba3079146100bd5780635aeb4d771461012b5780636fb7f55814610168575b600080fd5b6001546100a0906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6101046100cb3660046101e3565b6006602090815260009283526040808420909152908252902080546001820154600283015460039093015463ffffffff90921692909184565b6040805163ffffffff909516855260208501939093529183015260608201526080016100b4565b6005546101539074010000000000000000000000000000000000000000900463ffffffff1681565b60405163ffffffff90911681526020016100b4565b6002546100a0906001600160a01b031681565b6003546100a0906001600160a01b031681565b6005546100a0906001600160a01b031681565b6004546100a0906001600160a01b031681565b6000546100a0906001600160a01b031681565b80356001600160a01b03811681146101de57600080fd5b919050565b600080604083850312156101f657600080fd5b6101ff836101c7565b915061020d602084016101c7565b9050925092905056fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

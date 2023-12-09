@@ -5,7 +5,8 @@ import { readContracts, deployedContracts } from "../common_func"
 
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
-import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, NewTonStakingV2Fixtures } from './fixtureInterfaces'
+import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, NewTonStakingV2Fixtures,
+  StakedTonSyncFixture  } from './fixtureInterfaces'
 
 import { DepositManagerForMigration } from "../../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
@@ -27,6 +28,10 @@ import { DAOCommitteeExtend } from "../../typechain-types/contracts/dao/DAOCommi
 import { CandidateFactory } from "../../typechain-types/contracts/dao/factory/CandidateFactory.sol"
 import { CandidateFactoryProxy } from "../../typechain-types/contracts/dao/factory/CandidateFactoryProxy"
 import { PowerTONUpgrade } from "../../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
+
+import { L1StakedTonToL2 } from "../../typechain-types/contracts/L1/L1StakedTonToL2.sol"
+import { L1StakedTonInL2 } from "../../typechain-types/contracts/L2/L1StakedTonInL2.sol"
+import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.sol"
 
 import DepositManager_Json from '../abi/DepositManager.json'
 import SeigManager_Json from '../abi/SeigManager.json'
@@ -905,5 +910,195 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
     layer2RegistryV2: layer2RegistryV2 ,
     powerTON: powerTON,
     powerTonAddress: oldContractInfo.PowerTON
+  }
+}
+
+
+export const stakedTonSyncFixture = async function (): Promise<StakedTonSyncFixture> {
+  const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
+  const { tonAddress, tonAdminAddress } = await hre.getNamedAccounts();
+  const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
+
+  const LockTOS_ = await ethers.getContractFactory('LockTOS');
+  const lockTOS = (await LockTOS_.connect(deployer).deploy()) as LockTOS
+
+  const TOS_ = await ethers.getContractFactory('TOS');
+  const tos = (await TOS_.connect(deployer).deploy(
+    tosInfo.name, tosInfo.symbol, tosInfo.version
+  )) as TOS
+
+  await (await lockTOS.connect(deployer).initialize(
+    tos.address,
+    lockTosInitializeIfo.epochUnit,
+    lockTosInitializeIfo.maxTime
+  )).wait()
+
+  // console.log('lockTOS', lockTOS.address)
+  await (await tos.connect(deployer).mint(addr1.address, ethers.utils.parseEther("100000000"))).wait();
+  await (await tos.connect(deployer).mint(addr2.address, ethers.utils.parseEther("100000000"))).wait();
+
+  //--
+  const LockTOSv2_ = await ethers.getContractFactory('LockTOSv2');
+  const lockTOSv2 = (await LockTOSv2_.connect(deployer).deploy(
+    lockIdNFTInfo.name,
+    lockIdNFTInfo.symbol
+  )) as LockTOSv2
+
+  await (await lockTOSv2.connect(deployer).initialize(
+    tos.address,
+    lockTosInitializeIfo.epochUnit,
+    lockTosInitializeIfo.maxTime
+  )).wait()
+
+  // console.log('lockTOSv2', lockTOSv2.address)
+
+
+  const LockIdNFT_ = await ethers.getContractFactory('LockIdNFT');
+  const lockIdNFT = (await LockIdNFT_.connect(deployer).deploy(
+    lockIdNFTInfo.name,
+    lockIdNFTInfo.symbol,
+    deployer.address,
+    lockIdNFTInfo.epochUnit,
+    lockIdNFTInfo.maxTime,
+    tos.address
+  )) as LockIdNFT
+
+
+  const LockIdNftTransferable_ = await ethers.getContractFactory('LockIdNftTransferable');
+  const lockIdNftTransferable = (await LockIdNftTransferable_.connect(deployer).deploy(
+    lockIdNFTInfo.name,
+    lockIdNFTInfo.symbol,
+    deployer.address,
+    lockIdNFTInfo.epochUnit,
+    lockIdNFTInfo.maxTime,
+    tos.address
+  )) as LockIdNftTransferable
+
+
+  //==== LibProject =================================
+  const LibProject_ = await ethers.getContractFactory('LibProject');
+  const libProject = (await LibProject_.connect(deployer).deploy()) as LibProject
+
+  //---- for L2 message
+  const Lib_AddressManager = await ethers.getContractFactory('Lib_AddressManager')
+  const addressManager = (await Lib_AddressManager.connect(deployer).deploy()) as Lib_AddressManager
+  await addressManager.connect(deployer).setAddress("OVM_Sequencer", sequencer1.address);
+
+  //---
+  const MockL1Messenger = await ethers.getContractFactory('MockL1Messenger')
+  const l1Messenger = (await MockL1Messenger.connect(deployer).deploy()) as MockL1Messenger
+  const MockL2Messenger = await ethers.getContractFactory('MockL2Messenger')
+  const l2Messenger = (await MockL2Messenger.connect(deployer).deploy()) as MockL2Messenger
+
+  await addressManager.connect(deployer).setAddress("Proxy__OVM_L1CrossDomainMessenger", l1Messenger.address);
+  await (await l1Messenger.connect(deployer).setL2messenger(l2Messenger.address)).wait()
+
+  //---- for L1 stos -> L2 register
+  //---- L1StosToL2
+  const L1StosToL2_ = await ethers.getContractFactory('L1StosToL2', {
+    signer: deployer, libraries: { LibProject: libProject.address }
+  })
+  const L1StosToL2Proxy_ = await ethers.getContractFactory('L1StosToL2Proxy', {
+    signer: deployer
+  })
+
+  const l1StosToL2Logic = (await L1StosToL2_.connect(deployer).deploy()) as L1StosToL2
+  const l1StosToL2Proxy = (await L1StosToL2Proxy_.connect(deployer).deploy()) as L1StosToL2Proxy
+
+  let impl_l1StosToL2Proxy = await l1StosToL2Proxy.implementation()
+  if(impl_l1StosToL2Proxy != l1StosToL2Logic.address) {
+    await (await l1StosToL2Proxy.connect(deployer).upgradeTo(l1StosToL2Logic.address)).wait()
+  }
+
+  const l1StosToL2 = (await ethers.getContractAt(L1StosToL2Json.abi, l1StosToL2Proxy.address, deployer)) as L1StosToL2
+
+  let lockTosAddr = await l1StosToL2Proxy.lockTos()
+  if(lockTosAddr != lockTOS.address) {
+    await (await l1StosToL2.connect(deployer).initialize(
+      deployer.address,
+      lockTOS.address,
+      addressManager.address,
+      ethers.BigNumber.from("100"),
+      200000
+    )).wait()
+  }
+
+  //---- L1StosInL2
+  const L1StosInL2_ = await ethers.getContractFactory('L1StosInL2')
+  const L1StosInL2Proxy_ = await ethers.getContractFactory('L1StosInL2Proxy', {
+    signer: deployer
+  })
+
+  const l1StosInL2Logic = (await L1StosInL2_.connect(deployer).deploy()) as L1StosInL2
+  const l1StosInL2Proxy = (await L1StosInL2Proxy_.connect(deployer).deploy()) as L1StosInL2Proxy
+
+  let impl_l1StosInL2Proxy = await l1StosInL2Proxy.implementation()
+
+  if(impl_l1StosInL2Proxy != l1StosInL2Logic.address) {
+
+    await (await l1StosInL2Proxy.connect(deployer).upgradeTo(l1StosInL2Logic.address)).wait()
+  }
+
+  const l1StosInL2 = (await ethers.getContractAt(L1StosInL2Json.abi, l1StosInL2Proxy.address, deployer)) as L1StosInL2
+
+  let l2CrossDomainMessenger_l1StosInL2Proxy = await l1StosInL2Proxy.l2CrossDomainMessenger()
+  if(l2CrossDomainMessenger_l1StosInL2Proxy != l2Messenger.address) {
+    await (await l1StosInL2.connect(deployer).initialize (deployer.address, l2Messenger.address)).wait()
+  }
+
+  //---- LockIdNftForRegister
+  const lockIdNFTInfoL1 = {
+    name: "L1 STOS",
+    symbol: "STOS",
+    version: "1.0",
+    epochUnit: 60*60*24*7,
+    maxTime : 60*60*24*365*3
+  }
+  const LockIdNftForRegister_ = await ethers.getContractFactory('LockIdNftForRegister')
+  const LockIdNftForRegisterProxy_ = await ethers.getContractFactory('LockIdNftForRegisterProxy', {
+    signer: deployer
+  })
+
+  const lockIdNftForRegisterLogic = (await LockIdNftForRegister_.connect(deployer).deploy()) as LockIdNftForRegister
+  const lockIdNftForRegisterProxy = (await LockIdNftForRegisterProxy_.connect(deployer).deploy()) as LockIdNftForRegisterProxy
+
+  let impl_lockIdNftForRegisterProxy = await lockIdNftForRegisterProxy.implementation()
+
+  if(impl_lockIdNftForRegisterProxy != lockIdNftForRegisterLogic.address) {
+    await (await lockIdNftForRegisterProxy.connect(deployer).upgradeTo(lockIdNftForRegisterLogic.address)).wait()
+  }
+
+  const lockIdNftForRegister = (await ethers.getContractAt(LockIdNftForRegisterJson.abi, lockIdNftForRegisterProxy.address, deployer)) as LockIdNftForRegister
+
+  let epochUnit = await lockIdNftForRegister.epochUnit()
+  if (epochUnit != ethers.BigNumber.from(""+lockIdNFTInfoL1.epochUnit)) {
+    await (await lockIdNftForRegister.connect(deployer).initialize(
+      lockIdNFTInfoL1.name,
+      lockIdNFTInfoL1.symbol,
+      l1StosInL2.address,
+      lockIdNFTInfoL1.epochUnit,
+      lockIdNFTInfoL1.maxTime
+    )).wait()
+  }
+
+
+  await (await l1StosInL2.connect(deployer).setLockIdNft(lockIdNftForRegister.address)).wait()
+  await (await l1StosInL2.connect(deployer).setL1Register(l1StosToL2.address)).wait()
+
+
+  await (await l1StosToL2.connect(deployer).setL2Register(l1StosInL2.address)).wait()
+
+
+  // console.log('l1StosToL2 ', l1StosToL2.address)
+  // console.log('l1StosInL2 ', l1StosInL2.address)
+  // console.log('lockIdNftForRegister ', lockIdNftForRegister.address)
+  return  {
+    deployer: deployer,
+    addr1: addr1,
+    addr2: addr2,
+    l1StosToL2: l1StosToL2,
+    l1StosInL2: l1StosInL2,
+    addressManager: addressManager,
+    l1Messenger: l1Messenger,
   }
 }
