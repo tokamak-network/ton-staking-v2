@@ -24,9 +24,8 @@ contract L2SeigManagerStorage   {
     address public l2CrossDomainMessenger;
     bool internal _lock;
 
-    uint256 internal _numLayer2s;
     mapping (address => bool) internal _l1layer2s;
-    mapping (uint256 => address) internal _l1layer2ByIndex;
+    address[] public l1layer2s;
 
     modifier ifFree {
         require(_lock != true, "in use");

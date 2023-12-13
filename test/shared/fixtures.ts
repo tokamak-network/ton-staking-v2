@@ -12,6 +12,7 @@ import { DepositManagerForMigration } from "../../typechain-types/contracts/stak
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
+import { SeigManager1 } from "../../typechain-types/contracts/stake/managers/SeigManager1.sol"
 import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
@@ -30,11 +31,18 @@ import { CandidateFactoryProxy } from "../../typechain-types/contracts/dao/facto
 import { PowerTONUpgrade } from "../../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
 
 import { L1StakedTonToL2 } from "../../typechain-types/contracts/L1/L1StakedTonToL2.sol"
+import { L1StakedTonToL2Proxy } from "../../typechain-types/contracts/L1/L1StakedTonToL2Proxy"
+
 import { L1StakedTonInL2 } from "../../typechain-types/contracts/L2/L1StakedTonInL2.sol"
+import { L1StakedTonInL2Proxy } from "../../typechain-types/contracts/L2/L1StakedTonInL2Proxy"
 import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.sol"
+import { L2SeigManagerProxy } from "../../typechain-types/contracts/L2/L2SeigManagerProxy"
+
+import { Lib_AddressManager } from "../../typechain-types/contracts/test/Lib_AddressManager"
+import { MockL1Messenger } from "../../typechain-types/contracts/test/MockL1Messenger.sol"
+import { MockL2Messenger } from "../../typechain-types/contracts/test/MockL2Messenger"
 
 import DepositManager_Json from '../abi/DepositManager.json'
-import SeigManager_Json from '../abi/SeigManager.json'
 import L2Registry_Json from '../abi/Layer2Registry.json'
 import CoinageFactory_Json from '../abi/CoinageFactory.json'
 import Ton_Json from '../abi/TON.json'
@@ -47,6 +55,12 @@ import RefactorCoinageSnapshot_Json from '../../artifacts/contracts/stake/tokens
 import DAOCommittee_Json from '../abi/DAOCommittee.json'
 import Candidate_Json from '../../artifacts/contracts/dao/Candidate.sol/Candidate.json'
 import PowerTON_Json from '../abi/PowerTONSwapperProxy.json'
+
+import L1StakedTonToL2_Json from '../../artifacts/contracts/L1/L1StakedTonToL2.sol/L1StakedTonToL2.json'
+import L1StakedTonInL2_Json from '../../artifacts/contracts/L2/L1StakedTonInL2.sol/L1StakedTonInL2.json'
+import L2SeigManager_Json from '../../artifacts/contracts/L2/L2SeigManager.sol/L2SeigManager.json'
+import SeigManager_Json from '../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json'
+import Layer2Registry_Json from '../../artifacts/contracts/stake/Layer2Registry.sol/Layer2Registry.json'
 
 export const lastSeigBlock = ethers.BigNumber.from("18169346");
 export const globalWithdrawalDelay  = ethers.BigNumber.from("93046")
@@ -914,70 +928,13 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
 }
 
 
-export const stakedTonSyncFixture = async function (): Promise<StakedTonSyncFixture> {
+export const stakedTonSyncFixture = async function (boolInitialize: boolean): Promise<StakedTonSyncFixture> {
   const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
-  const { tonAddress, tonAdminAddress } = await hre.getNamedAccounts();
-  const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
-
-  const LockTOS_ = await ethers.getContractFactory('LockTOS');
-  const lockTOS = (await LockTOS_.connect(deployer).deploy()) as LockTOS
-
-  const TOS_ = await ethers.getContractFactory('TOS');
-  const tos = (await TOS_.connect(deployer).deploy(
-    tosInfo.name, tosInfo.symbol, tosInfo.version
-  )) as TOS
-
-  await (await lockTOS.connect(deployer).initialize(
-    tos.address,
-    lockTosInitializeIfo.epochUnit,
-    lockTosInitializeIfo.maxTime
-  )).wait()
-
-  // console.log('lockTOS', lockTOS.address)
-  await (await tos.connect(deployer).mint(addr1.address, ethers.utils.parseEther("100000000"))).wait();
-  await (await tos.connect(deployer).mint(addr2.address, ethers.utils.parseEther("100000000"))).wait();
-
-  //--
-  const LockTOSv2_ = await ethers.getContractFactory('LockTOSv2');
-  const lockTOSv2 = (await LockTOSv2_.connect(deployer).deploy(
-    lockIdNFTInfo.name,
-    lockIdNFTInfo.symbol
-  )) as LockTOSv2
-
-  await (await lockTOSv2.connect(deployer).initialize(
-    tos.address,
-    lockTosInitializeIfo.epochUnit,
-    lockTosInitializeIfo.maxTime
-  )).wait()
-
-  // console.log('lockTOSv2', lockTOSv2.address)
-
-
-  const LockIdNFT_ = await ethers.getContractFactory('LockIdNFT');
-  const lockIdNFT = (await LockIdNFT_.connect(deployer).deploy(
-    lockIdNFTInfo.name,
-    lockIdNFTInfo.symbol,
-    deployer.address,
-    lockIdNFTInfo.epochUnit,
-    lockIdNFTInfo.maxTime,
-    tos.address
-  )) as LockIdNFT
-
-
-  const LockIdNftTransferable_ = await ethers.getContractFactory('LockIdNftTransferable');
-  const lockIdNftTransferable = (await LockIdNftTransferable_.connect(deployer).deploy(
-    lockIdNFTInfo.name,
-    lockIdNFTInfo.symbol,
-    deployer.address,
-    lockIdNFTInfo.epochUnit,
-    lockIdNFTInfo.maxTime,
-    tos.address
-  )) as LockIdNftTransferable
-
-
-  //==== LibProject =================================
-  const LibProject_ = await ethers.getContractFactory('LibProject');
-  const libProject = (await LibProject_.connect(deployer).deploy()) as LibProject
+  const { TON, SeigManagerAddress, L2RegistryAddress , DAOCommitteeProxy} = await hre.getNamedAccounts();
+  // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
+  const seigManagerV1 = (await ethers.getContractAt(SeigManager_Json.abi, SeigManagerAddress, deployer)) as SeigManager
+  const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManager1")).connect(deployer).deploy()) as SeigManager1;
+  const l2Registry = (await ethers.getContractAt(Layer2Registry_Json.abi, L2RegistryAddress, deployer)) as Layer2Registry
 
   //---- for L2 message
   const Lib_AddressManager = await ethers.getContractFactory('Lib_AddressManager')
@@ -993,112 +950,91 @@ export const stakedTonSyncFixture = async function (): Promise<StakedTonSyncFixt
   await addressManager.connect(deployer).setAddress("Proxy__OVM_L1CrossDomainMessenger", l1Messenger.address);
   await (await l1Messenger.connect(deployer).setL2messenger(l2Messenger.address)).wait()
 
-  //---- for L1 stos -> L2 register
-  //---- L1StosToL2
-  const L1StosToL2_ = await ethers.getContractFactory('L1StosToL2', {
-    signer: deployer, libraries: { LibProject: libProject.address }
+  //---- for L1 ton -> L2 register
+  //---- L1StakedTonToL2
+  const L1StakedTonToL2_ = await ethers.getContractFactory('L1StakedTonToL2', {
+    signer: deployer
   })
-  const L1StosToL2Proxy_ = await ethers.getContractFactory('L1StosToL2Proxy', {
+  const L1StakedTonToL2ProxyProxy_ = await ethers.getContractFactory('L1StakedTonToL2Proxy', {
     signer: deployer
   })
 
-  const l1StosToL2Logic = (await L1StosToL2_.connect(deployer).deploy()) as L1StosToL2
-  const l1StosToL2Proxy = (await L1StosToL2Proxy_.connect(deployer).deploy()) as L1StosToL2Proxy
+  const l1StakedTonToL2_Logic = (await L1StakedTonToL2_.connect(deployer).deploy()) as L1StakedTonToL2
+  const l1StakedTonToL2Proxy = (await L1StakedTonToL2ProxyProxy_.connect(deployer).deploy()) as L1StakedTonToL2Proxy
 
-  let impl_l1StosToL2Proxy = await l1StosToL2Proxy.implementation()
-  if(impl_l1StosToL2Proxy != l1StosToL2Logic.address) {
-    await (await l1StosToL2Proxy.connect(deployer).upgradeTo(l1StosToL2Logic.address)).wait()
+  let impl_l1StakedTonToL2Proxy = await l1StakedTonToL2Proxy.implementation()
+  if(impl_l1StakedTonToL2Proxy != l1StakedTonToL2_Logic.address) {
+    await (await l1StakedTonToL2Proxy.connect(deployer).upgradeTo(l1StakedTonToL2_Logic.address)).wait()
   }
 
-  const l1StosToL2 = (await ethers.getContractAt(L1StosToL2Json.abi, l1StosToL2Proxy.address, deployer)) as L1StosToL2
+  const l1StakedTonToL2 = (await ethers.getContractAt(L1StakedTonToL2_Json.abi, l1StakedTonToL2Proxy.address, deployer)) as L1StakedTonToL2
 
-  let lockTosAddr = await l1StosToL2Proxy.lockTos()
-  if(lockTosAddr != lockTOS.address) {
-    await (await l1StosToL2.connect(deployer).initialize(
-      deployer.address,
-      lockTOS.address,
-      addressManager.address,
-      ethers.BigNumber.from("100"),
-      200000
-    )).wait()
-  }
-
-  //---- L1StosInL2
-  const L1StosInL2_ = await ethers.getContractFactory('L1StosInL2')
-  const L1StosInL2Proxy_ = await ethers.getContractFactory('L1StosInL2Proxy', {
+  //---- L1StakedTonInL2
+  const L1StakedTonInL2_ = await ethers.getContractFactory('L1StakedTonInL2')
+  const L1StakedTonInL2Proxy_ = await ethers.getContractFactory('L1StakedTonInL2Proxy', {
     signer: deployer
   })
 
-  const l1StosInL2Logic = (await L1StosInL2_.connect(deployer).deploy()) as L1StosInL2
-  const l1StosInL2Proxy = (await L1StosInL2Proxy_.connect(deployer).deploy()) as L1StosInL2Proxy
+  const l1StakedTonInL2_Logic = (await L1StakedTonInL2_.connect(deployer).deploy()) as L1StakedTonInL2
+  const l1StakedTonInL2Proxy = (await L1StakedTonInL2Proxy_.connect(deployer).deploy()) as L1StakedTonInL2Proxy
 
-  let impl_l1StosInL2Proxy = await l1StosInL2Proxy.implementation()
+  let impl_l1StakedTonInL2Proxy = await l1StakedTonInL2Proxy.implementation()
 
-  if(impl_l1StosInL2Proxy != l1StosInL2Logic.address) {
-
-    await (await l1StosInL2Proxy.connect(deployer).upgradeTo(l1StosInL2Logic.address)).wait()
+  if(impl_l1StakedTonInL2Proxy != l1StakedTonInL2_Logic.address) {
+    await (await l1StakedTonInL2Proxy.connect(deployer).upgradeTo(l1StakedTonInL2_Logic.address)).wait()
   }
 
-  const l1StosInL2 = (await ethers.getContractAt(L1StosInL2Json.abi, l1StosInL2Proxy.address, deployer)) as L1StosInL2
+  const l1StakedTonInL2 = (await ethers.getContractAt(L1StakedTonInL2_Json.abi, l1StakedTonInL2Proxy.address, deployer)) as L1StakedTonInL2
 
-  let l2CrossDomainMessenger_l1StosInL2Proxy = await l1StosInL2Proxy.l2CrossDomainMessenger()
-  if(l2CrossDomainMessenger_l1StosInL2Proxy != l2Messenger.address) {
-    await (await l1StosInL2.connect(deployer).initialize (deployer.address, l2Messenger.address)).wait()
-  }
 
-  //---- LockIdNftForRegister
-  const lockIdNFTInfoL1 = {
-    name: "L1 STOS",
-    symbol: "STOS",
-    version: "1.0",
-    epochUnit: 60*60*24*7,
-    maxTime : 60*60*24*365*3
-  }
-  const LockIdNftForRegister_ = await ethers.getContractFactory('LockIdNftForRegister')
-  const LockIdNftForRegisterProxy_ = await ethers.getContractFactory('LockIdNftForRegisterProxy', {
+  //---- L2SeigManager
+  const L2SeigManager_ = await ethers.getContractFactory('L2SeigManager')
+  const L2SeigManagerProxy_ = await ethers.getContractFactory('L2SeigManagerProxy', {
     signer: deployer
   })
 
-  const lockIdNftForRegisterLogic = (await LockIdNftForRegister_.connect(deployer).deploy()) as LockIdNftForRegister
-  const lockIdNftForRegisterProxy = (await LockIdNftForRegisterProxy_.connect(deployer).deploy()) as LockIdNftForRegisterProxy
+  const l2SeigManagerLogic = (await L2SeigManager_.connect(deployer).deploy()) as L2SeigManager
+  const l2SeigManagerProxy = (await L2SeigManagerProxy_.connect(deployer).deploy()) as L2SeigManagerProxy
 
-  let impl_lockIdNftForRegisterProxy = await lockIdNftForRegisterProxy.implementation()
+  let impl_l2SeigManagerProxy = await l2SeigManagerProxy.implementation()
 
-  if(impl_lockIdNftForRegisterProxy != lockIdNftForRegisterLogic.address) {
-    await (await lockIdNftForRegisterProxy.connect(deployer).upgradeTo(lockIdNftForRegisterLogic.address)).wait()
+  if(impl_l2SeigManagerProxy != l2SeigManagerLogic.address) {
+    await (await l2SeigManagerProxy.connect(deployer).upgradeTo(l2SeigManagerLogic.address)).wait()
   }
 
-  const lockIdNftForRegister = (await ethers.getContractAt(LockIdNftForRegisterJson.abi, lockIdNftForRegisterProxy.address, deployer)) as LockIdNftForRegister
-
-  let epochUnit = await lockIdNftForRegister.epochUnit()
-  if (epochUnit != ethers.BigNumber.from(""+lockIdNFTInfoL1.epochUnit)) {
-    await (await lockIdNftForRegister.connect(deployer).initialize(
-      lockIdNFTInfoL1.name,
-      lockIdNFTInfoL1.symbol,
-      l1StosInL2.address,
-      lockIdNFTInfoL1.epochUnit,
-      lockIdNFTInfoL1.maxTime
-    )).wait()
-  }
+  const l2SeigManager = (await ethers.getContractAt(L2SeigManager_Json.abi, l2SeigManagerProxy.address, deployer)) as L2SeigManager
 
 
-  await (await l1StosInL2.connect(deployer).setLockIdNft(lockIdNftForRegister.address)).wait()
-  await (await l1StosInL2.connect(deployer).setL1Register(l1StosToL2.address)).wait()
+  const contractJson = await jsonFixtures()
+  const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
 
+  await network.provider.send("hardhat_impersonateAccount", [
+    DAOCommitteeProxy,
+  ]);
+  const daoAdmin = await ethers.getSigner(DAOCommitteeProxy);
+  await hre.network.provider.send("hardhat_setBalance", [
+    DAOCommitteeProxy,
+    "0x10000000000000000000000000",
+  ]);
 
-  await (await l1StosToL2.connect(deployer).setL2Register(l1StosInL2.address)).wait()
+  //
+  // for test :
+  await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
 
-
-  // console.log('l1StosToL2 ', l1StosToL2.address)
-  // console.log('l1StosInL2 ', l1StosInL2.address)
-  // console.log('lockIdNftForRegister ', lockIdNftForRegister.address)
   return  {
     deployer: deployer,
     addr1: addr1,
     addr2: addr2,
-    l1StosToL2: l1StosToL2,
-    l1StosInL2: l1StosInL2,
+    daoAdmin: daoAdmin,
+    TON: TONContract,
+    seigManagerV1: seigManagerV1,
+    seigManagerV2Imp: seigManagerV2Imp,
+    l2Registry: l2Registry,
+    l1StakedTonToL2: l1StakedTonToL2,
+    l1StakedTonInL2: l1StakedTonInL2,
+    l2SeigManager: l2SeigManager,
     addressManager: addressManager,
     l1Messenger: l1Messenger,
+    l2Messenger: l2Messenger
   }
 }

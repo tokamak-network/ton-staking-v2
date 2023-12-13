@@ -6,7 +6,7 @@ import { IRefactor } from "../stake/interfaces/IRefactor.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import "../proxy/ProxyStorage.sol";
 import "./L1StakedTonToL2Storage.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 interface AddressManagerI {
     function getAddress(string memory _name) external view returns (address);
@@ -15,6 +15,7 @@ interface AddressManagerI {
 interface IRegistry {
     function numLayer2s() external view returns (uint256);
     function layer2ByIndex(uint256 index) external view returns (address);
+    function layer2s(address layer2) external view returns (bool);
 }
 
 interface ISeigManager {
@@ -44,7 +45,16 @@ interface L1CrossDomainMessengerI {
 
 contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Storage {
 
-    event RegisteredAccount(address layer2, address account) ;
+    event Registered(address account, bytes syncPacket) ;
+    event Deposited(address layer, address account, uint256 amount) ;
+    event Withdrawal(address layer, address account, uint256 amount) ;
+    event Initialized(
+        address manager_,
+        address seigManager_,
+        address registry_,
+        address addressManager_,
+        uint32 minGasLimit_
+    );
 
     modifier onlySeigManager() {
         require(seigManager == msg.sender, "not seigManager");
@@ -63,11 +73,22 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
         address addressManager_,
         uint32 minGasLimit_
     ) external onlyOwner {
-        _manager = manager_;
+        manager = manager_;
         seigManager = seigManager_;
         registry = registry_;
         addressManager = addressManager_;
         minGasLimit = minGasLimit_;
+        emit Initialized(manager_, seigManager_, registry_, addressManager_, minGasLimit_);
+    }
+
+    function setSeigManger(address seigManager_) external onlyOwner {
+        require(seigManager != seigManager_, "same");
+        seigManager = seigManager_;
+    }
+
+    function setAddressManager(address addressManagerAddress_) external onlyOwner {
+        require(addressManager != addressManagerAddress_, "same");
+        addressManager = addressManagerAddress_;
     }
 
     function setL1StakedTonInL2(address l1StakedTonInL2_) external onlyOwner {
@@ -75,37 +96,58 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
         l1StakedTonInL2 = l1StakedTonInL2_;
     }
 
-    function setMinGasLimit(uint32 minGasLimit_) external onlyOwner {
+    /* ========== onlyManager ========== */
+
+    function setMinGasLimit(uint32 minGasLimit_) external onlyManager {
         require(minGasLimit != minGasLimit_, "same");
         minGasLimit = minGasLimit_;
     }
 
     /* ========== OnlySeigmanager ========== */
-    function deposit(address layer2, address account, uint256 swton) public onlySeigManager {
+    function deposit(address layer2, address account, uint256 swton) external onlySeigManager {
+        console.log("deposit %s", swton);
+        console.log("lastRegisterTime[account][layer2] %s", lastRegisterTime[account][layer2]);
+        if (lastRegisterTime[account][layer2] == 0) {
+            address[] memory layer2s = new address[](1);
+            layer2s[0] = layer2;
+            register (account, layer2s);
+        } else {
 
-        bytes memory callData = abi.encodeWithSelector(
+            bytes memory callData = abi.encodeWithSelector(
             IL1StakedTonInL2.deposit.selector, layer2, account, swton);
 
-        _sendMessage(
-            l1StakedTonInL2,
-            callData,
-            minGasLimit
-            );
+            _sendMessage(
+                l1StakedTonInL2,
+                callData,
+                minGasLimit
+                );
+
+            emit Deposited(layer2, account, swton);
+        }
     }
 
-    function unstake(address layer2, address account, uint256 swton) public onlySeigManager {
+    function withdraw(address layer2, address account, uint256 swton) public onlySeigManager {
+        console.log("withdraw %s", swton);
+        if(lastRegisterTime[account][layer2] == 0) {
+            address[] memory layer2s = new address[](1);
+            layer2s[0] = layer2;
+            register (account, layer2s);
+        } else {
+            bytes memory callData = abi.encodeWithSelector(
+                IL1StakedTonInL2.unstake.selector, layer2, account, swton);
 
-        bytes memory callData = abi.encodeWithSelector(
-            IL1StakedTonInL2.unstake.selector, layer2, account, swton);
+            _sendMessage(
+                l1StakedTonInL2,
+                callData,
+                minGasLimit
+                );
 
-        _sendMessage(
-            l1StakedTonInL2,
-            callData,
-            minGasLimit
-            );
+            emit Withdrawal(layer2, account, swton);
+        }
     }
 
     function updateSeigniorage(address layer2, uint256 swton) external {
+        console.log("updateSeigniorage %s", swton);
         bytes memory callData = abi.encodeWithSelector(
             IL1StakedTonInL2.updateSeigniorage.selector, layer2, swton);
 
@@ -121,17 +163,15 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     // register account's staked ton fro L1 to L2
     // @param account account address
     function register(address account) public {
-
-        (LibL1StakedInfo.L1StakedPacket[] memory needSyncPackets, uint256 count) = needSyncData(account);
+        console.log('register in %s', account) ;
+        (LibL1StakedInfo.L1StakedPacket[] memory needSyncPackets, uint256 count) = registerData(account);
 
         require(count != 0, "no register data");
         LibL1StakedInfo.L1StakedPacket[] memory sync = new LibL1StakedInfo.L1StakedPacket[](count);
 
         for(uint256 i ; i < count; i++){
             sync[i] = needSyncPackets[i];
-            _record(sync[i].layer, account, sync[i].stakedAmount);
         }
-
         _register(account, sync);
     }
 
@@ -140,25 +180,14 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     // @param layer2s layer2's addresses
     function register(address account, address[] memory layer2s) public {
         uint256 num = layer2s.length;
-        uint256 count = 0;
-        require(layer2s.length != 0, "empty layer2s");
+        require(num != 0, "empty layer2s");
         LibL1StakedInfo.L1StakedPacket[] memory needSyncInfo = new LibL1StakedInfo.L1StakedPacket[](num);
         for(uint256 i = 0; i < num; i++){
-            address layer2 = layer2s[i];
-            (bool isNeed, uint256 amount) = isNeedSync(layer2, account);
-            if (isNeed) {
-                needSyncInfo[count] = LibL1StakedInfo.L1StakedPacket(layer2, amount);
-                count++;
-            }
+            require(IRegistry(registry).layer2s(layer2s[i]), "unregistered layer in registry");
+            uint256 amount = ISeigManager(seigManager).stakeOf(layer2s[i], account);
+            needSyncInfo[i] = LibL1StakedInfo.L1StakedPacket(layer2s[i], amount);
         }
-
-        require(count != 0, "no register data");
-        LibL1StakedInfo.L1StakedPacket[] memory sync = new LibL1StakedInfo.L1StakedPacket[](count);
-        for(uint256 i = 0; i < count; i++){
-            sync[i] = needSyncInfo[i];
-            _record(sync[i].layer, account, sync[i].stakedAmount);
-        }
-        _register(account, sync);
+        _register(account, needSyncInfo);
     }
 
     /* ========== VIEW ========== */
@@ -173,19 +202,8 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
         factor = f.factor;
     }
 
-    function isNeedSync(address layer2, address account) public view returns (bool isNeed, uint256 amount)
-    {
-        amount = ISeigManager(seigManager).stakeOf(layer2, account);
-        isNeed = true;
-        // (uint256 balance, uint256 factor) = getBalanceFactor(layer2, account);
-        // LibL1StakedInfo.L1Staked memory info = syncInfo[account][layer2];
-        // if (info.syncTime == 0 && amount != 0) isNeed = true;
-        // else if (info.balanceFactor != balance) isNeed = true;
-        // else if (info.factor != factor) isNeed = true;
-        // else if (info.stakedAmount != amount)  isNeed = true; // rebaseIndex ..
-    }
 
-    function needSyncData(address account)
+    function registerData(address account)
         public view
         returns (LibL1StakedInfo.L1StakedPacket[] memory needSyncInfo, uint256 count)
     {
@@ -195,18 +213,11 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
             needSyncInfo = new LibL1StakedInfo.L1StakedPacket[](num);
             for(uint256 i = 0; i < num; i++){
                 address layer2 = IRegistry(registry).layer2ByIndex(i);
-                (bool isNeed, uint256 amount) = isNeedSync(layer2, account);
-
-                if (isNeed) {
-                    needSyncInfo[count] = LibL1StakedInfo.L1StakedPacket(layer2, amount);
-                    count++;
-                }
+                uint256 amount = ISeigManager(seigManager).stakeOf(layer2, account);
+                needSyncInfo[count] = LibL1StakedInfo.L1StakedPacket(layer2, amount);
+                count++;
             }
         }
-    }
-
-    function viewSyncInfo(address account, address layer2) external view returns(LibL1StakedInfo.L1Staked memory) {
-        return syncInfo[account][layer2];
     }
 
     function getL1CommunicationMessenger(address addressManager) public view returns(address _address) {
@@ -220,32 +231,25 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     }
 
     /* === ======= internal ========== */
-    function _record(address layer2, address account, uint256 stakedAmount) internal {
-        /*
-        LibL1StakedInfo.L1Staked storage info = syncInfo[account][layer2];
-        (uint256 balance, uint256 factor) = getBalanceFactor(layer2, account);
-
-        info.syncTime = uint32(block.timestamp);
-        info.balanceFactor = balance;
-        info.factor = factor;
-        info.stakedAmount = stakedAmount;
-        */
-    }
 
     function _register(address account, LibL1StakedInfo.L1StakedPacket[] memory syncInfos) internal {
+        console.log('_register in ');
 
         require(syncInfos.length != 0, "no register data");
 
         bytes memory syncPackets ;
         uint256 count = syncInfos.length ;
+        console.log('_register count %s ', count);
 
         // packet {account address: 1st sync packet: 2nd sync packet: .....}
         // account address : 20 bytes
         // sync packets : count to sync * 52 bytes ( count * 52 )
             // one sync packets : 52 bytes:  (20 byte) address layer, (32) stakedAmount -> total 52
         for (uint256 i = 0; i < count; i++){
-            syncPackets = bytes.concat(syncPackets,
-                abi.encodePacked(syncInfos[i].layer, syncInfos[i].stakedAmount));
+            lastRegisterTime[account][syncInfos[i].layer] = block.timestamp;
+            bytes memory syncPacket = abi.encodePacked(syncInfos[i].layer, syncInfos[i].stakedAmount);
+            syncPackets = bytes.concat(syncPackets, syncPacket);
+            emit Registered(account, syncPacket);
         }
 
         bytes memory callData = abi.encodeWithSelector(
@@ -273,6 +277,5 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
                 minGasLimit
             );
     }
-
 
 }

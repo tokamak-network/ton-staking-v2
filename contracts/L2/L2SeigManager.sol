@@ -8,6 +8,8 @@ import "../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../common/AuthControlSeigManager.sol";
 import { L2SeigManagerStorage } from "./L2SeigManagerStorage.sol";
 
+import "hardhat/console.sol";
+
 interface IL2CrossDomainMessenger {
     function xDomainMessageSender() external view returns (address);
 }
@@ -18,13 +20,17 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // Modifiers
   //////////////////////////////
   modifier onlyL1StakedTonInL2() {
-      require(l1StakedTonInL2 == msg.sender, "not l1StakedTonInL2");
-      _;
+    console.log('onlyL1StakedTonInL2 l1StakedTonInL2 %s', l1StakedTonInL2);
+    console.log('onlyL1StakedTonInL2 msg.sender %s', msg.sender);
+
+    require(l1StakedTonInL2 == msg.sender, "not l1StakedTonInL2");
+    _;
   }
   event OnSnapshot(uint256 snapshotId);
   event Deposited(address layer2, address account, uint256 swtonAmount, uint256 lswton);
   event Unstaked(address layer2, address account, uint256 swtonAmount, uint256 lswton);
   event RebasedIndex(address layer2, uint256 sharePerRay, uint256 oldIndex, uint256 newIndex);
+  event Replaced(address layer2, address account, uint256 oldLswton, uint256 lswton);
 
   //////////////////////////////
   // Constuctor
@@ -42,27 +48,19 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
       l2CrossDomainMessenger =l2messanger_;
   }
 
+  function addLayers(address[] memory layer2s) external onlyOwner {
+    for (uint256 i = 0; i < layer2s.length; i++) {
+      if (index[layer2s[i]] == 0) index[layer2s[i]] = 1e27;
+      if (!_l1layer2s[layer2s[i]]) {
+        _l1layer2s[layer2s[i]] = true;
+        l1layer2s.push(layer2s[i]);
+      }
+    }
+  }
+
   //////////////////////////////
   // onlyL1StakedTonInL2
   //////////////////////////////
-  function _checkLayer(address layer2) internal ifFree {
-      if (!_l1layer2s[layer2]) {
-          _l1layer2s[layer2] = true;
-          _l1layer2ByIndex[_numLayer2s] = layer2;
-          _numLayer2s++;
-          if (index[layer2] == 0)  index[layer2] = 1e27;
-      }
-  }
-
-  function _replace(address layer2, address account, uint256 swtonAmount) internal {
-    uint256 lswton = getSwtonToLswton(layer2, swtonAmount);
-    LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
-    uint256 oldLswton = info.lswton;
-    info.deposit = swtonAmount;
-    info.lswton = lswton;
-    totalLswton[layer2] = totalLswton[layer2] - oldLswton + lswton;
-  }
-
 
   function register(address account, LibL1StakedInfo.L1StakedPacket[] memory packets)
     external
@@ -71,10 +69,18 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   {
     require(packets.length != 0, "no packets");
     uint256 num = packets.length;
-    for (uint256 i; i < num; i++) {
+    console.log('register num %s', num);
+
+    for (uint256 i = 0; i < num; i++) {
+      console.log('i %s', i);
+      console.log('packets[i].stakedAmount %s', packets[i].stakedAmount);
       address layer2 = packets[i].layer;
+      console.log('packets[i].layer %s', layer2);
+
       _checkLayer(layer2);
+
       _replace(layer2, account, packets[i].stakedAmount);
+      console.log('end');
     }
     return true;
   }
@@ -147,17 +153,17 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // }
 
   function balanceOf(address account) external view returns (uint256 amount) {
-    uint256 num = _numLayer2s;
+    uint256 num = getL1LayersNum();
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = _l1layer2ByIndex[i];
+      address layer2 = l1layer2s[i];
       amount += getLswtonToSwton(layer2, stakedInfo[layer2][account].lswton);
     }
   }
 
   // function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
-  //   uint256 num = _numLayer2s;
+  //   uint256 num = getL1LayersNum();
   //   for (uint256 i = 0 ; i < num; i++){
-  //     amount += _coinages[_l1layer2ByIndex[i]].balanceOfAt(account, snapshotId);
+  //     amount += _coinages[l1layer2s[i]].balanceOfAt(account, snapshotId);
   //   }
   // }
 
@@ -166,9 +172,9 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   }
 
   function totalSupply() external view returns (uint256 amount) {
-    uint256 num = _numLayer2s;
+    uint256 num = getL1LayersNum();
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = _l1layer2ByIndex[i];
+      address layer2 = l1layer2s[i];
       amount += getLswtonToSwton(layer2, totalLswton[layer2]);
     }
   }
@@ -186,6 +192,10 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //////////////////////////////
   // Public functions
   //////////////////////////////
+
+  function getL1LayersNum() public view returns (uint256) {
+    return l1layer2s.length;
+  }
 
   function getSwtonToLswton(address layer2, uint256 amount) public view returns (uint256) {
     if (amount == 0) return 0;
@@ -216,6 +226,47 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   //////////////////////////////
   // Internal functions
   //////////////////////////////
+  function _checkLayer(address layer2) internal ifFree {
+    if (index[layer2] == 0) index[layer2] = 1e27;
+    if (!_l1layer2s[layer2]) {
+      console.log('1');
+      _l1layer2s[layer2] = true;
+      console.log('2 l1layer2s length %s', l1layer2s.length);
+      l1layer2s.push(layer2);
+      console.log('3');
+    }
+    console.log('_checkLayer end ');
+  }
+
+  function _replace(address layer2, address account, uint256 swtonAmount) internal {
+    console.log('_replace %s, %s, %s ', layer2, account, swtonAmount);
+
+    uint256 lswton = getSwtonToLswton(layer2, swtonAmount);
+    console.log('lswton %s', lswton);
+
+    LibL2StakedInfo.StakedInfo storage info = stakedInfo[layer2][account];
+    uint256 oldLswton = info.lswton;
+    console.log('oldLswton %s ', oldLswton);
+
+    if (lswton != oldLswton) {
+      info.deposit = swtonAmount;
+      info.lswton = lswton;
+      console.log('info.deposit %s ', info.deposit);
+      console.log('info.lswton %s ', info.lswton);
+      console.log('totalLswton[layer2] %s ', totalLswton[layer2]);
+
+      if(lswton != 0) totalLswton[layer2] += lswton;
+      if(oldLswton != 0) totalLswton[layer2] -= oldLswton;
+
+      console.log('totalLswton[layer2] %s ', totalLswton[layer2]);
+
+      emit Replaced(layer2, account, oldLswton, lswton);
+    }
+
+    console.log('info.lswton %s ', info.lswton);
+    console.log('info.deposit %s ', info.deposit);
+    console.log('totalLswton[layer2] %s ', totalLswton[layer2]);
+  }
 
   //////////////////////////////
   // Storage getters

@@ -5,6 +5,7 @@ import {  Wallet, Signer, Contract } from 'ethers'
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
+import { SeigManager1 } from "../../typechain-types/contracts/stake/managers/SeigManager1.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
 import { Layer2RegistryProxy } from "../../typechain-types/contracts/stake/Layer2RegistryProxy"
@@ -23,6 +24,10 @@ import { AutoRefactorCoinageFactory } from "../../typechain-types/contracts/stak
 import { L1StakedTonToL2 } from "../../typechain-types/contracts/L1/L1StakedTonToL2.sol"
 import { L1StakedTonInL2 } from "../../typechain-types/contracts/L2/L1StakedTonInL2.sol"
 import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.sol"
+import { Lib_AddressManager } from "../../typechain-types/contracts/test/Lib_AddressManager"
+import { MockL1Messenger } from "../../typechain-types/contracts/test/MockL1Messenger.sol"
+import { MockL2Messenger } from "../../typechain-types/contracts/test/MockL2Messenger"
+
 
 interface TonStakingV2Fixtures  {
     deployer: Signer,
@@ -142,9 +147,17 @@ interface StakedTonSyncFixture  {
     deployer: Signer,
     addr1: Signer,
     addr2: Signer,
+    daoAdmin: Signer,
+    TON: any ,
+    seigManagerV1: SeigManager,
+    seigManagerV2Imp: SeigManager1,
+    l2Registry: Layer2Registry,
     l1StakedTonToL2: L1StakedTonToL2,
     l1StakedTonInL2: L1StakedTonInL2,
-    l2SeigManager: L2SeigManager
+    l2SeigManager: L2SeigManager,
+    addressManager: Lib_AddressManager,
+    l1Messenger: MockL1Messenger,
+    l2Messenger: MockL2Messenger
 }
 
 

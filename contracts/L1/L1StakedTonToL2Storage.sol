@@ -8,7 +8,7 @@ import { LibL1StakedInfo } from "../libraries/LibL1StakedInfo.sol";
 /// @notice
 contract L1StakedTonToL2Storage   {
 
-    address public _manager;
+    address public manager;
     address public addressManager;
     address public seigManager;
     address public registry;
@@ -20,9 +20,11 @@ contract L1StakedTonToL2Storage   {
 
     // address - layer2 - SyncStakedInfos
     mapping(address => mapping(address => LibL1StakedInfo.L1Staked)) public syncInfo;
+    mapping(address => mapping(address => uint256)) public lastRegisterTime;
+
 
     modifier onlyManager() {
-        require(_manager == msg.sender, "not manager");
+        require(manager == msg.sender, "not manager");
         _;
     }
 
