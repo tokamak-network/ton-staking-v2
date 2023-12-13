@@ -822,4 +822,132 @@ describe("DAOAgenda Test", () => {
             expect(afterAddr2).to.be.equal(true)
         })
     })
+
+    describe("create DAO agenda seigManager", () => {
+        it("setPowerTONSeigRate Agenda", async () => {
+            let agendaManagerAddr = "0xcD4421d082752f363E1687544a09d5112cD4f484"
+            let seigManagerAddr = "0x0b55a0f463b6defb81c6063973763951712d0e5f"
+            let DAOProxyAddr = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setPowerTONSeigRate(uint256)");
+
+            const powerTONRate = 100000000000000000000000000
+
+            const data1 = padLeft(powerTONRate.toString(16), 64);
+
+            const functionBytecode1 = selector1.concat(data1)
+
+            targets.push(seigManagerAddr);
+            functionBytecodes.push(functionBytecode1)
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            await ton.connect(user).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
+        })
+
+        it("setDaoSeigRate Agenda", async () => {
+            let agendaManagerAddr = "0xcD4421d082752f363E1687544a09d5112cD4f484"
+            let seigManagerAddr = "0x0b55a0f463b6defb81c6063973763951712d0e5f"
+            let DAOProxyAddr = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setDaoSeigRate(uint256)");
+
+            const DaoSeigRate = 500000000000000000000000000
+
+            const data1 = padLeft(DaoSeigRate.toString(16), 64);
+
+            const functionBytecode1 = selector1.concat(data1)
+
+            targets.push(seigManagerAddr);
+            functionBytecodes.push(functionBytecode1)
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            await ton.connect(user).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
+        })
+
+        it("setPseigRate Agenda", async () => {
+            let agendaManagerAddr = "0xcD4421d082752f363E1687544a09d5112cD4f484"
+            let seigManagerAddr = "0x0b55a0f463b6defb81c6063973763951712d0e5f"
+            let DAOProxyAddr = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoagendaManager.createAgendaFees();
+
+            let targets = [];
+            let functionBytecodes = [];
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setPseigRate(uint256)");
+
+            const PseigRate = 400000000000000000000000000
+
+            const data1 = padLeft(PseigRate.toString(16), 64);
+
+            const functionBytecode1 = selector1.concat(data1)
+
+            targets.push(seigManagerAddr);
+            functionBytecodes.push(functionBytecode1)
+
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            await ton.connect(user).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
+        })
+    })
 })
