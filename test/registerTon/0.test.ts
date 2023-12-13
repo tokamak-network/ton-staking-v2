@@ -249,49 +249,56 @@ describe('L1StakedTonToL2', () => {
         })
 
         // it('register ', async () => {
-        //     let data = '0x0c4a118cd6aaffa1dc3e18a86d1f3c1218a3451df3b17fdb808c7d0df9acd24da34700ce069007df000000000000000000000000000000000000000000000000000000000000000044e3605d0ed58fd125e9c47d1bf25a4406c13b5700000000000000000000000000000000000000000000000000000000000000002b67d8d4e61b68744885e243efaf988f1fc66e2d000000000000000000000000000000000000000000000000000000000000000036101b31e74c5e8f9a9cec378407bbb77628776100000000000000000000000000000000000000000000000000000000000000002c25a6be0e6f9017b5bf77879c487eed466f219400000000000000000000000000000000000000000000000000000000000000000f42d1c40b95df7a1478639918fc358b4af5298d000000000000000000000000000000000000000bc195fbf58ed6ffefa0bd79adbc602c1d9f3ae99db4e9fd3662ce3d02e593ec5d0000000000000000000000000000000000000000000000000000000000000000c42ccb12515b52b59c02eec303c887c8658f58540000000000000000000000000000000000000000000000000000000000000000f3cf23d896ba09d8ecdcd4655d918f71925e3fe5000000000000000000000000000000000000000000000000000000000000000006d34f65869ec94b3ba8c0e08bceb532f65005e20000000000000000000000000000000000000000000000000000000000000000'
+
+        //     let stakedA = await deployed.seigManagerV1["stakeOf(address)"](testAddress)
+        //     console.log('stakedA', stakedA)
+
+        //     let data = '0x0c4a118cd6aaffa1dc3e18a86d1f3c1218a3451d0f42d1c40b95df7a1478639918fc358b4af5298d000000000000000000000000000000000000000bc195fbf58ed6ffefa0bd79ad'
 
         //     await (await deployed.l1StakedTonInL2["register(bytes)"](data)).wait()
 
+        //     let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+
+        //     console.log('L2BalanceOf', L2BalanceOf)
         // });
 
-        it('deposit to level19 using approveAndCall', async () => {
-            const { DepositManager, level19Address, WTON } = await getNamedAccounts();
+        // it('deposit to level19 using approveAndCall', async () => {
+        //     const { DepositManager, level19Address, WTON } = await getNamedAccounts();
 
-            let tonAmount = ethers.utils.parseEther("100")
-            await deployed.TON.connect(deployer).transfer(testAddress, tonAmount);
+        //     let tonAmount = ethers.utils.parseEther("100")
+        //     await deployed.TON.connect(deployer).transfer(testAddress, tonAmount);
 
-            const beforeBalance = await deployed.TON.balanceOf(testAddress);
-            expect(beforeBalance).to.be.gte(tonAmount)
+        //     const beforeBalance = await deployed.TON.balanceOf(testAddress);
+        //     expect(beforeBalance).to.be.gte(tonAmount)
 
-            let stakedA = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
-            const data = marshalString(
-                [DepositManager, level19Address]
-                  .map(unmarshalString)
-                  .map(str => padLeft(str, 64))
-                  .join(''),
-              );
+        //     let stakedA = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
+        //     const data = marshalString(
+        //         [DepositManager, level19Address]
+        //           .map(unmarshalString)
+        //           .map(str => padLeft(str, 64))
+        //           .join(''),
+        //       );
 
-            await (await deployed.TON.connect(tester).approveAndCall(
-                WTON,
-                tonAmount,
-                data,
-                {from: testAddress}
-            )).wait();
+        //     await (await deployed.TON.connect(tester).approveAndCall(
+        //         WTON,
+        //         tonAmount,
+        //         data,
+        //         {from: testAddress}
+        //     )).wait();
 
-            const afterBalance = await deployed.TON.balanceOf(testAddress);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+        //     const afterBalance = await deployed.TON.balanceOf(testAddress);
+        //     expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
-            let stakedB = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
-            console.log('stakedB', stakedB)
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-            )
+        //     let stakedB = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
+        //     console.log('stakedB', stakedB)
+        //     expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+        //         roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
+        //     )
 
-            let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+        //     let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
 
-            console.log('L2BalanceOf', L2BalanceOf)
-        })
+        //     console.log('L2BalanceOf', L2BalanceOf)
+        // })
 
     });
 

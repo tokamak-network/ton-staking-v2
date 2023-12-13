@@ -31,8 +31,8 @@ interface IRefactorCoinage {
 interface IL1StakedTonInL2 {
     function register(bytes memory data) external ;
     function deposit(address layer2, address account, uint256 swton) external ;
-    function unstake(address layer2, address account, uint256 swton) external ;
-    function updateSeigniorage(address layer2, uint256 swton) external ;
+    function withdraw(address layer2, address account, uint256 swton) external ;
+    function rebaseIndex(address layer2, uint256 sharePerRay) external ;
 }
 
 interface L1CrossDomainMessengerI {
@@ -110,7 +110,7 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
         if (lastRegisterTime[account][layer2] == 0) {
             address[] memory layer2s = new address[](1);
             layer2s[0] = layer2;
-            register (account, layer2s);
+            register(account, layer2s);
         } else {
 
             bytes memory callData = abi.encodeWithSelector(
@@ -134,7 +134,7 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
             register (account, layer2s);
         } else {
             bytes memory callData = abi.encodeWithSelector(
-                IL1StakedTonInL2.unstake.selector, layer2, account, swton);
+                IL1StakedTonInL2.withdraw.selector, layer2, account, swton);
 
             _sendMessage(
                 l1StakedTonInL2,
@@ -149,7 +149,7 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     function updateSeigniorage(address layer2, uint256 swton) external {
         console.log("updateSeigniorage %s", swton);
         bytes memory callData = abi.encodeWithSelector(
-            IL1StakedTonInL2.updateSeigniorage.selector, layer2, swton);
+            IL1StakedTonInL2.rebaseIndex.selector, layer2, swton);
 
         _sendMessage(
             l1StakedTonInL2,

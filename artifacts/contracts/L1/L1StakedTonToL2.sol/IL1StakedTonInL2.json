@@ -29,6 +29,24 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "layer2",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sharePerRay",
+          "type": "uint256"
+        }
+      ],
+      "name": "rebaseIndex",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes",
           "name": "data",
           "type": "bytes"
@@ -57,25 +75,7 @@
           "type": "uint256"
         }
       ],
-      "name": "unstake",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "layer2",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "swton",
-          "type": "uint256"
-        }
-      ],
-      "name": "updateSeigniorage",
+      "name": "withdraw",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

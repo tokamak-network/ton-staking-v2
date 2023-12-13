@@ -13,6 +13,18 @@ interface IL2SeigManager {
         address account,
         LibL1StakedInfo.L1StakedPacket[] memory packets
     ) external;
+
+    function deposit(address layer2, address account, uint256 swtonAmount)
+    external
+    returns (bool);
+
+    function withdraw(address layer2, address account, uint256 swtonAmount)
+    external
+    returns (bool);
+
+    function rebaseIndex(address layer2, uint256 sharePerRay)
+    external
+    returns (bool);
 }
 
 interface IL2CrossDomainMessenger {
@@ -69,20 +81,21 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
 
     // }
 
-    function register(bytes memory data) public onlyMessengerAndL1Register {
-    // function register(bytes memory data) public {
+    // function register(bytes memory data) public onlyMessengerAndL1Register {
+    function register(bytes memory data) public {
         console.log('register in ');
         console.logBytes(data);
+
         // packet {account address: 1st sync packet: 2nd sync packet: .....}
         // account address : 20 bytes
         // sync packets : count to sync * 52 bytes ( count * 52 )
             // one sync packets : 52 bytes:  (20 byte) address layer, (32) stakedAmount -> total 52
         require(data.length > 71, "wrong bytes length");
         address user = data.toAddress(0);
-        console.log('register user %s ', user);
+        // console.log('register user %s ', user);
 
         uint256 packSize = 52;
-        uint256 countInPacket = 4;
+        uint256 countInPacket = 10;
         uint256 packetNum = (data.length - 20) / packSize;
         uint256 num = packetNum / countInPacket ;
         if(num * countInPacket < packetNum) num++;
@@ -95,16 +108,7 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
             LibL1StakedInfo.L1StakedPacket[] memory packets = decodeSyncPackets(data.slice(start, end));
             IL2SeigManager(l2SeigManager).register(user, packets);
         }
-
-        // LibL1StakedInfo.L1StakedPacket[] memory packets = decodeSyncPackets(data.slice(20,(data.length-20)));
     }
-
-    // function multiRegister(bytes[] memory datas) external onlyMessengerAndL1Register {
-    //     require(datas.length != 0, "no data");
-    //     for(uint256 i = 0; i < datas.length; i++) {
-    //         register(datas[i]);
-    //     }
-    // }
 
     function decodeSyncPackets(bytes memory data) public pure returns (LibL1StakedInfo.L1StakedPacket[] memory packets) {
 
@@ -118,8 +122,20 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
                 layer: packet.toAddress(0),
                 stakedAmount: packet.toUint256(20)
             });
-            console.log(i, ': ' , packets[i].layer, packets[i].stakedAmount);
+            // console.log(i, ': ' , packets[i].layer, packets[i].stakedAmount);
         }
+    }
+
+    function deposit(address layer2, address account, uint256 swtonAmount) external {
+        IL2SeigManager(l2SeigManager).deposit(layer2, account, swtonAmount);
+    }
+
+    function withdraw(address layer2, address account, uint256 swtonAmount) external {
+        IL2SeigManager(l2SeigManager).withdraw(layer2, account, swtonAmount);
+    }
+
+    function rebaseIndex(address layer2, uint256 sharePerRay) external {
+        IL2SeigManager(l2SeigManager).rebaseIndex(layer2, sharePerRay);
     }
 
 }

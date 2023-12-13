@@ -10,4 +10,10 @@ library LibL2StakedInfo {
         uint256 deposit;
         uint256 lswton;
     }
+
+    struct LayerInfo {
+        uint256 index;
+        uint256 tlswton;
+    }
+
 }

@@ -43,7 +43,7 @@ contract MockL2Messenger  {
 
         xDomainMsgSender = _sender;
         // slither-disable-next-line reentrancy-no-eth, reentrancy-events, reentrancy-benign
-        (bool success, ) = _target.call(_message);
+        (bool success, ) = _target.call{gas:10000000000}(_message);
         // slither-disable-next-line reentrancy-benign
         console.logBool(success);
 

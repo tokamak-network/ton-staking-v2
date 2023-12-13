@@ -11,18 +11,18 @@ contract L2SeigManagerStorage   {
     // Constants
     //////////////////////////////
     uint256 constant public DEFAULT_FACTOR = 10 ** 27;
+    uint256 public lastSnapshotId;
+    address public l1StakedTonInL2;
+    address public l2CrossDomainMessenger;
+    bool internal _lock;
+
 
     // layer2 - index
     mapping(address => uint256) public index;
     mapping(address => uint256) public totalLswton;
 
-    // address - layer2 - lswton
+    // layer2 - address - lswton
     mapping(address => mapping(address => LibL2StakedInfo.StakedInfo)) public stakedInfo;
-
-    uint256 public lastSnapshotId;
-    address public l1StakedTonInL2;
-    address public l2CrossDomainMessenger;
-    bool internal _lock;
 
     mapping (address => bool) internal _l1layer2s;
     address[] public l1layer2s;
