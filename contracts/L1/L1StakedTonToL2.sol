@@ -105,8 +105,6 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
 
     /* ========== OnlySeigmanager ========== */
     function deposit(address layer2, address account, uint256 swton) external onlySeigManager {
-        console.log("deposit %s", swton);
-        console.log("lastRegisterTime[account][layer2] %s", lastRegisterTime[account][layer2]);
         if (lastRegisterTime[account][layer2] == 0) {
             address[] memory layer2s = new address[](1);
             layer2s[0] = layer2;
@@ -127,7 +125,6 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     }
 
     function withdraw(address layer2, address account, uint256 swton) public onlySeigManager {
-        console.log("withdraw %s", swton);
         if(lastRegisterTime[account][layer2] == 0) {
             address[] memory layer2s = new address[](1);
             layer2s[0] = layer2;
@@ -147,7 +144,6 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     }
 
     function updateSeigniorage(address layer2, uint256 swton) external {
-        console.log("updateSeigniorage %s", swton);
         bytes memory callData = abi.encodeWithSelector(
             IL1StakedTonInL2.rebaseIndex.selector, layer2, swton);
 
@@ -163,7 +159,6 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     // register account's staked ton fro L1 to L2
     // @param account account address
     function register(address account) public {
-        console.log('register in %s', account) ;
         (LibL1StakedInfo.L1StakedPacket[] memory needSyncPackets, uint256 count) = registerData(account);
 
         require(count != 0, "no register data");
@@ -233,13 +228,10 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     /* === ======= internal ========== */
 
     function _register(address account, LibL1StakedInfo.L1StakedPacket[] memory syncInfos) internal {
-        console.log('_register in ');
-
         require(syncInfos.length != 0, "no register data");
 
         bytes memory syncPackets ;
         uint256 count = syncInfos.length ;
-        console.log('_register count %s ', count);
 
         // packet {account address: 1st sync packet: 2nd sync packet: .....}
         // account address : 20 bytes

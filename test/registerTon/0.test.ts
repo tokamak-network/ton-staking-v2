@@ -212,7 +212,7 @@ describe('L1StakedTonToL2', () => {
             for (let i = 0; i < num; i++){
                 layers.push(await deployed.l2Registry.layer2ByIndex(i))
             }
-            console.log(layers)
+            // console.log(layers)
             await (await deployed.l2SeigManager.connect(deployer).addLayers(
                 layers
             )).wait();
@@ -275,7 +275,7 @@ describe('L1StakedTonToL2', () => {
             await execAllowance(deployed.WTON, account, deployed.depositManager.address, wtonAmount);
 
             let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, account.address)
-            console.log('stakedA', stakedA)
+            // console.log('stakedA', stakedA)
 
             await deployed.depositManager.connect(account)["deposit(address,uint256)"](
                 level19Address,
@@ -286,10 +286,10 @@ describe('L1StakedTonToL2', () => {
             expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
 
             let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, account.address)
-            console.log('stakedB', stakedB)
+            // console.log('stakedB', stakedB)
 
             let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
-            console.log('L2BalanceOf', L2BalanceOf)
+            // console.log('L2BalanceOf', L2BalanceOf)
             expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
                 roundDown(stakedA.add(wtonAmount), 1)
             )
@@ -300,15 +300,15 @@ describe('L1StakedTonToL2', () => {
             const { level19Address, powerTonAddress } = await getNamedAccounts();
 
             let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-            console.log('stakedA', stakedA)
+            // console.log('stakedA', stakedA)
 
             let powerTonBalance = await deployed.WTON.balanceOf(powerTonAddress);
             await (await seigManagerV2.connect(deployer).updateSeigniorageLayer(level19Address)).wait()
 
             let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-            console.log('stakedB', stakedB)
+            // console.log('stakedB', stakedB)
             let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
-            console.log('L2BalanceOf', L2BalanceOf)
+            // console.log('L2BalanceOf', L2BalanceOf)
 
             expect(stakedB).to.be.gt(stakedA)
             expect(await deployed.WTON.balanceOf(powerTonAddress)).to.be.gt(powerTonBalance)
@@ -324,7 +324,7 @@ describe('L1StakedTonToL2', () => {
             const beforeBalance = await deployed.WTON.balanceOf(testAddress)
 
             let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-            console.log('stakedA', stakedA)
+            // console.log('stakedA', stakedA)
 
             let pendingUnstakedA = await deployed.depositManager.pendingUnstaked(level19Address, testAddress)
             let pendingUnstakedLayer2A = await deployed.depositManager.pendingUnstakedLayer2(level19Address)
@@ -339,7 +339,7 @@ describe('L1StakedTonToL2', () => {
             expect(afterBalance).to.be.eq(beforeBalance)
 
             let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-            console.log('stakedB', stakedB)
+            // console.log('stakedB', stakedB)
             expect(roundDown(stakedA.sub(ethers.constants.Two),2)).to.be.eq(
                 roundDown(stakedB.add(wtonAmount), 2)
             )
@@ -357,20 +357,20 @@ describe('L1StakedTonToL2', () => {
             ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
 
             let balanceOf = await deployed.l2SeigManager["balanceOf(address,address)"](level19Address, testAddress)
-            console.log('balanceOf', balanceOf)
+            // console.log('balanceOf', balanceOf)
             expect(roundDown(stakedB,6)).to.be.eq(roundDown(balanceOf, 6))
 
         })
 
         it('register', async () => {
             let stakeOf = await seigManagerV2["stakeOf(address)"](testAddress)
-            console.log('stakeOf', stakeOf)
+            // console.log('stakeOf', stakeOf)
             await (await deployed.l1StakedTonToL2.connect(deployer)["register(address)"](
                 testAddress
             )).wait();
 
             let balanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
-            console.log('balanceOf', balanceOf)
+            // console.log('balanceOf', balanceOf)
             expect(roundDown(stakeOf,6)).to.be.eq(roundDown(balanceOf, 6))
         })
 

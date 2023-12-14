@@ -83,8 +83,8 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
 
     // function register(bytes memory data) public onlyMessengerAndL1Register {
     function register(bytes memory data) public {
-        console.log('register in ');
-        console.logBytes(data);
+        // console.log('register in ');
+        // console.logBytes(data);
 
         // packet {account address: 1st sync packet: 2nd sync packet: .....}
         // account address : 20 bytes
@@ -92,8 +92,6 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
             // one sync packets : 52 bytes:  (20 byte) address layer, (32) stakedAmount -> total 52
         require(data.length > 71, "wrong bytes length");
         address user = data.toAddress(0);
-        // console.log('register user %s ', user);
-
         uint256 packSize = 52;
         uint256 countInPacket = 10;
         uint256 packetNum = (data.length - 20) / packSize;
@@ -103,7 +101,7 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
         for(uint256 i = 0; i < num; i++){
             uint256 start = 20 + (packSize * countInPacket * i);
             uint256 end = (packSize * countInPacket);
-            if ( start + end > data.length)  end = data.length - start;
+            if (start + end > data.length)  end = data.length - start;
 
             LibL1StakedInfo.L1StakedPacket[] memory packets = decodeSyncPackets(data.slice(start, end));
             IL2SeigManager(l2SeigManager).register(user, packets);
