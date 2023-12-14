@@ -23,7 +23,7 @@ const config: HardhatUserConfig = {
       hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
     },
-    DepositManager: {
+    DepositManagerAddress: {
       default: 4,
       mainnet: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
       local: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',

@@ -262,43 +262,117 @@ describe('L1StakedTonToL2', () => {
         //     console.log('L2BalanceOf', L2BalanceOf)
         // });
 
-        // it('deposit to level19 using approveAndCall', async () => {
-        //     const { DepositManager, level19Address, WTON } = await getNamedAccounts();
+        it('deposit to level19  ', async () => {
+            const { level19Address } = await getNamedAccounts();
+            let account = tester
 
-        //     let tonAmount = ethers.utils.parseEther("100")
-        //     await deployed.TON.connect(deployer).transfer(testAddress, tonAmount);
+            let wtonAmount = ethers.utils.parseEther("100"+"0".repeat(9))
+            await deployed.WTON.connect(deployer).transfer(account.address, wtonAmount);
 
-        //     const beforeBalance = await deployed.TON.balanceOf(testAddress);
-        //     expect(beforeBalance).to.be.gte(tonAmount)
+            const beforeBalance = await deployed.WTON.balanceOf(account.address);
+            expect(beforeBalance).to.be.gte(wtonAmount)
 
-        //     let stakedA = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
-        //     const data = marshalString(
-        //         [DepositManager, level19Address]
-        //           .map(unmarshalString)
-        //           .map(str => padLeft(str, 64))
-        //           .join(''),
-        //       );
+            await execAllowance(deployed.WTON, account, deployed.depositManager.address, wtonAmount);
 
-        //     await (await deployed.TON.connect(tester).approveAndCall(
-        //         WTON,
-        //         tonAmount,
-        //         data,
-        //         {from: testAddress}
-        //     )).wait();
+            let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, account.address)
+            console.log('stakedA', stakedA)
 
-        //     const afterBalance = await deployed.TON.balanceOf(testAddress);
-        //     expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+            await deployed.depositManager.connect(account)["deposit(address,uint256)"](
+                level19Address,
+                wtonAmount
+            );
 
-        //     let stakedB = await deployed.seigManagerV1["stakeOf(address,address)"](level19Address, testAddress)
-        //     console.log('stakedB', stakedB)
-        //     expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-        //         roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-        //     )
+            const afterBalance = await deployed.WTON.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
 
-        //     let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+            let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, account.address)
+            console.log('stakedB', stakedB)
 
-        //     console.log('L2BalanceOf', L2BalanceOf)
-        // })
+            let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+            console.log('L2BalanceOf', L2BalanceOf)
+            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 1)
+            )
+            expect(roundDown(stakedB,6)).to.be.eq(roundDown(L2BalanceOf, 6))
+        })
+
+        it('updateSeigniorage to layer1', async () => {
+            const { level19Address, powerTonAddress } = await getNamedAccounts();
+
+            let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
+            console.log('stakedA', stakedA)
+
+            let powerTonBalance = await deployed.WTON.balanceOf(powerTonAddress);
+            await (await seigManagerV2.connect(deployer).updateSeigniorageLayer(level19Address)).wait()
+
+            let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
+            console.log('stakedB', stakedB)
+            let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+            console.log('L2BalanceOf', L2BalanceOf)
+
+            expect(stakedB).to.be.gt(stakedA)
+            expect(await deployed.WTON.balanceOf(powerTonAddress)).to.be.gt(powerTonBalance)
+            expect(roundDown(stakedB,6)).to.be.eq(roundDown(L2BalanceOf, 6))
+        })
+
+
+        it('requestWithdrawal to layer1', async () => {
+            const { level19Address } = await getNamedAccounts();
+
+            let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
+
+            const beforeBalance = await deployed.WTON.balanceOf(testAddress)
+
+            let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
+            console.log('stakedA', stakedA)
+
+            let pendingUnstakedA = await deployed.depositManager.pendingUnstaked(level19Address, testAddress)
+            let pendingUnstakedLayer2A = await deployed.depositManager.pendingUnstakedLayer2(level19Address)
+            let pendingUnstakedAccountA = await deployed.depositManager.pendingUnstakedAccount(testAddress)
+
+            await deployed.depositManager.connect(tester)["requestWithdrawal(address,uint256)"](
+                level19Address,
+                wtonAmount
+            );
+
+            const afterBalance = await deployed.WTON.balanceOf(testAddress);
+            expect(afterBalance).to.be.eq(beforeBalance)
+
+            let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
+            console.log('stakedB', stakedB)
+            expect(roundDown(stakedA.sub(ethers.constants.Two),2)).to.be.eq(
+                roundDown(stakedB.add(wtonAmount), 2)
+            )
+
+            expect(
+                await deployed.depositManager.pendingUnstaked(level19Address, testAddress)
+            ).to.be.eq(pendingUnstakedA.add(wtonAmount))
+
+            expect(
+                await deployed.depositManager.pendingUnstakedLayer2(level19Address )
+            ).to.be.eq(pendingUnstakedLayer2A.add(wtonAmount))
+
+            expect(
+                await deployed.depositManager.pendingUnstakedAccount(testAddress)
+            ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
+
+            let balanceOf = await deployed.l2SeigManager["balanceOf(address,address)"](level19Address, testAddress)
+            console.log('balanceOf', balanceOf)
+            expect(roundDown(stakedB,6)).to.be.eq(roundDown(balanceOf, 6))
+
+        })
+
+        it('register', async () => {
+            let stakeOf = await seigManagerV2["stakeOf(address)"](testAddress)
+            console.log('stakeOf', stakeOf)
+            await (await deployed.l1StakedTonToL2.connect(deployer)["register(address)"](
+                testAddress
+            )).wait();
+
+            let balanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
+            console.log('balanceOf', balanceOf)
+            expect(roundDown(stakeOf,6)).to.be.eq(roundDown(balanceOf, 6))
+        })
 
     });
 
@@ -315,59 +389,6 @@ describe('L1StakedTonToL2', () => {
     //         await expect(stakeOf).to.be.eq(balanceOf);
     //     })
     // });
-
-
-    // describe('# deposit', () => {
-
-    //     it('deposit to level19 using approveAndCall', async () => {
-    //         const { DepositManager, level19Address, WTON } = await getNamedAccounts();
-
-    //         let tonAmount = ethers.utils.parseEther("100")
-    //         await deployed.TON.connect(deployer).transfer(testAddress, tonAmount);
-
-    //         const beforeBalance = await deployed.TON.balanceOf(testAddress);
-    //         expect(beforeBalance).to.be.gte(tonAmount)
-
-    //         let stakedA = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-    //         console.log('stakedA', stakedA)
-    //         const data = marshalString(
-    //             [DepositManager, level19Address]
-    //               .map(unmarshalString)
-    //               .map(str => padLeft(str, 64))
-    //               .join(''),
-    //           );
-
-    //         await (await deployed.TON.connect(tester).approveAndCall(
-    //             WTON,
-    //             tonAmount,
-    //             data,
-    //             {from: testAddress}
-    //         )).wait();
-
-    //         const afterBalance = await deployed.TON.balanceOf(testAddress);
-    //         expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
-
-    //         let stakedB = await seigManagerV2["stakeOf(address,address)"](level19Address, testAddress)
-    //         console.log('stakedB', stakedB)
-
-    //         let balanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
-    //                 console.log('balanceOf', balanceOf)
-
-    //         expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-    //             roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
-    //         )
-    //     })
-
-    // });
-
-
-    describe('# unstake', () => {
-
-    });
-
-    describe('# updateSeigniorage', () => {
-
-    });
 
 });
 

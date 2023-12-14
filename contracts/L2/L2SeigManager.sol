@@ -25,7 +25,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   }
   event OnSnapshot(uint256 snapshotId);
   event Deposited(address layer2, address account, uint256 swtonAmount, uint256 lswton);
-  event Unstaked(address layer2, address account, uint256 swtonAmount, uint256 lswton);
+  event Withdrawal(address layer2, address account, uint256 swtonAmount, uint256 lswton);
   event RebasedIndex(address layer2, uint256 sharePerRay, uint256 oldIndex, uint256 newIndex);
   event Replaced(address layer2, address account, uint256 oldLswton, uint256 lswton, uint256 tlswton);
 
@@ -111,7 +111,7 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     require(lswton <= totalLswton[layer2], 'insufficient totalLswton');
     totalLswton[layer2] -= lswton;
 
-    emit Unstaked(layer2, account, swtonAmount, lswton);
+    emit Withdrawal(layer2, account, swtonAmount, lswton);
     return true;
   }
 
@@ -120,13 +120,24 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     onlyL1StakedTonInL2
     returns (bool)
   {
+    console.log('rebaseIndex sharePerRay %s', sharePerRay);
     _checkLayer(layer2);
-    uint256 totalSwton = getLswtonToSwton(layer2, totalLswton[layer2]);
-
-    uint256 addAmount = (totalSwton * sharePerRay / 1e27);
+    uint256 tlswton = totalLswton[layer2];
+    // console.log('rebaseIndex totalLswton[layer2] %s', tlswton);
+    // console.log('rebaseIndex totalSwton %s', totalSwton);
     uint256 oldIndex = index[layer2];
-    uint256 newIndex = oldIndex * (totalSwton + addAmount) / totalSwton ;
+    // uint256 addAmount = (tlswton * oldIndex / 1e27) * sharePerRay / 1e27;
+    // console.log('rebaseIndex addAmount %s', addAmount);
+    // uint256 newIndex = oldIndex * (totalSwton + addAmount) / totalSwton ;
+    uint256 newIndex = oldIndex * ((tlswton * oldIndex  + tlswton * sharePerRay) / 1e27) / (tlswton * oldIndex / 1e27) ;
+
+    // console.log('rebaseIndex oldIndex %s', oldIndex);
+    // console.log('rebaseIndex newIndex %s', newIndex);
+
     index[layer2] = newIndex;
+
+    // uint256 totalSwtonAfter = getLswtonToSwton(layer2, totalLswton[layer2]);
+    // console.log('rebaseIndex totalSwtonAfter %s', totalSwtonAfter);
 
     emit RebasedIndex(layer2, sharePerRay, oldIndex, newIndex);
     return true;

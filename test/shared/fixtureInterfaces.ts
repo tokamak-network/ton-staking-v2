@@ -149,6 +149,8 @@ interface StakedTonSyncFixture  {
     addr2: Signer,
     daoAdmin: Signer,
     TON: any ,
+    WTON: any ,
+    depositManager: DepositManager,
     seigManagerV1: SeigManager,
     seigManagerV2Imp: SeigManager1,
     l2Registry: Layer2Registry,

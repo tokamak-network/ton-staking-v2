@@ -42,7 +42,6 @@ import { Lib_AddressManager } from "../../typechain-types/contracts/test/Lib_Add
 import { MockL1Messenger } from "../../typechain-types/contracts/test/MockL1Messenger.sol"
 import { MockL2Messenger } from "../../typechain-types/contracts/test/MockL2Messenger"
 
-import DepositManager_Json from '../abi/DepositManager.json'
 import L2Registry_Json from '../abi/Layer2Registry.json'
 import CoinageFactory_Json from '../abi/CoinageFactory.json'
 import Ton_Json from '../abi/TON.json'
@@ -61,6 +60,7 @@ import L1StakedTonInL2_Json from '../../artifacts/contracts/L2/L1StakedTonInL2.s
 import L2SeigManager_Json from '../../artifacts/contracts/L2/L2SeigManager.sol/L2SeigManager.json'
 import SeigManager_Json from '../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json'
 import Layer2Registry_Json from '../../artifacts/contracts/stake/Layer2Registry.sol/Layer2Registry.json'
+import DepositManager_Json from '../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json'
 
 export const lastSeigBlock = ethers.BigNumber.from("18169346");
 export const globalWithdrawalDelay  = ethers.BigNumber.from("93046")
@@ -930,7 +930,10 @@ export const newTonStakingV2MainnetFixture = async function (): Promise<NewTonSt
 
 export const stakedTonSyncFixture = async function (boolInitialize: boolean): Promise<StakedTonSyncFixture> {
   const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
-  const { TON, SeigManagerAddress, L2RegistryAddress , DAOCommitteeProxy} = await hre.getNamedAccounts();
+  const { TON, WTON, SeigManagerAddress, L2RegistryAddress , DAOCommitteeProxy, DepositManagerAddress} = await hre.getNamedAccounts();
+
+  const depositManager = (await ethers.getContractAt(DepositManager_Json.abi, DepositManagerAddress, deployer)) as DepositManager
+
   // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
   const seigManagerV1 = (await ethers.getContractAt(SeigManager_Json.abi, SeigManagerAddress, deployer)) as SeigManager
   const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManager1")).connect(deployer).deploy()) as SeigManager1;
@@ -1007,6 +1010,7 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
 
   const contractJson = await jsonFixtures()
   const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
+  const WTONContract = new ethers.Contract(WTON, contractJson.WTON.abi,  deployer)
 
   await network.provider.send("hardhat_impersonateAccount", [
     DAOCommitteeProxy,
@@ -1020,6 +1024,7 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
   //
   // for test :
   await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+  await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("1000"+"0".repeat(9)))).wait()
 
   return  {
     deployer: deployer,
@@ -1027,6 +1032,8 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
     addr2: addr2,
     daoAdmin: daoAdmin,
     TON: TONContract,
+    WTON: WTONContract,
+    depositManager: depositManager,
     seigManagerV1: seigManagerV1,
     seigManagerV2Imp: seigManagerV2Imp,
     l2Registry: l2Registry,

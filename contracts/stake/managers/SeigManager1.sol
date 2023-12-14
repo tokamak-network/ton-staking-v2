@@ -14,6 +14,8 @@ import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol"
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 import { SeigManagerStorage1 } from "./SeigManagerStorage1.sol";
 
+import "hardhat/console.sol";
+
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -482,6 +484,10 @@ contract SeigManager1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorag
     // updateSeigniorage to l2
     if (l1StakedTonToL2 != address(0)) {
       uint256 shares = seigs * 1e27 / prevTotalSupply;
+      console.log('prevTotalSupply %s', prevTotalSupply);
+      console.log('seigs %s', seigs);
+      console.log('shares %s', shares);
+
       if (shares != 0) IL1StakedTonToL2(l1StakedTonToL2).updateSeigniorage(msg.sender, shares);
     }
 
