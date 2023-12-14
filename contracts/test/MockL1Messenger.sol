@@ -45,7 +45,7 @@ contract MockL1Messenger  {
         uint32 _gasLimit
     ) public {
 
-        console.log("MockL1Messenger sendMessage _target %s", _target);
+        // console.log("MockL1Messenger sendMessage _target %s", _target);
 
         emit SentMessage(_target, msg.sender, _message, ++messageNonce, _gasLimit);
 
@@ -56,7 +56,7 @@ contract MockL1Messenger  {
             messageNonce
         );
 
-        console.log("MockL1Messenger sendMessage end  ");
+        // console.log("MockL1Messenger sendMessage end  ");
     }
 
 }

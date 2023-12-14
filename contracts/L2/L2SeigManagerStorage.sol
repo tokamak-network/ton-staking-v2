@@ -16,13 +16,24 @@ contract L2SeigManagerStorage   {
     address public l2CrossDomainMessenger;
     bool internal _lock;
 
+    // layer2 - snapshotIds
+    mapping(address => uint256[]) public layerIndexSnapshotIds;
 
-    // layer2 - index
-    mapping(address => uint256) public index;
-    mapping(address => uint256) public totalLswton;
+    // layer2 - snapshotId - index
+    mapping(address => mapping(uint256 => uint256)) public index;
 
-    // layer2 - address - lswton
-    mapping(address => mapping(address => LibL2StakedInfo.StakedInfo)) public stakedInfo;
+
+    // layer2 - snapshotIds
+    mapping(address => uint256[]) public layerTlswtonSnapshotIds;
+
+    // layer2 - snapshotId - totalLswton
+    mapping(address => mapping(uint256 => uint256)) public totalLswton;
+
+    // layer2 - address - snapshotIds
+    mapping(address => mapping(address => uint256[])) public stakedInfoSnapshotIds;
+
+    // layer2 - address - snapshotId-  stakedInfo
+    mapping(address => mapping(address => mapping(uint256 => LibL2StakedInfo.StakedInfo))) public stakedInfo;
 
     mapping (address => bool) internal _l1layer2s;
     address[] public l1layer2s;
