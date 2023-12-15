@@ -139,7 +139,7 @@ const config: HardhatUserConfig = {
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
-      // deploy: ['deploy-migration']
+      // deploy: ['deploy-ton-register-l1']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -159,7 +159,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.DEPLOYER}`],
       timeout: 400000,
       chainId: 5,
-      // deploy: ['deploy-migration-goerli']
+      deploy: ['deploy-ton-register-l1']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
@@ -172,8 +172,8 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_TITAN_GOERLI}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       chainId: 5050,
-      gasPrice: 250000,
-      // deploy: ['deploy_l2_proxy']
+      // gasPrice: 250000,
+      deploy: ['deploy-ton-register-l2']
     },
   },
   deterministicDeployment: (network: string) => {
@@ -201,7 +201,7 @@ const config: HardhatUserConfig = {
         network: "titan",
         chainId: 55004,
         urls: {
-          apiURL: "https://explorer.titan.tokamak.network//api",
+          apiURL: "https://explorer.titan.tokamak.network/api",
           browserURL: "https://explorer.titan.tokamak.network/"
         }
       },

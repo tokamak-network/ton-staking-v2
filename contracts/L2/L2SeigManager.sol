@@ -146,6 +146,14 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
   // External functions
   //////////////////////////////
 
+  function onSnapshot() external returns (uint256 snapshotId) {
+    snapshotId = lastSnapshotId;
+    emit OnSnapshot(snapshotId);
+    lastSnapshotId++;
+  }
+
+
+
   function balanceOf(address layer2, address account) public view returns (uint256) {
     LibL2StakedInfo.StakedInfo memory info = getStakedInfo(layer2, account);
     return getLswtonToSwton(layer2, info.lswton);
@@ -200,15 +208,26 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     }
   }
 
-  function onSnapshot() external returns (uint256 snapshotId) {
-    snapshotId = lastSnapshotId;
-    emit OnSnapshot(snapshotId);
-    lastSnapshotId++;
-  }
 
   //////////////////////////////
   // Public functions
   //////////////////////////////
+
+  function name() public pure returns (string memory) {
+    return "Swton L1";
+  }
+
+  function symbol() public pure returns (string memory) {
+    return "SWTON_L1";
+  }
+
+  function decimals() public pure returns (uint256) {
+    return 27;
+  }
+
+  function progressSnapshotId() public view returns (uint256) {
+      return lastSnapshotId;
+  }
 
   function getL1LayersNum() public view returns (uint256) {
     return l1layer2s.length;
@@ -228,16 +247,34 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
     return getStakedInfo(layer2, account);
   }
 
-  function name() public pure returns (string memory) {
-    return "Swton L1";
+  function getIndex(address layer2) public view returns (uint256)
+  {
+    return _valueAtLastIndex(layer2);
   }
 
-  function symbol() public pure returns (string memory) {
-    return "SWTON_L1";
+  function getTotalLswton(address layer2) public view returns (uint256)
+  {
+    return _valueAtLastTotalLswton(layer2);
   }
 
-  function decimals() public pure returns (uint256) {
-    return 27;
+  function getStakedInfo(address layer2, address account) public view returns (LibL2StakedInfo.StakedInfo memory)
+  {
+    return _valueAtLastStakedInfo(layer2, account);
+  }
+
+  function getIndexAt(address layer2, uint256 snapshotId) public view returns (uint256)
+  {
+    return _valueAtIndex(snapshotId, layer2);
+  }
+
+  function getTotalLswtonAt(address layer2, uint256 snapshotId) public view returns (uint256)
+  {
+    return _valueAtTotalLswton(snapshotId, layer2);
+  }
+
+  function getStakedInfoAt(address layer2, address account, uint256 snapshotId) public view returns (LibL2StakedInfo.StakedInfo memory)
+  {
+    return _valueAtStakedInfo(snapshotId, layer2, account);
   }
 
   //////////////////////////////
@@ -338,43 +375,5 @@ contract L2SeigManager is ProxyStorage, AuthControlSeigManager, L2SeigManagerSto
       return (ids.length == 0? 0: ids[ids.length - 1]);
   }
 
-  //////////////////////////////
-  // Storage getters
-  //////////////////////////////
-
-  //=====
-  function progressSnapshotId() public view returns (uint256) {
-      return lastSnapshotId;
-  }
-
-  function getIndex(address layer2) public view returns (uint256)
-  {
-    return _valueAtLastIndex(layer2);
-  }
-
-  function getTotalLswton(address layer2) public view returns (uint256)
-  {
-    return _valueAtLastTotalLswton(layer2);
-  }
-
-  function getStakedInfo(address layer2, address account) public view returns (LibL2StakedInfo.StakedInfo memory)
-  {
-    return _valueAtLastStakedInfo(layer2, account);
-  }
-
-  function getIndexAt(address layer2, uint256 snapshotId) public view returns (uint256)
-  {
-    return _valueAtIndex(snapshotId, layer2);
-  }
-
-  function getTotalLswtonAt(address layer2, uint256 snapshotId) public view returns (uint256)
-  {
-    return _valueAtTotalLswton(snapshotId, layer2);
-  }
-
-  function getStakedInfoAt(address layer2, address account, uint256 snapshotId) public view returns (LibL2StakedInfo.StakedInfo memory)
-  {
-    return _valueAtStakedInfo(snapshotId, layer2, account);
-  }
 
 }

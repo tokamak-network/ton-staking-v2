@@ -48,6 +48,8 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
     event Registered(address account, bytes syncPacket) ;
     event Deposited(address layer, address account, uint256 amount) ;
     event Withdrawal(address layer, address account, uint256 amount) ;
+    event UpdatedSeigniorage(address layer, uint256 swton);
+
     event Initialized(
         address manager_,
         address seigManager_,
@@ -152,6 +154,8 @@ contract L1StakedTonToL2 is ProxyStorage, AccessibleCommon, L1StakedTonToL2Stora
             callData,
             minGasLimit
             );
+
+        emit UpdatedSeigniorage(layer2, swton);
     }
 
     /* ========== Anybody can ========== */

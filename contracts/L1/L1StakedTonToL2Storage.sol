@@ -12,14 +12,12 @@ contract L1StakedTonToL2Storage   {
     address public addressManager;
     address public seigManager;
     address public registry;
-    address public tot;
 
     address public l1StakedTonInL2;
     uint32 public minGasLimit;
+    uint32 public minGasLimit2;
     bool internal _lock;
 
-    // address - layer2 - SyncStakedInfos
-    mapping(address => mapping(address => LibL1StakedInfo.L1Staked)) public syncInfo;
     mapping(address => mapping(address => uint256)) public lastRegisterTime;
 
 
