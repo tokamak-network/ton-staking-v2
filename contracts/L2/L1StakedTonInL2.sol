@@ -68,21 +68,9 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
     }
 
     /*** Public ***/
+
+    function register(bytes memory data) external onlyMessengerAndL1Register {
     // function register(bytes memory data) public {
-    //     console.log('IL1StosInL2 register in' );
-    //     console.logBytes(data);
-    //     console.log('IL1StosInL2 l2CrossDomainMessenger %s', l2CrossDomainMessenger);
-    //     console.log('IL1StosInL2 msg.sender %s', msg.sender );
-    //     address xDomainMessageSender = IL2CrossDomainMessenger(l2CrossDomainMessenger).xDomainMessageSender();
-
-    //     console.log('IL1StosInL2 xDomainMessageSender %s', xDomainMessageSender );
-    //     console.log('IL1StosInL2 l1Register %s', l1Register );
-
-
-    // }
-
-    // function register(bytes memory data) public onlyMessengerAndL1Register {
-    function register(bytes memory data) public {
         // console.log('register in ');
         // console.logBytes(data);
 
@@ -124,15 +112,15 @@ contract L1StakedTonInL2 is ProxyStorage, AccessibleCommon, L1StakedTonInL2Stora
         }
     }
 
-    function deposit(address layer2, address account, uint256 swtonAmount) external {
+    function deposit(address layer2, address account, uint256 swtonAmount) external onlyMessengerAndL1Register {
         IL2SeigManager(l2SeigManager).deposit(layer2, account, swtonAmount);
     }
 
-    function withdraw(address layer2, address account, uint256 swtonAmount) external {
+    function withdraw(address layer2, address account, uint256 swtonAmount) external onlyMessengerAndL1Register {
         IL2SeigManager(l2SeigManager).withdraw(layer2, account, swtonAmount);
     }
 
-    function rebaseIndex(address layer2, uint256 sharePerRay) external {
+    function rebaseIndex(address layer2, uint256 sharePerRay) external onlyMessengerAndL1Register {
         IL2SeigManager(l2SeigManager).rebaseIndex(layer2, sharePerRay);
     }
 
