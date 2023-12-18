@@ -86,7 +86,7 @@ interface IDepositManager {
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1Storage, SeigManagerV1I, DSMath {
+contract SeigManagerV1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1Storage, SeigManagerV1I, DSMath {
 
   //////////////////////////////
   // Modifiers
@@ -150,8 +150,13 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   event SetDaoSeigRate(uint256 daoSeigRate);
   event SetPseigRate(uint256 pseigRate);
 
-  /** It was deleted from block 18732908, but was added again later. */
+  /** It was deleted from block 18732908, but was added again on v1. */
   event CommitLog1(uint256 totalStakedAmount, uint256 totalSupplyOfWTON, uint256 prevTotalSupply, uint256 nextTotalSupply);
+
+  /** Added from v1. */
+  event SetSeigStartBlock(uint256 _seigStartBlock);
+  event SetInitialTotalSupply(uint256 _initialTotalSupply);
+  event SetBurntAmountAtDAO(uint256 _burntAmountAtDAO);
 
   //////////////////////////////
   // Constuctor
@@ -282,6 +287,20 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     minimumAmount = minimumAmount_;
   }
 
+  function setSeigStartBlock(uint256 _seigStartBlock) external onlyOwner {
+    seigStartBlock = _seigStartBlock;
+    emit SetSeigStartBlock(_seigStartBlock);
+  }
+
+  function setInitialTotalSupply(uint256 _initialTotalSupply) external onlyOwner {
+    initialTotalSupply = _initialTotalSupply;
+    emit SetInitialTotalSupply(_initialTotalSupply);
+  }
+
+  function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external onlyOwner {
+    burntAmountAtDAO = _burntAmountAtDAO;
+    emit SetBurntAmountAtDAO(_burntAmountAtDAO);
+  }
 
   //////////////////////////////
   // onlyRegistry
@@ -866,7 +885,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 burntAmount =(burntAmountAtDAO == 0? BURNT_AMOUNT_MAINNET: burntAmountAtDAO);
 
     tos = initial
-      + (_seigPerBlock * (block.number - startBlock)) - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
+      + (_seigPerBlock * (block.number - startBlock))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
       - burntAmount ;
   }
 

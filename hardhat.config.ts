@@ -160,7 +160,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        // blockNumber: 18231453
+        blockNumber: 18811511
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
@@ -168,7 +168,7 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      timeout: 400000,
+      timeout: 800000,
       // accounts: [`${process.env.DEPLOYER}`],
       deploy: ['deploy-migration']
     },

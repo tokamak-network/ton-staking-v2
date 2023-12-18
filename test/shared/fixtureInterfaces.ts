@@ -5,6 +5,8 @@ import {  Wallet, Signer, Contract } from 'ethers'
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
+import { SeigManagerV1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1.sol"
+
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
 import { Layer2RegistryProxy } from "../../typechain-types/contracts/stake/Layer2RegistryProxy"
@@ -128,10 +130,11 @@ interface NewTonStakingV2Fixtures2  {
     powerTonProxy: any ,
     daoCommittee: DAOCommitteeExtend,
     depositManagerV2: DepositManager ,
-    seigManagerV2: SeigManager ,
+    seigManagerV2: SeigManagerV1 ,
     layer2RegistryV2: Layer2Registry ,
     powerTON: PowerTONUpgrade,
-    powerTonAddress : string
+    powerTonAddress : string,
+    daoAdmin: Signer
 }
 
 export {
