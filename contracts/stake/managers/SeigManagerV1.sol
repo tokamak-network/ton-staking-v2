@@ -7,7 +7,7 @@ import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI
 import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
 import { IWTON } from "../../dao/interfaces/IWTON.sol";
 import { Layer2I } from "../../dao/interfaces/Layer2I.sol";
-import { SeigManagerI } from "../interfaces/SeigManagerI.sol";
+import { SeigManagerV1I } from "../interfaces/SeigManagerV1I.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
@@ -86,7 +86,7 @@ interface IDepositManager {
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1Storage, SeigManagerI, DSMath {
+contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1Storage, SeigManagerV1I, DSMath {
 
   //////////////////////////////
   // Modifiers
