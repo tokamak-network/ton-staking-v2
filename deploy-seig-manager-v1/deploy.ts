@@ -19,7 +19,7 @@ const deploySeigManagerV1: DeployFunction = async function (hre: HardhatRuntimeE
 
     //==== DAOCommitteeExtendImpl =================================
 
-    const SeigManagerV1Deployment = await deploy("SeigManagerV1", {
+    const SeigManagerV1Deployment = await deploy("SeigManagerV1_1", {
         from: deployer,
         args: [],
         log: true

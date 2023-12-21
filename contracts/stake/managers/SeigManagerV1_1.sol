@@ -12,7 +12,7 @@ import { SeigManagerV1I } from "../interfaces/SeigManagerV1I.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
-import { SeigManagerV1Storage } from "./SeigManagerV1Storage.sol";
+import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
 
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
@@ -86,7 +86,7 @@ interface IDepositManager {
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManagerV1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1Storage, SeigManagerV1I, DSMath {
+contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, SeigManagerV1I, DSMath {
 
   //////////////////////////////
   // Modifiers

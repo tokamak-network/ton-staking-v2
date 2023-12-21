@@ -11,7 +11,7 @@ import { DepositManagerForMigration } from "../../typechain-types/contracts/stak
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
-import { SeigManagerV1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1.sol"
+import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
 
 import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
@@ -873,7 +873,7 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
     const seigManagerV2Proxy = (await ethers.getContractAt("SeigManagerProxy", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerProxy;
 
     let imp2 = await seigManagerV2Proxy.implementation()
-    const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManagerV1")).connect(deployer).deploy()) as SeigManager;
+    const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManagerV1_1")).connect(deployer).deploy()) as SeigManager;
 
     if(imp2 != seigManagerV2Imp.address) {
       console.log("seigManager upgradeTo")
@@ -883,7 +883,7 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
 
   //----------- v2 배포
   const depositManagerV2 = (await ethers.getContractAt("DepositManager", newContractInfo.DepositManagerProxy, deployer)) as DepositManager;
-  const seigManagerV2 = (await ethers.getContractAt("SeigManagerV1", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerV1;
+  const seigManagerV2 = (await ethers.getContractAt("SeigManagerV1_1", newContractInfo.SeigManagerProxy, deployer)) as SeigManagerV1_1;
   const layer2RegistryV2 = (await ethers.getContractAt("Layer2Registry", newContractInfo.Layer2RegistryProxy, deployer)) as Layer2Registry;
   console.log('DepositManagerProxy', depositManagerV2.address)
 
