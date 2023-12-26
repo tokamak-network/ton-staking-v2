@@ -11,6 +11,7 @@ import "./StorageStateCommitteeV2.sol";
 
 interface ITarget {
     function hasRole(bytes32 role, address account) external view returns (bool);
+    function grantRole(bytes32 role, address account) external;
     function setSeigManager(address _seigManager) external;
     function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
     function addMinter(address account) external;
@@ -23,7 +24,7 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2{
+contract DAOCommitteeOwnerTestBed is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2{
 
     event ActivityRewardChanged(
         uint256 newReward
@@ -67,6 +68,10 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
 
     function setTargetUpgradeTo(address target, address logic) external onlyOwner {
         ITarget(target).upgradeTo(logic);
+    }
+
+    function setTargetGrantRole(address target, bytes32 _role, address account) external onlyOwner {
+        ITarget(target).grantRole(_role, account);
     }
 
     function setTargetSetTON(address target, address tonAddr) external onlyOwner {

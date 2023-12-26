@@ -6151,11 +6151,8 @@
                                     "typeString": "bool"
                                   }
                                 },
-                                "src": "1017:53:4",
+                                "src": "1017:95:4",
                                 "typeDescriptions": {
-                                  "typeIdentifier": "t_bool",
-                                  "typeString": "bool"
-                                }
                               },
                               "nodeType": "BinaryOperation",
                               "operator": "||",
@@ -6268,16 +6265,9 @@
                               "isPure": false,
                               "lValueRequested": false,
                               "leftExpression": {
-                                "id": 4142,
-                                "name": "_layer2Registry",
+                                "id": 4149,
+                                "name": "_agendaManager",
                                 "nodeType": "Identifier",
-                                "overloadedDeclarations": [],
-                                "referencedDeclaration": 4112,
-                                "src": "1128:15:4",
-                                "typeDescriptions": {
-                                  "typeIdentifier": "t_address",
-                                  "typeString": "address"
-                                }
                               },
                               "nodeType": "BinaryOperation",
                               "operator": "!=",
@@ -6390,11 +6380,8 @@
                                   "kind": "number",
                                   "lValueRequested": false,
                                   "nodeType": "Literal",
-                                  "src": "1199:1:4",
+                                  "src": "1246:1:4",
                                   "typeDescriptions": {
-                                    "typeIdentifier": "t_rational_0_by_1",
-                                    "typeString": "int_const 0"
-                                  },
                                   "value": "0"
                                 }
                               ],
@@ -6451,29 +6438,9 @@
                             "typeString": "bool"
                           }
                         },
-                        "nodeType": "BinaryOperation",
-                        "operator": "||",
-                        "rightExpression": {
-                          "commonType": {
-                            "typeIdentifier": "t_address",
-                            "typeString": "address"
-                          },
-                          "id": 4161,
-                          "isConstant": false,
-                          "isLValue": false,
-                          "isPure": false,
-                          "lValueRequested": false,
-                          "leftExpression": {
-                            "id": 4156,
-                            "name": "_candidateFactory",
-                            "nodeType": "Identifier",
-                            "overloadedDeclarations": [],
-                            "referencedDeclaration": 4116,
-                            "src": "1217:17:4",
-                            "typeDescriptions": {
-                              "typeIdentifier": "t_address",
-                              "typeString": "address"
-                            }
+                        {
+                          "hexValue": "44414f436f6d6d697474656550726f78793a20696e707574206973207a65726f",
+                          "id": 4163,
                           },
                           "nodeType": "BinaryOperation",
                           "operator": "!=",
@@ -10075,12 +10042,9 @@
                               "isLValue": false,
                               "isPure": true,
                               "lValueRequested": false,
-                              "nodeType": "ElementaryTypeNameExpression",
-                              "src": "1238:7:4",
+
+                              "src": "2284:7:4",
                               "typeDescriptions": {
-                                "typeIdentifier": "t_type$_t_address_$",
-                                "typeString": "type(address)"
-                              },
                               "typeName": {
                                 "id": 4157,
                                 "name": "address",
