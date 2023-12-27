@@ -1,0 +1,102 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "PowerTON_V1_1_Storage",
+  "sourceName": "contracts/stake/powerton/PowerTON_V1_1_Storage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "depositMinGasLimit",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1Bridge",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1CrossDomainMessage",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2PowerTon",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2Ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "sendMsgMinGasLimit",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5061015f806100206000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063969b53da1161005b578063969b53da14610106578063bce5c11f14610119578063cc48b9471461012c578063df0165521461013f57600080fd5b80630b2a953b1461008257806371b4e8d1146100c45780637f47cb94146100db575b600080fd5b6004546100aa9074010000000000000000000000000000000000000000900463ffffffff1681565b60405163ffffffff90911681526020015b60405180910390f35b6004546100aa90600160c01b900463ffffffff1681565b6000546100ee906001600160a01b031681565b6040516001600160a01b0390911681526020016100bb565b6001546100ee906001600160a01b031681565b6004546100ee906001600160a01b031681565b6002546100ee906001600160a01b031681565b6003546100ee906001600160a01b03168156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061007d5760003560e01c8063969b53da1161005b578063969b53da14610106578063bce5c11f14610119578063cc48b9471461012c578063df0165521461013f57600080fd5b80630b2a953b1461008257806371b4e8d1146100c45780637f47cb94146100db575b600080fd5b6004546100aa9074010000000000000000000000000000000000000000900463ffffffff1681565b60405163ffffffff90911681526020015b60405180910390f35b6004546100aa90600160c01b900463ffffffff1681565b6000546100ee906001600160a01b031681565b6040516001600160a01b0390911681526020016100bb565b6001546100ee906001600160a01b031681565b6004546100ee906001600160a01b031681565b6002546100ee906001600160a01b031681565b6003546100ee906001600160a01b03168156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
