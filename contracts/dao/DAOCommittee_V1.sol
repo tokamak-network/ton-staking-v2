@@ -310,7 +310,6 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         } else {
             prevCandidateInfo.rewardPeriod = uint128(uint256(prevCandidateInfo.rewardPeriod) + (block.timestamp - (prevCandidateInfo.claimedTimestamp)));
         }
-        // prevCandidateInfo.rewardPeriod = uint128(uint256(prevCandidateInfo.rewardPeriod) + (block.timestamp - (prevCandidateInfo.memberJoinedTime)));
         prevCandidateInfo.memberJoinedTime = 0;
 
         emit ChangedMember(_memberIndex, prevMember, newMember);
@@ -333,7 +332,6 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         } else {
             candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.claimedTimestamp)));
         }
-        // candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.memberJoinedTime)));
         candidateInfo.memberJoinedTime = 0;
 
         uint256 prevIndex = candidateInfo.indexMembers;
@@ -403,7 +401,6 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         } else {
             reducingCandidate.rewardPeriod = uint128(uint256(reducingCandidate.rewardPeriod) + (block.timestamp - (reducingCandidate.claimedTimestamp)));
         }
-        // reducingCandidate.rewardPeriod = uint128(uint256(reducingCandidate.rewardPeriod) + (block.timestamp - (reducingCandidate.memberJoinedTime)));
         reducingCandidate.memberJoinedTime = 0;
 
         members.pop();
