@@ -17,7 +17,7 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
@@ -327,6 +327,9 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
             "DAOCommittee: invalid candidate contract"
         );
         members[candidateInfo.indexMembers] = address(0);
+        // console.log("candidateInfo.memberJoinedTime : ", candidateInfo.memberJoinedTime);
+        // console.log("candidateInfo.claimedTimestamp : ", candidateInfo.claimedTimestamp);
+        // console.log("candidateInfo.rewardPeriod : ", candidateInfo.rewardPeriod);
         if (candidateInfo.memberJoinedTime > candidateInfo.claimedTimestamp) {
             candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.memberJoinedTime)));
         } else {
@@ -823,6 +826,7 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
     function getClaimableActivityReward(address _candidate) public view returns (uint256) {
         CandidateInfo storage info = _candidateInfos[_candidate];
         uint256 period = info.rewardPeriod;
+        // console.log("period before : ", period);
 
         if (info.memberJoinedTime > 0) {
             if (info.memberJoinedTime > info.claimedTimestamp) {
@@ -831,6 +835,7 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
                 period = period + block.timestamp - info.claimedTimestamp;
             }
         }
+        // console.log("period after : ", period);
 
         return period * activityRewardPerSecond;
     }

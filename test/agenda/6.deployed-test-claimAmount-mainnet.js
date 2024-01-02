@@ -57,9 +57,13 @@ describe("DAOAgenda Test", () => {
     let member2;
     let member3;
 
+    let newMember1;
+
     let member1Contract;
     let member2Contract;
     let member3Contract;
+
+    let newMember1Contract;
 
     let member1Addr = "0x39a13a796a3cd9f480c28259230d2ef0a7026033"
     let member2Addr = "0xd1820b18be7f6429f1f44104e4e15d16fb199a43"
@@ -138,50 +142,65 @@ describe("DAOAgenda Test", () => {
         ]);
         daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
         
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member1Addr,
-        // ]);
-        // member1 = await hre.ethers.getSigner(member1Addr);
-        
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member2Addr,
-        // ]);
-        // member2 = await hre.ethers.getSigner(member2Addr);
-        
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member3Addr,
-        // ]);
-        // member3 = await hre.ethers.getSigner(member3Addr);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member1Addr,
+        ]);
+        member1 = await hre.ethers.getSigner(member1Addr);
 
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member1ContractAddr,
-        // ]);
-        // member1Contract = await hre.ethers.getSigner(member1ContractAddr);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            newMember1Addr,
+        ]);
+        newMember1 = await hre.ethers.getSigner(newMember1Addr);
         
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member2ContractAddr,
-        // ]);
-        // member2Contract = await hre.ethers.getSigner(member2ContractAddr);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member2Addr,
+        ]);
+        member2 = await hre.ethers.getSigner(member2Addr);
         
-        // await hre.network.provider.send("hardhat_impersonateAccount", [
-        //     member3ContractAddr,
-        // ]);
-        // member3Contract = await hre.ethers.getSigner(member3ContractAddr);
-        
-        // await hre.network.provider.send("hardhat_setBalance", [
-        //     member1ContractAddr,
-        //     sendether
-        // ]);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member3Addr,
+        ]);
+        member3 = await hre.ethers.getSigner(member3Addr);
 
-        // await hre.network.provider.send("hardhat_setBalance", [
-        //     member2ContractAddr,
-        //     sendether
-        // ]);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member1ContractAddr,
+        ]);
+        member1Contract = await hre.ethers.getSigner(member1ContractAddr);
 
-        // await hre.network.provider.send("hardhat_setBalance", [
-        //     member3ContractAddr,
-        //     sendether
-        // ]);
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            newMember1ContractAddr,
+        ]);
+        newMember1Contract = await hre.ethers.getSigner(newMember1ContractAddr);
+        
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member2ContractAddr,
+        ]);
+        member2Contract = await hre.ethers.getSigner(member2ContractAddr);
+        
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            member3ContractAddr,
+        ]);
+        member3Contract = await hre.ethers.getSigner(member3ContractAddr);
+        
+        await hre.network.provider.send("hardhat_setBalance", [
+            member1ContractAddr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            member2ContractAddr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            member3ContractAddr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            newMember1ContractAddr,
+            sendether
+        ]);
     })
 
     describe("deploy the DAOCommitte_V1", () => {
@@ -342,8 +361,30 @@ describe("DAOAgenda Test", () => {
         })
     })
 
-    describe("Member retire Test", () => {
-        it("", async () => {
+    describe("Member Test", () => {
+        it("member2 retire after same getClaimAmount", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            // console.log("block.timestamp :", block.timestamp);
+            let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+
+            await daoCommittee.connect(member2Contract).retireMember();
+
+            const block2 = await ethers.provider.getBlock('latest')
+            // console.log("block2.timestamp :", block2.timestamp);
+            let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
+
+            expect(amount2).to.be.gt(amount);
+            
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+            // console.log("activityRewardPerSecond :", activityRewardPerSecond)
+            let activityRewardPerSecond10 = activityRewardPerSecond.mul(blockDiff)
+            // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
+            let timeAddAmount = amount.add(activityRewardPerSecond10)
+            expect(timeAddAmount).to.be.equal(amount2);
+        })
+
+        it("member2 changeMember after same getClaimAmount", async () => {
 
         })
     })
