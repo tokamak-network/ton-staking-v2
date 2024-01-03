@@ -324,42 +324,42 @@ describe("DAOAgenda Test", () => {
         })
     })
 
-    describe("getclaimAmount Test", () => {
-        it("getClaimAmount member1", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member1Addr)
-            let amount2 = await daoCommittee.getClaimableActivityReward(member1ContractAddr)
-            console.log("amount : ", amount);
-            console.log("amount2 : ", amount2);
-        })
+    // describe("getclaimAmount Test", () => {
+    //     it("getClaimAmount member1", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member1Addr)
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member1ContractAddr)
+    //         console.log("amount : ", amount);
+    //         console.log("amount2 : ", amount2);
+    //     })
 
-        it("getClaimAmount member2", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
-            let amount2 = await daoCommittee.getClaimableActivityReward(member2ContractAddr)
-            console.log("amount : ", amount);
-            console.log("amount2 : ", amount2);
-        })
+    //     it("getClaimAmount member2", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member2ContractAddr)
+    //         console.log("amount : ", amount);
+    //         console.log("amount2 : ", amount2);
+    //     })
 
-        it("getClaimAmount member3", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member3Addr)
-            let amount2 = await daoCommittee.getClaimableActivityReward(member3ContractAddr)
-            console.log("amount : ", amount);
-            console.log("amount2 : ", amount2);
-        })
+    //     it("getClaimAmount member3", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member3Addr)
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member3ContractAddr)
+    //         console.log("amount : ", amount);
+    //         console.log("amount2 : ", amount2);
+    //     })
 
-        it("getClaimAmount newMember3", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
-            let amount2 = await daoCommittee.getClaimableActivityReward(newMember1ContractAddr)
-            console.log("amount : ", amount);
-            console.log("amount2 : ", amount2);
-        })
+    //     it("getClaimAmount newMember3", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(newMember1ContractAddr)
+    //         console.log("amount : ", amount);
+    //         console.log("amount2 : ", amount2);
+    //     })
 
-        it("getClaimAmount newMember3", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member4Addr)
-            // let amount2 = await daoCommittee.getClaimableActivityReward(newMember1ContractAddr)
-            console.log("amount : ", amount);
-            // console.log("amount2 : ", amount2);
-        })
-    })
+    //     it("getClaimAmount newMember3", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member4Addr)
+    //         // let amount2 = await daoCommittee.getClaimableActivityReward(newMember1ContractAddr)
+    //         console.log("amount : ", amount);
+    //         // console.log("amount2 : ", amount2);
+    //     })
+    // })
 
     describe("Member Test", () => {
         it("member2 retire after same getClaimAmount", async () => {
@@ -378,14 +378,28 @@ describe("DAOAgenda Test", () => {
             let blockDiff = block2.timestamp-block.timestamp
             let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
             // console.log("activityRewardPerSecond :", activityRewardPerSecond)
-            let activityRewardPerSecond10 = activityRewardPerSecond.mul(blockDiff)
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
             // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
-            let timeAddAmount = amount.add(activityRewardPerSecond10)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
             expect(timeAddAmount).to.be.equal(amount2);
         })
 
-        it("member2 changeMember after same getClaimAmount", async () => {
+        it("member2 changeMember member1 after same getClaimAmount", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+            
+            await daoCommittee.connect(member2Contract).changeMember(0);
 
+            const block2 = await ethers.provider.getBlock('latest')
+            let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+
+            expect(amount2).to.be.gt(amount);
+            
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+            expect(timeAddAmount).to.be.equal(amount2);
         })
     })
 })
