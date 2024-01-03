@@ -160,7 +160,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        // blockNumber: 18231453
+        blockNumber: 18811511
         // blockNumber:18229970
       },
       allowUnlimitedContractSize: false,
@@ -168,21 +168,21 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      timeout: 400000,
+      timeout: 800000,
       // accounts: [`${process.env.DEPLOYER}`],
       // deploy: ['deploy-migration']
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      // accounts: [`${process.env.PRIVATE_KEY}`],
-      // gasPrice: 18000000000,
+      accounts: [`${process.env.PRIVATE_KEY}`],
+      gasPrice: 50000000000,
       // deploy: ['deploy']
     },
     goerli: {
-      url: `${process.env.ETH_NODE_URI_GOERLI}`,
-      // accounts: [`${process.env.DEPLOYER}`],
+      url: `${process.env.ETH_NODE_URI_goerli}`,
+      accounts: [`${process.env.PRIVATE_KEY}`],
       chainId: 5,
-      // deploy: ['deploy']
+      deploy: ['deploy-seig-manager-v1']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
@@ -196,6 +196,11 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.PRIVATE_KEY}`],
       chainId: 5050,
       gasPrice: 250000,
+      // deploy: ['deploy_l2_proxy']
+    },
+    sepolia: {
+      url: `${process.env.ETH_NODE_URI_sepolia}`,
+      accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
     },
   },
@@ -216,6 +221,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
+      sepolia: `${process.env.ETHERSCAN_API_KEY}`,
       titan: "verify",
       titangoerli: "verify"
     } ,
