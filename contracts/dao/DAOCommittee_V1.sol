@@ -103,6 +103,10 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         string newMemo
     );
 
+    event ActivityRewardChanged(
+        uint256 newReward
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
         _;
@@ -141,6 +145,11 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         fillMemberSlot();
         setQuorum(_quorum);
         emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    }
+
+    function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
+        activityRewardPerSecond = _value;
+        emit ActivityRewardChanged(_value);
     }
 
     //////////////////////////////////////////////////////////////////////
