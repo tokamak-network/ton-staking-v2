@@ -603,20 +603,6 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         return ICandidate(candidateContract).updateSeigniorage();
     }
 
-    /// @notice Call updateSeigniorage on SeigManager
-    /// @param _candidates Candidate addresses to be updated
-    /// @return Whether or not the execution succeeded
-    function updateSeigniorages(address[] calldata _candidates) external returns (bool) {
-        for (uint256 i = 0; i < _candidates.length; i++) {
-            require(
-                updateSeigniorage(_candidates[i]),
-                "DAOCommittee: failed to update seigniorage"
-            );
-        }
-
-        return true;
-    }
-
     /// @notice Claims the activity reward for member
     function claimActivityReward(address _receiver) external {
         address candidate = ICandidate(msg.sender).candidate();
