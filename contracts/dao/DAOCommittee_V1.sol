@@ -306,9 +306,9 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         CandidateInfo storage prevCandidateInfo = _candidateInfos[prevMember];
         prevCandidateInfo.indexMembers = 0;
         if (prevCandidateInfo.memberJoinedTime > prevCandidateInfo.claimedTimestamp) {
-            prevCandidateInfo.rewardPeriod = uint128(uint256(prevCandidateInfo.rewardPeriod) + (block.timestamp - (prevCandidateInfo.memberJoinedTime)));
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.memberJoinedTime);
         } else {
-            prevCandidateInfo.rewardPeriod = uint128(uint256(prevCandidateInfo.rewardPeriod) + (block.timestamp - (prevCandidateInfo.claimedTimestamp)));
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.claimedTimestamp);
         }
         prevCandidateInfo.memberJoinedTime = 0;
 
@@ -328,9 +328,9 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         );
         members[candidateInfo.indexMembers] = address(0);
         if (candidateInfo.memberJoinedTime > candidateInfo.claimedTimestamp) {
-            candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.memberJoinedTime)));
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.memberJoinedTime);
         } else {
-            candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.claimedTimestamp)));
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.claimedTimestamp);
         }
         candidateInfo.memberJoinedTime = 0;
 
@@ -397,9 +397,9 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         }
         reducingCandidate.indexMembers = 0;
         if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
-            reducingCandidate.rewardPeriod = uint128(uint256(reducingCandidate.rewardPeriod) + (block.timestamp - (reducingCandidate.memberJoinedTime)));
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
         } else {
-            reducingCandidate.rewardPeriod = uint128(uint256(reducingCandidate.rewardPeriod) + (block.timestamp - (reducingCandidate.claimedTimestamp)));
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
         }
         reducingCandidate.memberJoinedTime = 0;
 
