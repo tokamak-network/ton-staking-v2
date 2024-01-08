@@ -388,8 +388,8 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         address reducingMember = members[_reducingMemberIndex];
         CandidateInfo storage reducingCandidate = _candidateInfos[reducingMember];
 
+        address tailMember = members[members.length - 1];
         if (_reducingMemberIndex != members.length - 1) {
-            address tailMember = members[members.length - 1];
             CandidateInfo storage tailCandidate = _candidateInfos[tailMember];
 
             tailCandidate.indexMembers = _reducingMemberIndex;
@@ -407,7 +407,7 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         maxMember = maxMember - 1;
         setQuorum(_quorum);
 
-        emit ChangedMember(_reducingMemberIndex, reducingMember, address(0));
+        emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
         emit ChangedSlotMaximum(maxMember + 1, maxMember);
     }
 
