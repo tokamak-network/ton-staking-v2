@@ -19,6 +19,10 @@ import "./lib/BytesLib.sol";
 
 // import "hardhat/console.sol";
 
+interface IISeigManager {
+    function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
+}
+
 contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
 
@@ -409,6 +413,16 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
 
         emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
         emit ChangedSlotMaximum(maxMember + 1, maxMember);
+    }
+
+    function setBurntAmountAtDAO(
+        uint256 _burnAmount
+    )
+        external
+        onlyOwner
+        validSeigManager
+    {
+        IISeigManager(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
     }
 
     //////////////////////////////////////////////////////////////////////
