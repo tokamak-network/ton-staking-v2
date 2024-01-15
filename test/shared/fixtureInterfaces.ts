@@ -6,6 +6,7 @@ import { DepositManager } from "../../typechain-types/contracts/stake/managers/D
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
+import { SeigManager1 } from "../../typechain-types/contracts/stake/managers/SeigManager1.sol"
 
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
@@ -122,6 +123,28 @@ interface JSONFixture {
     PowerTON: any
 }
 
+interface NewTonStakingV2Fixtures  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    depositManagerV1: any ,
+    seigManagerV1: any ,
+    layer2RegistryV1: any ,
+    coinageFactoryV1: any ,
+    TON: any ,
+    WTON: any ,
+    daoCommitteeProxy: any ,
+    daoAgendaManager: any,
+    candidateFactoryV1: any ,
+    powerTonProxy: any ,
+    daoCommittee: DAOCommitteeExtend,
+    depositManagerV2: DepositManager ,
+    seigManagerV2: SeigManager ,
+    layer2RegistryV2: Layer2Registry ,
+    powerTON: PowerTONUpgrade,
+    powerTonAddress : string
+}
+
 interface NewTonStakingV2Fixtures2  {
     deployer: Signer,
     addr1: Signer,
@@ -145,9 +168,31 @@ interface NewTonStakingV2Fixtures2  {
     daoAdmin: Signer
 }
 
+interface StakedTonSyncFixture  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    daoAdmin: Signer,
+    TON: any ,
+    WTON: any ,
+    depositManager: DepositManager,
+    seigManagerV1: SeigManager,
+    seigManagerV2Imp: SeigManager1,
+    l2Registry: Layer2Registry,
+    l1StakedTonToL2: L1StakedTonToL2,
+    l1StakedTonInL2: L1StakedTonInL2,
+    l2SeigManager: L2SeigManager,
+    addressManager: Lib_AddressManager,
+    l1Messenger: MockL1Messenger,
+    l2Messenger: MockL2Messenger
+}
+
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     JSONFixture,
-    NewTonStakingV2Fixtures2
+    NewTonStakingV2Fixtures2,
+    NewTonStakingV2Fixtures,
+    StakedTonSyncFixture
 }
