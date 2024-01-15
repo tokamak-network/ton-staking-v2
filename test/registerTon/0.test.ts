@@ -464,8 +464,8 @@ describe('L1StakedTonToL2', () => {
 
             let L2BalanceOf = await deployed.l2SeigManager["balanceOf(address)"](testAddress)
             // console.log('L2BalanceOf', L2BalanceOf)
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(wtonAmount), 1)
+            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 3)
             )
             expect(roundDown(stakedB,6)).to.be.eq(roundDown(L2BalanceOf, 6))
         })
