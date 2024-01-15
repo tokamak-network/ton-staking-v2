@@ -13,6 +13,7 @@ import { DepositManager } from "../../typechain-types/contracts/stake/managers/D
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
+import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
 
 import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
@@ -976,7 +977,8 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
 
   // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
   const seigManagerV1 = (await ethers.getContractAt(SeigManager_Json.abi, SeigManagerAddress, deployer)) as SeigManager
-  const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManager1")).connect(deployer).deploy()) as SeigManager1;
+  const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManagerV1_2")).connect(deployer).deploy()) as SeigManagerV1_2;
+
   const l2Registry = (await ethers.getContractAt(Layer2Registry_Json.abi, L2RegistryAddress, deployer)) as Layer2Registry
 
   //---- for L2 message
@@ -1001,6 +1003,8 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
   const L1StakedTonToL2ProxyProxy_ = await ethers.getContractFactory('L1StakedTonToL2Proxy', {
     signer: deployer
   })
+
+  console.log('L1StakedTonToL2ProxyProxy_', L1StakedTonToL2ProxyProxy_.address)
 
   const l1StakedTonToL2_Logic = (await L1StakedTonToL2_.connect(deployer).deploy()) as L1StakedTonToL2
   const l1StakedTonToL2Proxy = (await L1StakedTonToL2ProxyProxy_.connect(deployer).deploy()) as L1StakedTonToL2Proxy
@@ -1028,7 +1032,6 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
   }
 
   const l1StakedTonInL2 = (await ethers.getContractAt(L1StakedTonInL2_Json.abi, l1StakedTonInL2Proxy.address, deployer)) as L1StakedTonInL2
-
 
   //---- L2SeigManager
   const L2SeigManager_ = await ethers.getContractFactory('L2SeigManager')

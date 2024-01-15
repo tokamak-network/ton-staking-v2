@@ -1,7 +1,7 @@
 import { expect } from '../shared/expect'
 import { ethers, network, getNamedAccounts } from 'hardhat'
 
-import { Signer } from 'ethers'
+import { Signer, BigNumber } from 'ethers'
 import { padLeft } from 'web3-utils'
 import { marshalString, unmarshalString } from '../shared/marshal';
 
@@ -10,10 +10,10 @@ import { StakedTonSyncFixture } from '../shared/fixtureInterfaces'
 
 
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
-import { SeigManager1 } from "../../typechain-types/contracts/stake/managers/SeigManager1.sol"
+import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
 
 import SeigManagerAbi from "../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json"
-import SeigManager1Abi from "../../artifacts/contracts/stake/managers/SeigManager1.sol/SeigManager1.json"
+import SeigManagerV1_2_Abi from "../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json"
 import SeigManagerProxyAbi from "../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json"
 import DepositManagerAbi from "../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json"
 
@@ -31,7 +31,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 describe('L1StakedTonToL2', () => {
     let deployer: Signer, addr1: Signer, addr2:Signer;
     let deployed: StakedTonSyncFixture
-    let seigManagerV2: SeigManager1
+    let seigManagerV2: SeigManagerV1_2
     let testAddress: string;
     let tester: Signer;
     let snapshotInfo : any;
@@ -233,7 +233,7 @@ describe('L1StakedTonToL2', () => {
     });
 
     describe('# SeigManager', () => {
-        it('UpgradeTo SeigManager1', async () => {
+        it('UpgradeTo SeigManagerV1_2', async () => {
             const SeigManagerProxy = (
                 new ethers.Contract( deployed.seigManagerV1.address, SeigManagerProxyAbi.abi,  deployer)) as SeigManagerProxy
 
@@ -241,7 +241,7 @@ describe('L1StakedTonToL2', () => {
 
             expect(await SeigManagerProxy.implementation()).to.be.eq(deployed.seigManagerV2Imp.address)
 
-            seigManagerV2 = (await ethers.getContractAt(SeigManager1Abi.abi, deployed.seigManagerV1.address, deployer)) as SeigManager1
+            seigManagerV2 = (await ethers.getContractAt(SeigManagerV1_2_Abi.abi, deployed.seigManagerV1.address, deployer)) as SeigManagerV1_2
         })
 
         it('Only owner can setL1StakedTonToL2.', async () => {

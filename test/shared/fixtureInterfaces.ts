@@ -6,7 +6,7 @@ import { DepositManager } from "../../typechain-types/contracts/stake/managers/D
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
-import { SeigManager1 } from "../../typechain-types/contracts/stake/managers/SeigManager1.sol"
+import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
 
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
@@ -29,6 +29,7 @@ import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.
 import { Lib_AddressManager } from "../../typechain-types/contracts/test/Lib_AddressManager"
 import { MockL1Messenger } from "../../typechain-types/contracts/test/MockL1Messenger.sol"
 import { MockL2Messenger } from "../../typechain-types/contracts/test/MockL2Messenger"
+import { SeigManagerV1_2Interface } from '../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2'
 
 
 interface TonStakingV2Fixtures  {
@@ -177,7 +178,7 @@ interface StakedTonSyncFixture  {
     WTON: any ,
     depositManager: DepositManager,
     seigManagerV1: SeigManager,
-    seigManagerV2Imp: SeigManager1,
+    seigManagerV2Imp: SeigManagerV1_2,
     l2Registry: Layer2Registry,
     l1StakedTonToL2: L1StakedTonToL2,
     l1StakedTonInL2: L1StakedTonInL2,
