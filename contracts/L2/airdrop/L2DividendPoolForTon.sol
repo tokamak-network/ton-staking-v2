@@ -11,6 +11,8 @@ import "../../libraries/LibDividend.sol";
 import {IERC20} from "../../interfaces/IERC20.sol";
 import "../../libraries/SafeERC20.sol";
 
+// import "hardhat/console.sol";
+
 interface IL2SeigManager {
 
     function onSnapshot() external returns (uint256 snapshotId);
@@ -122,13 +124,13 @@ contract L2DividendPoolForTon is ProxyStorage, AccessibleCommon, L2DividendPoolF
         return (distributedTokens, amounts);
     }
 
-    function claimable(address _account, address _token) public view returns (uint256) {
+    function claimable(address _token, address _account) public view returns (uint256) {
         uint256 len = snapshotIds[_token].length;
         if (len == 0) return 0;
 
         uint256 endSnapshotId = snapshotIds[_token][len-1];
         uint256 startSnapshotId = claimStartSnapshotId[_token][_account];
-        return claimableForSnapshotIds(_account, _token, startSnapshotId, endSnapshotId);
+        return claimableForSnapshotIds(_token, _account, startSnapshotId, endSnapshotId);
     }
 
     function calculateClaimPerSnapshotId(

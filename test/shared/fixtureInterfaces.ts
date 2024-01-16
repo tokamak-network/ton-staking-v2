@@ -31,6 +31,9 @@ import { MockL1Messenger } from "../../typechain-types/contracts/test/MockL1Mess
 import { MockL2Messenger } from "../../typechain-types/contracts/test/MockL2Messenger"
 import { SeigManagerV1_2Interface } from '../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2'
 
+import { L2DividendPoolForTon } from "../../typechain-types/contracts/L2/airdrop/L2DividendPoolForTon.sol"
+import { L2DividendPoolForTonProxy } from "../../typechain-types/contracts/L2/airdrop/L2DividendPoolForTonProxy"
+
 
 interface TonStakingV2Fixtures  {
     deployer: Signer,
@@ -185,7 +188,8 @@ interface StakedTonSyncFixture  {
     l2SeigManager: L2SeigManager,
     addressManager: Lib_AddressManager,
     l1Messenger: MockL1Messenger,
-    l2Messenger: MockL2Messenger
+    l2Messenger: MockL2Messenger,
+    l2DividendPoolForTon: L2DividendPoolForTon
 }
 
 

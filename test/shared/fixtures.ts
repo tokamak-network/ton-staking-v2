@@ -15,6 +15,12 @@ import { SeigManager } from "../../typechain-types/contracts/stake/managers/Seig
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
 import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
 
+import { L2SeigManager } from "../../typechain-types/contracts/L2/L2SeigManager.sol"
+import { L2SeigManagerProxy } from "../../typechain-types/contracts/L2/L2SeigManagerProxy"
+
+import { L2DividendPoolForTon } from "../../typechain-types/contracts/L2/airdrop/L2DividendPoolForTon.sol"
+import { L2DividendPoolForTonProxy } from "../../typechain-types/contracts/L2/airdrop/L2DividendPoolForTonProxy"
+
 import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
@@ -50,6 +56,8 @@ import PowerTON_Json from '../abi/PowerTONSwapperProxy.json'
 import L1StakedTonToL2_Json from '../../artifacts/contracts/L1/L1StakedTonToL2.sol/L1StakedTonToL2.json'
 import L1StakedTonInL2_Json from '../../artifacts/contracts/L2/L1StakedTonInL2.sol/L1StakedTonInL2.json'
 import L2SeigManager_Json from '../../artifacts/contracts/L2/L2SeigManager.sol/L2SeigManager.json'
+import L2DividendPoolForTon_Json from '../../artifacts/contracts/L2/airdrop/L2DividendPoolForTon.sol/L2DividendPoolForTon.json'
+
 import SeigManager_Json from '../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json'
 import Layer2Registry_Json from '../../artifacts/contracts/stake/Layer2Registry.sol/Layer2Registry.json'
 import DepositManager_Json from '../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json'
@@ -1004,8 +1012,6 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
     signer: deployer
   })
 
-  console.log('L1StakedTonToL2ProxyProxy_', L1StakedTonToL2ProxyProxy_.address)
-
   const l1StakedTonToL2_Logic = (await L1StakedTonToL2_.connect(deployer).deploy()) as L1StakedTonToL2
   const l1StakedTonToL2Proxy = (await L1StakedTonToL2ProxyProxy_.connect(deployer).deploy()) as L1StakedTonToL2Proxy
 
@@ -1069,6 +1075,24 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
   await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
   await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("1000"+"0".repeat(9)))).wait()
 
+
+  //-- L2DividendPoolForTon
+  const L2DividendPoolForTon_ = await ethers.getContractFactory('L2DividendPoolForTon')
+  const L2DividendPoolForTonProxy_ = await ethers.getContractFactory('L2DividendPoolForTonProxy', {
+    signer: deployer
+  })
+
+  const l2DividendPoolForTonLogic = (await L2DividendPoolForTon_.connect(deployer).deploy()) as L2DividendPoolForTon
+  const l2DividendPoolForTonProxy = (await L2DividendPoolForTonProxy_.connect(deployer).deploy()) as L2DividendPoolForTonProxy
+
+  let impl_l2DividendPoolForTonProxy = await l2DividendPoolForTonProxy.implementation()
+
+  if(impl_l2DividendPoolForTonProxy != l2DividendPoolForTonLogic.address) {
+    await (await l2DividendPoolForTonProxy.connect(deployer).upgradeTo(l2DividendPoolForTonLogic.address)).wait()
+  }
+
+  const l2DividendPoolForTon = (await ethers.getContractAt(L2DividendPoolForTon_Json.abi, l2DividendPoolForTonProxy.address, deployer)) as L2SeigManager
+
   return  {
     deployer: deployer,
     addr1: addr1,
@@ -1085,6 +1109,7 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
     l2SeigManager: l2SeigManager,
     addressManager: addressManager,
     l1Messenger: l1Messenger,
-    l2Messenger: l2Messenger
+    l2Messenger: l2Messenger,
+    l2DividendPoolForTon: l2DividendPoolForTon
   }
 }
