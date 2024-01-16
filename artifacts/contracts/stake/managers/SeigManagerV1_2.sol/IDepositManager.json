@@ -1,18 +1,18 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IPowerTON",
-  "sourceName": "contracts/stake/managers/SeigManager1.sol",
+  "contractName": "IDepositManager",
+  "sourceName": "contracts/stake/managers/SeigManagerV1_2.sol",
   "abi": [
     {
-      "inputs": [
+      "inputs": [],
+      "name": "updateSeigniorage",
+      "outputs": [
         {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
         }
       ],
-      "name": "updateSeigniorage",
-      "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     }

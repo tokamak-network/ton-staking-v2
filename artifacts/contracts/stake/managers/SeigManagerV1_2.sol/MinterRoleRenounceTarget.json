@@ -1,11 +1,11 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "PauserRoleRenounceTarget",
-  "sourceName": "contracts/stake/managers/SeigManager1.sol",
+  "contractName": "MinterRoleRenounceTarget",
+  "sourceName": "contracts/stake/managers/SeigManagerV1_2.sol",
   "abi": [
     {
       "inputs": [],
-      "name": "renouncePauser",
+      "name": "renounceMinter",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

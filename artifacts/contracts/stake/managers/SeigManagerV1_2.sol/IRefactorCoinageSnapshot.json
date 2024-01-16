@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "IRefactorCoinageSnapshot",
-  "sourceName": "contracts/stake/managers/SeigManager1.sol",
+  "sourceName": "contracts/stake/managers/SeigManagerV1_2.sol",
   "abi": [
     {
       "inputs": [],

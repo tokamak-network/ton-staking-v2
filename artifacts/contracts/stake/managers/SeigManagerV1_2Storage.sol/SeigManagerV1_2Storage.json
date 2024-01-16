@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "SeigManagerStorage1",
-  "sourceName": "contracts/stake/managers/SeigManagerStorage1.sol",
+  "contractName": "SeigManagerV1_2Storage",
+  "sourceName": "contracts/stake/managers/SeigManagerV1_2Storage.sol",
   "abi": [
     {
       "inputs": [],
