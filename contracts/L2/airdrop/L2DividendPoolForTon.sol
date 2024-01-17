@@ -23,6 +23,7 @@ interface IL2SeigManager {
 
 contract L2DividendPoolForTon is ProxyStorage, AccessibleCommon, L2DividendPoolForTonStorage {
     using SafeERC20 for IERC20;
+    address constant NativeTonAddress = address(0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000);
 
     event Claimed(address indexed token, address indexed account, uint256 snapshotId, uint256 amount);
     event Distributed(address indexed token, uint256 snapshotId, uint256 amount);
@@ -53,8 +54,12 @@ contract L2DividendPoolForTon is ProxyStorage, AccessibleCommon, L2DividendPoolF
     /* ========== external  ========== */
 
     function distribute(address _token, uint256 _amount)
-        external nonZero(_amount) nonZeroAddress(_token) ifFree
+        external payable nonZero(_amount) nonZeroAddress(_token) ifFree
     {
+        if(_token == NativeTonAddress) {
+            require(msg.value == _amount, "differrent amount from msg.value");
+        }
+
         uint256 total = IL2SeigManager(l2SeigManager).totalSupply();
         require(total != 0, "no registered L1's staking ton");
 
@@ -62,7 +67,9 @@ contract L2DividendPoolForTon is ProxyStorage, AccessibleCommon, L2DividendPoolF
         if (distr.exists == false) distributedTokens.push(_token);
         distr.exists = true;
 
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        if(_token != NativeTonAddress) {
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        }
 
         uint256 snapshotId_ = IL2SeigManager(l2SeigManager).onSnapshot();
         require(snapshotId_ != 0, 'zero snapshotId');
@@ -106,7 +113,14 @@ contract L2DividendPoolForTon is ProxyStorage, AccessibleCommon, L2DividendPoolF
         claimStartSnapshotId[_token][msg.sender] = snapshotId + 1;
         distr.lastBalance -= amountToClaim;
 
-        IERC20(_token).safeTransfer(msg.sender, amountToClaim);
+        if (_token == NativeTonAddress) {
+            require(address(this).balance >= amountToClaim, "insufficient balance");
+            payable(msg.sender).transfer(amountToClaim);
+        } else {
+            require(IERC20(_token).balanceOf(address(this)) >= amountToClaim, "insufficient balance");
+            IERC20(_token).safeTransfer(msg.sender, amountToClaim);
+        }
+
         emit Claimed(_token, msg.sender, snapshotId, amountToClaim);
     }
 
