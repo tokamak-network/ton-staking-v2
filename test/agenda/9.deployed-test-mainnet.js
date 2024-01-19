@@ -396,4 +396,46 @@ describe("DAOAgenda Test", () => {
             expect(amount2).to.be.equal(0);
         })
     })
+
+    describe("Member Test", () => {
+        it("member2 retire after same getClaimAmount", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            // console.log("block.timestamp :", block.timestamp);
+            let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+
+            await member2ContractLogic.connect(member2).retireMember();
+
+            const block2 = await ethers.provider.getBlock('latest')
+            // console.log("block2.timestamp :", block2.timestamp);
+            let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
+
+            expect(amount2).to.be.gt(amount);
+            
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+            // console.log("activityRewardPerSecond :", activityRewardPerSecond)
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+            // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+            expect(timeAddAmount).to.be.equal(amount2);
+        })
+
+        it("member2 changeMember member1 after same getClaimAmount", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+            
+            await daoCommittee.connect(member2Contract).changeMember(0);
+
+            const block2 = await ethers.provider.getBlock('latest')
+            let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+
+            expect(amount2).to.be.gt(amount);
+            
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+            expect(timeAddAmount).to.be.equal(amount2);
+        })
+    })
 })
