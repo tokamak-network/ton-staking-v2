@@ -266,6 +266,7 @@ describe("DAOAgenda Test", () => {
 
         it("DAO wton addr check", async () => {
             let wtonAddr = await daoCommittee.wton();
+            console.log("wtonAddr :", wtonAddr);
             expect(wtonAddr).to.be.equal(oldContractInfo.WTON);
         })
     })
