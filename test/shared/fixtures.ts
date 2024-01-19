@@ -6,7 +6,7 @@ import { readContracts, deployedContracts } from "../common_func"
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
 import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, NewTonStakingV2Fixtures,
-  StakedTonSyncFixture  } from './fixtureInterfaces'
+  StakedTonSyncFixture, PowerTonFixture  } from './fixtureInterfaces'
 
 import { DepositManagerForMigration } from "../../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
@@ -1091,7 +1091,144 @@ export const stakedTonSyncFixture = async function (boolInitialize: boolean): Pr
     await (await l2DividendPoolForTonProxy.connect(deployer).upgradeTo(l2DividendPoolForTonLogic.address)).wait()
   }
 
-  const l2DividendPoolForTon = (await ethers.getContractAt(L2DividendPoolForTon_Json.abi, l2DividendPoolForTonProxy.address, deployer)) as L2SeigManager
+  const l2DividendPoolForTon = (await ethers.getContractAt(L2DividendPoolForTon_Json.abi, l2DividendPoolForTonProxy.address, deployer)) as L2DividendPoolForTon
+
+  return  {
+    deployer: deployer,
+    addr1: addr1,
+    addr2: addr2,
+    daoAdmin: daoAdmin,
+    TON: TONContract,
+    WTON: WTONContract,
+    depositManager: depositManager,
+    seigManagerV1: seigManagerV1,
+    seigManagerV2Imp: seigManagerV2Imp,
+    l2Registry: l2Registry,
+    l1StakedTonToL2: l1StakedTonToL2,
+    l1StakedTonInL2: l1StakedTonInL2,
+    l2SeigManager: l2SeigManager,
+    addressManager: addressManager,
+    l1Messenger: l1Messenger,
+    l2Messenger: l2Messenger,
+    l2DividendPoolForTon: l2DividendPoolForTon
+  }
+}
+
+export const l2PowerTonFixture = async function (boolInitialize: boolean): Promise<PowerTonFixture> {
+  const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
+  const { TON, WTON, SeigManagerAddress, L2RegistryAddress , DAOCommitteeProxy, DepositManagerAddress} = await hre.getNamedAccounts();
+
+  const depositManager = (await ethers.getContractAt(DepositManager_Json.abi, DepositManagerAddress, deployer)) as DepositManager
+
+  // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
+  const seigManagerV1 = (await ethers.getContractAt(SeigManager_Json.abi, SeigManagerAddress, deployer)) as SeigManager
+  const seigManagerV2Imp = (await (await ethers.getContractFactory("SeigManagerV1_2")).connect(deployer).deploy()) as SeigManagerV1_2;
+
+  const l2Registry = (await ethers.getContractAt(Layer2Registry_Json.abi, L2RegistryAddress, deployer)) as Layer2Registry
+
+  //---- for L2 message
+  const Lib_AddressManager = await ethers.getContractFactory('Lib_AddressManager')
+  const addressManager = (await Lib_AddressManager.connect(deployer).deploy()) as Lib_AddressManager
+  await addressManager.connect(deployer).setAddress("OVM_Sequencer", sequencer1.address);
+
+  //---
+  const MockL1Messenger = await ethers.getContractFactory('MockL1Messenger')
+  const l1Messenger = (await MockL1Messenger.connect(deployer).deploy()) as MockL1Messenger
+  const MockL2Messenger = await ethers.getContractFactory('MockL2Messenger')
+  const l2Messenger = (await MockL2Messenger.connect(deployer).deploy()) as MockL2Messenger
+
+  await addressManager.connect(deployer).setAddress("Proxy__OVM_L1CrossDomainMessenger", l1Messenger.address);
+  await (await l1Messenger.connect(deployer).setL2messenger(l2Messenger.address)).wait()
+
+  //---- for L1 ton -> L2 register
+  //---- L1StakedTonToL2
+  const L1StakedTonToL2_ = await ethers.getContractFactory('L1StakedTonToL2', {
+    signer: deployer
+  })
+  const L1StakedTonToL2ProxyProxy_ = await ethers.getContractFactory('L1StakedTonToL2Proxy', {
+    signer: deployer
+  })
+
+  const l1StakedTonToL2_Logic = (await L1StakedTonToL2_.connect(deployer).deploy()) as L1StakedTonToL2
+  const l1StakedTonToL2Proxy = (await L1StakedTonToL2ProxyProxy_.connect(deployer).deploy()) as L1StakedTonToL2Proxy
+
+  let impl_l1StakedTonToL2Proxy = await l1StakedTonToL2Proxy.implementation()
+  if(impl_l1StakedTonToL2Proxy != l1StakedTonToL2_Logic.address) {
+    await (await l1StakedTonToL2Proxy.connect(deployer).upgradeTo(l1StakedTonToL2_Logic.address)).wait()
+  }
+
+  const l1StakedTonToL2 = (await ethers.getContractAt(L1StakedTonToL2_Json.abi, l1StakedTonToL2Proxy.address, deployer)) as L1StakedTonToL2
+
+  //---- L1StakedTonInL2
+  const L1StakedTonInL2_ = await ethers.getContractFactory('L1StakedTonInL2')
+  const L1StakedTonInL2Proxy_ = await ethers.getContractFactory('L1StakedTonInL2Proxy', {
+    signer: deployer
+  })
+
+  const l1StakedTonInL2_Logic = (await L1StakedTonInL2_.connect(deployer).deploy()) as L1StakedTonInL2
+  const l1StakedTonInL2Proxy = (await L1StakedTonInL2Proxy_.connect(deployer).deploy()) as L1StakedTonInL2Proxy
+
+  let impl_l1StakedTonInL2Proxy = await l1StakedTonInL2Proxy.implementation()
+
+  if(impl_l1StakedTonInL2Proxy != l1StakedTonInL2_Logic.address) {
+    await (await l1StakedTonInL2Proxy.connect(deployer).upgradeTo(l1StakedTonInL2_Logic.address)).wait()
+  }
+
+  const l1StakedTonInL2 = (await ethers.getContractAt(L1StakedTonInL2_Json.abi, l1StakedTonInL2Proxy.address, deployer)) as L1StakedTonInL2
+
+  //---- L2SeigManager
+  const L2SeigManager_ = await ethers.getContractFactory('L2SeigManager')
+  const L2SeigManagerProxy_ = await ethers.getContractFactory('L2SeigManagerProxy', {
+    signer: deployer
+  })
+
+  const l2SeigManagerLogic = (await L2SeigManager_.connect(deployer).deploy()) as L2SeigManager
+  const l2SeigManagerProxy = (await L2SeigManagerProxy_.connect(deployer).deploy()) as L2SeigManagerProxy
+
+  let impl_l2SeigManagerProxy = await l2SeigManagerProxy.implementation()
+
+  if(impl_l2SeigManagerProxy != l2SeigManagerLogic.address) {
+    await (await l2SeigManagerProxy.connect(deployer).upgradeTo(l2SeigManagerLogic.address)).wait()
+  }
+
+  const l2SeigManager = (await ethers.getContractAt(L2SeigManager_Json.abi, l2SeigManagerProxy.address, deployer)) as L2SeigManager
+
+
+  const contractJson = await jsonFixtures()
+  const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
+  const WTONContract = new ethers.Contract(WTON, contractJson.WTON.abi,  deployer)
+
+  await network.provider.send("hardhat_impersonateAccount", [
+    DAOCommitteeProxy,
+  ]);
+  const daoAdmin = await ethers.getSigner(DAOCommitteeProxy);
+  await hre.network.provider.send("hardhat_setBalance", [
+    DAOCommitteeProxy,
+    "0x10000000000000000000000000",
+  ]);
+
+  //
+  // for test :
+  await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+  await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("1000"+"0".repeat(9)))).wait()
+
+
+  //-- L2DividendPoolForTon
+  const L2DividendPoolForTon_ = await ethers.getContractFactory('L2DividendPoolForTon')
+  const L2DividendPoolForTonProxy_ = await ethers.getContractFactory('L2DividendPoolForTonProxy', {
+    signer: deployer
+  })
+
+  const l2DividendPoolForTonLogic = (await L2DividendPoolForTon_.connect(deployer).deploy()) as L2DividendPoolForTon
+  const l2DividendPoolForTonProxy = (await L2DividendPoolForTonProxy_.connect(deployer).deploy()) as L2DividendPoolForTonProxy
+
+  let impl_l2DividendPoolForTonProxy = await l2DividendPoolForTonProxy.implementation()
+
+  if(impl_l2DividendPoolForTonProxy != l2DividendPoolForTonLogic.address) {
+    await (await l2DividendPoolForTonProxy.connect(deployer).upgradeTo(l2DividendPoolForTonLogic.address)).wait()
+  }
+
+  const l2DividendPoolForTon = (await ethers.getContractAt(L2DividendPoolForTon_Json.abi, l2DividendPoolForTonProxy.address, deployer)) as L2DividendPoolForTon
 
   return  {
     deployer: deployer,

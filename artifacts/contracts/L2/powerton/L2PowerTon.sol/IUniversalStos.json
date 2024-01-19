@@ -1,15 +1,15 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IIISeigManager",
-  "sourceName": "contracts/L2/L2RefactorCoinageSnapshot.sol",
+  "contractName": "IUniversalStos",
+  "sourceName": "contracts/L2/powerton/L2PowerTon.sol",
   "abi": [
     {
       "inputs": [],
-      "name": "progressSnapshotId",
+      "name": "totalSupply",
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "amount",
           "type": "uint256"
         }
       ],

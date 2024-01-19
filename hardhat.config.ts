@@ -19,45 +19,45 @@ const config: HardhatUserConfig = {
     SeigManagerAddress: {
       default: 3,
       mainnet: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
-      goerli: '0x446ece59ef429B774Ff116432bbB123f1915D9E3',
-      hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
-      local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      goerli: '0x50255c955d0F760C8512ff556453AEe6502ef47f',
+      hardhat: '0x50255c955d0F760C8512ff556453AEe6502ef47f',
+      local: '0x50255c955d0F760C8512ff556453AEe6502ef47f',
     },
     DepositManagerAddress: {
       default: 4,
       mainnet: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
-      local: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
-      goerli: '0x0ad659558851f6ba8a8094614303F56d42f8f39A',
-      hardhat: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+      local: '0x0e1EF78939F9d3340e63A7a1077d50999CC6B64f',
+      goerli: '0x0e1EF78939F9d3340e63A7a1077d50999CC6B64f',
+      hardhat: '0x0e1EF78939F9d3340e63A7a1077d50999CC6B64f',
 
     },
     L2RegistryAddress: {
       default: 5,
       mainnet: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
-      local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
-      goerli: '0x6817e1c04748eae68EBFF13216280Df1ec15ba86',
-      hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      local: '0xFF2258eAa1c82d09a9ed0198116d9557c34104Fa',
+      goerli: '0xFF2258eAa1c82d09a9ed0198116d9557c34104Fa',
+      hardhat: '0xFF2258eAa1c82d09a9ed0198116d9557c34104Fa',
     },
     TON: {
       default: 6,
       mainnet: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
       goerli: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
-      hardhat: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
-      local: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
+      hardhat: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
+      local: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
     },
     WTON: {
       default: 7,
       mainnet: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
       goerli: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
-      hardhat: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
-      local: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
+      hardhat: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
+      local: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
     },
     TOS: {
       default: 8,
       mainnet: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       goerli: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
-      hardhat: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
-      local: '0x5b40841eeCfB429452AB25216Afc1e1650C07747',
+      hardhat: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
+      local: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
     },
     DAOCommitteeProxy: {
       default: 9,
@@ -69,39 +69,39 @@ const config: HardhatUserConfig = {
     DaoCommitteeAdminAddress: {
       default: 10,
       mainnet: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
-      local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
-      goerli: '',
-      hardhat: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
+      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      goerli: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
 
     },
     powerTonAddress: {
       default: 11,
       mainnet: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
-      local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
-      goerli: '',
-      hardhat: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
+      local: '0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94',
+      goerli: '0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94',
+      hardhat: '0x031B5b13Df847eB10c14451EB2a354EfEE23Cc94',
 
     },
     daoVaultAddress: {
       default: 12,
       mainnet: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
-      goerli: '',
-      hardhat: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
-      local: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
+      goerli: '0x3C5ffEe61A384B384ed38c0983429dcDb49843F6',
+      hardhat: '0x3C5ffEe61A384B384ed38c0983429dcDb49843F6',
+      local: '0x3C5ffEe61A384B384ed38c0983429dcDb49843F6',
     },
     level19Address: {
       default: 13,
       mainnet: '0x0F42D1C40b95DF7A1478639918fc358B4aF5298D',
-      goerli: '',
-      hardhat: '0x0F42D1C40b95DF7A1478639918fc358B4aF5298D',
-      local: '0x0F42D1C40b95DF7A1478639918fc358B4aF5298D',
+      goerli: '0x2e8400Ec60349A18DD84De0566881379056a3085',
+      hardhat: '0x2e8400Ec60349A18DD84De0566881379056a3085',
+      local: '0x2e8400Ec60349A18DD84De0566881379056a3085',
     },
     level19Admin: {
       default: 14,
       mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
-      goerli: '',
-      hardhat: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
-      local: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      goerli: '0xc1eba383D94c6021160042491A5dfaF1d82694E6',
+      hardhat: '0xc1eba383D94c6021160042491A5dfaF1d82694E6',
+      local: '0xc1eba383D94c6021160042491A5dfaF1d82694E6',
     },
     tokamakAddress: {
       default: 15,
@@ -120,9 +120,32 @@ const config: HardhatUserConfig = {
     powerTonAdminAddress: {
       default: 17,
       mainnet: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
-      local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
+      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      goerli: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+    },
+    l1StosToL2Address: {
+      default: 18,
+      mainnet: '',
+      local: '0x3ADE3a1d7471f9629B6Dbb3d316E158B2Bcab87b',
+      goerli: '0x3ADE3a1d7471f9629B6Dbb3d316E158B2Bcab87b',
+      hardhat: '0x3ADE3a1d7471f9629B6Dbb3d316E158B2Bcab87b',
+    },
+    l2AirdropStosAddress: {
+      default: 19,
+      mainnet: '',
+      local: '0xC74b529Ad06E70fA51CDDAD11857D53E6354523d',
       goerli: '',
-      hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
+      hardhat: '0xC74b529Ad06E70fA51CDDAD11857D53E6354523d',
+      titangoerli: '0xC74b529Ad06E70fA51CDDAD11857D53E6354523d'
+    },
+    l2UniversalStosAddress: {
+      default: 20,
+      mainnet: '',
+      local: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc',
+      goerli: '',
+      hardhat: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc',
+      titangoerli: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc'
     },
     // tonAdminAddress: {
     //   default: 10,
@@ -133,10 +156,14 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      // forking: {
+      //   url: `${process.env.ETH_NODE_URI_MAINNET}`,
+      //   blockNumber: 18811511
+      //   // blockNumber:18229970
+      // },
       forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 18811511
-        // blockNumber:18229970
+        url: `${process.env.ETH_NODE_URI_goerli}`,
+        blockNumber: 10397297
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-ton-register-l1']

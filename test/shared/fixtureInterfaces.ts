@@ -192,12 +192,31 @@ interface StakedTonSyncFixture  {
     l2DividendPoolForTon: L2DividendPoolForTon
 }
 
-
+interface PowerTonFixture  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    daoAdmin: Signer,
+    TON: any ,
+    WTON: any ,
+    depositManager: DepositManager,
+    seigManagerV1: SeigManager,
+    seigManagerV2Imp: SeigManagerV1_2,
+    l2Registry: Layer2Registry,
+    l1StakedTonToL2: L1StakedTonToL2,
+    l1StakedTonInL2: L1StakedTonInL2,
+    l2SeigManager: L2SeigManager,
+    addressManager: Lib_AddressManager,
+    l1Messenger: MockL1Messenger,
+    l2Messenger: MockL2Messenger,
+    l2DividendPoolForTon: L2DividendPoolForTon
+}
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     JSONFixture,
     NewTonStakingV2Fixtures2,
     NewTonStakingV2Fixtures,
-    StakedTonSyncFixture
+    StakedTonSyncFixture,
+    PowerTonFixture
 }
