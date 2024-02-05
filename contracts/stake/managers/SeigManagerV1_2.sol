@@ -830,10 +830,6 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return true;
   }
 
-  function  checkOperatorCollateral(address layer) public view returns (bool) {
-    return (getOperatorAmount(layer) >= minimumAmount) ;
-  }
-
   //////////////////////////////
   // Storage getters
   //////////////////////////////
@@ -908,6 +904,11 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     tos = (
         (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
       ) * (10 ** 9)) + (_tot.totalSupply());
+  }
+
+
+  function  checkOperatorCollateral(address layer) public view returns (bool) {
+    return (getOperatorAmount(layer) >= minimumAmount) ;
   }
 
 }
