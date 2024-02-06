@@ -382,7 +382,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       uint256 newAmount = _coinages[layer2].balanceOf(account) + amount;
       require(newAmount >= minimumAmount, "minimum amount is required");
     } else {
-      require(checkOperatorCollateral(layer2), "OperatorCollateral is insufficient.");
+      require(getOperatorAmount(layer2) >= minimumAmount, "OperatorCollateral is insufficient.");
     }
 
     _tot.mint(layer2, amount);
@@ -508,7 +508,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   function getOperatorAmount(address layer2) public view returns (uint256) {
-    address operator = Layer2I(msg.sender).operator();
+    address operator = Layer2I(layer2).operator();
     return _coinages[layer2].balanceOf(operator);
   }
 
@@ -904,11 +904,6 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     tos = (
         (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
       ) * (10 ** 9)) + (_tot.totalSupply());
-  }
-
-
-  function  checkOperatorCollateral(address layer) public view returns (bool) {
-    return (getOperatorAmount(layer) >= minimumAmount) ;
   }
 
 }
