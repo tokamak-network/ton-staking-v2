@@ -92,7 +92,7 @@ describe("DAOAgenda Test", () => {
     // let member3ContractAddr = "0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764"
     let member3ContractAddr = "0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2"
 
-    let talkenAddr = "0xb9d336596ea2662488641c4ac87960bfdcb94c6e"
+    let talkenAddr = "0xcc2f386adca481a00d614d5aa77a30984f264a07"
     let talkenContractAddr = "0x36101b31e74c5E8f9a9cec378407Bbb776287761"
 
     let beforeclaimAmount;
@@ -132,6 +132,8 @@ describe("DAOAgenda Test", () => {
         CoinageFactory: "",
         SeigManager: "0x0b55a0f463b6defb81c6063973763951712d0e5f",
     }
+
+    let minimumAmount = ethers.utils.parseUnits("1000", 18);
 
     let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
 
@@ -362,7 +364,11 @@ describe("DAOAgenda Test", () => {
         })
 
         it("Set TalkenCandidateContract", async () => {
-
+            talkenContractLogic = new ethers.Contract(
+                talkenContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
         })
 
 
@@ -423,7 +429,15 @@ describe("DAOAgenda Test", () => {
         })
     })
 
-    describe("Member Test", () => {
+    describe("changeMember Test", () => {
+        it("talken can't changeMemeber because not deposit 1000TON", async () => {
+            let operatorDepositAmount = await daoCommittee.connect(talken).operatorAmountCheck(talkenContractAddr,talken.address);
+            console.log(operatorDepositAmount)
+            expect(operatorDepositAmount).to.be.lt(minimumAmount);
+            let tx = talkenContractLogic.connect(talken).changeMember(0)
+            await expect(tx).to.be.revertedWith("need more operatorDeposit")
+        })
+
         it("member2 retire after same getClaimAmount", async () => {
             const block = await ethers.provider.getBlock('latest')
             // console.log("block.timestamp :", block.timestamp);
@@ -446,7 +460,7 @@ describe("DAOAgenda Test", () => {
             expect(timeAddAmount).to.be.equal(amount2);
         })
 
-        it("member2 changeMember member1 after same getClaimAmount", async () => {
+        it("member2 can changeMember because deposit over 1000TON", async () => {
             const block = await ethers.provider.getBlock('latest')
             let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
             

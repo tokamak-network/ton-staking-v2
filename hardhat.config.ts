@@ -160,6 +160,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        blockNumber: 19131000
         // blockNumber: 18811511
         // url: `${process.env.ETH_NODE_URI_sepolia}`,
         // blockNumber:18229970

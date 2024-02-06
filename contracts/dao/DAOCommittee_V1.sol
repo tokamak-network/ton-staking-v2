@@ -21,8 +21,13 @@ import "./lib/BytesLib.sol";
 
 interface IISeigManager {
     function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
+    function coinages(address layer2) external view returns (address);
     function getOperatorAmount(address layer2) external view returns (uint256);
     function minimumAmount() external view returns (uint256);
+}
+
+interface IICoinage {
+    function balanceOf(address account) external view returns (uint256);
 }
 
 contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
@@ -286,10 +291,9 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         returns (bool)
     {
         address newMember = ICandidate(msg.sender).candidate();
-        //operator == candidateContract의 candidate
-        uint256 operatorAmount = operatorAmountCheck();
+        uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
         uint256 minimumAmount = IISeigManager(address(seigManager)).minimumAmount();
-        require(operatorAmount > minimumAmount, "need more operatorDeposit");
+        require(operatorAmount >= minimumAmount, "need more operatorDeposit");
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
         require(
@@ -855,7 +859,8 @@ contract DAOCommittee_V1 is StorageStateCommittee, AccessControl, ERC165A, Stora
         return _oldCandidateInfos[_oldCandidate];
     }
 
-    function operatorAmountCheck() public view returns (uint256 operatorAmount) {
-        operatorAmount = IISeigManager(address(seigManager)).getOperatorAmount(msg.sender);
+    function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
+        address coinage = IISeigManager(address(seigManager)).coinages(layer2); 
+        operatorAmount = IICoinage(coinage).balanceOf(operator);
     }
 }
