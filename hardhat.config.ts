@@ -63,7 +63,7 @@ const config: HardhatUserConfig = {
       mainnet: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       goerli: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
       hardhat: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
-      local: '0x5b40841eeCfB429452AB25216Afc1e1650C07747',
+      local: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
     },
     DAOCommitteeProxy: {
       default: 10,
@@ -149,6 +149,27 @@ const config: HardhatUserConfig = {
       hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
     },
+    SeigManagerProxy: {
+      default: 22,
+      mainnet: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      goerli: '',
+      hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+    },
+    DepositManagerProxy: {
+      default: 23,
+      mainnet: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+      goerli: '',
+      hardhat: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+      local: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+    },
+    Layer2RegistryProxy: {
+      default: 23,
+      mainnet: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      goerli: '',
+      hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+    },
     // tonAdminAddress: {
     //   default: 10,
     //   mainnet: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
@@ -163,7 +184,7 @@ const config: HardhatUserConfig = {
         blockNumber: 18811511
         // blockNumber:18229970
       },
-      allowUnlimitedContractSize: false,
+      // allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']
     },
     local: {
