@@ -6,6 +6,7 @@ import { DepositManager } from "../../typechain-types/contracts/stake/managers/D
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
+// import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
 
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
 import { Layer2Registry } from "../../typechain-types/contracts/stake/Layer2Registry.sol"
@@ -137,9 +138,26 @@ interface NewTonStakingV2Fixtures2  {
     daoAdmin: Signer
 }
 
+interface Layer2TokamakFixture  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    daoAdmin: Signer,
+    daoOwner: Signer,
+    TON: any ,
+    WTON: any ,
+    depositManager: DepositManager,
+    seigManagerProxy: SeigManagerProxy,
+    seigManager: SeigManagerV1_1,
+    // seigManagerV1_2: SeigManagerV1_2,
+    l2Registry: Layer2Registry,
+    daoCommitteeProxy: any
+}
+
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     JSONFixture,
-    NewTonStakingV2Fixtures2
+    NewTonStakingV2Fixtures2,
+    Layer2TokamakFixture
 }

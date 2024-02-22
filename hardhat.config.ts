@@ -155,6 +155,48 @@ const config: HardhatUserConfig = {
     //   goerli: '',
     //   hardhat: '',
     // },
+    l1MessengerAddress: {
+      default: 22,
+      mainnet: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      goerli: '0x2878373BA3Be0Ef2a93Ba5b3F7210D76cb222e63',
+      hardhat: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      local: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+    },
+    l1BridgeAddress: {
+      default: 23,
+      mainnet: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      goerli: '0x7377F3D0F64d7a54Cf367193eb74a052ff8578FD',
+      hardhat: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+    },
+    l1AddressManagerAddress: {
+      default: 24,
+      mainnet: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
+      goerli: '0xEFa07e4263D511fC3a7476772e2392efFb1BDb92',
+      hardhat: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
+      local: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
+    },
+    l2TokenFactoryAddress: {
+      default: 25,
+      mainnet: '',
+      goerli: '',
+      hardhat: '',
+      local: '',
+    },
+    l2TonAddress: {
+      default: 26,
+      mainnet: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      goerli: '0xFa956eB0c4b3E692aD5a6B2f08170aDE55999ACa',
+      hardhat: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      local: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+    },
+    swapProxy: {
+      default: 27,
+      mainnet: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+      goerli: '',
+      hardhat: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+      local: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+    }
   },
   networks: {
     hardhat: {

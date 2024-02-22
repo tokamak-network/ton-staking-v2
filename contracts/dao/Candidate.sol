@@ -24,6 +24,7 @@ interface IISeigManager {
   function updateSeigniorage() external returns (bool);
   function coinages(address layer2) external view returns (address);
 }
+
 /// @title Managing a candidate
 /// @notice Either a user or layer2 contract can be a candidate
 contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 {
@@ -73,7 +74,7 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
         committee = _committee;
         seigManager = _seigManager;
         memo = _memo;
-        
+
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
     }
 
