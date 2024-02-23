@@ -9,6 +9,8 @@ import "hardhat/console.sol";
 
 interface IOperator {
     function transferOwnership(address newOwner) external;
+    function transferManager(address addr) external;
+    function addOperator(address addr) external;
     function upgradeTo(address _logic) external;
 }
 
@@ -21,7 +23,7 @@ contract OperatorFactory is Ownable {
     address public operatorImplementation;
 
     event ChangedOperatorImplementaion(address newOperatorImplementation);
-    event CreatedOperator(address systemConfig, address owner, address operator);
+    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
 
     constructor(address _operatorImplementation) {
         operatorImplementation = _operatorImplementation;
@@ -42,9 +44,10 @@ contract OperatorFactory is Ownable {
      * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
      */
     function createOperator(address systemConfig) external returns (address operator) {
-        address sOwner = ISystemConfig(systemConfig).owner();
-        require(sOwner != address(0), "zero config's owner");
-        require(sOwner == msg.sender, "not config's owner");
+        address sOwner = owner();
+        address sManager = ISystemConfig(systemConfig).owner();
+        require(sManager != address(0), "zero config's owner");
+        require(sManager == msg.sender, "not config's owner");
 
         uint256 salt = 0;
         address addr = getAddress(systemConfig);
@@ -55,9 +58,11 @@ contract OperatorFactory is Ownable {
         operator = address(new OperatorProxy{salt : bytes32(salt)}(systemConfig));
 
         IOperator(operator).upgradeTo(operatorImplementation);
-        IOperator(operator).transferOwnership(sOwner);
+        IOperator(operator).transferManager(sManager);
+        IOperator(operator).addOperator(sManager);
+        IOperator(operator).transferOwnership(owner());
 
-        emit CreatedOperator(systemConfig, sOwner, operator);
+        emit CreatedOperator(systemConfig, sOwner, sManager, operator);
     }
 
     function getAddress(address systemConfig) public view returns (address) {

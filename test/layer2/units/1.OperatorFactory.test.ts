@@ -12,7 +12,7 @@ import { OperatorFactory } from "../../../typechain-types/contracts/layer2/facto
 import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1"
 
 describe('OperatorFactory', () => {
-    let deployer: Signer, addr1: Signer, addr2: Signer
+    let deployer: Signer, addr1: Signer, addr2: Signer, manager: Signer
     let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
     let legacySystemConfig: LegacySystemConfig
     let sampleSystemConfig: LegacySystemConfig
@@ -24,6 +24,7 @@ describe('OperatorFactory', () => {
         deployer = accounts[0]
         addr1 = accounts[1]
         addr2 = accounts[2]
+        manager = accounts[3]
 
         // l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
         // l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
@@ -42,7 +43,7 @@ describe('OperatorFactory', () => {
         it('set Titan LegacySystemConfig ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-            legacySystemConfig = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
+            legacySystemConfig = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(manager).deploy()) as LegacySystemConfig;
 
             let name = 'Titan'
             let addresses = {
@@ -55,7 +56,7 @@ describe('OperatorFactory', () => {
             }
             let l2Ton = l2TonAddress
 
-            await (await legacySystemConfig.connect(deployer).setAddresses(
+            await (await legacySystemConfig.connect(manager).setAddresses(
                 name, addresses, l2Ton
             )).wait()
         })
@@ -96,11 +97,11 @@ describe('OperatorFactory', () => {
 
         it('createOperator can be executed by SystemConfig\'s owner', async () => {
 
-            expect(await legacySystemConfig.owner()).to.be.eq(deployer.address)
+            expect(await legacySystemConfig.owner()).to.be.eq(manager.address)
 
             let operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
 
-            let receipt = await (await operatorFactory.connect(deployer).createOperator(
+            let receipt = await (await operatorFactory.connect(manager).createOperator(
                 legacySystemConfig.address
             )).wait()
 
@@ -110,6 +111,7 @@ describe('OperatorFactory', () => {
 
             expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.owner).to.be.eq(deployer.address)
+            expect(deployedEvent.args.manager).to.be.eq(manager.address)
             expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
 
         })
