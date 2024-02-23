@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "hardhat/console.sol";
+
 /// @title
 /// @notice
 contract OperatorProxy is Proxy, ERC1967Upgrade, Ownable {

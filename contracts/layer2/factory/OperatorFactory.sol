@@ -3,7 +3,9 @@ pragma solidity ^0.8.4;
 
 import "../OperatorProxy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-// import "../../libraries/Create2.sol";
+import "../../libraries/Create2.sol";
+
+import "hardhat/console.sol";
 
 interface IOperator {
     function transferOwnership(address newOwner) external;
@@ -40,40 +42,37 @@ contract OperatorFactory is Ownable {
      * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
      */
     function createOperator(address systemConfig) external returns (address operator) {
-        address owner = ISystemConfig(systemConfig).owner();
-        require(owner != address(0), "zero owner");
-        require(owner != msg.sender, "not a systemConfig's owner");
+        address sOwner = ISystemConfig(systemConfig).owner();
+        require(sOwner != address(0), "zero config's owner");
+        require(sOwner == msg.sender, "not config's owner");
 
         uint256 salt = 0;
         address addr = getAddress(systemConfig);
+
         uint codeSize = addr.code.length;
         require(codeSize == 0, "already created");
 
         operator = address(new OperatorProxy{salt : bytes32(salt)}(systemConfig));
-        IOperator(operator).upgradeTo(operatorImplementation);
-        IOperator(operator).transferOwnership(owner);
 
-        emit CreatedOperator(systemConfig, owner, operator);
+        IOperator(operator).upgradeTo(operatorImplementation);
+        IOperator(operator).transferOwnership(sOwner);
+
+        emit CreatedOperator(systemConfig, sOwner, operator);
     }
 
-    /**
-     * calculate the counterfactual address of this account as it would be returned by createAccount()
-     */
-    // function getAddress(address systemConfig) public view returns (address) {
-    //     uint256 salt = 0;
-    //     return Create2.computeAddress(bytes32(salt), keccak256(abi.encodePacked(
-    //             type(OperatorProxy).creationCode, systemConfig
-    //         )));
-    // }
-
     function getAddress(address systemConfig) public view returns (address) {
-        uint256 salt = 0;
+        uint _salt =0;
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                _salt,
+                keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
+            )
+        );
 
-        bytes32 deploymentAddressHash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), salt,
-                keccak256(abi.encodePacked(type(OperatorProxy).creationCode, systemConfig))));
-
-        return address(uint160(uint(deploymentAddressHash)));
+        // NOTE: cast last 20 bytes of hash to address
+        return address(uint160(uint(hash)));
     }
 
 }
