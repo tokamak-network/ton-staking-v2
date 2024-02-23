@@ -8,7 +8,7 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 interface Il2RegistryForVerify {
     function systemConfigType(address systemConfig) external view returns (uint8);
@@ -162,11 +162,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== VIEW ========== */
 
     function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount) {
-        console.log('checkLayer2TVL %s', _systemConfig);
-        console.log('l2RegistryForVerify %s', l2RegistryForVerify);
 
         uint8 _type = Il2RegistryForVerify(l2RegistryForVerify).systemConfigType(_systemConfig);
-        console.log('_type %s', _type);
 
         if (_type == 1) { // optimism legacy : titan
             try
