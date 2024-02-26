@@ -964,7 +964,7 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
   }
 }
 
-export const simpleStakeFixture = async function (boolUpgradeV1_1: boolean): Promise<SimpleStakeFixture> {
+export const simpleStakeFixture = async function (boolV2:bool): Promise<SimpleStakeFixture> {
   const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
   const { TON, WTON, SeigManagerProxy, Layer2RegistryProxy , DAOCommitteeProxy, DepositManagerProxy} = await hre.getNamedAccounts();
 
@@ -976,8 +976,12 @@ export const simpleStakeFixture = async function (boolUpgradeV1_1: boolean): Pro
 
   // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
   const seigManagerProxy =(await ethers.getContractAt(SeigManagerProxy_Json.abi, SeigManagerProxy, deployer)) as SeigManagerProxy
-  const seigManagerV1_1 = (await ethers.getContractAt(SeigManagerV1_1_Json.abi, SeigManagerProxy, deployer)) as SeigManagerV1_1
+  let seigManagerV1_1 = (await ethers.getContractAt(SeigManagerV1_1_Json.abi, SeigManagerProxy, deployer)) as SeigManagerV1_1
   const seigManagerV1_2 = (await (await ethers.getContractFactory("SeigManagerV1_2")).connect(deployer).deploy()) as SeigManagerV1_2;
+
+  if(boolV2) {
+     seigManagerV1_1 = (await ethers.getContractAt(SeigManagerV1_2_Json.abi, SeigManagerProxy, deployer)) as SeigManagerV1_2
+  }
 
   const l2Registry = (await ethers.getContractAt(L2Registry_Json.abi, Layer2RegistryProxy, deployer)) as Layer2Registry
 
