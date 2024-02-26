@@ -191,7 +191,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_localhost}`,
       timeout: 800000,
       // accounts: [`${process.env.DEPLOYER}`],
-      deploy: ['deploy-migration']
+      // deploy: ['deploy-migration']
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
@@ -203,7 +203,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_goerli}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       chainId: 5,
-      deploy: ['deploy-seig-manager-v1']
+      // deploy: ['deploy-seig-manager-v1']
     },
     titan: {
       url: `${process.env.ETH_NODE_URI_TITAN}`,
