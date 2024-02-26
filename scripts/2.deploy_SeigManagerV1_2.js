@@ -4,7 +4,9 @@ async function deploySeigManagerV1_2() {
     //==== SeigManagerV1_2 =================================
     const SeigManagerV1_2Dep = await ethers.getContractFactory("SeigManagerV1_2");
     const SeigManagerV1_2Logic = await SeigManagerV1_2Dep.deploy();
-    await SeigManagerV1_2Logic.deployed();
+    let tx = await SeigManagerV1_2Logic.deployed();
+
+    console.log('tx' , tx)
     console.log('SeigManagerV1_2Logic' , SeigManagerV1_2Logic.address)
 }
 
