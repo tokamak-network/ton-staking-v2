@@ -69,6 +69,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _swapProxy
     );
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
+    event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -133,7 +134,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         }
 
         require(_systemConfig != address(0), "wrong data length");
-        require(_checkLayer2(_systemConfig), "unvalidated Layer2");
+        require(_checkLayer2(_systemConfig), "unValidated Layer2");
 
         if(msg.sender == ton ) _transferDepositAmount(owner, _systemConfig, amount, true, string(bytes(data[20:])));
         else _transferDepositAmount(owner, _systemConfig, amount, false, string(bytes(data[20:])));
@@ -153,7 +154,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     {
         require(bytes(memo).length != 0, "check memo");
 
-        require(_checkLayer2(systemConfig), "unvalidated Layer2");
+        require(_checkLayer2(systemConfig), "unValidated Layer2");
 
         _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
     }
@@ -215,6 +216,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         // 시뇨리지 발급 가능상태로 설정
         issueStatusLayer2[_systemConfig] = 1;
+
+        emit RegisteredLayer2Candidate(_systemConfig, _wtonAmount, _memo, operator, layer2Candidate);
+
     }
 
     function _approve(address _addr, uint256 _wtonAmount) internal {
