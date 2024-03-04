@@ -27,7 +27,7 @@ async function DeployDAOCommittee_V1() {
 
 const main = async () => {
   // await DeployDAOCommitteeDAOVault()
-  await DeployDAOCommitteeOwner()
+  // await DeployDAOCommitteeOwner()
   await DeployDAOCommittee_V1()
 }
 

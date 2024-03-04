@@ -177,7 +177,7 @@ const config: HardhatUserConfig = {
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
-      gasPrice: 50000000000,
+      gasPrice: 40000000000,
       // deploy: ['deploy']
     },
     goerli: {
