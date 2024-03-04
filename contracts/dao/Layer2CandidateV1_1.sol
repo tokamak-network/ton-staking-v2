@@ -11,6 +11,7 @@ import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
 
 interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
+    function systemConfig() external view returns (address) ;
 }
 
 interface IISeigManager {
@@ -31,7 +32,6 @@ contract Layer2CandidateV1_1 is
     /* ========== onlyOwner ========== */
     function initialize(
         address _operateContract,
-        bool _isLayer2Candidate,
         string memory _memo,
         address _committee,
         address _seigManager
@@ -42,6 +42,9 @@ contract Layer2CandidateV1_1 is
             || _seigManager != address(0),
             "Candidate: input is zero"
         );
+
+        require(IOperateContract(_operateContract).systemConfig() != address(0), 'zero systemConfig');
+
         candidate = _operateContract;
         isLayer2Candidate = true;
         committee = _committee;

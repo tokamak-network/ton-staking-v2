@@ -47,13 +47,13 @@ contract OperatorFactory is Ownable {
         address sOwner = owner();
         address sManager = ISystemConfig(systemConfig).owner();
         require(sManager != address(0), "zero config's owner");
-        require(sManager == msg.sender, "not config's owner");
+        // require(sManager == msg.sender, "not config's owner");
 
         uint256 salt = 0;
         address addr = getAddress(systemConfig);
 
-        uint codeSize = addr.code.length;
-        require(codeSize == 0, "already created");
+        // uint codeSize = addr.code.length;
+        require(addr.code.length == 0, "already created");
 
         operator = address(new OperatorProxy{salt : bytes32(salt)}(systemConfig));
 

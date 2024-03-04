@@ -17,6 +17,19 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./StorageStateCommitteeV3.sol";
 
+// import "hardhat/console.sol";
+
+interface ILayer2CandidateFactory {
+   function deploy(
+        address _sender,
+        string memory _name,
+        address _committee,
+        address _seigManager
+    )
+        external
+        returns (address);
+}
+
 contract DAOCommitteeAddV1_1 is
     StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2, StorageStateCommitteeV3 {
 
@@ -31,28 +44,39 @@ contract DAOCommitteeAddV1_1 is
     );
 
     modifier onlyLayer2Manager() {
-        require(msg.sender == layer2Manager, "DAOCommittee: msg.sender is not an admin");
+        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
         _;
     }
 
+    modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "sender is not an admin");
+        _;
+    }
+
+    modifier nonZeroAddress(address _addr) {
+        require(_addr != address(0), "zero address");
+        _;
+    }
     //////////////////////////////////////////////////////////////////////
     // setters
+    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner nonZeroAddress(_layer2CandidateFactory) {
+        layer2CandidateFactory = _layer2CandidateFactory;
+    }
 
+    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner nonZeroAddress(_layer2CandidateFactory) {
+        layer2Manager = _layer2CandidateFactory;
+    }
     //////////////////////////////////////////////////////////////////////
     //
 
     function createLayer2Candidate(string calldata _memo, address _operatorAddress)
         public
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
         onlyLayer2Manager
         returns (address)
     {
         // Candidate
-        address candidateContract = candidateFactory.deploy(
+        address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
             _operatorAddress,
-            false,
             _memo,
             address(this),
             address(seigManager)

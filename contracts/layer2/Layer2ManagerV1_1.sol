@@ -47,7 +47,7 @@ interface IIDepositManager {
 }
 
 interface IOperatorFactory {
-    function create(address _systemConfig) external returns (address);
+    function createOperator(address _systemConfig) external returns (address);
 }
 
 interface ITON {
@@ -197,7 +197,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     ) internal nonZeroAddress(_systemConfig) {
 
         // create operator
-        address operator = IOperatorFactory(operatorFactory).create(_systemConfig);
+        address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
         require(operator != address(0) && systemConfigOfOperator[operator] == address(0), "wrong operator");
 
         operatorOfSystemConfig[_systemConfig] = operator;

@@ -6,11 +6,11 @@ import { Layer2CandidateProxy } from "../Layer2CandidateProxy.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./Layer2CandidateFactoryStorage.sol";
+import "hardhat/console.sol";
 
 interface ILayer2Candidate {
     function initialize(
         address _candidate,
-        bool _isLayer2Candidate,
         string memory _memo,
         address _committee,
         address _seigManager
@@ -62,7 +62,6 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
 
     function deploy(
         address _sender,
-        bool _isLayer2Candidate,
         string memory _name,
         address _committee,
         address _seigManager
@@ -79,7 +78,6 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
 
         ILayer2Candidate(address(c)).initialize(
             _sender,
-            _isLayer2Candidate,
             _name,
             _committee,
             _seigManager
@@ -91,7 +89,7 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
             _sender,
             address(c),
             _sender,
-            _isLayer2Candidate,
+            true,
             _name,
             _committee,
             _seigManager
