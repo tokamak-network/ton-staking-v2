@@ -31,6 +31,15 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     constructor() {
     }
 
+    modifier onlySystemConfig() {
+        require(systemConfigType[msg.sender] != 0, "unregistered systemConfig");
+        _;
+    }
+
+    modifier nonZero(uint256 value) {
+        require(value != 0, "zero");
+        _;
+    }
     /* ========== onlyOwner ========== */
 
     /* ========== onlyManager ========== */
@@ -52,6 +61,20 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyOperator {
         _registerSystemConfig(_systemConfig, _type);
     }
+
+    /* ========== onlySystemConfig ========== */
+    function increaseTvl(uint256 amount) external onlySystemConfig nonZero(amount) {
+            tvlL2[msg.sender] += amount;
+    }
+
+    function decreaseTvl(uint256 amount) external onlySystemConfig nonZero(amount) {
+            if(tvlL2[msg.sender] > amount)  tvlL2[msg.sender] -= amount;
+            else tvlL2[msg.sender] = 0;
+    }
+
+    // function resetTvl(uint256 amount) external onlySystemConfig {
+    //      tvlL2[msg.sender] = amount;
+    // }
 
     /* ========== internal ========== */
 

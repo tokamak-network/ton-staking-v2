@@ -25,9 +25,12 @@ contract Layer2CandidateV1_1 is
 {
     modifier onlyCandidate() {
         require(IOperateContract(candidate).isOperator(msg.sender),
-        "sender is not an admin of OperatorContract");
+        "sender is not an operator");
         _;
     }
+
+    event Initialized(address _operateContract, string memo, address committee, address seigManager);
+    event SetMemo(string _memo);
 
     /* ========== onlyOwner ========== */
     function initialize(
@@ -52,12 +55,14 @@ contract Layer2CandidateV1_1 is
         memo = _memo;
 
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
+        emit Initialized(_operateContract, _memo, _committee, _seigManager);
     }
 
     /// @notice Set memo
     /// @param _memo New memo on this candidate
     function setMemo(string calldata _memo) external onlyOwner {
         memo = _memo;
+        emit SetMemo(_memo);
     }
 
 

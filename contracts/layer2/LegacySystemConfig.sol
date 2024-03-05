@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+
+interface IL2Registry {
+    function increaseTvl(uint256 amount) external;
+    function decreaseTvl(uint256 amount) external;
+    function resetTvl(uint256 amount) external;
+}
 
 contract LegacySystemConfig is Ownable {
 
@@ -22,20 +27,46 @@ contract LegacySystemConfig is Ownable {
     uint64 public gasLimit;
     string public name;
 
+    address public l2Registry;
+
     /* ========== CONSTRUCTOR ========== */
     constructor() {
     }
 
+    modifier onlyL1StandardBridge() {
+        require(addresses.l1StandardBridge == msg.sender, "not l1StandardBridge");
+        _;
+    }
+
+    modifier nonZero(uint256 value) {
+        require(value != 0, "zero");
+        _;
+    }
+
     /* ========== onlyOwner ========== */
 
-    function setAddresses(string memory _name, Addresses memory _addresses, address _l2Ton) external onlyOwner {
+    function setAddresses(string memory _name, Addresses memory _addresses, address _l2Ton, address _l2Registry) external onlyOwner {
         name = _name;
         addresses = _addresses;
         l2Ton = _l2Ton;
+        l2Registry = _l2Registry;
     }
 
     function setGasLimit(uint64 _gasLimit) external onlyOwner {
         gasLimit = _gasLimit;
+    }
+
+    /* ========== onlyL1Bridge ========== */
+    function increaseTvl(uint256 amount) external onlyL1StandardBridge nonZero(amount) {
+            IL2Registry(l2Registry).increaseTvl(amount);
+    }
+
+    function decreaseTvl(uint256 amount) external onlyL1StandardBridge nonZero(amount) {
+            IL2Registry(l2Registry).decreaseTvl(amount);
+    }
+
+    function resetTvl(uint256 amount) external onlyL1StandardBridge {
+         IL2Registry(l2Registry).resetTvl(amount);
     }
 
     /* ========== view ========== */
