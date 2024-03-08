@@ -6,7 +6,6 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 interface IL2Registry {
     function increaseTvl(uint256 amount) external;
     function decreaseTvl(uint256 amount) external;
-    function resetTvl(uint256 amount) external;
 }
 
 contract LegacySystemConfig is Ownable {
