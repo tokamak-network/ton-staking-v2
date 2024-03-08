@@ -71,6 +71,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _wton,
         address _dao,
         address _depositManager,
+        address _seigManager,
         address _swapProxy
     );
 
@@ -81,6 +82,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     modifier onlyL2Register() {
         require(l2Register == msg.sender, "sender is not a L2Register");
+        _;
+    }
+
+    modifier onlySeigManger() {
+        require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
     }
 
@@ -97,6 +103,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _wton,
         address _dao,
         address _depositManager,
+        address _seigManager,
         address _swapProxy
     )  external  onlyOwner {
 
@@ -107,6 +114,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             || wton != _wton
             || dao != _dao
             || depositManager != _depositManager
+            || seigManager != _seigManager
             || swapProxy != _swapProxy
             , "all same"
         );
@@ -117,11 +125,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         wton = _wton;
         dao = _dao;
         depositManager = _depositManager;
+        seigManager = _seigManager;
         swapProxy = _swapProxy;
 
-        if(minimumRelectedAmount == 0) minimumRelectedAmount = 1e27;
+        // if(minimumRelectedAmount == 0) minimumRelectedAmount = 1e27;
 
-        emit SetAddresses(_l2Register, _operatorFactory, _ton, _wton, _dao, _depositManager, _swapProxy);
+        emit SetAddresses(_l2Register, _operatorFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
     }
 
     function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner {
@@ -160,8 +169,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         return true;
     }
 
-    function updateSeigniorage(uint256 amount) external {
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
+    function updateSeigniorage(uint256 amount) external onlySeigManger {
+        // IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
         unReflectedSeigs += amount;
         if (unReflectedSeigs > minimumRelectedAmount) {
             shares += unReflectedSeigs * 1e18 / totalTvl ;

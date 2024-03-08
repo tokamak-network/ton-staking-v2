@@ -12,6 +12,7 @@ contract Layer2ManagerStorage   {
     address public wton;
     address public dao;
     address public depositManager;
+    address public seigManager;
     address public swapProxy;
 
     uint256 public minimumInitialDepositAmount;

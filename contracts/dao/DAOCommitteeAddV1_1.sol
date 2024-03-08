@@ -30,6 +30,10 @@ interface ILayer2CandidateFactory {
         returns (address);
 }
 
+interface ITarget {
+    function setLayer2Manager(address layer2Manager_) external;
+}
+
 contract DAOCommitteeAddV1_1 is
     StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2, StorageStateCommitteeV3 {
 
@@ -66,6 +70,11 @@ contract DAOCommitteeAddV1_1 is
     function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner nonZeroAddress(_layer2CandidateFactory) {
         layer2Manager = _layer2CandidateFactory;
     }
+
+    function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
+        ITarget(target).setLayer2Manager(layer2Manager_);
+    }
+
     //////////////////////////////////////////////////////////////////////
     //
 
