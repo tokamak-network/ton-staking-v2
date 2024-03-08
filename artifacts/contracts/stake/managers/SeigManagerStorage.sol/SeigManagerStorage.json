@@ -1,0 +1,237 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "SeigManagerStorage",
+  "sourceName": "contracts/stake/managers/SeigManagerStorage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "MAX_VALID_COMMISSION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MIN_VALID_COMMISSION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "RAY",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "accRelativeSeig",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "adjustCommissionDelay",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "dao",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "daoSeigRate",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "delayedCommissionBlock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "delayedCommissionRate",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "delayedCommissionRateNegative",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "factory",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastSnapshotId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "minimumAmount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "paused",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "powerTONSeigRate",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relativeSeigRate",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b50610277806100206000396000f3fe608060405234801561001057600080fd5b50600436106101005760003560e01c8063a7dcc85011610097578063cbfebe6211610066578063cbfebe62146101e8578063df7fbef014610208578063e2fe8fd114610211578063f82293481461023157600080fd5b8063a7dcc85014610197578063ac753a7a146101a9578063bb0c8298146101cc578063c45a0155146101d557600080fd5b80635998a8d7116100d35780635998a8d71461015f5780635c975abb146101685780636304a62414610185578063837afbc01461018e57600080fd5b806325374a9a146101055780634123196f146101215780634162169f14610134578063552033c414610121575b600080fd5b61010e60175481565b6040519081526020015b60405180910390f35b61010e6b033b2e3c9fd0803ce800000081565b600354610147906001600160a01b031681565b6040516001600160a01b039091168152602001610118565b61010e60165481565b6019546101759060ff1681565b6040519015158152602001610118565b61010e60155481565b61010e601a5481565b61010e6a084595161401484a00000081565b6101756101b736600461023a565b60136020526000908152604090205460ff1681565b61010e60145481565b600654610147906001600160a01b031681565b61010e6101f636600461023a565b60116020526000908152604090205481565b61010e60105481565b61010e61021f36600461023a565b60126020526000908152604090205481565b61010e60185481565b60006020828403121561024c57600080fd5b81356001600160a01b038116811461026357600080fd5b939250505056fea164736f6c6343000813000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106101005760003560e01c8063a7dcc85011610097578063cbfebe6211610066578063cbfebe62146101e8578063df7fbef014610208578063e2fe8fd114610211578063f82293481461023157600080fd5b8063a7dcc85014610197578063ac753a7a146101a9578063bb0c8298146101cc578063c45a0155146101d557600080fd5b80635998a8d7116100d35780635998a8d71461015f5780635c975abb146101685780636304a62414610185578063837afbc01461018e57600080fd5b806325374a9a146101055780634123196f146101215780634162169f14610134578063552033c414610121575b600080fd5b61010e60175481565b6040519081526020015b60405180910390f35b61010e6b033b2e3c9fd0803ce800000081565b600354610147906001600160a01b031681565b6040516001600160a01b039091168152602001610118565b61010e60165481565b6019546101759060ff1681565b6040519015158152602001610118565b61010e60155481565b61010e601a5481565b61010e6a084595161401484a00000081565b6101756101b736600461023a565b60136020526000908152604090205460ff1681565b61010e60145481565b600654610147906001600160a01b031681565b61010e6101f636600461023a565b60116020526000908152604090205481565b61010e60105481565b61010e61021f36600461023a565b60126020526000908152604090205481565b61010e60185481565b60006020828403121561024c57600080fd5b81356001600160a01b038116811461026357600080fd5b939250505056fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

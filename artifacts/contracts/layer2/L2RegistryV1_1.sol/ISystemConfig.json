@@ -1,0 +1,89 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ISystemConfig",
+  "sourceName": "contracts/layer2/L2RegistryV1_1.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "l1CrossDomainMessenger",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "addr_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1StandardBridge",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "addr_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2OutputOracle",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "addr_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2Ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "addr_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "optimismPortal",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "addr_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

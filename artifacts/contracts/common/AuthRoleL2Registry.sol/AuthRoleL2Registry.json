@@ -1,0 +1,37 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "AuthRoleL2Registry",
+  "sourceName": "contracts/common/AuthRoleL2Registry.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "MANAGER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OPERATOR_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080604052348015600f57600080fd5b5060a28061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c8063ec87621c146037578063f5b541a614606f575b600080fd5b605d7faf290d8680820aad922855f39b306097b20e28774d6c1ad35a20325630c3a02c81565b60405190815260200160405180910390f35b605d7f523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c8156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060325760003560e01c8063ec87621c146037578063f5b541a614606f575b600080fd5b605d7faf290d8680820aad922855f39b306097b20e28774d6c1ad35a20325630c3a02c81565b60405190815260200160405180910390f35b605d7f523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c8156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

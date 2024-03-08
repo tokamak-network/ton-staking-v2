@@ -1,0 +1,50 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ITarget",
+  "sourceName": "contracts/dao/DAOCommitteeExtend.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "addMinter",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "globalWithdrawalDelay_",
+          "type": "uint256"
+        }
+      ],
+      "name": "setGlobalWithdrawalDelay",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_seigManager",
+          "type": "address"
+        }
+      ],
+      "name": "setSeigManager",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

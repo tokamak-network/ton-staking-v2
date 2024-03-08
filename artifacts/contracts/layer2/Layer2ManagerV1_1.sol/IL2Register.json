@@ -1,0 +1,30 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IL2Register",
+  "sourceName": "contracts/layer2/Layer2ManagerV1_1.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "systemConfig",
+          "type": "address"
+        }
+      ],
+      "name": "systemConfigType",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -1,0 +1,24 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ITarget",
+  "sourceName": "contracts/dao/DAOCommitteeAddV1_1.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "layer2Manager_",
+          "type": "address"
+        }
+      ],
+      "name": "setLayer2Manager",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

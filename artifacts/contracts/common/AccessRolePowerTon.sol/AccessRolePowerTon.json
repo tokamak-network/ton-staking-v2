@@ -1,0 +1,50 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "AccessRolePowerTon",
+  "sourceName": "contracts/common/AccessRolePowerTon.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ADMIN_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "BURNER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MINTER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060d28061001f6000396000f3fe6080604052348015600f57600080fd5b5060043610603c5760003560e01c8063282c51f314604157806375b238fc146079578063d539139314609f575b600080fd5b60677f9667e80708b6eeeb0053fa0cca44e028ff548e2a9f029edfeac87c118b08b7c881565b60405190815260200160405180910390f35b60677fdf8b4c520ffe197c5343c6f5aec59570151ef9a492f2c624fd45ddde6135ec4281565b60677ff0887ba65ee2024ea881d91b74c2450ef19e1557f03bed3ea9f16b037cbe2dc98156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b5060043610603c5760003560e01c8063282c51f314604157806375b238fc146079578063d539139314609f575b600080fd5b60677f9667e80708b6eeeb0053fa0cca44e028ff548e2a9f029edfeac87c118b08b7c881565b60405190815260200160405180910390f35b60677fdf8b4c520ffe197c5343c6f5aec59570151ef9a492f2c624fd45ddde6135ec4281565b60677ff0887ba65ee2024ea881d91b74c2450ef19e1557f03bed3ea9f16b037cbe2dc98156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

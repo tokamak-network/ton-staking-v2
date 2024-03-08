@@ -1,0 +1,81 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "L2RegistryStorage",
+  "sourceName": "contracts/layer2/L2RegistryStorage.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "l1Bridge",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "layer2Manager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "portal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "systemConfigType",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b50610149806100206000396000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c806316b5d5bd14610051578063a2cc097914610081578063b30347c0146100b4578063f1b538b2146100d7575b600080fd5b600054610064906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6100a461008f36600461010c565b60036020526000908152604090205460ff1681565b6040519015158152602001610078565b6100a46100c236600461010c565b60026020526000908152604090205460ff1681565b6100fa6100e536600461010c565b60016020526000908152604090205460ff1681565b60405160ff9091168152602001610078565b60006020828403121561011e57600080fd5b81356001600160a01b038116811461013557600080fd5b939250505056fea164736f6c6343000813000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061004c5760003560e01c806316b5d5bd14610051578063a2cc097914610081578063b30347c0146100b4578063f1b538b2146100d7575b600080fd5b600054610064906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6100a461008f36600461010c565b60036020526000908152604090205460ff1681565b6040519015158152602001610078565b6100a46100c236600461010c565b60026020526000908152604090205460ff1681565b6100fa6100e536600461010c565b60016020526000908152604090205460ff1681565b60405160ff9091168152602001610078565b60006020828403121561011e57600080fd5b81356001600160a01b038116811461013557600080fd5b939250505056fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

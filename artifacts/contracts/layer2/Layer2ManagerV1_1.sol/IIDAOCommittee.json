@@ -1,0 +1,35 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IIDAOCommittee",
+  "sourceName": "contracts/layer2/Layer2ManagerV1_1.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_memo",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_systemConfig",
+          "type": "address"
+        }
+      ],
+      "name": "createLayer2Candidate",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

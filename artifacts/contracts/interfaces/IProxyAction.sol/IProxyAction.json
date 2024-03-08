@@ -1,0 +1,121 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IProxyAction",
+  "sourceName": "contracts/interfaces/IProxyAction.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_selector",
+          "type": "bytes4"
+        }
+      ],
+      "name": "getSelectorImplementation2",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "impl",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_index",
+          "type": "uint256"
+        }
+      ],
+      "name": "implementation2",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newImplementation",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "_alive",
+          "type": "bool"
+        }
+      ],
+      "name": "setAliveImplementation2",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newImplementation",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_index",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "_alive",
+          "type": "bool"
+        }
+      ],
+      "name": "setImplementation2",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bool",
+          "name": "_pause",
+          "type": "bool"
+        }
+      ],
+      "name": "setProxyPause",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4[]",
+          "name": "_selectors",
+          "type": "bytes4[]"
+        },
+        {
+          "internalType": "address",
+          "name": "_imp",
+          "type": "address"
+        }
+      ],
+      "name": "setSelectorImplementations2",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

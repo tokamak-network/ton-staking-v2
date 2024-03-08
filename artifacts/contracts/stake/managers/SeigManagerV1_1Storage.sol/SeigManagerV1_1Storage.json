@@ -1,0 +1,89 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "SeigManagerV1_1Storage",
+  "sourceName": "contracts/stake/managers/SeigManagerV1_1Storage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "BURNT_AMOUNT_MAINNET",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "INITIAL_TOTAL_SUPPLY_MAINNET",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "SEIG_START_MAINNET",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "burntAmountAtDAO",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "initialTotalSupply",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "seigStartBlock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060c88061001f6000396000f3fe6080604052348015600f57600080fd5b5060043610605a5760003560e01c8063311028af14605f5780634631179e146079578063acd848fa14608d578063bf7f47331460a2578063d8c479661460aa578063f96032e61460b3575b600080fd5b606760015481565b60405190815260200160405180910390f35b60676d08c815d5bcc20177de3b5d25000081565b60676e09a130b963a6c115c3c7f40000000081565b606760025481565b606762a55ec281565b60676000548156fea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b5060043610605a5760003560e01c8063311028af14605f5780634631179e146079578063acd848fa14608d578063bf7f47331460a2578063d8c479661460aa578063f96032e61460b3575b600080fd5b606760015481565b60405190815260200160405180910390f35b60676d08c815d5bcc20177de3b5d25000081565b60676e09a130b963a6c115c3c7f40000000081565b606760025481565b606762a55ec281565b60676000548156fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
