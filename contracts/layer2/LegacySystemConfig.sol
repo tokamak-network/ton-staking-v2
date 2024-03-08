@@ -38,6 +38,12 @@ contract LegacySystemConfig is Ownable {
         _;
     }
 
+    modifier onlyL1StandardBridgeOrOwner() {
+        require(addresses.l1StandardBridge == msg.sender || owner() == msg.sender,
+            "not l1StandardBridge nor owner");
+        _;
+    }
+
     modifier nonZero(uint256 value) {
         require(value != 0, "zero");
         _;
@@ -57,16 +63,12 @@ contract LegacySystemConfig is Ownable {
     }
 
     /* ========== onlyL1Bridge ========== */
-    function increaseTvl(uint256 amount) external onlyL1StandardBridge nonZero(amount) {
+    function increaseTvl(uint256 amount) external onlyL1StandardBridgeOrOwner nonZero(amount) {
             IL2Registry(l2Registry).increaseTvl(amount);
     }
 
-    function decreaseTvl(uint256 amount) external onlyL1StandardBridge nonZero(amount) {
+    function decreaseTvl(uint256 amount) external onlyL1StandardBridgeOrOwner nonZero(amount) {
             IL2Registry(l2Registry).decreaseTvl(amount);
-    }
-
-    function resetTvl(uint256 amount) external onlyL1StandardBridge {
-         IL2Registry(l2Registry).resetTvl(amount);
     }
 
     /* ========== view ========== */

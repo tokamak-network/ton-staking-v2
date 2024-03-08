@@ -5,10 +5,7 @@ pragma solidity ^0.8.4;
 /// @notice
 contract L2RegistryStorage   {
 
-    uint256 totalTvlL2;
-
-    /// systemConfig - tvl in L2
-    mapping (address => uint256) public tvlL2;
+    address public layer2Manager;
 
     /// systemConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock )
     mapping (address => uint8) public systemConfigType;

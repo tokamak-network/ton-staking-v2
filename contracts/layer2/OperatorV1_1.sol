@@ -16,10 +16,10 @@ interface ISystemConfig {
 contract OperatorV1_1 is Ownable, OperatorStorage {
     using SafeERC20 for IERC20;
 
+    event SetSystemConfig(address systemConfig);
     event TransferredManager(address previousManager, address newManager);
     event AddedOperator(address operator);
     event DeletedOperator(address operator);
-
 
     constructor() { }
 
@@ -29,6 +29,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     }
 
     /* ========== onlyOwnerOrManager ========== */
+
     function transferManager(address newManager) external nonZeroAddress(newManager) onlyOwnerOrManager {
         require (manager != newManager, "same");
         address prevManager = manager;
@@ -75,7 +76,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         emit TransferredManager(prevManager, manager);
     }
 
-    function isOperator(address addr) external view returns (bool) {
+    function isOperator(address addr) public view returns (bool) {
         return operator[addr];
     }
 

@@ -8,6 +8,7 @@ import "../../libraries/Create2.sol";
 import "hardhat/console.sol";
 
 interface IOperator {
+    function setSystemConfig(address _systemConfig) external;
     function transferOwnership(address newOwner) external;
     function transferManager(address addr) external;
     function addOperator(address addr) external;

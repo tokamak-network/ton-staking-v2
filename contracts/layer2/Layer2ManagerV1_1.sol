@@ -10,7 +10,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 // import "hardhat/console.sol";
 
-interface Il2RegistryForVerify {
+interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
 }
 
@@ -54,13 +54,18 @@ interface ITON {
     function approveAndCall(address spender, uint256 amount, bytes memory data) external returns (bool);
 }
 
+interface IOperator {
+    function isOperator(address addr) external view returns (bool);
+}
+
+
 contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
     /* ========== DEPENDENCIES ========== */
     using SafeERC20 for IERC20;
 
     event SetAddresses(
-        address _l2RegistryForVerify,
+        address _l2Register,
         address _operatorFactory,
         address _ton,
         address _wton,
@@ -68,8 +73,16 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _depositManager,
         address _swapProxy
     );
+
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event SetMinimumRelectedAmount(uint256 _minimumRelectedAmount);
+
+
+    modifier onlyL2Register() {
+        require(l2Register == msg.sender, "sender is not a L2Register");
+        _;
+    }
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -78,7 +91,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== onlyOwner ========== */
 
     function setAddresses(
-        address _l2RegistryForVerify,
+        address _l2Register,
         address _operatorFactory,
         address _ton,
         address _wton,
@@ -88,7 +101,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     )  external  onlyOwner {
 
         require(
-            l2RegistryForVerify != _l2RegistryForVerify
+            l2Register != _l2Register
             || operatorFactory != _operatorFactory
             || ton != _ton
             || wton != _wton
@@ -98,7 +111,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             , "all same"
         );
 
-        l2RegistryForVerify = _l2RegistryForVerify;
+        l2Register = _l2Register;
         operatorFactory = _operatorFactory;
         ton = _ton;
         wton = _wton;
@@ -106,7 +119,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         depositManager = _depositManager;
         swapProxy = _swapProxy;
 
-        emit SetAddresses(_l2RegistryForVerify, _operatorFactory, _ton, _wton, _dao, _depositManager, _swapProxy);
+        if(minimumRelectedAmount == 0) minimumRelectedAmount = 1e27;
+
+        emit SetAddresses(_l2Register, _operatorFactory, _ton, _wton, _dao, _depositManager, _swapProxy);
     }
 
     function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner {
@@ -114,6 +129,62 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         minimumInitialDepositAmount = _minimumInitialDepositAmount;
 
         emit SetMinimumInitialDepositAmount(_minimumInitialDepositAmount);
+    }
+
+    function setMinimumRelectedAmount(uint256 _minimumRelectedAmount)  external  onlyOwner {
+        require(minimumRelectedAmount != _minimumRelectedAmount, "same");
+        minimumRelectedAmount = _minimumRelectedAmount;
+
+        emit SetMinimumRelectedAmount(_minimumRelectedAmount);
+    }
+
+    /* ========== only L2Register========== */
+    function increaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
+        totalTvl += amount;
+        l2Tvl[systemConfig] += amount;
+        return true;
+    }
+
+    function decreaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
+        if (totalTvl >= amount && l2Tvl[systemConfig] >= amount) {
+            totalTvl -= amount;
+            l2Tvl[systemConfig] -= amount;
+        }
+        return true;
+    }
+
+    function resetTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
+        uint256 oldAmount = l2Tvl[systemConfig];
+        totalTvl = totalTvl + amount - oldAmount;
+        l2Tvl[systemConfig] = amount;
+        return true;
+    }
+
+    function updateSeigniorage(uint256 amount) external {
+        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
+        unReflectedSeigs += amount;
+        if (unReflectedSeigs > minimumRelectedAmount) {
+            shares += unReflectedSeigs * 1e18 / totalTvl ;
+            unReflectedSeigs = 0;
+        }
+    }
+
+    function claimSeigniorage(address systemConfig) external {
+        require(systemConfig != address(0), "zero systemConfig");
+        address operatorContract = operatorOfSystemConfig[systemConfig];
+        require(operatorContract != address(0), "zero operatorContract");
+        require(IOperator(operatorContract).isOperator(msg.sender), "sender is not an operator");
+
+        uint256 amount = claimableSeigniorage(systemConfig);
+        require(amount != 0 , "no claimable seigniorage");
+        claimedAmount[systemConfig] += amount;
+        IERC20(wton).transfer(operatorContract, amount);
+    }
+
+    function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
+        amount = shares * l2Tvl[systemConfig] / 1e18;
+        if (amount >= claimedAmount[systemConfig] ) amount -= claimedAmount[systemConfig];
+        else amount = 0;
     }
 
     /* ========== Anybody can execute ========== */
@@ -164,7 +235,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount) {
 
-        uint8 _type = Il2RegistryForVerify(l2RegistryForVerify).systemConfigType(_systemConfig);
+        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
 
         if (_type == 1) { // optimism legacy : titan
             try

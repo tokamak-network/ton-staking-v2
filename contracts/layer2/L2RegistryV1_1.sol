@@ -16,6 +16,12 @@ interface ISystemConfig {
     function l2Ton() external view returns (address addr_) ;
 }
 
+interface ILayer2Manager {
+    function increaseTvl(address systemConfig, uint256 amount) external returns (bool) ;
+    function decreaseTvl(address systemConfig, uint256 amount) external returns (bool) ;
+    function resetTvl(address systemConfig, uint256 amount) external returns (bool) ;
+}
+
 contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorage {
 
     enum TYPE_SYSTEMCONFIG {
@@ -26,6 +32,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     event RegisteredSystemConfig(address systemConfig, uint8 type_);
     event ChangedType(address systemConfig, uint8 type_);
+    event SetLayer2Manager(address _layer2Manager);
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -40,10 +47,17 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         require(value != 0, "zero");
         _;
     }
+
     /* ========== onlyOwner ========== */
+    function setLayer2Manager(address _layer2Manager)  external  onlyOwner {
+        require(_layer2Manager != address(0), "zero layer2Manager");
+        require(layer2Manager != _layer2Manager, "same");
+        layer2Manager = _layer2Manager;
+
+        emit SetLayer2Manager(_layer2Manager);
+    }
 
     /* ========== onlyManager ========== */
-
     function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
         _registerSystemConfig(_systemConfig, _type);
     }
@@ -56,6 +70,11 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit ChangedType(_systemConfig, _type);
     }
 
+    function resetTvl(address _systemConfig, uint256 amount) external onlyManager {
+        require(layer2Manager != address(0), 'zero layer2Manager');
+        ILayer2Manager(layer2Manager).resetTvl(_systemConfig, amount);
+    }
+
     /* ========== onlyOperator ========== */
 
     function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyOperator {
@@ -64,17 +83,12 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     /* ========== onlySystemConfig ========== */
     function increaseTvl(uint256 amount) external onlySystemConfig nonZero(amount) {
-            tvlL2[msg.sender] += amount;
+        if (layer2Manager != address(0)) ILayer2Manager(layer2Manager).increaseTvl(msg.sender, amount);
     }
 
     function decreaseTvl(uint256 amount) external onlySystemConfig nonZero(amount) {
-            if(tvlL2[msg.sender] > amount)  tvlL2[msg.sender] -= amount;
-            else tvlL2[msg.sender] = 0;
+        if (layer2Manager != address(0)) ILayer2Manager(layer2Manager).decreaseTvl(msg.sender, amount);
     }
-
-    // function resetTvl(uint256 amount) external onlySystemConfig {
-    //      tvlL2[msg.sender] = amount;
-    // }
 
     /* ========== internal ========== */
 

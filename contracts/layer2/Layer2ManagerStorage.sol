@@ -5,7 +5,7 @@ pragma solidity ^0.8.4;
 /// @notice
 contract Layer2ManagerStorage   {
 
-    address public l2RegistryForVerify;
+    address public l2Register;
     address public operatorFactory;
 
     address public ton;
@@ -22,24 +22,19 @@ contract Layer2ManagerStorage   {
 
     /// systemConfig - operator
     mapping (address => address) public operatorOfSystemConfig;
+    mapping (address => uint256) public claimedAmount;
 
     /// operator - systemConfig
     mapping (address => address) public systemConfigOfOperator;
 
-    // L2 전체 TVL 양
-    uint256 totalTvl;
-    // L2 Tvl 양
-    mapping (address => address) public l2Tvl;
+    // L2 전체 TVL 양 : 실시간으로 반영하자.
+    uint256 public totalTvl;
+    mapping (address => uint256) public l2Tvl;
 
-    // IndexAmount * index = 환산된 시뇨리지
-    uint256 tSeigsIndexAmount;
-    uint256 l2SeigsIndexAMount;
-
-    // L2 오퍼레이터에게 준 전체 시뇨리지 인덱스
-    uint256 tIndex;
-    // L2 오퍼레이터에게 주는 시뇨리지 인덱스
-    mapping (address => address) public l2Index ;
-
+    uint256 acumulatedSeigniroge;
+    uint256 public shares;
+    uint256 public unReflectedSeigs;
+    uint256 public minimumRelectedAmount;
 
     bool internal free = true;
 
