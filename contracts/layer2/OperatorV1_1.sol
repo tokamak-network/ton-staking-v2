@@ -16,7 +16,6 @@ interface ISystemConfig {
 contract OperatorV1_1 is Ownable, OperatorStorage {
     using SafeERC20 for IERC20;
 
-    event SetSystemConfig(address systemConfig);
     event TransferredManager(address previousManager, address newManager);
     event AddedOperator(address operator);
     event DeletedOperator(address operator);

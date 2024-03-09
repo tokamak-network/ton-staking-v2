@@ -32,7 +32,7 @@ contract Layer2ManagerStorage   {
     uint256 public totalTvl;
     mapping (address => uint256) public l2Tvl;
 
-    uint256 acumulatedSeigniroge;
+    uint256 public acumulatedSeigniroge;
     uint256 public shares;
     uint256 public unReflectedSeigs;
     uint256 public minimumRelectedAmount;

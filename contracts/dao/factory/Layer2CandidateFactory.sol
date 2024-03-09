@@ -33,6 +33,11 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         address seigManager
     );
 
+    modifier onlyDAOCommittee() {
+        require(msg.sender == daoCommittee, "sender is not daoCommittee");
+        _;
+    }
+
     function setAddress(
         address _depositManager,
         address _daoCommittee,
@@ -66,10 +71,9 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         address _committee,
         address _seigManager
     )
-        public
+        public onlyDAOCommittee
         returns (address)
     {
-        require(msg.sender == daoCommittee, "sender is not daoCommittee");
         require(daoCommittee == _committee, "different daoCommittee");
         Layer2CandidateProxy c = new Layer2CandidateProxy();
         require(address(c) != address(0), "zero Layer2CandidateProxy");

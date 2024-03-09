@@ -90,6 +90,15 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _;
     }
 
+    modifier onlyOperator(address systemConfig) {
+        require(systemConfig != address(0), "zero systemConfig");
+        address operatorContract = operatorOfSystemConfig[systemConfig];
+        require(operatorContract != address(0), "zero operatorContract");
+        require(IOperator(operatorContract).isOperator(msg.sender), "sender is not an operator");
+        require(seigManager == msg.sender, "sender is not a SeigManager");
+        _;
+    }
+
     /* ========== CONSTRUCTOR ========== */
     constructor() {
     }
@@ -178,16 +187,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         }
     }
 
-    function claimSeigniorage(address systemConfig) external {
-        require(systemConfig != address(0), "zero systemConfig");
-        address operatorContract = operatorOfSystemConfig[systemConfig];
-        require(operatorContract != address(0), "zero operatorContract");
-        require(IOperator(operatorContract).isOperator(msg.sender), "sender is not an operator");
-
+    function claimSeigniorage(address systemConfig) external onlyOperator(systemConfig) {
         uint256 amount = claimableSeigniorage(systemConfig);
         require(amount != 0 , "no claimable seigniorage");
         claimedAmount[systemConfig] += amount;
-        IERC20(wton).transfer(operatorContract, amount);
+        IERC20(wton).transfer(operatorOfSystemConfig[systemConfig], amount);
     }
 
     function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
