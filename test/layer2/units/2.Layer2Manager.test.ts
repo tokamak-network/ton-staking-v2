@@ -528,13 +528,13 @@ describe('Layer2Manager', () => {
     })
 
     describe('# TVL interface in SystemConfig', () => {
-        it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
-            const amount = ethers.utils.parseEther("100")
+        // it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
+        //     const amount = ethers.utils.parseEther("100")
 
-            await expect(legacySystemConfig.connect(addr1).increaseTvl(
-                amount
-            ) ).to.be.revertedWith("not l1StandardBridge nor owner");
-        });
+        //     await expect(legacySystemConfig.connect(addr1).increaseTvl(
+        //         amount
+        //     ) ).to.be.revertedWith("not l1StandardBridge nor owner");
+        // });
 
         it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
             const amount = ethers.utils.parseEther("100")
@@ -726,7 +726,7 @@ describe('Layer2Manager', () => {
 
             let prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const totalTvl = await layer2Manager.totalTvl()
-            const prevShare = await layer2Manager.shares()
+            const prevShare = await layer2Manager.rewardPerUnit()
             const prevBalance = await wtonContract.balanceOf(layer2Manager.address)
             const unReflectedSeigs = await layer2Manager.unReflectedSeigs()
 
@@ -781,7 +781,7 @@ describe('Layer2Manager', () => {
             const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = seigManager.interface.parseLog(log1);
-            const afterShare = await layer2Manager.shares()
+            const afterShare = await layer2Manager.rewardPerUnit()
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
                 prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2Seig)
@@ -905,7 +905,7 @@ describe('Layer2Manager', () => {
 
             const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
             expect(operatorAddress).to.be.eq(titanOperatorContractAddress)
-            const shares =  await layer2Manager.shares()
+            const shares =  await layer2Manager.rewardPerUnit()
             const wtonBalance = await wtonContract.balanceOf(layer2Manager.address)
             const l2Info = await layer2Manager.l2Info(legacySystemConfig.address)
             const l2Tvl =  l2Info.l2Tvl

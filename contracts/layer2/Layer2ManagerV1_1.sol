@@ -155,30 +155,32 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     /* ========== only L2Register========== */
-    function increaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
+    function increaseTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
 
-        Layer2Info storage info = l2Info[systemConfig];
-        if (info.initialDebt == 0) info.initialDebt = shares * amount / 1e18;
-        info.l2Tvl += amount;
-        totalTvl += amount;
+        if (amount != 0) {
+            Layer2Info storage info = l2Info[systemConfig];
+            if (info.initialDebt == 0) info.initialDebt = rewardPerUnit * amount / 1e18;
+            info.l2Tvl += amount;
+            totalTvl += amount;
+        }
         return true;
     }
 
-    function decreaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
-        if (totalTvl >= amount && l2Info[systemConfig].l2Tvl >= amount) {
+    function decreaseTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
+
+        if (totalTvl >= amount && l2Info[systemConfig].l2Tvl >= amount && amount != 0 ) {
             Layer2Info storage info = l2Info[systemConfig];
 
-            uint256 curAmount = shares * info.l2Tvl / 1e18;
+            uint256 curAmount = rewardPerUnit * info.l2Tvl / 1e18;
             if (curAmount >= info.initialDebt )  curAmount -= info.initialDebt;
             else curAmount = 0;
             if (curAmount >= info.claimedAmount ) curAmount -= info.claimedAmount;
             else curAmount = 0;
 
             info.unClaimedAmount += curAmount;
-            info.initialDebt = shares * amount / 1e18;
+            info.initialDebt = rewardPerUnit * amount / 1e18;
             info.claimedAmount = 0;
             info.l2Tvl -= amount;
-
             totalTvl -= amount;
         }
         return true;
@@ -197,7 +199,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         // IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
         unReflectedSeigs += amount;
         if (unReflectedSeigs > minimumRelectedAmount || totalTvl == 0) {
-            shares += unReflectedSeigs * 1e18 / totalTvl ;
+            rewardPerUnit += unReflectedSeigs * 1e18 / totalTvl ;
             unReflectedSeigs = 0;
         }
     }
@@ -213,7 +215,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
         Layer2Info memory info = l2Info[systemConfig];
 
-        amount = shares * info.l2Tvl / 1e18;
+        amount = rewardPerUnit * info.l2Tvl / 1e18;
         if (amount >= info.initialDebt )  amount -= info.initialDebt;
         else amount = 0;
 
