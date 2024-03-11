@@ -79,7 +79,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
     event SetMinimumRelectedAmount(uint256 _minimumRelectedAmount);
 
-
     modifier onlyL2Register() {
         require(l2Register == msg.sender, "sender is not a L2Register");
         _;
@@ -95,7 +94,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address operatorContract = operatorOfSystemConfig[systemConfig];
         require(operatorContract != address(0), "zero operatorContract");
         require(IOperator(operatorContract).isOperator(msg.sender), "sender is not an operator");
-        require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
     }
 
@@ -158,30 +156,47 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     /* ========== only L2Register========== */
     function increaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
+
+        Layer2Info storage info = l2Info[systemConfig];
+        if (info.initialDebt == 0) info.initialDebt = shares * amount / 1e18;
+        info.l2Tvl += amount;
         totalTvl += amount;
-        l2Tvl[systemConfig] += amount;
         return true;
     }
 
     function decreaseTvl(address systemConfig, uint256 amount) external nonZero(amount) onlyL2Register returns (bool) {
-        if (totalTvl >= amount && l2Tvl[systemConfig] >= amount) {
+        if (totalTvl >= amount && l2Info[systemConfig].l2Tvl >= amount) {
+            Layer2Info storage info = l2Info[systemConfig];
+
+            uint256 curAmount = shares * info.l2Tvl / 1e18;
+            if (curAmount >= info.initialDebt )  curAmount -= info.initialDebt;
+            else curAmount = 0;
+            if (curAmount >= info.claimedAmount ) curAmount -= info.claimedAmount;
+            else curAmount = 0;
+
+            info.unClaimedAmount += curAmount;
+            info.initialDebt = shares * amount / 1e18;
+            info.claimedAmount = 0;
+            info.l2Tvl -= amount;
+
             totalTvl -= amount;
-            l2Tvl[systemConfig] -= amount;
         }
         return true;
     }
 
+
+    // to do ..
     function resetTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
-        uint256 oldAmount = l2Tvl[systemConfig];
+        uint256 oldAmount = l2Info[systemConfig].l2Tvl;
         totalTvl = totalTvl + amount - oldAmount;
-        l2Tvl[systemConfig] = amount;
+        l2Info[systemConfig].l2Tvl = amount;
         return true;
     }
 
     function updateSeigniorage(uint256 amount) external onlySeigManger {
         // IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
         unReflectedSeigs += amount;
-        if (unReflectedSeigs > minimumRelectedAmount) {
+        if (unReflectedSeigs > minimumRelectedAmount || totalTvl == 0) {
             shares += unReflectedSeigs * 1e18 / totalTvl ;
             unReflectedSeigs = 0;
         }
@@ -190,14 +205,22 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     function claimSeigniorage(address systemConfig) external onlyOperator(systemConfig) {
         uint256 amount = claimableSeigniorage(systemConfig);
         require(amount != 0 , "no claimable seigniorage");
-        claimedAmount[systemConfig] += amount;
+        l2Info[systemConfig].claimedAmount += amount;
+        l2Info[systemConfig].unClaimedAmount = 0;
         IERC20(wton).transfer(operatorOfSystemConfig[systemConfig], amount);
     }
 
     function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
-        amount = shares * l2Tvl[systemConfig] / 1e18;
-        if (amount >= claimedAmount[systemConfig] ) amount -= claimedAmount[systemConfig];
+        Layer2Info memory info = l2Info[systemConfig];
+
+        amount = shares * info.l2Tvl / 1e18;
+        if (amount >= info.initialDebt )  amount -= info.initialDebt;
         else amount = 0;
+
+        if (amount >= info.claimedAmount ) amount -= info.claimedAmount;
+        else amount = 0;
+
+        amount += info.unClaimedAmount;
     }
 
     /* ========== Anybody can execute ========== */

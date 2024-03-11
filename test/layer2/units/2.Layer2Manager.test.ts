@@ -423,7 +423,7 @@ describe('Layer2Manager', () => {
         })
 
         it('registerLayer2Candidate', async () => {
-            expect(await layer2Manager.issueStatusLayer2(legacySystemConfig.address)).to.be.eq(0)
+            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -455,14 +455,14 @@ describe('Layer2Manager', () => {
 
             titanLayerAddress = deployedEvent.args.layer2Candidate;
             titanOperatorContractAddress = deployedEvent.args.operator;
-            expect(await layer2Manager.issueStatusLayer2(legacySystemConfig.address)).to.be.eq(1)
+            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(1)
 
             titanLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", titanLayerAddress, deployer)) as Layer2CandidateV1_1
         })
 
         it('If the layer has already been created, it will fail.', async () => {
 
-            expect(await layer2Manager.issueStatusLayer2(legacySystemConfig.address)).to.be.eq(1)
+            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(1)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -483,7 +483,7 @@ describe('Layer2Manager', () => {
         })
 
         it('Layers that are not registered in the L2Registry cannot be registered.', async () => {
-            expect(await layer2Manager.issueStatusLayer2(legacySystemConfigTest2.address)).to.be.eq(0)
+            expect((await layer2Manager.issueStatusLayer2(legacySystemConfigTest2.address))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -540,14 +540,14 @@ describe('Layer2Manager', () => {
             const amount = ethers.utils.parseEther("100")
 
             const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = await layer2Manager.l2Tvl(legacySystemConfig.address)
+            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
 
             await (await legacySystemConfig.connect(deployer).increaseTvl(
                 amount
             )).wait()
 
             expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.add(amount))
-            expect(await layer2Manager.l2Tvl(legacySystemConfig.address)).to.be.eq(prevL2Tvl.add(amount))
+            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.add(amount))
 
         });
 
@@ -563,14 +563,14 @@ describe('Layer2Manager', () => {
             const amount = ethers.utils.parseEther("50")
 
             const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = await layer2Manager.l2Tvl(legacySystemConfig.address)
+            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
 
             await (await legacySystemConfig.connect(deployer).decreaseTvl(
                 amount
             )).wait()
 
             expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.sub(amount))
-            expect(await layer2Manager.l2Tvl(legacySystemConfig.address)).to.be.eq(prevL2Tvl.sub(amount))
+            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.sub(amount))
 
         });
 
@@ -587,7 +587,7 @@ describe('Layer2Manager', () => {
             const amount = ethers.utils.parseEther("5000")
 
             const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = await layer2Manager.l2Tvl(legacySystemConfig.address)
+            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
 
             await (await l2Registry.connect(manager).resetTvl(
                 legacySystemConfig.address,
@@ -595,7 +595,7 @@ describe('Layer2Manager', () => {
             )).wait()
 
             expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.sub(prevL2Tvl).add(amount))
-            expect(await layer2Manager.l2Tvl(legacySystemConfig.address)).to.be.eq(amount)
+            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(amount)
 
         });
     })
@@ -906,11 +906,12 @@ describe('Layer2Manager', () => {
             const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
             expect(operatorAddress).to.be.eq(titanOperatorContractAddress)
             const shares =  await layer2Manager.shares()
-            const l2Tvl =  await layer2Manager.l2Tvl(legacySystemConfig.address)
             const wtonBalance = await wtonContract.balanceOf(layer2Manager.address)
-
+            const l2Info = await layer2Manager.l2Info(legacySystemConfig.address)
+            const l2Tvl =  l2Info.l2Tvl
+            const claimedAmount =  l2Info.claimedAmount
             const claimableSeigniorage = await layer2Manager.claimableSeigniorage(legacySystemConfig.address)
-            const claimedAmount =  await layer2Manager.claimedAmount(legacySystemConfig.address)
+
             let amount = shares.mul(l2Tvl).div(utils.parseEther("1")).sub(claimedAmount);
 
             expect(claimableSeigniorage).to.be.eq(amount)
