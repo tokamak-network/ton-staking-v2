@@ -55,13 +55,16 @@ interface ICandidate {
   function updateSeigniorage() external returns (bool);
 }
 
-interface IDepositManager {
-  function updateSeigniorage() external returns (bool);
+// interface IDepositManager {
+//   function updateSeigniorage() external returns (bool);
+// }
+
+interface IL2Registry {
+  function totalTvl() external view returns (uint256);
 }
 
 interface ILayer2Manager {
   function updateSeigniorage(uint256 amount) external ;
-  function totalTvl() external view returns (uint256);
 }
 
 /**
@@ -251,6 +254,10 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function setLayer2Manager(address layer2Manager_) external onlyOwner {
     layer2Manager = layer2Manager_;
+  }
+
+  function setL2Registry(address l2Registry_) external onlyOwner {
+    l2Registry = l2Registry_;
   }
 
   function setPowerTON(address powerton_) external onlyOwner {
@@ -811,8 +818,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // L2 sequencers
     uint256 l2Seigs = 0;
-    if (layer2Manager != address(0)){
-      try  ILayer2Manager(layer2Manager).totalTvl() returns (uint256 totalTvl) {
+    if (l2Registry != address(0)){
+      try  IL2Registry(l2Registry).totalTvl() returns (uint256 totalTvl) {
         if (totalTvl != 0) l2Seigs = rdiv(rmul(maxSeig, totalTvl),tos);
       } catch (bytes memory ) { }
     }

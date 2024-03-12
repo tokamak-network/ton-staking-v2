@@ -8,10 +8,13 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
+    function updateSeigniorage(uint256 amount) external ;
+    function claimSeigniorage(address systemConfig) external returns(uint256);
+    function claimableSeigniorage(address systemConfig) external view returns (uint256 amount);
 }
 
 interface OnApprove {
@@ -77,12 +80,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
-    event SetMinimumRelectedAmount(uint256 _minimumRelectedAmount);
-
-    modifier onlyL2Register() {
-        require(l2Register == msg.sender, "sender is not a L2Register");
-        _;
-    }
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -147,83 +144,23 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         emit SetMinimumInitialDepositAmount(_minimumInitialDepositAmount);
     }
 
-    function setMinimumRelectedAmount(uint256 _minimumRelectedAmount)  external  onlyOwner {
-        require(minimumRelectedAmount != _minimumRelectedAmount, "same");
-        minimumRelectedAmount = _minimumRelectedAmount;
-
-        emit SetMinimumRelectedAmount(_minimumRelectedAmount);
-    }
-
-    /* ========== only L2Register========== */
-    function increaseTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
-
-        if (amount != 0) {
-            Layer2Info storage info = l2Info[systemConfig];
-            if (info.initialDebt == 0) info.initialDebt = rewardPerUnit * amount / 1e18;
-            info.l2Tvl += amount;
-            totalTvl += amount;
-        }
-        return true;
-    }
-
-    function decreaseTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
-
-        if (totalTvl >= amount && l2Info[systemConfig].l2Tvl >= amount && amount != 0 ) {
-            Layer2Info storage info = l2Info[systemConfig];
-
-            uint256 curAmount = rewardPerUnit * info.l2Tvl / 1e18;
-            if (curAmount >= info.initialDebt )  curAmount -= info.initialDebt;
-            else curAmount = 0;
-            if (curAmount >= info.claimedAmount ) curAmount -= info.claimedAmount;
-            else curAmount = 0;
-
-            info.unClaimedAmount += curAmount;
-            info.initialDebt = rewardPerUnit * amount / 1e18;
-            info.claimedAmount = 0;
-            info.l2Tvl -= amount;
-            totalTvl -= amount;
-        }
-        return true;
-    }
-
-
-    // to do ..
-    function resetTvl(address systemConfig, uint256 amount) external onlyL2Register returns (bool) {
-        uint256 oldAmount = l2Info[systemConfig].l2Tvl;
-        totalTvl = totalTvl + amount - oldAmount;
-        l2Info[systemConfig].l2Tvl = amount;
-        return true;
-    }
+    /* ========== onlySeigManger  ========== */
 
     function updateSeigniorage(uint256 amount) external onlySeigManger {
-        // IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
-        unReflectedSeigs += amount;
-        if (unReflectedSeigs > minimumRelectedAmount || totalTvl == 0) {
-            rewardPerUnit += unReflectedSeigs * 1e18 / totalTvl ;
-            unReflectedSeigs = 0;
-        }
+        IL2Register(l2Register).updateSeigniorage(amount);
     }
 
+     /* ========== onlyOperator  ========== */
+
     function claimSeigniorage(address systemConfig) external onlyOperator(systemConfig) {
-        uint256 amount = claimableSeigniorage(systemConfig);
-        require(amount != 0 , "no claimable seigniorage");
-        l2Info[systemConfig].claimedAmount += amount;
-        l2Info[systemConfig].unClaimedAmount = 0;
+        uint256 amount = IL2Register(l2Register).claimSeigniorage(systemConfig);
         IERC20(wton).transfer(operatorOfSystemConfig[systemConfig], amount);
     }
 
     function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
-        Layer2Info memory info = l2Info[systemConfig];
-
-        amount = rewardPerUnit * info.l2Tvl / 1e18;
-        if (amount >= info.initialDebt )  amount -= info.initialDebt;
-        else amount = 0;
-
-        if (amount >= info.claimedAmount ) amount -= info.claimedAmount;
-        else amount = 0;
-
-        amount += info.unClaimedAmount;
+        return IL2Register(l2Register).claimableSeigniorage(systemConfig);
     }
+
 
     /* ========== Anybody can execute ========== */
 

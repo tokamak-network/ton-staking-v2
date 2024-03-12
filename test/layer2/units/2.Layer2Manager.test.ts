@@ -376,6 +376,10 @@ describe('Layer2Manager', () => {
         it('setTargetSetLayer2Manager to layer2Manager', async () => {
             await (await daoV2Contract.connect(daoOwner).setTargetSetLayer2Manager(seigManager.address, layer2Manager.address)).wait()
         })
+
+        it('setTargetSetL2Registry to l2Register', async () => {
+            await (await daoV2Contract.connect(daoOwner).setTargetSetL2Registry(seigManager.address, l2Registry.address)).wait()
+        })
     })
 
     describe('# registerLayer2Candidate ', () => {
@@ -525,34 +529,53 @@ describe('Layer2Manager', () => {
                 expect(await l2Registry.layer2Manager()).to.be.eq(layer2Manager.address)
             })
         })
+
+        describe('# setSeigManager', () => {
+            it('setSeigManager : onlyOwner ', async () => {
+                await expect(
+                    l2Registry.connect(addr1).setSeigManager(
+                        seigManager.address
+                    )
+                ).to.be.revertedWith("AuthControl: Caller is not an admin")
+            })
+
+            it('setSeigManager : onlyOwner ', async () => {
+                await (await l2Registry.connect(deployer).setSeigManager(
+                    seigManager.address
+                )).wait()
+
+                expect(await l2Registry.seigManager()).to.be.eq(seigManager.address)
+            })
+        })
+
     })
 
     describe('# TVL interface in SystemConfig', () => {
-        // it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
-        //     const amount = ethers.utils.parseEther("100")
+        it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
+            const amount = ethers.utils.parseEther("10000")
 
-        //     await expect(legacySystemConfig.connect(addr1).increaseTvl(
-        //         amount
-        //     ) ).to.be.revertedWith("not l1StandardBridge nor owner");
-        // });
+            await expect(legacySystemConfig.connect(addr1).increaseTvl(
+                amount
+            ) ).to.be.revertedWith("not l1StandardBridge nor owner");
+        });
 
         it('SystemConfig.increaseTvl : only l1StandardBridge ', async () => {
-            const amount = ethers.utils.parseEther("100")
+            const amount = ethers.utils.parseEther("10000")
 
-            const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
+            const prevTvl = await l2Registry.totalTvl()
+            const prevL2Tvl = (await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl
 
             await (await legacySystemConfig.connect(deployer).increaseTvl(
                 amount
             )).wait()
 
-            expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.add(amount))
-            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.add(amount))
+            expect(await l2Registry.totalTvl()).to.be.eq(prevTvl.add(amount))
+            expect((await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.add(amount))
 
         });
 
         it('SystemConfig.decreaseTvl : only l1StandardBridge ', async () => {
-            const amount = ethers.utils.parseEther("50")
+            const amount = ethers.utils.parseEther("500")
 
             await expect(legacySystemConfig.connect(addr1).decreaseTvl(
                 amount
@@ -560,44 +583,44 @@ describe('Layer2Manager', () => {
         });
 
         it('SystemConfig.decreaseTvl : only l1StandardBridge ', async () => {
-            const amount = ethers.utils.parseEther("50")
+            const amount = ethers.utils.parseEther("500")
 
-            const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
+            const prevTvl = await l2Registry.totalTvl()
+            const prevL2Tvl = (await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl
 
             await (await legacySystemConfig.connect(deployer).decreaseTvl(
                 amount
             )).wait()
 
-            expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.sub(amount))
-            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.sub(amount))
+            expect(await l2Registry.totalTvl()).to.be.eq(prevTvl.sub(amount))
+            expect((await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(prevL2Tvl.sub(amount))
 
         });
 
-        it('L2Registry.resetTvl : only Manager of L2Registry ', async () => {
-            const amount = ethers.utils.parseEther("5000")
+        // it('L2Registry.resetTvl : only Manager of L2Registry ', async () => {
+        //     const amount = ethers.utils.parseEther("5000")
 
-            await expect(l2Registry.connect(deployer).resetTvl(
-                legacySystemConfig.address,
-                amount
-            ) ).to.be.revertedWith("AuthControl: Caller is not a manager");
-        });
+        //     await expect(l2Registry.connect(deployer).resetTvl(
+        //         legacySystemConfig.address,
+        //         amount
+        //     ) ).to.be.revertedWith("AuthControl: Caller is not a manager");
+        // });
 
-        it('L2Registry.resetTvl : only Manager of L2Registry ', async () => {
-            const amount = ethers.utils.parseEther("5000")
+        // it('L2Registry.resetTvl : only Manager of L2Registry ', async () => {
+        //     const amount = ethers.utils.parseEther("5000")
 
-            const prevTvl = await layer2Manager.totalTvl()
-            const prevL2Tvl = (await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl
+        //     const prevTvl = await l2Registry.totalTvl()
+        //     const prevL2Tvl = (await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl
 
-            await (await l2Registry.connect(manager).resetTvl(
-                legacySystemConfig.address,
-                amount
-            )).wait()
+        //     await (await l2Registry.connect(manager).resetTvl(
+        //         legacySystemConfig.address,
+        //         amount
+        //     )).wait()
 
-            expect(await layer2Manager.totalTvl()).to.be.eq(prevTvl.sub(prevL2Tvl).add(amount))
-            expect((await layer2Manager.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(amount)
+        //     expect(await l2Registry.totalTvl()).to.be.eq(prevTvl.sub(prevL2Tvl).add(amount))
+        //     expect((await l2Registry.l2Info(legacySystemConfig.address)).l2Tvl).to.be.eq(amount)
 
-        });
+        // });
     })
 
     describe('# DepositManager', () => {
@@ -725,18 +748,16 @@ describe('Layer2Manager', () => {
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
             let prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
-            const totalTvl = await layer2Manager.totalTvl()
-            const prevShare = await layer2Manager.rewardPerUnit()
+            const totalTvl = await l2Registry.totalTvl()
+            const prevShare = await l2Registry.rewardPerUnit()
             const prevBalance = await wtonContract.balanceOf(layer2Manager.address)
-            const unReflectedSeigs = await layer2Manager.unReflectedSeigs()
+            const unReflectedSeigs = await l2Registry.unReflectedSeigs()
 
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-            // console.log('\n updateSeigniorage... ' )
-
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(titanLayerAddress)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
@@ -781,13 +802,13 @@ describe('Layer2Manager', () => {
             const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = seigManager.interface.parseLog(log1);
-            const afterShare = await layer2Manager.rewardPerUnit()
+            const rewardPerUnit = await l2Registry.rewardPerUnit()
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
                 prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2Seig)
             )
-            expect(await layer2Manager.unReflectedSeigs()).to.be.eq(ethers.constants.Zero)
-            expect(afterShare).to.be.eq(prevShare.add((deployedEvent1.args.l2Seig.add(unReflectedSeigs)).mul(utils.parseEther("1")).div(totalTvl)))
+            expect(await l2Registry.unReflectedSeigs()).to.be.eq(ethers.constants.Zero)
+            expect(rewardPerUnit).to.be.eq(prevShare.add((deployedEvent1.args.l2Seig.add(unReflectedSeigs)).mul(utils.parseEther("1")).div(totalTvl)))
 
         })
 
@@ -905,9 +926,10 @@ describe('Layer2Manager', () => {
 
             const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
             expect(operatorAddress).to.be.eq(titanOperatorContractAddress)
-            const shares =  await layer2Manager.rewardPerUnit()
+            const shares =  await l2Registry.rewardPerUnit()
             const wtonBalance = await wtonContract.balanceOf(layer2Manager.address)
-            const l2Info = await layer2Manager.l2Info(legacySystemConfig.address)
+
+            const l2Info = await l2Registry.l2Info(legacySystemConfig.address)
             const l2Tvl =  l2Info.l2Tvl
             const claimedAmount =  l2Info.claimedAmount
             const claimableSeigniorage = await layer2Manager.claimableSeigniorage(legacySystemConfig.address)
@@ -927,6 +949,9 @@ describe('Layer2Manager', () => {
             expect(await titanOperatorContract.isOperator(addr1.address)).to.be.eq(false)
 
             const claimableSeigniorage = await layer2Manager.claimableSeigniorage(legacySystemConfig.address)
+
+            const claimableSeigniorage1 = await l2Registry.claimableSeigniorage(legacySystemConfig.address)
+
             expect(claimableSeigniorage).to.be.gt(ethers.constants.Zero)
 
             await expect(layer2Manager.connect(addr1).claimSeigniorage(

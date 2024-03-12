@@ -5,13 +5,6 @@ pragma solidity ^0.8.4;
 /// @notice
 contract Layer2ManagerStorage  {
 
-    struct Layer2Info {
-        uint256 l2Tvl;
-        uint256 initialDebt;
-        uint256 unClaimedAmount;
-        uint256 claimedAmount;
-    }
-
     address public l2Register;
     address public operatorFactory;
 
@@ -24,9 +17,6 @@ contract Layer2ManagerStorage  {
 
     uint256 public minimumInitialDepositAmount;
 
-    // systemConfig - layer2 info
-    mapping (address => Layer2Info) public l2Info;
-
     /// issueStatus for giving seigniorage
     /// systemConfig - stateIssue ( 0: none , 1: registered, 2: paused )
     mapping (address => uint8) public issueStatusLayer2;
@@ -36,13 +26,6 @@ contract Layer2ManagerStorage  {
 
     /// operator - systemConfig
     mapping (address => address) public systemConfigOfOperator;
-
-    // L2 전체 TVL 양 : 실시간으로 반영하자.
-    uint256 public totalTvl;
-
-    uint256 public rewardPerUnit;
-    uint256 public unReflectedSeigs;
-    uint256 public minimumRelectedAmount;
 
     bool internal free = true;
 

@@ -32,6 +32,7 @@ interface ILayer2CandidateFactory {
 
 interface ITarget {
     function setLayer2Manager(address layer2Manager_) external;
+    function setL2Registry(address l2Registry_) external;
 }
 
 contract DAOCommitteeAddV1_1 is
@@ -74,7 +75,9 @@ contract DAOCommitteeAddV1_1 is
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
         ITarget(target).setLayer2Manager(layer2Manager_);
     }
-
+    function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
+        ITarget(target).setL2Registry(l2Registry_);
+    }
     //////////////////////////////////////////////////////////////////////
     //
 
