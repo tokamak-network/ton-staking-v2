@@ -5,9 +5,9 @@ import { BigNumber, Signer } from 'ethers'
 // import { l2ProjectLaunchFixtures, l1Fixtures } from './shared/fixtures'
 // import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
 import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1"
+import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
 
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
 
 describe('L2Registry', () => {
     let deployer: Signer, manager: Signer, operator: Signer
@@ -49,7 +49,7 @@ describe('L2Registry', () => {
             let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton
+                name, addresses, l2Ton, l2RegistryProxy.address
             )).wait()
         })
 
@@ -70,7 +70,7 @@ describe('L2Registry', () => {
             let l2Ton = l2TonAddress
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton
+                name, addresses, l2Ton,  l2RegistryProxy.address
             )).wait()
         })
     })
@@ -169,22 +169,22 @@ describe('L2Registry', () => {
 
     describe('# changeType', () => {
 
-        it('changeType can not be executed by not manager', async () => {
+        it('changeType can not be executed by not operator', async () => {
 
             let type = 0;
             await expect(
-                l2Registry.connect(operator).changeType(
+                l2Registry.connect(deployer).changeType(
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("AuthControl: Caller is not a manager")
+            ).to.be.revertedWith("AuthControl: Caller is not an operator")
         })
 
         it('cannot be changed to the same value', async () => {
 
             let type = 1;
             await expect(
-                l2Registry.connect(manager).changeType(
+                l2Registry.connect(operator).changeType(
                     legacySystemConfig.address,
                     type
                 )
@@ -193,7 +193,7 @@ describe('L2Registry', () => {
 
         it('changeType  ', async () => {
             let type = 2;
-            let receipt = await (await l2Registry.connect(manager).changeType(
+            let receipt = await (await l2Registry.connect(operator).changeType(
                 legacySystemConfig.address,
                 type
             )).wait()
@@ -219,7 +219,7 @@ describe('L2Registry', () => {
 
             await expect(
                 l2Registry.connect(deployer).registerSystemConfig(
-                    sampleSystemConfig.address,
+                    legacySystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("AuthControl: Caller is not an operator")
@@ -245,34 +245,18 @@ describe('L2Registry', () => {
             ).to.be.revertedWith("unsupported type")
         })
 
-        it('registerSystemConfig  ', async () => {
-            let type = 1;
+        it('registerSystemConfig :  ', async () => {
 
-            let receipt = await (await l2Registry.connect(operator).registerSystemConfig(
-                sampleSystemConfig.address,
-                type
-            )).wait()
-
-            const topic = l2Registry.interface.getEventTopic('RegisteredSystemConfig');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
-
-            expect(deployedEvent.args.systemConfig).to.be.eq(sampleSystemConfig.address)
-            expect(deployedEvent.args.type_).to.be.eq(type)
-
-            expect(await l2Registry.systemConfigType(sampleSystemConfig.address)).to.be.eq(type)
-
-        })
-
-        it('cannot be registered with already registered systemConfig address ', async () => {
             let type = 2;
             await expect(
                 l2Registry.connect(operator).registerSystemConfig(
-                    legacySystemConfig.address,
+                    sampleSystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("already registered")
+            ).to.be.revertedWith("unavailable for registration")
+
         })
+
     });
 
 });

@@ -27,6 +27,10 @@ contract Layer2ManagerStorage  {
     /// operator - systemConfig
     mapping (address => address) public systemConfigOfOperator;
 
+    /// operator - layer2Candidate
+    mapping (address => address) public layer2CandidateOfOperator;
+
+
     bool internal free = true;
 
     modifier nonZero(uint256 value) {

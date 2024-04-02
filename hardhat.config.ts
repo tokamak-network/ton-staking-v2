@@ -217,6 +217,13 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
       local: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+    },
+    DAOCommitteeOwner : {
+      default: 28,
+      mainnet: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
+      goerli: '',
+      hardhat: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
+      local: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
     }
   },
   networks: {
@@ -317,11 +324,11 @@ const config: HardhatUserConfig = {
   solidity: {
     version: '0.8.19',
     settings: {
+      viaIR: true,
       optimizer: {
         enabled: true,
         runs: 200,
       },
-      // viaIR: true,
       metadata: {
         // do not include the metadata hash, since this is machine dependent
         // and we want all generated code to be deterministic

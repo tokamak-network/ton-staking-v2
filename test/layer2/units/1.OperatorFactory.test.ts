@@ -5,11 +5,11 @@ import { BigNumber, Signer } from 'ethers'
 // import { l2ProjectLaunchFixtures, l1Fixtures } from './shared/fixtures'
 // import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
 import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1"
+import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
 
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1"
+import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
 
 describe('OperatorFactory', () => {
     let deployer: Signer, addr1: Signer, addr2: Signer, manager: Signer
@@ -26,15 +26,22 @@ describe('OperatorFactory', () => {
         addr2 = accounts[2]
         manager = accounts[3]
 
-        // l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
-        // l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
+        const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-        // await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+        l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
+        l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
 
-        // l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+        await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+
+        l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
 
         operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
         operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
+
+        await (await operatorFactory.connect(deployer).setAddresses(
+            DepositManager,
+            TON,
+            WTON)).wait()
 
     })
 
@@ -57,7 +64,7 @@ describe('OperatorFactory', () => {
             let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(manager).setAddresses(
-                name, addresses, l2Ton
+                name, addresses, l2Ton, l2RegistryProxy.address
             )).wait()
         })
 
@@ -78,22 +85,12 @@ describe('OperatorFactory', () => {
             let l2Ton = l2TonAddress
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton
+                name, addresses, l2Ton,  l2RegistryProxy.address
             )).wait()
         })
     })
 
     describe('# createOperator', () => {
-
-        it('createOperator can not be executed by not an SystemConfig\'s owner', async () => {
-
-            expect(await legacySystemConfig.owner()).to.be.not.eq(addr1.address)
-            await expect(
-                operatorFactory.connect(addr1).createOperator(
-                    legacySystemConfig.address
-                )
-            ).to.be.revertedWith("not config's owner")
-        })
 
         it('createOperator can be executed by SystemConfig\'s owner', async () => {
 

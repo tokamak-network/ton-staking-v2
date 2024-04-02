@@ -60,11 +60,13 @@ interface ICandidate {
 // }
 
 interface IL2Registry {
-  function totalTvl() external view returns (uint256);
+  function layer2TVL(address _systemConfig) external view returns (uint256 amount);
 }
 
 interface ILayer2Manager {
-  function updateSeigniorage(uint256 amount) external ;
+  function updateSeigniorage(address systemConfig, uint256 amount) external ;
+  function systemConfigOfOperator(address operator) external returns (address);
+  function issueStatusLayer2(address systemConfig) external returns (uint8);
 }
 
 /**
@@ -96,7 +98,7 @@ interface ILayer2Manager {
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, SeigManagerV1I, DSMath, SeigManagerV1_3Storage {
+contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, DSMath, SeigManagerV1_3Storage {
 
   //////////////////////////////
   // Modifiers
@@ -114,11 +116,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   modifier onlyDepositManager() {
     require(msg.sender == _depositManager, "not onlyDepositManager");
-    _;
-  }
-
-  modifier onlyLayer2(address layer2) {
-    require(IILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
     _;
   }
 
@@ -140,320 +137,64 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       _;
   }
 
-
   //////////////////////////////
   // Events
   //////////////////////////////
 
-  event CoinageCreated(address indexed layer2, address coinage);
   event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig);
   event Comitted(address indexed layer2);
-  event CommissionRateSet(address indexed layer2, uint256 previousRate, uint256 newRate);
-  event Paused(address account);
-  event Unpaused(address account);
-  event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
-   /** These were reflected from 18732908 block. */
+  /** These were reflected from 18732908 block. */
   event AddedSeigAtLayer(address layer2, uint256 seigs, uint256 operatorSeigs, uint256 nextTotalSupply, uint256 prevTotalSupply);
-  event OnSnapshot(uint256 snapshotId);
-  event SetPowerTONSeigRate(uint256 powerTONSeigRate);
-  event SetDaoSeigRate(uint256 daoSeigRate);
-  event SetPseigRate(uint256 pseigRate);
 
   /** It was deleted from block 18732908, but was added again on v1. */
   event CommitLog1(uint256 totalStakedAmount, uint256 totalSupplyOfWTON, uint256 prevTotalSupply, uint256 nextTotalSupply);
 
-  /** Added from v1. */
-  event SetSeigStartBlock(uint256 _seigStartBlock);
-  event SetInitialTotalSupply(uint256 _initialTotalSupply);
-  event SetBurntAmountAtDAO(uint256 _burntAmountAtDAO);
-
   /** Added from v1_3. */
-  event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2Seig);
-
-
-  //////////////////////////////
-  // Constuctor
-  //////////////////////////////
-
-  /// on v1_3, delete initialize.
-  /// This function cannot be called because it has already been initialized.
-  // function initialize (
-  //   address ton_,
-  //   address wton_,
-  //   address registry_,
-  //   address depositManager_,
-  //   uint256 seigPerBlock_,
-  //   address factory_,
-  //   uint256 lastSeigBlock_
-  // ) external {
-  //   require(_ton == address(0) && _lastSeigBlock == 0, "already initialized");
-
-  //   _ton = ton_;
-  //   _wton = wton_;
-  //   _registry = registry_;
-  //   _depositManager = depositManager_;
-  //   _seigPerBlock = seigPerBlock_;
-
-  //   factory = factory_;
-  //   address c = CoinageFactoryI(factory).deploy();
-  //   require(c != address(0), "zero tot");
-  //   _tot = RefactorCoinageSnapshotI(c);
-
-  //   _lastSeigBlock = lastSeigBlock_;
-  // }
-
-  //////////////////////////////
-  // Pausable
-  //////////////////////////////
-
-  function pause() public onlyPauser whenNotPaused {
-    _pausedBlock = block.number;
-    paused = true;
-    emit Paused(msg.sender);
-  }
-
-  /**
-   * @dev Called by a pauser to unpause, returns to normal state.
-   */
-  function unpause() public onlyPauser whenPaused {
-    _unpausedBlock = block.number;
-    paused = false;
-    emit Unpaused(msg.sender);
-  }
-
+  event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
   //////////////////////////////
   // onlyOwner
   //////////////////////////////
 
-  function setData(
-      address powerton_,
-      address daoAddress,
-      uint256 powerTONSeigRate_,
-      uint256 daoSeigRate_,
-      uint256 relativeSeigRate_,
-      uint256 adjustDelay_,
-      uint256 minimumAmount_
-  ) external onlyOwner {
-    require(
-      powerTONSeigRate + daoSeigRate + relativeSeigRate <= RAY, "exceeded seigniorage rate"
-    );
-    _powerton = powerton_;
-    dao = daoAddress;
-    powerTONSeigRate = powerTONSeigRate_;
-    daoSeigRate = daoSeigRate_;
-    relativeSeigRate = relativeSeigRate_;
-    adjustCommissionDelay = adjustDelay_;
-    minimumAmount = minimumAmount_;
-
-    emit SetPowerTONSeigRate (powerTONSeigRate_);
-    emit SetDaoSeigRate (daoSeigRate_) ;
-    emit SetPseigRate (relativeSeigRate_) ;
-  }
-
   function setLayer2Manager(address layer2Manager_) external onlyOwner {
     layer2Manager = layer2Manager_;
+  }
+
+  function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
+    layer2StartBlock = startBlock_;
   }
 
   function setL2Registry(address l2Registry_) external onlyOwner {
     l2Registry = l2Registry_;
   }
 
-  function setPowerTON(address powerton_) external onlyOwner {
-    _powerton = powerton_;
-  }
-
-  function setDao(address daoAddress) external onlyOwner {
-    dao = daoAddress;
-  }
-
-  function setPowerTONSeigRate(uint256 powerTONSeigRate_) external onlyOwner {
-    require(powerTONSeigRate_ + daoSeigRate + relativeSeigRate <= RAY, "exceeded seigniorage rate");
-    powerTONSeigRate = powerTONSeigRate_;
-    emit SetPowerTONSeigRate (powerTONSeigRate_);
-  }
-
-  function setDaoSeigRate(uint256 daoSeigRate_) external onlyOwner {
-    require(powerTONSeigRate + daoSeigRate_ + relativeSeigRate <= RAY, "exceeded seigniorage rate");
-    daoSeigRate = daoSeigRate_;
-    emit SetDaoSeigRate (daoSeigRate_) ;
-  }
-
-  function setPseigRate(uint256 pseigRate_) external onlyOwner {
-    require(powerTONSeigRate + daoSeigRate + pseigRate_ <= RAY, "exceeded seigniorage rate");
-    relativeSeigRate = pseigRate_;
-    emit SetPseigRate (pseigRate_);
-  }
-
-  function setCoinageFactory(address factory_) external onlyOwner {
-    factory = factory_;
-  }
-
-  function transferCoinageOwnership(address newSeigManager, address[] calldata coinages_) external onlyOwner {
-    for (uint256 i = 0; i < coinages_.length; i++) {
-      RefactorCoinageSnapshotI c = RefactorCoinageSnapshotI(coinages_[i]);
-      c.addMinter(newSeigManager);
-      c.renounceMinter();
-      c.transferOwnership(newSeigManager);
-    }
-  }
-
-  function renounceWTONMinter() external onlyOwner {
-    IWTON(_wton).renounceMinter();
-  }
-
-  function setAdjustDelay(uint256 adjustDelay_) external onlyOwner {
-    adjustCommissionDelay = adjustDelay_;
-  }
-
-  function setMinimumAmount(uint256 minimumAmount_) external onlyOwner {
-    minimumAmount = minimumAmount_;
-  }
-
-  function setSeigStartBlock(uint256 _seigStartBlock) external onlyOwner {
-    seigStartBlock = _seigStartBlock;
-    emit SetSeigStartBlock(_seigStartBlock);
-  }
-
-  function setInitialTotalSupply(uint256 _initialTotalSupply) external onlyOwner {
-    initialTotalSupply = _initialTotalSupply;
-    emit SetInitialTotalSupply(_initialTotalSupply);
-  }
-
-  function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external onlyOwner {
-    burntAmountAtDAO = _burntAmountAtDAO;
-    emit SetBurntAmountAtDAO(_burntAmountAtDAO);
-  }
-
-  //////////////////////////////
-  // onlyRegistry
-  //////////////////////////////
-
-  /**
-   * @dev deploy coinage token for the layer2.
-   */
-  function deployCoinage(address layer2) external onlyRegistry returns (bool) {
-    // create new coinage token for the layer2 contract
-    if (address(_coinages[layer2]) == address(0)) {
-      address c = CoinageFactoryI(factory).deploy();
-      _lastCommitBlock[layer2] = block.number;
-      // addChallenger(layer2);
-      _coinages[layer2] = RefactorCoinageSnapshotI(c);
-      emit CoinageCreated(layer2, c);
-    }
-
-    return true;
-  }
-
-  function setCommissionRate(
-    address layer2,
-    uint256 commissionRate,
-    bool isCommissionRateNegative_
-  )
-    external
-    onlyRegistryOrOperator(layer2)
-    returns (bool)
-  {
-    // check commission range
-    require(
-      (commissionRate == 0) ||
-      (MIN_VALID_COMMISSION <= commissionRate && commissionRate <= MAX_VALID_COMMISSION),
-      "SeigManager: commission rate must be 0 or between 1 RAY and 0.01 RAY"
-    );
-
-    uint256 previous = _commissionRates[layer2];
-    if (adjustCommissionDelay == 0) {
-      _commissionRates[layer2] = commissionRate;
-      _isCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    } else {
-      delayedCommissionBlock[layer2] = block.number + adjustCommissionDelay;
-      delayedCommissionRate[layer2] = commissionRate;
-      delayedCommissionRateNegative[layer2] = isCommissionRateNegative_;
-    }
-
-    emit CommissionRateSet(layer2, previous, commissionRate);
-
-    return true;
-  }
-
-  // No implementation in registry.
-  // function addChallenger(address account) public onlyRegistry {
-  //   grantRole(CHALLENGER_ROLE, account);
-  // }
-
-  // No implementation in layer2 (candidate).
-  function slash(address layer2, address challenger) external onlyChallenger checkCoinage(layer2) returns (bool) {
-    Layer2I(layer2).changeOperator(challenger);
-
-    return true;
-  }
-
-  //////////////////////////////
-  // onlyDepositManager
-  //////////////////////////////
-
-  /**
-   * @dev Callback for a new deposit
-   */
-  function onDeposit(address layer2, address account, uint256 amount)
-    external
-    onlyDepositManager
-    checkCoinage(layer2)
-    returns (bool)
-  {
-    if (_isOperator(layer2, account)) {
-      uint256 newAmount = _coinages[layer2].balanceOf(account) + amount;
-      require(newAmount >= minimumAmount, "minimum amount is required");
-    } else {
-      require(getOperatorAmount(layer2) >= minimumAmount, "OperatorCollateral is insufficient.");
-    }
-
-    _tot.mint(layer2, amount);
-    _coinages[layer2].mint(account, amount);
-
-    // if (_powerton != address(0)) IPowerTON(_powerton).onDeposit(layer2, account, amount);
-    return true;
-  }
-
-  function onWithdraw(address layer2, address account, uint256 amount)
-    external
-    onlyDepositManager
-    checkCoinage(layer2)
-    returns (bool)
-  {
-    require(_coinages[layer2].balanceOf(account) >= amount, "SeigManager: insufficiant balance to unstake");
-
-    if (_isOperator(layer2, account)) {
-      uint256 newAmount = _coinages[layer2].balanceOf(account) - amount;
-      require(newAmount >= minimumAmount, "minimum amount is required");
-    }
-
-    // burn {v + ⍺} {tot} tokens to the layer2 contract,
-    uint256 totAmount = _additionalTotBurnAmount(layer2, account, amount);
-    _tot.burnFrom(layer2, amount+totAmount);
-
-    // burn {v} {coinages[layer2]} tokens to the account
-    _coinages[layer2].burnFrom(account, amount);
-
-    // if (_powerton != address(0)) IPowerTON(_powerton).onWithdraw(layer2, account, amount);
-    emit UnstakeLog(amount, totAmount);
-
-    return true;
-  }
-
-
   //////////////////////////////
   // checkCoinage
   //////////////////////////////
+
+  function updateSeigniorageOperator()
+    public
+    checkCoinage(msg.sender)
+    returns (bool)
+  {
+    return _updateSeigniorage(true);
+  }
+
+  function updateSeigniorage()
+    public
+    checkCoinage(msg.sender)
+    returns (bool)
+  {
+    return _updateSeigniorage(false);
+  }
 
   /**
    * @dev Callback for a new commit
    */
   /// on v1_3, it is changed with reflecting L2 sequencer.
-  function updateSeigniorage()
-    public
-    checkCoinage(msg.sender)
+  function _updateSeigniorage(bool _isSenderOperator)
+    internal
     returns (bool)
   {
     // short circuit if paused
@@ -467,7 +208,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
 
-    _increaseTot();
+    require(_increaseTot(_isSenderOperator), '_increaseTot false');
 
     _lastCommitBlock[msg.sender] = block.number;
 
@@ -537,120 +278,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return _coinages[layer2].balanceOf(operator);
   }
 
-  /**
-   * @dev Callback for a token transfer
-   */
-  /// on v1_3, deleted onTransfer. It will be serviced by v1_2 logic.
-  function onTransfer(address sender, address recipient, uint256 amount) external returns (bool) {
-    require(msg.sender == address(_ton) || msg.sender == address(_wton),
-      "SeigManager: only TON or WTON can call onTransfer");
-
-    if (!paused) {
-      _increaseTot();
-    }
-
-    return true;
-  }
-
-
-  function additionalTotBurnAmount(address layer2, address account, uint256 amount)
-    external
-    view
-    returns (uint256 totAmount)
-  {
-    return _additionalTotBurnAmount(layer2, account, amount);
-  }
-
-
-  function uncommittedStakeOf(address layer2, address account) public view returns (uint256) {
-    RefactorCoinageSnapshotI coinage = RefactorCoinageSnapshotI(_coinages[layer2]);
-
-    uint256 prevFactor = coinage.factor();
-    uint256 prevTotalSupply = coinage.totalSupply();
-    uint256 nextTotalSupply = _tot.balanceOf(layer2);
-    uint256 newFactor = _calcNewFactor(prevTotalSupply, nextTotalSupply, prevFactor);
-
-    uint256 uncommittedBalance = rmul(
-      rdiv(coinage.balanceOf(account), prevFactor),
-      newFactor
-    );
-
-    return (uncommittedBalance - _coinages[layer2].balanceOf(account));
-  }
-
-  function uncommittedStakeOf(address account) external view returns (uint256 amount) {
-
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-      amount += uncommittedStakeOf(layer2, account);
-    }
-  }
-
-  function unallocatedSeigniorage() external view returns (uint256 amount) {
-    amount = stakeOfTotal() - stakeOfAllLayers();
-  }
-
-  function unallocatedSeigniorageAt(uint256 snapshotId) external view returns (uint256 amount) {
-    amount = stakeOfTotalAt(snapshotId) - stakeOfAllLayersAt(snapshotId);
-  }
-
-  function stakeOf(address layer2, address account) public view returns (uint256) {
-    return _coinages[layer2].balanceOf(account);
-  }
-
-  function stakeOfAt(address layer2, address account, uint256 snapshotId) external view returns (uint256 amount) {
-    return _coinages[layer2].balanceOfAt(account, snapshotId);
-  }
-
-  function stakeOf(address account) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    // amount = 0;
-    for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-      amount += _coinages[layer2].balanceOf(account);
-    }
-  }
-
-  function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    // amount = 0;
-    for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-      amount += _coinages[layer2].balanceOfAt(account, snapshotId);
-    }
-  }
-
-  function stakeOfTotal() public view returns (uint256 amount) {
-    amount = _tot.totalSupply();
-  }
-
-  function stakeOfTotalAt(uint256 snapshotId) public view returns (uint256 amount) {
-    amount = _tot.totalSupplyAt(snapshotId);
-  }
-
-  function stakeOfAllLayers() public view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-      amount += _coinages[layer2].totalSupply();
-    }
-  }
-
-  function stakeOfAllLayersAt(uint256 snapshotId) public view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
-    for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
-      amount += _coinages[layer2].totalSupplyAt(snapshotId);
-    }
-  }
-
-  function onSnapshot() external returns (uint256 snapshotId) {
-    snapshotId = lastSnapshotId;
-    emit OnSnapshot(snapshotId);
-    lastSnapshotId++;
-  }
-
   function updateSeigniorageLayer(address layer2) external returns (bool){
     require(ICandidate(layer2).updateSeigniorage(), "fail updateSeigniorage");
     return true;
@@ -664,31 +291,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
   // Internal functions
   //////////////////////////////
-
-  // return ⍺, where ⍺ = (tot.balanceOf(layer2) - coinages[layer2].totalSupply()) * (amount / coinages[layer2].totalSupply())
-  function _additionalTotBurnAmount(address layer2, address account, uint256 amount)
-    internal
-    view
-    returns (uint256 totAmount)
-  {
-    uint256 coinageTotalSupply = _coinages[layer2].totalSupply();
-    uint256 totBalalnce = _tot.balanceOf(layer2);
-
-    // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
-    //       note that coinageTotalSupply and totBalalnce are RAY values.
-    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
-      return 0;
-    }
-
-    return rdiv(
-      rmul(
-        totBalalnce - coinageTotalSupply,
-        amount
-      ),
-      coinageTotalSupply
-    );
-  }
-
 
   function _calcSeigsDistribution(
     address layer2,
@@ -775,12 +377,15 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return span - (_unpausedBlock - _pausedBlock);
   }
 
-  function _isOperator(address layer2, address operator) internal view returns (bool) {
-    return operator == Layer2I(layer2).operator();
+  function allowIssuanceLayer2Seigs(address layer2) public returns (address systemConfig, bool allowed) {
+      systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
+      if(systemConfig == address(0)) allowed = false;
+      else {
+        if(ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) != 0) allowed = true;
+      }
   }
 
-
-  function _increaseTot() internal returns (bool) {
+  function _increaseTot(bool _isSenderOperator) internal returns (bool result) {
 
     // short circuit if already seigniorage is given.
     if (block.number <= _lastSeigBlock) {
@@ -817,16 +422,29 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     );
 
     // L2 sequencers
-    uint256 l2Seigs = 0;
-    if (l2Registry != address(0)){
-      try  IL2Registry(l2Registry).totalTvl() returns (uint256 totalTvl) {
-        if (totalTvl != 0) l2Seigs = rdiv(rmul(maxSeig, totalTvl),tos);
-      } catch (bytes memory ) { }
+    uint256 l2TotalSeigs = 0;
+    uint256 curLayer2Tvl = 0;
+    address systemConfig;
+    bool layer2Allowed;
+    Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+
+    if (layer2StartBlock < block.number){
+      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
+      if (layer2Allowed) {
+        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+        // 다음에 반영되게 수정
+        // totalLayer2TVL = totalLayer2TVL - oldLayer2Info.layer2Tvl + curLayer2Tvl;
+        if (totalLayer2TVL != 0) {
+          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL*1e9),tos);
+        }
+      }
     }
+    console.log('totalLayer2TVL %s', totalLayer2TVL);
+    console.log('l2TotalSeigs %s', l2TotalSeigs);
 
     // pseig
     // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2Seigs, relativeSeigRate);
+    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
 
     nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
     _lastSeigBlock = block.number;
@@ -840,20 +458,19 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       nextTotalSupply
     );
 
-    uint256 unstakedSeig = maxSeig - stakedSeig - l2Seigs;
+    uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
     uint256 powertonSeig;
     uint256 daoSeig;
     uint256 relativeSeig;
 
-    if (layer2Manager != address(0) && l2Seigs != 0) {
-      IWTON(_wton).mint(layer2Manager, l2Seigs);
-      ILayer2Manager(layer2Manager).updateSeigniorage(l2Seigs);
+    if (layer2Manager != address(0) && l2TotalSeigs != 0) {
+      IWTON(_wton).mint(layer2Manager, l2TotalSeigs);
     }
 
     if (address(_powerton) != address(0)) {
       powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
       IWTON(_wton).mint(address(_powerton), powertonSeig);
-      IPowerTON(_powerton).updateSeigniorage(powertonSeig);
+      // IPowerTON(_powerton).updateSeigniorage(powertonSeig);
     }
 
     if (dao != address(0)) {
@@ -866,60 +483,44 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       accRelativeSeig = accRelativeSeig + relativeSeig;
     }
 
+    console.logBool(layer2Allowed);
+
+    // L2 seigs settlement
+    uint256 layer2Seigs = 0;
+    if (layer2Allowed){
+      if (l2RewardPerUint == 0) l2RewardPerUint = 1 ether;
+      l2RewardPerUint += l2TotalSeigs / totalLayer2TVL;
+
+      Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+
+      if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
+        layer2Seigs += unSettledReward(msg.sender);
+        ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
+        newLayer2Info.initialDebt = curLayer2Tvl * l2RewardPerUint ;
+
+      } else if(newLayer2Info.initialDebt == 0) {
+        newLayer2Info.initialDebt = curLayer2Tvl * l2RewardPerUint ;
+      }
+
+      newLayer2Info.layer2Tvl = curLayer2Tvl;
+      totalLayer2TVL = totalLayer2TVL - oldLayer2Info.layer2Tvl + curLayer2Tvl;
+
+    }
+
+
     // on v1_3. changed event
     // emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
-    emit SeigGiven2(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig, l2Seigs);
+    emit SeigGiven2(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig, l2TotalSeigs, layer2Seigs);
 
-    return true;
+    result = true;
   }
 
-  //////////////////////////////
-  // Storage getters
-  //////////////////////////////
-
-  // solium-disable
-  function registry() external view returns (address) { return address(_registry); }
-  function depositManager() external view returns (address) { return address(_depositManager); }
-  function ton() external view returns (address) { return address(_ton); }
-  function wton() external view returns (address) { return address(_wton); }
-  function powerton() external view returns (address) { return address(_powerton); }
-  function tot() external view returns (address) { return address(_tot); }
-  function coinages(address layer2) external view returns (address) { return address(_coinages[layer2]); }
-  function commissionRates(address layer2) external view returns (uint256) { return _commissionRates[layer2]; }
-  function isCommissionRateNegative(address layer2) external view returns (bool) { return _isCommissionRateNegative[layer2]; }
-
-  function lastCommitBlock(address layer2) external view returns (uint256) { return _lastCommitBlock[layer2]; }
-  function seigPerBlock() external view returns (uint256) { return _seigPerBlock; }
-  function lastSeigBlock() external view returns (uint256) { return _lastSeigBlock; }
-  function pausedBlock() external view returns (uint256) { return _pausedBlock; }
-  function unpausedBlock() external view returns (uint256) { return _unpausedBlock; }
-
-  function DEFAULT_FACTOR() external pure returns (uint256) { return _DEFAULT_FACTOR; }
-  // solium-enable
-
-
-  //====
-  function renounceMinter(address target) public onlyOwner {
-    MinterRoleRenounceTarget(target).renounceMinter();
-  }
-
-  function renouncePauser(address target) public onlyOwner {
-    PauserRoleRenounceTarget(target).renouncePauser();
-  }
-
-  function renounceOwnership(address target) public onlyOwner {
-    OwnableTarget(target).renounceOwnership();
-  }
-
-  function transferOwnership(address target, address newOwner) public onlyOwner {
-    OwnableTarget(target).transferOwnership(newOwner);
+  function unSettledReward(address layer2) public  view returns (uint256 amount) {
+    Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
+    if (layer2Info.layer2Tvl != 0) amount = layer2Info.layer2Tvl * l2RewardPerUint - layer2Info.initialDebt;
   }
 
   //=====
-
-  function progressSnapshotId() public view returns (uint256) {
-      return lastSnapshotId;
-  }
 
   // https://github.com/tokamak-network/TON-total-supply
   // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
@@ -933,20 +534,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       + (_seigPerBlock * (block.number - startBlock))
       - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
       - burntAmount ;
-  }
-
-  // Actual wton and ton issuance amount
-  // function totalSupplyOfTon_1() public view returns (uint256 tos) {
-  //   tos = (
-  //     (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(1))) * (10 ** 9)
-  //     ) + ITON(_wton).totalSupply();
-  // }
-
-  /// Unstaked wton was not reflected, this function was used as totalSupplyOfTon before 18732908 block.
-  function totalSupplyOfTon_2() public view returns (uint256 tos) {
-    tos = (
-        (ITON(_ton).totalSupply() - ITON(_ton).balanceOf(_wton) - ITON(_ton).balanceOf(address(0)) - ITON(_ton).balanceOf(address(1))
-      ) * (10 ** 9)) + (_tot.totalSupply());
   }
 
 }

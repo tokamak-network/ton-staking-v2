@@ -5,6 +5,10 @@ pragma solidity ^0.8.4;
 /// @notice
 contract OperatorStorage {
     address public systemConfig;
+    address public layer2Manager;
+    address public depositManager;
+    address public ton;
+    address public wton;
 
     address public manager;
     mapping(address => bool) public operator;

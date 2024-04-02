@@ -12,9 +12,6 @@ import "hardhat/console.sol";
 
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
-    function updateSeigniorage(uint256 amount) external ;
-    function claimSeigniorage(address systemConfig) external returns(uint256);
-    function claimableSeigniorage(address systemConfig) external view returns (uint256 amount);
 }
 
 interface OnApprove {
@@ -146,19 +143,19 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     /* ========== onlySeigManger  ========== */
 
-    function updateSeigniorage(uint256 amount) external onlySeigManger {
-        IL2Register(l2Register).updateSeigniorage(amount);
+    function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger {
+        IERC20(wton).safeTransfer(operatorOfSystemConfig[systemConfig], amount);
     }
 
      /* ========== onlyOperator  ========== */
 
     function claimSeigniorage(address systemConfig) external onlyOperator(systemConfig) {
-        uint256 amount = IL2Register(l2Register).claimSeigniorage(systemConfig);
-        IERC20(wton).transfer(operatorOfSystemConfig[systemConfig], amount);
+        // uint256 amount = IL2Register(l2Register).claimSeigniorage(systemConfig);
+        // IERC20(wton).transfer(operatorOfSystemConfig[systemConfig], amount);
     }
 
     function claimableSeigniorage(address systemConfig) public view returns (uint256 amount) {
-        return IL2Register(l2Register).claimableSeigniorage(systemConfig);
+        // return IL2Register(l2Register).claimableSeigniorage(systemConfig);
     }
 
 
@@ -201,7 +198,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         require(bytes(memo).length != 0, "check memo");
 
         require(_checkLayer2(systemConfig), "unValidated Layer2");
-
+        console.log('registerLayer2Candidate --');
         _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
     }
 
@@ -242,9 +239,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         uint256 _wtonAmount,
         string memory _memo
     ) internal nonZeroAddress(_systemConfig) {
+        console.log('_registerLayer2Candidate --');
 
         // create operator
         address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
+        console.log('operator : %s', operator);
+
         require(operator != address(0) && systemConfigOfOperator[operator] == address(0), "wrong operator");
 
         operatorOfSystemConfig[_systemConfig] = operator;
@@ -252,6 +252,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         // 실제로 Layer2Candidate를 생성
         address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
+        console.log('layer2Candidate : %s', layer2Candidate);
+
+        layer2CandidateOfOperator[operator] = layer2Candidate;
 
         _approve(depositManager, _wtonAmount);
 
@@ -259,6 +262,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         require(
             IIDepositManager(depositManager).deposit(layer2Candidate, operator, _wtonAmount),
             "Fail Stake");
+        console.log(' deposit _wtonAmount : %s', _wtonAmount);
 
         // 시뇨리지 발급 가능상태로 설정
         issueStatusLayer2[_systemConfig] = 1;
@@ -285,7 +289,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         bool flagTon,
         string calldata memo
     ) internal {
-
+        console.log('_transferDepositAmount --');
         if (flagTon) { // with ton
 
             require(amount >= minimumInitialDepositAmount, "unsatisfied initialDepositAmount");

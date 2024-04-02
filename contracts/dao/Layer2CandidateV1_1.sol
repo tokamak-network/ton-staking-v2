@@ -12,11 +12,16 @@ import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
 interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
     function systemConfig() external view returns (address) ;
+    function manager() external view returns (address) ;
+    function claimByLayer2Candidate(uint256 amount) external;
+    function depositByLayer2Canddiate(uint256 amount) external ;
 }
 
 interface IISeigManager {
-  function updateSeigniorage() external returns (bool);
-  function coinages(address layer2) external view returns (address);
+    function updateSeigniorage() external returns (bool);
+    function updateSeigniorageOperator() external returns (bool);
+    function coinages(address layer2) external view returns (address);
+    function onSettleReward(address layer2) external returns (bool);
 }
 
 /// @title Managing a Layer2Candidate
@@ -37,7 +42,9 @@ contract Layer2CandidateV1_1 is
         address _operateContract,
         string memory _memo,
         address _committee,
-        address _seigManager
+        address _seigManager,
+        address _ton,
+        address _wton
     ) external onlyOwner  {
         require(
             _operateContract != address(0)
@@ -53,6 +60,8 @@ contract Layer2CandidateV1_1 is
         committee = _committee;
         seigManager = _seigManager;
         memo = _memo;
+        ton = _ton;
+        wton = _wton;
 
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
         emit Initialized(_operateContract, _memo, _committee, _seigManager);
@@ -114,8 +123,29 @@ contract Layer2CandidateV1_1 is
     /// @notice Call updateSeigniorage on SeigManager
     /// @return Whether or not the execution succeeded
     function updateSeigniorage() external returns (bool) {
-        require(seigManager != address(0), "Candidate: SeigManager is zero");
-        require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        return updateSeigniorage(2);
+    }
+
+    /// @param afterCall 0: none, 1: claim, 2: staking
+    function updateSeigniorage(uint afterCall) public returns (bool) {
+
+        if (IOperateContract(candidate).isOperator(msg.sender)) {
+            require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");
+            if (afterCall != 0) {
+                uint256 amount = IERC20(wton).balanceOf(candidate);
+                if (amount!= 0) {
+                    if (afterCall == 2) {
+                        IOperateContract(candidate).depositByLayer2Canddiate(amount);
+                    } else if (afterCall == 1) {
+                        IOperateContract(candidate).claimByLayer2Candidate(amount);
+                    }
+                }
+            }
+        } else {
+            require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        }
+
+
         return true;
     }
 

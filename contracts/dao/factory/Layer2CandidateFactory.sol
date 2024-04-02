@@ -13,7 +13,9 @@ interface ILayer2Candidate {
         address _candidate,
         string memory _memo,
         address _committee,
-        address _seigManager
+        address _seigManager,
+        address _ton,
+        address _wton
     ) external;
 }
 
@@ -74,18 +76,32 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         public onlyDAOCommittee
         returns (address)
     {
+        console.log('Layer2CandidateFactory deploy');
+        console.log('Layer2CandidateProxy layer2CandidateImp %s', layer2CandidateImp );
+        console.log('Layer2CandidateProxy _sender %s', _sender );
+        console.log('Layer2CandidateProxy _name %s', _name );
+        console.log('Layer2CandidateProxy _committee %s', _committee );
+        console.log('Layer2CandidateProxy _seigManager %s', _seigManager );
+
         require(daoCommittee == _committee, "different daoCommittee");
         Layer2CandidateProxy c = new Layer2CandidateProxy();
+        console.log('Layer2CandidateProxy c  %s', address(c) );
+
         require(address(c) != address(0), "zero Layer2CandidateProxy");
 
         c.upgradeTo(layer2CandidateImp);
+        console.log('Layer2CandidateProxy upgradeTo %s', layer2CandidateImp );
+
 
         ILayer2Candidate(address(c)).initialize(
             _sender,
             _name,
             _committee,
-            _seigManager
+            _seigManager,
+            ton,
+            wton
         );
+        console.log('Layer2CandidateProxy initialize ' );
 
         c.transferAdmin(_committee);
 

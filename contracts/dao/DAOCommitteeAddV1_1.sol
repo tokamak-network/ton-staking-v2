@@ -17,7 +17,7 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./StorageStateCommitteeV3.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 interface ILayer2CandidateFactory {
    function deploy(
@@ -33,6 +33,7 @@ interface ILayer2CandidateFactory {
 interface ITarget {
     function setLayer2Manager(address layer2Manager_) external;
     function setL2Registry(address l2Registry_) external;
+    function setLayer2StartBlock(uint256 startBlock_) external;
 }
 
 contract DAOCommitteeAddV1_1 is
@@ -75,8 +76,13 @@ contract DAOCommitteeAddV1_1 is
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
         ITarget(target).setLayer2Manager(layer2Manager_);
     }
+
     function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
         ITarget(target).setL2Registry(l2Registry_);
+    }
+
+    function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
+        ITarget(target).setLayer2StartBlock(startBlock_);
     }
     //////////////////////////////////////////////////////////////////////
     //
@@ -86,6 +92,8 @@ contract DAOCommitteeAddV1_1 is
         onlyLayer2Manager
         returns (address)
     {
+        console.log('createLayer2Candidate _operatorAddress : %s', _operatorAddress);
+
         // Candidate
         address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
             _operatorAddress,
@@ -93,6 +101,7 @@ contract DAOCommitteeAddV1_1 is
             address(this),
             address(seigManager)
         );
+        console.log('candidateContract : %s', candidateContract);
 
         require(
             candidateContract != address(0),

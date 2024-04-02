@@ -13,6 +13,7 @@ interface IOperator {
     function transferManager(address addr) external;
     function addOperator(address addr) external;
     function upgradeTo(address _logic) external;
+    function setAddresses(address _layer2Manager, address _depositManager, address _ton, address _wton) external;
 }
 
 interface ISystemConfig {
@@ -22,9 +23,13 @@ interface ISystemConfig {
 contract OperatorFactory is Ownable {
 
     address public operatorImplementation;
+    address public depositManager;
+    address public ton;
+    address public wton;
 
     event ChangedOperatorImplementaion(address newOperatorImplementation);
     event CreatedOperator(address systemConfig, address owner, address manager, address operator);
+    event SetAddresses(address depositManager, address ton, address wton);
 
     constructor(address _operatorImplementation) {
         operatorImplementation = _operatorImplementation;
@@ -38,6 +43,18 @@ contract OperatorFactory is Ownable {
         emit ChangedOperatorImplementaion(newOperatorImplementation);
     }
 
+    function setAddresses(address _depositManager, address _ton, address _wton) external onlyOwner {
+        require(depositManager == address(0), "already set");
+        require(_depositManager != address(0), "zero _depositManager");
+        require(_ton != address(0), "zero _ton");
+        require(_wton != address(0), "zero _wton");
+
+        depositManager = _depositManager;
+        ton = _ton;
+        wton = _wton;
+
+        emit SetAddresses(_depositManager, _ton, _wton);
+    }
     /**
      * create an account, and return its address.
      * returns the address even if the account is already deployed.
@@ -62,6 +79,7 @@ contract OperatorFactory is Ownable {
         IOperator(operator).transferManager(sManager);
         IOperator(operator).addOperator(sManager);
         IOperator(operator).transferOwnership(owner());
+        IOperator(operator).setAddresses(msg.sender, depositManager, ton, wton);
 
         emit CreatedOperator(systemConfig, sOwner, sManager, operator);
     }
