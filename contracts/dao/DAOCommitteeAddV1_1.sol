@@ -34,6 +34,11 @@ interface ITarget {
     function setLayer2Manager(address layer2Manager_) external;
     function setL2Registry(address l2Registry_) external;
     function setLayer2StartBlock(uint256 startBlock_) external;
+    function setImplementation2(address newImplementation, uint256 index, bool alive) external;
+    function setSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) external;
 }
 
 contract DAOCommitteeAddV1_1 is
@@ -84,6 +89,17 @@ contract DAOCommitteeAddV1_1 is
     function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
         ITarget(target).setLayer2StartBlock(startBlock_);
     }
+
+    function setTargetSetImplementation2(
+        address target, address newImplementation, uint256 index, bool alive) external onlyOwner {
+        ITarget(target).setImplementation2(newImplementation, index, alive);
+    }
+
+    function setTargetSetSelectorImplementations2(
+        address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
+        ITarget(target).setSelectorImplementations2(_selectors, _imp);
+    }
+
     //////////////////////////////////////////////////////////////////////
     //
 
@@ -92,8 +108,6 @@ contract DAOCommitteeAddV1_1 is
         onlyLayer2Manager
         returns (address)
     {
-        console.log('createLayer2Candidate _operatorAddress : %s', _operatorAddress);
-
         // Candidate
         address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
             _operatorAddress,
@@ -101,7 +115,6 @@ contract DAOCommitteeAddV1_1 is
             address(this),
             address(seigManager)
         );
-        console.log('candidateContract : %s', candidateContract);
 
         require(
             candidateContract != address(0),

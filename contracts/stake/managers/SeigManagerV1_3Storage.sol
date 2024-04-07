@@ -18,7 +18,7 @@ contract SeigManagerV1_3Storage  {
     /// layer2 seigs start block
     uint256 public layer2StartBlock;
 
-    uint256 public l2RewardPerUint;
+    uint256 public l2RewardPerUint;  // ray unit .1e27
 
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;

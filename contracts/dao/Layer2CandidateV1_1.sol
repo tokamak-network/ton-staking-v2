@@ -127,7 +127,7 @@ contract Layer2CandidateV1_1 is
     }
 
     /// @param afterCall 0: none, 1: claim, 2: staking
-    function updateSeigniorage(uint afterCall) public returns (bool) {
+    function updateSeigniorage(uint256 afterCall) public returns (bool) {
 
         if (IOperateContract(candidate).isOperator(msg.sender)) {
             require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");

@@ -65,8 +65,8 @@ interface IL2Registry {
 
 interface ILayer2Manager {
   function updateSeigniorage(address systemConfig, uint256 amount) external ;
-  function systemConfigOfOperator(address operator) external returns (address);
-  function issueStatusLayer2(address systemConfig) external returns (uint8);
+  function systemConfigOfOperator(address operator) external view returns (address);
+  function issueStatusLayer2(address systemConfig) external view returns (uint8);
 }
 
 /**
@@ -278,7 +278,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return _coinages[layer2].balanceOf(operator);
   }
 
-  function updateSeigniorageLayer(address layer2) external returns (bool){
+  function updateSeigniorageLayer(address layer2) external returns (bool) {
+
     require(ICandidate(layer2).updateSeigniorage(), "fail updateSeigniorage");
     return true;
   }
@@ -377,8 +378,12 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return span - (_unpausedBlock - _pausedBlock);
   }
 
-  function allowIssuanceLayer2Seigs(address layer2) public returns (address systemConfig, bool allowed) {
+  function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
       systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
+
+      console.log("allowIssuanceLayer2Seigs layer2 %s", layer2);
+      console.log("allowIssuanceLayer2Seigs systemConfig %s", systemConfig);
+
       if(systemConfig == address(0)) allowed = false;
       else {
         if(ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) != 0) allowed = true;
@@ -407,7 +412,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // maximum seigniorages
     uint256 maxSeig = _calcNumSeigBlocks() * _seigPerBlock;
-
+    console.log('maxSeig %s', maxSeig);
     // total supply of (W)TON , https://github.com/tokamak-network/TON-total-supply
     uint256 tos = totalSupplyOfTon();
 
@@ -427,26 +432,28 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     address systemConfig;
     bool layer2Allowed;
     Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+    if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
-    if (layer2StartBlock < block.number){
+    console.log("totalLayer2TVL %s", totalLayer2TVL);
+    if(layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number) {
       (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
+
+      console.logBool(layer2Allowed);
+
       if (layer2Allowed) {
         curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
-        // 다음에 반영되게 수정
-        // totalLayer2TVL = totalLayer2TVL - oldLayer2Info.layer2Tvl + curLayer2Tvl;
         if (totalLayer2TVL != 0) {
-          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL*1e9),tos);
+          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
         }
       }
     }
-    console.log('totalLayer2TVL %s', totalLayer2TVL);
-    console.log('l2TotalSeigs %s', l2TotalSeigs);
+    console.log("l2TotalSeigs %s", l2TotalSeigs);
 
     // pseig
     // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
     uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
 
-    nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+    nextTotalSupply =  prevTotalSupply + stakedSeig + totalPseig;
     _lastSeigBlock = block.number;
 
     _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
@@ -463,8 +470,10 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 daoSeig;
     uint256 relativeSeig;
 
-    if (layer2Manager != address(0) && l2TotalSeigs != 0) {
+    if (l2TotalSeigs != 0) {
       IWTON(_wton).mint(layer2Manager, l2TotalSeigs);
+      uint256 bal = ITON(_wton).balanceOf(layer2Manager);
+      console.log('_wton balance layer2Manager : %s', bal);
     }
 
     if (address(_powerton) != address(0)) {
@@ -483,30 +492,42 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       accRelativeSeig = accRelativeSeig + relativeSeig;
     }
 
-    console.logBool(layer2Allowed);
-
     // L2 seigs settlement
     uint256 layer2Seigs = 0;
-    if (layer2Allowed){
-      if (l2RewardPerUint == 0) l2RewardPerUint = 1 ether;
-      l2RewardPerUint += l2TotalSeigs / totalLayer2TVL;
+
+    if (layer2Allowed) {
+      console.log('l2TotalSeigs %s', l2TotalSeigs);
+
+      if (l2TotalSeigs != 0) l2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
+      console.log('l2RewardPerUint %s', l2RewardPerUint);
+      console.log('_isSenderOperator');
+      console.logBool(_isSenderOperator);
 
       Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
-      if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
-        layer2Seigs += unSettledReward(msg.sender);
-        ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
-        newLayer2Info.initialDebt = curLayer2Tvl * l2RewardPerUint ;
+      if (l2RewardPerUint != 0) {
+        if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
+          layer2Seigs += unSettledReward(msg.sender);
+          console.log('layer2Seigs unSettledReward %s', layer2Seigs);
 
-      } else if(newLayer2Info.initialDebt == 0) {
-        newLayer2Info.initialDebt = curLayer2Tvl * l2RewardPerUint ;
+          if (layer2Seigs != 0)  ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
+
+          newLayer2Info.initialDebt = l2RewardPerUint * curLayer2Tvl / 1e18;
+        } else if(_lastCommitBlock[msg.sender] == 0) {
+          newLayer2Info.initialDebt = l2RewardPerUint * curLayer2Tvl / 1e18;
+        }
       }
 
       newLayer2Info.layer2Tvl = curLayer2Tvl;
-      totalLayer2TVL = totalLayer2TVL - oldLayer2Info.layer2Tvl + curLayer2Tvl;
+      totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
 
+      console.log('oldLayer2Info.layer2Tvl %s', oldLayer2Info.layer2Tvl);
+      console.log('curLayer2Tvl %s', curLayer2Tvl);
+      console.log('totalLayer2TVL %s', totalLayer2TVL);
     }
 
+    console.log('l2TotalSeigs %s', l2TotalSeigs);
+    console.log('layer2Seigs %s', layer2Seigs);
 
     // on v1_3. changed event
     // emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
@@ -517,7 +538,87 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function unSettledReward(address layer2) public  view returns (uint256 amount) {
     Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
-    if (layer2Info.layer2Tvl != 0) amount = layer2Info.layer2Tvl * l2RewardPerUint - layer2Info.initialDebt;
+    console.log('unSettledReward l2RewardPerUint %s', l2RewardPerUint);
+    console.log('unSettledReward layer2Tvl %s', layer2Info.layer2Tvl);
+    console.log('unSettledReward initialDebt %s', layer2Info.initialDebt);
+
+    if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * layer2Info.layer2Tvl  / 1e18 - layer2Info.initialDebt;
+  }
+
+  function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
+    public view
+    returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
+  {
+
+    // short circuit if already seigniorage is given.
+    if (blockNumber <= _lastSeigBlock || RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
+      return (
+        0,0,0,0,0,0,0,0
+      );
+    }
+
+    uint256 span = blockNumber - _lastSeigBlock;
+    if (_unpausedBlock > _lastSeigBlock) span = span - (_unpausedBlock - _pausedBlock);
+
+    uint256 prevTotalSupply = _tot.totalSupply();
+    uint256 nextTotalSupply;
+    maxSeig = span * _seigPerBlock;
+    uint256 tos = _totalSupplyOfTon(blockNumber);
+    stakedSeig = rdiv(
+      rmul(
+        maxSeig,
+        _tot.totalSupply()
+      ),
+      tos
+    );
+
+    // L2 sequencers
+    uint256 curLayer2Tvl = 0;
+    address systemConfig;
+    bool layer2Allowed;
+
+    uint256 tempLayer2StartBlock = layer2StartBlock;
+    Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
+    if (layer2StartBlock == 0) tempLayer2StartBlock = blockNumber - 1;
+
+    if(layer2Manager != address(0) && tempLayer2StartBlock != 1 && tempLayer2StartBlock < blockNumber) {
+      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
+
+      if (layer2Allowed) {
+        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+        if (totalLayer2TVL != 0) {
+          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
+        }
+      }
+    }
+    console.log("l2TotalSeigs %s", l2TotalSeigs);
+
+    // pseig
+    // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
+    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
+
+    nextTotalSupply =  prevTotalSupply + stakedSeig + totalPseig;
+
+    unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+
+    if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+    if (dao != address(0))  daoSeig = rmul(unstakedSeig, daoSeigRate);
+
+    if (relativeSeigRate != 0) {
+      relativeSeig = totalPseig;
+    }
+
+    // L2 seigs settlement
+    uint256 tempL2RewardPerUint = l2RewardPerUint;
+    if (layer2Allowed) {
+      if (l2TotalSeigs != 0) tempL2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
+      if (tempL2RewardPerUint != 0
+           && (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl)
+           && (oldLayer2Info.layer2Tvl != 0)){
+
+            layer2Seigs += tempL2RewardPerUint * oldLayer2Info.layer2Tvl  / 1e18 - oldLayer2Info.initialDebt;
+        }
+      }
   }
 
   //=====
@@ -532,6 +633,18 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     tos = initial
       + (_seigPerBlock * (block.number - startBlock))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
+      - burntAmount ;
+  }
+
+  function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
+
+    uint256 startBlock = (seigStartBlock == 0? SEIG_START_MAINNET: seigStartBlock);
+    uint256 initial = (initialTotalSupply == 0? INITIAL_TOTAL_SUPPLY_MAINNET: initialTotalSupply);
+    uint256 burntAmount =(burntAmountAtDAO == 0? BURNT_AMOUNT_MAINNET: burntAmountAtDAO);
+
+    tos = initial
+      + (_seigPerBlock * (blockNumber - startBlock))
       - (ITON(_ton).balanceOf(address(1)) * (10 ** 9))
       - burntAmount ;
   }
