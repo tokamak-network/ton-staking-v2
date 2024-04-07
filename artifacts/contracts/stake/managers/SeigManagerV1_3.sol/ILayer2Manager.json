@@ -4,13 +4,19 @@
   "sourceName": "contracts/stake/managers/SeigManagerV1_3.sol",
   "abi": [
     {
-      "inputs": [],
-      "name": "totalTvl",
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "systemConfig",
+          "type": "address"
+        }
+      ],
+      "name": "issueStatusLayer2",
       "outputs": [
         {
-          "internalType": "uint256",
+          "internalType": "uint8",
           "name": "",
-          "type": "uint256"
+          "type": "uint8"
         }
       ],
       "stateMutability": "view",
@@ -18,6 +24,30 @@
     },
     {
       "inputs": [
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        }
+      ],
+      "name": "systemConfigOfOperator",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "systemConfig",
+          "type": "address"
+        },
         {
           "internalType": "uint256",
           "name": "amount",

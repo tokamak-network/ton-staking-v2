@@ -24,6 +24,16 @@
           "internalType": "address",
           "name": "_seigManager",
           "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_ton",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_wton",
+          "type": "address"
         }
       ],
       "name": "initialize",

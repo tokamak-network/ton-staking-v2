@@ -1,13 +1,13 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "ILayer2Manager",
-  "sourceName": "contracts/layer2/L2RegistryV1_1.sol",
+  "contractName": "IDepositManager",
+  "sourceName": "contracts/layer2/OperatorV1_1.sol",
   "abi": [
     {
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "layer2",
           "type": "address"
         },
         {
@@ -16,7 +16,7 @@
           "type": "uint256"
         }
       ],
-      "name": "decreaseTvl",
+      "name": "deposit",
       "outputs": [
         {
           "internalType": "bool",
@@ -31,16 +31,16 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "layer2",
           "type": "address"
         },
         {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
+          "internalType": "bool",
+          "name": "receiveTON",
+          "type": "bool"
         }
       ],
-      "name": "increaseTvl",
+      "name": "processRequest",
       "outputs": [
         {
           "internalType": "bool",
@@ -55,7 +55,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "layer2",
           "type": "address"
         },
         {
@@ -64,7 +64,7 @@
           "type": "uint256"
         }
       ],
-      "name": "resetTvl",
+      "name": "requestWithdrawal",
       "outputs": [
         {
           "internalType": "bool",

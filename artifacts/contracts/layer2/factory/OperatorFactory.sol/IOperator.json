@@ -20,6 +20,34 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "_layer2Manager",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_depositManager",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_ton",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_wton",
+          "type": "address"
+        }
+      ],
+      "name": "setAddresses",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "_systemConfig",
           "type": "address"
         }
