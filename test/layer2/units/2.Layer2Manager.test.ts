@@ -1686,32 +1686,7 @@ describe('Layer2Manager', () => {
             let layer2 = layer2Info_1.layer2
             let account = pastDepositor
 
-            // let globalWithdrawalDelay = await depositManager.globalWithdrawalDelay();
-            // console.log('globalWithdrawalDelay', globalWithdrawalDelay)
-
-            // let getDelayBlocks = await depositManager.getDelayBlocks(layer2);
-            // console.log('getDelayBlocks', getDelayBlocks)
-
-            // let numRequests = await depositManager.numRequests(layer2, account.address);
-            // console.log('numRequests', numRequests)
-
             let numPendingRequests = await depositManager.numPendingRequests(layer2, account.address);
-            // console.log('numPendingRequests', numPendingRequests)
-
-            // let index = await depositManager.withdrawalRequestIndex(layer2, account.address);
-            // console.log('index', index)
-
-            // let withdrawalRequest = await depositManager.withdrawalRequest(layer2, account.address, numRequests.sub(ethers.constants.One));
-            // console.log('withdrawalRequest', withdrawalRequest)
-
-
-            // let block = await ethers.provider.getBlock('latest');
-            // console.log('block', block.number)
-
-            // await depositManager.connect(account)["processRequests(address,bool)"](
-            //     layer2,
-            //     true
-            // )
 
             await expect(
                     depositManager.connect(account)["processRequests(address,uint256,bool)"](
@@ -1727,12 +1702,10 @@ describe('Layer2Manager', () => {
             let layer2 = layer2Info_1.layer2
             let account = pastDepositor
             const beforeBalance = await wtonContract.balanceOf(account.address)
-            // console.log('beforeBalance', beforeBalance)
 
             let pendingUnstakedA = await depositManager.pendingUnstaked(layer2, account.address)
             let pendingUnstakedLayer2A = await depositManager.pendingUnstakedLayer2(layer2)
             let pendingUnstakedAccountA = await depositManager.pendingUnstakedAccount(account.address)
-            // console.log('pendingUnstakedA', pendingUnstakedA)
 
             let accUnstakedA = await depositManager.accUnstaked(layer2, account.address)
             let accUnstakedLayer2A = await depositManager.accUnstakedLayer2(layer2)
@@ -1744,12 +1717,8 @@ describe('Layer2Manager', () => {
             await mine(globalWithdrawalDelay, { interval: 12 });
 
             let index = await depositManager.withdrawalRequestIndex(layer2, account.address);
-            // console.log('index', index)
             let numRequests = await depositManager.numRequests(layer2, account.address);
-            // console.log('numRequests', numRequests)
-
             let numPendingRequests = await depositManager.numPendingRequests(layer2, account.address);
-            // console.log('numPendingRequests', numPendingRequests)
 
             let withdrawalAmount = ethers.constants.Zero
             let i = 0
@@ -1803,14 +1772,10 @@ describe('Layer2Manager', () => {
             let account = tonHave
             let tonAmount = ethers.utils.parseEther("100")
 
-            // await tonContract.connect(deployer).transfer(account.address, tonAmount);
-
             const beforeBalance = await tonContract.balanceOf(account.address);
-            // console.log("beforeTONBalance :", beforeBalance);
             expect(beforeBalance).to.be.gte(tonAmount)
 
             let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-            // console.log("stakedA :", stakedA);
 
             const data = marshalString(
                 [depositManager.address, titanLayerAddress]
@@ -1830,7 +1795,6 @@ describe('Layer2Manager', () => {
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
             let stakedB = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-            // console.log("stakedB :", stakedB);
 
             expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
                 roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
@@ -1843,14 +1807,11 @@ describe('Layer2Manager', () => {
             let account = tonHave
             let tonAmount = ethers.utils.parseEther("100")
 
-            // await deployed.TON.connect(deployer).transfer(account.address, tonAmount);
-
             const beforeBalance = await tonContract.balanceOf(account.address);
-            // console.log("beforeTONBalance :", beforeBalance);
+
             expect(beforeBalance).to.be.gte(tonAmount)
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
-            // console.log("stakedA :", stakedA);
 
             const data = marshalString(
                 [depositManager.address, layer2Info_1.layer2]
@@ -1870,7 +1831,6 @@ describe('Layer2Manager', () => {
             expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
 
             let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
-            // console.log("stakedB :", stakedB);
 
             expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
                 roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
@@ -1891,9 +1851,7 @@ describe('Layer2Manager', () => {
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {
 
             let account = tonHave
-            // let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
             let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-            console.log('stakedA', stakedA)
 
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 titanLayerAddress,
