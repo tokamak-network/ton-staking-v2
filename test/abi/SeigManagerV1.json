@@ -129,19 +129,6 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "l2Registry_",
-          "type": "address"
-        }
-      ],
-      "name": "setL2Registry",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
           "name": "",
           "type": "address"
         }
