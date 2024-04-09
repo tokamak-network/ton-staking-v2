@@ -15,7 +15,7 @@ import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
 import { SeigManagerV1_3Storage } from "./SeigManagerV1_3Storage.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
@@ -381,9 +381,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
       systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
 
-      console.log("allowIssuanceLayer2Seigs layer2 %s", layer2);
-      console.log("allowIssuanceLayer2Seigs systemConfig %s", systemConfig);
-
       if(systemConfig == address(0)) allowed = false;
       else {
         if(ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) != 0) allowed = true;
@@ -412,7 +409,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // maximum seigniorages
     uint256 maxSeig = _calcNumSeigBlocks() * _seigPerBlock;
-    console.log('maxSeig %s', maxSeig);
     // total supply of (W)TON , https://github.com/tokamak-network/TON-total-supply
     uint256 tos = totalSupplyOfTon();
 
@@ -434,11 +430,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
     if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
-    console.log("totalLayer2TVL %s", totalLayer2TVL);
     if(layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number) {
       (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-
-      console.logBool(layer2Allowed);
 
       if (layer2Allowed) {
         curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
@@ -447,8 +440,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
         }
       }
     }
-    console.log("l2TotalSeigs %s", l2TotalSeigs);
-
     // pseig
     // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
     uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
@@ -472,8 +463,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     if (l2TotalSeigs != 0) {
       IWTON(_wton).mint(layer2Manager, l2TotalSeigs);
-      uint256 bal = ITON(_wton).balanceOf(layer2Manager);
-      console.log('_wton balance layer2Manager : %s', bal);
     }
 
     if (address(_powerton) != address(0)) {
@@ -496,19 +485,14 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 layer2Seigs = 0;
 
     if (layer2Allowed) {
-      console.log('l2TotalSeigs %s', l2TotalSeigs);
 
       if (l2TotalSeigs != 0) l2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
-      console.log('l2RewardPerUint %s', l2RewardPerUint);
-      console.log('_isSenderOperator');
-      console.logBool(_isSenderOperator);
 
       Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
       if (l2RewardPerUint != 0) {
         if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
           layer2Seigs += unSettledReward(msg.sender);
-          console.log('layer2Seigs unSettledReward %s', layer2Seigs);
 
           if (layer2Seigs != 0)  ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
 
@@ -521,13 +505,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       newLayer2Info.layer2Tvl = curLayer2Tvl;
       totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
 
-      console.log('oldLayer2Info.layer2Tvl %s', oldLayer2Info.layer2Tvl);
-      console.log('curLayer2Tvl %s', curLayer2Tvl);
-      console.log('totalLayer2TVL %s', totalLayer2TVL);
     }
-
-    console.log('l2TotalSeigs %s', l2TotalSeigs);
-    console.log('layer2Seigs %s', layer2Seigs);
 
     // on v1_3. changed event
     // emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
@@ -538,9 +516,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function unSettledReward(address layer2) public  view returns (uint256 amount) {
     Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
-    console.log('unSettledReward l2RewardPerUint %s', l2RewardPerUint);
-    console.log('unSettledReward layer2Tvl %s', layer2Info.layer2Tvl);
-    console.log('unSettledReward initialDebt %s', layer2Info.initialDebt);
 
     if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * layer2Info.layer2Tvl  / 1e18 - layer2Info.initialDebt;
   }
@@ -591,7 +566,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
         }
       }
     }
-    console.log("l2TotalSeigs %s", l2TotalSeigs);
 
     // pseig
     // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);

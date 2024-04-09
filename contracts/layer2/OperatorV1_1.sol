@@ -13,6 +13,8 @@ interface ISystemConfig {
 
 interface ILayer2Manager {
     function layer2CandidateOfOperator(address operator) external view returns (address);
+    // function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount);
+    function checkL1Bridge(address _systemConfig) external view returns (bool result, address l1Bridge, address l2Ton);
 }
 
 interface IDepositManager {
@@ -130,6 +132,10 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
 
     function isOperator(address addr) public view returns (bool) {
         return operator[addr];
+    }
+
+    function checkL1Bridge() public view returns (bool result, address l1Bridge, address l2Ton) {
+        return ILayer2Manager(layer2Manager).checkL1Bridge(systemConfig);
     }
 
     /* ========== internal ========== */

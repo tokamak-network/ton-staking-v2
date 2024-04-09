@@ -220,6 +220,26 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         }
     }
 
+    function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address l2Ton) {
+
+        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
+
+        try
+            ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
+                if (l1Bridge_ != address(0)) {
+                    if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                    else if (_type == 2) l2Ton = address(bytes20(bytes('0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000')));
+                    if (l2Ton != address(0)) {
+                        // if (_type == 1 || _type == 2) {
+                            result = true;
+                            l1Bridge = l1Bridge_;
+                        // }
+                    }
+                }
+            } catch (bytes memory ) { }
+    }
+
+
     /* ========== internal ========== */
 
     function _registerLayer2Candidate(
