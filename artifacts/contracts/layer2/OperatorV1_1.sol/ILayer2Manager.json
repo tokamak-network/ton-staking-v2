@@ -7,6 +7,35 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "_systemConfig",
+          "type": "address"
+        }
+      ],
+      "name": "checkL1Bridge",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "result",
+          "type": "bool"
+        },
+        {
+          "internalType": "address",
+          "name": "l1Bridge",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "l2Ton",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "operator",
           "type": "address"
         }

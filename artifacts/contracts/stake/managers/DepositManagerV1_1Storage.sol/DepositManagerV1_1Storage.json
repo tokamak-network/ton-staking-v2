@@ -1,0 +1,37 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "DepositManagerV1_1Storage",
+  "sourceName": "contracts/stake/managers/DepositManagerV1_1Storage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "minDepositGasLimit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60808060405234610015576085908161001b8239f35b600080fdfe6080806040526004361015601257600080fd5b600090813560e01c908163cc48b947146052575063dd283f9714603457600080fd5b34604f5780600319360112604f576020600154604051908152f35b80fd5b9050346074578160031936011260745790546001600160a01b03168152602090f35b5080fdfea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080806040526004361015601257600080fd5b600090813560e01c908163cc48b947146052575063dd283f9714603457600080fd5b34604f5780600319360112604f576020600154604051908152f35b80fd5b9050346074578160031936011260745790546001600160a01b03168152602090f35b5080fdfea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
