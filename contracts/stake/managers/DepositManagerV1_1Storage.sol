@@ -5,5 +5,5 @@ pragma solidity ^0.8.4;
 /// @notice
 contract DepositManagerV1_1Storage   {
     address public ton;
-    uint256 public minDepositGasLimit;
+    uint32 public minDepositGasLimit;
 }
