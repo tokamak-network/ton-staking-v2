@@ -22,6 +22,7 @@ const config: HardhatUserConfig = {
       goerli: '0x446ece59ef429B774Ff116432bbB123f1915D9E3',
       hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      sepolia: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7'
     },
     DepositManager: {
       default: 4,
@@ -29,6 +30,7 @@ const config: HardhatUserConfig = {
       goerli: '0x0ad659558851f6ba8a8094614303F56d42f8f39A',
       hardhat: '0x0b58ca72b12F01FC05F8f252e226f3E2089BD00E',
       local: '0x0b58ca72b12F01FC05F8f252e226f3E2089BD00E',
+      sepolia: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F'
     },
     L2Registry: {
       default: 5,
@@ -36,6 +38,7 @@ const config: HardhatUserConfig = {
       goerli: '0x6817e1c04748eae68EBFF13216280Df1ec15ba86',
       hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      sepolia: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581'
     },
     CoinageFactory: {
       default: 6,
@@ -43,6 +46,7 @@ const config: HardhatUserConfig = {
       goerli: '0x09207BdB146E41dadad015aB3d835f66498b0A0c',
       hardhat: '0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43',
       local: '0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43',
+      sepolia: ''
     },
     TON: {
       default: 7,
@@ -50,6 +54,7 @@ const config: HardhatUserConfig = {
       goerli: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
       hardhat: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
       local: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
+      sepolia: ''
     },
     WTON: {
       default: 8,
@@ -57,6 +62,7 @@ const config: HardhatUserConfig = {
       goerli: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
       hardhat: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
       local: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
+      sepolia: ''
     },
     TOS: {
       default: 9,
@@ -64,6 +70,7 @@ const config: HardhatUserConfig = {
       goerli: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
       hardhat: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       local: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
+      sepolia: ''
     },
     DAOCommitteeProxy: {
       default: 10,
@@ -71,6 +78,7 @@ const config: HardhatUserConfig = {
       goerli: '0x3C5ffEe61A384B384ed38c0983429dcDb49843F6',
       hardhat: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
       local: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
+      sepolia: ''
     },
     CandidateFactory: {
       default: 11,
@@ -78,6 +86,7 @@ const config: HardhatUserConfig = {
       goerli: '0xd1c4fE0Ac211F8A41817c26D1801fd549D56E31e',
       hardhat: '0x9fc7100a16407ee24a79c834a56e6eca555a5d7c',
       local: '0x9fc7100a16407ee24a79c834a56e6eca555a5d7c',
+      sepolia: ''
     },
     DAOAgendaManager: {
       default: 12,
@@ -85,6 +94,7 @@ const config: HardhatUserConfig = {
       goerli: '0x0e1583da47cf641305eDD1e4C6dB6DD18e138a21',
       hardhat: '0xcD4421d082752f363E1687544a09d5112cD4f484',
       local: '0xcD4421d082752f363E1687544a09d5112cD4f484',
+      sepolia: ''
     },
     AutoCoinageSnapshot2: {
       default: 13,
@@ -92,6 +102,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0xcD4421d082752f363E1687544a09d5112cD4f484',
       local: '0x85Ca9f611C363065252EA9462c90743922767b55',
+      sepolia: ''
     },
     DaoCommitteeAdminAddress: {
       default: 14,
@@ -99,6 +110,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
       local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
+      sepolia: ''
     },
     powerTonAddress: {
       default: 15,
@@ -106,6 +118,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
       local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
+      sepolia: ''
     },
     daoVaultAddress: {
       default: 16,
@@ -113,6 +126,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
       local: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
+      sepolia: ''
     },
     level19Address: {
       default: 17,
@@ -120,6 +134,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x42ccf0769e87cb2952634f607df1c7d62e0bbc52',
       local: '0x42ccf0769e87cb2952634f607df1c7d62e0bbc52',
+      sepolia: ''
     },
     level19Admin: {
       default: 18,
@@ -127,6 +142,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
       local: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      sepolia: ''
     },
     tokamakAddress: {
       default: 19,
@@ -134,6 +150,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x576c7a48fcef1c70db632bb1504d9a5c0d0190d3',
       local: '0x576c7a48fcef1c70db632bb1504d9a5c0d0190d3',
+      sepolia: ''
     },
     tokamakAdmin: {
       default: 20,
@@ -141,6 +158,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0xEA8e2eC08dCf4971bdcdfFFe21439995378B44F3',
       local: '0xEA8e2eC08dCf4971bdcdfFFe21439995378B44F3',
+      sepolia: ''
     },
     powerTonAdminAddress: {
       default: 21,
@@ -148,6 +166,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
+      sepolia: ''
     },
     SeigManagerProxy: {
       default: 22,
@@ -155,6 +174,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      sepolia: ''
     },
     DepositManagerProxy: {
       default: 23,
@@ -162,6 +182,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
       local: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+      sepolia: ''
     },
     Layer2RegistryProxy: {
       default: 23,
@@ -169,6 +190,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      sepolia: ''
     },
     // tonAdminAddress: {
     //   default: 10,
@@ -182,6 +204,7 @@ const config: HardhatUserConfig = {
       goerli: '0x2878373BA3Be0Ef2a93Ba5b3F7210D76cb222e63',
       hardhat: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       local: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      sepolia: ''
     },
     l1BridgeAddress: {
       default: 23,
@@ -189,6 +212,7 @@ const config: HardhatUserConfig = {
       goerli: '0x7377F3D0F64d7a54Cf367193eb74a052ff8578FD',
       hardhat: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      sepolia: ''
     },
     l1AddressManagerAddress: {
       default: 24,
@@ -196,6 +220,7 @@ const config: HardhatUserConfig = {
       goerli: '0xEFa07e4263D511fC3a7476772e2392efFb1BDb92',
       hardhat: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
       local: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
+      sepolia: ''
     },
     l2TokenFactoryAddress: {
       default: 25,
@@ -203,6 +228,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '',
       local: '',
+      sepolia: ''
     },
     l2TonAddress: {
       default: 26,
@@ -210,6 +236,7 @@ const config: HardhatUserConfig = {
       goerli: '0xFa956eB0c4b3E692aD5a6B2f08170aDE55999ACa',
       hardhat: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
       local: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      sepolia: ''
     },
     swapProxy: {
       default: 27,
@@ -217,6 +244,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
       local: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+      sepolia: ''
     },
     DAOCommitteeOwner : {
       default: 28,
@@ -224,6 +252,7 @@ const config: HardhatUserConfig = {
       goerli: '',
       hardhat: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       local: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
+      sepolia: ''
     }
   },
   networks: {
