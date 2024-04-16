@@ -90,18 +90,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     }
 
     /* ========== onlyOperator ========== */
-    // function deposit(uint256 amount) external onlyOperator {
-    //     _deposit(ILayer2Manager(layer2Manager).layer2CandidateOfOperator(address(this)), amount);
-    // }
-
-    // function unstaking(uint256 amount) external onlyOperator {
-    //     _deposit(ILayer2Manager(layer2Manager).layer2CandidateOfOperator(address(this)), amount);
-    // }
-
-    // function claim(address token, address to, uint256 amount) external onlyOperator {
-    //     require(amount != 0, "zero");
-    //     _claim(token, to, amount);
-    // }
 
     /*
     execute a transaction (called directly from owner, or by entryPoint)
@@ -158,13 +146,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         IDepositManager(depositManager).deposit(layer2, amount);
     }
 
-    // function _unstaking(address layer2, uint256 amount) internal {
-    //     IDepositManager(depositManager).requestWithdrawal(layer2, amount);
-    // }
-
-    // function _withdraw(address layer2, bool receiveTON) internal {
-    //     IDepositManager(depositManager).processRequest(layer2, receiveTON);
-    // }
 
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value : value}(data);

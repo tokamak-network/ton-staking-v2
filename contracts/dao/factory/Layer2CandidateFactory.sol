@@ -6,7 +6,7 @@ import { Layer2CandidateProxy } from "../Layer2CandidateProxy.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./Layer2CandidateFactoryStorage.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 interface ILayer2Candidate {
     function initialize(
