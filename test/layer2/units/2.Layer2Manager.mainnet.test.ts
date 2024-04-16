@@ -1496,8 +1496,8 @@ describe('Layer2Manager', () => {
 
             let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_2.layer2, account.address)
 
-            expect(roundDown(stakedB.add(ethers.constants.Two),1)).to.be.eq(
-                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 1)
+            expect(roundDown(stakedB.add(ethers.constants.Two),2)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 2)
             )
         })
 
