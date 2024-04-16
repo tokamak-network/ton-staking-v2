@@ -76,7 +76,7 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount));
     require(IWTON(_wton).swapToTONAndTransfer(address(this), amount));
 
-    if (minDepositGasLimit == 0) minDepositGasLimit = 210000;
+    // if (minDepositGasLimit == 0) minDepositGasLimit = 210000;
     if (ton == address(0)) ton = IIERC20(_wton).ton();
 
     uint256 tonAmount = amount/1e9;

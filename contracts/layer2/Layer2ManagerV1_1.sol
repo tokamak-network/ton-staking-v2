@@ -155,6 +155,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /// @param spender  OnApprove function contract address
     /// @param amount   Approved amount
     /// @param data     Data used in OnApprove contract
+    /// @return bool    true
     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool) {
         require(msg.sender == ton || msg.sender == wton, "sender is not ton nor wton");
         require(spender == address(this), "wrong spender parameter");
@@ -174,7 +175,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         return true;
     }
 
-
+    /// @notice Register the Layer2Candidate
+    /// @param systemConfig     systemConfig's address
+    /// @param amount           transfered amount
+    /// @param flagTon          if true, amount is ton, otherwise it it wton
+    /// @param memo             layer's name
     function registerLayer2Candidate(
         address systemConfig,
         uint256 amount,
