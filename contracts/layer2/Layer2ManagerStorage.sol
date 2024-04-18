@@ -15,7 +15,7 @@ contract Layer2ManagerStorage  {
     address public seigManager;
     address public swapProxy;
 
-    uint256 public minimumInitialDepositAmount;
+    uint256 public minimumInitialDepositAmount;   /// ton
 
     /// issueStatus for giving seigniorage
     /// systemConfig - stateIssue ( 0: none , 1: registered, 2: paused )
