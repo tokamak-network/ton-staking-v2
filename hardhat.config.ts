@@ -3,6 +3,8 @@ import "@nomicfoundation/hardhat-toolbox";
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import "@nomicfoundation/hardhat-chai-matchers";
+// import "hardhat-deploy/src/type-extensions";
+// import "@nomiclabs/hardhat-ethers";
 
 import "hardhat-gas-reporter";
 import dotenv from "dotenv" ;
@@ -253,6 +255,118 @@ const config: HardhatUserConfig = {
       hardhat: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       local: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       sepolia: ''
+    },
+    titanL1StandardBridge : {
+      default: 29,
+      mainnet: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      goerli: '',
+      hardhat: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      sepolia: '0x1F032B938125f9bE411801fb127785430E7b3971'
+    },
+    titanL1CrossDomainMessenger : {
+      default: 30,
+      mainnet: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      goerli: '',
+      hardhat: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      local: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      sepolia: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A'
+    },
+    titanL1ERC721Bridge: {
+      default: 31,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '0x0000000000000000000000000000000000000000',
+      local: '0x0000000000000000000000000000000000000000',
+      sepolia: '0x0000000000000000000000000000000000000000'
+    },
+    titanL2OutputOracle: {
+      default: 32,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '0x0000000000000000000000000000000000000000',
+      local: '0x0000000000000000000000000000000000000000',
+      sepolia: '0x0000000000000000000000000000000000000000'
+    },
+    titanOptimismPortal: {
+      default: 33,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '0x0000000000000000000000000000000000000000',
+      local: '0x0000000000000000000000000000000000000000',
+      sepolia: '0x0000000000000000000000000000000000000000'
+    },
+    titanOptimismMintableERC20Factory: {
+      default: 34,
+      mainnet: '0x4200000000000000000000000000000000000012',
+      goerli: '',
+      hardhat: '0x4200000000000000000000000000000000000012',
+      local: '0x4200000000000000000000000000000000000012',
+      sepolia: '0x4200000000000000000000000000000000000012'
+    },
+    thanosL1StandardBridge : {
+      default: 35,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '',
+      local: '',
+      sepolia: '0x5D2Ed95c0230Bd53E336f12fA9123847768B2B3E'
+    },
+    thanosL1CrossDomainMessenger : {
+      default: 36,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '',
+      local: '',
+      sepolia: '0x8ca593C92446104B4DA968786735dbd503886ed7'
+    },
+    thanosL1ERC721Bridge: {
+      default: 37,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '',
+      local: '',
+      sepolia: '0x29677290236F7950B96a30383D76AD363C08f51A'
+    },
+    thanosL2OutputOracle: {
+      default: 38,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '',
+      local: '',
+      sepolia: '0xfa565a84075091044FC891e3f73E26A014A4fd8c'
+    },
+    thanosOptimismPortal: {
+      default: 39,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '',
+      hardhat: '',
+      local: '',
+      sepolia: '0x54A01163474FCD8a781455f09Ff0910e7e31B772'
+    },
+    thanosOptimismMintableERC20Factory: {
+      default: 40,
+      mainnet: '0x4200000000000000000000000000000000000012',
+      goerli: '0x4200000000000000000000000000000000000012',
+      hardhat: '0x4200000000000000000000000000000000000012',
+      local: '0x4200000000000000000000000000000000000012',
+      sepolia: '0x1b624b7037C7d958Fb3fe22B12307E5295530C27'
+    },
+    thanosSystemConfig: {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0x0000000000000000000000000000000000000000',
+      local: '0x0000000000000000000000000000000000000000',
+      sepolia: '0xf8FCFDbdb7C4E734D035A5681Fd1fe08ec85e387'
+    },
+    titanL2TON: {
+      default: 42,
+      mainnet: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      goerli: '',
+      hardhat: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      local: '0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2',
+      sepolia: ''
     }
   },
   networks: {
@@ -262,9 +376,8 @@ const config: HardhatUserConfig = {
         // blockNumber: 18811511
         // blockNumber:18229970
       },
-
       // allowUnlimitedContractSize: false,
-      // deploy: ['deploy-migration']
+      deploy: ['deploy-layer2']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,

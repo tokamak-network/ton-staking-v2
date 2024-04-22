@@ -1,7 +1,7 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { ethers } from 'hardhat'
-
+import ethers from "@nomicfoundation/hardhat-ethers";
+import "hardhat-deploy/src/type-extensions";
 import { DepositManagerForMigration } from "../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 
 import { DepositManager } from "../typechain-types/contracts/stake/managers/DepositManager.sol"

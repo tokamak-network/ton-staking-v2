@@ -19,7 +19,6 @@ contract LegacySystemConfig is Ownable {
 
     Addresses public addresses;
     address public l2Ton;
-    uint64 public gasLimit;
     string public name;
 
     address public l2Registry;
@@ -40,10 +39,6 @@ contract LegacySystemConfig is Ownable {
         addresses = _addresses;
         l2Ton = _l2Ton;
         l2Registry = _l2Registry;
-    }
-
-    function setGasLimit(uint64 _gasLimit) external onlyOwner {
-        gasLimit = _gasLimit;
     }
 
     /* ========== onlyL1Bridge ========== */
