@@ -78,9 +78,9 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         _registerSystemConfig(_systemConfig, _type);
     }
 
-    /* ========== onlyOperator ========== */
+    /* ========== onlyRegistrant ========== */
 
-    function changeType(address _systemConfig, uint8 _type)  external  onlyOperator {
+    function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
         require(systemConfigType[_systemConfig] != 0, "unregistered");
         require(systemConfigType[_systemConfig] != _type, "same type");
         systemConfigType[_systemConfig] = _type;
@@ -88,7 +88,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit ChangedType(_systemConfig, _type);
     }
 
-    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyOperator {
+    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
         _registerSystemConfig(_systemConfig, _type);
     }
 

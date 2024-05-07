@@ -18,7 +18,7 @@ contract ProxyL2Registry is ProxyStorage, AuthControlL2Registry, IProxyEvent, IP
     constructor () {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setRoleAdmin(MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
-        _setRoleAdmin(OPERATOR_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(REGISTRANT_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
 

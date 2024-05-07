@@ -2,13 +2,13 @@
 pragma solidity ^0.8.4;
 
 import "./ProxyStorage.sol";
-import { AuthControlL2Registry } from "../common/AuthControlL2Registry.sol";
+import { AuthControlLayer2Manager } from "../common/AuthControlLayer2Manager.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import "../interfaces/IProxyEvent.sol";
 import "../interfaces/IProxyAction.sol";
 
-contract ProxyL2Registry is ProxyStorage, AuthControlL2Registry, IProxyEvent, IProxyAction
+contract ProxyL2Registry is ProxyStorage, AuthControlLayer2Manager, IProxyEvent, IProxyAction
 {
 
     /* ========== DEPENDENCIES ========== */

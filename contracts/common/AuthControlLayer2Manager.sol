@@ -3,9 +3,9 @@ pragma solidity ^0.8.4;
 
 import { ERC165Storage } from "@openzeppelin/contracts/utils/introspection/ERC165Storage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./AuthRoleL2Registry.sol";
+import "./AuthRoleLayer2Manager.sol";
 
-contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessControl {
+contract AuthControlLayer2Manager is AuthRoleLayer2Manager, ERC165Storage, AccessControl {
     modifier onlyOwner() {
         require(isAdmin(msg.sender), "AuthControl: Caller is not an admin");
         _;
@@ -16,8 +16,8 @@ contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessContr
         _;
     }
 
-    modifier onlyRegistrant() {
-        require(hasRole(REGISTRANT_ROLE, msg.sender), "AuthControl: Caller is not a registrant");
+    modifier onlyOperator() {
+        require(hasRole(OPERATOR_ROLE, msg.sender), "AuthControl: Caller is not an operator");
         _;
     }
 
@@ -32,8 +32,8 @@ contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessContr
         grantRole(MANAGER_ROLE, account);
     }
 
-    function addRegistrant(address account) public virtual onlyOwner {
-        grantRole(REGISTRANT_ROLE, account);
+    function addOperator(address account) public virtual onlyOwner {
+        grantRole(OPERATOR_ROLE, account);
     }
 
     /// @dev remove admin
@@ -46,8 +46,8 @@ contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessContr
         renounceRole(MANAGER_ROLE, account);
     }
 
-    function removeRegistrant(address account) public virtual onlyOwner {
-        renounceRole(REGISTRANT_ROLE, account);
+    function removeOperator(address account) public virtual onlyOwner {
+        renounceRole(OPERATOR_ROLE, account);
     }
 
     /// @dev transfer admin
@@ -72,16 +72,16 @@ contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessContr
         renounceRole(MANAGER_ROLE, msg.sender);
     }
 
-    function renounceRegistrant() public {
-        renounceRole(REGISTRANT_ROLE, msg.sender);
+    function renounceOperator() public {
+        renounceRole(OPERATOR_ROLE, msg.sender);
     }
 
     function revokeManager(address account) public onlyOwner {
         revokeRole(MANAGER_ROLE, account);
     }
 
-    function revokeRegistrant(address account) public onlyOwner {
-        revokeRole(REGISTRANT_ROLE, account);
+    function revokeOperator(address account) public onlyOwner {
+        revokeRole(OPERATOR_ROLE, account);
     }
 
     /// @dev whether admin
@@ -98,8 +98,8 @@ contract AuthControlL2Registry is AuthRoleL2Registry, ERC165Storage, AccessContr
         return hasRole(MANAGER_ROLE, account);
     }
 
-    function isRegistrant(address account) public view virtual returns (bool) {
-        return hasRole(REGISTRANT_ROLE, account);
+    function isOperator(address account) public view virtual returns (bool) {
+        return hasRole(OPERATOR_ROLE, account);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165Storage, AccessControl) returns (bool) {

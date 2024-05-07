@@ -6,8 +6,7 @@ import { BigNumber, Signer } from 'ethers'
 // import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
 import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
 import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
-
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 
 describe('L2Registry', () => {
     let deployer: Signer, manager: Signer, operator: Signer
@@ -93,13 +92,13 @@ describe('L2Registry', () => {
 
         it('addOperator can not be executed by not an admin', async () => {
             await expect(
-                l2RegistryProxy.connect(operator).addOperator(operator.address)
+                l2RegistryProxy.connect(operator).addRegistrant(operator.address)
                 ).to.be.revertedWith("AuthControl: Caller is not an admin")
         })
 
         it('addOperator can be executed by admin', async () => {
-            await (await l2RegistryProxy.connect(deployer).addOperator(operator.address)).wait()
-            expect(await l2RegistryProxy.isOperator(operator.address)).to.be.eq(true)
+            await (await l2RegistryProxy.connect(deployer).addRegistrant(operator.address)).wait()
+            expect(await l2RegistryProxy.isRegistrant(operator.address)).to.be.eq(true)
         })
     })
 
@@ -169,7 +168,7 @@ describe('L2Registry', () => {
 
     describe('# changeType', () => {
 
-        it('changeType can not be executed by not operator', async () => {
+        it('changeType can not be executed by not registrant', async () => {
 
             let type = 0;
             await expect(
@@ -177,7 +176,7 @@ describe('L2Registry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("AuthControl: Caller is not an operator")
+            ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
 
         it('cannot be changed to the same value', async () => {
@@ -213,7 +212,7 @@ describe('L2Registry', () => {
 
     describe('# registerSystemConfig', () => {
 
-        it('registerSystemConfig can not be executed by not an operator', async () => {
+        it('registerSystemConfig can not be executed by not a registrant', async () => {
 
             let type = 1;
 
@@ -222,7 +221,7 @@ describe('L2Registry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("AuthControl: Caller is not an operator")
+            ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
 
         it('registerSystemConfig : zero type is not accepted.', async () => {
