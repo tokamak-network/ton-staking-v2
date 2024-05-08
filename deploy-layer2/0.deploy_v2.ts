@@ -31,7 +31,7 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
 
-    const minimumInitialDepositAmount = hre.ethers.utils.parseEther("1000")
+    const minimumInitialDepositAmount = hre.ethers.utils.parseEther("1000.1")
 
     console.log('minimumInitialDepositAmount', minimumInitialDepositAmount )
 
