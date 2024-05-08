@@ -381,7 +381,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_sepolia}`,
-        blockNumber: 5828252
+        blockNumber: 5859537
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970
@@ -425,6 +425,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
+      deploy: ['deploy-layer2']
     },
   },
   deterministicDeployment: (network: string) => {
