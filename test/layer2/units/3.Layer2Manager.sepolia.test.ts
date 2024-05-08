@@ -8,8 +8,6 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-// import { l2ProjectLaunchFixtures, l1Fixtures } from './shared/fixtures'
-// import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
 import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
 import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
@@ -21,7 +19,7 @@ import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/
 import { Layer2CandidateFactory } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
 
 import { Layer2CandidateV1_1 } from "../../../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
@@ -38,21 +36,19 @@ import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
 import DAOCandidate_Json from '../../abi/Candidate.json'
 
 const layers = [
-    {"oldLayer":"0x42ccf0769e87cb2952634f607df1c7d62e0bbc52","newLayer":"0x0F42D1C40b95DF7A1478639918fc358B4aF5298D","operator":"0xd1820b18be7f6429f1f44104e4e15d16fb199a43","name":"level"},
-    {"oldLayer":"0x39a13a796a3cd9f480c28259230d2ef0a7026033","newLayer":"0xf3B17FDB808c7d0Df9ACd24dA34700ce069007DF","operator":"0xea8e2ec08dcf4971bdcdfffe21439995378b44f3","name":"tokamak1"},
-    {"oldLayer":"0x41fb4bad6fba9e9b6e45f3f96ba3ad7ec2ff5b3c","newLayer":"0x44e3605d0ed58FD125E9C47D1bf25a4406c13b57","operator":"0x566b98a715ef8f60a93a208717d9182310ac3867","name":"DXM Corp"},
-    {"oldLayer":"0xbc8896ebb2e3939b1849298ef8da59e09946cf66","newLayer":"0x2B67D8D4E61b68744885E243EfAF988f1Fc66E2D","operator":"0x8dfcbc1df9933c8725618015d10b7b6de2d2c6f8","name":"DSRV"},
-    {"oldLayer":"0xcc38c7aaf2507da52a875e93f57451e58e8c6372","newLayer":"0x2c25A6be0e6f9017b5bf77879c487eed466F2194","operator":"0x247a0829c63c5b40dc6b21cf412f80227dc7fb76","name":"staked"},
-    {"oldLayer":"0x17602823b5fe43a65ad7122946a73b019e77fd33","newLayer":"0xbc602C1D9f3aE99dB4e9fD3662CE3D02e593ec5d","operator":"0xba33eddfd3e4e155a6da10281d9069bf44743228","name":"decipher"},
-    {"oldLayer":"0x2000fc16911fc044130c29c1aa49d3e0b101716a","newLayer":"0xC42cCb12515b52B59c02eEc303c887C8658f5854","operator":"0xfc9c403993bea576c28ac901bd62640bff8b057a","name":"DeSpread"},
-    {"oldLayer":"0x97d0a5880542ab0e699c67e7f4ff61f2e5200484","newLayer":"0xf3CF23D896Ba09d8EcdcD4655d918f71925E3FE5","operator":"0x887af02970781a088962dbaa299a1eba8d573321","name":"Danal Fintech"},
-    {"oldLayer":"0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764","newLayer":"0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2","operator":"0x42adfaae7db56b294225ddcfebef48b337b34b23","name":"Hammer DAO"},
-    {"oldLayer":"0xb9d336596ea2662488641c4ac87960bfdcb94c6e","newLayer":"0x36101b31e74c5E8f9a9cec378407Bbb776287761","operator":"0xcc2f386adca481a00d614d5aa77a30984f264a07","name":"Talken"},
+    {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
+    {"oldLayer":"","newLayer":"0xabd15c021942ca54abd944c91705fe70fea13f0d","operator":"0x757de9c340c556b56f62efae859da5e08baae7a2","name":"member_DAO"},
 ]
 
-let pastAddr = "0x3bFda92Fa3bC0AB080Cac3775147B6318b1C5115"
-let wtonhaveAddr = "0x735985022e5EF7BeFA272986FdFB7dE6aC675ed8"
-let tonHaveAddr = "0x7897ccD146b97639c0Dd99A17383e0b11681996E"
+let pastAddr = "0xD4335A175c36c0922F6A368b83f9F6671bf07606"
+let wtonhaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+let tonHaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+
+const daoOwnerAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+let tonMinterAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+let tonMinter
+
+// let wtonhaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 
 function roundDown(val:BigNumber, decimals:number) {
     return ethers.utils.formatUnits(val, decimals).split(".")[0]
@@ -97,8 +93,6 @@ describe('Layer2Manager', () => {
     let pastDepositor:Signer, wtonHave:Signer, tonHave:Signer
     let layer2Info_1 : any;
     let layer2Info_2 : any;
-
-    const daoOwnerAddress = "0xb4983da083a5118c903910db4f5a480b1d9f3687"
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();
@@ -155,8 +149,8 @@ describe('Layer2Manager', () => {
         seigManager = new ethers.Contract(SeigManager,  SeigManager_Json.abi, deployer)
         seigManagerProxy = new ethers.Contract(SeigManager,  SeigManagerProxy_Json.abi, deployer)
         powerTon = powerTonAddress
-        // tonContract.connect(daoAdmin).mint(addr1, utils.parseEther("2000"))
-        // wtonContract.connect(daoAdmin).mint(addr1, utils.parseEther("2000"))
+        // tonContract.connect(tonMinter).mint(addr1, utils.parseEther("2000"))
+        // wtonContract.connect(tonMinter).mint(addr1, utils.parseEther("2000"))
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             pastAddr,
@@ -166,8 +160,6 @@ describe('Layer2Manager', () => {
             "0x10000000000000000000000000",
         ]);
         pastDepositor = await hre.ethers.getSigner(pastAddr);
-
-        let wtonhaveAddr = "0x735985022e5EF7BeFA272986FdFB7dE6aC675ed8"
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             wtonhaveAddr,
@@ -184,6 +176,15 @@ describe('Layer2Manager', () => {
 
         tonHave = await hre.ethers.getSigner(tonHaveAddr);
 
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            tonMinterAddress,
+        ]);
+        await hre.network.provider.send("hardhat_setBalance", [
+            tonMinterAddress,
+            "0x10000000000000000000000000",
+        ]);
+        tonMinter = await hre.ethers.getSigner(tonMinterAddress);
 
     })
 
@@ -487,13 +488,21 @@ describe('Layer2Manager', () => {
             const index = 1;
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
 
-            await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
-                seigManager.address,
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
+            //     seigManager.address,
+            //     seigManagerV1_3.address,
+            //     index, true)).wait();
+
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
+            //     seigManager.address,
+            //     functionBytecodes,
+            //     seigManagerV1_3.address)).wait()
+
+            await (await seigManagerProxy.connect(daoOwner).setImplementation2(
                 seigManagerV1_3.address,
                 index, true)).wait();
 
-            await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
-                seigManager.address,
+            await (await seigManagerProxy.connect(daoOwner).setSelectorImplementations2(
                 functionBytecodes,
                 seigManagerV1_3.address)).wait()
 
@@ -529,13 +538,21 @@ describe('Layer2Manager', () => {
             const index = 1;
             expect(await depositManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
 
-            await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
-                depositManager.address,
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
+            //     depositManager.address,
+            //     depositManagerV1_1.address,
+            //     index, true)).wait();
+
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
+            //     depositManager.address,
+            //     functionBytecodes,
+            //     depositManagerV1_1.address)).wait()
+
+            await (await depositManagerProxy.connect(daoOwner).setImplementation2(
                 depositManagerV1_1.address,
                 index, true)).wait();
 
-            await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
-                depositManager.address,
+            await (await depositManagerProxy.connect(daoOwner).setSelectorImplementations2(
                 functionBytecodes,
                 depositManagerV1_1.address)).wait()
 
@@ -556,11 +573,15 @@ describe('Layer2Manager', () => {
         })
 
         it('setTargetSetLayer2Manager to layer2Manager', async () => {
-            await (await daoV2Contract.connect(daoOwner).setTargetSetLayer2Manager(seigManager.address, layer2Manager.address)).wait()
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetLayer2Manager(seigManager.address, layer2Manager.address)).wait()
+
+            await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
         })
 
         it('setTargetSetL2Registry to l2Register', async () => {
-            await (await daoV2Contract.connect(daoOwner).setTargetSetL2Registry(seigManager.address, l2Registry.address)).wait()
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetL2Registry(seigManager.address, l2Registry.address)).wait()
+
+            await (await seigManager.connect(daoOwner).setL2Registry(l2Registry.address)).wait()
         })
     })
 
@@ -613,7 +634,7 @@ describe('Layer2Manager', () => {
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
+            await (await tonContract.connect(tonMinter).mint(addr1.address, amount))
             let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
             if(allowance.lt(amount)){
                 await tonContract.connect(addr1).approve(layer2Manager.address, amount);
@@ -653,7 +674,7 @@ describe('Layer2Manager', () => {
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
+            await (await tonContract.connect(tonMinter).mint(addr1.address, amount))
             let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
             if(allowance.lt(amount)){
                 await tonContract.connect(addr1).approve(layer2Manager.address, amount);
@@ -674,7 +695,7 @@ describe('Layer2Manager', () => {
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
+            await (await tonContract.connect(tonMinter).mint(addr1.address, amount))
             let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
             if(allowance.lt(amount)){
                 await tonContract.connect(addr1).approve(layer2Manager.address, amount);
@@ -726,7 +747,8 @@ describe('Layer2Manager', () => {
     describe('# SeigManagerV1_3', () => {
         it('SeigManagerV1_3 : setLayer2StartBlock', async () => {
             let block1 = await ethers.provider.getBlock('latest');
-            await (await daoV2Contract.connect(daoOwner).setTargetLayer2StartBlock(seigManager.address, block1.number + 1))
+            // await (await daoV2Contract.connect(daoOwner).setTargetLayer2StartBlock(seigManager.address, block1.number + 1))
+            await (await seigManager.connect(daoOwner).setLayer2StartBlock(block1.number + 1))
         });
     });
 
@@ -740,7 +762,7 @@ describe('Layer2Manager', () => {
 
             let account = addr1
             let amount = ethers.utils.parseEther("2000")
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
+            await (await tonContract.connect(tonMinter).mint(addr1.address, amount))
 
             const beforeBalance = await tonContract.balanceOf(account.address);
             expect(beforeBalance).to.be.gte(amount)
@@ -779,7 +801,7 @@ describe('Layer2Manager', () => {
             let account = addr2
 
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-            await (await wtonContract.connect(daoAdmin).mint(account.address, wtonAmount))
+            await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
 
             const beforeBalance = await wtonContract.balanceOf(account.address);
             expect(beforeBalance).to.be.gte(wtonAmount)
@@ -809,7 +831,7 @@ describe('Layer2Manager', () => {
 
             let account = addr1
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-            await (await wtonContract.connect(daoAdmin).mint(account.address, wtonAmount))
+            await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
 
             const beforeSenderBalance = await wtonContract.balanceOf(account.address);
             // console.log("beforeSenderBalance :", beforeSenderBalance);

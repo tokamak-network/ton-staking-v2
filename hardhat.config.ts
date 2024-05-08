@@ -380,7 +380,9 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        url: `${process.env.ETH_NODE_URI_sepolia}`,
+        blockNumber: 5828252
+        // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970
       },
