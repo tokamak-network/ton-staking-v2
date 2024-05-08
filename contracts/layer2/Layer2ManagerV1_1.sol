@@ -83,14 +83,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _;
     }
 
-    modifier onlyOperator(address systemConfig) {
-        require(systemConfig != address(0), "zero systemConfig");
-        address operatorContract = operatorOfSystemConfig[systemConfig];
-        require(operatorContract != address(0), "zero operatorContract");
-        require(IOperator(operatorContract).isOperator(msg.sender), "sender is not an operator");
-        _;
-    }
-
     /* ========== CONSTRUCTOR ========== */
     constructor() {
     }

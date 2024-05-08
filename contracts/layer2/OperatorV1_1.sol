@@ -13,7 +13,6 @@ interface ISystemConfig {
 
 interface ILayer2Manager {
     function layer2CandidateOfOperator(address operator) external view returns (address);
-    // function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount);
     function checkL1Bridge(address _systemConfig) external view returns (bool result, address l1Bridge, address l2Ton);
 }
 

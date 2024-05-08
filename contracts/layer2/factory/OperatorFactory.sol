@@ -55,6 +55,7 @@ contract OperatorFactory is Ownable {
 
         emit SetAddresses(_depositManager, _ton, _wton);
     }
+
     /**
      * create an account, and return its address.
      * returns the address even if the account is already deployed.
@@ -95,7 +96,6 @@ contract OperatorFactory is Ownable {
             )
         );
 
-        // NOTE: cast last 20 bytes of hash to address
         return address(uint160(uint(hash)));
     }
 
