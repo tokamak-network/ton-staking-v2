@@ -8,7 +8,7 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
@@ -244,7 +244,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         uint256 _wtonAmount,
         string memory _memo
     ) internal nonZeroAddress(_systemConfig) {
-
         address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
 
         require(operator != address(0) && systemConfigOfOperator[operator] == address(0), "wrong operator");
