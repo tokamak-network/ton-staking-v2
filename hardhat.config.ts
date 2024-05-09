@@ -386,7 +386,9 @@ const config: HardhatUserConfig = {
         // npx hardhat test test/layer2/sepolia_test/0.registerLayer2Candidate.ts
         // blockNumber: 5860655,
         // npx hardhat test test/layer2/sepolia_test/1.updateSeigs.ts
-        blockNumber: 5866007,
+        // blockNumber: 5866007,
+        // npx hardhat test test/layer2/sepolia_test/2.withdrawAndDepositL2.ts
+        blockNumber: 5870490,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970

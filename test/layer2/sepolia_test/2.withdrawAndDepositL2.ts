@@ -40,6 +40,7 @@ import LegacySystemConfig_Json from '../../../artifacts/contracts/layer2/LegacyS
 import Layer2ManagerV1_1_Json from '../../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json'
 import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorFactory.sol/OperatorFactory.json'
 import Layer2ManagerProxy_Json from '../../../artifacts/contracts/layer2/Layer2ManagerProxy.sol/Layer2ManagerProxy.json'
+import DepositManagerV1_1_Json from '../../../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -130,21 +131,10 @@ describe('Layer2Manager', () => {
         seigManagerProxy = new ethers.Contract(SeigManager,  SeigManagerProxy_Json.abi, deployer)
         powerTon = powerTonAddress
 
-        // const deployedLegacySystemConfig = await deployments.get("LegacySystemConfig")
-        // const deployedLayer2ManagerProxy = await deployments.get("Layer2ManagerProxy")
-        // const deployedLayer2ManagerV1_1 = await deployments.get("Layer2ManagerV1_1")
-        // const deployedOperatorFactory = await deployments.get("OperatorFactory")
-        // legacySystemConfig = new ethers.Contract(deployedLegacySystemConfig.address, deployedLegacySystemConfig.abi,  deployer) as LegacySystemConfig
-        // layer2Manager = new ethers.Contract(deployedLayer2ManagerProxy.address, deployedLayer2ManagerV1_1.abi,  deployer) as Layer2ManagerV1_1
-        // operatorFactory = new ethers.Contract(deployedOperatorFactory.address, deployedOperatorFactory.abi,  deployer) as OperatorFactory
-
-
         legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
         operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
-        // daoContract = new ethers.Contract(deployedDAOAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
-
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             tonHaveAddr,
@@ -163,12 +153,54 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# 1.updateSeigs ', () => {
+    describe('# withdrawAndDepositL2 ', () => {
 
 
-        it('1.updateSeigs', async () => {
+        it('withdrawAndDepositL2', async () => {
 
+
+            let stakeOf = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
+            console.log("stakeOf", stakeOf)
+
+            const depositManagerV1 = new ethers.Contract(depositManager.address,  DepositManagerV1_1_Json.abi, deployer)
+            const amount = ethers.utils.parseEther("10"+"0".repeat(9))
+            const gasEstimated =  await depositManagerV1.connect(tonHave).estimateGas.withdrawAndDepositL2(
+                deployedTitanLayer,
+                amount
+            )
+            console.log("gasEstimated", gasEstimated)
+
+            const receipt = await (await depositManagerV1.connect(tonHave).withdrawAndDepositL2(
+                deployedTitanLayer,
+                amount
+            )).wait()
+            console.log("receipt", receipt)
+            let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
+            console.log("stakeOf1", stakeOf1)
+
+            // const topic = layer2Manager.interface.getEventTopic('RegisteredLayer2Candidate');
+            // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            // const deployedEvent = layer2Manager.interface.parseLog(log);
+            // console.log("deployedEvent", deployedEvent)
+
+            // expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            // expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
+            // expect(deployedEvent.args.memo).to.be.eq(name)
+            // expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
+            // expect(deployedEvent.args.layer2Candidate).to.be.not.eq(ethers.constants.AddressZero)
+
+            // titanLayerAddress = deployedEvent.args.layer2Candidate;
+            // titanOperatorContractAddress = deployedEvent.args.operator;
+            // expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(1)
+
+            // titanLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", titanLayerAddress, deployer)) as Layer2CandidateV1_1
+            // titanOperatorContract = (await ethers.getContractAt("OperatorV1_1", titanOperatorContractAddress, deployer)) as OperatorV1_1
         })
+
+    })
+
+    describe('# updateSeigniorage ', () => {
+
 
     })
 

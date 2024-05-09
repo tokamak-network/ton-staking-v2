@@ -1,7 +1,7 @@
 const { ethers } = require("hardhat");
 const { encodeFunctionSignature } = require("web3-eth-abi");
 
-async function func() {
+async function func1() {
 
     const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
     const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
@@ -24,11 +24,25 @@ async function func() {
         selector6, selector7, selector8, selector9, selector10,
         selector11, selector12, selector13, selector14, selector15 ];
 
-        console.log(functionBytecodes)
+        console.log('SeigManagerV1_3 add functions : ', functionBytecodes)
+}
+
+async function func2() {
+
+  const selector1 = encodeFunctionSignature("ton()");
+  const selector2 = encodeFunctionSignature("minDepositGasLimit()");
+  const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+  const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+
+   let functionBytecodes = [
+                selector1, selector2, selector3, selector4 ];
+
+      console.log('DepositManagerV1_1 add functions : ', functionBytecodes)
 }
 
 const main = async () => {
-  await func()
+  await func1()
+  await func2()
 }
 
 
