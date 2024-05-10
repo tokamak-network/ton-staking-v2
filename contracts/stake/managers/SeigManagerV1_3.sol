@@ -204,6 +204,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     require(block.number > _lastSeigBlock, "last seig block is not past");
 
     uint256 operatorAmount = getOperatorAmount(msg.sender);
+
     require(operatorAmount >= minimumAmount, "minimumAmount is insufficient");
 
     RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
@@ -432,14 +433,10 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     if(layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number) {
       (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-
-      if (layer2Allowed) {
-        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
-        if (totalLayer2TVL != 0) {
-          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
-        }
-      }
+      if (layer2Allowed) curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+      if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
     }
+
     // pseig
     // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
     uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
@@ -485,7 +482,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 layer2Seigs = 0;
 
     if (layer2Allowed) {
-
       if (l2TotalSeigs != 0) l2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
 
       Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
@@ -500,6 +496,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
         } else if(_lastCommitBlock[msg.sender] == 0) {
           newLayer2Info.initialDebt = l2RewardPerUint * curLayer2Tvl / 1e18;
         }
+
       }
 
       newLayer2Info.layer2Tvl = curLayer2Tvl;
