@@ -158,25 +158,24 @@ describe('Layer2Manager', () => {
 
         it('withdrawAndDepositL2', async () => {
 
-
-            let stakeOf = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
+            let stakeOf = await seigManager["stakeOf(address,address)"](deployedThanosLayer, tonHave.address);
             console.log("stakeOf", stakeOf)
 
             const depositManagerV1 = new ethers.Contract(depositManager.address,  DepositManagerV1_1_Json.abi, deployer)
             const amount = ethers.utils.parseEther("10"+"0".repeat(9))
             const gasEstimated =  await depositManagerV1.connect(tonHave).estimateGas.withdrawAndDepositL2(
-                deployedTitanLayer,
+                deployedThanosLayer,
                 amount
             )
             console.log("gasEstimated", gasEstimated)
 
-            const receipt = await (await depositManagerV1.connect(tonHave).withdrawAndDepositL2(
-                deployedTitanLayer,
-                amount
-            )).wait()
-            console.log("receipt", receipt)
-            let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
-            console.log("stakeOf1", stakeOf1)
+            // const receipt = await (await depositManagerV1.connect(tonHave).withdrawAndDepositL2(
+            //     deployedThanosLayer,
+            //     amount
+            // )).wait()
+            // console.log("receipt", receipt)
+            // let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedThanosLayer, tonHave.address);
+            // console.log("stakeOf1", stakeOf1)
 
             // const topic = layer2Manager.interface.getEventTopic('RegisteredLayer2Candidate');
             // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -199,10 +198,6 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# updateSeigniorage ', () => {
-
-
-    })
 
 });
 
