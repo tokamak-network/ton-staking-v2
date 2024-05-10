@@ -23,13 +23,15 @@ import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/Sei
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 // write down th manager address of L2Registry
-const L2Registry_Manager_Address = null
+// const L2Registry_Manager_Address = null
+// sepolia test
+const L2Registry_Manager_Address = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
 
 const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
 
-    const minimumInitialDepositAmount = hre.ethers.utils.parseEther("1000")
+    const minimumInitialDepositAmount = hre.ethers.utils.parseEther("1000.1")
 
     console.log('minimumInitialDepositAmount', minimumInitialDepositAmount )
 
@@ -70,6 +72,12 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     if (impl_l2RegistryProxy != L2RegistryDeployment.address) {
         await (await l2RegistryProxy.connect(deploySigner).upgradeTo(L2RegistryDeployment.address)).wait()
     }
+
+    const l2Registry = (await hre.ethers.getContractAt(
+        L2RegistryDeployment.abi,
+        l2RegistryProxy.address
+    )) as L2RegistryV1_1;
+
 
     //==== OperatorFactory =========================
     const OperatorV1_1Deployment = await deploy("OperatorV1_1", {
@@ -189,10 +197,21 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     }
 
     let minimumInitialDepositAmount_layer2Manager = await layer2Manager.minimumInitialDepositAmount()
-    if (minimumInitialDepositAmount_layer2Manager != minimumInitialDepositAmount) {
+
+    if (!(minimumInitialDepositAmount_layer2Manager.eq(minimumInitialDepositAmount))) {
         await (await layer2Manager.connect(deploySigner).setMinimumInitialDepositAmount(
             minimumInitialDepositAmount)
         ).wait()
+    }
+
+
+    let ton_l2Registry = await l2Registry.ton()
+    if (TON != ton_l2Registry) {
+        await (await l2Registry.connect(deploySigner).setAddresses(
+            layer2Manager.address,
+            SeigManager,
+            TON
+            )).wait()
     }
 
     //==== SeigManagerV1_3 =================================
