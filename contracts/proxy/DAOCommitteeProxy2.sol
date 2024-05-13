@@ -25,7 +25,7 @@ contract DAOCommitteeProxy2 is
         // console.log("msg.sedner :", msg.sender);
         // console.logBytes32(DEFAULT_ADMIN_ROLE);
         // console.logBool(hasRole(DEFAULT_ADMIN_ROLE, msg.sender));
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommitteeProxyV2: msg.sender is not an admin");
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommitteeProxy2: msg.sender is not an admin");
         _;
     }
 

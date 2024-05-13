@@ -7,6 +7,7 @@ import { AccessControl } from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
+import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 
 interface ITarget {
@@ -24,7 +25,13 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2{
+contract DAOCommitteeOwner is 
+    StorageStateCommittee, 
+    AccessControl, 
+    ERC165A, 
+    ProxyStorage2,
+    StorageStateCommitteeV2
+{
 
     event ActivityRewardChanged(
         uint256 newReward

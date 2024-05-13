@@ -29,7 +29,7 @@ const DAOCommitteeOwnerABI = require("../../artifacts/contracts/dao/DAOCommittee
 const DAOCommitteeDAOVaultABI = require("../../artifacts/contracts/dao/DAOCommitteeDAOVault.sol/DAOCommitteeDAOVault.json").abi;
 const DAOCommittee_V1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
-const DAOProxy2ABI = require("../../artifacts/contracts/proxy/Proxy.sol").abi;
+const DAOProxy2ABI = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
 
@@ -144,7 +144,8 @@ describe("DAO Proxy Change Test", () => {
 
     let daoCommitteeLogic;
 
-    let daoCommittee_V1 = "";
+    let daoCommittee_V1_Contract;
+    let daoCommittee_Owner_Contract;
 
     let daoCommitteeProxy2;
     let daoCommitteeProxy2Contract;
@@ -288,15 +289,6 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    describe("deploy the DAOCommitte_V1", () => {
-        it("Deploy the DAOCommitte_V1", async () => {
-            const DAOLogic = await ethers.getContractFactory("DAOCommittee_V1");
-            daoCommitteeLogic = await DAOLogic.deploy();
-
-            await daoCommitteeLogic.deployed();
-        })
-    })
-
     describe("deploy & setting the Proxy2", () => {
         it("Deploy the DAOCommitteeProxy2", async () => {
             const DAOProxy2 = await ethers.getContractFactory("DAOCommitteeProxy2");
@@ -315,13 +307,13 @@ describe("DAO Proxy Change Test", () => {
 
         it("pauseProxy check", async () => {
             let pauseProxy = await daoCommitteeProxy.pauseProxy()
-            console.log('pauseProxy', pauseProxy)
+            // console.log('pauseProxy', pauseProxy)
 
             if (pauseProxy == true) {
                 await (await daoCommitteeProxy.connect(daoCommitteeAdmin).setProxyPause(false)).wait()
             }
             pauseProxy = await daoCommitteeProxy.pauseProxy()
-            console.log('pauseProxy', pauseProxy)
+            // console.log('pauseProxy', pauseProxy)
         })
 
         it("Set DAOProxy upgradeTo DAOProxy2", async () => {
@@ -373,84 +365,174 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    // describe("Setting the DAOCommitte_V1", () => {
-    //     // it("DAO upgradeTo newLogic", async () => {
-    //     //     await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-    //     //         daoCommitteeLogic.address)).wait()
-    //     // })
+    describe("Deploy & Setting the DAOCommitte_V1 & DAOCommitteeOwner", () => {
+        it("Deploy the DAOCommitte_V1", async () => {
+            const DAOLogic = await ethers.getContractFactory("DAOCommittee_V1");
+            daoCommitteeLogic = await DAOLogic.deploy();
 
+            await daoCommitteeLogic.deployed();
+        })
 
-    //     it("Set DAOProxy2 upgradeTo DAOCommittee_V1", async () => {
-    //         await (await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).upgradeTo(
-    //             daoCommitteeLogic.address)).wait()
-    //     })
+        it("Deploy the DAOCommitteOwner", async () => {
+            const DAOOwnerContract = await ethers.getContractFactory("DAOCommitteeOwner");
+            daoCommitteeOwner = await DAOOwnerContract.deploy();
 
-    //     it("set DAO NewLogic", async () => {
-    //         daoCommittee = new ethers.Contract(
-    //             daoCommitteeProxy.address,
-    //             DAOCommittee_V1ABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+            await daoCommitteeOwner.deployed();
+        })
 
-    //     it("set DAOAgendaManager", async () => {
-    //         daoagendaManager = new ethers.Contract(
-    //             oldContractInfo.DAOAgendaManager,
-    //             DAOAgendaManagerABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        // it("DAO upgradeTo newLogic", async () => {
+        //     await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+        //         daoCommitteeLogic.address)).wait()
+        // })
 
-    //     it("set DAOVault", async () => {
-    //         daovault = new ethers.Contract(
-    //             oldContractInfo.DAOVault,
-    //             DAOVaultABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("Set DAOProxy2 upgradeTo2 DAOCommittee_V1", async () => {
+            await (await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).upgradeTo2(
+                daoCommitteeLogic.address)).wait()
+        })
 
-    //     it("Set member1CandidateContract", async () => {
-    //         member1ContractLogic = new ethers.Contract(
-    //             member1ContractAddr,
-    //             CandidateABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("DAOProxy2 deployer don't setAliveImplementation2", async () => {
+            await expect(
+                daoCommitteeProxy2Contract.connect(member2).setAliveImplementation2(
+                    daoCommitteeLogic.address, 
+                    true
+                )
+            ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
+        })
 
-    //     it("Set member2CandidateContract", async () => {
-    //         member2ContractLogic = new ethers.Contract(
-    //             member2ContractAddr,
-    //             CandidateABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("DAOProxy2 setAliveImplementation2 DAOv2CommitteeV1", async () => {
+            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setAliveImplementation2(
+                daoCommitteeLogic.address, 
+                true
+            )
+        })
 
-    //     it("Set member3CandidateContract", async () => {
-    //         member3ContractLogic = new ethers.Contract(
-    //             member3ContractAddr,
-    //             CandidateABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("DAOProxy2 deployer don't setImplementation2", async () => {
+            await expect(
+                daoCommitteeProxy2Contract.connect(member2).setImplementation2(
+                    daoCommitteeLogic.address, 
+                    0, 
+                    true
+                )
+            ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
+        })
 
-    //     it("Set newMember1CandidateContract", async () => {
-    //         newMember1ContractLogic = new ethers.Contract(
-    //             newMember1ContractAddr,
-    //             CandidateABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("DAOProxy2 setImplementation2 DAOv2CommitteeV1", async () => {
+            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setImplementation2(
+                daoCommitteeLogic.address, 
+                0, 
+                true
+            )
+        })
 
-    //     it("Set TalkenCandidateContract", async () => {
-    //         talkenContractLogic = new ethers.Contract(
-    //             talkenContractAddr,
-    //             CandidateABI,
-    //             daoCommitteeAdmin
-    //         )
-    //     })
+        it("DAOProxy2 not owner(deployer) don't setAliveImplementation2 DAOv2CommitteeV2", async () => {
+            await expect(
+                daoCommitteeProxy2Contract.connect(member2).setAliveImplementation2(
+                    daoCommitteeOwner.address, 
+                    true
+                )
+            ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
+        })
 
+        it("DAOProxy2 setAliveImplementation2 DAOv2CommitteeV2", async () => {
+            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setAliveImplementation2(
+                daoCommitteeOwner.address, 
+                true
+            )
+        })
 
-    // })
+        it("DAOProxy2 deployer don't setImplementation2 DAOv2CommitteeV2", async () => {
+            await expect(
+                daoCommitteeProxy2Contract.connect(member2).setImplementation2(
+                    daoCommitteeOwner.address, 
+                    1, 
+                    true
+                )
+            ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
+        })
+
+        it("DAOProxy2 setImplementation2 DAOv2CommitteeV2", async () => {
+            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setImplementation2(
+                daoCommitteeOwner.address, 
+                1, 
+                true
+            )
+        })
+
+        it("set DAO NewLogic", async () => {
+            daoCommittee_V1_Contract = new ethers.Contract(
+                daoCommitteeProxy.address,
+                DAOCommittee_V1ABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("set DAO OnwerLogic", async () => {
+            daoCommittee_Owner_Contract = new ethers.Contract(
+                daoCommitteeProxy.address,
+                DAOCommitteeOwnerABI,
+                daoCommitteeAdmin
+            )
+        })
+
+    })
+
+    describe("Setting another account & contract", async () => {
+        it("set DAOAgendaManager", async () => {
+            daoagendaManager = new ethers.Contract(
+                oldContractInfo.DAOAgendaManager,
+                DAOAgendaManagerABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("set DAOVault", async () => {
+            daovault = new ethers.Contract(
+                oldContractInfo.DAOVault,
+                DAOVaultABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set member1CandidateContract", async () => {
+            member1ContractLogic = new ethers.Contract(
+                member1ContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set member2CandidateContract", async () => {
+            member2ContractLogic = new ethers.Contract(
+                member2ContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set member3CandidateContract", async () => {
+            member3ContractLogic = new ethers.Contract(
+                member3ContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set newMember1CandidateContract", async () => {
+            newMember1ContractLogic = new ethers.Contract(
+                newMember1ContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set TalkenCandidateContract", async () => {
+            talkenContractLogic = new ethers.Contract(
+                talkenContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+    })
 
     // describe("Setting Test", () => {
     //     it("DAOVault TON Addr check", async () => {
