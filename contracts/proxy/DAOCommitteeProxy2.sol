@@ -8,7 +8,7 @@ import "./ProxyStorage2.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import "../interfaces/IProxyEvent.sol";
-import "../interfaces/IProxyAction.sol";
+import "../interfaces/IProxyAction2.sol";
 
 contract DAOCommitteeProxy2 is 
     StorageStateCommittee,
@@ -16,7 +16,7 @@ contract DAOCommitteeProxy2 is
     ERC165A, 
     ProxyStorage2,
     IProxyEvent, 
-    IProxyAction
+    IProxyAction2
 {
     address internal _implementation;
     bool public pauseProxy;
@@ -32,14 +32,9 @@ contract DAOCommitteeProxy2 is
 
     /* ========== onlyOwner ========== */
 
-    /// @inheritdoc IProxyAction
-    function setProxyPause(bool _pause) external override onlyOwner2 {
-        pauseProxy = _pause;
-    }
-
     /// @notice Set implementation contract
     /// @param impl New implementation contract address
-    function upgradeTo(address impl) external onlyOwner2 {
+    function upgradeTo2(address impl) external onlyOwner2 {
         require(impl != address(0), "input is zero");
         require(
             _implementation2(0) != impl,
@@ -50,7 +45,7 @@ contract DAOCommitteeProxy2 is
     }
 
 
-    /// @inheritdoc IProxyAction
+    /// @inheritdoc IProxyAction2
     function setImplementation2(
         address newImplementation,
         uint256 _index,
@@ -59,14 +54,14 @@ contract DAOCommitteeProxy2 is
         _setImplementation2(newImplementation, _index, _alive);
     }
 
-    /// @inheritdoc IProxyAction
+    /// @inheritdoc IProxyAction2
     function setAliveImplementation2(address newImplementation, bool _alive)
         public override onlyOwner2
     {
         _setAliveImplementation2(newImplementation, _alive);
     }
 
-    /// @inheritdoc IProxyAction
+    /// @inheritdoc IProxyAction2
     function setSelectorImplementations2(
         bytes4[] calldata _selectors,
         address _imp
@@ -98,13 +93,13 @@ contract DAOCommitteeProxy2 is
         return _implementation2(0);
     }
 
-    /// @inheritdoc IProxyAction
+    /// @inheritdoc IProxyAction2
     function implementation2(uint256 _index) external override view returns (address) {
         return _implementation2(_index);
     }
 
 
-    /// @inheritdoc IProxyAction
+    /// @inheritdoc IProxyAction2
     function getSelectorImplementation2(bytes4 _selector)
         public override
         view

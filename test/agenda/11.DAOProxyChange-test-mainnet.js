@@ -42,6 +42,7 @@ const CandidateABI = require("../../abi/Candidate.json").abi;
 describe("DAO Proxy Change Test", () => {
 
     let daoCommitteeAdmin;
+    let daoCommitteeAdminContract;
     let daoCommitteeProxy;
     // let daoCommitteeDAOVaultLogic;
     let daoCommitteeOwnerLogic;
@@ -108,6 +109,9 @@ describe("DAO Proxy Change Test", () => {
     let twoAddr = "0x0000000000000000000000000000000000000002";
     let tosAddr = "0x409c4D8cd5d2924b9bc5509230d16a61289c8153";
 
+    let adminBytes = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+
     // mainnet network
     const oldContractInfo = {
         TON: "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5",
@@ -142,6 +146,9 @@ describe("DAO Proxy Change Test", () => {
 
     let daoCommittee_V1 = "";
 
+    let daoCommitteeProxy2;
+    let daoCommitteeProxy2Contract;
+
     //changeMember before info
     // [
     //     '0x576C7a48fcEf1C70db632bb1504D9A5C0D0190D3',
@@ -161,6 +168,11 @@ describe("DAO Proxy Change Test", () => {
             daoAdminAddress,
         ]);
         daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            oldContractInfo.DAOCommitteeProxy,
+        ]);
+        daoCommitteeAdminContract =  await hre.ethers.getSigner(oldContractInfo.DAOCommitteeProxy);
         
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member1Addr,
@@ -243,16 +255,7 @@ describe("DAO Proxy Change Test", () => {
         ]);
     })
 
-    describe("deploy the DAOCommitte_V1", () => {
-        it("Deploy the DAOCommitte_V1", async () => {
-            const DAOLogic = await ethers.getContractFactory("DAOCommittee_V1");
-            daoCommitteeLogic = await DAOLogic.deploy();
-
-            await daoCommitteeLogic.deployed();
-        })
-    })
-
-    describe("Setting the DAOCommitte_V1", () => {
+    describe("Setting TON-related Contract", () => {
         it("Set TON", async () => {
             ton = new ethers.Contract(
                 oldContractInfo.TON,
@@ -283,6 +286,24 @@ describe("DAO Proxy Change Test", () => {
             balanceOfdaoAdminAddress = await ton.balanceOf(daoAdminAddress)
             // console.log('balanceOfdaoAdminAddress' , balanceOfdaoAdminAddress)
         })
+    })
+
+    describe("deploy the DAOCommitte_V1", () => {
+        it("Deploy the DAOCommitte_V1", async () => {
+            const DAOLogic = await ethers.getContractFactory("DAOCommittee_V1");
+            daoCommitteeLogic = await DAOLogic.deploy();
+
+            await daoCommitteeLogic.deployed();
+        })
+    })
+
+    describe("deploy & setting the Proxy2", () => {
+        it("Deploy the DAOCommitteeProxy2", async () => {
+            const DAOProxy2 = await ethers.getContractFactory("DAOCommitteeProxy2");
+            daoCommitteeProxy2 = await DAOProxy2.connect(member2).deploy();
+
+            await daoCommitteeProxy2.deployed();
+        })
 
         it("Set DAOProxy", async () => {
             daoCommitteeProxy = new ethers.Contract(
@@ -303,180 +324,236 @@ describe("DAO Proxy Change Test", () => {
             console.log('pauseProxy', pauseProxy)
         })
 
-        it("DAO upgradeTo newLogic", async () => {
+        it("Set DAOProxy upgradeTo DAOProxy2", async () => {
             await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-                daoCommitteeLogic.address)).wait()
+                daoCommitteeProxy2.address)).wait()
+
+            expect(await daoCommitteeProxy.implementation()).to.be.equal(daoCommitteeProxy2.address)
         })
 
-        it("set DAO NewLogic", async () => {
-            daoCommittee = new ethers.Contract(
-                daoCommitteeProxy.address,
-                DAOCommittee_V1ABI,
+        it("set DAOProxy2", async () => {
+            daoCommitteeProxy2Contract =  new ethers.Contract(
+                oldContractInfo.DAOCommitteeProxy,
+                DAOProxy2ABI,
                 daoCommitteeAdmin
             )
+
+            let tx = await daoCommitteeProxy2Contract.hasRole(adminBytes, daoCommitteeAdmin.address)
+            expect(tx).to.be.equal(true)
         })
 
-        it("set DAOAgendaManager", async () => {
-            daoagendaManager = new ethers.Contract(
-                oldContractInfo.DAOAgendaManager,
-                DAOAgendaManagerABI,
-                daoCommitteeAdmin
-            )
+        it("check Proxy & Proxy2 same storage", async () => {
+            let ton1 = await daoCommitteeProxy.connect(daoCommitteeAdmin).ton()
+            let ton2 = await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).ton()
+            // console.log(ton1)
+            // console.log(ton2)
+            expect(ton1).to.be.equal(ton2)
+
+            let role1 = await daoCommitteeProxy.DEFAULT_ADMIN_ROLE();
+            let role2 = await daoCommitteeProxy2Contract.DEFAULT_ADMIN_ROLE();
+            // console.log(role1)
+            // console.log(role2)
+            expect(role1).to.be.equal(role2)
         })
 
-        it("set DAOVault", async () => {
-            daovault = new ethers.Contract(
-                oldContractInfo.DAOVault,
-                DAOVaultABI,
-                daoCommitteeAdmin
-            )
+        it("DAOProxy2 check hasRole test", async () => {
+            let tx = await daoCommitteeProxy2Contract.hasRole(adminBytes, daoCommitteeAdmin.address)
+            expect(tx).to.be.equal(true)
+            let tx2 = await daoCommitteeProxy2Contract.hasRole(adminBytes, daoCommitteeAdminContract.address)
+            expect(tx2).to.be.equal(true)
         })
 
-        it("Set member1CandidateContract", async () => {
-            member1ContractLogic = new ethers.Contract(
-                member1ContractAddr,
-                CandidateABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("Set member2CandidateContract", async () => {
-            member2ContractLogic = new ethers.Contract(
-                member2ContractAddr,
-                CandidateABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("Set member3CandidateContract", async () => {
-            member3ContractLogic = new ethers.Contract(
-                member3ContractAddr,
-                CandidateABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("Set newMember1CandidateContract", async () => {
-            newMember1ContractLogic = new ethers.Contract(
-                newMember1ContractAddr,
-                CandidateABI,
-                daoCommitteeAdmin
-            )
-        })
-
-        it("Set TalkenCandidateContract", async () => {
-            talkenContractLogic = new ethers.Contract(
-                talkenContractAddr,
-                CandidateABI,
-                daoCommitteeAdmin
-            )
-        })
-
-
-    })
-
-    describe("Setting Test", () => {
-        it("DAOVault TON Addr check", async () => {
-            let tonaddr = await daovault.ton();
-            expect(tonaddr).to.be.equal(twoAddr)
-        })
-
-        it("DAOVault WTON Addr check", async () => {
-            let wtonaddr = await daovault.wton();
-            expect(wtonaddr).to.be.equal(twoAddr)
-        })
-
-        it("DAO wton addr check", async () => {
-            let wtonAddr = await daoCommittee.wton();
-            expect(wtonAddr).to.be.equal(oldContractInfo.WTON);
+        it("DAOProxy check hasRole test", async () => {
+            let tx = await daoCommitteeProxy.hasRole(adminBytes, daoCommitteeAdmin.address)
+            // console.log("admin : ",tx)
+            expect(tx).to.be.equal(true)
+            let tx2 = await daoCommitteeProxy.hasRole(adminBytes, daoCommitteeAdminContract.address)
+            // console.log("admin2 : ",tx2)
+            expect(tx2).to.be.equal(true)
         })
     })
 
-    describe("Contract Claim Test", () => {
-        it("member2 claim Contract", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
-            console.log(amount)
-            expect(amount).to.be.gt(0);
+    // describe("Setting the DAOCommitte_V1", () => {
+    //     // it("DAO upgradeTo newLogic", async () => {
+    //     //     await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
+    //     //         daoCommitteeLogic.address)).wait()
+    //     // })
 
-            await member2ContractLogic.connect(member2).claimActivityReward();
+
+    //     it("Set DAOProxy2 upgradeTo DAOCommittee_V1", async () => {
+    //         await (await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).upgradeTo(
+    //             daoCommitteeLogic.address)).wait()
+    //     })
+
+    //     it("set DAO NewLogic", async () => {
+    //         daoCommittee = new ethers.Contract(
+    //             daoCommitteeProxy.address,
+    //             DAOCommittee_V1ABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("set DAOAgendaManager", async () => {
+    //         daoagendaManager = new ethers.Contract(
+    //             oldContractInfo.DAOAgendaManager,
+    //             DAOAgendaManagerABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("set DAOVault", async () => {
+    //         daovault = new ethers.Contract(
+    //             oldContractInfo.DAOVault,
+    //             DAOVaultABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("Set member1CandidateContract", async () => {
+    //         member1ContractLogic = new ethers.Contract(
+    //             member1ContractAddr,
+    //             CandidateABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("Set member2CandidateContract", async () => {
+    //         member2ContractLogic = new ethers.Contract(
+    //             member2ContractAddr,
+    //             CandidateABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("Set member3CandidateContract", async () => {
+    //         member3ContractLogic = new ethers.Contract(
+    //             member3ContractAddr,
+    //             CandidateABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("Set newMember1CandidateContract", async () => {
+    //         newMember1ContractLogic = new ethers.Contract(
+    //             newMember1ContractAddr,
+    //             CandidateABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+    //     it("Set TalkenCandidateContract", async () => {
+    //         talkenContractLogic = new ethers.Contract(
+    //             talkenContractAddr,
+    //             CandidateABI,
+    //             daoCommitteeAdmin
+    //         )
+    //     })
+
+
+    // })
+
+    // describe("Setting Test", () => {
+    //     it("DAOVault TON Addr check", async () => {
+    //         let tonaddr = await daovault.ton();
+    //         expect(tonaddr).to.be.equal(twoAddr)
+    //     })
+
+    //     it("DAOVault WTON Addr check", async () => {
+    //         let wtonaddr = await daovault.wton();
+    //         expect(wtonaddr).to.be.equal(twoAddr)
+    //     })
+
+    //     it("DAO wton addr check", async () => {
+    //         let wtonAddr = await daoCommittee.wton();
+    //         expect(wtonAddr).to.be.equal(oldContractInfo.WTON);
+    //     })
+    // })
+
+    // describe("Contract Claim Test", () => {
+    //     it("member2 claim Contract", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+    //         console.log(amount)
+    //         expect(amount).to.be.gt(0);
+
+    //         await member2ContractLogic.connect(member2).claimActivityReward();
             
-            let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
-            console.log(amount2)
-            expect(amount2).to.be.equal(0);
-        })
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
+    //         console.log(amount2)
+    //         expect(amount2).to.be.equal(0);
+    //     })
 
-        it("member3 claim Contract", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(member3Addr)
-            console.log(amount)
-            expect(amount).to.be.gt(0);
+    //     it("member3 claim Contract", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(member3Addr)
+    //         console.log(amount)
+    //         expect(amount).to.be.gt(0);
 
-            await member3ContractLogic.connect(member3).claimActivityReward();
+    //         await member3ContractLogic.connect(member3).claimActivityReward();
             
-            let amount2 = await daoCommittee.getClaimableActivityReward(member3Addr)
-            console.log(amount2)
-            expect(amount2).to.be.equal(0);
-        })
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member3Addr)
+    //         console.log(amount2)
+    //         expect(amount2).to.be.equal(0);
+    //     })
 
-        it("newMember1 claim Contract", async () => {
-            let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
-            console.log(amount)
-            expect(amount).to.be.gt(0);
+    //     it("newMember1 claim Contract", async () => {
+    //         let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+    //         console.log(amount)
+    //         expect(amount).to.be.gt(0);
 
-            await newMember1ContractLogic.connect(newMember1).claimActivityReward();
+    //         await newMember1ContractLogic.connect(newMember1).claimActivityReward();
             
-            let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
-            console.log(amount2)
-            expect(amount2).to.be.equal(0);
-        })
-    })
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+    //         console.log(amount2)
+    //         expect(amount2).to.be.equal(0);
+    //     })
+    // })
 
-    describe("changeMember Test", () => {
-        it("talken can't changeMemeber because not deposit 1000TON", async () => {
-            let operatorDepositAmount = await daoCommittee.connect(talken).operatorAmountCheck(talkenContractAddr,talken.address);
-            console.log(operatorDepositAmount)
-            expect(operatorDepositAmount).to.be.lt(minimumAmount);
-            let tx = talkenContractLogic.connect(talken).changeMember(0)
-            await expect(tx).to.be.revertedWith("need more operatorDeposit")
-        })
+    // describe("changeMember Test", () => {
+    //     it("talken can't changeMemeber because not deposit 1000TON", async () => {
+    //         let operatorDepositAmount = await daoCommittee.connect(talken).operatorAmountCheck(talkenContractAddr,talken.address);
+    //         console.log(operatorDepositAmount)
+    //         expect(operatorDepositAmount).to.be.lt(minimumAmount);
+    //         let tx = talkenContractLogic.connect(talken).changeMember(0)
+    //         await expect(tx).to.be.revertedWith("need more operatorDeposit")
+    //     })
 
-        it("member2 retire after same getClaimAmount", async () => {
-            const block = await ethers.provider.getBlock('latest')
-            // console.log("block.timestamp :", block.timestamp);
-            let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+    //     it("member2 retire after same getClaimAmount", async () => {
+    //         const block = await ethers.provider.getBlock('latest')
+    //         // console.log("block.timestamp :", block.timestamp);
+    //         let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
 
-            await member2ContractLogic.connect(member2).retireMember();
+    //         await member2ContractLogic.connect(member2).retireMember();
 
-            const block2 = await ethers.provider.getBlock('latest')
-            // console.log("block2.timestamp :", block2.timestamp);
-            let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
+    //         const block2 = await ethers.provider.getBlock('latest')
+    //         // console.log("block2.timestamp :", block2.timestamp);
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
 
-            expect(amount2).to.be.gt(amount);
+    //         expect(amount2).to.be.gt(amount);
             
-            let blockDiff = block2.timestamp-block.timestamp
-            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
-            // console.log("activityRewardPerSecond :", activityRewardPerSecond)
-            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
-            // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
-            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
-            expect(timeAddAmount).to.be.equal(amount2);
-        })
+    //         let blockDiff = block2.timestamp-block.timestamp
+    //         let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+    //         // console.log("activityRewardPerSecond :", activityRewardPerSecond)
+    //         let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+    //         // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
+    //         let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+    //         expect(timeAddAmount).to.be.equal(amount2);
+    //     })
 
-        it("member2 can changeMember because deposit over 1000TON", async () => {
-            const block = await ethers.provider.getBlock('latest')
-            let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+    //     it("member2 can changeMember because deposit over 1000TON", async () => {
+    //         const block = await ethers.provider.getBlock('latest')
+    //         let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
             
-            await daoCommittee.connect(member2Contract).changeMember(0);
+    //         await daoCommittee.connect(member2Contract).changeMember(0);
 
-            const block2 = await ethers.provider.getBlock('latest')
-            let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+    //         const block2 = await ethers.provider.getBlock('latest')
+    //         let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
 
-            expect(amount2).to.be.gt(amount);
+    //         expect(amount2).to.be.gt(amount);
             
-            let blockDiff = block2.timestamp-block.timestamp
-            let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
-            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
-            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
-            expect(timeAddAmount).to.be.equal(amount2);
-        })
-    })
+    //         let blockDiff = block2.timestamp-block.timestamp
+    //         let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
+    //         let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+    //         let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+    //         expect(timeAddAmount).to.be.equal(amount2);
+    //     })
+    // })
 })
