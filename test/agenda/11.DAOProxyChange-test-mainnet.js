@@ -139,6 +139,8 @@ describe("DAO Proxy Change Test", () => {
         SeigManager: "0x0b55a0f463b6defb81c6063973763951712d0e5f",
     }
 
+    let SeigManagerUpper = "0x0b55a0f463b6DEFb81c6063973763951712D0E5F"
+
     let minimumAmount = ethers.utils.parseUnits("1000", 18);
 
     let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
@@ -741,13 +743,27 @@ describe("DAO Proxy Change Test", () => {
     })
 
     describe("DAOCommitteeOwner Logic test", () => {
-        it("setWTON test", async () => {
-            let beforeAddr = await daoCommittee_Owner_Contract.wton()
+        it("setSeigManager test", async () => {
+            let beforeAddr = await daoCommittee_Owner_Contract.seigManager()
             
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(talkenAddr)
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(talkenAddr)
+    
+            let afterAddr = await daoCommittee_Owner_Contract.seigManager()
+            expect(afterAddr).to.be.equal(talkenUpperAddr)
+            // expect(beforeAddr).to.be.not.equal(afterAddr)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(nowContractInfo.SeigManager)
+            afterAddr = await daoCommittee_Owner_Contract.seigManager()
+            expect(afterAddr).to.be.equal(SeigManagerUpper)
+        })
+
+        it("setWTON test", async () => {
+            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
+            
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
     
             let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(talkenUpperAddr)
+            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
             // expect(beforeAddr).to.be.not.equal(afterAddr)
         })
     })
@@ -767,94 +783,169 @@ describe("DAO Proxy Change Test", () => {
             let ownerContractWTON = await daoCommittee_Owner_Contract.wton()
             expect(v1ContractWTON).to.be.equal(ownerContractWTON)
         })
+
+        it("StorageStateCommittee Storage check", async () => {
+            let tx = await daoCommitteeProxy.ton()
+            let tx2 = await daoCommitteeProxy2Contract.ton()
+            let tx3 = await daoCommittee_V1_Contract.ton()
+            let tx4 = await daoCommittee_Owner_Contract.ton()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.daoVault()
+            tx2 = await daoCommitteeProxy2Contract.daoVault()
+            tx3 = await daoCommittee_V1_Contract.daoVault()
+            tx4 = await daoCommittee_Owner_Contract.daoVault()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.agendaManager()
+            tx2 = await daoCommitteeProxy2Contract.agendaManager()
+            tx3 = await daoCommittee_V1_Contract.agendaManager()
+            tx4 = await daoCommittee_Owner_Contract.agendaManager()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.candidateFactory()
+            tx2 = await daoCommitteeProxy2Contract.candidateFactory()
+            tx3 = await daoCommittee_V1_Contract.candidateFactory()
+            tx4 = await daoCommittee_Owner_Contract.candidateFactory()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.layer2Registry()
+            tx2 = await daoCommitteeProxy2Contract.layer2Registry()
+            tx3 = await daoCommittee_V1_Contract.layer2Registry()
+            tx4 = await daoCommittee_Owner_Contract.layer2Registry()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.seigManager()
+            tx2 = await daoCommitteeProxy2Contract.seigManager()
+            tx3 = await daoCommittee_V1_Contract.seigManager()
+            tx4 = await daoCommittee_Owner_Contract.seigManager()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.members(0)
+            tx2 = await daoCommitteeProxy2Contract.members(0)
+            tx3 = await daoCommittee_V1_Contract.members(0)
+            tx4 = await daoCommittee_Owner_Contract.members(0)
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+
+            tx = await daoCommitteeProxy.maxMember()
+            tx2 = await daoCommitteeProxy2Contract.maxMember()
+            tx3 = await daoCommittee_V1_Contract.maxMember()
+            tx4 = await daoCommittee_Owner_Contract.maxMember()
+
+            console.log("tx :", tx)
+            console.log("tx2 :", tx2)
+            console.log("tx3 :", tx3)
+            console.log("tx4 :", tx4)
+        })
     })
 
 
-    // describe("Contract Claim Test", () => {
-    //     it("member2 claim Contract", async () => {
-    //         let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
-    //         console.log(amount)
-    //         expect(amount).to.be.gt(0);
+    describe("DAOCommittee_V1 Claim Test", () => {
+        it("member2 claim Contract", async () => {
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            console.log(amount)
+            expect(amount).to.be.gt(0);
 
-    //         await member2ContractLogic.connect(member2).claimActivityReward();
+            await member2ContractLogic.connect(member2).claimActivityReward();
             
-    //         let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
-    //         console.log(amount2)
-    //         expect(amount2).to.be.equal(0);
-    //     })
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            console.log(amount2)
+            expect(amount2).to.be.equal(0);
+        })
 
-    //     it("member3 claim Contract", async () => {
-    //         let amount = await daoCommittee.getClaimableActivityReward(member3Addr)
-    //         console.log(amount)
-    //         expect(amount).to.be.gt(0);
+        it("member3 claim Contract", async () => {
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member3Addr)
+            console.log(amount)
+            expect(amount).to.be.gt(0);
 
-    //         await member3ContractLogic.connect(member3).claimActivityReward();
+            await member3ContractLogic.connect(member3).claimActivityReward();
             
-    //         let amount2 = await daoCommittee.getClaimableActivityReward(member3Addr)
-    //         console.log(amount2)
-    //         expect(amount2).to.be.equal(0);
-    //     })
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member3Addr)
+            console.log(amount2)
+            expect(amount2).to.be.equal(0);
+        })
 
-    //     it("newMember1 claim Contract", async () => {
-    //         let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
-    //         console.log(amount)
-    //         expect(amount).to.be.gt(0);
+        it("newMember1 claim Contract", async () => {
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(newMember1Addr)
+            console.log(amount)
+            expect(amount).to.be.gt(0);
 
-    //         await newMember1ContractLogic.connect(newMember1).claimActivityReward();
+            await newMember1ContractLogic.connect(newMember1).claimActivityReward();
             
-    //         let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
-    //         console.log(amount2)
-    //         expect(amount2).to.be.equal(0);
-    //     })
-    // })
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(newMember1Addr)
+            console.log(amount2)
+            expect(amount2).to.be.equal(0);
+        })
+    })
 
-    // describe("changeMember Test", () => {
-    //     it("talken can't changeMemeber because not deposit 1000TON", async () => {
-    //         let operatorDepositAmount = await daoCommittee.connect(talken).operatorAmountCheck(talkenContractAddr,talken.address);
-    //         console.log(operatorDepositAmount)
-    //         expect(operatorDepositAmount).to.be.lt(minimumAmount);
-    //         let tx = talkenContractLogic.connect(talken).changeMember(0)
-    //         await expect(tx).to.be.revertedWith("need more operatorDeposit")
-    //     })
+    describe("changeMember Test", () => {
+        it("member2 retire after same getClaimAmount", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            // console.log("block.timestamp :", block.timestamp);
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
 
-    //     it("member2 retire after same getClaimAmount", async () => {
-    //         const block = await ethers.provider.getBlock('latest')
-    //         // console.log("block.timestamp :", block.timestamp);
-    //         let amount = await daoCommittee.getClaimableActivityReward(member2Addr)
+            await member2ContractLogic.connect(member2).retireMember();
 
-    //         await member2ContractLogic.connect(member2).retireMember();
+            const block2 = await ethers.provider.getBlock('latest')
+            // console.log("block2.timestamp :", block2.timestamp);
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
 
-    //         const block2 = await ethers.provider.getBlock('latest')
-    //         // console.log("block2.timestamp :", block2.timestamp);
-    //         let amount2 = await daoCommittee.getClaimableActivityReward(member2Addr)
-
-    //         expect(amount2).to.be.gt(amount);
+            expect(amount2).to.be.gt(amount);
             
-    //         let blockDiff = block2.timestamp-block.timestamp
-    //         let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
-    //         // console.log("activityRewardPerSecond :", activityRewardPerSecond)
-    //         let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
-    //         // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
-    //         let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
-    //         expect(timeAddAmount).to.be.equal(amount2);
-    //     })
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee_V1_Contract.activityRewardPerSecond();
+            // console.log("activityRewardPerSecond :", activityRewardPerSecond)
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+            // console.log("activityRewardPerSecond10 :", activityRewardPerSecond10)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+            expect(timeAddAmount).to.be.equal(amount2);
+        })
 
-    //     it("member2 can changeMember because deposit over 1000TON", async () => {
-    //         const block = await ethers.provider.getBlock('latest')
-    //         let amount = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+        it("member2 can changeMember because deposit over 1000TON", async () => {
+            const block = await ethers.provider.getBlock('latest')
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(newMember1Addr)
             
-    //         await daoCommittee.connect(member2Contract).changeMember(0);
+            await member2ContractLogic.connect(member2).changeMember(0);
+            // await daoCommittee_V1_Contract.connect(member2Contract).changeMember(0);
 
-    //         const block2 = await ethers.provider.getBlock('latest')
-    //         let amount2 = await daoCommittee.getClaimableActivityReward(newMember1Addr)
+            const block2 = await ethers.provider.getBlock('latest')
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(newMember1Addr)
 
-    //         expect(amount2).to.be.gt(amount);
+            expect(amount2).to.be.gt(amount);
             
-    //         let blockDiff = block2.timestamp-block.timestamp
-    //         let activityRewardPerSecond = await daoCommittee.activityRewardPerSecond();
-    //         let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
-    //         let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
-    //         expect(timeAddAmount).to.be.equal(amount2);
-    //     })
-    // })
+            let blockDiff = block2.timestamp-block.timestamp
+            let activityRewardPerSecond = await daoCommittee_V1_Contract.activityRewardPerSecond();
+            let activityRewardPerSecondblockDiff = activityRewardPerSecond.mul(blockDiff)
+            let timeAddAmount = amount.add(activityRewardPerSecondblockDiff)
+            expect(timeAddAmount).to.be.equal(amount2);
+        })
+    })
 })

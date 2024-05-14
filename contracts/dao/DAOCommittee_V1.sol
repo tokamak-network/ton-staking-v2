@@ -18,7 +18,7 @@ import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 interface IISeigManager {
     function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
@@ -299,7 +299,9 @@ contract DAOCommittee_V1 is
     {
         address newMember = ICandidate(msg.sender).candidate();
         uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
+        console.log("operatorAmount :", operatorAmount);
         uint256 minimumAmount = IISeigManager(address(seigManager)).minimumAmount();
+        console.log("minimumAmount :", minimumAmount);
         require(operatorAmount >= minimumAmount, "need more operatorDeposit");
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
