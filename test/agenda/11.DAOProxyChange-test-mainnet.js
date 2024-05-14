@@ -95,6 +95,7 @@ describe("DAO Proxy Change Test", () => {
     let member3ContractAddr = "0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2"
 
     let talkenAddr = "0xcc2f386adca481a00d614d5aa77a30984f264a07"
+    let talkenUpperAddr = "0xCC2f386adcA481a00d614d5AA77A30984F264A07"
     let talkenContractAddr = "0x36101b31e74c5E8f9a9cec378407Bbb776287761"
 
     let beforeclaimAmount;
@@ -390,7 +391,7 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeLogic.address)).wait()
         })
 
-        it("DAOProxy2 deployer don't setAliveImplementation2", async () => {
+        it("DAOProxy2 not Owner don't setAliveImplementation2", async () => {
             await expect(
                 daoCommitteeProxy2Contract.connect(member2).setAliveImplementation2(
                     daoCommitteeLogic.address, 
@@ -406,7 +407,7 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        it("DAOProxy2 deployer don't setImplementation2", async () => {
+        it("DAOProxy2 not Owner don't setImplementation2", async () => {
             await expect(
                 daoCommitteeProxy2Contract.connect(member2).setImplementation2(
                     daoCommitteeLogic.address, 
@@ -440,7 +441,7 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        it("DAOProxy2 deployer don't setImplementation2 DAOv2CommitteeV2", async () => {
+        it("DAOProxy2 not Owner don't setImplementation2 DAOv2CommitteeV2", async () => {
             await expect(
                 daoCommitteeProxy2Contract.connect(member2).setImplementation2(
                     daoCommitteeOwner.address, 
@@ -455,6 +456,211 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeOwner.address, 
                 1, 
                 true
+            )
+        })
+
+        it("DAOProxyV2 not owner(deployer) don't selectorImplementations2", async () => {
+            const _setSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setSeigManager(address)"
+            )
+
+            const _setTargetSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSeigManager(address,address)"
+            )
+
+            const _setSeigPause = Web3EthAbi.encodeFunctionSignature(
+                "setSeigPause()"
+            )
+
+            const _setSeigUnpause = Web3EthAbi.encodeFunctionSignature(
+                "setSeigUnpause()"
+            )
+
+            const _setTargetGlobalWithdrawalDelay = Web3EthAbi.encodeFunctionSignature(
+                "setTargetGlobalWithdrawalDelay(addres,uint256)"
+            )
+
+            const _setTargetAddMinter = Web3EthAbi.encodeFunctionSignature(
+                "setTargetAddMinter(address,address)"
+            )
+
+            const _setTargetUpgradeTo = Web3EthAbi.encodeFunctionSignature(
+                "setTargetUpgradeTo(address,address)"
+            )
+
+            const _setTargetSetTON = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSetTON(address,address)"
+            )
+            
+            const _setTargetSetWTON = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSetWTON(address,address)"
+            )
+
+            const _setDaoVault = Web3EthAbi.encodeFunctionSignature(
+                "setDaoVault(address)"
+            )
+
+            const _setLayer2Registry = Web3EthAbi.encodeFunctionSignature(
+                "setLayer2Registry(address)"
+            )
+
+            const _setAgendaManager = Web3EthAbi.encodeFunctionSignature(
+                "setAgendaManager(address)"
+            )
+
+            const _setCandidateFactory = Web3EthAbi.encodeFunctionSignature(
+                "setCandidateFactory(address)"
+            )
+
+            const _setTon = Web3EthAbi.encodeFunctionSignature(
+                "setTon(address)"
+            )
+
+            const _setWton = Web3EthAbi.encodeFunctionSignature(
+                "setWton(address)"
+            )
+
+            const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature(
+                "setActivityRewardPerSecond(uint256)"
+            )
+
+            const _setCandidatesSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setCandidatesSeigManager(address[],address)"
+            )
+
+            const _setCandidatesCommittee = Web3EthAbi.encodeFunctionSignature(
+                "setCandidatesCommittee(address[],address)"
+            )
+
+            const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
+                "setCreateAgendaFees(uint256)"
+            )
+
+            const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setMinimumNoticePeriodSeconds(uint256)"
+            )
+
+            const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setMinimumVotingPeriodSeconds(uint256)"
+            )
+
+            const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setExecutingPeriodSeconds(uint256)"
+            )
+
+
+            await expect(
+                daoCommitteeProxy2Contract.connect(member2).setSelectorImplementations2(
+                    [
+                        _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+                        _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+                        _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+                        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+                    ],
+                    daoCommitteeOwner.address
+            )).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
+        })
+
+        it("DAOProxyV2 not owner(deployer) don't selectorImplementations2", async () => {
+            const _setSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setSeigManager(address)"
+            )
+
+            const _setTargetSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSeigManager(address,address)"
+            )
+
+            const _setSeigPause = Web3EthAbi.encodeFunctionSignature(
+                "setSeigPause()"
+            )
+
+            const _setSeigUnpause = Web3EthAbi.encodeFunctionSignature(
+                "setSeigUnpause()"
+            )
+
+            const _setTargetGlobalWithdrawalDelay = Web3EthAbi.encodeFunctionSignature(
+                "setTargetGlobalWithdrawalDelay(addres,uint256)"
+            )
+
+            const _setTargetAddMinter = Web3EthAbi.encodeFunctionSignature(
+                "setTargetAddMinter(address,address)"
+            )
+
+            const _setTargetUpgradeTo = Web3EthAbi.encodeFunctionSignature(
+                "setTargetUpgradeTo(address,address)"
+            )
+
+            const _setTargetSetTON = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSetTON(address,address)"
+            )
+            
+            const _setTargetSetWTON = Web3EthAbi.encodeFunctionSignature(
+                "setTargetSetWTON(address,address)"
+            )
+
+            const _setDaoVault = Web3EthAbi.encodeFunctionSignature(
+                "setDaoVault(address)"
+            )
+
+            const _setLayer2Registry = Web3EthAbi.encodeFunctionSignature(
+                "setLayer2Registry(address)"
+            )
+
+            const _setAgendaManager = Web3EthAbi.encodeFunctionSignature(
+                "setAgendaManager(address)"
+            )
+
+            const _setCandidateFactory = Web3EthAbi.encodeFunctionSignature(
+                "setCandidateFactory(address)"
+            )
+
+            const _setTon = Web3EthAbi.encodeFunctionSignature(
+                "setTon(address)"
+            )
+
+            const _setWton = Web3EthAbi.encodeFunctionSignature(
+                "setWton(address)"
+            )
+
+            const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature(
+                "setActivityRewardPerSecond(uint256)"
+            )
+
+            const _setCandidatesSeigManager = Web3EthAbi.encodeFunctionSignature(
+                "setCandidatesSeigManager(address[],address)"
+            )
+
+            const _setCandidatesCommittee = Web3EthAbi.encodeFunctionSignature(
+                "setCandidatesCommittee(address[],address)"
+            )
+
+            const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
+                "setCreateAgendaFees(uint256)"
+            )
+
+            const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setMinimumNoticePeriodSeconds(uint256)"
+            )
+
+            const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setMinimumVotingPeriodSeconds(uint256)"
+            )
+
+            const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+                "setExecutingPeriodSeconds(uint256)"
+            )
+
+
+            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setSelectorImplementations2(
+                    [
+                        _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+                        _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+                        _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+                        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+                    ],
+                    daoCommitteeOwner.address
             )
         })
 
@@ -476,7 +682,7 @@ describe("DAO Proxy Change Test", () => {
 
     })
 
-    describe("Setting another account & contract", async () => {
+    describe("Setting another account & contract", () => {
         it("set DAOAgendaManager", async () => {
             daoagendaManager = new ethers.Contract(
                 oldContractInfo.DAOAgendaManager,
@@ -534,22 +740,35 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    // describe("Setting Test", () => {
-    //     it("DAOVault TON Addr check", async () => {
-    //         let tonaddr = await daovault.ton();
-    //         expect(tonaddr).to.be.equal(twoAddr)
-    //     })
+    describe("DAOCommitteeOwner Logic test", () => {
+        it("setWTON test", async () => {
+            let beforeAddr = await daoCommittee_Owner_Contract.wton()
+            
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(talkenAddr)
+    
+            let afterAddr = await daoCommittee_Owner_Contract.wton()
+            expect(afterAddr).to.be.equal(talkenUpperAddr)
+            // expect(beforeAddr).to.be.not.equal(afterAddr)
+        })
+    })
 
-    //     it("DAOVault WTON Addr check", async () => {
-    //         let wtonaddr = await daovault.wton();
-    //         expect(wtonaddr).to.be.equal(twoAddr)
-    //     })
+    describe("DAOCommittee_V1 Logic test", () => {
+        it("Contract Storage check", async () => {
+            let v1Contract = await daoCommittee_V1_Contract.pauseProxy()
+            let ownerContract = await daoCommittee_Owner_Contract.pauseProxy()
+            let proxy1 = await daoCommitteeProxy.pauseProxy()
+            let proxy2 = await daoCommitteeProxy2Contract.pauseProxy()
+            
+            expect(v1Contract).to.be.equal(ownerContract)
+            expect(proxy1).to.be.equal(proxy2)
+            expect(v1Contract).to.be.equal(proxy1)
 
-    //     it("DAO wton addr check", async () => {
-    //         let wtonAddr = await daoCommittee.wton();
-    //         expect(wtonAddr).to.be.equal(oldContractInfo.WTON);
-    //     })
-    // })
+            let v1ContractWTON = await daoCommittee_V1_Contract.wton()
+            let ownerContractWTON = await daoCommittee_Owner_Contract.wton()
+            expect(v1ContractWTON).to.be.equal(ownerContractWTON)
+        })
+    })
+
 
     // describe("Contract Claim Test", () => {
     //     it("member2 claim Contract", async () => {
