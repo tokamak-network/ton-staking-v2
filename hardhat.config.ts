@@ -385,12 +385,12 @@ const config: HardhatUserConfig = {
         // blockNumber: 5859537
         // npx hardhat test test/layer2/sepolia_test/0.registerLayer2Candidate.ts
         // blockNumber: 5860655,
-        // npx hardhat test test/layer2/sepolia_test/1.updateSeigs.ts
-        // blockNumber: 5866007,
         // npx hardhat test test/layer2/sepolia_test/2.withdrawAndDepositL2.ts
         // blockNumber: 5870490,
-        // 업데이트 시뇨리지시, l2TotalSeigs 할당이 잘 되는지 확인할것.
-        blockNumber: 5874556,
+        // npx hardhat test test/layer2/sepolia_test/1.updateSeigs.ts
+        // blockNumber: 5874556,
+        // npx hardhat test test/layer2/sepolia_test/3.updateSeigsAndClaim.ts
+        blockNumber: 5892966,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970
