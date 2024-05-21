@@ -18,7 +18,6 @@ interface ITarget {
     function upgradeTo(address logic) external;
     function setTON(address tonAddr) external;
     function setWTON(address wtonAddr) external;
-    function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
 }
 
 interface IPauser {
@@ -33,21 +32,6 @@ contract DAOCommitteeOwner is
     ProxyStorage2,
     StorageStateCommitteeV2
 {
-    event ChangedSlotMaximum(
-        uint256 indexed prevSlotMax,
-        uint256 indexed slotMax
-    );
-
-    event QuorumChanged(
-        uint256 newQuorum
-    );
-
-    event ChangedMember(
-        uint256 indexed slotIndex,
-        address prevMember,
-        address indexed newMember
-    );
-
     event ActivityRewardChanged(
         uint256 newReward
     );
@@ -135,79 +119,6 @@ contract DAOCommitteeOwner is
         wton = _wton;
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // setters
-
-    /// @notice Increases the number of member slot
-    /// @param _newMaxMember New number of member slot
-    /// @param _quorum New quorum
-    function increaseMaxMember(
-        uint256 _newMaxMember,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-    {
-        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
-        uint256 prevMaxMember = maxMember;
-        maxMember = _newMaxMember;
-        fillMemberSlot();
-        setQuorum(_quorum);
-        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
-    }
-
-    /// @notice Set new quorum
-    /// @param _quorum New quorum
-    function setQuorum(
-        uint256 _quorum
-    )
-        public
-        onlyOwner
-        validAgendaManager
-    {
-        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
-        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
-        quorum = _quorum;
-        emit QuorumChanged(quorum);
-    }
-
-    /// @notice Decreases the number of member slot
-    /// @param _reducingMemberIndex Reducing member slot index
-    /// @param _quorum New quorum
-    function decreaseMaxMember(
-        uint256 _reducingMemberIndex,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-        validMemberIndex(_reducingMemberIndex)
-    {
-        address reducingMember = members[_reducingMemberIndex];
-        CandidateInfo storage reducingCandidate = _candidateInfos[reducingMember];
-
-        address tailMember = members[members.length - 1];
-        if (_reducingMemberIndex != members.length - 1) {
-            CandidateInfo storage tailCandidate = _candidateInfos[tailMember];
-
-            tailCandidate.indexMembers = _reducingMemberIndex;
-            members[_reducingMemberIndex] = tailMember;
-        }
-        reducingCandidate.indexMembers = 0;
-        if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
-            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
-        } else {
-            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
-        }
-        reducingCandidate.memberJoinedTime = 0;
-
-        members.pop();
-        maxMember = maxMember - 1;
-        setQuorum(_quorum);
-
-        emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
-        emit ChangedSlotMaximum(maxMember + 1, maxMember);
-    }
-
     function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
         activityRewardPerSecond = _value;
         emit ActivityRewardChanged(_value);
@@ -292,22 +203,5 @@ contract DAOCommitteeOwner is
         validAgendaManager
     {
         agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
-    }
-
-    function setBurntAmountAtDAO(
-        uint256 _burnAmount
-    )
-        external
-        onlyOwner
-        validSeigManager
-    {
-        ITarget(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
-    }
-
-
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
     }
 }

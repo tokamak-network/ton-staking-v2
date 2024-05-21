@@ -21,6 +21,7 @@ import "./lib/BytesLib.sol";
 import "hardhat/console.sol";
 
 interface IISeigManager {
+    function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
     function coinages(address layer2) external view returns (address);
     function getOperatorAmount(address layer2) external view returns (uint256);
     function minimumAmount() external view returns (uint256);
@@ -56,6 +57,10 @@ contract DAOCommittee_V1 is
     //////////////////////////////
     // Events
     //////////////////////////////
+
+    event QuorumChanged(
+        uint256 newQuorum
+    );
 
     event AgendaCreated(
         address indexed from,
@@ -96,6 +101,11 @@ contract DAOCommittee_V1 is
         address indexed newMember
     );
 
+    event ChangedSlotMaximum(
+        uint256 indexed prevSlotMax,
+        uint256 indexed slotMax
+    );
+
     event ClaimedActivityReward(
         address indexed candidate,
         address receiver,
@@ -105,6 +115,10 @@ contract DAOCommittee_V1 is
     event ChangedMemo(
         address candidate,
         string newMemo
+    );
+
+    event ActivityRewardChanged(
+        uint256 newReward
     );
 
     modifier onlyOwner() {
@@ -124,6 +138,32 @@ contract DAOCommittee_V1 is
 
     function supportsInterface(bytes4 interfaceId) public view override (ERC165A) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // setters
+
+    /// @notice Increases the number of member slot
+    /// @param _newMaxMember New number of member slot
+    /// @param _quorum New quorum
+    function increaseMaxMember(
+        uint256 _newMaxMember,
+        uint256 _quorum
+    )
+        external
+        onlyOwner
+    {
+        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
+        uint256 prevMaxMember = maxMember;
+        maxMember = _newMaxMember;
+        fillMemberSlot();
+        setQuorum(_quorum);
+        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    }
+
+    function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
+        activityRewardPerSecond = _value;
+        emit ActivityRewardChanged(_value);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -226,6 +266,26 @@ contract DAOCommittee_V1 is
 
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
     }
+
+
+    // /// @notice Registers the exist layer2 on DAO
+    // /// @param _layer2 Layer2 contract address to be registered
+    // /// @param _memo A memo for the candidate
+    // function registerLayer2Candidate(address _layer2, string memory _memo) external
+    // {
+    //     _registerLayer2Candidate(msg.sender, _layer2, _memo);
+    // }
+
+    // /// @notice Registers the exist layer2 on DAO by owner
+    // /// @param _operator Operator address of the layer2 contract
+    // /// @param _layer2 Layer2 contract address to be registered
+    // /// @param _memo A memo for the candidate
+    // function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo)
+    //     external
+    //     onlyOwner
+    // {
+    //     _registerLayer2Candidate(_operator, _layer2, _memo);
+    // }
 
     /// @notice Replaces an existing member
     /// @param _memberIndex The member slot index to be replaced
@@ -347,6 +407,53 @@ contract DAOCommittee_V1 is
         emit ChangedMemo(candidate, _memo);
     }
 
+    /// @notice Decreases the number of member slot
+    /// @param _reducingMemberIndex Reducing member slot index
+    /// @param _quorum New quorum
+    function decreaseMaxMember(
+        uint256 _reducingMemberIndex,
+        uint256 _quorum
+    )
+        external
+        onlyOwner
+        validMemberIndex(_reducingMemberIndex)
+    {
+        address reducingMember = members[_reducingMemberIndex];
+        CandidateInfo storage reducingCandidate = _candidateInfos[reducingMember];
+
+        address tailMember = members[members.length - 1];
+        if (_reducingMemberIndex != members.length - 1) {
+            CandidateInfo storage tailCandidate = _candidateInfos[tailMember];
+
+            tailCandidate.indexMembers = _reducingMemberIndex;
+            members[_reducingMemberIndex] = tailMember;
+        }
+        reducingCandidate.indexMembers = 0;
+        if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
+        } else {
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
+        }
+        reducingCandidate.memberJoinedTime = 0;
+
+        members.pop();
+        maxMember = maxMember - 1;
+        setQuorum(_quorum);
+
+        emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
+        emit ChangedSlotMaximum(maxMember + 1, maxMember);
+    }
+
+    function setBurntAmountAtDAO(
+        uint256 _burnAmount
+    )
+        external
+        onlyOwner
+        validSeigManager
+    {
+        IISeigManager(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Managing agenda
 
@@ -386,6 +493,36 @@ contract DAOCommittee_V1 is
         );
 
         return true;
+    }
+
+    function toBytes(address a) internal pure returns (bytes memory) {
+        return abi.encodePacked(a);
+    }
+
+    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
+        if (reason.length != 32) {
+            if (reason.length < 68) revert('Unexpected error');
+            assembly {
+                reason := add(reason, 0x04)
+            }
+            revert(abi.decode(reason, (string)));
+        }
+        return abi.decode(reason, (uint256));
+    }
+
+    /// @notice Set new quorum
+    /// @param _quorum New quorum
+    function setQuorum(
+        uint256 _quorum
+    )
+        public
+        onlyOwner
+        validAgendaManager
+    {
+        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
+        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
+        quorum = _quorum;
+        emit QuorumChanged(quorum);
     }
 
     /// @notice Vote on an agenda
@@ -518,6 +655,58 @@ contract DAOCommittee_V1 is
         return v * 10 ** 9;
     }
 
+    // function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
+    //     internal
+    //     validSeigManager
+    //     validLayer2Registry
+    //     validCommitteeL2Factory
+    // {
+    //     require(!isExistCandidate(_layer2), "DAOCommittee: candidate already registerd");
+
+    //     require(
+    //         _layer2 != address(0),
+    //         "DAOCommittee: deployed candidateContract is zero"
+    //     );
+    //     require(
+    //         _candidateInfos[_layer2].candidateContract == address(0),
+    //         "DAOCommittee: The candidate already has contract"
+    //     );
+    //     ILayer2 layer2 = ILayer2(_layer2);
+    //     require(
+    //         layer2.isLayer2(),
+    //         "DAOCommittee: invalid layer2 contract"
+    //     );
+    //     require(
+    //         layer2.operator() == _operator,
+    //         "DAOCommittee: invalid operator"
+    //     );
+
+    //     address candidateContract = candidateFactory.deploy(
+    //         _layer2,
+    //         true,
+    //         _memo,
+    //         address(this),
+    //         address(seigManager)
+    //     );
+
+    //     require(
+    //         candidateContract != address(0),
+    //         "DAOCommittee: deployed candidateContract is zero"
+    //     );
+
+    //     _candidateInfos[_layer2] = CandidateInfo({
+    //         candidateContract: candidateContract,
+    //         memberJoinedTime: 0,
+    //         indexMembers: 0,
+    //         rewardPeriod: 0,
+    //         claimedTimestamp: 0
+    //     });
+
+    //     candidates.push(_layer2);
+
+    //     emit Layer2Registered(_layer2, candidateContract, _memo);
+    // }
+
     function fillMemberSlot() internal {
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
@@ -531,21 +720,6 @@ contract DAOCommittee_V1 is
     {
         (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode) =
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
-    }
-
-    function toBytes(address a) internal pure returns (bytes memory) {
-        return abi.encodePacked(a);
-    }
-
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
     }
 
     function payCreatingAgendaFee(address _creator) internal {
