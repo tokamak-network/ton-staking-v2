@@ -30,6 +30,17 @@ interface IICoinage {
     function balanceOf(address account) external view returns (uint256);
 }
 
+interface ILayer2CandidateFactory {
+   function deploy(
+        address _sender,
+        string memory _name,
+        address _committee,
+        address _seigManager
+    )
+        external
+        returns (address);
+}
+
 contract DAOCommittee_V1 is 
     StorageStateCommittee, 
     AccessControl, 
@@ -124,6 +135,11 @@ contract DAOCommittee_V1 is
 
     function supportsInterface(bytes4 interfaceId) public view override (ERC165A) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+
+    modifier onlyLayer2Manager() {
+        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
+        _;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -225,6 +241,49 @@ contract DAOCommittee_V1 is
         );
 
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
+    }
+
+    function createLayer2Candidate(string calldata _memo, address _operatorAddress)
+        public
+        onlyLayer2Manager
+        returns (address)
+    {
+        // Candidate
+        address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
+            _operatorAddress,
+            _memo,
+            address(this),
+            address(seigManager)
+        );
+
+        require(
+            candidateContract != address(0),
+            "DAOCommittee: deployed candidateContract is zero"
+        );
+
+        require(
+            _candidateInfos[_operatorAddress].candidateContract == address(0),
+            "DAOCommittee: The candidate already has contract"
+        );
+
+        _candidateInfos[_operatorAddress] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
+
+        candidates.push(_operatorAddress);
+
+        require(
+            layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
+            "DAOCommittee: failed to registerAndDeployCoinage"
+        );
+
+        emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
+
+        return candidateContract;
     }
 
     /// @notice Replaces an existing member

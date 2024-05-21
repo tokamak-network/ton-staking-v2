@@ -19,6 +19,14 @@ interface ITarget {
     function setTON(address tonAddr) external;
     function setWTON(address wtonAddr) external;
     function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
+    function setLayer2Manager(address layer2Manager_) external;
+    function setL2Registry(address l2Registry_) external;
+    function setLayer2StartBlock(uint256 startBlock_) external;
+    function setImplementation2(address newImplementation, uint256 index, bool alive) external;
+    function setSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) external;
 }
 
 interface IPauser {
@@ -67,6 +75,36 @@ contract DAOCommitteeOwner is
     modifier nonZero(address _addr) {
         require(_addr != address(0), "DAOCommittee: zero address");
         _;
+    }
+
+    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner nonZero(_layer2CandidateFactory) {
+        layer2CandidateFactory = _layer2CandidateFactory;
+    }
+
+    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner nonZero(_layer2CandidateFactory) {
+        layer2Manager = _layer2CandidateFactory;
+    }
+
+    function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
+        ITarget(target).setLayer2Manager(layer2Manager_);
+    }
+
+    function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
+        ITarget(target).setL2Registry(l2Registry_);
+    }
+
+    function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
+        ITarget(target).setLayer2StartBlock(startBlock_);
+    }
+
+    function setTargetSetImplementation2(
+        address target, address newImplementation, uint256 index, bool alive) external onlyOwner {
+        ITarget(target).setImplementation2(newImplementation, index, alive);
+    }
+
+    function setTargetSetSelectorImplementations2(
+        address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
+        ITarget(target).setSelectorImplementations2(_selectors, _imp);
     }
 
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
@@ -134,9 +172,6 @@ contract DAOCommitteeOwner is
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
         wton = _wton;
     }
-
-    //////////////////////////////////////////////////////////////////////
-    // setters
 
     /// @notice Increases the number of member slot
     /// @param _newMaxMember New number of member slot
