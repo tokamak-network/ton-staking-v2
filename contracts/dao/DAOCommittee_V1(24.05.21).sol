@@ -31,7 +31,7 @@ interface IICoinage {
     function balanceOf(address account) external view returns (uint256);
 }
 
-contract DAOCommittee_V1 is 
+contract BeforeDAOCommittee_V1 is 
     StorageStateCommittee, 
     AccessControl, 
     ERC165A, 

@@ -156,6 +156,9 @@ describe("DAO Proxy Change Test", () => {
     let user1;
     let user1Addr = "0x9FC3da866e7DF3a1c57adE1a97c9f00a70f010c8"
 
+    let user2;
+    let user2Addr = "0x4838B106FCe9647Bdf1E7877BF73cE8B0BAD5f97"
+
     //changeMember before info
     // [
     //     '0x576C7a48fcEf1C70db632bb1504D9A5C0D0190D3',
@@ -235,6 +238,11 @@ describe("DAO Proxy Change Test", () => {
             user1Addr,
         ]);
         user1 = await hre.ethers.getSigner(user1Addr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            user2Addr,
+        ]);
+        user2 = await hre.ethers.getSigner(user2Addr);
         
         await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
@@ -833,7 +841,25 @@ describe("DAO Proxy Change Test", () => {
             expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
 
             let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user1Addr)
-            console.log("candidateInfo : ", candidateInfo);
+            // console.log("candidateInfo : ", candidateInfo);
+            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+        })
+
+        it("2. createCandidate (Owner)", async () => {
+            // console.log(daoCommittee_V1_Contract)
+            let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+
+            await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
+                "TestCandidate2",
+                user2Addr
+            );
+
+            let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+            expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+            
+            let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user2Addr)
+            // console.log("candidateInfo : ", candidateInfo);
+            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
         })
 
     })

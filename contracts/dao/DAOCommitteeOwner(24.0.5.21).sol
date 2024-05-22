@@ -25,7 +25,7 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is 
+contract BeforeDAOCommitteeOwner is 
     StorageStateCommittee, 
     AccessControl, 
     ERC165A, 

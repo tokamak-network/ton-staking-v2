@@ -186,7 +186,7 @@ contract DAOCommittee_V1 is
 
     }
 
-    function createCandidate(string calldata _memo, address _operatorAddress)
+    function createCandidateOwner(string calldata _memo, address _operatorAddress)
         public
         validSeigManager
         validLayer2Registry
