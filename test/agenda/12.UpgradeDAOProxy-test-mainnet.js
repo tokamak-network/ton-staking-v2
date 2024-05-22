@@ -862,5 +862,25 @@ describe("DAO Proxy Change Test", () => {
             expect(candidateInfo.memberJoinedTime).to.be.equal(0)
         })
 
+        it("3. retireMember (onlyMember)", async () => {
+            let memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(member2Addr)
+
+            await daoCommittee_V1_Contract.connect(member2).retireMember();
+
+            memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
+        })
+
+        it("4. changeMemeber (anyone)", async () => {
+            let memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
+
+            await member2ContractLogic.connect(member2).changeMember(1);
+
+            memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(member2Addr)
+        })
+
     })
 })
