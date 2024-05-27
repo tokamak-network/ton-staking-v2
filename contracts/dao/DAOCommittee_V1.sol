@@ -298,9 +298,7 @@ contract DAOCommittee_V1 is
     {
         address newMember = ICandidate(msg.sender).candidate();
         uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
-        console.log("operatorAmount :", operatorAmount);
         uint256 minimumAmount = IISeigManager(address(seigManager)).minimumAmount();
-        console.log("minimumAmount :", minimumAmount);
         require(operatorAmount >= minimumAmount, "need more operatorDeposit");
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
@@ -449,7 +447,7 @@ contract DAOCommittee_V1 is
 
     /// @notice Vote on an agenda
     /// @param _agendaID The agenda ID
-    /// @param _vote voting type
+    /// @param _vote voting type (counting 0:abstainVotes 1:yesVotes 2:noVotes)
     /// @param _comment voting comment
     function castVote(
         uint256 _agendaID,
