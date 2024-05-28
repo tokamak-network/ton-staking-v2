@@ -809,32 +809,6 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    describe("DAOCommitteeOwner Logic test", () => {
-        it("setSeigManager test", async () => {
-            let beforeAddr = await daoCommittee_Owner_Contract.seigManager()
-            
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(talkenAddr)
-    
-            let afterAddr = await daoCommittee_Owner_Contract.seigManager()
-            expect(afterAddr).to.be.equal(talkenUpperAddr)
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(nowContractInfo.SeigManager)
-            afterAddr = await daoCommittee_Owner_Contract.seigManager()
-            expect(afterAddr).to.be.equal(SeigManagerUpper)
-        })
-
-        it("setWTON test", async () => {
-            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
-            
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
-    
-            let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
-        })
-    })
-
     describe("DAOCommittee_V1 Logic test", () => {
         it("Contract Storage check", async () => {
             let v1Contract = await daoCommittee_V1_Contract.pauseProxy()
@@ -1416,5 +1390,89 @@ describe("DAO Proxy Change Test", () => {
             expect(amount2).to.be.equal(0);
         })
 
+        it("20. isCandidate (view)", async () => {
+            let checkisCandidate = await daoCommittee_V1_Contract.isCandidate(member2Addr)
+            expect(checkisCandidate).to.be.equal(true)
+        })
+
+        it("21. totalSupplyOnCandidate (view)", async () => {
+            let amount = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member2Addr)
+            expect(amount).to.be.gt(0)
+        })
+
+        it("22. balanceOfOnCandidate (view)", async () => {
+            let amount = await daoCommittee_V1_Contract.balanceOfOnCandidate(
+                member2Addr,
+                member2Addr
+            )
+            expect(amount).to.be.gt(0)
+        })
+
+        it("23. totalSupplyOnCandidateContract (view)", async () => {
+            let amount = await daoCommittee_V1_Contract.totalSupplyOnCandidateContract(
+                member2ContractAddr
+            )
+            expect(amount).to.be.gt(0)
+        })
+
+        it("24. balanceOfOnCandidateContract (view)", async () => {
+            let amount = await daoCommittee_V1_Contract.balanceOfOnCandidateContract(
+                member2ContractAddr,
+                member2Addr
+            )
+            expect(amount).to.be.gt(0)
+        })
+
+        it("25. candidatesLength (view)", async () => {
+            let length = await daoCommittee_V1_Contract.candidatesLength()
+            expect(length).to.be.gt(0)
+        })
+
+        it("26. isExistCandidate (view)", async () => {
+            let check = await daoCommittee_V1_Contract.isExistCandidate(member2Addr)
+            expect(check).to.be.equal(true)
+        })
+
+        it("27. getOldCandidateInfos (view)", async () => {
+            let oldinfo = await daoCommittee_V1_Contract.getOldCandidateInfos(member2Addr)
+            console.log(oldinfo)
+            // expect(check).to.be.equal(true)
+        })
+
+        it("27. getOldCandidateInfos (view)", async () => {
+            let amount = await daoCommittee_V1_Contract.operatorAmountCheck(
+                member2ContractAddr,
+                member2Addr
+            )
+            expect(amount).to.be.gt(0)
+        })
+
+
+    })
+
+    describe("DAOCommitteeOwner Logic test", () => {
+        it("setSeigManager test", async () => {
+            let beforeAddr = await daoCommittee_Owner_Contract.seigManager()
+            
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(talkenAddr)
+    
+            let afterAddr = await daoCommittee_Owner_Contract.seigManager()
+            expect(afterAddr).to.be.equal(talkenUpperAddr)
+            // expect(beforeAddr).to.be.not.equal(afterAddr)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigManager(nowContractInfo.SeigManager)
+            afterAddr = await daoCommittee_Owner_Contract.seigManager()
+            expect(afterAddr).to.be.equal(SeigManagerUpper)
+        })
+
+        it("setWTON test", async () => {
+            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
+            
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
+    
+            let afterAddr = await daoCommittee_Owner_Contract.wton()
+            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
+            // expect(beforeAddr).to.be.not.equal(afterAddr)
+        })
     })
 })
