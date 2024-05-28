@@ -50,6 +50,7 @@ describe("DAO Proxy Change Test", () => {
     let daoCommitteeOwnerLogic;
     let ton;
     let wton;
+    let seigManagerContract;
 
     let daoCommittee;
     let daoCommitteeOwner;
@@ -300,6 +301,14 @@ describe("DAO Proxy Change Test", () => {
             wton = new ethers.Contract(
                 oldContractInfo.WTON,
                 WtonABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set SeigManager", async () => {
+            seigManagerContract = new ethers.Contract(
+                nowContractInfo.SeigManager,
+                SeigManagerABI,
                 daoCommitteeAdmin
             )
         })
@@ -1386,6 +1395,26 @@ describe("DAO Proxy Change Test", () => {
 
             expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(false);
         })      
+
+        it("18. updateSeigniorage test (anyone)", async () => {
+            const beforeSeigBlock = await seigManagerContract.lastCommitBlock(member2ContractAddr)
+
+            await daoCommittee_V1_Contract.connect(user1).updateSeigniorage(member2Addr)
+
+            const afterSeigBlock = await seigManagerContract.lastCommitBlock(member2ContractAddr)
+
+            expect(afterSeigBlock).to.be.gt(beforeSeigBlock)
+        })
+
+        it("19. getClaimableActivityReward & claimActivityReward test (anyone)", async () => {
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            expect(amount).to.be.gt(0);
+
+            await member2ContractLogic.connect(member2).claimActivityReward();
+            
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            expect(amount2).to.be.equal(0);
+        })
 
     })
 })
