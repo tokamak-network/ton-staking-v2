@@ -34,6 +34,7 @@ const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
+const SeigManagerV1ABI = require("../../artifacts/contracts/stake/managers/SeigManagerV1_1.sol/SeigManagerV1_1.json").abi;
 const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
 
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
@@ -658,7 +659,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             const _setTargetGlobalWithdrawalDelay = Web3EthAbi.encodeFunctionSignature(
-                "setTargetGlobalWithdrawalDelay(addres,uint256)"
+                "setTargetGlobalWithdrawalDelay(address,uint256)"
             )
 
             const _setTargetAddMinter = Web3EthAbi.encodeFunctionSignature(
@@ -701,6 +702,22 @@ describe("DAO Proxy Change Test", () => {
                 "setWton(address)"
             )
 
+            const _increaseMaxMember = Web3EthAbi.encodeFunctionSignature(
+                "increaseMaxMember(uint256,uint256)"
+            )
+
+            const _setQuorum = Web3EthAbi.encodeFunctionSignature(
+                "setQuorum(uint256)"
+            )
+
+            const _decreaseMaxMember = Web3EthAbi.encodeFunctionSignature(
+                "decreaseMaxMember(uint256,uint256)"
+            )
+
+            const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature(
+                "setBurntAmountAtDAO(uint256)"
+            )
+
             const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature(
                 "setActivityRewardPerSecond(uint256)"
             )
@@ -737,6 +754,7 @@ describe("DAO Proxy Change Test", () => {
                         _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
                         _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
                         _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                        _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
                         _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
                         _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
                     ],
@@ -1298,8 +1316,8 @@ describe("DAO Proxy Change Test", () => {
 
         it("check vote result/status & increase can ExecuteTime", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);
-            console.log("agenda Result :", agenda[10])
-            console.log("agenda status :", agenda[11])
+            // console.log("agenda Result :", agenda[10])
+            // console.log("agenda status :", agenda[11])
 
             if (agenda[10] == 3) {
                 const votingEndTimestamp = agenda[4];
@@ -1440,7 +1458,7 @@ describe("DAO Proxy Change Test", () => {
             ).wait()
             
             let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
-            expect(amount2).to.be.gt(amount);
+            expect(amount).to.be.gt(amount2);
         })
 
         it("20. isCandidate (view)", async () => {
@@ -1542,12 +1560,12 @@ describe("DAO Proxy Change Test", () => {
         it("give the Pauser Role", async () => {
             await seigManagerProxyContract.connect(daoCommitteeAdminContract).grantRole(
                 pause_role,
-                daoCommitteeAdmin.address
+                daoCommitteeAdminContract.address
             )
 
             let roleCheck = await seigManagerProxyContract.hasRole(
                 pause_role,
-                daoCommitteeAdmin.address
+                daoCommitteeAdminContract.address
             )
 
             expect(roleCheck).to.be.equal(true)
@@ -1577,29 +1595,21 @@ describe("DAO Proxy Change Test", () => {
             let beforeData = await depositManagerContract.globalWithdrawalDelay()
             let changeData = 100
             
-            console.log("1")
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
                 nowContractInfo.DepositManager,
                 changeData
             )
-            console.log("2")
 
             let afterData = await depositManagerContract.globalWithdrawalDelay()
             expect(changeData).to.be.equal(afterData)
-
-            console.log("3")
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
                 nowContractInfo.DepositManager,
                 beforeData
             )
 
-            console.log("4")
-
             let afterData2 = await depositManagerContract.globalWithdrawalDelay()
             expect(afterData2).to.be.equal(beforeData)
-
-            console.log("5")
         })
 
         it("6. setTargetAddMinter test", async () => {
@@ -1683,31 +1693,270 @@ describe("DAO Proxy Change Test", () => {
         it("10. setDaoVault test", async () => {
             let beforeDaoVault = await daoCommittee_Owner_Contract.daoVault()
 
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setDaoVault(
+                nowContractInfo.DepositManager
+            )
 
+            let afterDaoVault = await daoCommittee_Owner_Contract.daoVault()
+            expect(afterDaoVault.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setDaoVault(
+                beforeDaoVault
+            )
+
+            let afterDAOVault2 = await daoCommittee_Owner_Contract.daoVault()
+            expect(afterDAOVault2.toUpperCase()).to.be.equal(beforeDaoVault.toUpperCase())
         })
 
         it("11. setLayer2Registry test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.layer2Registry()
 
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setLayer2Registry(
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.layer2Registry()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setLayer2Registry(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.layer2Registry()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
         it("12. setAgendaManager test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.agendaManager()
 
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setAgendaManager(
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.agendaManager()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setAgendaManager(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.agendaManager()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
         it("13. setCandidateFactory test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.candidateFactory()
 
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidateFactory(
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.candidateFactory()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidateFactory(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.candidateFactory()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("14. setTon test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.ton()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTon(
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.ton()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTon(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.ton()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("15. setWTON test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.wton()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.wton()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.wton()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("16. increaseMaxMember test", async () => {
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).increaseMaxMember(
+                4,
+                3
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.maxMember()
+            expect(afterData).to.be.equal(4)
+        })
+
+        it("17. setQuorum test", async () => {
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setQuorum(
+                2
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.quorum()
+            expect(afterData).to.be.equal(2)
+        })
+
+        it("18. decreaseMaxMember test", async () => {
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).decreaseMaxMember(
+                3,
+                2
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.maxMember()
+            expect(afterData).to.be.equal(3)
+        })
+
+        it("19. setActivityRewardPerSecond test", async () => {
+            let beforeData = await daoCommittee_Owner_Contract.activityRewardPerSecond()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setActivityRewardPerSecond(
+                1
+            )
+
+            let afterData = await daoCommittee_Owner_Contract.activityRewardPerSecond()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setActivityRewardPerSecond(
+                beforeData
+            )
+
+            let afterData2 = await daoCommittee_Owner_Contract.activityRewardPerSecond()
+            expect(afterData2).to.be.equal(beforeData)
+        })
+
+        it("20. setCandidatesSeigManager test", async () => {
+            let beforeData = await member2ContractLogic.seigManager()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesSeigManager(
+                [member2ContractLogic.address],
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await member2ContractLogic.seigManager()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesSeigManager(
+                [member2ContractLogic.address],
+                beforeData
+            )
+
+            let afterData2 = await member2ContractLogic.seigManager()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("21. setCandidatesCommittee test", async () => {
+            let beforeData = await member2ContractLogic.committee()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesCommittee(
+                [member2ContractLogic.address],
+                nowContractInfo.DepositManager
+            )
+
+            let afterData = await member2ContractLogic.committee()
+            expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesCommittee(
+                [member2ContractLogic.address],
+                beforeData
+            )
+
+            let afterData2 = await member2ContractLogic.committee()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("22. setCreateAgendaFees test", async () => {
+            let beforeData = await daoagendaManager.createAgendaFees()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCreateAgendaFees(
+                1
+            )
+
+            let afterData = await daoagendaManager.createAgendaFees()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCreateAgendaFees(
+                beforeData
+            )
+
+            let afterData2 = await daoagendaManager.createAgendaFees()
+            expect(afterData2).to.be.equal(beforeData)
+        })
+
+        it("23. setMinimumNoticePeriodSeconds test", async () => {
+            let beforeData = await daoagendaManager.minimumNoticePeriodSeconds()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumNoticePeriodSeconds(
+                1
+            )
+
+            let afterData = await daoagendaManager.minimumNoticePeriodSeconds()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumNoticePeriodSeconds(
+                beforeData
+            )
+
+            let afterData2 = await daoagendaManager.minimumNoticePeriodSeconds()
+            expect(afterData2).to.be.equal(beforeData)
+        })
+
+        it("23. setMinimumVotingPeriodSeconds test", async () => {
+            let beforeData = await daoagendaManager.minimumVotingPeriodSeconds()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumVotingPeriodSeconds(
+                1
+            )
+
+            let afterData = await daoagendaManager.minimumVotingPeriodSeconds()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumVotingPeriodSeconds(
+                beforeData
+            )
+
+            let afterData2 = await daoagendaManager.minimumVotingPeriodSeconds()
+            expect(afterData2).to.be.equal(beforeData)
+        })
+
+        it("24. setExecutingPeriodSeconds test", async () => {
+            let beforeData = await daoagendaManager.executingPeriodSeconds()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setExecutingPeriodSeconds(
+                1
+            )
+
+            let afterData = await daoagendaManager.executingPeriodSeconds()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setExecutingPeriodSeconds(
+                beforeData
+            )
+
+            let afterData2 = await daoagendaManager.executingPeriodSeconds()
+            expect(afterData2).to.be.equal(beforeData)
         })
 
 
-
-        it("2. setWTON test", async () => {
-            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
-            
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
-    
-            let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
-        })
     })
 })
