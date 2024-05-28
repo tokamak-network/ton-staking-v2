@@ -56,6 +56,7 @@ describe("DAO Proxy Change Test", () => {
     let depositManagerContract;
     let seigManagerContract;
     let seigManagerProxyContract;
+    let seigManagerV1Contract;
 
     let daoCommittee;
     let daoCommitteeOwner;
@@ -860,6 +861,14 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeAdmin
             )
         })
+
+        it("Set SeigManagerV1", async () => {
+            seigManagerV1Contract = new ethers.Contract(
+                nowContractInfo.SeigManager,
+                SeigManagerV1ABI,
+                daoCommitteeAdmin
+            )
+        })
     })
 
     describe("DAOCommittee_V1 Logic test", () => {
@@ -1614,7 +1623,7 @@ describe("DAO Proxy Change Test", () => {
 
         it("6. setTargetAddMinter test", async () => {
             let beforeMinter = await seigManagerContract.isMinter(user1.address)
-            console.log("beforeMinter :", beforeMinter);
+            // console.log("beforeMinter :", beforeMinter);
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetAddMinter(
                 nowContractInfo.SeigManager,
@@ -1810,11 +1819,11 @@ describe("DAO Proxy Change Test", () => {
 
         it("17. setQuorum test", async () => {
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setQuorum(
-                2
+                4
             )
 
             let afterData = await daoCommittee_Owner_Contract.quorum()
-            expect(afterData).to.be.equal(2)
+            expect(afterData).to.be.equal(4)
         })
 
         it("18. decreaseMaxMember test", async () => {
@@ -1954,6 +1963,24 @@ describe("DAO Proxy Change Test", () => {
             )
 
             let afterData2 = await daoagendaManager.executingPeriodSeconds()
+            expect(afterData2).to.be.equal(beforeData)
+        })
+
+        it("25. setBurntAmountAtDAO test", async () => {
+            let beforeData = await seigManagerV1Contract.burntAmountAtDAO()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
+                1
+            )
+
+            let afterData = await seigManagerV1Contract.burntAmountAtDAO()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
+                beforeData
+            )
+
+            let afterData2 = await seigManagerV1Contract.burntAmountAtDAO()
             expect(afterData2).to.be.equal(beforeData)
         })
 
