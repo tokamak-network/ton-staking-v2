@@ -75,7 +75,7 @@ contract DAOCommitteeProxy2 is
         for (uint256 i = 0; i < _selectors.length; i++) {
             require(
                 selectorImplementation[_selectors[i]] != _imp,
-                "LiquidityVaultProxy: same imp"
+                "Proxy: same imp"
             );
             selectorImplementation[_selectors[i]] = _imp;
             emit SetSelectorImplementation(_selectors[i], _imp);
