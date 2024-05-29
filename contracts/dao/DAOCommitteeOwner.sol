@@ -81,8 +81,8 @@ contract DAOCommitteeOwner is
         layer2CandidateFactory = _layer2CandidateFactory;
     }
 
-    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner nonZero(_layer2CandidateFactory) {
-        layer2Manager = _layer2CandidateFactory;
+    function setLayer2Manager(address _layer2Manager) external onlyOwner nonZero(_layer2Manager) {
+        layer2Manager = _layer2Manager;
     }
 
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {

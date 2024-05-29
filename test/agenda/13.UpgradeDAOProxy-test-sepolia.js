@@ -100,8 +100,8 @@ describe("DAO Proxy Change Test", () => {
     let member2ContractAddr = "0xBdbB2C17846027c75802464d4aFdD23a9192E103"
     let member3ContractAddr = "0xAbD15C021942Ca54aBd944C91705Fe70FEA13f0d"
 
-    let talkenAddr = "0xcc2f386adca481a00d614d5aa77a30984f264a07"
-    let talkenContractAddr = "0x36101b31e74c5E8f9a9cec378407Bbb776287761"
+    let talkenAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+    let talkenContractAddr = "0x277201BF0B20C672b023408Bf7778cFf3779b476"
 
     let sendether = "0xDE0B6B3A7640000"
 
@@ -791,14 +791,6 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        // it("Set newMember1CandidateContract", async () => {
-        //     newMember1ContractLogic = new ethers.Contract(
-        //         newMember1ContractAddr,
-        //         CandidateABI,
-        //         daoCommitteeAdmin
-        //     )
-        // })
-
         it("Set TalkenCandidateContract", async () => {
             talkenContractLogic = new ethers.Contract(
                 talkenContractAddr,
@@ -861,19 +853,25 @@ describe("DAO Proxy Change Test", () => {
             let candidateInfo1 = await daoCommittee_V1_Contract.candidates(beforeCandidateLength-1)
             // console.log(candidateInfo1)
             
-            await daoCommittee_V1_Contract.connect(user1).createCandidate(
-                "TestCandidate"
-            );
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
-            expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
-
-            let candidateInfo2 = await daoCommittee_V1_Contract.candidates(afterCandidateLength-1)
-            // console.log(candidateInfo2)
-
-            let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user1Addr)
-            // console.log("candidateInfo : ", candidateInfo);
-            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            if(checkalreadyMake == zeroaddr) {
+                await daoCommittee_V1_Contract.connect(user1).createCandidate(
+                    "TestCandidate"
+                );
+    
+                let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+                expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+    
+                let candidateInfo2 = await daoCommittee_V1_Contract.candidates(afterCandidateLength-1)
+                // console.log(candidateInfo2)
+    
+                let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user1Addr)
+                // console.log("candidateInfo : ", candidateInfo);
+                expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            } else {
+                console.log("already createCandidate");
+            }
         })
 
         it("set user1CandidateContract", async () => {
@@ -902,17 +900,24 @@ describe("DAO Proxy Change Test", () => {
             // console.log(daoCommittee_V1_Contract)
             let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
 
-            await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
-                "TestCandidate2",
-                user2Addr
-            );
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
-            expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
-            
-            let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user2Addr)
-            // console.log("candidateInfo : ", candidateInfo);
-            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            if(checkalreadyMake == zeroaddr) {
+                await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
+                    "TestCandidate2",
+                    user2Addr
+                );
+    
+                let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+                expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+                
+                let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user2Addr)
+                // console.log("candidateInfo : ", candidateInfo);
+                expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            } else {
+                console.log("already createCandidate");
+            }
+
         })
 
         it("set user2CandidateContract", async () => {
@@ -939,14 +944,14 @@ describe("DAO Proxy Change Test", () => {
 
         it("3. retireMember (onlyMember)", async () => {
             let memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck).to.be.equal(member2Addr.toUpperCase())
+            expect(memberCheck.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
 
             await (
                 await member2ContractLogic.connect(member2).retireMember()
             ).wait();
 
             memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck).to.be.equal(zeroAddr)
+            expect(memberCheck.toUpperCase()).to.be.equal(zeroAddr.toUpperCase())
         })
 
         it("4. changeMemeber (anyone)", async () => {
@@ -958,7 +963,7 @@ describe("DAO Proxy Change Test", () => {
             ).wait();
 
             memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck).to.be.equal(member2Addr.toUpperCase())
+            expect(memberCheck.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
         })
 
         it("5. setMemoOnCandidate (anyone)", async () => {
@@ -1423,7 +1428,7 @@ describe("DAO Proxy Change Test", () => {
             ).wait()
     
             let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
+            expect(afterAddr.toUpperCase()).to.be.equal(oldContractInfo.WTON.toUpperCase())
             // expect(beforeAddr).to.be.not.equal(afterAddr)
         })
 

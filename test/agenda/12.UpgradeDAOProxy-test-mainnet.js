@@ -891,20 +891,27 @@ describe("DAO Proxy Change Test", () => {
             let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
             let candidateInfo1 = await daoCommittee_V1_Contract.candidates(beforeCandidateLength-1)
             // console.log(candidateInfo1)
-            
-            await daoCommittee_V1_Contract.connect(user1).createCandidate(
-                "TestCandidate"
-            );
 
-            let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
-            expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            let candidateInfo2 = await daoCommittee_V1_Contract.candidates(afterCandidateLength-1)
-            // console.log(candidateInfo2)
+            if(checkalreadyMake == zeroaddr) {
+                await daoCommittee_V1_Contract.connect(user1).createCandidate(
+                    "TestCandidate"
+                );
+    
+                let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+                expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+    
+                let candidateInfo2 = await daoCommittee_V1_Contract.candidates(afterCandidateLength-1)
+                // console.log(candidateInfo2)
+    
+                let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user1Addr)
+                // console.log("candidateInfo : ", candidateInfo);
+                expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            } else {
+                console.log("already createCandidate");
+            }
 
-            let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user1Addr)
-            // console.log("candidateInfo : ", candidateInfo);
-            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
         })
 
         it("set user1CandidateContract", async () => {
@@ -933,17 +940,23 @@ describe("DAO Proxy Change Test", () => {
             // console.log(daoCommittee_V1_Contract)
             let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
 
-            await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
-                "TestCandidate2",
-                user2Addr
-            );
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
-            expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
-            
-            let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user2Addr)
-            // console.log("candidateInfo : ", candidateInfo);
-            expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            if(checkalreadyMake == zeroaddr) {
+                await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
+                    "TestCandidate2",
+                    user2Addr
+                );
+    
+                let afterCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
+                expect(afterCandidateLength).to.be.gt(beforeCandidateLength)
+                
+                let candidateInfo = await daoCommittee_V1_Contract.candidateInfos(user2Addr)
+                // console.log("candidateInfo : ", candidateInfo);
+                expect(candidateInfo.memberJoinedTime).to.be.equal(0)
+            } else {
+                console.log("already createCandidate");
+            }
         })
 
         it("set user2CandidateContract", async () => {
