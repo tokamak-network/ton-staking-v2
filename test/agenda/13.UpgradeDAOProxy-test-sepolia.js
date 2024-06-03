@@ -103,6 +103,9 @@ describe("DAO Proxy Change Test", () => {
     let talkenAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
     let talkenContractAddr = "0x277201BF0B20C672b023408Bf7778cFf3779b476"
 
+    let seigManagerOwnerAddr = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+    let seigManagerOwner;
+
     let sendether = "0xDE0B6B3A7640000"
 
     let zeroAddr = "0x0000000000000000000000000000000000000000";
@@ -238,6 +241,11 @@ describe("DAO Proxy Change Test", () => {
             user2Addr,
         ]);
         user2 = await hre.ethers.getSigner(user2Addr);
+        
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            seigManagerOwnerAddr,
+        ]);
+        seigManagerOwner = await hre.ethers.getSigner(seigManagerOwnerAddr);
         
         await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
@@ -855,7 +863,7 @@ describe("DAO Proxy Change Test", () => {
             
             let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            if(checkalreadyMake == zeroaddr) {
+            if(checkalreadyMake == zeroAddr) {
                 await daoCommittee_V1_Contract.connect(user1).createCandidate(
                     "TestCandidate"
                 );
@@ -900,9 +908,9 @@ describe("DAO Proxy Change Test", () => {
             // console.log(daoCommittee_V1_Contract)
             let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
 
-            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user2.address)
 
-            if(checkalreadyMake == zeroaddr) {
+            if(checkalreadyMake == zeroAddr) {
                 await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
                     "TestCandidate2",
                     user2Addr
@@ -1541,7 +1549,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("give the Pauser Role", async () => {
-            await seigManagerProxyContract.connect(daoCommitteeAdminContract).grantRole(
+            await seigManagerProxyContract.connect(seigManagerOwner).grantRole(
                 pause_role,
                 daoCommitteeAdminContract.address
             )
@@ -1575,6 +1583,13 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("5. setTargetGlobalWithdrawalDelay test", async () => {
+            let checkAdmin = await depositManagerContract.isAdmin(daoCommittee_Owner_Contract.address)
+            if (checkAdmin == false) {
+                await depositManagerContract.connect(daoCommitteeAdmin).addAdmin(
+                    daoCommittee_Owner_Contract.address
+                )
+            }
+
             let beforeData = await depositManagerContract.globalWithdrawalDelay()
             let changeData = 100
             
@@ -1596,6 +1611,12 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("6. setTargetAddMinter test", async () => {
+            let checkAdmin = await seigManagerContract.isAdmin(daoCommittee_Owner_Contract.address)
+            if (checkAdmin == false) {
+                await seigManagerContract.connect(daoCommitteeAdmin).addAdmin(
+                    daoCommittee_Owner_Contract.address
+                )
+            }
             let beforeMinter = await seigManagerContract.isMinter(user1.address)
             // console.log("beforeMinter :", beforeMinter);
 

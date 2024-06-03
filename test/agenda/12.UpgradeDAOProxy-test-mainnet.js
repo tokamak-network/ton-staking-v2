@@ -894,7 +894,7 @@ describe("DAO Proxy Change Test", () => {
 
             let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
 
-            if(checkalreadyMake == zeroaddr) {
+            if(checkalreadyMake == zeroAddr) {
                 await daoCommittee_V1_Contract.connect(user1).createCandidate(
                     "TestCandidate"
                 );
@@ -940,9 +940,9 @@ describe("DAO Proxy Change Test", () => {
             // console.log(daoCommittee_V1_Contract)
             let beforeCandidateLength = await daoCommittee_V1_Contract.candidatesLength()
 
-            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user1.address)
+            let checkalreadyMake = await daoCommittee_V1_Contract.candidateContract(user2.address)
 
-            if(checkalreadyMake == zeroaddr) {
+            if(checkalreadyMake == zeroAddr) {
                 await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).createCandidateOwner(
                     "TestCandidate2",
                     user2Addr
