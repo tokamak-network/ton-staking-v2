@@ -4,6 +4,9 @@ pragma solidity ^0.8.4;
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL2Registry } from "../common/AuthControlL2Registry.sol";
 import "./L2RegistryStorage.sol";
+import "./L2RegistryV1_1Storage.sol";
+
+
 // import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // import "hardhat/console.sol";
@@ -20,7 +23,7 @@ interface ISystemConfig {
     function l2Ton() external view returns (address addr_) ;
 }
 
-contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorage {
+contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorage, L2RegistryV1_1Storage {
 
     enum TYPE_SYSTEMCONFIG {
         NONE,
@@ -31,6 +34,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     event SetAddresses(address _layer2Manager, address _seigManager, address _ton);
     event RegisteredSystemConfig(address systemConfig, uint8 type_);
     event ChangedType(address systemConfig, uint8 type_);
+    event SetSeigniorageCommittee(address _seigniorageCommittee);
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -46,14 +50,21 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         _;
     }
 
+    modifier onlySeigniorageCommittee() {
+        require(seigniorageCommittee == msg.sender, "sender is not seigniorageCommittee");
+        _;
+    }
+
     modifier nonZero(uint256 value) {
         require(value != 0, "zero");
         _;
     }
+
     modifier nonZeroAddress(address value) {
         require(value != address(0), "zero address");
         _;
     }
+
     /* ========== onlyOwner ========== */
     function setAddresses(
         address _layer2Manager,
@@ -73,6 +84,17 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit SetAddresses(_layer2Manager, _seigManager, _ton);
     }
 
+    function setSeigniorageCommittee(
+        address _seigniorageCommittee
+    )  external
+       onlyOwner
+    {
+        seigniorageCommittee = _seigniorageCommittee;
+
+        emit SetSeigniorageCommittee(_seigniorageCommittee);
+    }
+
+
     /* ========== onlyManager ========== */
     function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
         _registerSystemConfig(_systemConfig, _type);
@@ -82,6 +104,8 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
         require(systemConfigType[_systemConfig] != 0, "unregistered");
+        require(systemConfigType[_systemConfig] != type(uint8).max, "Uneditable status");
+
         require(systemConfigType[_systemConfig] != _type, "same type");
         systemConfigType[_systemConfig] = _type;
 
