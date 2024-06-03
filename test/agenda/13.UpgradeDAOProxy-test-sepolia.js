@@ -35,6 +35,7 @@ const DAOProxy2ABI = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
 const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json").abi;
 const SeigManagerV1ABI = require("../../artifacts/contracts/stake/managers/SeigManagerV1_1.sol/SeigManagerV1_1.json").abi;
+const SeigManagerV3ABI = require("../../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json").abi;
 const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
 
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
@@ -167,6 +168,9 @@ describe("DAO Proxy Change Test", () => {
     let user2ContractLogic;
     let user2ContractAddr;
 
+    let user3;
+    let user3Addr = "0x6E1c4a442E9B9ddA59382ee78058650F1723E0F6";
+
     let agendaID;
     let beforeAgendaID;
 
@@ -174,6 +178,8 @@ describe("DAO Proxy Change Test", () => {
     let layer2ManagerAddr = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
 
     let layer2CandidateFactoryAddr = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
+
+    let legacySystemConfigAddr = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
 
     //changeMember before info
     // [
@@ -249,6 +255,11 @@ describe("DAO Proxy Change Test", () => {
             user2Addr,
         ]);
         user2 = await hre.ethers.getSigner(user2Addr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            user3Addr,
+        ]);
+        user3 = await hre.ethers.getSigner(user3Addr);
         
         await hre.network.provider.send("hardhat_impersonateAccount", [
             seigManagerOwnerAddr,
@@ -282,6 +293,11 @@ describe("DAO Proxy Change Test", () => {
 
         await hre.network.provider.send("hardhat_setBalance", [
             daoCommitteeAdminContract.address,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            user3.address,
             sendether
         ]);
     })
@@ -850,7 +866,7 @@ describe("DAO Proxy Change Test", () => {
         it("Set SeigManagerV3", async () => {
             seigManagerV3Contract = new ethers.Contract(
                 nowContractInfo.SeigManager,
-                SeigManagerV1ABI,
+                SeigManagerV3ABI,
                 daoCommitteeAdmin
             )
         })
@@ -2026,39 +2042,93 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("3. setTargetSetLayer2Manager test", async () => {
-            let beforeData = await seigManagerV1Contract.burntAmountAtDAO()
+            let beforeData = await seigManagerV3Contract.layer2Manager()
 
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
-                1
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetLayer2Manager(
+                seigManagerV3Contract.address,
+                layer2CandidateFactoryAddr
             )
 
-            let afterData = await seigManagerV1Contract.burntAmountAtDAO()
-            expect(afterData).to.be.equal(1)
+            let afterData = await seigManagerV3Contract.layer2Manager()
+            expect(afterData.toUpperCase()).to.be.equal(layer2CandidateFactoryAddr.toUpperCase())
 
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetLayer2Manager(
+                seigManagerV3Contract.address,
                 beforeData
             )
 
-            let afterData2 = await seigManagerV1Contract.burntAmountAtDAO()
-            expect(afterData2).to.be.equal(beforeData)
+            let afterData2 = await seigManagerV3Contract.layer2Manager()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
         it("4. setTargetSetL2Registry  test", async () => {
-            let beforeData = await seigManagerV1Contract.burntAmountAtDAO()
+            let beforeData = await seigManagerV3Contract.l2Registry()
 
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
-                1
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetL2Registry(
+                seigManagerV3Contract.address,
+                layer2CandidateFactoryAddr
             )
 
-            let afterData = await seigManagerV1Contract.burntAmountAtDAO()
-            expect(afterData).to.be.equal(1)
+            let afterData = await seigManagerV3Contract.l2Registry()
+            expect(afterData.toUpperCase()).to.be.equal(layer2CandidateFactoryAddr.toUpperCase())
 
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetL2Registry(
+                seigManagerV3Contract.address,
                 beforeData
             )
 
-            let afterData2 = await seigManagerV1Contract.burntAmountAtDAO()
+            let afterData2 = await seigManagerV3Contract.l2Registry()
+            expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
+        })
+
+        it("5. setTargetLayer2StartBlock test", async () => {
+            let beforeData = await seigManagerV3Contract.layer2StartBlock()
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetLayer2StartBlock(
+                seigManagerV3Contract.address,
+                1
+            )
+
+            let afterData = await seigManagerV3Contract.layer2StartBlock()
+            expect(afterData).to.be.equal(1)
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetLayer2StartBlock(
+                seigManagerV3Contract.address,
+                beforeData
+            )
+
+            let afterData2 = await seigManagerV3Contract.layer2StartBlock()
             expect(afterData2).to.be.equal(beforeData)
         })
+
+        // it("6. createLayer2Candidate test", async () => {
+        //     expect((await layer2ManagerContract.issueStatusLayer2(legacySystemConfigAddr))).to.be.eq(0)
+
+        //     const amount = await layer2ManagerContract.minimumInitialDepositAmount();
+
+        //     await (await ton.connect(daoCommitteeAdmin).mint(user1.address, amount))
+        //     let allowance = await ton.allowance(user1.address, layer2ManagerContract.address)
+        //     if(allowance.lt(amount)){
+        //         await ton.connect(user1).approve(layer2ManagerContract.address, amount);
+        //     }
+
+        //     const name = await legacySystemConfig.name()
+
+        //     const receipt = await (await layer2ManagerContract.connect(user1).registerLayer2Candidate(
+        //         legacySystemConfig.address,
+        //         amount,
+        //         true,
+        //         name
+        //     )).wait()
+
+        //     const topic = layer2ManagerContract.interface.getEventTopic('RegisteredLayer2Candidate');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = layer2ManagerContract.interface.parseLog(log);
+
+        //     expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+        //     expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
+        //     expect(deployedEvent.args.memo).to.be.eq(name)
+        //     expect(deployedEvent.args.layer2Candidate).to.be.not.eq(ethers.constants.AddressZero)
+        // })
     })
 })
