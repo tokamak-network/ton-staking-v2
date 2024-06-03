@@ -23,6 +23,12 @@ interface ISystemConfig {
     function l2Ton() external view returns (address addr_) ;
 }
 
+
+interface ILayer2Manager {
+    function pauseLayer2Candidate(address systemConfig) external;
+    function unpauseLayer2Cnadidate(address systemConfig) external;
+}
+
 contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorage, L2RegistryV1_1Storage {
 
     enum TYPE_SYSTEMCONFIG {
@@ -35,6 +41,8 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     event RegisteredSystemConfig(address systemConfig, uint8 type_);
     event ChangedType(address systemConfig, uint8 type_);
     event SetSeigniorageCommittee(address _seigniorageCommittee);
+    event RejectedLayer2Candidate(address _systemConfig);
+    event RestoredLayer2Candidate(address _systemConfig);
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -62,6 +70,11 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     modifier nonZeroAddress(address value) {
         require(value != address(0), "zero address");
+        _;
+    }
+
+    modifier nonRejected(address systemConfig) {
+        require(!rejectSystemConfig[systemConfig], "rejected");
         _;
     }
 
@@ -94,25 +107,46 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit SetSeigniorageCommittee(_seigniorageCommittee);
     }
 
+    /* ========== onlySeigniorageCommittee ========== */
+
+    function rejectLayer2Candidate(
+        address _systemConfig
+    )  external
+       onlySeigniorageCommittee nonRejected(_systemConfig)
+    {
+        require (systemConfigType[_systemConfig] != 0, "not registered layer2");
+
+        ILayer2Manager(layer2Manager).pauseLayer2Candidate(_systemConfig);
+        emit RejectedLayer2Candidate(_systemConfig);
+    }
+
+    function restoreLayer2Candidate(
+        address _systemConfig
+    )  external
+       onlySeigniorageCommittee
+    {
+        require (rejectSystemConfig[_systemConfig], "not rejected");
+        rejectSystemConfig[_systemConfig] = false;
+        ILayer2Manager(layer2Manager).unpauseLayer2Cnadidate(_systemConfig);
+        emit RestoredLayer2Candidate(_systemConfig);
+    }
 
     /* ========== onlyManager ========== */
-    function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
+    function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager  nonRejected(_systemConfig){
         _registerSystemConfig(_systemConfig, _type);
     }
 
     /* ========== onlyRegistrant ========== */
 
-    function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
+    function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant  nonRejected(_systemConfig){
         require(systemConfigType[_systemConfig] != 0, "unregistered");
-        require(systemConfigType[_systemConfig] != type(uint8).max, "Uneditable status");
-
         require(systemConfigType[_systemConfig] != _type, "same type");
         systemConfigType[_systemConfig] = _type;
 
         emit ChangedType(_systemConfig, _type);
     }
 
-    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
+    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant  nonRejected(_systemConfig){
         _registerSystemConfig(_systemConfig, _type);
     }
 
@@ -131,24 +165,29 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     }
 
     function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid){
-        address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
-        if(l1Bridge_ != address(0)) {
+        if (rejectSystemConfig[_systemConfig]) {
+            valid = false;
+        } else {
+            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            if(l1Bridge_ != address(0)) {
 
-            if (_type == 1) {
-                if(systemConfigType[_systemConfig] == 0 && l1Bridge[l1Bridge_] == false) {
-                    valid = true;
-                }
-            } else if (_type == 2) {
-
-                address portal_ = ISystemConfig(_systemConfig).optimismPortal();
-                if(portal_ != address(0)) {
-                    if(systemConfigType[_systemConfig] == 0 && !portal[portal_]) {
+                if (_type == 1) {
+                    if(systemConfigType[_systemConfig] == 0 && l1Bridge[l1Bridge_] == false) {
                         valid = true;
+                    }
+                } else if (_type == 2) {
+
+                    address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+                    if(portal_ != address(0)) {
+                        if(systemConfigType[_systemConfig] == 0 && !portal[portal_]) {
+                            valid = true;
+                        }
                     }
                 }
             }
         }
     }
+
     /* ========== internal ========== */
 
     function _registerSystemConfig(address _systemConfig, uint8 _type) internal {

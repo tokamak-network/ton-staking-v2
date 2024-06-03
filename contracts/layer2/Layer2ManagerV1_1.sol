@@ -58,6 +58,10 @@ interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
 
+interface ISeigManager {
+    function excludeFromSeigniorage (address _layer2) external;
+    function includeInSeigniorage (address _layer2) external;
+}
 
 contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
@@ -77,9 +81,16 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event PausedLayer2Candidate(address systemConfig);
+    event UnpausedLayer2Candidate(address systemConfig);
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
+        _;
+    }
+
+    modifier onlyL2Register() {
+        require(l2Register == msg.sender, "sender is not a l2Register");
         _;
     }
 
@@ -131,6 +142,27 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         minimumInitialDepositAmount = _minimumInitialDepositAmount;
 
         emit SetMinimumInitialDepositAmount(_minimumInitialDepositAmount);
+    }
+
+
+    /* ========== onlyL2Register ========== */
+    function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
+        require(issueStatusLayer2[systemConfig] == 1, "not in normal status");
+
+        address _layer2 = layer2CandidateOfOperator[operatorOfSystemConfig[systemConfig]];
+        require(_layer2 != address(0), "zero layer2");
+
+        issueStatusLayer2[systemConfig] = 2;
+        emit PausedLayer2Candidate(systemConfig);
+
+        ISeigManager(seigManager).excludeFromSeigniorage(_layer2);
+    }
+
+    function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
+        require(issueStatusLayer2[systemConfig] == 2, "not in pause status");
+
+        issueStatusLayer2[systemConfig] = 1;
+        emit UnpausedLayer2Candidate(systemConfig);
     }
 
     /* ========== onlySeigManger  ========== */
