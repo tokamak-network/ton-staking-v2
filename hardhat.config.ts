@@ -202,7 +202,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      accounts: [`${process.env.SEPOLIA_PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
     },
   },
