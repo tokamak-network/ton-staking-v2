@@ -6,10 +6,6 @@ import { AuthControlL2Registry } from "../common/AuthControlL2Registry.sol";
 import "./L2RegistryStorage.sol";
 import "./L2RegistryV1_1Storage.sol";
 
-
-// import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-// import "hardhat/console.sol";
 interface IERC20 {
     function balanceOf(address addr) external view returns (uint256);
 }
@@ -115,7 +111,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
        onlySeigniorageCommittee nonRejected(_systemConfig)
     {
         require (systemConfigType[_systemConfig] != 0, "not registered layer2");
-
+        rejectSystemConfig[_systemConfig] = true;
         ILayer2Manager(layer2Manager).pauseLayer2Candidate(_systemConfig);
         emit RejectedLayer2Candidate(_systemConfig);
     }
@@ -154,6 +150,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     function layer2TVL(address _systemConfig) external view returns (uint256 amount){
 
         uint _type = systemConfigType[_systemConfig];
+
         if (_type == 1) {
             address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
             if (l1Bridge[l1Bridge_]) amount = IERC20(ton).balanceOf(l1Bridge_);
@@ -191,13 +188,15 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     /* ========== internal ========== */
 
     function _registerSystemConfig(address _systemConfig, uint8 _type) internal {
-        require(_type != 0, "zero type");
-        require(_type <= uint8(type(TYPE_SYSTEMCONFIG).max), "unsupported type");
+        // require(_type != 0, "zero type");
+        // require(_type <= uint8(type(TYPE_SYSTEMCONFIG).max), "unsupported type");
+        require(_type == 1 || _type == 2, "unsupported type");
         require(systemConfigType[_systemConfig] == 0, "already registered");
         require(availableForRegistration(_systemConfig, _type), "unavailable for registration");
 
         systemConfigType[_systemConfig] = _type;
-        l1Bridge[ISystemConfig(_systemConfig).l1StandardBridge()] = true;
+        if (_type == 1) l1Bridge[ISystemConfig(_systemConfig).l1StandardBridge()] = true;
+        else if (_type == 2) portal[ISystemConfig(_systemConfig).optimismPortal()] = true;
 
         emit RegisteredSystemConfig(_systemConfig, _type);
     }

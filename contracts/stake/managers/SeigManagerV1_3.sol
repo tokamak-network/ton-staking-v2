@@ -15,8 +15,6 @@ import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
 import { SeigManagerV1_3Storage } from "./SeigManagerV1_3Storage.sol";
 
-// import "hardhat/console.sol";
-
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -183,10 +181,10 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   function excludeFromSeigniorage (address _layer2)
     external
     onlyLayer2Manager
+    returns (bool)
   {
     Layer2Reward storage reward = layer2RewardInfo[_layer2];
     require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
-
     emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
 
     if (reward.layer2Tvl != 0) {
@@ -194,6 +192,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       reward.layer2Tvl = 0;
       reward.initialDebt = 0;
     }
+
+    return true;
   }
 
   //////////////////////////////
@@ -515,6 +515,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
       if (l2RewardPerUint != 0) {
         if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
+
           layer2Seigs += unSettledReward(msg.sender);
 
           if (layer2Seigs != 0)  ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
