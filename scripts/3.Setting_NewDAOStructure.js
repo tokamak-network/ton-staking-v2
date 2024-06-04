@@ -44,6 +44,8 @@ async function Setting_changeDAOStructure() {
     )
     console.log("upgradeTo DAOCommitteeProxy2 done")
 
+    sleep(12000);
+
     //==== Set DAOCommitteeProxy2 =================================
     daoCommitteeProxy2Contract = new ethers.Contract(
         sepoliaContractInfo.DAOCommitteeProxy,
@@ -92,6 +94,8 @@ async function Setting_changeDAOStructure() {
         true
     )
     console.log("setImplementation2 DAOCommitteeOwner done")
+
+    sleep(12000);
 
     //==== Set DAOCommitteeProxy2 selectorImplementations2 DAOCommitteeOwner =================================
     const _setLayer2CandidateFactory = Web3EthAbi.encodeFunctionSignature(
