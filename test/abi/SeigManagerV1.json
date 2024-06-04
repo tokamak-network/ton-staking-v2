@@ -6,6 +6,25 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "_layer2",
+          "type": "address"
+        }
+      ],
+      "name": "excludeFromSeigniorage",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "uint256",
           "name": "blockNumber",
           "type": "uint256"
@@ -257,7 +276,7 @@
           "type": "bool"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     },
     {
