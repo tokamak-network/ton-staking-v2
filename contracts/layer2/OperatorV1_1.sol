@@ -130,8 +130,9 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     function _claim(address token, address to, uint256 amount) internal {
         if(token == address(0)) {
             require(address(this).balance >= amount, "insufficient balance");
-            payable(to).transfer(amount);
 
+            (bool success, ) = to.call{value: amount}("");
+            require(success, "Transfer ETH failed.");
         } else {
             require(IERC20(token).balanceOf(address(this)) >= amount, "insufficient balance");
             IERC20(token).safeTransfer(to, amount);
