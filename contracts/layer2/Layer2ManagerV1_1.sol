@@ -54,6 +54,10 @@ interface ITON {
     function approveAndCall(address spender, uint256 amount, bytes memory data) external returns (bool);
 }
 
+interface IWTON {
+     function swapFromTON(uint256 tonAmount) external returns (bool);
+}
+
 interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
@@ -290,10 +294,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
             require(amount >= minimumInitialDepositAmount, "unsatisfied initialDepositAmount");
             IERC20(ton).safeTransferFrom(sender, address(this), amount);
-            require(
-                ITON(ton).approveAndCall(wton, amount, abi.encode(swapProxy, swapProxy)),
-                "fail to swap ton to wton"
-            );
+
+            if (IERC20(ton).allowance(address(this), wton) < amount) IERC20(ton).approve(wton, type(uint256).max);
+            require(IWTON(wton).swapFromTON(amount),"fail to swap ton to wton");
+
             _registerLayer2Candidate(systemConfig, amount*1e9, memo);
 
         } else { // with wton
