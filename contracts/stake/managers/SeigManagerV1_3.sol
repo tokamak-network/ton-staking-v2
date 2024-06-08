@@ -194,7 +194,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
    */
   /// on v1_3, it is changed with reflecting L2 sequencer.
   function _updateSeigniorage(bool _isSenderOperator)
-    internal
+    internal ifFree
     returns (bool)
   {
     // short circuit if paused
@@ -428,6 +428,9 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 curLayer2Tvl = 0;
     address systemConfig;
     bool layer2Allowed;
+     // L2 seigs settlement
+    uint256 layer2Seigs = 0;
+
     Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
     if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
@@ -479,7 +482,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     }
 
     // L2 seigs settlement
-    uint256 layer2Seigs = 0;
 
     if (layer2Allowed) {
       if (l2TotalSeigs != 0) l2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
@@ -488,15 +490,16 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
       if (l2RewardPerUint != 0) {
         if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
-          layer2Seigs += unSettledReward(msg.sender);
+          layer2Seigs = unSettledReward(msg.sender);
 
-          if (layer2Seigs != 0)  ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
+          if (layer2Seigs != 0) {
+            ILayer2Manager(layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
+            newLayer2Info.initialDebt += layer2Seigs;
+          }
 
-          newLayer2Info.initialDebt = l2RewardPerUint * curLayer2Tvl / 1e18;
         } else if(_lastCommitBlock[msg.sender] == 0) {
-          newLayer2Info.initialDebt = l2RewardPerUint * curLayer2Tvl / 1e18;
+          newLayer2Info.initialDebt = l2RewardPerUint * oldLayer2Info.layer2Tvl / 1e18;
         }
-
       }
 
       newLayer2Info.layer2Tvl = curLayer2Tvl;
@@ -513,8 +516,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function unSettledReward(address layer2) public  view returns (uint256 amount) {
     Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
+    if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * (layer2Info.layer2Tvl  / 1e18) - layer2Info.initialDebt;
 
-    if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * layer2Info.layer2Tvl  / 1e18 - layer2Info.initialDebt;
   }
 
   function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
@@ -583,13 +586,13 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 tempL2RewardPerUint = l2RewardPerUint;
     if (layer2Allowed) {
       if (l2TotalSeigs != 0) tempL2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
+
       if (tempL2RewardPerUint != 0
            && (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl)
-           && (oldLayer2Info.layer2Tvl != 0)){
-
-            layer2Seigs += tempL2RewardPerUint * oldLayer2Info.layer2Tvl  / 1e18 - oldLayer2Info.initialDebt;
-        }
+           && (oldLayer2Info.layer2Tvl != 0)) {
+            layer2Seigs = tempL2RewardPerUint * (oldLayer2Info.layer2Tvl  / 1e18) - oldLayer2Info.initialDebt;
       }
+    }
   }
 
   //=====

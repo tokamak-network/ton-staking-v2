@@ -382,7 +382,10 @@ const config: HardhatUserConfig = {
       forking: {
         url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
-        // blockNumber: 5859537
+        blockNumber: 5859537
+        // blockNumber: 6042730
+        // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
+        // blockNumber: 6042730
         // npx hardhat test test/layer2/sepolia_test/0.registerLayer2Candidate.ts
         // blockNumber: 5860655,
         // npx hardhat test test/layer2/sepolia_test/2.withdrawAndDepositL2.ts
@@ -390,7 +393,7 @@ const config: HardhatUserConfig = {
         // npx hardhat test test/layer2/sepolia_test/1.updateSeigs.ts
         // blockNumber: 5874556,
         // npx hardhat test test/layer2/sepolia_test/3.updateSeigsAndClaim.ts
-        blockNumber: 5892966,
+        // blockNumber: 5892966,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970
@@ -484,12 +487,16 @@ const config: HardhatUserConfig = {
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
   },
   solidity: {
-    version: '0.8.19',
+    version: '0.8.18',
     settings: {
+      // evmVersion: "cancun",
       viaIR: true,
       optimizer: {
         enabled: true,
         runs: 200,
+        // details: {
+        //   yul: true,
+        // },
       },
       metadata: {
         // do not include the metadata hash, since this is machine dependent

@@ -25,4 +25,13 @@ contract SeigManagerV1_3Storage  {
 
     /// layer2 reward information for each layer2.
     mapping (address => Layer2Reward) public layer2RewardInfo;
+
+    bool internal _lock;
+
+    modifier ifFree {
+        require(!_lock, "lock");
+        _lock = true;
+        _;
+        _lock = false;
+    }
 }
