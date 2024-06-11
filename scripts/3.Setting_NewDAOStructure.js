@@ -3,14 +3,17 @@ const { ethers } = hre;
 
 const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
+const DAOCommitteeOwnerABI = require("../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
 
 const Web3EthAbi = require('web3-eth-abi');
 
 const sepoliaContractInfo = {
     DAOCommitteeProxy: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-    DAOCommitteeProxy2: "0x5FBb951E7B7a3E2e947AF7E8565b15AA11e670fE",
-    DAOCommittee_V1: "0x324715873db4fc19057acE49eD17dA0a93Ae2310",
-    DAOCommitteeOwner: "0xaF23260F74806641e3307Eb567C57a4640861080"
+    DAOCommitteeProxy2: "0x0cb4E974302864D1059028de86757Ca55D121Cb8",
+    DAOCommittee_V1: "0xB800a42D9A8e5036B75246aeDA578DCe58f85B18",
+    DAOCommitteeOwner: "0x34B6e334D88436Fbbb9c316865A1BA454769C090",
+    Layer2CandidateFactory: "0x770739A468D9262960ee0669f9Eaf0db6E21F81A",
+    Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
 }
 
 const mainnetContractInfo = {
@@ -18,6 +21,11 @@ const mainnetContractInfo = {
     DAOCommitteeProxy2: "",
     DAOCommittee_V1: "",
     DAOCommitteeOwner: ""
+}
+
+function sleep(ms) {
+    const wakeUpTime = Date.now() + ms;
+    while (Date.now() < wakeUpTime) {}
 }
 
 async function Setting_changeDAOStructure() {
@@ -61,22 +69,24 @@ async function Setting_changeDAOStructure() {
     )
     console.log("upgradeTo2 DAOCommittee_V1 done")
 
-    //==== Set DAOCommitteeProxy2 setAliveImplementation2 DAOCommittee_V1 =================================
-    
-    await daoCommitteeProxy2Contract.connect(deployer).setAliveImplementation2(
-        sepoliaContractInfo.DAOCommittee_V1, 
-        true
-    )
-    console.log("setAliveImplementation2 DAOCommittee_V1 done")
+    sleep(12000);
 
-    //==== Set DAOCommitteeProxy2 setImplementation2 DAOCommittee_V1 =================================
+    // //==== Set DAOCommitteeProxy2 setAliveImplementation2 DAOCommittee_V1 =================================
     
-    await daoCommitteeProxy2Contract.connect(deployer).setImplementation2(
-        sepoliaContractInfo.DAOCommittee_V1, 
-        0, 
-        true
-    )
-    console.log("setImplementation2 DAOCommittee_V1 done")
+    // await daoCommitteeProxy2Contract.connect(deployer).setAliveImplementation2(
+    //     sepoliaContractInfo.DAOCommittee_V1, 
+    //     true
+    // )
+    // console.log("setAliveImplementation2 DAOCommittee_V1 done")
+
+    // //==== Set DAOCommitteeProxy2 setImplementation2 DAOCommittee_V1 =================================
+    
+    // await daoCommitteeProxy2Contract.connect(deployer).setImplementation2(
+    //     sepoliaContractInfo.DAOCommittee_V1, 
+    //     0, 
+    //     true
+    // )
+    // console.log("setImplementation2 DAOCommittee_V1 done")
 
     //==== Set DAOCommitteeProxy2 setAliveImplementation2 DAOCommitteeOwner =================================
     
@@ -245,11 +255,36 @@ async function Setting_changeDAOStructure() {
             sepoliaContractInfo.DAOCommitteeOwner
     )
     console.log("setSelectorImplementations2 DAOCommitteeOwner done")
+}
+
+async function Set_DAOCommitteeOwner() {
+    const [deployer] = await ethers.getSigners();
+
+    //==== Set DAOCommitteeOwner =================================
+    let daoCommitteeOwner = new ethers.Contract(
+        sepoliaContractInfo.DAOCommitteeProxy,
+        DAOCommitteeOwnerABI,
+        ethers.provider
+    )
+
+
+    //==== Set Layer2CandidateFactory =================================
+    await daoCommitteeOwner.connect(deployer).setLayer2CandidateFactory(
+        sepoliaContractInfo.Layer2CandidateFactory
+    )
+    console.log("setLayer2CandidateFactory DAOCommitteeOwner done")
+
+    //==== Set Layer2Manager =================================
+    await daoCommitteeOwner.connect(deployer).setLayer2Manager(
+        sepoliaContractInfo.Layer2Manager
+    )
+    console.log("setLayer2Manager DAOCommitteeOwner done")
 
 }
 
 const main = async () => {
   await Setting_changeDAOStructure()
+  await Set_DAOCommitteeOwner()
 }
 
 

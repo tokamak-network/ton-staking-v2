@@ -159,18 +159,18 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        // url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        // blockNumber: 19131000
-        // blockNumber: 18811511
-        url: `${process.env.ETH_NODE_URI_sepolia}`,
-        // blockNumber:18229970
+        // mainnet or sepolia
+        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        blockNumber: 19131000
+        // url: `${process.env.ETH_NODE_URI_sepolia}`,
+        // blockNumber:6030000
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
-      timeout: 800000,
+      timeout: 1000000,
       // accounts: [`${process.env.DEPLOYER}`],
       // deploy: ['deploy-migration']
     },

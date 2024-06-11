@@ -452,12 +452,12 @@ describe("DAO Proxy Change Test", () => {
             ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
         })
 
-        it("DAOProxy2 setAliveImplementation2 DAOv2CommitteeV1", async () => {
-            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setAliveImplementation2(
-                daoCommitteeLogic.address, 
-                true
-            )
-        })
+        // it("DAOProxy2 setAliveImplementation2 DAOv2CommitteeV1", async () => {
+        //     await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setAliveImplementation2(
+        //         daoCommitteeLogic.address, 
+        //         true
+        //     )
+        // })
 
         it("DAOProxy2 not Owner don't setImplementation2", async () => {
             await expect(
@@ -469,13 +469,13 @@ describe("DAO Proxy Change Test", () => {
             ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
         })
 
-        it("DAOProxy2 setImplementation2 DAOv2CommitteeV1", async () => {
-            await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setImplementation2(
-                daoCommitteeLogic.address, 
-                0, 
-                true
-            )
-        })
+        // it("DAOProxy2 setImplementation2 DAOv2CommitteeV1", async () => {
+        //     await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setImplementation2(
+        //         daoCommitteeLogic.address, 
+        //         0, 
+        //         true
+        //     )
+        // })
 
         it("DAOProxy2 not owner(deployer) don't setAliveImplementation2 DAOv2CommitteeV2", async () => {
             await expect(
