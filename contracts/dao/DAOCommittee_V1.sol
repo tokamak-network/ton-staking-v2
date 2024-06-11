@@ -114,7 +114,7 @@ contract DAOCommittee_V1 is
     );
 
     event ChangedMemo(
-        address candidate,
+        address candidateContract,
         string newMemo
     );
 
@@ -401,7 +401,7 @@ contract DAOCommittee_V1 is
         );
 
         ICandidate(_candidateContract).setMemo(_memo);
-        emit ChangedMemo(candidate, _memo);
+        emit ChangedMemo(_candidateContract, _memo);
     }
 
     //////////////////////////////////////////////////////////////////////
