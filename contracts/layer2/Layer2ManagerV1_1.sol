@@ -8,7 +8,6 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-// import "hardhat/console.sol";
 
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
@@ -104,9 +103,16 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event PausedLayer2Candidate(address systemConfig, address _layer2);
+    event UnpausedLayer2Candidate(address systemConfig, address _layer2);
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
+        _;
+    }
+
+    modifier onlyL2Register() {
+        require(l2Register == msg.sender, "sender is not a l2Register");
         _;
     }
 
@@ -156,6 +162,28 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         minimumInitialDepositAmount = _minimumInitialDepositAmount;
 
         emit SetMinimumInitialDepositAmount(_minimumInitialDepositAmount);
+    }
+
+
+    /* ========== onlyL2Register ========== */
+    function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
+
+        require(issueStatusLayer2[systemConfig] == 1, "not in normal status");
+
+        address _layer2 = layer2CandidateOfOperator[operatorOfSystemConfig[systemConfig]];
+        require(_layer2 != address(0), "zero layer2");
+
+        issueStatusLayer2[systemConfig] = 2;
+        emit PausedLayer2Candidate(systemConfig, _layer2);
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
+        require(success, "fail excludeFromSeigniorage");
+    }
+
+    function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
+        require(issueStatusLayer2[systemConfig] == 2, "not in pause status");
+
+        issueStatusLayer2[systemConfig] = 1;
+        emit UnpausedLayer2Candidate(systemConfig, layer2CandidateOfOperator[operatorOfSystemConfig[systemConfig]]);
     }
 
     /* ========== onlySeigManger  ========== */

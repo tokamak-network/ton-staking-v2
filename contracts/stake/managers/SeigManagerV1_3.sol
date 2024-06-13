@@ -15,8 +15,6 @@ import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
 import { SeigManagerV1_3Storage } from "./SeigManagerV1_3Storage.sol";
 
-// import "hardhat/console.sol";
-
 interface MinterRoleRenounceTarget {
   function renounceMinter() external;
 }
@@ -114,6 +112,11 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     _;
   }
 
+  modifier onlyLayer2Manager() {
+    require(msg.sender == layer2Manager, "not layer2Manager");
+    _;
+  }
+
   modifier onlyDepositManager() {
     require(msg.sender == _depositManager, "not onlyDepositManager");
     _;
@@ -153,6 +156,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   /** Added from v1_3. */
   event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
+  event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+
   //////////////////////////////
   // onlyOwner
   //////////////////////////////
@@ -167,6 +172,28 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function setL2Registry(address l2Registry_) external onlyOwner {
     l2Registry = l2Registry_;
+  }
+
+
+  //////////////////////////////
+  // onlyLayer2Manager
+  //////////////////////////////
+  function excludeFromSeigniorage (address _layer2)
+    external
+    onlyLayer2Manager
+    returns (bool)
+  {
+    Layer2Reward storage reward = layer2RewardInfo[_layer2];
+    require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
+    emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
+
+    if (reward.layer2Tvl != 0) {
+      totalLayer2TVL = totalLayer2TVL - reward.layer2Tvl;
+      reward.layer2Tvl = 0;
+      reward.initialDebt = 0;
+    }
+
+    return true;
   }
 
   //////////////////////////////
@@ -382,9 +409,9 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
       systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
 
-      if(systemConfig == address(0)) allowed = false;
+      if (systemConfig == address(0)) allowed = false;
       else {
-        if(ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) != 0) allowed = true;
+        if (ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) == 1) allowed = true;
       }
   }
 
