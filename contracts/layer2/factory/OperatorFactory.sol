@@ -68,10 +68,8 @@ contract OperatorFactory is Ownable {
         require(sManager != address(0), "zero config's owner");
         // require(sManager == msg.sender, "not config's owner");
 
-        uint256 salt = 0;
+        uint256 salt;
         address addr = getAddress(systemConfig);
-
-        // uint codeSize = addr.code.length;
         require(addr.code.length == 0, "already created");
 
         operator = address(new OperatorProxy{salt : bytes32(salt)}(systemConfig));
@@ -79,24 +77,33 @@ contract OperatorFactory is Ownable {
         IOperator(operator).upgradeTo(operatorImplementation);
         IOperator(operator).transferManager(sManager);
         IOperator(operator).addOperator(sManager);
-        IOperator(operator).transferOwnership(owner());
+        IOperator(operator).transferOwnership(sOwner);
         IOperator(operator).setAddresses(msg.sender, depositManager, ton, wton);
 
         emit CreatedOperator(systemConfig, sOwner, sManager, operator);
     }
 
     function getAddress(address systemConfig) public view returns (address) {
-        uint _salt =0;
-        bytes32 hash = keccak256(
+        uint256 _salt;
+        // bytes32 hash = keccak256(
+        //     abi.encodePacked(
+        //         bytes1(0xff),
+        //         address(this),
+        //         _salt,
+        //         keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
+        //     )
+        // );
+
+        // return address(uint160(uint(hash)));
+
+        return address(uint160(uint(keccak256(
             abi.encodePacked(
                 bytes1(0xff),
                 address(this),
                 _salt,
                 keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
             )
-        );
-
-        return address(uint160(uint(hash)));
+        ))));
     }
 
 }

@@ -12,6 +12,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
+    function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount);
 }
 
 interface OnApprove {
@@ -62,6 +63,28 @@ interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
 
+/**
+ * @notice  Error that occurs when registering Layer2Candidate
+ * @param x 1: don't create operator
+ *          2: already systemConfigOfOperator registered
+ *          3: fail deposit
+ *          4: already operatorOfSystemConfig registered
+ *          5: unvalidated Layer2
+ *          6: insufficient initialDepositAmount
+ *          7: fail to swap ton to wton
+ *          8: wrong data length
+ */
+error RegisterError(uint x);
+error ZeroAddressError();
+error ZeroBytesError();  // memo check
+
+/**
+ * @notice  Error in onApprove function
+ * @param x 1: sender is not ton nor wton
+ *          2: wrong spender parameter
+ *          3: wrong data parameter length
+ */
+error OnApproveError(uint x);
 
 contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
@@ -125,8 +148,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         seigManager = _seigManager;
         swapProxy = _swapProxy;
 
-        // if(minimumRelectedAmount == 0) minimumRelectedAmount = 1e27;
-
         emit SetAddresses(_l2Register, _operatorFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
     }
 
@@ -140,11 +161,26 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== onlySeigManger  ========== */
 
     function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger {
-        IERC20(wton).safeTransfer(operatorOfSystemConfig[systemConfig], amount);
+
+        IERC20(wton).safeTransfer(systemConfigInfo[systemConfig].operator, amount);
     }
 
-
     /* ========== Anybody can execute ========== */
+    function systemConfigOfOperator(address _oper) external view returns (address) {
+        return operatorInfo[_oper].systemConfig;
+    }
+
+    function operatorOfSystemConfig(address _sys) external view returns (address) {
+        return systemConfigInfo[_sys].operator;
+    }
+
+    function layer2CandidateOfOperator(address _oper) external view returns (address) {
+        return operatorInfo[_oper].layer2Candidate;
+    }
+
+    function issueStatusLayer2(address _sys) external view returns (uint8) {
+        return systemConfigInfo[_sys].stateIssue;
+    }
 
     /// @notice ERC20 Approve callback
     /// @param owner    Account that called approveAndCall
@@ -153,20 +189,33 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /// @param data     Data used in OnApprove contract
     /// @return bool    true
     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool) {
-        require(msg.sender == ton || msg.sender == wton, "sender is not ton nor wton");
-        require(spender == address(this), "wrong spender parameter");
-        bytes memory _data = data;
+        if (msg.sender != ton && msg.sender != wton) revert OnApproveError(1);
+
+        if (spender != address(this)) revert OnApproveError(2);
+
+        // bytes memory _data = data;
+        bytes calldata _message;
         address _systemConfig;
-        require(data.length > 20, "wrong data length");
+        // require(data.length > 20, "wrong data length");
+        if (data.length <= 20) revert OnApproveError(3);
         assembly {
-            _systemConfig := mload(add(add(_data, 0x14), 0))
+            // _systemConfig := mload(add(add(_data, 0x14), 0))
+            _systemConfig := shr(96, calldataload(data.offset))
+            _message.offset := add(data.offset, 20)
+            _message.length := sub(data.length, 20)
         }
 
-        require(_systemConfig != address(0), "wrong data length");
-        require(_checkLayer2(_systemConfig), "unValidated Layer2");
+        _nonZeroAddress(_systemConfig);
 
-        if(msg.sender == ton ) _transferDepositAmount(owner, _systemConfig, amount, true, string(bytes(data[20:])));
-        else _transferDepositAmount(owner, _systemConfig, amount, false, string(bytes(data[20:])));
+        if (systemConfigInfo[_systemConfig].operator != address(0)) revert RegisterError(4);
+
+        if (!_checkLayer2(_systemConfig)) revert RegisterError(5);
+
+        // if (msg.sender == ton) _transferDepositAmount(owner, _systemConfig, amount, true, string(bytes(data[20:])));
+        // else _transferDepositAmount(owner, _systemConfig, amount, false, string(bytes(data[20:])));
+
+        if (msg.sender == ton) _transferDepositAmount(owner, _systemConfig, amount, true, string(_message));
+        else _transferDepositAmount(owner, _systemConfig, amount, false, string(_message));
 
         return true;
     }
@@ -183,11 +232,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         string calldata memo
     )
         external
-        nonZeroAddress(systemConfig)
     {
-        require(bytes(memo).length != 0, "check memo");
+        _nonZeroAddress(systemConfig);
+        if (bytes(memo).length == 0) revert ZeroBytesError();
+        if (systemConfigInfo[systemConfig].operator != address(0)) revert RegisterError(4);
 
-        require(_checkLayer2(systemConfig), "unValidated Layer2");
+        if (!_checkLayer2(systemConfig)) revert RegisterError(5);
         _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
     }
 
@@ -195,6 +245,65 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== VIEW ========== */
 
     function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount) {
+         return _checkLayer2TVL(_systemConfig);
+    }
+
+
+    function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address l2Ton) {
+
+        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
+
+        try
+            ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
+                if (l1Bridge_ != address(0)) {
+                    if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                    else if (_type == 2) l2Ton = address(bytes20(bytes('0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000')));
+                    if (l2Ton != address(0)) {
+                        // if (_type == 1 || _type == 2) {
+                        result = true;
+                        l1Bridge = l1Bridge_;
+                        // }
+                    }
+                }
+            } catch (bytes memory ) { }
+    }
+
+
+    /* ========== internal ========== */
+
+    function _nonZeroAddress(address _addr) internal pure {
+        if(_addr == address(0)) revert ZeroAddressError();
+    }
+
+    function _registerLayer2Candidate(
+        address _systemConfig,
+        uint256 _wtonAmount,
+        string calldata _memo
+    ) internal  {
+
+        address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
+        if (operator == address(0)) revert RegisterError(1);
+        if (operatorInfo[operator].systemConfig != address(0)) revert RegisterError(2);
+
+        address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
+
+        operatorInfo[operator] = OperatorInfo({
+            systemConfig: _systemConfig,
+            layer2Candidate : layer2Candidate
+        });
+
+        systemConfigInfo[_systemConfig] = SystemConfigInfo({
+            stateIssue: 1,
+            operator: operator
+        });
+
+        emit RegisteredLayer2Candidate(_systemConfig, _wtonAmount, _memo, operator, layer2Candidate);
+
+        if (IERC20(wton).allowance(address(this), depositManager) < _wtonAmount) IERC20(wton).approve(depositManager, type(uint256).max);
+        if (!IIDepositManager(depositManager).deposit(layer2Candidate, operator, _wtonAmount)) revert RegisterError(3);
+    }
+
+    function _checkLayer2TVL(address _systemConfig) internal view returns (bool result, uint256 amount) {
 
         uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
 
@@ -221,65 +330,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         }
     }
 
-    function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address l2Ton) {
-
-        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
-
-        try
-            ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
-                if (l1Bridge_ != address(0)) {
-                    if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
-                    else if (_type == 2) l2Ton = address(bytes20(bytes('0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000')));
-                    if (l2Ton != address(0)) {
-                        // if (_type == 1 || _type == 2) {
-                            result = true;
-                            l1Bridge = l1Bridge_;
-                        // }
-                    }
-                }
-            } catch (bytes memory ) { }
-    }
-
-
-    /* ========== internal ========== */
-
-    function _registerLayer2Candidate(
-        address _systemConfig,
-        uint256 _wtonAmount,
-        string memory _memo
-    ) internal nonZeroAddress(_systemConfig) {
-        address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
-
-        require(operator != address(0) && systemConfigOfOperator[operator] == address(0), "wrong operator");
-
-        operatorOfSystemConfig[_systemConfig] = operator;
-        systemConfigOfOperator[operator] = _systemConfig;
-
-        address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
-
-        layer2CandidateOfOperator[operator] = layer2Candidate;
-
-        _approve(depositManager, _wtonAmount);
-
-        require(
-            IIDepositManager(depositManager).deposit(layer2Candidate, operator, _wtonAmount),
-            "Fail Stake");
-
-        issueStatusLayer2[_systemConfig] = 1;
-
-        emit RegisteredLayer2Candidate(_systemConfig, _wtonAmount, _memo, operator, layer2Candidate);
-
-    }
-
-    function _approve(address _addr, uint256 _wtonAmount) internal {
-        uint256 allow_ = IERC20(wton).allowance(address(this), _addr);
-        if (allow_ < _wtonAmount) IERC20(wton).approve(_addr, type(uint256).max);
-    }
-
-    function _checkLayer2(address systemConfig) internal view returns (bool){
-        require(operatorOfSystemConfig[systemConfig] == address(0), "already registered");
-        (bool check, ) = checkLayer2TVL(systemConfig);
-        return check;
+    function _checkLayer2(address systemConfig) internal view returns (bool check){
+        (check, ) = _checkLayer2TVL(systemConfig);
     }
 
     function _transferDepositAmount(
@@ -292,17 +344,15 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (flagTon) { // with ton
 
-            require(amount >= minimumInitialDepositAmount, "unsatisfied initialDepositAmount");
+            if (amount < minimumInitialDepositAmount) revert RegisterError(6);
             IERC20(ton).safeTransferFrom(sender, address(this), amount);
-
             if (IERC20(ton).allowance(address(this), wton) < amount) IERC20(ton).approve(wton, type(uint256).max);
-            require(IWTON(wton).swapFromTON(amount),"fail to swap ton to wton");
-
+            if (!IWTON(wton).swapFromTON(amount)) revert RegisterError(7);
             _registerLayer2Candidate(systemConfig, amount*1e9, memo);
 
         } else { // with wton
 
-            require( (amount / 1e9) >= minimumInitialDepositAmount, "unsatisfied initialDepositAmount");
+            if ((amount / 1e9) < minimumInitialDepositAmount) revert RegisterError(6);
             IERC20(wton).safeTransferFrom(sender, address(this), amount);
             _registerLayer2Candidate(systemConfig, amount, memo);
 

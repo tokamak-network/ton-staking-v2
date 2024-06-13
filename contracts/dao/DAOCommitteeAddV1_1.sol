@@ -41,6 +41,16 @@ interface ITarget {
     ) external;
 }
 
+/**
+ * @notice Error that occurs when creating Candidate
+ * @param x 1: deployed candidateContract is zero
+ *          2: The candidate already has contract
+ *          3: failed to registerAndDeployCoinage
+ */
+error CreateCandiateError(uint x);
+error PermissionError();
+error ZeroAddressError();
+
 contract DAOCommitteeAddV1_1 is
     StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2, StorageStateCommitteeV3 {
 
@@ -54,27 +64,20 @@ contract DAOCommitteeAddV1_1 is
         string memo
     );
 
-    modifier onlyLayer2Manager() {
-        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
-        _;
-    }
-
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "sender is not an admin");
         _;
     }
 
-    modifier nonZeroAddress(address _addr) {
-        require(_addr != address(0), "zero address");
-        _;
-    }
     //////////////////////////////////////////////////////////////////////
     // setters
-    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner nonZeroAddress(_layer2CandidateFactory) {
+    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner {
+        _nonZeroAddress(_layer2CandidateFactory);
         layer2CandidateFactory = _layer2CandidateFactory;
     }
 
-    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner nonZeroAddress(_layer2CandidateFactory) {
+    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner {
+        _nonZeroAddress(_layer2CandidateFactory);
         layer2Manager = _layer2CandidateFactory;
     }
 
@@ -105,9 +108,10 @@ contract DAOCommitteeAddV1_1 is
 
     function createLayer2Candidate(string calldata _memo, address _operatorAddress)
         public
-        onlyLayer2Manager
         returns (address)
     {
+        if (msg.sender != layer2Manager) revert PermissionError();
+
         // Candidate
         address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
             _operatorAddress,
@@ -116,15 +120,8 @@ contract DAOCommitteeAddV1_1 is
             address(seigManager)
         );
 
-        require(
-            candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
-
-        require(
-            _candidateInfos[_operatorAddress].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
-        );
+        if (candidateContract == address(0)) revert CreateCandiateError(1);
+        if (_candidateInfos[_operatorAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 
         _candidateInfos[_operatorAddress] = CandidateInfo({
             candidateContract: candidateContract,
@@ -136,14 +133,14 @@ contract DAOCommitteeAddV1_1 is
 
         candidates.push(_operatorAddress);
 
-        require(
-            layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-            "DAOCommittee: failed to registerAndDeployCoinage"
-        );
-
+        if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
 
         return candidateContract;
+    }
+
+    function _nonZeroAddress(address _addr) internal pure {
+        if(_addr == address(0)) revert ZeroAddressError();
     }
 
 }

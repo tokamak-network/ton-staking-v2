@@ -46,7 +46,8 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.2",
     "@uniswap/v3-periphery": "^1.4.3",
-    "web3-eth-abi": "^4.2.1"
+    "web3-eth-abi": "^4.2.1",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "compile": "hardhat compile",

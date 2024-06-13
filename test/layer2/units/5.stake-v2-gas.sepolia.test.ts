@@ -420,7 +420,7 @@ describe('Layer2Manager', () => {
              await expect(l2Registry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
-            )).to.be.revertedWith("unavailable for registration")
+            )).to.be.revertedWith("RegisterError")
         })
     })
 
@@ -433,6 +433,7 @@ describe('Layer2Manager', () => {
             expect(await l2Registry.systemConfigType(systemConfig)).to.be.eq(0)
 
             let check = await layer2Manager.checkLayer2TVL(systemConfig)
+
             expect(check.result).to.be.eq(false)
             expect(check.amount).to.be.eq(ethers.constants.Zero)
         })
@@ -609,7 +610,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+            )).to.be.rejectedWith("RegisterError(5)")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
@@ -641,7 +642,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError()")
         })
 
         it('registerLayer2Candidate', async () => {
@@ -682,7 +683,7 @@ describe('Layer2Manager', () => {
             titanLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", titanLayerAddress, deployer)) as Layer2CandidateV1_1
             titanOperatorContract = (await ethers.getContractAt("OperatorV1_1", titanOperatorContractAddress, deployer)) as OperatorV1_1
 
-            logUsedGas.push(gasUsedFunctions('Layer2Manager', 'registerLayer2Candidate', '', receipt))
+            logUsedGas.push(gasUsedFunctions('Layer2Manager', 'registerLayer2Candidate', 'using registerLayer2Candidate function', receipt))
         })
 
         it('If the layer has already been created, it will fail.', async () => {
@@ -704,7 +705,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
         it('Layers that are not registered in the L2Registry cannot be registered.', async () => {
@@ -725,7 +726,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
@@ -1973,7 +1974,7 @@ describe('Layer2Manager', () => {
             const filePath = './outputFile/log-used-gas.xlsx';
 
             exportLogsToExcel(logUsedGas, workSheetColumnName, workSheetName, filePath, gasPrice)
-            console.log(logUsedGas)
+
         })
     })
 });
