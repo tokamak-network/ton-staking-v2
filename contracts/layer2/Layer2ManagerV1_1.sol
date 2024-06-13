@@ -168,22 +168,24 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== onlyL2Register ========== */
     function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
 
-        require(issueStatusLayer2[systemConfig] == 1, "not in normal status");
+        require(systemConfigInfo[systemConfig].stateIssue == 1, "not in normal status");
 
-        address _layer2 = layer2CandidateOfOperator[operatorOfSystemConfig[systemConfig]];
+        address _layer2 = operatorInfo[systemConfigInfo[systemConfig].operator].layer2Candidate;
         require(_layer2 != address(0), "zero layer2");
 
-        issueStatusLayer2[systemConfig] = 2;
+        // issueStatusLayer2[systemConfig] = 2;
+        systemConfigInfo[systemConfig].stateIssue = 2;
         emit PausedLayer2Candidate(systemConfig, _layer2);
         (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
         require(success, "fail excludeFromSeigniorage");
     }
 
     function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
-        require(issueStatusLayer2[systemConfig] == 2, "not in pause status");
+        require(systemConfigInfo[systemConfig].stateIssue == 2, "not in pause status");
 
-        issueStatusLayer2[systemConfig] = 1;
-        emit UnpausedLayer2Candidate(systemConfig, layer2CandidateOfOperator[operatorOfSystemConfig[systemConfig]]);
+        // issueStatusLayer2[systemConfig] = 1;
+        systemConfigInfo[systemConfig].stateIssue = 1;
+        emit UnpausedLayer2Candidate(systemConfig, operatorInfo[systemConfigInfo[systemConfig].operator].layer2Candidate);
     }
 
     /* ========== onlySeigManger  ========== */

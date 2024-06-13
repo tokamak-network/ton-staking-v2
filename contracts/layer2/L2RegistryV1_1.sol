@@ -62,30 +62,10 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     constructor() {
     }
 
-    // modifier onlySystemConfig() {
-    //     require(systemConfigType[msg.sender] != 0, "unregistered systemConfig");
-    //     _;
-    // }
-
-    // modifier onlyLayer2Manager() {
-    //     require(layer2Manager == msg.sender, "sender is not layer2Manager");
-    //     _;
-    // }
-
     modifier onlySeigniorageCommittee() {
         require(seigniorageCommittee == msg.sender, "sender is not seigniorageCommittee");
         _;
     }
-
-    // modifier nonZero(uint256 value) {
-    //     require(value != 0, "zero");
-    //     _;
-    // }
-
-    // modifier nonZeroAddress(address value) {
-    //     require(value != address(0), "zero address");
-    //     _;
-    // }
 
     modifier nonRejected(address systemConfig) {
         require(!rejectSystemConfig[systemConfig], "rejected");
@@ -186,27 +166,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     // }
 
     function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid){
-        if (rejectSystemConfig[_systemConfig]) {
-            valid = false;
-        } else {
-            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
-            if(l1Bridge_ != address(0)) {
-
-                if (_type == 1) {
-                    if(systemConfigType[_systemConfig] == 0 && l1Bridge[l1Bridge_] == false) {
-                        valid = true;
-                    }
-                } else if (_type == 2) {
-
-                    address portal_ = ISystemConfig(_systemConfig).optimismPortal();
-                    if(portal_ != address(0)) {
-                        if(systemConfigType[_systemConfig] == 0 && !portal[portal_]) {
-                            valid = true;
-                        }
-                    }
-                }
-            }
-        }
+        return _availableForRegistration(_systemConfig, _type);
     }
 
     /* ========== internal ========== */
@@ -219,7 +179,7 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
         if (_type == 0 || _type > uint8(type(TYPE_SYSTEMCONFIG).max)) revert RegisterError(1);
         if (systemConfigType[_systemConfig] != 0) revert RegisterError(2);
-        if (!availableForRegistration(_systemConfig, _type)) revert RegisterError(3);
+        if (!_availableForRegistration(_systemConfig, _type)) revert RegisterError(3);
 
         systemConfigType[_systemConfig] = _type;
         if (_type == 1) l1Bridge[ISystemConfig(_systemConfig).l1StandardBridge()] = true;
@@ -228,4 +188,19 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit RegisteredSystemConfig(_systemConfig, _type);
     }
 
+    function _availableForRegistration(address _systemConfig, uint8 _type) internal view returns (bool valid){
+        if (!rejectSystemConfig[_systemConfig]) {
+            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            if(l1Bridge_ != address(0)) {
+                if (_type == 1) {
+                    if(systemConfigType[_systemConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
+                } else if (_type == 2) {
+                    address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+                    if (portal_ != address(0)) {
+                        if (systemConfigType[_systemConfig] == 0 && !portal[portal_]) valid = true;
+                    }
+                }
+            }
+        }
+    }
 }
