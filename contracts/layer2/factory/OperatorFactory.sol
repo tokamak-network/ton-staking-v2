@@ -5,8 +5,6 @@ import "../OperatorProxy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../../libraries/Create2.sol";
 
-import "hardhat/console.sol";
-
 interface IOperator {
     function setSystemConfig(address _systemConfig) external;
     function transferOwnership(address newOwner) external;
@@ -20,60 +18,76 @@ interface ISystemConfig {
     function owner() external view returns (address);
 }
 
+error ZeroAddressError();
+error SameVariableError();
+error AlreadySetError();
+
+/**
+ * @notice  Error in createOperator function
+ * @param x 1: sender is not Layer2Manager
+ *          2: zero systemConfig's owner
+ *          3: already created Operator
+ */
+error CreateError(uint x);
+
 contract OperatorFactory is Ownable {
 
+    uint256 private constant CREATE_SALT = 0;
     address public operatorImplementation;
+
     address public depositManager;
     address public ton;
     address public wton;
+    address public layer2Manager;
 
     event ChangedOperatorImplementaion(address newOperatorImplementation);
     event CreatedOperator(address systemConfig, address owner, address manager, address operator);
-    event SetAddresses(address depositManager, address ton, address wton);
+    event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
 
     constructor(address _operatorImplementation) {
         operatorImplementation = _operatorImplementation;
     }
 
     function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner {
-        require(newOperatorImplementation != address(0), "zero address");
-        require(operatorImplementation != newOperatorImplementation, "same");
-
+        _nonZeroAddress(newOperatorImplementation);
+        if (operatorImplementation == newOperatorImplementation) revert SameVariableError();
         operatorImplementation = newOperatorImplementation;
+
         emit ChangedOperatorImplementaion(newOperatorImplementation);
     }
 
-    function setAddresses(address _depositManager, address _ton, address _wton) external onlyOwner {
-        require(depositManager == address(0), "already set");
+    function setAddresses(address _depositManager, address _ton, address _wton, address _layer2Manager) external onlyOwner {
+
         require(_depositManager != address(0), "zero _depositManager");
         require(_ton != address(0), "zero _ton");
         require(_wton != address(0), "zero _wton");
+        require(_layer2Manager != address(0), "zero _layer2Manager");
+
+        if (depositManager != address(0)) revert AlreadySetError();
 
         depositManager = _depositManager;
         ton = _ton;
         wton = _wton;
+        layer2Manager = _layer2Manager;
 
-        emit SetAddresses(_depositManager, _ton, _wton);
+        emit SetAddresses(_depositManager, _ton, _wton, _layer2Manager);
     }
 
     /**
-     * create an account, and return its address.
-     * returns the address even if the account is already deployed.
-     * Note that during UserOperation execution, this method is called only if the account is not deployed.
-     * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
+     * create an Operator Contract, and return its address.
+     * return revert if the account is already deployed.
+     * Note. Only Layer2Manager Contract can be called.
+     * When creating the Layer2Candidate, create an Operator contract that is mapped to SystemConfig.
      */
     function createOperator(address systemConfig) external returns (address operator) {
-        address sOwner = owner();
+        if (msg.sender != layer2Manager) revert CreateError(1);
+        require(getAddress(systemConfig).code.length == 0, "already created");
+
         address sManager = ISystemConfig(systemConfig).owner();
-        require(sManager != address(0), "zero config's owner");
-        // require(sManager == msg.sender, "not config's owner");
+        if (sManager == address(0)) revert CreateError(2);
 
-        uint256 salt;
-        address addr = getAddress(systemConfig);
-        require(addr.code.length == 0, "already created");
-
-        operator = address(new OperatorProxy{salt : bytes32(salt)}(systemConfig));
-
+        address sOwner = owner();
+        operator = address(new OperatorProxy{salt : bytes32(CREATE_SALT)}(systemConfig));
         IOperator(operator).upgradeTo(operatorImplementation);
         IOperator(operator).transferManager(sManager);
         IOperator(operator).addOperator(sManager);
@@ -84,26 +98,19 @@ contract OperatorFactory is Ownable {
     }
 
     function getAddress(address systemConfig) public view returns (address) {
-        uint256 _salt;
-        // bytes32 hash = keccak256(
-        //     abi.encodePacked(
-        //         bytes1(0xff),
-        //         address(this),
-        //         _salt,
-        //         keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
-        //     )
-        // );
-
-        // return address(uint160(uint(hash)));
 
         return address(uint160(uint(keccak256(
             abi.encodePacked(
                 bytes1(0xff),
                 address(this),
-                _salt,
+                CREATE_SALT,
                 keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
             )
         ))));
+    }
+
+    function _nonZeroAddress(address _addr1) internal pure {
+        if(_addr1 == address(0)) revert ZeroAddressError();
     }
 
 }

@@ -208,17 +208,9 @@ describe('Layer2Manager', () => {
         });
 
         it('deploy OperatorFactory ', async () => {
-            const {DepositManager, TON, WTON } = await getNamedAccounts();
 
             operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
-
-            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
-                DepositManager,
-                TON,
-                WTON)).wait()
-
-            logUsedGas.push(gasUsedFunctions('OperatorFactory', 'setAddresses', '', receipt))
-        });
+        })
     })
 
     describe('# Layer2CandidateV1_1', () => {
@@ -263,6 +255,20 @@ describe('Layer2Manager', () => {
 
             logUsedGas.push(gasUsedFunctions('L2Registry', 'addManager', '', receipt))
         })
+
+        it('operatorFactory.setAddresses', async () => {
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2ManagerProxy.address
+            )).wait()
+
+            logUsedGas.push(gasUsedFunctions('OperatorFactory', 'setAddresses', '', receipt))
+        })
+
     })
 
     describe('# setAddresses', () => {
@@ -305,6 +311,16 @@ describe('Layer2Manager', () => {
             expect(deployedEvent.args._depositManager).to.be.eq(DepositManager)
             expect(deployedEvent.args._seigManager).to.be.eq(SeigManager)
             expect(deployedEvent.args._swapProxy).to.be.eq(swapProxy)
+
+            // expect(deployedEvent.args.accounts[0]).to.be.eq(l2RegistryProxy.address)
+            // expect(deployedEvent.args.accounts[1]).to.be.eq(operatorFactory.address)
+            // expect(deployedEvent.args.accounts[2]).to.be.eq(TON)
+            // expect(deployedEvent.args.accounts[3]).to.be.eq(WTON)
+            // expect(deployedEvent.args.accounts[4]).to.be.eq(DAOCommitteeProxy)
+            // expect(deployedEvent.args.accounts[5]).to.be.eq(DepositManager)
+            // expect(deployedEvent.args.accounts[6]).to.be.eq(SeigManager)
+            // expect(deployedEvent.args.accounts[7]).to.be.eq(swapProxy)
+
 
             logUsedGas.push(gasUsedFunctions('Layer2Manager', 'setAddresses', '', receipt))
         })

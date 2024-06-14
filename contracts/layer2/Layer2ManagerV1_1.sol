@@ -76,6 +76,7 @@ interface IOperator {
 error RegisterError(uint x);
 error ZeroAddressError();
 error ZeroBytesError();  // memo check
+error SameValueError();
 
 /**
  * @notice  Error in onApprove function
@@ -100,7 +101,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _seigManager,
         address _swapProxy
     );
-
+    // event SetAddresses(address[8] accounts);
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
     event PausedLayer2Candidate(address systemConfig, address _layer2);
@@ -132,19 +133,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _seigManager,
         address _swapProxy
     )  external  onlyOwner {
-
-        require(
-            l2Register != _l2Register
-            || operatorFactory != _operatorFactory
-            || ton != _ton
-            || wton != _wton
-            || dao != _dao
-            || depositManager != _depositManager
-            || seigManager != _seigManager
-            || swapProxy != _swapProxy
-            , "all same"
-        );
-
         l2Register = _l2Register;
         operatorFactory = _operatorFactory;
         ton = _ton;
@@ -312,7 +300,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     ) internal  {
 
         address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
-        if (operator == address(0)) revert RegisterError(1);
+        // if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].systemConfig != address(0)) revert RegisterError(2);
 
         address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
