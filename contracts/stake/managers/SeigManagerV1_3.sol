@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
-import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
 import { IWTON } from "../../dao/interfaces/IWTON.sol";
 import { Layer2I } from "../../dao/interfaces/Layer2I.sol";
-import { SeigManagerV1I } from "../interfaces/SeigManagerV1I.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
@@ -19,6 +16,8 @@ error LastSeigBlockError();
 error MinimumAmountError();
 error UpdateSeigniorageError();
 error IncreaseTotError();
+error InvalidCoinageError();
+error OnlyLayer2ManagerError();
 
 interface ITON {
   function totalSupply() external view returns (uint256);
@@ -71,20 +70,6 @@ interface ILayer2Manager {
 contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, DSMath, SeigManagerV1_3Storage {
 
   //////////////////////////////
-  // Modifiers
-  //////////////////////////////
-
-  modifier onlyLayer2Manager() {
-    require(msg.sender == layer2Manager, "not layer2Manager");
-    _;
-  }
-
-  modifier checkCoinage(address layer2) {
-    require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
-    _;
-  }
-
-  //////////////////////////////
   // Events
   //////////////////////////////
 
@@ -124,9 +109,10 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
   function excludeFromSeigniorage (address _layer2)
     external
-    onlyLayer2Manager ifFree
+    ifFree
     returns (bool)
   {
+    _onlyLayer2Manager();
     Layer2Reward storage reward = layer2RewardInfo[_layer2];
     require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
     emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
@@ -146,7 +132,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function updateSeigniorageOperator()
     public
-    checkCoinage(msg.sender)
     returns (bool)
   {
     return _updateSeigniorage(true);
@@ -154,7 +139,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function updateSeigniorage()
     public
-    checkCoinage(msg.sender)
     returns (bool)
   {
     return _updateSeigniorage(false);
@@ -173,12 +157,13 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       return true;
     }
 
+    RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
+    _checkCoinage(address(coinage));
+
     // require(block.number > _lastSeigBlock, "last seig block is not past");
     if (block.number <= _lastSeigBlock) revert LastSeigBlockError();
 
     address operator = Layer2I(msg.sender).operator();
-
-    RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
     uint256 operatorAmount = coinage.balanceOf(operator);
 
     if (operatorAmount < minimumAmount) revert MinimumAmountError();
@@ -254,14 +239,112 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return true;
   }
 
+
+  function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
+    external view
+    returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
+  {
+
+    // short circuit if already seigniorage is given.
+    if (blockNumber <= _lastSeigBlock || RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
+      return (
+        0,0,0,0,0,0,0,0
+      );
+    }
+
+    uint256 span = blockNumber - _lastSeigBlock;
+    if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
+
+    uint256 prevTotalSupply = _tot.totalSupply();
+    uint256 nextTotalSupply;
+    maxSeig = span * _seigPerBlock;
+    uint256 tos = _totalSupplyOfTon(blockNumber);
+    stakedSeig = rdiv(
+      rmul(
+        maxSeig,
+        prevTotalSupply
+      ),
+      tos
+    );
+
+    // L2 sequencers
+    uint256 curLayer2Tvl = 0;
+    address systemConfig;
+    bool layer2Allowed;
+
+    uint256 tempLayer2StartBlock = layer2StartBlock;
+    Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
+    if (layer2StartBlock == 0) tempLayer2StartBlock = blockNumber - 1;
+
+    if(layer2Manager != address(0) && tempLayer2StartBlock != 1 && tempLayer2StartBlock < blockNumber) {
+      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
+
+      if (layer2Allowed) {
+        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+        if (totalLayer2TVL != 0) {
+          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
+        }
+      }
+    }
+
+    // pseig
+    // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
+    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
+
+    nextTotalSupply =  prevTotalSupply + stakedSeig + totalPseig;
+
+    unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+
+    if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+    if (dao != address(0))  daoSeig = rmul(unstakedSeig, daoSeigRate);
+
+    if (relativeSeigRate != 0) {
+      relativeSeig = totalPseig;
+    }
+
+    // L2 seigs settlement
+    uint256 tempL2RewardPerUint = l2RewardPerUint;
+    if (layer2Allowed) {
+      if (l2TotalSeigs != 0) tempL2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
+
+      if (tempL2RewardPerUint != 0
+           && (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl)
+           && (oldLayer2Info.layer2Tvl != 0)) {
+            layer2Seigs = tempL2RewardPerUint * (oldLayer2Info.layer2Tvl  / 1e18) - oldLayer2Info.initialDebt;
+      }
+    }
+  }
+
   //////////////////////////////
   // Public functions
   //////////////////////////////
 
+  function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
+      systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
+
+      if (systemConfig == address(0)) allowed = false;
+      else if (ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) == 1) allowed = true;
+
+  }
+
+  function unSettledReward(address layer2) public view returns (uint256 amount) {
+    Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
+    if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * (layer2Info.layer2Tvl  / 1e18) - layer2Info.initialDebt;
+
+  }
 
   //////////////////////////////
   // Internal functions
   //////////////////////////////
+
+  function _onlyLayer2Manager() internal view {
+    if (msg.sender != layer2Manager) revert OnlyLayer2ManagerError();
+  }
+
+  function _checkCoinage(address coinage_) internal pure {
+    if (coinage_ == address(0))  revert InvalidCoinageError();
+  }
+
 
   function _calcSeigsDistribution(
     address layer2,
@@ -332,13 +415,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return rdiv(rmul(target, oldFactor), source);
   }
 
-  function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
-      systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
-
-      if (systemConfig == address(0)) allowed = false;
-      else if (ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) == 1) allowed = true;
-
-  }
 
   function _increaseTot(bool _isSenderOperator) internal returns (bool result) {
 
@@ -462,87 +538,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     emit SeigGiven2(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig, l2TotalSeigs, layer2Seigs);
 
     result = true;
-  }
-
-  function unSettledReward(address layer2) public view returns (uint256 amount) {
-    Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
-    if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * (layer2Info.layer2Tvl  / 1e18) - layer2Info.initialDebt;
-
-  }
-
-  function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
-    external view
-    returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
-  {
-
-    // short circuit if already seigniorage is given.
-    if (blockNumber <= _lastSeigBlock || RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
-      return (
-        0,0,0,0,0,0,0,0
-      );
-    }
-
-    uint256 span = blockNumber - _lastSeigBlock;
-    if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
-
-    uint256 prevTotalSupply = _tot.totalSupply();
-    uint256 nextTotalSupply;
-    maxSeig = span * _seigPerBlock;
-    uint256 tos = _totalSupplyOfTon(blockNumber);
-    stakedSeig = rdiv(
-      rmul(
-        maxSeig,
-        prevTotalSupply
-      ),
-      tos
-    );
-
-    // L2 sequencers
-    uint256 curLayer2Tvl = 0;
-    address systemConfig;
-    bool layer2Allowed;
-
-    uint256 tempLayer2StartBlock = layer2StartBlock;
-    Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
-    if (layer2StartBlock == 0) tempLayer2StartBlock = blockNumber - 1;
-
-    if(layer2Manager != address(0) && tempLayer2StartBlock != 1 && tempLayer2StartBlock < blockNumber) {
-      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
-
-      if (layer2Allowed) {
-        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
-        if (totalLayer2TVL != 0) {
-          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
-        }
-      }
-    }
-
-    // pseig
-    // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
-
-    nextTotalSupply =  prevTotalSupply + stakedSeig + totalPseig;
-
-    unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
-
-    if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
-    if (dao != address(0))  daoSeig = rmul(unstakedSeig, daoSeigRate);
-
-    if (relativeSeigRate != 0) {
-      relativeSeig = totalPseig;
-    }
-
-    // L2 seigs settlement
-    uint256 tempL2RewardPerUint = l2RewardPerUint;
-    if (layer2Allowed) {
-      if (l2TotalSeigs != 0) tempL2RewardPerUint += (l2TotalSeigs * 1e18 / totalLayer2TVL);
-
-      if (tempL2RewardPerUint != 0
-           && (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl)
-           && (oldLayer2Info.layer2Tvl != 0)) {
-            layer2Seigs = tempL2RewardPerUint * (oldLayer2Info.layer2Tvl  / 1e18) - oldLayer2Info.initialDebt;
-      }
-    }
   }
 
   //=====
