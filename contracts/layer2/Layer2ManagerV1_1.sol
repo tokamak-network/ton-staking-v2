@@ -9,6 +9,30 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
+/**
+ * @notice  Error that occurs when registering Layer2Candidate
+ * @param x 1: don't create operator
+ *          2: already systemConfigOfOperator registered
+ *          3: fail deposit
+ *          4: already operatorOfSystemConfig registered
+ *          5: unvalidated Layer2
+ *          6: insufficient initialDepositAmount
+ *          7: fail to swap ton to wton
+ *          8: wrong data length
+ */
+error RegisterError(uint x);
+error ZeroAddressError();
+error ZeroBytesError();  // memo check
+error SameValueError();
+
+/**
+ * @notice  Error in onApprove function
+ * @param x 1: sender is not ton nor wton
+ *          2: wrong spender parameter
+ *          3: wrong data parameter length
+ */
+error OnApproveError(uint x);
+
 interface IL2Register {
     function systemConfigType(address systemConfig) external view returns (uint8);
     function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount);
@@ -62,34 +86,12 @@ interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
 
-/**
- * @notice  Error that occurs when registering Layer2Candidate
- * @param x 1: don't create operator
- *          2: already systemConfigOfOperator registered
- *          3: fail deposit
- *          4: already operatorOfSystemConfig registered
- *          5: unvalidated Layer2
- *          6: insufficient initialDepositAmount
- *          7: fail to swap ton to wton
- *          8: wrong data length
- */
-error RegisterError(uint x);
-error ZeroAddressError();
-error ZeroBytesError();  // memo check
-error SameValueError();
-
-/**
- * @notice  Error in onApprove function
- * @param x 1: sender is not ton nor wton
- *          2: wrong spender parameter
- *          3: wrong data parameter length
- */
-error OnApproveError(uint x);
-
 contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
     /* ========== DEPENDENCIES ========== */
     using SafeERC20 for IERC20;
+
+    address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
 
     event SetAddresses(
         address _l2Register,
@@ -155,13 +157,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     /* ========== onlyL2Register ========== */
     function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
+         SystemConfigInfo memory info = systemConfigInfo[systemConfig];
+        require(info.stateIssue == 1, "not in normal status");
 
-        require(systemConfigInfo[systemConfig].stateIssue == 1, "not in normal status");
-
-        address _layer2 = operatorInfo[systemConfigInfo[systemConfig].operator].layer2Candidate;
+        address _layer2 = operatorInfo[info.operator].layer2Candidate;
         require(_layer2 != address(0), "zero layer2");
 
-        // issueStatusLayer2[systemConfig] = 2;
         systemConfigInfo[systemConfig].stateIssue = 2;
         emit PausedLayer2Candidate(systemConfig, _layer2);
         (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
@@ -169,11 +170,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
-        require(systemConfigInfo[systemConfig].stateIssue == 2, "not in pause status");
+        SystemConfigInfo memory info = systemConfigInfo[systemConfig];
+        require(info.stateIssue == 2, "not in pause status");
 
-        // issueStatusLayer2[systemConfig] = 1;
         systemConfigInfo[systemConfig].stateIssue = 1;
-        emit UnpausedLayer2Candidate(systemConfig, operatorInfo[systemConfigInfo[systemConfig].operator].layer2Candidate);
+        emit UnpausedLayer2Candidate(systemConfig, operatorInfo[info.operator].layer2Candidate);
     }
 
     /* ========== onlySeigManger  ========== */
@@ -259,7 +260,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
     }
 
-
     /* ========== VIEW ========== */
 
     function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount) {
@@ -267,7 +267,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
 
-    function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address l2Ton) {
+    function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
 
         uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
 
@@ -275,7 +275,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
                 if (l1Bridge_ != address(0)) {
                     if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
-                    else if (_type == 2) l2Ton = address(bytes20(bytes('0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000')));
+                    else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+
                     if (l2Ton != address(0)) {
                         // if (_type == 1 || _type == 2) {
                         result = true;
@@ -284,6 +285,16 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
                     }
                 }
             } catch (bytes memory ) { }
+
+        if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
+            try
+                ISystemConfig(_systemConfig).optimismPortal() returns (address portal_) {
+                    portal = portal_;
+                }  catch (bytes memory ) {
+                    result = false;
+                }
+        }
+
     }
 
 
@@ -337,7 +348,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
                     }
             } catch (bytes memory ) { }
 
-        } else if (_type == 2) { // optimism bedrock : thanos, on-demand-l2
+        } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
             try
                 ISystemConfig(_systemConfig).optimismPortal() returns (address optimismPortal) {
                     if (optimismPortal != address(0)) {
@@ -359,19 +370,21 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         bool flagTon,
         string calldata memo
     ) internal {
+        address _wton = wton;
 
         if (flagTon) { // with ton
+            address _ton = ton;
 
             if (amount < minimumInitialDepositAmount) revert RegisterError(6);
-            IERC20(ton).safeTransferFrom(sender, address(this), amount);
-            if (IERC20(ton).allowance(address(this), wton) < amount) IERC20(ton).approve(wton, type(uint256).max);
-            if (!IWTON(wton).swapFromTON(amount)) revert RegisterError(7);
+            IERC20(_ton).safeTransferFrom(sender, address(this), amount);
+            if (IERC20(_ton).allowance(address(this), _wton) < amount) IERC20(_ton).approve(_wton, type(uint256).max);
+            if (!IWTON(_wton).swapFromTON(amount)) revert RegisterError(7);
             _registerLayer2Candidate(systemConfig, amount*1e9, memo);
 
         } else { // with wton
 
             if ((amount / 1e9) < minimumInitialDepositAmount) revert RegisterError(6);
-            IERC20(wton).safeTransferFrom(sender, address(this), amount);
+            IERC20(_wton).safeTransferFrom(sender, address(this), amount);
             _registerLayer2Candidate(systemConfig, amount, memo);
 
         }

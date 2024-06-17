@@ -559,6 +559,13 @@ describe('Layer2Manager', () => {
 
         it('DepositManager register function ', async () => {
 
+            // const checkL1Bridge = encodeFunctionSignature("checkL1Bridge()");
+            // console.log('checkL1Bridge', checkL1Bridge)
+            // const onWithdraw = encodeFunctionSignature("onWithdraw(address,address,uint256)");
+            // console.log('onWithdraw', onWithdraw)
+            // const swapToTONAndTransfer = encodeFunctionSignature("swapToTONAndTransfer(address,uint256)");
+            // console.log('swapToTONAndTransfer', swapToTONAndTransfer)
+
             const selector1 = encodeFunctionSignature("ton()");
             const selector2 = encodeFunctionSignature("minDepositGasLimit()");
             const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
@@ -1927,7 +1934,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {

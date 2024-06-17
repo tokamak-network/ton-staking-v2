@@ -18,11 +18,6 @@ contract OperatorStorage {
         _;
     }
 
-    modifier onlyOperator() {
-        require(operator[msg.sender], "not operator");
-        _;
-    }
-
     modifier nonZeroAddress(address addr) {
         require(addr != address(0), "zero address");
         _;

@@ -5,6 +5,10 @@ import "../OperatorProxy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../../libraries/Create2.sol";
 
+error ZeroAddressError();
+error SameVariableError();
+error AlreadySetError();
+
 interface IOperator {
     function setSystemConfig(address _systemConfig) external;
     function transferOwnership(address newOwner) external;
@@ -18,9 +22,6 @@ interface ISystemConfig {
     function owner() external view returns (address);
 }
 
-error ZeroAddressError();
-error SameVariableError();
-error AlreadySetError();
 
 /**
  * @notice  Error in createOperator function

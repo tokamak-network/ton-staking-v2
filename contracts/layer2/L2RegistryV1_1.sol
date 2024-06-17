@@ -6,11 +6,6 @@ import { AuthControlL2Registry } from "../common/AuthControlL2Registry.sol";
 import "./L2RegistryStorage.sol";
 import "./L2RegistryV1_1Storage.sol";
 
-interface IERC20 {
-    function balanceOf(address addr) external view returns (uint256);
-}
-
-
 /**
  * @notice  Error occurred when executing changeType function
  * @param x 1: sender is not ton nor wton
@@ -27,6 +22,10 @@ error ChangeError(uint x);
 error RegisterError(uint x);
 error ZeroAddressError();
 
+
+interface IERC20 {
+    function balanceOf(address addr) external view returns (uint256);
+}
 
 interface ISystemConfig {
     function owner() external view returns (address);
@@ -128,9 +127,6 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     /* ========== onlyRegistrant ========== */
 
     function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
-        // require(systemConfigType[_systemConfig] != 0, "unregistered");
-        // require(systemConfigType[_systemConfig] != _type, "same type");
-
         if (systemConfigType[_systemConfig] == 0) revert ChangeError(1);
         if (systemConfigType[_systemConfig] == _type) revert ChangeError(2);
 
@@ -157,13 +153,6 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
             if (portal[optimismPortal_]) amount = IERC20(ton).balanceOf(optimismPortal_);
         }
     }
-
-    // function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount) {
-    //     amount = layer2TVL(_systemConfig);
-
-    //     if (amount > 0) result = true;
-    //     else if (systemConfigType[_systemConfig] == 1 || systemConfigType[_systemConfig] ==2 ) result = true;
-    // }
 
     function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid){
         return _availableForRegistration(_systemConfig, _type);
