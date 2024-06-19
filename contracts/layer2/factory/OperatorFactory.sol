@@ -22,7 +22,6 @@ interface ISystemConfig {
     function owner() external view returns (address);
 }
 
-
 /**
  * @notice  Error in createOperator function
  * @param x 1: sender is not Layer2Manager
@@ -110,8 +109,8 @@ contract OperatorFactory is Ownable {
         ))));
     }
 
-    function _nonZeroAddress(address _addr1) internal pure {
-        if(_addr1 == address(0)) revert ZeroAddressError();
+    function _nonZeroAddress(address _addr) internal pure {
+        if(_addr == address(0)) revert ZeroAddressError();
     }
 
 }

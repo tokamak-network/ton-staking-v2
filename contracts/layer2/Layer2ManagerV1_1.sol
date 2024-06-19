@@ -24,7 +24,8 @@ error RegisterError(uint x);
 error ZeroAddressError();
 error ZeroBytesError();  // memo check
 error SameValueError();
-
+error StatusError();
+error ExcludeError();
 /**
  * @notice  Error in onApprove function
  * @param x 1: sender is not ton nor wton
@@ -158,20 +159,24 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== onlyL2Register ========== */
     function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
          SystemConfigInfo memory info = systemConfigInfo[systemConfig];
-        require(info.stateIssue == 1, "not in normal status");
+        // require(info.stateIssue == 1, "not in normal status");
+        if (info.stateIssue != 1) revert StatusError();
 
         address _layer2 = operatorInfo[info.operator].layer2Candidate;
-        require(_layer2 != address(0), "zero layer2");
+        _nonZeroAddress(_layer2);
 
         systemConfigInfo[systemConfig].stateIssue = 2;
         emit PausedLayer2Candidate(systemConfig, _layer2);
+
         (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
-        require(success, "fail excludeFromSeigniorage");
+        if (!success) revert ExcludeError();
+
     }
 
     function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
         SystemConfigInfo memory info = systemConfigInfo[systemConfig];
-        require(info.stateIssue == 2, "not in pause status");
+        // require(info.stateIssue == 2, "not in pause status");
+        if (info.stateIssue != 2) revert StatusError();
 
         systemConfigInfo[systemConfig].stateIssue = 1;
         emit UnpausedLayer2Candidate(systemConfig, operatorInfo[info.operator].layer2Candidate);
@@ -294,7 +299,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
                     result = false;
                 }
         }
-
     }
 
 

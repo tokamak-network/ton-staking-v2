@@ -18,6 +18,7 @@ error UpdateSeigniorageError();
 error IncreaseTotError();
 error InvalidCoinageError();
 error OnlyLayer2ManagerError();
+error Layer2TvlError();
 
 interface ITON {
   function totalSupply() external view returns (uint256);
@@ -109,16 +110,17 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
   function excludeFromSeigniorage (address _layer2)
     external
-    ifFree
     returns (bool)
   {
     _onlyLayer2Manager();
     Layer2Reward storage reward = layer2RewardInfo[_layer2];
-    require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
+    // require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
+    if (totalLayer2TVL < reward.layer2Tvl) revert Layer2TvlError();
+
     emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
 
     if (reward.layer2Tvl != 0) {
-      totalLayer2TVL = totalLayer2TVL - reward.layer2Tvl;
+      totalLayer2TVL -= reward.layer2Tvl;
       reward.layer2Tvl = 0;
       reward.initialDebt = 0;
     }
@@ -131,14 +133,14 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   function updateSeigniorageOperator()
-    public
+    external
     returns (bool)
   {
     return _updateSeigniorage(true);
   }
 
   function updateSeigniorage()
-    public
+    external
     returns (bool)
   {
     return _updateSeigniorage(false);
@@ -244,7 +246,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     external view
     returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
   {
-
     // short circuit if already seigniorage is given.
     if (blockNumber <= _lastSeigBlock || RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
       return (
@@ -271,7 +272,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 curLayer2Tvl = 0;
     address systemConfig;
     bool layer2Allowed;
-
     uint256 tempLayer2StartBlock = layer2StartBlock;
     Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
     if (layer2StartBlock == 0) tempLayer2StartBlock = blockNumber - 1;
@@ -281,9 +281,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
       if (layer2Allowed) {
         curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
-        if (totalLayer2TVL != 0) {
-          l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
-        }
+        if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
       }
     }
 
@@ -292,15 +290,12 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
 
     nextTotalSupply =  prevTotalSupply + stakedSeig + totalPseig;
-
     unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
 
     if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
     if (dao != address(0))  daoSeig = rmul(unstakedSeig, daoSeigRate);
 
-    if (relativeSeigRate != 0) {
-      relativeSeig = totalPseig;
-    }
+    if (relativeSeigRate != 0)  relativeSeig = totalPseig;
 
     // L2 seigs settlement
     uint256 tempL2RewardPerUint = l2RewardPerUint;
@@ -357,7 +352,9 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 nextTotalSupply,
     uint256 operatorSeigs
   ) {
+
     uint256 _delayedCommissionBlock = delayedCommissionBlock[layer2];
+
     if (_delayedCommissionBlock != 0 && block.number >= _delayedCommissionBlock) {
       _commissionRates[layer2] = delayedCommissionRate[layer2];
       _isCommissionRateNegative[layer2] = delayedCommissionRateNegative[layer2];
@@ -374,7 +371,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     // if commission rate is possitive
     if (!isCommissionRateNegative_) {
       operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
-      nextTotalSupply = nextTotalSupply - operatorSeigs;
+      nextTotalSupply -= operatorSeigs;
       return (nextTotalSupply, operatorSeigs);
     }
 

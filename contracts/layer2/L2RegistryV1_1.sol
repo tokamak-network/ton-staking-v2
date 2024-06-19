@@ -21,7 +21,10 @@ error ChangeError(uint x);
  */
 error RegisterError(uint x);
 error ZeroAddressError();
-
+error NonRejectedError();
+error OnlySeigniorageCommitteeError();
+error OnlyRejectedError();
+error NonRegisterdError();
 
 interface IERC20 {
     function balanceOf(address addr) external view returns (uint256);
@@ -57,12 +60,8 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     event RejectedLayer2Candidate(address _systemConfig);
     event RestoredLayer2Candidate(address _systemConfig);
 
-    /* ========== CONSTRUCTOR ========== */
-    constructor() {
-    }
-
     modifier onlySeigniorageCommittee() {
-        require(seigniorageCommittee == msg.sender, "sender is not seigniorageCommittee");
+        require(seigniorageCommittee == msg.sender, "PermissionError");
         _;
     }
 
@@ -70,6 +69,9 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         require(!rejectSystemConfig[systemConfig], "rejected");
         _;
     }
+
+    /* ========== CONSTRUCTOR ========== */
+    constructor() {}
 
     /* ========== onlyOwner ========== */
     function setAddresses(
@@ -99,10 +101,11 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     function rejectLayer2Candidate(
         address _systemConfig
-    )  external
-       onlySeigniorageCommittee nonRejected(_systemConfig)
-    {
-        require (systemConfigType[_systemConfig] != 0, "not registered layer2");
+    )  external onlySeigniorageCommittee() {
+        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
+
+        require (systemConfigType[_systemConfig] != 0, "NonRegistered");
+
         rejectSystemConfig[_systemConfig] = true;
         ILayer2Manager(layer2Manager).pauseLayer2Candidate(_systemConfig);
         emit RejectedLayer2Candidate(_systemConfig);
@@ -110,17 +113,17 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     function restoreLayer2Candidate(
         address _systemConfig
-    )  external
-       onlySeigniorageCommittee
-    {
-        require (rejectSystemConfig[_systemConfig], "not rejected");
+    )  external onlySeigniorageCommittee() {
+        _onlyRejectedSystemConfig(_systemConfig);
+
         rejectSystemConfig[_systemConfig] = false;
         ILayer2Manager(layer2Manager).unpauseLayer2Cnadidate(_systemConfig);
         emit RestoredLayer2Candidate(_systemConfig);
     }
 
     /* ========== onlyManager ========== */
-    function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager  nonRejected(_systemConfig){
+    function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
+        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
         _registerSystemConfig(_systemConfig, _type);
     }
 
@@ -135,7 +138,8 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit ChangedType(_systemConfig, _type);
     }
 
-    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant  nonRejected(_systemConfig){
+    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
+        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
         _registerSystemConfig(_systemConfig, _type);
     }
 
@@ -162,6 +166,10 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     function _nonZeroAddress(address _addr1, address _addr2, address _addr3) internal pure {
         if(_addr1 == address(0) || _addr2 == address(0) || _addr3 == address(0) ) revert ZeroAddressError();
+    }
+
+    function _onlyRejectedSystemConfig(address _systemConfig) internal view {
+        if(!rejectSystemConfig[_systemConfig]) revert OnlyRejectedError();
     }
 
     function _registerSystemConfig(address _systemConfig, uint8 _type) internal {

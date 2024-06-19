@@ -266,11 +266,6 @@ describe('Layer2Manager', () => {
 
             operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
 
-            await (await operatorFactory.connect(deployer).setAddresses(
-                DepositManager,
-                TON,
-                WTON)).wait()
-
         });
     })
 
@@ -314,6 +309,18 @@ describe('Layer2Manager', () => {
             await (await l2RegistryProxy.connect(deployer).addManager(manager.address)).wait()
             expect(await l2RegistryProxy.isManager(manager.address)).to.be.eq(true)
         })
+
+        it('operatorFactory.setAddresses', async () => {
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2ManagerProxy.address
+            )).wait()
+        })
+
     })
 
     describe('# setAddresses', () => {

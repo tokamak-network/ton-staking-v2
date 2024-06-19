@@ -10,6 +10,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 error ZeroAddressError();
 error AlreadySetError();
 error NotOperatorError();
+error InsufficientBalanceError();
+error TransferEthError();
+error ParameterError();
+error SameAddressError();
 
 interface ISystemConfig {
     function owner() external view returns (address);
@@ -53,7 +57,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         nonZeroAddress(_layer2Manager) nonZeroAddress(_depositManager)
         nonZeroAddress(_ton) nonZeroAddress(_wton)
     {
-        // if (layer2Manager != address(0)) revert AlreadySetError();
         _alreadySet(layer2Manager);
 
         layer2Manager = _layer2Manager;
@@ -67,11 +70,10 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     /* ========== onlyOwnerOrManager ========== */
 
     function transferManager(address newManager) external nonZeroAddress(newManager) onlyOwnerOrManager {
-        // require (manager != newManager, "same");
-        _alreadySet(manager);
-        address prevManager = manager;
+        if (manager == newManager) revert SameAddressError();
+
+        emit TransferredManager(manager, newManager);
         manager = newManager;
-        emit TransferredManager(prevManager, manager);
     }
 
     function addOperator(address addr_) external nonZeroAddress(addr_) onlyOwnerOrManager {
@@ -111,7 +113,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
      */
     function executeBatch(address[] calldata dest, bytes[] calldata func) external {
         _onlyOperator();
-        require(dest.length == func.length, "wrong array lengths");
+        if (dest.length != func.length || dest.length == 0) revert ParameterError();
         for (uint256 i = 0; i < dest.length; i++) {
             _call(dest[i], 0, func[i]);
         }
@@ -152,12 +154,11 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     function _claim(address token, address to, uint256 amount) internal {
         address thisAccount = address(this);
         if(token == address(0)) {
-            require(thisAccount.balance >= amount, "insufficient balance");
-
+            if(thisAccount.balance < amount) revert InsufficientBalanceError();
             (bool success, ) = to.call{value: amount}("");
-            require(success, "Transfer ETH failed.");
+            if (!success) revert TransferEthError();
         } else {
-            require(IERC20(token).balanceOf(thisAccount) >= amount, "insufficient balance");
+            if (IERC20(token).balanceOf(thisAccount) < amount) revert InsufficientBalanceError();
             IERC20(token).safeTransfer(to, amount);
         }
     }
