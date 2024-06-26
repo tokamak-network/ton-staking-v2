@@ -54,8 +54,8 @@ Layer2Candidate의 시뇨리지 중지의 복구는 타당한 이유 및 개선�
 V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 daoCandiate가 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, DAOCandidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (DAOCandidate) 마다 별도의 AutoCoinage 가 생성된다.
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
-         alt="TON Stake V1 Contracts Relationship" width=500>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
+         alt="TON Stake V1 Contracts Relationship" width=700></center>
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
 
@@ -64,8 +64,8 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
-         alt="TON Stake V2 Contracts Relationship" width=500 >
+   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
+         alt="TON Stake V2 Contracts Relationship" width=700 ></center>
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
 
