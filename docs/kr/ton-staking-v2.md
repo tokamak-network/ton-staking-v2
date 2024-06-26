@@ -123,7 +123,7 @@ Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
-         alt="Reject and Restore Layer2" width=800 ></center>
+         alt="Reject and Restore Layer2" width=1000 ></center>
     <figcaption> </figcaption>
 </figure>
 
