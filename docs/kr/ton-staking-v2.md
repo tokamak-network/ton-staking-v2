@@ -17,14 +17,12 @@ $TON seigs : 발행되는\, TON\, 시뇨리지\, 양$
 $D : Layer2 들의\, 총\,TON\, 유동성$
 
 <figure>
-    <img src="https://hackmd.io/_uploads/SJCXziIIA.png")
-         alt="V1 의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
     <figcaption>V1 의 시뇨리지 분배</figcaption>
 </figure>
 
 <figure>
-    <img src="https://hackmd.io/_uploads/Bkojfj8UC.png"
-         alt="V2의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
     <figcaption>V2의 시뇨리지 분배</figcaption>
 </figure>
 
@@ -56,7 +54,7 @@ Layer2Candidate의 시뇨리지 중지의 복구는 타당한 이유 및 개선�
 V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 daoCandiate가 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, DAOCandidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (DAOCandidate) 마다 별도의 AutoCoinage 가 생성된다.
 
 <figure>
-    <img src="https://hackmd.io/_uploads/Symlmi8UR.png"
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
          alt="TON Stake V1 Contracts Relationship">
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
@@ -66,7 +64,7 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
-    <img src="https://hackmd.io/_uploads/BJF77oUIR.png"
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
          alt="TON Stake V2 Contracts Relationship">
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
@@ -78,7 +76,7 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
 L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
-    <center><img src="https://hackmd.io/_uploads/SkyoayYLA.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
          alt="Register SystemConfig" width=400 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -88,7 +86,7 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 누구나 L2Registry에 등록된 SystemConfig에 대해서 Layer2Candidate를 등록할 수 있다. Layer2Candidate 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘Layer2Candidate 등록’ 기능을 통해 Operator, Layer2Candidate, Coinage 컨트랙이 생성된다.
 
 <figure>
-    <center><img src="https://hackmd.io/_uploads/BJ8mGxtUA.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
          alt="Register Layer2Candidate" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -97,8 +95,8 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 ## For staker in Layer2Candidate
 
 <figure>
-    <center><img src="https://hackmd.io/_uploads/Bk3szlFUR.png"
-         alt="Register Layer2Candidate" width=500 ></center>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
+         alt="Withdraw and deposit to L2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
@@ -107,8 +105,8 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 
 
 <figure>
-    <center><img src="https://hackmd.io/_uploads/S1E3GetIR.png"
-         alt="Register Layer2Candidate" width=500 ></center>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-4.png"
+         alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
@@ -123,7 +121,7 @@ Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 
 또한 입력하는 SystemConfig는 등록전에 L2Registry에 등록되어 있어야 합니다. ( L2Registry에 등록하는 권한은 L2Registry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
-![스크린샷 2024-06-26 오전 10.36.58](https://hackmd.io/_uploads/BkXkWxYLR.png)
+![스크린샷 2024-06-26 오전 10.36.58](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png)
 
 
 ## Reject Layer2
