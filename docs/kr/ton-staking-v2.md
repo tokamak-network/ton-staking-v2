@@ -55,7 +55,7 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
-         alt="TON Stake V1 Contracts Relationship">
+         alt="TON Stake V1 Contracts Relationship" width=500>
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
 
@@ -65,7 +65,7 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
 
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
-         alt="TON Stake V2 Contracts Relationship">
+         alt="TON Stake V2 Contracts Relationship" width=500 >
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
 
