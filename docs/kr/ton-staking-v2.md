@@ -11,10 +11,10 @@ V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었�
 
 V2에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
 
-$S: TON\, 스테이킹\, 금액$
-$T : TON\, 총\,발행량$
-$TON seigs : 발행되는\, TON\, 시뇨리지\, 양$
-$D : Layer2 들의\, 총\,TON\, 유동성$
+$S: TON\, 스테이킹\, 금액$ <br/>
+$T : TON\, 총\,발행량$<br/>
+$TON seigs : 발행되는\, TON\, 시뇨리지\, 양$<br/>
+$D : Layer2 들의\, 총\,TON\, 유동성$<br/>
 
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
@@ -121,12 +121,42 @@ Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 
 또한 입력하는 SystemConfig는 등록전에 L2Registry에 등록되어 있어야 합니다. ( L2Registry에 등록하는 권한은 L2Registry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
-![스크린샷 2024-06-26 오전 10.36.58](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png)
+<figure>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
+         alt="Reject and Restore Layer2" width=700 ></center>
+    <figcaption> </figcaption>
+</figure>
 
+## Withdraw And Deposit L2
 
-## Reject Layer2
+Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
 
-## Restore Layer2
+<figure>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-2.png"
+         alt="Reject and Restore Layer2" width=600 ></center>
+    <figcaption> </figcaption>
+</figure>
+
+## Stop distributing a seigniorage to the L2 sequencer
+
+시뇨리지 위원회는  특정 레이어2가 시뇨리지를 받기에 불합리하다고 판단될때, 해당 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지할 수 있습니다.
+
+<figure>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-3.png"
+         alt="Reject and Restore Layer2" width=500 ></center>
+    <figcaption> </figcaption>
+</figure>
+
+## Cancel stopping distributing a seigniorage to the L2 sequencer
+
+시뇨리지 위원회는  특정 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지했던 것을 취소하여, 다시 시뇨리지를 지급할 수 있습니다.
+
+<figure>
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-4.png"
+         alt="Reject and Restore Layer2" width=500 ></center>
+    <figcaption> </figcaption>
+</figure>
+
 
 # Contract Details
 
