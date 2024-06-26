@@ -11,10 +11,10 @@ V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었�
 
 V2에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
 
-$S: TON\, 스테이킹\, 금액$ <br/>
-$T : TON\, 총\,발행량$<br/>
-$TON seigs : 발행되는\, TON\, 시뇨리지\, 양$<br/>
-$D : Layer2 들의\, 총\,TON\, 유동성$<br/>
+$S: TON 스테이킹 금액$ <br/>
+$T : TON 총 발행량$<br/>
+$TON seigs : 발행되는 TON 시뇨리지 양$<br/>
+$D : Layer2 들의 총 TON 유동성$<br/>
 
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
