@@ -54,10 +54,34 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     }
 
     event SetAddresses(address _layer2Manager, address _seigManager, address _ton);
-    event RegisteredSystemConfig(address systemConfig, uint8 type_);
-    event ChangedType(address systemConfig, uint8 type_);
     event SetSeigniorageCommittee(address _seigniorageCommittee);
+
+    /**
+     * @notice  Event occurs when registering SystemConfig
+     * @param   systemConfig  the systemConfig address
+     * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+     */
+    event RegisteredSystemConfig(address systemConfig, uint8 type_);
+
+    /**
+     * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
+     * @param   systemConfig  the systemConfig address
+     * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+     */
+    event ChangedType(address systemConfig, uint8 type_);
+
+    /**
+     * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
+     *          to the layer 2 sequencer of a specific systemConfig.
+     * @param   _systemConfig  the systemConfig address
+     */
     event RejectedLayer2Candidate(address _systemConfig);
+
+    /**
+     * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
+     *          to the layer 2 sequencer of a specific systemConfig.
+     * @param   _systemConfig  the systemConfig address
+     */
     event RestoredLayer2Candidate(address _systemConfig);
 
     modifier onlySeigniorageCommittee() {
@@ -74,6 +98,13 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     constructor() {}
 
     /* ========== onlyOwner ========== */
+
+    /**
+     *
+     * @param _layer2Manager    the layer2Manager address
+     * @param _seigManager      the seigManager address
+     * @param _ton              the ton address
+     */
     function setAddresses(
         address _layer2Manager,
         address _seigManager,
@@ -87,6 +118,10 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit SetAddresses(_layer2Manager, _seigManager, _ton);
     }
 
+    /**
+     * @notice  Set the seigniorageCommittee address.
+     * @param _seigniorageCommittee the seigniorageCommittee address
+     */
     function setSeigniorageCommittee(
         address _seigniorageCommittee
     )  external
@@ -99,6 +134,10 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     /* ========== onlySeigniorageCommittee ========== */
 
+    /**
+     * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific systemConfig.
+     * @param _systemConfig the systemConfig address
+     */
     function rejectLayer2Candidate(
         address _systemConfig
     )  external onlySeigniorageCommittee() {
@@ -111,6 +150,10 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit RejectedLayer2Candidate(_systemConfig);
     }
 
+    /**
+     * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific systemConfig.
+     * @param _systemConfig the systemConfig address
+     */
     function restoreLayer2Candidate(
         address _systemConfig
     )  external onlySeigniorageCommittee() {
@@ -122,6 +165,12 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
     }
 
     /* ========== onlyManager ========== */
+
+    /**
+     * @notice Registers Layer2 for a specific systemConfig by the manager.
+     * @param _systemConfig the systemConfig address
+     * @param _type          1: legacy, 2: bedrock with nativeTON
+     */
     function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
         if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
         _registerSystemConfig(_systemConfig, _type);
@@ -129,6 +178,22 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
 
     /* ========== onlyRegistrant ========== */
 
+
+    /**
+     * @notice Registers Layer2 for a specific systemConfig by Registrant.
+     * @param _systemConfig the systemConfig address
+     * @param _type          1: legacy, 2: bedrock with nativeTON
+     */
+    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
+        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
+        _registerSystemConfig(_systemConfig, _type);
+    }
+
+    /**
+     * @notice Changes the Layer2 type for a specific systemConfig by Registrant.
+     * @param _systemConfig the systemConfig address
+     * @param _type          1: legacy, 2: bedrock with nativeTON
+     */
     function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
         if (systemConfigType[_systemConfig] == 0) revert ChangeError(1);
         if (systemConfigType[_systemConfig] == _type) revert ChangeError(2);
@@ -138,12 +203,12 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         emit ChangedType(_systemConfig, _type);
     }
 
-    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
-        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
-        _registerSystemConfig(_systemConfig, _type);
-    }
-
     /* ========== public ========== */
+
+    /**
+     * @notice View the liquidity of Layer2 TON for a specific systemConfig.
+     * @param _systemConfig the systemConfig address
+     */
     function layer2TVL(address _systemConfig) public view returns (uint256 amount){
 
         uint _type = systemConfigType[_systemConfig];
@@ -158,6 +223,11 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         }
     }
 
+    /**
+     * @notice Check whether a specific systemConfig can be registered as a type.
+     * @param _systemConfig the systemConfig address
+     * @param _type         1: legacy, 2: bedrock with nativeTON
+     */
     function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid){
         return _availableForRegistration(_systemConfig, _type);
     }

@@ -34,20 +34,43 @@ contract OperatorFactory is Ownable {
 
     uint256 private constant CREATE_SALT = 0;
     address public operatorImplementation;
-
     address public depositManager;
     address public ton;
     address public wton;
     address public layer2Manager;
 
-    event ChangedOperatorImplementaion(address newOperatorImplementation);
-    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
+    /**
+     * @notice Event occured when set the addresses
+     * @param depositManager    the depositManager address
+     * @param ton               TON address
+     * @param wton              WTON
+     * @param layer2Manager     the layer2Manager address
+     */
     event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
+
+    /**
+     * @notice Event occured when change the operator implementaion address
+     * @param newOperatorImplementation the operator implementaion address
+     */
+    event ChangedOperatorImplementaion(address newOperatorImplementation);
+
+    /**
+     * @notice Event occured when create the Operator Contract
+     * @param systemConfig  the systemConfig address
+     * @param owner         the owner address
+     * @param manager       the manager address
+     * @param operator      the operator address
+     */
+    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
 
     constructor(address _operatorImplementation) {
         operatorImplementation = _operatorImplementation;
     }
 
+    /**
+     * @notice Change the operator implementaion address by Owner
+     * @param newOperatorImplementation the operator implementaion address
+     */
     function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner {
         _nonZeroAddress(newOperatorImplementation);
         if (operatorImplementation == newOperatorImplementation) revert SameVariableError();
@@ -56,6 +79,13 @@ contract OperatorFactory is Ownable {
         emit ChangedOperatorImplementaion(newOperatorImplementation);
     }
 
+    /**
+     * @notice Set the addresses by Owner
+     * @param _depositManager    the depositManager address
+     * @param _ton               TON address
+     * @param _wton              WTON
+     * @param _layer2Manager     the layer2Manager address
+     */
     function setAddresses(address _depositManager, address _ton, address _wton, address _layer2Manager) external onlyOwner {
 
         require(_depositManager != address(0), "zero _depositManager");
@@ -74,10 +104,12 @@ contract OperatorFactory is Ownable {
     }
 
     /**
-     * create an Operator Contract, and return its address.
-     * return revert if the account is already deployed.
-     * Note. Only Layer2Manager Contract can be called.
-     * When creating the Layer2Candidate, create an Operator contract that is mapped to SystemConfig.
+     * @notice  Create an Operator Contract, and return its address.
+     *          return revert if the account is already deployed.
+     *          Note. Only Layer2Manager Contract can be called.
+     *          When creating the Layer2Candidate, create an Operator contract
+     *          that is mapped to SystemConfig.
+     * @param systemConfig  the systemConfig address
      */
     function createOperator(address systemConfig) external returns (address operator) {
         if (msg.sender != layer2Manager) revert CreateError(1);
@@ -97,6 +129,10 @@ contract OperatorFactory is Ownable {
         emit CreatedOperator(systemConfig, sOwner, sManager, operator);
     }
 
+    /**
+     * @notice  Returns the operator contract address matching systemConfig.
+     * @param systemConfig  the systemConfig address
+     */
     function getAddress(address systemConfig) public view returns (address) {
 
         return address(uint160(uint(keccak256(

@@ -11,7 +11,7 @@ contract Layer2ManagerStorage  {
     }
 
     struct SystemConfigInfo {
-        uint8 stateIssue; // us for giving seigniorage ( 0: none , 1: registered, 2: paused )
+        uint8 stateIssue; // status for giving seigniorage ( 0: none , 1: registered, 2: paused )
         address operator;
     }
 

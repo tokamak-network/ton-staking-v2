@@ -70,6 +70,12 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
   // Events
   ////////////////////
 
+  /**
+   * @notice Event that occurs when calling the withdrawAndDepositL2 function
+   * @param layer2    The layer2 address
+   * @param account   The account address
+   * @param amount    The amount of withdrawal and deposit L2
+   */
   event WithdrawalAndDeposited(address indexed layer2, address account, uint256 amount);
 
   function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
@@ -77,7 +83,9 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
   }
 
   /**
-   * @dev withdrawAndDepositL2 `amount` WTON in RAY
+   * @notice Withdrawal from L1 and deposit to L2
+   * @param layer2    The layer2 address
+   * @param amount    The amount to be withdrawal and deposit L2. ()`amount` WTON in RAY)
    */
   function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool) {
     address _seig = _seigManager;

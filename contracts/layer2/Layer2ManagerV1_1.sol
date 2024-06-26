@@ -104,10 +104,35 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _seigManager,
         address _swapProxy
     );
-    // event SetAddresses(address[8] accounts);
+
+    /**
+     * @notice Event occurs when setting the minimum initial deposit amount
+     * @param _minimumInitialDepositAmount the inimum initial deposit amount
+     */
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
+
+    /**
+     * @notice Event occurs when registering Layer2Candidate
+     * @param systemConfig      the systemConfig address
+     * @param wtonAmount        the wton amount depositing when registering Layer2Canddiate
+     * @param memo              the name of Layer2Canddiate
+     * @param operator          a opperator contract address
+     * @param layer2Candidate   a layer2Candidate address
+     */
     event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+
+    /**
+     * @notice Event occurs when pausing the layer2 candidate
+     * @param systemConfig      the systemConfig address
+     * @param _layer2           the layer2 address
+     */
     event PausedLayer2Candidate(address systemConfig, address _layer2);
+
+    /**
+     * @notice Event occurs when pausing the layer2 candidate
+     * @param systemConfig      the systemConfig address
+     * @param _layer2           the layer2 address
+     */
     event UnpausedLayer2Candidate(address systemConfig, address _layer2);
 
     modifier onlySeigManger() {
@@ -148,6 +173,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         emit SetAddresses(_l2Register, _operatorFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
     }
 
+    /**
+     * @notice  Set the minimum TON deposit amount required when creating a Layer2Candidate.
+     *          Due to calculating swton, it is recommended to set DepositManager's minimum deposit + 0.1 TON
+     * @param   _minimumInitialDepositAmount the minimum initial deposit amount
+     */
     function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner {
         require(minimumInitialDepositAmount != _minimumInitialDepositAmount, "same");
         minimumInitialDepositAmount = _minimumInitialDepositAmount;
@@ -157,6 +187,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
 
     /* ========== onlyL2Register ========== */
+
+    /**
+     * @notice Pause the layer2 candidate
+     * @param systemConfig the systemConfig address
+     */
     function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree {
          SystemConfigInfo memory info = systemConfigInfo[systemConfig];
         // require(info.stateIssue == 1, "not in normal status");
@@ -173,6 +208,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     }
 
+    /**
+     * @notice Unpause the layer2 candidate
+     * @param systemConfig the systemConfig address
+     */
     function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree {
         SystemConfigInfo memory info = systemConfigInfo[systemConfig];
         // require(info.stateIssue == 2, "not in pause status");
@@ -184,27 +223,41 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     /* ========== onlySeigManger  ========== */
 
+    /**
+     * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
+     * @param systemConfig the systemConfig address
+     * @param amount the amount to give a seigniorage
+     */
     function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger {
 
         IERC20(wton).safeTransfer(systemConfigInfo[systemConfig].operator, amount);
     }
 
     /* ========== Anybody can execute ========== */
-    function systemConfigOfOperator(address _oper) external view returns (address) {
-        return operatorInfo[_oper].systemConfig;
+
+    /**
+     * @notice Register the Layer2Candidate
+     * @param systemConfig     systemConfig's address
+     * @param amount           transfered amount
+     * @param flagTon          if true, amount is ton, otherwise it it wton
+     * param memo             layer's name
+     */
+    function registerLayer2Candidate(
+        address systemConfig,
+        uint256 amount,
+        bool flagTon,
+        string calldata memo
+    )
+        external
+    {
+        _nonZeroAddress(systemConfig);
+        if (bytes(memo).length == 0) revert ZeroBytesError();
+        if (systemConfigInfo[systemConfig].operator != address(0)) revert RegisterError(4);
+
+        if (!_checkLayer2(systemConfig)) revert RegisterError(5);
+        _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
     }
 
-    function operatorOfSystemConfig(address _sys) external view returns (address) {
-        return systemConfigInfo[_sys].operator;
-    }
-
-    function layer2CandidateOfOperator(address _oper) external view returns (address) {
-        return operatorInfo[_oper].layer2Candidate;
-    }
-
-    function issueStatusLayer2(address _sys) external view returns (uint8) {
-        return systemConfigInfo[_sys].stateIssue;
-    }
 
     /// @notice ERC20 Approve callback
     /// @param owner    Account that called approveAndCall
@@ -217,13 +270,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (spender != address(this)) revert OnApproveError(2);
 
-        // bytes memory _data = data;
         bytes calldata _message;
         address _systemConfig;
-        // require(data.length > 20, "wrong data length");
         if (data.length <= 20) revert OnApproveError(3);
         assembly {
-            // _systemConfig := mload(add(add(_data, 0x14), 0))
             _systemConfig := shr(96, calldataload(data.offset))
             _message.offset := add(data.offset, 20)
             _message.length := sub(data.length, 20)
@@ -244,34 +294,63 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         return true;
     }
 
-    /// @notice Register the Layer2Candidate
-    /// @param systemConfig     systemConfig's address
-    /// @param amount           transfered amount
-    /// @param flagTon          if true, amount is ton, otherwise it it wton
-    /// @param memo             layer's name
-    function registerLayer2Candidate(
-        address systemConfig,
-        uint256 amount,
-        bool flagTon,
-        string calldata memo
-    )
-        external
-    {
-        _nonZeroAddress(systemConfig);
-        if (bytes(memo).length == 0) revert ZeroBytesError();
-        if (systemConfigInfo[systemConfig].operator != address(0)) revert RegisterError(4);
-
-        if (!_checkLayer2(systemConfig)) revert RegisterError(5);
-        _transferDepositAmount(msg.sender, systemConfig, amount, flagTon, memo);
-    }
-
     /* ========== VIEW ========== */
 
+    /**
+     * @notice View the systemConfig address of the operator address.
+     * @param _oper     the operator address
+     * @return          the systemConfig address
+     */
+    function systemConfigOfOperator(address _oper) external view returns (address) {
+        return operatorInfo[_oper].systemConfig;
+    }
+
+    /**
+     * @notice View the operator address of the systemConfig address.
+     * @param _sys      the systemConfig address
+     * @return          the operator address
+     */
+    function operatorOfSystemConfig(address _sys) external view returns (address) {
+        return systemConfigInfo[_sys].operator;
+    }
+
+    /**
+     * @notice  View the layer2Candidate address of the operator address.
+     * @param _oper     the operator address
+     * @return          the layer2Candidate address
+     */
+    function layer2CandidateOfOperator(address _oper) external view returns (address) {
+        return operatorInfo[_oper].layer2Candidate;
+    }
+
+    /**
+     * @notice View the status of seigniorage provision for Layer 2 corresponding to SystemConfig.
+     * @param _sys      the systemConfig address
+     * @return          the status of seigniorage provision for Layer 2
+     *                  ( 0: none , 1: registered, 2: paused )
+     */
+    function issueStatusLayer2(address _sys) external view returns (uint8) {
+        return systemConfigInfo[_sys].stateIssue;
+    }
+
+    /**
+     * @notice  Check Layer 2’s TON liquidity related information
+     * @param _systemConfig the syatemConfig address
+     * @return result       whether layer 2 TON liquidity can be checked
+     * @return amount       the layer 2's TON amount (total value liquidity)
+     */
     function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount) {
          return _checkLayer2TVL(_systemConfig);
     }
 
-
+    /**
+     * @notice Layer 2 related information search
+     * @param _systemConfig     the systemConfig address
+     * @return result           whether Layer2 information can be searched
+     * @return l1Bridge         the L1 bridge address
+     * @return portal           the optimism portal address
+     * @return l2Ton            the L2 TON address
+     */
     function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
 
         uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);

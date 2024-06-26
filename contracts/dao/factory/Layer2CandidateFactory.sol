@@ -25,6 +25,16 @@ interface IOnDemandL2Registry {
 
 contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2CandidateFactoryStorage {
 
+    /**
+     * @notice  Event that occurs when a Candidate is created
+     * @param sender            the sender address
+     * @param layer2            the layer2 address
+     * @param operator          the operator address
+     * @param isLayer2Candidate whether it is Layer2Candidate
+     * @param name              the name of Layer2
+     * @param committee         the committee address
+     * @param seigManager       the seigManager address
+     */
     event DeployedCandidate(
         address sender,
         address layer2,
@@ -67,6 +77,14 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         onDemandL2Registry = _onDemandL2Registry;
     }
 
+    /**
+     * @notice Deploy the candidate contract
+     * @param _sender       the sender address
+     * @param _name         the name of layer2
+     * @param _committee    the committee address
+     * @param _seigManager  the seigManager address
+     * @return              the created candidate address
+     */
     function deploy(
         address _sender,
         string memory _name,

@@ -109,6 +109,9 @@ contract Layer2CandidateV1_1 is
         IDAOCommittee(committee).castVote(_agendaID, _vote, _comment);
     }
 
+    /**
+     * @notice Claim an activity reward
+     */
     function claimActivityReward()
         external
         onlyCandidate
@@ -119,14 +122,16 @@ contract Layer2CandidateV1_1 is
 
     /* ========== Anybody ========== */
 
-    /// @notice Set DAOCommitteeProxy contract address
     /// @notice Call updateSeigniorage on SeigManager
     /// @return Whether or not the execution succeeded
     function updateSeigniorage() external returns (bool) {
         return updateSeigniorage(2);
     }
 
-    /// @param afterCall 0: none, 1: claim, 2: staking
+    /// @notice Call updateSeigniorage on SeigManager
+    /// @param afterCall    After running update seigniorage, option to run additional functions
+    ///                     0: none, 1: claim, 2: staking
+    /// @return             Whether or not the execution succeeded
     function updateSeigniorage(uint256 afterCall) public returns (bool) {
 
         if (IOperateContract(candidate).isOperator(msg.sender)) {

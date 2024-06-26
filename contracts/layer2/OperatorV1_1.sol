@@ -35,10 +35,42 @@ interface IDepositManager {
 contract OperatorV1_1 is Ownable, OperatorStorage {
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice Event occurs when the transfer manager
+     * @param previousManager   the previous manager address
+     * @param newManager        the new manager address
+     */
     event TransferredManager(address previousManager, address newManager);
+
+    /**
+     * @notice Event occurs when adding the operator
+     * @param operator  the operator address
+     */
     event AddedOperator(address operator);
+
+    /**
+     * @notice Event occurs when deleting the operator
+     * @param operator  the operator address
+     */
     event DeletedOperator(address operator);
+
+    /**
+     * @notice Event occurs when setting the addresses
+     * @param _layer2Manager    the _layer2Manager address
+     * @param _depositManager   the _depositManager address
+     * @param _ton              the TON address
+     * @param _wton             the WTON address
+     */
     event SetAddresses(address _layer2Manager, address _depositManager, address _ton, address _wton);
+
+    /**
+     * @notice Event occurs when the claim token
+     * @param token     the token address, if token address is address(0), it is ETH
+     * @param caller    the caller address
+     * @param to        the address received token
+     * @param amount    the received token amount
+     */
+    event Claimed(address token, address caller, address to, uint256 amount);
 
     constructor() { }
 
@@ -52,6 +84,13 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         _;
     }
 
+    /**
+     * @notice Set the addresses
+     * @param _layer2Manager    the _layer2Manager address
+     * @param _depositManager   the _depositManager address
+     * @param _ton              the TON address
+     * @param _wton             the WTON address
+     */
     function setAddresses(address _layer2Manager, address _depositManager, address _ton, address _wton)
         external
         nonZeroAddress(_layer2Manager) nonZeroAddress(_depositManager)
@@ -69,6 +108,10 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
 
     /* ========== onlyOwnerOrManager ========== */
 
+    /**
+     * @notice Transfer the manager
+     * @param newManager    the new manager address
+     */
     function transferManager(address newManager) external nonZeroAddress(newManager) onlyOwnerOrManager {
         if (manager == newManager) revert SameAddressError();
 
@@ -76,33 +119,68 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         manager = newManager;
     }
 
+    /**
+     * @notice  Add the operator privilege account
+     * @param addr_ the operator address
+     */
     function addOperator(address addr_) external nonZeroAddress(addr_) onlyOwnerOrManager {
         require(!operator[addr_], "already added");
         operator[addr_] = true;
         emit AddedOperator(addr_);
     }
 
+    /**
+     * @notice  Delete the operator privilege account
+     * @param addr_ the operator address
+     */
     function deleteOperator(address addr_) external nonZeroAddress(addr_) onlyOwnerOrManager {
         require(operator[addr_], "not operator");
         operator[addr_] = false;
         emit DeletedOperator(addr_);
     }
 
+    /**
+     * @notice  Give ETH to a manager through the manager(or owner) claim
+     */
+    function claimETH() external onlyOwnerOrManager {
+        _claim(address(0), manager, address(this).balance);
+    }
+
+    /**
+     * @notice  Give ERC20 to a manager through the manager(or owner) claim
+     * @param token     the token address
+     * @param amount    the amount claimed token
+     */
+    function claimERC20(address token, uint256 amount) external onlyOwnerOrManager {
+        _claim(token, manager, amount);
+    }
+
     /* ========== onlyLayer2Candidate ========== */
 
+    /**
+     * @notice Deposit wton amount to DepositManager as named Layer2
+     * @param amount    the deposit wton amount (ray)
+     */
     function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate {
         _deposit(msg.sender, amount);
     }
 
+    /**
+     * @notice Claim WTON to a manager
+     * @param amount    the deposit wton amount (ray)
+     */
     function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate {
         _claim(wton, manager, amount);
     }
 
     /* ========== onlyOperator ========== */
 
-    /*
-    execute a transaction (called directly from owner, or by entryPoint)
-    */
+    /**
+     * @notice execute the bytes to dest address with value ETH
+     * @param dest  the target address being called
+     * @param value the ETH amount send
+     * @param func  the function bytes to execute
+     */
     function execute(address dest, uint256 value, bytes calldata func) external {
         _onlyOperator();
         _call(dest, value, func);
@@ -121,6 +199,9 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
 
     /* ========== public ========== */
 
+    /**
+     * @notice acquire administrator privileges.
+     */
     function acquireManager() external {
         require (msg.sender != manager, "already manager");
         require (msg.sender == ISystemConfig(systemConfig).owner(), "not config's owner");
@@ -129,10 +210,23 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         manager = msg.sender;
     }
 
+    /**
+     * @notice Returns true if the operator has permission.
+     * @param addr the address to check
+     */
     function isOperator(address addr) public view returns (bool) {
         return operator[addr];
     }
 
+    /**
+     * @notice Returns the availability status of Layer 2, L1 bridge address, portal address, and L2TON address.
+     * @return result   the availability status of Layer 2
+     * @return l1Bridge the L1 bridge address
+     * @return portal   the L1 portal address
+     * @return l2Ton    the L2 TON address
+     *                  L2TON address is 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000,
+     *                  In this case, the native token of Layer 2 is TON.
+     */
     function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
         return ILayer2Manager(layer2Manager).checkL1Bridge(systemConfig);
     }
@@ -161,6 +255,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
             if (IERC20(token).balanceOf(thisAccount) < amount) revert InsufficientBalanceError();
             IERC20(token).safeTransfer(to, amount);
         }
+        emit Claimed(token, msg.sender, to, amount);
     }
 
     function _deposit(address layer2, uint256 amount) internal {
