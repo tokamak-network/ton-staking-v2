@@ -25,6 +25,11 @@
         },
         {
           "internalType": "address",
+          "name": "portal",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
           "name": "l2Ton",
           "type": "address"
         }
