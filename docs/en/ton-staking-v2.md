@@ -9,7 +9,7 @@ V2 introduces a concept called L2 sequencer, which was not present in V1, and ne
 
 ## Changes in seigniorage distribution
 
-In V2, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to the white paper) ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2) 참고)
+In V2, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
 
 $S:　TON　staking　amount$ <br/>
 $T :　Total　TON　supply$<br/>
