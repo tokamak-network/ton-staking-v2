@@ -60,7 +60,7 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
          alt="TON Stake V1 Contracts Relationship" width=700></center>
-    <figcaption>TON Stake V1 Contracts Relationship</figcaption>
+    <figcaption> </figcaption>
 </figure>
 
 ## TON Stake V2 Contracts
@@ -70,7 +70,7 @@ V2 maintains the configuration of V1 and adds Layer2Candidate. The contract conf
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
          alt="TON Stake V2 Contracts Relationship" width=700 ></center>
-    <figcaption>TON Stake V2 Contracts Relationship</figcaption>
+    <figcaption> </figcaption>
 </figure>
 
 The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup. Layer 2 of Optimism is applied first, and contracts can be upgraded so that other layers can also be applied. Optimism Layer 2 has a legacy version and a bedrock version. Please remember that the initial application target is limited to cases where the L2 nativeToken is TON among Optimism Legacy Version and Optimism Bedrock Version. The Optimism Bedrock version contains the information and environment settings of the L1 contract in the SystemConfig contract. Therefore, the address of SystemConfig will be used as an address to distinguish Layer2. In the case of the legacy version, SystemConfig does not exist, so a separate legacySystemConfig contract was created. In the case of legacy layer 2, you must deploy the legacySystemConfig contract and use this address as an address book to distinguish the corresponding layer 2.
