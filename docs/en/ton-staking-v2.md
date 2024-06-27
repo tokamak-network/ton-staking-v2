@@ -998,7 +998,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Basic understanding
     - When Layer2Candidate's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the Operator contract.
     - A sequencer with operator privileges in the Operator contract can select the claim and staking option when executing the update seigniorage of Layer2Candidate (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
-    - The seigniorage distribution logic distributed to the L2 sequencer is [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking- This is done according to the seigniorage distribution rules of v2).
+    - The seigniorage distribution logic distributed to the L2 sequencer is done according to the seigniorage distribution rules of v2. [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
     - Since SeigManager is already deployed and operated in V1, only the update seigniorage function is executed with the changed logic in SeigManagerV1_3 without changing other functions.
     - Add storage to manage the seigniorage provided to Layer 2 when executing the update seigniorage function.
 
