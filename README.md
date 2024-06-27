@@ -52,7 +52,7 @@ Detailed development details related to this can be found in this article.
 
 ## Installation
 
-`npx hardhat v20.10.0`
+`nvm use v20.10.0`
 
 Copy .enc.sample , input your information, and create an .env file.
 
