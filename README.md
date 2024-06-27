@@ -46,8 +46,8 @@ This repository is a patched version of the Tokamak Simple Staking contract.
 Tone seigniorage will act as a catalyst for Layer 2 growth, and accordingly, we have established an economic model that provides a portion of the TON seigniorage to Layer 2 sequencers.
 
 Detailed development details related to this can be found in this article.
-- A closer look at TON-Staking-V2 [Korean Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/kr/ton-staking-v2.md)
-- A closer look at TON-Staking-V2 [English Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/en/ton-staking-v2.md)
+- A closer look at TON-Staking-V2 [Korean version](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/kr/ton-staking-v2.md)
+- A closer look at TON-Staking-V2 [English version](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/en/ton-staking-v2.md)
 
 
 ## Installation
