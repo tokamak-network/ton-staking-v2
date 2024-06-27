@@ -1,60 +1,59 @@
 
-> Simple Staking 서비스는 TON Economy의 Layer2 를 통합하여, ton staking v2로 업그레이드 됩니다. 이 글에서는 Simple Staking 가 layer2를 어떻게 통합하여 version2로 진화되는지에 대해 알려줄 것입니다.
+> Simple Staking service integrates Layer 2 of TON Economy and is upgraded to ton staking v2. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.
 
-TON Staking v2 는 V2 백서의 내용을 구체화하기 위한 개발이므로,  [백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md)를 사전에 숙지하시기 바랍니다.
+TON Staking v2 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
 
-V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었으며,  새로 발행되는 톤 시뇨리지의 일부를 L2 시퀀서에게 분배하는 내용이 추가된 내용입니다.  V2는 기존  V1 컨트랙에서 보강된 시스템이기 때문에, V1에 존재하는 컨트랙일 경우, 업그레이드하여 구현합니다.  따라서 본 글을 읽으시는 독자는 V1 시스템을 알고 있어야 합니다.  톤스테이킹 V1에 대해서 더 자세히 알고 싶은 분은 [미디움 글](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7)을 참고하시기 바랍니다.
+V2 introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
 
-# Ton Staking V2에서 변경되는 사항들
+# Changes in TON Staking V2
 
-## 시뇨리지 분배의 변화
+## Changes in seigniorage distribution
 
-V2에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
+In V2, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to the white paper) ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2) 참고)
 
-$S:　TON　스테이킹　금액$ <br/>
-$T :　TON　총　발행량$<br/>
-$TON seigs :　발행되는　TON　시뇨리지　양$<br/>
-$D :　Layer2 들의　총　TON 유동성$<br/>
+$S:　TON　staking　amount$ <br/>
+$T :　Total　TON　supply$<br/>
+$TON seigs :　Amount　of　TON　seigniorage　issued$<br/>
+$D :　Total　TON　liquidity　of　Layer2$<br/>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
-    <figcaption>V1 의 시뇨리지 분배</figcaption>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
+    <figcaption>Seigniorage distribution of V1</figcaption>
 </figure>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
-    <figcaption>V2의 시뇨리지 분배</figcaption>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
+    <figcaption>Seigniorage distribution of V1</figcaption>
 </figure>
 
 
-## Layer2Candidate 추가
+## Add Layer2Candidate
 
-V1에서는 DAOCandidate Layer2 가 존재하였습니다. DAOCandidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
+In V1, DAOCandidate Layer2 existed. DAOCandidate is Layer 2 that can become a DAO committee.
 
-V2에서 추가되는 Layer2Candidate는 DAOCandidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
+Layer2Candidate added in V2 inherits all the functions of DAOCandidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
 
-## 스테이킹 금액의 즉시 인출 및 L2에 예치할 수 있는 기능 제공
+## Provides withdrawal and L2 deposit functions executed at once
 
-Layer2Candidate 에서 추가된 기능으로, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여,  인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
+As a feature added in Layer2Candidate, it provides a function that deposits to L2 (withdrawAndDepositL2) at the same time as withdrawal by linking Layer2's unique deposit function with the withdraw function.
 
-withdrawAndDepositL2 함수는 스테이킹 금액을 언스테이킹하면서 동시에 Layer2에 예치하는 기능입니다. 이 기능이 V1과 비교했을때의 강점은 언스테이킹 요청 후 대기 시간없이(대기블록 : .. 블록, 약 2주)  바로 언스테이킹이 가능하다는데 있습니다.  함수 실행 즉시 L1에 묶인 자금을 L2  유동성으로 사용할 수 있습니다.
+TThe withdrawAndDepositL2 function is a function that withdraw the staking amount and deposits it to Layer 2 at the same time. The strength of this feature compared to V1 is that withdrawal is possible immediately  without waiting time (93046  waiting blocks ). As soon as the function is executed, funds tied up in L1 can be used as L2 liquidity.
 
+## Stop providing seigniorage to the L2 sequencer in Layer2Candidate
 
-## Layer2Candidate의 L2 시퀀서에 시뇨리지 제공 중지
+Because the layer 2 sequencer is judged to contribute to the tokamak economy, it is designed to provide seigniorage.
+However, if it is determined that Layer 2 is not contributing positively to the Tokamak economy, the Seigniorage Committee may suspend seigniorage granted to the sequencer of the Layer2Candidate.
 
-레이어 2 시퀀서는 토카막 경제에 기여한다고 판단되어 시뇨리지를 제공하도록 설계됐다.
-그러나 Layer 2가 토카막 경제에 긍정적으로 기여하지 않는다고 판단되면 시뇨리지 위원회는 Layer2Candidate의 시퀀서에게 부여된 시뇨리지를 중지할 수 있습니다.
+## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-## Layer2Candidate 의 L2시퀀서 시뇨리지 제공 중지 취소
-
-Layer2Candidate의 시뇨리지 중지의 복구는 타당한 이유 및 개선이 있다고 판단될 경우, 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
+Layer2Candidate's seigniorage suspension can be reinstated by the seigniorage committee if it is determined that there is a valid reason or improvement.
 
 
 # TON Stake Contracts
 
 ## TON Stake V1 Contracts
 
-V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 daoCandiate가 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, DAOCandidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (DAOCandidate) 마다 별도의 AutoCoinage 가 생성된다.
+V1’s contract is structured as follows. DAOCandidate can be created through DAOCommittee, and when the created daoCandiate is registered through Layer2Registry and registered in SeigManager, an AutoCoinage mapped to DAOCandidate is created. AutoCoinage manages the staking amount and has logic to pay compound interest. Therefore, a separate AutoCoinage is created for each layer (DAOCandidate).
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
@@ -64,7 +63,7 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 
 ## TON Stake V2 Contracts
 
-V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
+V2 maintains the configuration of V1 and adds Layer2Candidate. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
@@ -72,13 +71,13 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
 
-먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 옵티미즘 롤업이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인경우로 제한한다는 것을 기억해주길 바란다.  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 Layer2를 구별할 수 있는 주소로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 Layer2를 구별할 수 있는 주소록 사용해야 한다.
+The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup. Layer 2 of Optimism is applied first, and contracts can be upgraded so that other layers can also be applied. Optimism Layer 2 has a legacy version and a bedrock version. Please remember that the initial application target is limited to cases where the L2 nativeToken is TON among Optimism Legacy Version and Optimism Bedrock Version. The Optimism Bedrock version contains the information and environment settings of the L1 contract in the SystemConfig contract. Therefore, the address of SystemConfig will be used as an address to distinguish Layer2. In the case of the legacy version, SystemConfig does not exist, so a separate legacySystemConfig contract was created. In the case of legacy layer 2, you must deploy the legacySystemConfig contract and use this address as an address book to distinguish the corresponding layer 2.
 
-파란색 부분의 추가된 컨트랙트는 아래 컨트랙 파트에서 자세히 설명하도록 하겠습니다.
+The added contracts in the blue part will be explained in detail in the contract part below.
 
 # Use case
 ## For registrant of L2Registry
-L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
+An account with registrant permission in the L2Registry contract can register SystemConfig, which holds unique information about Layer2. Registering SystemConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered SystemConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
@@ -88,7 +87,7 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 
 
 ## For everyone
-누구나 L2Registry에 등록된 SystemConfig에 대해서 Layer2Candidate를 등록할 수 있다. Layer2Candidate 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘Layer2Candidate 등록’ 기능을 통해 Operator, Layer2Candidate, Coinage 컨트랙이 생성된다.
+Anyone can register Layer2Candidate for SystemConfig registered in L2Registry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
@@ -99,7 +98,7 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 
 ## For staker in Layer2Candidate
 
-Layer2Candidate 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 통해 스테이킹을 금액 인출과 동시에 인출된 금액을 해당 Layer2 에 예치하는 기능을 수행할 수 있습니다. 이때 스테이킹 금액을 인출할때 대기시간없이 바로 인출 및 L2 예치가 됩니다.
+Users who have staked on Layer2Candidate can perform the function of withdrawing the staking amount and simultaneously depositing the withdrawn amount into the corresponding Layer2 through the WithdrawAndDepositL2 function. At this time, when withdrawing the staking amount, withdrawal and L2 deposit are made immediately without waiting time.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
@@ -110,10 +109,9 @@ Layer2Candidate 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 
 
 ## For seigniorageCommittee
 
-심플 스테이킹 V2는 Layer2를 운영하는 Layer2Candidate의 시퀀서에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 그러나 Layer2를 실제로 운영하지 않거나  불합리하게 시뇨리지를 할당받는 행위 등을 발견할 즉시 해당 레이어2의 시퀀서에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다.
+Simple Staking V2 has designed an economy that issues TON seigniorage to the sequencer of Layer2Candidate, which operates Layer2. However, there must be a function to stop issuing TON seigniorages to the corresponding Layer 2 sequencer as soon as it detects actions such as not actually operating Layer 2 or unreasonably allocating seigniorage.
 
-L2Registry 컨트랙에 정의된 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 레이어2 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
-
+Created a Seigniorage Committee account defined in the L2Registry contract. The Seigniorage Committee can perform the function of suspending or canceling issuance of Seigniorage for the Layer 2 sequencer.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-4.png"
@@ -124,23 +122,22 @@ L2Registry 컨트랙에 정의된 시뇨리지 위원회 계정을 만들었습�
 
 # Sequence Diagrams
 
-## Layer2Candidate 등록
+## Register Layer2Candidate
 
-Layer2Candidate를 등록할때에는 해당 레이어의 오퍼레이터 이름으로 최소 예치금액 이상을 예치해야 합니다.
+When registering a Layer2Candidate, you must deposit at least the minimum deposit amount in the name of the operator of that layer.
 
-Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있는 SystemConfig 컨트랙 주소를 제시해야 합니다.
+When registering Layer2Candidate. You must present the SystemConfig contract address that holds Layer 2 configuration information.
 
-또한 입력하는 SystemConfig는 등록전에 L2Registry에 등록되어 있어야 합니다. ( L2Registry에 등록하는 권한은 L2Registry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
-
+Additionally, the SystemConfig you enter must be registered in L2Registry before registration. (Only accounts with L2Registry Registrant privileges can register with L2Registry.)
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
     <figcaption> </figcaption>
 </figure>
 
-## 인출 및 L2 예치를 한번에
+## Withdraw And Deposit L2
 
-Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
+Users who stake on Layer2Candidate can withdraw the staked amount immediately and deposit it on Layer2 concurrently.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-2.png"
@@ -148,9 +145,9 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     <figcaption> </figcaption>
 </figure>
 
-## Layer2Candidate 의 L2 시퀀서에게 시뇨리지 제공 중지
+## Stop distributing a seigniorage to the L2 sequencer
 
-시뇨리지 위원회는  특정 레이어2가 시뇨리지를 받기에 불합리하다고 판단될때, 해당 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지할 수 있습니다.
+When the seigniorage committee determines that it is unreasonable for a specific layer 2 to receive seigniorage, it can stop issuing seigniorage to a layer2 sequencer.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-3.png"
@@ -158,9 +155,9 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     <figcaption> </figcaption>
 </figure>
 
-## Layer2Candidate 의 L2 시퀀서에게 시뇨리지 제공 중지 취소
+## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-시뇨리지 위원회는  특정 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지했던 것을 취소하여, 다시 시뇨리지를 지급할 수 있습니다.
+The Seigniorage Committee can cancel the suspension of seigniorage issuance distributed to specific Layer 2 sequencers and issue seigniorage again.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-4.png"
@@ -173,17 +170,17 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## L2Registry
 
-- 개요
-    - 인증된 레이어 2 SystemConfig 컨트랙트를 등록함으로서, 심플 스테이킹 서비스에서 사용될 수 있도록 합니다.
-    - 타이탄, 타노스 레이어2는 오너에 의해 수동으로 SystemConfig가 등록됩니다.
-    - on-demand L2에서 생성된 컨트랙은 컨트랙 생성시 자동으로 등록됩니다.
-    - 기존에 심플스테이킹에 Layer2Registry가 존재하여 구별을 주고자 L2Registry 로 이름을 정했다.
-    - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 한다.
-- 권한
-    - Owner :  오너는 로직 업그레이드 권한을 갖으며, 매니저를 지정할 수 있다.
-    - Manager : 재단은 MANAGER_ROLE 을 보유하고 있고, 매니저는 오퍼레이터를 등록하거나 제거할 수 있다.  SeigniorageCommittee
-    - Registrant:  on-demand-L2 오픈시, L2를 실제 배포하는 서버의 EOA에게 REGISTRANT_ROLE 을 주어야 한다.
-- 스토리지
+- Basic understanding
+    - By registering an authenticated layer 2 SystemConfig contract, it can be used in the simple staking service.
+    - For Titan and Thanos Layer 2, SystemConfig is registered manually by the owner.
+    - Contracts created in on-demand L2 are automatically registered when the contract is created.
+    - There was a Layer2Registry contract in Simple Staking previously, so we named it L2Registry to distinguish it.
+    - It must be upgradeable by configuring it as a proxy, considering support for other layers (ex, zk-EVM) in the future.
+- Authority
+    - Owner: The owner has the right to upgrade logic and can designate a manager.
+    - Manager: The foundation holds MANAGER_ROLE, and the manager can register or remove operators ( or SeigniorageCommittee).
+    - Registrant: When opening on-demand-L2, REGISTRANT_ROLE must be given to the EOA of the server that actually distributes L2.
+- Storage
 
     ```jsx
     address public layer2Manager;
@@ -204,7 +201,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     mapping (address => bool) public rejectSystemConfig;
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     event SetAddresses(address _layer2Manager, address _seigManager, address _ton);
@@ -240,7 +237,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 주요 Transaction Functions
+- Transaction Functions
     - function rejectLayer2Candidate(address _systemConfig)  external onlySeigniorageCommittee()
 
         ```solidity
@@ -300,7 +297,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant
         ```
 
-- 주요 View Functions
+- View Functions
     - function layer2TVL(address _systemConfig) public view returns (uint256 amount)
 
         ```solidity
@@ -325,13 +322,14 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## OperatorFactory
 
-- 개요
+- Basic understanding
 
-    DAOCommittee 에 Layer2Candidate가 멤버로 등록될때 Layer2Candidate의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다. 추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
+    When Layer2Candidate is registered as a member in DAOCommittee, the operator address of Layer2Candidate is registered as the key value of the mapping, so the operator address should not be changed. However, because the operator of the L2 layer (SystemConfig) can change at any time, an Operator contract was created. The Operator contract is a contract that maps to the SystemConfig contract. In other words, the address of the Operator contract must be created using the SystemConfig (L2 layer) contract address. Because there is a possibility of logic changes in the future, it was implemented as a proxy.
 
-- 권한
-    - 오너 : 오너는 배포되는 오퍼레이터의 로직을 설정할 수 있다.
-- 스토리지
+- Authority
+    - Owner: The owner can set the logic of the deployed operator.
+
+- Storage
 
     ```jsx
     address public operatorImplementation;
@@ -341,7 +339,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     address public layer2Manager;
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     /**
@@ -370,7 +368,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
 
         ```solidity
@@ -396,7 +394,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
         ```
 
-- 주요 View 함수
+- View functions
     - function getAddress(address systemConfig) public view returns (address)
 
         ```solidity
@@ -410,29 +408,31 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## Operator
 
-- 개요
-    - Operator 컨트랙은 추후 Layer2에서 다중 시퀀서(오퍼레이터)를 지원할 가능성이 있다는 것을 염두에 두고 설계되어야 한다.  따라서 업그레이드 가능한 구조로 설계된다.
-    - Layer2Candidate 는 DAOCandidate의 모든 기능을 상속받았다. DAOCandidate의 onlyCandidate 의 정의
-    - onlyCandidate (**Operator.isOperator(msg.sender)** 가 true은 계정은 operator 권한을 가진) 계정은, DAOCandidate 의  onlyCandidate 가 수행할 수 있는 함수를 사용할 수 있다.
+- Basic understanding
+    - Operator contracts should be designed with the possibility of supporting multiple sequencers (operators) in Layer 2 in the future. Therefore, it is designed with an upgradeable structure.
+    - Layer2Candidate inherits all the functions of DAOCandidate.
+    - The onlyCandidate account (an account where Operator.isOperator(msg.sender) is true has operator privileges) can use the functions that onlyCandidate of DAOCandidate can perform.
 
-- 권한
+- Authority
     - owner
-        - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
-        - 프록시 오너는 재단이 보유한다.
-        - 매니저를 변경할 수 있다.
-        - 오퍼레이터를 추가/삭제할 수 있다.
+        - As a proxy owner, you can upgrade the logic.
+        - Foundation holds the proxy owner
+        - Owner can change the manager.
+        - Owner can add/delete operators.
     - manager
-        - 관리자 권한은 오퍼레이터 등록 및 제거 할 수 있다. 최초 배포시 SystemConfig의 오너를 manager 로 지정한다.
-        - 추후 SystemConfig의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.owner 가 manager를 가져갈 수 있는 인터페이스를 제공한다. )
+        - Administrator privileges can register and remove operators. When deploying for the first time, designate the owner of SystemConfig as manager.
+        - When the owner of SystemConfig changes in the future, the manager must be changed using transferManager. (SystemConfig.owner provides an interface to take the manager.)
+
     - operator  (onlyCandidate)
-        - 오퍼레이터 권한을 보유한다. 다오멤버의 함수를 사용할 수 있다.
-        - onlyCandidate : **Operator.isOperator(msg.sender)**  == true 인 계정이다.
-        - DAOCandidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수는 오퍼페이터가 실행할 수 있다.
-            - changeMember 함수 → Operator 컨트랙이 다오의 멤버가 된다.
-            - retireMember 함수 → Operator 컨트랙이 다오 멤버에서 사임한다.
-            - castVote 함수  → Operator 컨트랙 이름으로 안건에 투표한다.
-            - claimActivityReward 함수 → 리워드는 Operator 컨트랙이 받는다.
-- 스토리지
+        - Possesses operator authority. You can use the functions of DAO members.
+        - onlyCandidate : This is an account where Operator.isOperator(msg.sender) == true.
+        - Functions that can be used by onlyCandidate inherited from DAOCandidate can be executed by the operator.
+        - changeMember function → Operator contract becomes a member of DAO.
+        - retireMember function → Operator contract resigns as a DAO member.
+        - castVote function → Vote on the agenda by Operator contract.
+        - claimActivityReward function → The reward is received by the Operator contract.
+
+- Storage
 
     ```jsx
     address public systemConfig;
@@ -445,7 +445,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     mapping(address => bool) public operator;
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     /**
@@ -487,7 +487,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function claimETH() external onlyOwnerOrManager
 
         ```jsx
@@ -528,7 +528,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate
         ```
 
-- 주요 View 함수
+- View functions
     - function acquireManager() external
 
         ```jsx
@@ -566,12 +566,14 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 
 ## Layer2Manager
-- 개요
-    - Layer2 시퀀서가 시뇨리지를 받기 위해서는 SystemConfig 주소를  Layer2Manager에 등록해야 합니다.
-    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager 는 Layer2Candidate 의 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
-- 권한
-    - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
-- 스토리지
+- Basic understanding
+    - In order for the Layer2 sequencer to receive seigniorage, the SystemConfig address must be registered in the Layer2Manager.
+    - When distributing seigniorage, the seigniorage paid to Layer 2 sequencers is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of Layer2Candidate is settled.
+
+- Authority
+    - Owner : The owner has the authority to upgrade logic and can set settings.
+
+- Storage
 
     ```jsx
     struct OperatorInfo {
@@ -606,7 +608,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     /**
@@ -640,7 +642,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     event UnpausedLayer2Candidate(address systemConfig, address _layer2);
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function registerLayer2Candidate(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
 
         ```jsx
@@ -715,9 +717,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         ```
 
 
-
-
-- 주요 View 함수
+- View functions
     - function systemConfigOfOperator(address _oper) external view returns (address)
 
         ```jsx
@@ -793,11 +793,13 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## Layer2ContractFactory
 
-- 개요
-    - Layer2Candiate 를 생성하는 컨트랙입니다.
-- 권한
-    - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
-- 스토리지
+- Basic understanding
+    - This is a contract that creates Layer2Candiate.
+
+- Authority
+    - Owner : The owner has the authority to upgrade logic and can set settings.
+
+- Storage
 
     ```jsx
     address public depositManager;
@@ -809,7 +811,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     address public onDemandL2Registry;
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     /**
@@ -833,7 +835,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     );
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function deploy(address _sender, string memory _name, address _committee, address _seigManager) public onlyDAOCommittee  returns (address)
 
         ```solidity
@@ -859,13 +861,14 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## Layer2Contract
 
-- 개요
-    - 심플스테이킹(톤 스테이킹)의 기본기능(예치, 업데이트시뇨리지-이자지급, 출금 기능)을 지원한다.
-    - DAOCandidate에서 할 수 있는 다오 멤버 기능을 지원한다.
-    - 업데이트 시뇨리지 실행시, Layer2Candidate의 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
-- 권한
-    - Owner : 오너는 로직 업그레이드 권한을 갖으며, 설정값을 초기화 할 수 있다.
-    - onlyCandidate : Layer2Candidate 에 매칭되는 Operator 컨트랙의 오퍼레이터 권한을 갖는 계정
+- Basic understanding
+    - Supports the basic functions of Simple Staking (Tone Staking) (deposit, update seigniorage-interest payment, withdrawal function).
+    - Supports DAO member functions available in DAOCandidate.
+    - When executing update seigniorage, Layer2Candidate’s sequencer (operator) can receive seigniorage.
+
+- Authority
+    - Owner : The owner has the authority to upgrade logic and can initialize settings.
+    - onlyCandidate : Account with operator privileges of the Operator contract of Layer2Candidate
 
         ```jsx
          modifier onlyCandidate() {
@@ -875,7 +878,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
           }
         ```
 
-- 스토리지
+- Storage
 
     ```solidity
         mapping(bytes4 => bool) internal _supportedInterfaces;
@@ -889,14 +892,14 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         address wton;
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     event Initialized(address _operateContract, string memo, address committee, address seigManager);
     event SetMemo(string _memo);
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function changeMember(uint256 _memberIndex) external  onlyCandidate   returns (bool)
 
         ```jsx
@@ -962,7 +965,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function updateSeigniorage(uint256 afterCall) public returns (bool)
         ```
 
-- 주요 View 함수
+- View functions
     - function totalStaked() external  view returns (uint256 totalsupply)
 
         ```jsx
@@ -990,15 +993,15 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 
 ## SeigManagerV1_3
-- 개요
-    - Layer2Candidate의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 Operator 컨트랙에게 정산됩니다.
-    - Operator 컨트랙의 오퍼레이터권한을 갖는 시퀀서가 Layer2Candidate 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
-    - L2 시퀀서에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
-    - V1에서 이미 SeigManager 가 배포되어 운영되고 있으므로, 다른 기능은 변경없이 업데이트 시뇨리지 함수만  SeigManagerV1_3에 변경된 로직으로 실행되도록 한다.
-    - 업데이트 시뇨리지 함수실행시 Layer2에게 제공하는 시뇨리지를 관리하기 위한 스토리지를 추가한다.
+- Basic understanding
+    - When Layer2Candidate's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the Operator contract.
+    - A sequencer with operator privileges in the Operator contract can select the claim and staking option when executing the update seigniorage of Layer2Candidate (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
+    - The seigniorage distribution logic distributed to the L2 sequencer is [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking- This is done according to the seigniorage distribution rules of v2).
+    - Since SeigManager is already deployed and operated in V1, only the update seigniorage function is executed with the changed logic in SeigManagerV1_3 without changing other functions.
+    - Add storage to manage the seigniorage provided to Layer 2 when executing the update seigniorage function.
 
 
-- 추가된 스토리지
+- Added storage
 
     ```jsx
     struct Layer2Reward {
@@ -1025,17 +1028,17 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 삭제된 이벤트
+- Deleted Event
 
-    업데이트 시뇨리지 실행시 발생하던 SeigGiven 이벤트가 삭제되었다.
+    The SeigGiven event that occurred when executing update seigniorage has been deleted.
 
     ```jsx
     event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig);
     ```
 
-- 추가된 이벤트
+- Added Event
 
-    업데이트 시뇨리지 실행시 아래 SeigGiven2 이벤트가 추가 발생한다.
+    When executing update seigniorage, the SeigGiven2 event occurs.
 
     ```jsx
     /**
@@ -1058,7 +1061,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function excludeFromSeigniorage (address _layer2) external returns (bool) onlyLayer2Manager
 
         ```
@@ -1103,7 +1106,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function updateSeigniorageLayer(address layer2) external returns (bool)
         ```
 
-- 주요 View 함수
+- View functions
     - function getOperatorAmount(address layer2) external view returns (uint256)
 
         ```jsx
@@ -1140,18 +1143,19 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## DepositManagerV1_1
 
-- 개요
-    - Layer2Candidate 의 경우라면 톤스테이킹출금을 하면서, 동시에 해당 Layer2에 예치할 수 있는 기능 (withdrawAndDepositL2) 을 지원한다. 이 때에는 출금시 지연시간 없이 즉시 출금 후, L2에 예치된다.
-    - Layer2Candidate가 아닌 레이어에 withdrawAndDepositL2 함수를 요청할때는 에러를 발생한다.
-    - DepositManagerProxy에 기존 로직은 그대로 두고, withdrawAndDepositL2 함수만 추가되도록 한다.
-- 스토리지
+- Basic understanding
+    - In the case of Layer2Candidate, it supports the function (withdrawAndDepositL2) that allows you to withdraw tons staking and deposit to Layer 2 at the same time. In this case, the money is withdrawn immediately without delay and deposited in L2.
+    - An error occurs when requesting the withdrawAndDepositL2 function from a layer other than Layer2Candidate.
+    - Didn't change the existing logic in DepositManagerProxy as is and add only the withdrawAndDepositL2 function.
+
+- Storage
 
     ```jsx
     address public ton;
     uint32 public minDepositGasLimit; /// not used
     ```
 
-- 이벤트
+- Event
 
     ```jsx
     /**
@@ -1164,7 +1168,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
     ```
 
-- 주요  Transaction 함수
+- Transaction functions
     - function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool)
 
     ```jsx
