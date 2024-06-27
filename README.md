@@ -47,7 +47,7 @@ Tone seigniorage will act as a catalyst for Layer 2 growth, and accordingly, we 
 
 Detailed development details related to this can be found in this article.
 - A closer look at TON-Staking-V2 [Korean Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/kr/ton-staking-v2.md)
-- A closer look at TON-Staking-V2 [English Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/en/ton-staking-v2.md))
+- A closer look at TON-Staking-V2 [English Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/en/ton-staking-v2.md)
 
 
 ## Installation
@@ -57,7 +57,7 @@ Detailed development details related to this can be found in this article.
 Copy .enc.sample , input your information, and create an .env file.
 
 `npm install`
-(If it is not installed, npx install --force)
+(If it is not installed, `npx install --force`)
 
 ## Compile
 
@@ -69,4 +69,4 @@ Copy .enc.sample , input your information, and create an .env file.
 
 - test results screen : [link](https://github.com/tokamak-network/ton-staking-v2/tree/codeReview/docs/img/test1.png)
 
-- After testing, you will see that an Excel file /outputFile/log-used-gas.xlsx containing used gas has been created.
+- After testing, you will see that an Excel file `/outputFile/log-used-gas.xlsx` containing used gas has been created.
