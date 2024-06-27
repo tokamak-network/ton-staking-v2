@@ -52,16 +52,20 @@ Detailed development details related to this can be found in this article.
 
 ## Installation
 
-npx hardhat v20.10.0
-npm install ( If it is not installed, npx install --force )
+> npx hardhat v20.10.0
+
+- Copy .enc.sample , input your information, and create an .env file.
+
+> npm install
+(If it is not installed, npx install --force)
 
 ## Compile
 
-npx hardhat compile
+> npx hardhat compile
 
 ## Test
 
-npx hardhat test test/layer2/units/5.stake-v2-gas.sepolia.test.ts
+> npx hardhat test test/layer2/units/5.stake-v2-gas.sepolia.test.ts
 
 - test results screen : [link](https://github.com/tokamak-network/ton-staking-v2/tree/codeReview/docs/img/test1.png)
 
