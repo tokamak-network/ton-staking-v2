@@ -33,23 +33,20 @@ V1에서는 DAOCandidate Layer2 가 존재하였습니다. DAOCandidate 는 다�
 
 V2에서 추가되는 Layer2Candidate는 DAOCandidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
 
-## 스테이킹 금액의 즉시 인출 및 L2에 예치할 수 있는 기능 제공
+## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
 Layer2Candidate 에서 추가된 기능으로, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여,  인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
 
 withdrawAndDepositL2 함수는 스테이킹 금액을 언스테이킹하면서 동시에 Layer2에 예치하는 기능입니다. 이 기능이 V1과 비교했을때의 강점은 언스테이킹 요청 후 대기 시간없이(대기블록 : .. 블록, 약 2주)  바로 언스테이킹이 가능하다는데 있습니다.  함수 실행 즉시 L1에 묶인 자금을 L2  유동성으로 사용할 수 있습니다.
 
 
-## Layer2Candidate의 L2 시퀀서에 시뇨리지 제공 중지
+## Layer2Candidate 의 L2시퀀서 시뇨리지 제공 중지
 
-레이어 2 시퀀서는 토카막 경제에 기여한다고 판단되어 시뇨리지를 제공하도록 설계됐다.
-그러나 Layer 2가 토카막 경제에 긍정적으로 기여하지 않는다고 판단되면 시뇨리지 위원회는 Layer2Candidate의 시퀀서에게 부여된 시뇨리지를 중지할 수 있습니다.
+레이어2 시퀀서에게 시뇨리지를 부여하는 기능은 토카막 이코노미의 큰 권한을 부여받은 것입니다. 그런데, 이러한 레이어2가 토카막 이코노미에 적절한 역할을 하지 못한다고 판단될 경우, 시뇨리지 위원회는 해당 Layer2Candidate의 시퀀서에게 부여되는 시뇨리지를 중지할 수 있습니다.
 
 ## Layer2Candidate 의 L2시퀀서 시뇨리지 제공 중지 취소
 
 Layer2Candidate의 시뇨리지 중지의 복구는 타당한 이유 및 개선이 있다고 판단될 경우, 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
-
-
 # TON Stake Contracts
 
 ## TON Stake V1 Contracts
@@ -74,8 +71,6 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
 
 먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 옵티미즘 롤업이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인경우로 제한한다는 것을 기억해주길 바란다.  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 Layer2를 구별할 수 있는 주소로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 Layer2를 구별할 수 있는 주소록 사용해야 한다.
 
-파란색 부분의 추가된 컨트랙트는 아래 컨트랙 파트에서 자세히 설명하도록 하겠습니다.
-
 # Use case
 ## For registrant of L2Registry
 L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
@@ -99,8 +94,6 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 
 ## For staker in Layer2Candidate
 
-Layer2Candidate 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 통해 스테이킹을 금액 인출과 동시에 인출된 금액을 해당 Layer2 에 예치하는 기능을 수행할 수 있습니다. 이때 스테이킹 금액을 인출할때 대기시간없이 바로 인출 및 L2 예치가 됩니다.
-
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
          alt="Withdraw and deposit to L2" width=500 ></center>
@@ -109,10 +102,6 @@ Layer2Candidate 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 
 
 
 ## For seigniorageCommittee
-
-심플 스테이킹 V2는 Layer2를 운영하는 Layer2Candidate의 시퀀서에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 그러나 Layer2를 실제로 운영하지 않거나  불합리하게 시뇨리지를 할당받는 행위 등을 발견할 즉시 해당 레이어2의 시퀀서에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다.
-
-L2Registry 컨트랙에 정의된 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 레이어2 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
 
 
 <figure>
@@ -124,7 +113,7 @@ L2Registry 컨트랙에 정의된 시뇨리지 위원회 계정을 만들었습�
 
 # Sequence Diagrams
 
-## Layer2Candidate 등록
+## Register Layer2Candidate
 
 Layer2Candidate를 등록할때에는 해당 레이어의 오퍼레이터 이름으로 최소 예치금액 이상을 예치해야 합니다.
 
@@ -138,7 +127,7 @@ Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있�
     <figcaption> </figcaption>
 </figure>
 
-## 인출 및 L2 예치를 한번에
+## Withdraw And Deposit L2
 
 Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
 
@@ -148,7 +137,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     <figcaption> </figcaption>
 </figure>
 
-## Layer2Candidate 의 L2 시퀀서에게 시뇨리지 제공 중지
+## Stop distributing a seigniorage to the L2 sequencer
 
 시뇨리지 위원회는  특정 레이어2가 시뇨리지를 받기에 불합리하다고 판단될때, 해당 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지할 수 있습니다.
 
@@ -158,7 +147,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     <figcaption> </figcaption>
 </figure>
 
-## Layer2Candidate 의 L2 시퀀서에게 시뇨리지 제공 중지 취소
+## Cancel stopping distributing a seigniorage to the L2 sequencer
 
 시뇨리지 위원회는  특정 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지했던 것을 취소하여, 다시 시뇨리지를 지급할 수 있습니다.
 
@@ -174,8 +163,8 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 ## L2Registry
 
 - 개요
-    - 인증된 레이어 2 SystemConfig 컨트랙트를 등록함으로서, 심플 스테이킹 서비스에서 사용될 수 있도록 합니다.
-    - 타이탄, 타노스 레이어2는 오너에 의해 수동으로 SystemConfig가 등록됩니다.
+    - 토카막 네트웤에서 운영되는 레이어2의 SystemConfig 컨트랙 주소가 등록된  컨트랙입니다.
+    - 타이탄, 타노스는 어드민에 의해 수동으로 SystemConfig를 입력합니다.
     - on-demand L2에서 생성된 컨트랙은 컨트랙 생성시 자동으로 등록됩니다.
     - 기존에 심플스테이킹에 Layer2Registry가 존재하여 구별을 주고자 L2Registry 로 이름을 정했다.
     - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 한다.
@@ -327,7 +316,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 - 개요
 
-    DAOCommittee 에 Layer2Candidate가 멤버로 등록될때 Layer2Candidate의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다. 추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
+    DAOCommittee 에 Layer2Candidate가 멤버로 등록될때 Layer2Candidate의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다.    추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
 
 - 권한
     - 오너 : 오너는 배포되는 오퍼레이터의 로직을 설정할 수 있다.
@@ -413,8 +402,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 - 개요
     - Operator 컨트랙은 추후 Layer2에서 다중 시퀀서(오퍼레이터)를 지원할 가능성이 있다는 것을 염두에 두고 설계되어야 한다.  따라서 업그레이드 가능한 구조로 설계된다.
     - Layer2Candidate 는 DAOCandidate의 모든 기능을 상속받았다. DAOCandidate의 onlyCandidate 의 정의
-    - onlyCandidate (**Operator.isOperator(msg.sender)** 가 true은 계정은 operator 권한을 가진) 계정은, DAOCandidate 의  onlyCandidate 가 수행할 수 있는 함수를 사용할 수 있다.
-
+        - **Operator.isOperator(msg.sender)** 가 true은 계정을 의미하며, operator 권한을 가진 계정은 Layer2Candidate의 오퍼레이터 함수를 사용할수 있게 한다.
 - 권한
     - owner
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
@@ -1141,7 +1129,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 ## DepositManagerV1_1
 
 - 개요
-    - Layer2Candidate 의 경우라면 톤스테이킹출금을 하면서, 동시에 해당 Layer2에 예치할 수 있는 기능 (withdrawAndDepositL2) 을 지원한다. 이 때에는 출금시 지연시간 없이 즉시 출금 후, L2에 예치된다.
+    - Layer2Candidate 의 경우라면 톤스테이킹출금을 하면서, 동시에 해당 Layer2에 예치할 수 있는 기능 (withdrawAndDepositL2) 을 지원한다. 이 때에는 출금시 지연시간 없이 즉시 출금 후, L1에 예치된다.
     - Layer2Candidate가 아닌 레이어에 withdrawAndDepositL2 함수를 요청할때는 에러를 발생한다.
     - DepositManagerProxy에 기존 로직은 그대로 두고, withdrawAndDepositL2 함수만 추가되도록 한다.
 - 스토리지
