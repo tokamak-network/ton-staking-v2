@@ -24,7 +24,6 @@ This repository is a patched version of the Tokamak Simple Staking contract.
 * CoinageFactory : [0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43](https://etherscan.io/address/0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43)
 
 
-
 ## deployed layer address
 
 * {"oldLayer":"0x39a13a796a3cd9f480c28259230d2ef0a7026033","newLayer":"0xf3B17FDB808c7d0Df9ACd24dA34700ce069007DF","operator":"0xea8e2ec08dcf4971bdcdfffe21439995378b44f3","name":"tokamak1"}
@@ -37,3 +36,33 @@ This repository is a patched version of the Tokamak Simple Staking contract.
 * {"oldLayer":"0x2000fc16911fc044130c29c1aa49d3e0b101716a","newLayer":"0xC42cCb12515b52B59c02eEc303c887C8658f5854","operator":"0xfc9c403993bea576c28ac901bd62640bff8b057a","name":"DeSpread"}
 * {"oldLayer":"0x97d0a5880542ab0e699c67e7f4ff61f2e5200484","newLayer":"0xf3CF23D896Ba09d8EcdcD4655d918f71925E3FE5","operator":"0x887af02970781a088962dbaa299a1eba8d573321","name":"Danal Fintech"}
 * {"oldLayer":"0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764","newLayer":"0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2","operator":"0x42adfaae7db56b294225ddcfebef48b337b34b23","name":"Hammer DAO"}
+
+
+# TON Staking v2 upgrade development
+
+## Background and development details
+
+Tokamak Network has been developing a protocol that can solve the scalability problems of Ethereum (L1) decentralized applications by leveraging the Optimistic Rollup Layer 2 (L2) solution.
+Tone seigniorage will act as a catalyst for Layer 2 growth, and accordingly, we have established an economic model that provides a portion of the TON seigniorage to Layer 2 sequencers.
+
+Detailed development details related to this can be found in this article.
+- A closer look at TON-Staking-V2 [Korean Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/kr/ton-staking-v2.md)
+- A closer look at TON-Staking-V2 [English Ver](https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/en/ton-staking-v2.md))
+
+
+## Installation
+
+npx hardhat v20.10.0
+npm install ( If it is not installed, npx install --force )
+
+## Compile
+
+npx hardhat compile
+
+## Test
+
+npx hardhat test test/layer2/units/5.stake-v2-gas.sepolia.test.ts
+
+- test results screen : [link](https://github.com/tokamak-network/ton-staking-v2/tree/codeReview/docs/img/test1.png)
+
+- After testing, you will see that an Excel file /outputFile/log-used-gas.xlsx containing used gas has been created.
