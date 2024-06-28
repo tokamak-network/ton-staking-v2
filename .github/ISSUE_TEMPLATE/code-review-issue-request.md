@@ -1,5 +1,5 @@
 ---
-name: Code review template
+name: Code review issue request
 about: Register a code review issue.
 title: ''
 labels: ''
