@@ -182,6 +182,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     - Owner: The owner has the right to upgrade logic and can designate a manager.
     - Manager: The foundation holds MANAGER_ROLE, and the manager can register or remove operators ( or SeigniorageCommittee).
     - Registrant: When opening on-demand-L2, REGISTRANT_ROLE must be given to the EOA of the server that actually distributes L2.
+    - SeigniorageCommittee: SeigniorageCommittee can stop/restore seigniorage issuance to the Layer2 sequencer.
 - Storage
 
     ```jsx

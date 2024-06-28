@@ -172,6 +172,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 매니저를 지정할 수 있다.
     - Manager : 재단은 MANAGER_ROLE 을 보유하고 있고, 매니저는 오퍼레이터를 등록하거나 제거할 수 있다.  SeigniorageCommittee
     - Registrant:  on-demand-L2 오픈시, L2를 실제 배포하는 서버의 EOA에게 REGISTRANT_ROLE 을 주어야 한다.
+    - SeigniorageCommittee: Layer2 시퀀서에게 시뇨리지 발행을 중지/복원할 수 있다.
 - 스토리지
 
     ```jsx
