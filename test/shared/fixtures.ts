@@ -5,13 +5,15 @@ import { readContracts, deployedContracts } from "../common_func"
 
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
-import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture } from './fixtureInterfaces'
+import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, SimpleStakeFixture } from './fixtureInterfaces'
 
 import { DepositManagerForMigration } from "../../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
 import { DepositManagerProxy } from "../../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManager } from "../../typechain-types/contracts/stake/managers/SeigManager.sol"
 import { SeigManagerV1_1 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_1.sol"
+import { SeigManagerV1_2 } from "../../typechain-types/contracts/stake/managers/SeigManagerV1_2.sol"
+
 
 import { SeigManagerMigration } from "../../typechain-types/contracts/stake/managers/SeigManagerMigration.sol"
 import { SeigManagerProxy } from "../../typechain-types/contracts/stake/managers/SeigManagerProxy"
@@ -31,7 +33,14 @@ import { CandidateFactoryProxy } from "../../typechain-types/contracts/dao/facto
 import { PowerTONUpgrade } from "../../typechain-types/contracts/stake/powerton/PowerTONUpgrade"
 
 import DepositManager_Json from '../abi/DepositManager.json'
-import SeigManager_Json from '../../artifacts/contracts/stake/managers/SeigManager.sol/SeigManager.json'
+import DepositManagerV1_Json from '../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json'
+
+import SeigManagerV1_1_Json from '../../artifacts/contracts/stake/managers/SeigManagerV1_1.sol/SeigManagerV1_1.json'
+import SeigManagerV1_2_Json from '../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json'
+
+import SeigManager_Json from '../../artifacts/contracts/stake/managers/SeigManagerV1_1.sol/SeigManagerV1_1.json'
+import SeigManagerProxy_Json from '../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json'
+
 import L2Registry_Json from '../abi/Layer2Registry.json'
 import CoinageFactory_Json from '../abi/CoinageFactory.json'
 import Ton_Json from '../abi/TON.json'
@@ -952,5 +961,58 @@ export const newTonStakingV2MainnetFixture2 = async function (boolApplyLogic: an
     powerTON: powerTON,
     powerTonAddress: oldContractInfo.PowerTON,
     daoAdmin: daoAdmin
+  }
+}
+
+export const simpleStakeFixture = async function (boolV2:bool): Promise<SimpleStakeFixture> {
+  const [deployer, addr1, addr2, sequencer1] = await ethers.getSigners();
+  const { TON, WTON, SeigManagerProxy, Layer2RegistryProxy , DAOCommitteeProxy, DepositManagerProxy} = await hre.getNamedAccounts();
+
+  // console.log('DepositManagerProxy', DepositManagerProxy)
+  // console.log('SeigManagerProxy', SeigManagerProxy)
+  // console.log('Layer2RegistryProxy', Layer2RegistryProxy)
+
+  const depositManager = (await ethers.getContractAt(DepositManagerV1_Json.abi, DepositManagerProxy, deployer)) as DepositManager
+
+  // const tonAdmin =  await hre.ethers.getSigner(tonAdminAddress);
+  const seigManagerProxy =(await ethers.getContractAt(SeigManagerProxy_Json.abi, SeigManagerProxy, deployer)) as SeigManagerProxy
+  let seigManagerV1_1 = (await ethers.getContractAt(SeigManagerV1_1_Json.abi, SeigManagerProxy, deployer)) as SeigManagerV1_1
+  const seigManagerV1_2 = (await (await ethers.getContractFactory("SeigManagerV1_2")).connect(deployer).deploy()) as SeigManagerV1_2;
+
+  if(boolV2) {
+     seigManagerV1_1 = (await ethers.getContractAt(SeigManagerV1_2_Json.abi, SeigManagerProxy, deployer)) as SeigManagerV1_2
+  }
+
+  const l2Registry = (await ethers.getContractAt(L2Registry_Json.abi, Layer2RegistryProxy, deployer)) as Layer2Registry
+
+  const contractJson = await jsonFixtures()
+  const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
+  const WTONContract = new ethers.Contract(WTON, contractJson.WTON.abi,  deployer)
+
+  await network.provider.send("hardhat_impersonateAccount", [
+    DAOCommitteeProxy,
+  ]);
+  const daoAdmin = await ethers.getSigner(DAOCommitteeProxy);
+  await hre.network.provider.send("hardhat_setBalance", [
+    DAOCommitteeProxy,
+    "0x10000000000000000000000000",
+  ]);
+
+  // for test :
+  await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+  await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("1000"+"0".repeat(9)))).wait()
+
+  return  {
+    deployer: deployer,
+    addr1: addr1,
+    addr2: addr2,
+    daoAdmin: daoAdmin,
+    TON: TONContract,
+    WTON: WTONContract,
+    depositManager: depositManager,
+    seigManagerProxy: seigManagerProxy,
+    seigManager: seigManagerV1_1,
+    seigManagerV1_2: seigManagerV1_2,
+    l2Registry: l2Registry
   }
 }
