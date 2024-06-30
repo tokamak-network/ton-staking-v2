@@ -1,0 +1,9 @@
+Contract,Name,Tx,Description,GasUsed
+TON,transfer,,Before blacklist blocking,53887,0.00053887
+WTON,transfer,,Before blacklist blocking,53898,0.00053898
+WTON,transfer,,Before blacklist blocking,53898,0.00053898
+TON,approveAndCall,,ton.approve and agendaManager.newAgenda,1049451,0.01049451
+DAOCandiate,castVote,,yes,369695,0.00369695
+DAOCandiate,castVote,,no,104869,0.00104869
+DAOCandiate,castVote,,yes,117212,0.00117212
+DAOCommittee,executeAgenda,,,402835,0.00402835

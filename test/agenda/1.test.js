@@ -111,17 +111,17 @@ describe("DAOAgenda Test", () => {
             daoAdminAddress,
         ]);
         daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member1Addr,
         ]);
         member1 = await hre.ethers.getSigner(member1Addr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member2Addr,
         ]);
         member2 = await hre.ethers.getSigner(member2Addr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member3Addr,
         ]);
@@ -131,17 +131,17 @@ describe("DAOAgenda Test", () => {
             member1ContractAddr,
         ]);
         member1Contract = await hre.ethers.getSigner(member1ContractAddr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member2ContractAddr,
         ]);
         member2Contract = await hre.ethers.getSigner(member2ContractAddr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member3ContractAddr,
         ]);
         member3Contract = await hre.ethers.getSigner(member3ContractAddr);
-        
+
         await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
             sendether
@@ -290,7 +290,7 @@ describe("DAOAgenda Test", () => {
             let beforeTON = await daovault.ton();
             // console.log(beforeTON)
             expect(beforeTON).to.be.equal(oldContractInfo.TON)
-            
+
             //DAOlogic에서 변경 실행
             await daoCommitteeOwner.connect(daoCommitteeAdmin).setTargetSetTON(
                 daovault.address,
@@ -363,7 +363,7 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    targets, 
+                    targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
@@ -426,7 +426,7 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    targets, 
+                    targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
@@ -488,7 +488,7 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    targets, 
+                    targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
@@ -549,7 +549,7 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    targets, 
+                    targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
@@ -610,7 +610,7 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    targets, 
+                    targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
@@ -680,7 +680,7 @@ describe("DAOAgenda Test", () => {
             console.log("beforeDAOVault :", beforeDAOVault);
             console.log("wtonClaimAmount :", wtonClaimAmount);
             expect(beforeDAOVault).to.be.gt(wtonClaimAmount)
-            
+
             // console.log("claimReward in");
             const topic = daoCommittee.interface.getEventTopic('ClaimedActivityReward');
             const receipt = await (await daoCommittee.connect(member3Contract).claimActivityReward(wtonCheck)).wait();
@@ -688,21 +688,21 @@ describe("DAOAgenda Test", () => {
 
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = daoCommittee.interface.parseLog(log);
-            
+
             // console.log("deployedEvent.args :", deployedEvent.args);
             let claimWTONAmount = deployedEvent.args.amount;
             console.log("claimWTONAmount :", claimWTONAmount);
 
             let afterclaimAmount = await daoCommittee.getClaimableActivityReward(member3.address);
             expect(afterclaimAmount).to.be.equal(0)
-            
+
             let afterWTON = await wton.balanceOf(wtonCheck)
             // console.log("afterWTON :", afterWTON);
             expect(afterWTON).to.be.equal(claimWTONAmount);
 
             let afterDAOVault = await wton.balanceOf(oldContractInfo.DAOVault)
             let calculAmount = beforeDAOVault.sub(claimWTONAmount)
-            
+
             // console.log("afterDAOVault :", afterDAOVault);
             // console.log("calculAmount :", calculAmount);
 
