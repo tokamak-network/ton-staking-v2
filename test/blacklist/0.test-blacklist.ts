@@ -363,32 +363,37 @@ describe('BlackList', () => {
             // logs.push(gasUsedFunctions('TON', 'transfer', 'Before blacklist blocking', receipt))
         })
 
-        // it('Transfer WTON to blacklist ', async () => {
+        it('Transfer WTON to blacklist ', async () => {
 
-        //     let ton_callbackEnabled = await tonContract.callbackEnabled()
-        //     console.log('ton_callbackEnabled', ton_callbackEnabled);
+            let wton_callbackEnabled = await wtonContract.callbackEnabled()
+            console.log('wton_callbackEnabled', wton_callbackEnabled);
 
-        //     let ton_seigManager = await tonContract.seigManager()
-        //     console.log('ton_seigManager', ton_seigManager);
+            let wton_seigManager = await wtonContract.seigManager()
+            console.log('wton_seigManager', wton_seigManager);
 
-        //     // await seigManager.connect(tonHolder).onTransfer(tonHolder.address, blacklist1.address, ethers.utils.parseEther("1"))
+            await expect(
+                wtonContract.connect(wtonHolder).transfer(blacklist1.address, ethers.utils.parseEther("100"))
+            ).to.be.revertedWith('BlackList_Error')
+
+            await expect(
+                wtonContract.connect(wtonHolder).transfer(blacklist2.address, ethers.utils.parseEther("100"))
+            ).to.be.revertedWith("BlackList_Error")
+
+            const receipt = await (await wtonContract.connect(wtonHolder).transfer(tonHolder.address, ethers.utils.parseEther("100"))).wait()
+
+            logs.push(gasUsedFunctions('WTON', 'transfer', 'After blacklist blocking', receipt))
+        })
 
 
-        //     // await tonContract.connect(tonHolder).transfer(blacklist1.address, ethers.utils.parseEther("100"))
-        //     // expect(
-        //     //     await tonContract.connect(tonHolder).transfer(blacklist1.address, ethers.utils.parseEther("100"))
-        //     // ).to.be.revertedWith("err")
+        // const BlackList_1_ADDRESS = "0xf0252f0D3D16e01C2D909566eA4Bf9Cb0e9B42C4"
+        // const BlackList_2_ADDRESS = "0xd7E81990a68Cbb46a9a595232eE67D6b3B7cdB73"
+        // // 0xf0252f0D3D16e01C2D909566eA4Bf9Cb0e9B42C4
+        // // 0xd7E81990a68Cbb46a9a595232eE67D6b3B7cdB73
+
+        // let tonHolderAddress = "0x2Db13E39eaf889A433E0CB23C38520419eC37202"
+        // let wtonHolderAddress = "0x630D7e837F695432EAa0A4FaC037d386301909C8"
 
 
-        //     // logs.push(gasUsedFunctions('TON', 'transfer', 'Before blacklist blocking', receipt))
-        // })
-
-
-        // let wton_callbackEnabled = await wtonContract.callbackEnabled()
-        // console.log('wton_callbackEnabled', wton_callbackEnabled);
-
-        // let wton_seigManager = await wtonContract.seigManager()
-        // console.log('wton_seigManager', wton_seigManager);
 
 
 

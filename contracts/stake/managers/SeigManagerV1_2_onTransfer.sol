@@ -85,18 +85,18 @@ contract SeigManagerV1_2_onTransfer
    *      When the sender and receiver are blacklisted, the transmission is canceled.
    */
   function onTransfer(address sender, address recipient, uint256 amount) external returns (bool) {
-    console.log("call onTransfer ");
-
     require(msg.sender == address(_ton) || msg.sender == address(_wton),
       "SeigManager: only TON or WTON can call onTransfer");
-
 
     if (!paused) {
       _increaseTot();
     }
 
     // An error occurs when the sender or recipient is blacklisted.
-    if (blacklists[sender] || blacklists[recipient]) revert BlackList_Error();
+    // if (sender != address(0) && blacklists[sender])  revert BlackList_Error();
+    // if (recipient != address(0) && blacklists[recipient]) revert BlackList_Error();
+
+    if (blacklists[sender] || blacklists[recipient])  revert BlackList_Error();
 
     return true;
   }

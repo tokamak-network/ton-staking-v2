@@ -7,3 +7,4 @@ DAOCandiate,castVote,,yes,369695,0.00369695
 DAOCandiate,castVote,,no,104869,0.00104869
 DAOCandiate,castVote,,yes,117212,0.00117212
 DAOCommittee,executeAgenda,,,402835,0.00402835
+WTON,transfer,,After blacklist blocking,250801,0.00250801
