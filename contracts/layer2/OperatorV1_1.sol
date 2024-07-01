@@ -173,30 +173,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         _claim(wton, manager, amount);
     }
 
-    /* ========== onlyOperator ========== */
-
-    /**
-     * @notice execute the bytes to dest address with value ETH
-     * @param dest  the target address being called
-     * @param value the ETH amount send
-     * @param func  the function bytes to execute
-     */
-    function execute(address dest, uint256 value, bytes calldata func) external {
-        _onlyOperator();
-        _call(dest, value, func);
-    }
-
-    /**
-     * execute a sequence of transactions
-     */
-    function executeBatch(address[] calldata dest, bytes[] calldata func) external {
-        _onlyOperator();
-        if (dest.length != func.length || dest.length == 0) revert ParameterError();
-        for (uint256 i = 0; i < dest.length; i++) {
-            _call(dest[i], 0, func[i]);
-        }
-    }
-
     /* ========== public ========== */
 
     /**
@@ -267,16 +243,5 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
 
         IDepositManager(_depositManager).deposit(layer2, amount);
     }
-
-
-    function _call(address target, uint256 value, bytes memory data) internal {
-        (bool success, bytes memory result) = target.call{value : value}(data);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
-    }
-
 
 }
