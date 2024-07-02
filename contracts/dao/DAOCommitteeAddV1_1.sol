@@ -17,8 +17,6 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./StorageStateCommitteeV3.sol";
 
-import "hardhat/console.sol";
-
 interface ILayer2CandidateFactory {
    function deploy(
         address _sender,

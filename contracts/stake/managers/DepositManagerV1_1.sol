@@ -9,8 +9,6 @@ import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
 import { DepositManagerV1_1Storage } from "./DepositManagerV1_1Storage.sol";
 
-// import "hardhat/console.sol";
-
 // error ZeroPortalError();
 /**
  * @notice Error that occurs when there is a problem as a result of L2 bridge-related information search
