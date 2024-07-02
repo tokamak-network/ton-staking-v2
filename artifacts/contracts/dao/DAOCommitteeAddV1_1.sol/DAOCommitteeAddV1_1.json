@@ -583,7 +583,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "_layer2CandidateFactory",
+          "name": "_layer2Manager",
           "type": "address"
         }
       ],

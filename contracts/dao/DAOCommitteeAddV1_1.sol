@@ -74,9 +74,9 @@ contract DAOCommitteeAddV1_1 is
         layer2CandidateFactory = _layer2CandidateFactory;
     }
 
-    function setLayer2Manager(address _layer2CandidateFactory) external onlyOwner {
-        _nonZeroAddress(_layer2CandidateFactory);
-        layer2Manager = _layer2CandidateFactory;
+    function setLayer2Manager(address _layer2Manager) external onlyOwner {
+        _nonZeroAddress(_layer2Manager);
+        layer2Manager = _layer2Manager;
     }
 
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
