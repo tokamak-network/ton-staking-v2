@@ -2030,6 +2030,17 @@ describe('Layer2Manager', () => {
             )).to.be.revertedWith("staked amount is insufficient")
         })
 
+        it('withdrawAndDepositL2 : Failure if the request amount is zero', async () => {
+
+            let account = tonHave
+
+            await expect(depositManager.connect(account).withdrawAndDepositL2(
+                titanLayerAddress,
+                ethers.constants.Zero
+            )).to.be.revertedWith("ZeroValueError")
+        })
+
+
         it('When you run it, deposit money to L2 immediately without delay blocks.', async () => {
             let account = tonHave
 

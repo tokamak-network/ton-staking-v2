@@ -21,7 +21,7 @@ error CheckL1BridgeError(uint x);
 error OperatorError();
 error WithdrawError();
 error SwapTonTransferError();
-
+error ZeroValueError();
 
 interface ILayer2 {
   function operator() external view returns (address);
@@ -86,6 +86,7 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
    * @param amount    The amount to be withdrawal and deposit L2. ()`amount` WTON in RAY)
    */
   function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool) {
+    if (amount == 0) revert ZeroValueError();
     address _seig = _seigManager;
     require(ISeigManager(_seig).stakeOf(layer2, msg.sender) >= amount, 'staked amount is insufficient');
 
