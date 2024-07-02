@@ -355,28 +355,31 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
 
-        try
-            ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
-                if (l1Bridge_ != address(0)) {
-                    if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
-                    else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+        if (systemConfigInfo[_systemConfig].stateIssue == 1) {
 
-                    if (l2Ton != address(0)) {
-                        // if (_type == 1 || _type == 2) {
-                        result = true;
-                        l1Bridge = l1Bridge_;
-                        // }
-                    }
-                }
-            } catch (bytes memory ) { }
-
-        if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
             try
-                ISystemConfig(_systemConfig).optimismPortal() returns (address portal_) {
-                    portal = portal_;
-                }  catch (bytes memory ) {
-                    result = false;
-                }
+                ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
+                    if (l1Bridge_ != address(0)) {
+                        if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                        else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+
+                        if (l2Ton != address(0)) {
+                            // if (_type == 1 || _type == 2) {
+                            result = true;
+                            l1Bridge = l1Bridge_;
+                            // }
+                        }
+                    }
+                } catch (bytes memory ) { }
+
+            if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
+                try
+                    ISystemConfig(_systemConfig).optimismPortal() returns (address portal_) {
+                        portal = portal_;
+                    }  catch (bytes memory ) {
+                        result = false;
+                    }
+            }
         }
     }
 

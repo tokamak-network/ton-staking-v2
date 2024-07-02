@@ -2124,6 +2124,65 @@ describe('Layer2Manager', () => {
 
         })
 
+        it('In the case of stopped layer 2, the result value of the checkL1Bridge function is false.', async () =>{
+
+            let checkL1Bridge = await layer2Manager.checkL1Bridge(legacySystemConfig.address)
+            expect(checkL1Bridge.result).to.be.eq(false)
+        })
+
+        it('deposit to titanLayerAddress using approveAndCall', async () => {
+
+            let account = tonHave
+            let tonAmount = ethers.utils.parseEther("100")
+
+            const beforeBalance = await tonContract.balanceOf(account.address);
+
+            expect(beforeBalance).to.be.gte(tonAmount)
+
+            let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
+
+            const data = marshalString(
+                [depositManager.address, titanLayerAddress]
+                  .map(unmarshalString)
+                  .map(str => padLeft(str, 64))
+                  .join(''),
+            );
+
+            const receipt = await (await tonContract.connect(account).approveAndCall(
+                wtonContract.address,
+                tonAmount,
+                data,
+                {from: account.address}
+            )).wait()
+            logUsedGas.push(gasUsedFunctions('DepositManager', 'approveAndCall', 'deposit TON to DAO Candidate', receipt))
+
+            const afterBalance = await tonContract.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+
+            let stakedB = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
+
+            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
+            )
+        })
+
+        it('In the case of stopped layer 2, The withdrawAndDepositL2 function cannot be executed.', async () =>{
+
+            let account = tonHave
+
+            let systemConfig = await titanOperatorContract.systemConfig()
+            expect(systemConfig).to.be.not.eq(ethers.constants.AddressZero)
+
+            let prevLayer2TVL = await l2Registry.layer2TVL(systemConfig)
+            let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
+
+            await expect( depositManager.connect(account).withdrawAndDepositL2(
+                titanLayerAddress,
+                stakedA
+            )).to.be.revertedWith("CheckL1BridgeError")
+
+        })
+
         it('register Layer2Candidate : thanosLayer2Candidate', async () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
