@@ -837,6 +837,40 @@ describe('Layer2Manager', () => {
 
     })
 
+    describe('# Operator Contract ', () => {
+
+        it('Check Storages', async () => {
+            // titanLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", titanLayerAddress, deployer)) as Layer2CandidateV1_1
+            expect(await titanOperatorContract.systemConfig()).to.be.eq(legacySystemConfig.address)
+            expect(await titanOperatorContract.layer2Manager()).to.be.eq(layer2Manager.address)
+            expect(await titanOperatorContract.depositManager()).to.be.eq(depositManager.address)
+            expect(await titanOperatorContract.ton()).to.be.eq(tonContract.address)
+            expect(await titanOperatorContract.wton()).to.be.eq(wtonContract.address)
+            expect(await titanOperatorContract.manager()).to.be.eq(deployer.address)
+
+        })
+
+        it('Only Manager can execute setExplorer function', async () => {
+             let url = 'https://explorer.titan-sepolia.tokamak.network/'
+            await expect(titanOperatorContract.connect(addr2).setExplorer(
+                url
+            )).to.be.rejectedWith("not onlyOwnerOrManager")
+        })
+
+        it('Only Manager can execute setExplorer function', async () => {
+            let url = 'https://explorer.titan-sepolia.tokamak.network/'
+            const receipt = await (await titanOperatorContract.connect(deployer).setExplorer(
+                url
+            )).wait()
+
+            const topic = titanOperatorContract.interface.getEventTopic('SetExplorer');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = titanOperatorContract.interface.parseLog(log);
+            expect(deployedEvent.args._explorer).to.be.eq(url)
+        })
+    })
+
+
     describe('# L2Register', () => {
 
         describe('# setAddresses', () => {
