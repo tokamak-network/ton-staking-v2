@@ -357,28 +357,23 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (systemConfigInfo[_systemConfig].stateIssue == 1) {
 
-            try
-                ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge_) {
-                    if (l1Bridge_ != address(0)) {
-                        if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
-                        else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
 
-                        if (l2Ton != address(0)) {
-                            // if (_type == 1 || _type == 2) {
-                            result = true;
-                            l1Bridge = l1Bridge_;
-                            // }
-                        }
-                    }
-                } catch (bytes memory ) { }
+            if (l1Bridge_ != address(0)) {
+                if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+
+                if (l2Ton != address(0)) {
+                    result = true;
+                    l1Bridge = l1Bridge_;
+                }
+            }
 
             if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
-                try
-                    ISystemConfig(_systemConfig).optimismPortal() returns (address portal_) {
-                        portal = portal_;
-                    }  catch (bytes memory ) {
-                        result = false;
-                    }
+                address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+
+                if (portal_ == address(0)) result = false;
+                else portal = portal_;
             }
         }
     }
@@ -397,7 +392,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     ) internal  {
 
         address operator = IOperatorFactory(operatorFactory).createOperator(_systemConfig);
-        // if (operator == address(0)) revert RegisterError(1);
+        if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].systemConfig != address(0)) revert RegisterError(2);
 
         address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
@@ -423,25 +418,23 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
 
         if (_type == 1) { // optimism legacy : titan
-            try
-                ISystemConfig(_systemConfig).l1StandardBridge() returns (address l1Bridge) {
-                    if (l1Bridge != address(0)) {
-                        address l2Ton = ISystemConfig(_systemConfig).l2Ton();
-                        if (l2Ton != address(0)) {
-                            amount = IStandardBridge(l1Bridge).deposits(ton, l2Ton);
-                            result = true;
-                        }
-                    }
-            } catch (bytes memory ) { }
+
+            address l1Bridge = ISystemConfig(_systemConfig).l1StandardBridge();
+            if (l1Bridge != address(0)) {
+                address l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                if (l2Ton != address(0)) {
+                    amount = IStandardBridge(l1Bridge).deposits(ton, l2Ton);
+                    result = true;
+                }
+            }
 
         } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
-            try
-                ISystemConfig(_systemConfig).optimismPortal() returns (address optimismPortal) {
-                    if (optimismPortal != address(0)) {
-                        amount = IOptimismPortal(optimismPortal).depositedAmount();
-                        result = true;
-                    }
-            } catch (bytes memory ) { }
+
+            address optimismPortal = ISystemConfig(_systemConfig).optimismPortal();
+            if (optimismPortal != address(0)) {
+                amount = IOptimismPortal(optimismPortal).depositedAmount();
+                result = true;
+            }
         }
     }
 
