@@ -153,10 +153,21 @@ describe('Layer2Manager', () => {
 
     })
 
+    describe('# upgradeTo Layer2ManagerV1_1 ', () => {
+        it('deploy', async () => {
+            const layer2ManagerV1_1 = (await (await ethers.getContractFactory("Layer2ManagerV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
+
+            await (await layer2ManagerProxy.connect(tonHave).upgradeTo(layer2ManagerV1_1.address)).wait()
+
+            // l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+        });
+
+    })
+
     describe('# withdrawAndDepositL2 ', () => {
 
 
-        it('withdrawAndDepositL2', async () => {
+        it('withdrawAndDepositL2 : deployedTitanLayer', async () => {
 
             let stakeOf = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
             console.log("stakeOf", stakeOf)
@@ -175,12 +186,42 @@ describe('Layer2Manager', () => {
             )).wait()
             // console.log("receipt", receipt)
             let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
-            console.log("stakeOf1", stakeOf1)
+            // console.log("stakeOf1", stakeOf1)
 
             const topic = depositManagerV1.interface.getEventTopic('WithdrawalAndDeposited');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = depositManagerV1.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            // console.log("deployedEvent", deployedEvent)
+
+
+        })
+
+
+        it('withdrawAndDepositL2 : deployedThanosLayer', async () => {
+
+            let stakeOf = await seigManager["stakeOf(address,address)"](deployedThanosLayer, tonHave.address);
+            // console.log("stakeOf", stakeOf)
+
+            const depositManagerV1 = new ethers.Contract(depositManager.address,  DepositManagerV1_1_Json.abi, deployer)
+            const amount = ethers.utils.parseEther("10"+"0".repeat(9))
+            const gasEstimated =  await depositManagerV1.connect(tonHave).estimateGas.withdrawAndDepositL2(
+                deployedThanosLayer,
+                amount
+            )
+            // console.log("gasEstimated", gasEstimated)
+
+            const receipt = await (await depositManagerV1.connect(tonHave).withdrawAndDepositL2(
+                deployedThanosLayer,
+                amount
+            )).wait()
+            // console.log("receipt", receipt)
+            let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedThanosLayer, tonHave.address);
+            // console.log("stakeOf1", stakeOf1)
+
+            const topic = depositManagerV1.interface.getEventTopic('WithdrawalAndDeposited');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = depositManagerV1.interface.parseLog(log);
+            // console.log("deployedEvent", deployedEvent)
 
 
         })

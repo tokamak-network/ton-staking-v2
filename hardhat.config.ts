@@ -487,7 +487,7 @@ const config: HardhatUserConfig = {
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
   },
   solidity: {
-    version: '0.8.18',
+    version: '0.8.19',
     settings: {
       // evmVersion: "cancun",
       viaIR: true,

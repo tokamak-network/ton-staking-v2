@@ -25,6 +25,8 @@ error NonRejectedError();
 error OnlySeigniorageCommitteeError();
 error OnlyRejectedError();
 error NonRegisterdError();
+error BridgeError();
+error PortalError();
 
 interface IERC20 {
     function balanceOf(address addr) external view returns (uint256);
@@ -83,6 +85,20 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
      * @param   _systemConfig  the systemConfig address
      */
     event RestoredLayer2Candidate(address _systemConfig);
+
+    /**
+     * @notice  Event occurs when a bridge address is registered during system configuration registration.
+     * @param   _systemConfig   the systemConfig address
+     * @param   bridge          the bridge address
+     */
+    event AddedBridge(address _systemConfig, address bridge);
+
+    /**
+     * @notice  Event occurs when a optimismPortal address is registered during system configuration registration.
+     * @param _systemConfig     the systemConfig address
+     * @param portal            the bridge address
+     */
+    event AddedPortal(address _systemConfig, address portal);
 
     modifier onlySeigniorageCommittee() {
         require(seigniorageCommittee == msg.sender, "PermissionError");
@@ -249,8 +265,17 @@ contract L2RegistryV1_1 is ProxyStorage, AuthControlL2Registry, L2RegistryStorag
         if (!_availableForRegistration(_systemConfig, _type)) revert RegisterError(3);
 
         systemConfigType[_systemConfig] = _type;
-        if (_type == 1) l1Bridge[ISystemConfig(_systemConfig).l1StandardBridge()] = true;
-        else if (_type == 2) portal[ISystemConfig(_systemConfig).optimismPortal()] = true;
+        if (_type == 1) {
+            address bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            if (bridge_ == address(0)) revert BridgeError();
+            l1Bridge[bridge_] = true;
+            emit AddedBridge(_systemConfig, bridge_);
+        } else if (_type == 2) {
+            address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+            if (portal_ == address(0)) revert PortalError();
+            portal[portal_] = true;
+            emit AddedPortal(_systemConfig, portal_);
+        }
 
         emit RegisteredSystemConfig(_systemConfig, _type);
     }

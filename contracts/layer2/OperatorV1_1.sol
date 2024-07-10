@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./OperatorStorage.sol";
+import "./OperatorV1_1Storage.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,6 +15,7 @@ error InsufficientBalanceError();
 error TransferEthError();
 error ParameterError();
 error SameAddressError();
+error SameError();
 
 interface ISystemConfig {
     function owner() external view returns (address);
@@ -32,7 +34,7 @@ interface IDepositManager {
 
 /// @title
 /// @notice
-contract OperatorV1_1 is Ownable, OperatorStorage {
+contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
     using SafeERC20 for IERC20;
 
     /**
@@ -71,6 +73,13 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
      * @param amount    the received token amount
      */
     event Claimed(address token, address caller, address to, uint256 amount);
+
+    /**
+     * @notice Event occurs when setting the explorer url
+     * @param _explorer a explorer url
+     */
+    event SetExplorer(string _explorer);
+
 
     constructor() { }
 
@@ -154,6 +163,18 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     function claimERC20(address token, uint256 amount) external onlyOwnerOrManager {
         _claim(token, manager, amount);
     }
+
+    /**
+     * @notice  Set the explorer url
+     * @param _explorer a explorer url
+     */
+    function setExplorer(string calldata _explorer) external onlyOwnerOrManager {
+        if (keccak256(bytes(explorer)) == keccak256(bytes(_explorer))) revert SameError();
+        explorer = _explorer;
+
+        emit SetExplorer(_explorer);
+    }
+
 
     /* ========== onlyLayer2Candidate ========== */
 
