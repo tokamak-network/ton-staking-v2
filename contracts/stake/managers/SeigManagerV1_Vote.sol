@@ -13,6 +13,8 @@ import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
 import { SeigManagerV1_3Storage } from "./SeigManagerV1_3Storage.sol";
 import { SeigManagerV1_VoteStorage } from "./SeigManagerV1_VoteStorage.sol";
 
+// import "hardhat/console.sol";
+
 error NotVoteTokenError();
 error ZeroAmountError();
 error InsufficientStaked();
@@ -35,16 +37,27 @@ contract SeigManagerV1_Vote is ProxyStorage, AuthControlSeigManager, SeigManager
     _;
   }
 
+  modifier checkCoinage(address layer2) {
+    require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
+    _;
+  }
+
   //////////////////////////////
   // Events
   //////////////////////////////
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
   event IncreasedVoteToken(address account, uint256 amount);
   event DecreasedVoteToken(address account, uint256 amount);
+  event SetVoteToken(address voteToken_);
 
   //////////////////////////////
   // onlyOwner
   //////////////////////////////
+
+  function setVoteToken(address voteToken_) external onlyOwner {
+    voteToken = voteToken_;
+    emit SetVoteToken(voteToken_);
+  }
 
   //////////////////////////////
   // onlyVoteToken
@@ -54,10 +67,6 @@ contract SeigManagerV1_Vote is ProxyStorage, AuthControlSeigManager, SeigManager
     if (msg.sender != voteToken) revert NotVoteTokenError();
   }
 
-  modifier checkCoinage(address layer2) {
-    require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
-    _;
-  }
 
   //////////////////////////////
   //  external
@@ -65,6 +74,8 @@ contract SeigManagerV1_Vote is ProxyStorage, AuthControlSeigManager, SeigManager
 
   function increaseVoteToken(address account, uint256 amount) external {
     _onlyVoteToken();
+
+    amount = amount * 1e9;
     if (amount == 0) revert ZeroAmountError();
     if (amount > _availableRequestWithdraw(account)) revert InsufficientStaked();
 
@@ -76,6 +87,8 @@ contract SeigManagerV1_Vote is ProxyStorage, AuthControlSeigManager, SeigManager
 
   function decreaseVoteToken(address account, uint256 amount) external {
     _onlyVoteToken();
+    amount = amount * 1e9;
+
     if (amount == 0) revert ZeroAmountError();
 
     // uint256 votes_ = votes[account];
@@ -93,8 +106,8 @@ contract SeigManagerV1_Vote is ProxyStorage, AuthControlSeigManager, SeigManager
     checkCoinage(layer2)
     returns (bool)
   {
-    require(_coinages[layer2].balanceOf(account) >= amount, "SeigManager: insufficiant balance to unstake");
-    if (_availableRequestWithdraw(account) >= amount) revert InsufficientStaked();
+    require(_coinages[layer2].balanceOf(account) >= amount, "SeigManager: insufficient balance to unstake");
+    require(_availableRequestWithdraw(account) >= amount, "SeigManager: InsufficientStaked");
 
     if (_isOperator(layer2, account)) {
       uint256 newAmount = _coinages[layer2].balanceOf(account) - amount;

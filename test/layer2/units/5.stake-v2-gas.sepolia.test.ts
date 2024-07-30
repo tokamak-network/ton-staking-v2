@@ -5,7 +5,7 @@ import { mine } from "@nomicfoundation/hardhat-network-helpers"
 import { BigNumber, Signer, utils, Contract } from 'ethers'
 import { padLeft } from 'web3-utils'
 
-import {encodeFunctionSignature} from 'web3-eth-abi'
+import { encodeFunctionSignature } from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 import { gasUsedFunctions, exportLogsToExcel } from '../../shared/logUtils';
 

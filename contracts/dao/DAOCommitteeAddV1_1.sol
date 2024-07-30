@@ -37,6 +37,7 @@ interface ITarget {
         bytes4[] calldata _selectors,
         address _imp
     ) external;
+    function setVoteToken(address voteToken_) external;
 }
 
 /**
@@ -99,6 +100,10 @@ contract DAOCommitteeAddV1_1 is
     function setTargetSetSelectorImplementations2(
         address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
         ITarget(target).setSelectorImplementations2(_selectors, _imp);
+    }
+
+    function setVoteToken(address target, address _voteToken) external onlyOwner {
+        ITarget(target).setVoteToken(_voteToken);
     }
 
     //////////////////////////////////////////////////////////////////////
