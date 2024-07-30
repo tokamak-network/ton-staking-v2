@@ -46,7 +46,7 @@ describe("DAOAgenda Test", () => {
     let wton;
 
     let daoCommittee;
-    let daoCommitteeOwner;
+    let daoCommitteeOwner, daoCommitteeSigner;
     let daoagendaManager;
 
     let tonHaveAddr = "0x7897ccD146b97639c0Dd99A17383e0b11681996E"
@@ -89,6 +89,17 @@ describe("DAOAgenda Test", () => {
         ]);
         tonHave = await hre.ethers.getSigner(tonHaveAddr);
 
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            oldContractInfo.DAOCommitteeProxy,
+        ]);
+
+        await network.provider.send("hardhat_setBalance", [
+            oldContractInfo.DAOCommitteeProxy,
+            "0x10000000000000000000000000",
+        ]);
+        daoCommitteeSigner = await hre.ethers.getSigner(oldContractInfo.DAOCommitteeProxy);
+
     })
 
     describe("Setting the DAOCommitteeDAOVault", () => {
@@ -108,13 +119,32 @@ describe("DAOAgenda Test", () => {
                 deployer
             )
         })
+
+        it("set depositManager", async () => {
+            depositManagerProxy = new ethers.Contract(nowContractInfo.DepositManager,  DepositManagerProxy_Json.abi, deployer)
+
+        })
+
     })
+
+    describe("daoagendaManager Test", () => {
+        it("set depositManager", async () => {
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+
+            const receipt0 = await (await depositManagerProxy.connect(daoCommitteeSigner).setImplementation2(logicAddress, 1, true)).wait()
+            console.log(receipt0)
+
+            const receipt = await (await depositManagerProxy.connect(daoCommitteeSigner).setSelectorImplementations2([selector1], logicAddress)).wait()
+            console.log(receipt)
+        })
+    })
+
 
     describe("Agenda Test", () => {
 
         it("DAOVault Agenda claimTON Test", async () => {
 
-            depositManagerProxy = new ethers.Contract(nowContractInfo.DepositManager,  DepositManagerProxy_Json.abi, deployer)
 
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -123,16 +153,26 @@ describe("DAOAgenda Test", () => {
 
             let targets = [];
             let functionBytecodes = [];
+            const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+            //--------------
+            const selector0 = Web3EthAbi.encodeFunctionSignature("setImplementation2(address,uint256,bool)");
 
+            const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
+                "setImplementation2", [logicAddress,1,true])
+                // console.log("functionBytecode1 :", functionBytecode1);
+
+            targets.push(nowContractInfo.DepositManager);
+            functionBytecodes.push(functionBytecode0)
+            //--------------
             const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
-            const logicAddress = "0000000000000000000000000000000000000000"
-
             const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
                 "setSelectorImplementations2", [[selector1],logicAddress])
+                // console.log("functionBytecode1 :", functionBytecode1);
 
             targets.push(nowContractInfo.DepositManager);
             functionBytecodes.push(functionBytecode1)
 
+            //--------------
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
@@ -143,7 +183,7 @@ describe("DAOAgenda Test", () => {
                     functionBytecodes
                 ]
             )
-            // console.log("param :", param);
+            console.log("param :", param);
             // const beforeBalance = await ton.balanceOf(tonHave.address);
             // let agendaID = (await daoagendaManager.numAgendas()).sub(1);
 
@@ -152,6 +192,17 @@ describe("DAOAgenda Test", () => {
                 agendaFee,
                 param
             );
+
+            // const afterBalance = await ton.balanceOf(daoCommitteeAdmin.address);
+            // expect(afterBalance).to.be.lt(beforeBalance2);
+            // expect(beforeBalance2.sub(afterBalance)).to.be.equal(agendaFee)
+
+            // agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            // //const executionInfo = await agendaManager.executionInfos(agendaID);
+            // const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // // console.log("executionInfo :", executionInfo);
+            // expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            // expect(executionInfo[1][0]).to.be.equal(functionBytecode);
 
         })
 
