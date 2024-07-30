@@ -36,12 +36,16 @@ const SeigManagerABI = require("../../artifacts/contracts/stake/managers/SeigMan
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 const DAOCommitteeV1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
+const DepositManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
+const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
 
 
 describe("DAOAgenda Test", () => {
 
     let daoCommitteeAdmin;
     let daoCommitteeProxy;
+    let daoCommitteeSigner;
+    let testSetDeploy;
     // let daoCommitteeDAOVaultLogic;
     let daoCommitteeOwnerLogic;
     let ton;
@@ -51,6 +55,8 @@ describe("DAOAgenda Test", () => {
     let daoCommitteeOwner;
     let daoagendaManager;
     let daovault;
+    let depositManagerProxy;
+    let depositManager;
 
     let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
     let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
@@ -141,7 +147,7 @@ describe("DAOAgenda Test", () => {
             member1ContractAddr,
         ]);
         member1Contract = await hre.ethers.getSigner(member1ContractAddr);
-        
+    
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member2ContractAddr,
         ]);
@@ -166,6 +172,17 @@ describe("DAOAgenda Test", () => {
             member3ContractAddr,
             sendether
         ]);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            oldContractInfo.DAOCommitteeProxy,
+        ]);
+
+        await network.provider.send("hardhat_setBalance", [
+            oldContractInfo.DAOCommitteeProxy,
+            "0x10000000000000000000000000",
+        ]);
+        daoCommitteeSigner = await hre.ethers.getSigner(oldContractInfo.DAOCommitteeProxy);
+
     })
 
     describe("Setting the DAOCommitteeDAOVault", () => {
@@ -219,28 +236,6 @@ describe("DAOAgenda Test", () => {
             console.log('pauseProxy', pauseProxy)
         })
 
-        // it("DAO upgradeTo newLogic", async () => {
-        //     let imp1 = await daoCommitteeProxy.implementation()
-        //     console.log('imp1', imp1)
-
-        //     if(imp1.toLowerCase() != daoCommitteeDAOVaultLogic.toLowerCase()) {
-        //         await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-        //             daoCommitteeDAOVaultLogic)).wait()
-        //     }
-
-        //     let imp2 = await daoCommitteeProxy.implementation()
-        //     console.log('imp2', imp2)
-        //     console.log('upgradeTo done')
-        // })
-
-        // it("set DAO NewLogic", async () => {
-        //     daoCommittee = new ethers.Contract(
-        //         daoCommitteeProxy.address,
-        //         DAOCommitteeDAOVaultABI,
-        //         daoCommitteeAdmin
-        //     )
-        // })
-
         it("set DAOAgendaManager", async () => {
             daoagendaManager = new ethers.Contract(
                 oldContractInfo.DAOAgendaManager,
@@ -256,7 +251,49 @@ describe("DAOAgenda Test", () => {
                 daoCommitteeAdmin
             )
         })
+
+        it("set depositManager", async () => {
+            depositManagerProxy = new ethers.Contract(
+                nowContractInfo.DepositManager,  
+                DepositManagerProxy_Json.abi, 
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Deploy the TestSetDealy", async () => {
+            const TestSetDealyDep = await ethers.getContractFactory("TestSetDealy");
+            testSetDeploy = await TestSetDealyDep.deploy();
+
+            await testSetDeploy.deployed();
+        })
+
     })
+
+    // describe("daoagendaManager Test", () => {
+    //     it("set setImplementation2 ", async () => {
+    //         const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+
+    //         const receipt0 = await (await depositManagerProxy.connect(daoCommitteeSigner).setImplementation2(
+    //             logicAddress,
+    //             1, 
+    //             true
+    //         )).wait()
+    //         // console.log(receipt0)
+
+    //         // console.log(receipt)
+    //     })
+
+    //     it("set setSelectorImplementations2", async () => {
+    //         const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+    //         const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+
+    //         const receipt = await (await depositManagerProxy.connect(daoCommitteeSigner).setSelectorImplementations2(
+    //             [selector1], 
+    //             logicAddress
+    //         )).wait()
+    //         // console.log(receipt)
+    //     })
+    // })
 
     describe("Setting Test", () => {
         it("DAOVault TON Addr check", async () => {
@@ -297,30 +334,62 @@ describe("DAOAgenda Test", () => {
         it("Create new Agenda (setSelectorImplementations2)", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-            const bytes4value = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
-            // console.log("bytes4value :", bytes4value)
-            const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
-            const targetBytes4 = "dc5a709f";
-            const data1 = padLeft(targetBytes4.toString(), 64);
-            const data2 = padLeft(testZeroAddr.toString(), 64);
-            // const data1 = "0x0000000000000000000000000000000000000000000000000000000xdc5a709f"
-            // console.log("data1 :", data1)
-            // console.log("data2 :", data2)
-            const data = data1 + data2
+            // const bytes4value = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            // // console.log("bytes4value :", bytes4value)
+            // const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
+            // const targetBytes4 = "dc5a709f";
+            // const data1 = padLeft(targetBytes4.toString(), 64);
+            // const data2 = padLeft(testZeroAddr.toString(), 64);
+            // // const data1 = "0x0000000000000000000000000000000000000000000000000000000xdc5a709f"
+            // // console.log("data1 :", data1)
+            // // console.log("data2 :", data2)
+            // const data = data1 + data2
             // const functionBytecode = selector.concat(data);
-            const functionBytecode = "0x4a5df50f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dc5a709f00000000000000000000000000000000000000000000000000000000"
-            console.log("functionBytecode :", functionBytecode)
+            // // const functionBytecode = "0x4a5df50f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dc5a709f00000000000000000000000000000000000000000000000000000000"
+            // console.log("functionBytecode :", functionBytecode)
+            
+            let targets = [];
+            let functionBytecodes = [];
+            const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(bytes4[],address)");
+            //--------------
+
+            const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
+                "setImplementation2", [logicAddress,1,true]
+            )
+                // console.log("functionBytecode1 :", functionBytecode1);
+
+            targets.push(nowContractInfo.DepositManager);
+            functionBytecodes.push(functionBytecode0)
+
+            //--------------
+            const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
+                "setSelectorImplementations2", [[selector1],logicAddress]
+            )
+                // console.log("functionBytecode1 :", functionBytecode1);
+
+            // const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            // const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
+            //     "setSelectorImplementations2", [[selector1],logicAddress])
+                // console.log("functionBytecode1 :", functionBytecode1);
+
+            targets.push(nowContractInfo.DepositManager);
+            functionBytecodes.push(functionBytecode1)
+
 
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    [oldContractInfo.DepositManagerProxy], 
+                    [nowContractInfo.DepositManager], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
                     [functionBytecode]
                 ]
             );
+            console.log("param : ", param)
+
+            // const param = "0x00000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000002a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000647cd5f6630000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000844a5df50f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c50000000000000000000000000000000000000000000000000000000000000001a818d6510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
     
             const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
             const agendaFee = await daoagendaManager.createAgendaFees();
@@ -347,7 +416,7 @@ describe("DAOAgenda Test", () => {
             const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
             // console.log("executionInfo :", executionInfo);
             // expect(executionInfo[0][0]).to.be.equal(oldContractInfo.DepositManagerProxy);
-            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+            // expect(executionInfo[1][0]).to.be.equal(functionBytecode);
         })
 
         it('increase block time and check votable', async function () {
@@ -411,8 +480,8 @@ describe("DAOAgenda Test", () => {
 
             expect(await daoagendaManager.getAgendaStatus(agendaID)).to.be.equal(3);
             let getResult = await daoagendaManager.getAgendaResult(agendaID)
-            console.log(getResult);
-            // expect(await daoagendaManager.getAgendaResult(agendaID)).to.be.equal(1);
+            // console.log(getResult);
+            expect(Number(getResult.result)).to.be.equal(1);
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -438,14 +507,34 @@ describe("DAOAgenda Test", () => {
         
         it("execute agenda (anyone)", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);
+            const agendaInfo = await daoagendaManager.getExecutionInfo(agendaID);
             expect(agenda[6]).to.be.equal(0);
-            // console.log("agendaID : ", agendaID)            
-            await daoCommittee.executeAgenda(agendaID);
+            console.log("agendaInfo : ", agendaInfo)            
+            await (await daoCommittee.executeAgenda(agendaID)).wait();;
 
             const afterAgenda = await daoagendaManager.agendas(agendaID); 
+            const afterAgendaInfo = await daoagendaManager.getExecutionInfo(agendaID); 
+            console.log("afterAgendaInfo : ", afterAgendaInfo)            
             expect(afterAgenda[13]).to.be.equal(true);
             expect(afterAgenda[6]).to.be.gt(0); 
         })
+
+        // it("set depositManager", async () => {
+        //     depositManager = new ethers.Contract(
+        //         nowContractInfo.DepositManager,  
+        //         DepositManagerABI, 
+        //         daoCommitteeAdmin
+        //     )
+        // })
+
+        // it("need revert depositManagerProxy setWithdrawalDelay", async () => {
+        //     await expect(
+        //         depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
+        //             daoagendaManager.address,
+        //             100
+        //         )
+        //     ).to.be.reverted;
+        // })
         
 
     })

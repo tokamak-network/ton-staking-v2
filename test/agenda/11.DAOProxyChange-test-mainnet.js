@@ -564,7 +564,7 @@ describe("DAO Proxy Change Test", () => {
             )).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
         })
 
-        it("DAOProxyV2 not owner(deployer) don't selectorImplementations2", async () => {
+        it("DAOProxyV2 owner(deployer) can selectorImplementations2", async () => {
             const _setSeigManager = Web3EthAbi.encodeFunctionSignature(
                 "setSeigManager(address)"
             )
