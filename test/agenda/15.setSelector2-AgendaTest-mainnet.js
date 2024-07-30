@@ -52,6 +52,7 @@ describe("DAOAgenda Test", () => {
     let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
     let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
     let wtonAddr = "c4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2";
+    let testZeroAddr = "0000000000000000000000000000000000000000";
 
     let member1;
     let member2;
@@ -293,13 +294,15 @@ describe("DAOAgenda Test", () => {
             const bytes4value = [Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)")];
             console.log("bytes4value :", bytes4value)
             const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
-            const targetBytes4 = ["0xdc5a709f"];
-            const data1 = padLeft(bytes4value, 64);
-            const data2 = padLeft(zeroAddr.toString(), 64);
+            const targetBytes4 = "dc5a709f";
+            const data1 = padLeft(targetBytes4.toString(), 64);
+            const data2 = padLeft(testZeroAddr.toString(), 64);
+            // const data1 = "0x0000000000000000000000000000000000000000000000000000000xdc5a709f"
             console.log("data1 :", data1)
             console.log("data2 :", data2)
             const data = data1 + data2
             const functionBytecode = selector.concat(data);
+            console.log("functionBytecode :", functionBytecode)
 
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
@@ -362,6 +365,7 @@ describe("DAOAgenda Test", () => {
             // console.log("data3 : ", data3);
 
             const functionBytecode1 = selector1.concat(data3)
+            console.log("functionBytecode1 :", functionBytecode1)
             // console.log("functionBytecode1 :", functionBytecode1);
             // console.log("functionBytecode1.length :", functionBytecode1.length);
 
