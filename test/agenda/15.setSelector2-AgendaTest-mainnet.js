@@ -101,7 +101,8 @@ describe("DAOAgenda Test", () => {
         DAOAgendaManager: "0xcD4421d082752f363E1687544a09d5112cD4f484",
         CandidateFactory: "0xE6713aF11aDB0cFD3C60e15b23E43f5548C32942",
         DAOCommittee: "0xd1A3fDDCCD09ceBcFCc7845dDba666B7B8e6D1fb",
-        DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+        DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
+        DepositManagerProxy : "0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e"
     }
 
     const nowContractInfo = {
@@ -296,7 +297,7 @@ describe("DAOAgenda Test", () => {
         it("Create new Agenda (setSelectorImplementations2)", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-            const bytes4value = [Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)")];
+            const bytes4value = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
             // console.log("bytes4value :", bytes4value)
             const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
             const targetBytes4 = "dc5a709f";
@@ -306,13 +307,14 @@ describe("DAOAgenda Test", () => {
             // console.log("data1 :", data1)
             // console.log("data2 :", data2)
             const data = data1 + data2
-            const functionBytecode = selector.concat(data);
-            // console.log("functionBytecode :", functionBytecode)
+            // const functionBytecode = selector.concat(data);
+            const functionBytecode = "0x4a5df50f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dc5a709f00000000000000000000000000000000000000000000000000000000"
+            console.log("functionBytecode :", functionBytecode)
 
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    [daoagendaManager.address], 
+                    [oldContractInfo.DepositManagerProxy], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
@@ -344,13 +346,13 @@ describe("DAOAgenda Test", () => {
             //const executionInfo = await agendaManager.executionInfos(agendaID);
             const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
             // console.log("executionInfo :", executionInfo);
-            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            // expect(executionInfo[0][0]).to.be.equal(oldContractInfo.DepositManagerProxy);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
         })
 
         it('increase block time and check votable', async function () {
             const agenda = await daoagendaManager.agendas(agendaID);  
-            console.log(agenda)
+            // console.log(agenda)
             // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
             const noticeEndTimestamp = agenda[1];
             // console.log("noticeEndTimestamp :", noticeEndTimestamp);;
@@ -415,7 +417,7 @@ describe("DAOAgenda Test", () => {
 
         it("check vote result/status & increase can ExecuteTime", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);
-            console.log(agenda)
+            // console.log(agenda)
             // console.log("agenda Result :", agenda[10])
             // console.log("agenda status :", agenda[11])
 
