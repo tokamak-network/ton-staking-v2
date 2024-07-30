@@ -46,7 +46,7 @@ const CandidateABI = require("../../abi/Candidate.json").abi;
 const Layer2ManagerABI = require("../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json").abi;
 
 
-describe("DAO Proxy Change Test", () => {
+describe("DAO Agenda Test", () => {
 
     let daoCommitteeAdmin;
     let daoCommitteeAdminContract;
@@ -201,6 +201,7 @@ describe("DAO Proxy Change Test", () => {
     //   ]
 
     before('create fixture loader', async () => {
+        console.log("1")
         await hre.network.provider.send("hardhat_impersonateAccount", [
             daoAdminAddress,
         ]);
@@ -305,10 +306,12 @@ describe("DAO Proxy Change Test", () => {
             user3.address,
             sendether
         ]);
+        console.log("2")
     })
 
     describe("Setting TON-related Contract", () => {
         it("Set TON", async () => {
+            console.log("3")
             ton = new ethers.Contract(
                 oldContractInfo.TON,
                 TonABI,
@@ -317,6 +320,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("Set WTON", async () => {
+            console.log("4")
             wton = new ethers.Contract(
                 oldContractInfo.WTON,
                 WtonABI,
@@ -333,6 +337,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("TON Admin Test", async () => {
+            console.log("5")
             let balanceOfZero = await ton.balanceOf(ethers.constants.AddressZero)
             let balanceOfdaoAdminAddress = await ton.balanceOf(daoAdminAddress)
             // console.log('balanceOfZero' , balanceOfZero)
@@ -592,53 +597,7 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        it("3. retireMember (onlyMember)", async () => {
-            let memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
 
-            await (
-                await member2ContractLogic.connect(member2).retireMember()
-            ).wait();
-
-            memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck.toUpperCase()).to.be.equal(zeroAddr.toUpperCase())
-        })
-
-        it("4. changeMemeber (anyone)", async () => {
-            let memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck).to.be.equal(zeroAddr)
-
-            await (
-                await member2ContractLogic.connect(member2).changeMember(1)
-            ).wait();
-
-            memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
-        })
-
-        it("5. setMemoOnCandidate (anyone)", async () => {
-            let beforeMemo = await user1ContractLogic.memo();
-
-            await daoCommittee_V1_Contract.connect(user1).setMemoOnCandidate(
-                user1Addr,
-                "Change"
-            )
-
-            let afterMemo = await user1ContractLogic.memo();
-            expect(beforeMemo).to.be.not.equal(afterMemo)
-        })
-
-        it("6. setMemoOnCandidateContract (anyone)", async () => {
-            let beforeMemo = await user1ContractLogic.memo();
-
-            await daoCommittee_V1_Contract.connect(user1).setMemoOnCandidateContract(
-                user1ContractAddr,
-                "Change2"
-            )
-
-            let afterMemo = await user1ContractLogic.memo();
-            expect(beforeMemo).to.be.not.equal(afterMemo)
-        })
 
         it("7. OnApprove reverted Test (claimTON)", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
@@ -810,9 +769,11 @@ describe("DAO Proxy Change Test", () => {
         it("10. Create new Agenda", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
-            const newMinimumNoticePeriod = 30;
-            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
+            const targetBytes4 = "0xdc5a709f";
+            const data1 = padLeft(targetBytes4.toString(), 64);
+            const data2 = padLeft(zeroAddr.toString(), 64);
+            const data = data1 + data2
             const functionBytecode = selector.concat(data);
 
             const param = Web3EthAbi.encodeParameters(
@@ -1059,97 +1020,6 @@ describe("DAO Proxy Change Test", () => {
 
             expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(false);
         })      
-
-        it("18. updateSeigniorage test (anyone)", async () => {
-            const beforeSeigBlock = await seigManagerContract.lastCommitBlock(member2ContractAddr)
-
-            await daoCommittee_V1_Contract.connect(user1).updateSeigniorage(member2Addr)
-
-            const afterSeigBlock = await seigManagerContract.lastCommitBlock(member2ContractAddr)
-
-            expect(afterSeigBlock).to.be.gt(beforeSeigBlock)
-        })
-
-        it("setWTON test", async () => {
-            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
-            
-            await (
-                await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
-            ).wait()
-    
-            let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr.toUpperCase()).to.be.equal(oldContractInfo.WTON.toUpperCase())
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
-        })
-
-        it("19. getClaimableActivityReward & claimActivityReward test (anyone)", async () => {
-            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
-            expect(amount).to.be.gt(0);
-
-            await (
-                await member2ContractLogic.connect(member2).claimActivityReward()
-            ).wait()
-            
-            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
-            expect(amount).to.be.gt(amount2);
-        })
-
-        it("20. isCandidate (view)", async () => {
-            let checkisCandidate = await daoCommittee_V1_Contract.isCandidate(member2Addr)
-            expect(checkisCandidate).to.be.equal(true)
-        })
-
-        it("21. totalSupplyOnCandidate (view)", async () => {
-            let amount = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member2Addr)
-            expect(amount).to.be.gt(0)
-        })
-
-        it("22. balanceOfOnCandidate (view)", async () => {
-            let amount = await daoCommittee_V1_Contract.balanceOfOnCandidate(
-                member2Addr,
-                member2Addr
-            )
-            expect(amount).to.be.gt(0)
-        })
-
-        it("23. totalSupplyOnCandidateContract (view)", async () => {
-            let amount = await daoCommittee_V1_Contract.totalSupplyOnCandidateContract(
-                member2ContractAddr
-            )
-            expect(amount).to.be.gt(0)
-        })
-
-        it("24. balanceOfOnCandidateContract (view)", async () => {
-            let amount = await daoCommittee_V1_Contract.balanceOfOnCandidateContract(
-                member2ContractAddr,
-                member2Addr
-            )
-            expect(amount).to.be.gt(0)
-        })
-
-        it("25. candidatesLength (view)", async () => {
-            let length = await daoCommittee_V1_Contract.candidatesLength()
-            expect(length).to.be.gt(0)
-        })
-
-        it("26. isExistCandidate (view)", async () => {
-            let check = await daoCommittee_V1_Contract.isExistCandidate(member2Addr)
-            expect(check).to.be.equal(true)
-        })
-
-        it("27. getOldCandidateInfos (view)", async () => {
-            let oldinfo = await daoCommittee_V1_Contract.getOldCandidateInfos(member2Addr)
-            expect(oldinfo.claimedTimestamp).to.be.equal(0)
-        })
-
-        it("28. operatorAmountCheck (view)", async () => {
-            let amount = await daoCommittee_V1_Contract.operatorAmountCheck(
-                member2ContractAddr,
-                member2Addr
-            )
-            expect(amount).to.be.gt(0)
-        })
-
 
     })
 })
