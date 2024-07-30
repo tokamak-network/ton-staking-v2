@@ -355,8 +355,7 @@ describe("DAOAgenda Test", () => {
             //--------------
 
             const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
-                "setImplementation2", [logicAddress,1,true]
-            )
+                "setImplementation2", [logicAddress,1,true])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
             targets.push(nowContractInfo.DepositManager);
@@ -364,8 +363,7 @@ describe("DAOAgenda Test", () => {
 
             //--------------
             const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
-                "setSelectorImplementations2", [[selector1],logicAddress]
-            )
+                "setSelectorImplementations2", [[selector1],logicAddress])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
             // const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
@@ -380,13 +378,13 @@ describe("DAOAgenda Test", () => {
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
                 [
-                    [nowContractInfo.DepositManager], 
-                    noticePeriod.toString(), 
-                    votingPeriod.toString(), 
-                    true, 
-                    [functionBytecode]
+                    targets,
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    true,
+                    functionBytecodes
                 ]
-            );
+            )
             console.log("param : ", param)
 
             // const param = "0x00000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000002a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000647cd5f6630000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000844a5df50f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c50000000000000000000000000000000000000000000000000000000000000001a818d6510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -519,22 +517,22 @@ describe("DAOAgenda Test", () => {
             expect(afterAgenda[6]).to.be.gt(0); 
         })
 
-        // it("set depositManager", async () => {
-        //     depositManager = new ethers.Contract(
-        //         nowContractInfo.DepositManager,  
-        //         DepositManagerABI, 
-        //         daoCommitteeAdmin
-        //     )
-        // })
+        it("set depositManager", async () => {
+            depositManager = new ethers.Contract(
+                nowContractInfo.DepositManager,  
+                DepositManagerABI, 
+                daoCommitteeAdmin
+            )
+        })
 
-        // it("need revert depositManagerProxy setWithdrawalDelay", async () => {
-        //     await expect(
-        //         depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
-        //             daoagendaManager.address,
-        //             100
-        //         )
-        //     ).to.be.reverted;
-        // })
+        it("need revert depositManagerProxy setWithdrawalDelay", async () => {
+            await expect(
+                depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
+                    daoagendaManager.address,
+                    100
+                )
+            ).to.be.reverted;
+        })
         
 
     })
