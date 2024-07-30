@@ -127,16 +127,28 @@ describe("DAOAgenda Test", () => {
 
     })
 
-    describe("daoagendaManager Test", () => {
-        it("set depositManager", async () => {
+    describe("depositManager Test", () => {
+        it(" depositManager", async () => {
             const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
             const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
 
-            const receipt0 = await (await depositManagerProxy.connect(daoCommitteeSigner).setImplementation2(logicAddress, 1, true)).wait()
-            console.log(receipt0)
+            const receipt0 = await (
+                await depositManagerProxy.connect(daoCommitteeSigner).setImplementation2(
+                    logicAddress, 1, true
+                )
+            ).wait()
+            // console.log(receipt0)
 
-            const receipt = await (await depositManagerProxy.connect(daoCommitteeSigner).setSelectorImplementations2([selector1], logicAddress)).wait()
-            console.log(receipt)
+            const receipt = await (
+                await depositManagerProxy.connect(daoCommitteeSigner).setSelectorImplementations2(
+                    [selector1], logicAddress
+                )
+            ).wait()
+            // console.log(receipt)
+
+            let logic = await depositManagerProxy.getSelectorImplementation2(selector1)
+
+            console.log(logic)
         })
     })
 
@@ -154,8 +166,8 @@ describe("DAOAgenda Test", () => {
             let targets = [];
             let functionBytecodes = [];
             const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(bytes4[],address)");
             //--------------
-            const selector0 = Web3EthAbi.encodeFunctionSignature("setImplementation2(address,uint256,bool)");
 
             const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
                 "setImplementation2", [logicAddress,1,true])
@@ -163,10 +175,15 @@ describe("DAOAgenda Test", () => {
 
             targets.push(nowContractInfo.DepositManager);
             functionBytecodes.push(functionBytecode0)
+
             //--------------
-            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
             const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
                 "setSelectorImplementations2", [[selector1],logicAddress])
+                // console.log("functionBytecode1 :", functionBytecode1);
+
+            // const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            // const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
+            //     "setSelectorImplementations2", [[selector1],logicAddress])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
             targets.push(nowContractInfo.DepositManager);
@@ -179,7 +196,7 @@ describe("DAOAgenda Test", () => {
                     targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
-                    false,
+                    true,
                     functionBytecodes
                 ]
             )
