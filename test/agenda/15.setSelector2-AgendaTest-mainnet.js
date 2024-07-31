@@ -38,6 +38,8 @@ const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 const DAOCommitteeV1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
 const DepositManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
 const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
+const DepositManagerSetDelayABI = require("../../abi/DepositManager_setWithdrawalDelay.json")
+
 
 
 describe("DAOAgenda Test", () => {
@@ -92,6 +94,8 @@ describe("DAOAgenda Test", () => {
     let oneAddr = "0x0000000000000000000000000000000000000001";
     let twoAddr = "0x0000000000000000000000000000000000000002";
     let tosAddr = "0x409c4D8cd5d2924b9bc5509230d16a61289c8153";
+
+    let depositManagerSetDelay;
 
     // mainnet network
     const oldContractInfo = {
@@ -267,6 +271,16 @@ describe("DAOAgenda Test", () => {
             await testSetDeploy.deployed();
         })
 
+        it("Deploy & set the DepositManagerSetDealy Contract", async () => {
+            let deploySetDelay = new ethers.ContractFactory(
+                DepositManagerSetDelayABI.abi,
+                DepositManagerSetDelayABI.bytecode,
+                daoCommitteeAdmin
+            )
+
+            depositManagerSetDelay = await deploySetDelay.deploy();
+        })
+
     })
 
     // describe("daoagendaManager Test", () => {
@@ -350,8 +364,9 @@ describe("DAOAgenda Test", () => {
             
             let targets = [];
             let functionBytecodes = [];
-            const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
-            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(bytes4[],address)");
+            // const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+            const logicAddress = depositManagerSetDelay.address
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
             //--------------
 
             const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
@@ -381,11 +396,11 @@ describe("DAOAgenda Test", () => {
                     targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
-                    true,
+                    false,
                     functionBytecodes
                 ]
             )
-            console.log("param : ", param)
+            // console.log("param : ", param)
 
             // const param = "0x00000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000002a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000647cd5f6630000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000844a5df50f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c50000000000000000000000000000000000000000000000000000000000000001a818d6510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
     
@@ -526,20 +541,29 @@ describe("DAOAgenda Test", () => {
         })
 
         it("need revert depositManagerProxy setWithdrawalDelay", async () => {
-            // await expect(
-            //     depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
-            //         daoagendaManager.address,
-            //         100
-            //     )
-            // ).to.be.reverted;
+            await expect(
+                depositManager.connect(member2).setWithdrawalDelay(
+                    member2ContractAddr,
+                    316000
+                )
+            ).to.be.revertedWith("Not acceptable")
 
-            await depositManager.connect(member2).setWithdrawalDelay(
-                member2ContractAddr,
-                100
-            )
+            // await depositManager.connect(member2).setWithdrawalDelay(
+            //     member2ContractAddr,
+            //     316000
+            // )
 
             let getAmount = await depositManager.withdrawalDelay(member2ContractAddr)
-            console.log(getAmount);
+            // console.log(getAmount);
+            expect(getAmount).to.be.equal(0);
+        })
+
+        it("check getSelector", async () => {
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            let logic = await depositManagerProxy.getSelectorImplementation2(selector1)
+            let logic2 = await depositManagerProxy.implementation2(1)
+            expect(logic).to.be.equal(logic2)
+            expect(logic).to.be.equal(depositManagerSetDelay.address)
         })
         
 
