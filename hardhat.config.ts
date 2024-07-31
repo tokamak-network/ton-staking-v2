@@ -195,8 +195,8 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
-      gasPrice: 50000000000,
+      accounts: [`${process.env.DEPLOYER_PRIVATE_KEY}`],
+      gasPrice: 5000000000,
       // deploy: ['deploy']
     },
     goerli: {
