@@ -163,7 +163,7 @@ const config: HardhatUserConfig = {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
         blockNumber: 20131000
         // url: `${process.env.ETH_NODE_URI_sepolia}`,
-        // blockNumber:6030000
+        // blockNumber: 6407130
       },
       allowUnlimitedContractSize: false,
       // deploy: ['deploy-migration']

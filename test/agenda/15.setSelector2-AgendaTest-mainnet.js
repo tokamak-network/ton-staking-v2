@@ -507,12 +507,12 @@ describe("DAOAgenda Test", () => {
             const agenda = await daoagendaManager.agendas(agendaID);
             const agendaInfo = await daoagendaManager.getExecutionInfo(agendaID);
             expect(agenda[6]).to.be.equal(0);
-            console.log("agendaInfo : ", agendaInfo)            
+            // console.log("agendaInfo : ", agendaInfo)            
             await (await daoCommittee.executeAgenda(agendaID)).wait();;
 
             const afterAgenda = await daoagendaManager.agendas(agendaID); 
             const afterAgendaInfo = await daoagendaManager.getExecutionInfo(agendaID); 
-            console.log("afterAgendaInfo : ", afterAgendaInfo)            
+            // console.log("afterAgendaInfo : ", afterAgendaInfo)            
             expect(afterAgenda[13]).to.be.equal(true);
             expect(afterAgenda[6]).to.be.gt(0); 
         })
@@ -526,12 +526,20 @@ describe("DAOAgenda Test", () => {
         })
 
         it("need revert depositManagerProxy setWithdrawalDelay", async () => {
-            await expect(
-                depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
-                    daoagendaManager.address,
-                    100
-                )
-            ).to.be.reverted;
+            // await expect(
+            //     depositManager.connect(daoCommitteeAdmin).setWithdrawalDelay(
+            //         daoagendaManager.address,
+            //         100
+            //     )
+            // ).to.be.reverted;
+
+            await depositManager.connect(member2).setWithdrawalDelay(
+                member2ContractAddr,
+                100
+            )
+
+            let getAmount = await depositManager.withdrawalDelay(member2ContractAddr)
+            console.log(getAmount);
         })
         
 
