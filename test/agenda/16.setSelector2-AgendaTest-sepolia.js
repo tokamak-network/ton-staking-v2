@@ -47,6 +47,7 @@ const Layer2ManagerABI = require("../../artifacts/contracts/layer2/Layer2Manager
 const DAOCommitteeV1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
 const DepositManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
 const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
+const DepositManagerSetDelayABI = require("../../abi/DepositManager_setWithdrawalDelay.json")
 
 
 describe("DAOAgenda Test", () => {
@@ -141,7 +142,7 @@ describe("DAOAgenda Test", () => {
         DAOAgendaManager: "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08",
         DAOCommittee: "0x79cfbEaCB5470bBe3B8Fe76db2A61Fc59e588C38",
         DAOCommitteeProxy: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-        DepositManagerProxy: "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F"
+        DAOCommitteeV1: "0xDC7e4c6cAe2123758f17D17572c6f6e820D2b431"
     }
 
     const nowContractInfo = {
@@ -189,6 +190,8 @@ describe("DAOAgenda Test", () => {
     let layer2CandidateFactoryAddr = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
 
     let legacySystemConfigAddr = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
+
+    let depositManagerSetDelay;
 
     //changeMember before info
     // [
@@ -344,6 +347,15 @@ describe("DAOAgenda Test", () => {
     })
 
     describe("Setting another account & contract", () => {
+        it("Deploy & set the DepositManagerSetDealy Contract", async () => {
+            let deploySetDelay = new ethers.ContractFactory(
+                DepositManagerSetDelayABI.abi,
+                DepositManagerSetDelayABI.bytecode,
+                daoCommitteeAdmin
+            )
+
+            depositManagerSetDelay = await deploySetDelay.deploy();
+        })
         it("set DAOAgendaManager", async () => {
             daoagendaManager = new ethers.Contract(
                 oldContractInfo.DAOAgendaManager,
@@ -384,53 +396,53 @@ describe("DAOAgenda Test", () => {
             )
         })
 
-        it("Set SeigManager", async () => {
-            seigManagerContract = new ethers.Contract(
-                nowContractInfo.SeigManager,
-                SeigManagerABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set SeigManager", async () => {
+        //     seigManagerContract = new ethers.Contract(
+        //         nowContractInfo.SeigManager,
+        //         SeigManagerABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
-        it("Set SeigManagerProxy", async () => {
-            seigManagerProxyContract = new ethers.Contract(
-                nowContractInfo.SeigManager,
-                SeigManagerProxyABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set SeigManagerProxy", async () => {
+        //     seigManagerProxyContract = new ethers.Contract(
+        //         nowContractInfo.SeigManager,
+        //         SeigManagerProxyABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
-        it("Set DepositManager", async () => {
-            depositManagerContract = new ethers.Contract(
-                nowContractInfo.DepositManager,
-                DepositManagerABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set DepositManager", async () => {
+        //     depositManagerContract = new ethers.Contract(
+        //         nowContractInfo.DepositManager,
+        //         DepositManagerABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
-        it("Set SeigManagerV1", async () => {
-            seigManagerV1Contract = new ethers.Contract(
-                nowContractInfo.SeigManager,
-                SeigManagerV1ABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set SeigManagerV1", async () => {
+        //     seigManagerV1Contract = new ethers.Contract(
+        //         nowContractInfo.SeigManager,
+        //         SeigManagerV1ABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
-        it("Set SeigManagerV3", async () => {
-            seigManagerV3Contract = new ethers.Contract(
-                nowContractInfo.SeigManager,
-                SeigManagerV3ABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set SeigManagerV3", async () => {
+        //     seigManagerV3Contract = new ethers.Contract(
+        //         nowContractInfo.SeigManager,
+        //         SeigManagerV3ABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
-        it("Set Layer2Manager", async () => {
-            layer2ManagerContract = new ethers.Contract(
-                layer2ManagerAddr,
-                Layer2ManagerABI,
-                daoCommitteeAdmin
-            )
-        })
+        // it("Set Layer2Manager", async () => {
+        //     layer2ManagerContract = new ethers.Contract(
+        //         layer2ManagerAddr,
+        //         Layer2ManagerABI,
+        //         daoCommitteeAdmin
+        //     )
+        // })
 
         it("set DAO NewLogic", async () => {
             daoCommittee = new ethers.Contract(
@@ -442,6 +454,13 @@ describe("DAOAgenda Test", () => {
     })
 
     describe("Agenda Test", () => {
+        it("add Owner DAO", async () => {
+            expect((await depositManagerProxy.isAdmin(daoCommitteeProxy.address))).to.be.equal(false)
+            await (await depositManagerProxy.connect(daoCommitteeAdmin).addAdmin(
+                daoCommitteeProxy.address
+            )).wait();
+            expect((await depositManagerProxy.isAdmin(daoCommitteeProxy.address))).to.be.equal(true)
+        })
         it("Create new Agenda (setSelectorImplementations2)", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -452,11 +471,12 @@ describe("DAOAgenda Test", () => {
 
             let targets = [];
             let functionBytecodes = [];
-            const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
-            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(bytes4[],address)");
+            // const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
+            const logicAddress = depositManagerSetDelay.address
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
 
             const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
-                "setImplementation2", [logicAddress,1,true])
+                "setImplementation2", [logicAddress,3,true])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
             targets.push(nowContractInfo.DepositManager);
@@ -476,7 +496,7 @@ describe("DAOAgenda Test", () => {
                     targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
-                    true,
+                    false,
                     functionBytecodes
                 ]
             )
@@ -553,6 +573,58 @@ describe("DAOAgenda Test", () => {
             const result = await daoagendaManager.getVoteStatus(agendaID, member2Addr);
             expect(result[0]).to.be.equal(true);
             expect(result[1]).to.be.equal(vote);
+        })
+
+        it("setAgendaStatus test (Owner)", async () => {    
+            expect(await daoagendaManager.getAgendaStatus(agendaID)).to.be.equal(2);
+            //setAgendaStatus(_agendaID,_status, _result)
+            //_status = 3 -> AGENDA_STATUS_WAITING_EXEC
+            //_result = 1 -> AGENDA_RESULT_ACCEPTED
+            await daoCommittee.connect(daoCommitteeAdmin).setAgendaStatus(
+                agendaID,
+                3,
+                1
+            );
+
+            expect(await daoagendaManager.getAgendaStatus(agendaID)).to.be.equal(3);
+            let getResult = await daoagendaManager.getAgendaResult(agendaID)
+            // console.log(getResult);
+            expect(Number(getResult.result)).to.be.equal(1);
+        })
+
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            // console.log(agenda)
+            // console.log("agenda Result :", agenda[10])
+            // console.log("agenda status :", agenda[11])
+
+            let votingEndTime = await daoagendaManager.getAgendaVotingEndTimeSeconds(agendaID)
+            // console.log("agenda[4] :",  agenda[4])
+            // console.log("votingEndTime :",  votingEndTime)
+
+            if (agenda[10] == 3) {
+                const votingEndTimestamp = agenda[4];
+                const currentTime = await time.latest();
+                if (currentTime < votingEndTimestamp) {
+                    await time.increaseTo(Number(votingEndTimestamp));
+                }
+                expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
+            }
+        });
+
+        
+        it("execute agenda (anyone)", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            const agendaInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            expect(agenda[6]).to.be.equal(0);
+            // console.log("agendaInfo : ", agendaInfo)            
+            await (await daoCommittee.executeAgenda(agendaID)).wait();;
+
+            const afterAgenda = await daoagendaManager.agendas(agendaID); 
+            const afterAgendaInfo = await daoagendaManager.getExecutionInfo(agendaID); 
+            // console.log("afterAgendaInfo : ", afterAgendaInfo)            
+            expect(afterAgenda[13]).to.be.equal(true);
+            expect(afterAgenda[6]).to.be.gt(0); 
         })
 
     })
