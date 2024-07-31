@@ -412,13 +412,13 @@ describe("DAOAgenda Test", () => {
         //     )
         // })
 
-        // it("Set DepositManager", async () => {
-        //     depositManagerContract = new ethers.Contract(
-        //         nowContractInfo.DepositManager,
-        //         DepositManagerABI,
-        //         daoCommitteeAdmin
-        //     )
-        // })
+        it("Set DepositManager", async () => {
+            depositManagerContract = new ethers.Contract(
+                nowContractInfo.DepositManager,
+                DepositManagerABI,
+                daoCommitteeAdmin
+            )
+        })
 
         // it("Set SeigManagerV1", async () => {
         //     seigManagerV1Contract = new ethers.Contract(
@@ -476,7 +476,7 @@ describe("DAOAgenda Test", () => {
             const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
 
             const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
-                "setImplementation2", [logicAddress,3,true])
+                "setImplementation2", [logicAddress,2,true])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
             targets.push(nowContractInfo.DepositManager);
@@ -625,6 +625,32 @@ describe("DAOAgenda Test", () => {
             // console.log("afterAgendaInfo : ", afterAgendaInfo)            
             expect(afterAgenda[13]).to.be.equal(true);
             expect(afterAgenda[6]).to.be.gt(0); 
+        })
+
+        it("need revert depositManagerProxy setWithdrawalDelay", async () => {
+            await expect(
+                depositManagerContract.connect(member2).setWithdrawalDelay(
+                    member2ContractAddr,
+                    316000
+                )
+            ).to.be.revertedWith("Not acceptable")
+
+            // await depositManager.connect(member2).setWithdrawalDelay(
+            //     member2ContractAddr,
+            //     316000
+            // )
+
+            let getAmount = await depositManagerContract.withdrawalDelay(member2ContractAddr)
+            // console.log(getAmount);
+            expect(getAmount).to.be.equal(0);
+        })
+
+        it("check getSelector", async () => {
+            const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            let logic = await depositManagerProxy.getSelectorImplementation2(selector1)
+            let logic2 = await depositManagerProxy.implementation2(2)
+            expect(logic).to.be.equal(logic2)
+            expect(logic).to.be.equal(depositManagerSetDelay.address)
         })
 
     })
