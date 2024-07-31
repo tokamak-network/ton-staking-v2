@@ -181,11 +181,6 @@ describe("DAOAgenda Test", () => {
                 "setSelectorImplementations2", [[selector1],logicAddress])
                 // console.log("functionBytecode1 :", functionBytecode1);
 
-            // const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
-            // const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
-            //     "setSelectorImplementations2", [[selector1],logicAddress])
-                // console.log("functionBytecode1 :", functionBytecode1);
-
             targets.push(nowContractInfo.DepositManager);
             functionBytecodes.push(functionBytecode1)
 
