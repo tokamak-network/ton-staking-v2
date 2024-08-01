@@ -8,6 +8,9 @@ const DAOCommitteeV1ABI = require("../artifacts/contracts/dao/DAOCommittee_V1.so
 const TONABI = require("../abi/TON.json").abi;
 const DAOAgendaManagerABI = require("../abi/daoAgendaManager.json").abi;
 
+const DepositManagerProxy_Json = require('../abi/DepositManagerProxy.json')
+
+
 
 const Web3EthAbi = require('web3-eth-abi');
 const { padLeft } = require('web3-utils');
@@ -27,6 +30,7 @@ const mainnetContractInfo = {
     TON: "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5",
     WTON: "0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2",
     DAOAgendaManager: "0xcD4421d082752f363E1687544a09d5112cD4f484",
+    DepositManagerProxy : "0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e",
     DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
     DAOCommitteeProxy2: "",
     DAOCommittee_V1: "",
@@ -80,6 +84,12 @@ async function Setting_changeDAOStructure() {
     )
     console.log("set TON done")
 
+    //==== Set DepositManagerProxy =================================
+    let depositManagerProxy = new ethers.Contract(
+        mainnetContractInfo.DepositManagerProxy,  
+        DepositManagerProxy_Json.abi, 
+        ethers.provider
+    )
 
     const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
     const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -87,19 +97,22 @@ async function Setting_changeDAOStructure() {
     let targets = [];
     let functionBytecodes = [];
 
-    const logicAddress = //need input  
+    const logicAddress = "0xAB9231f3081B5C3C27d34Ed4CEFc1280f89ff687"  
     const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
 
     const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
         "setImplementation2", [logicAddress,1,true])
-    targets.push(nowContractInfo.DepositManager);
+        
+    targets.push(mainnetContractInfo.DepositManagerProxy);
     functionBytecodes.push(functionBytecode0)
+    console.log("setImplementation2 done")
 
     const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
         "setSelectorImplementations2", [[selector1],logicAddress])
 
-    targets.push(nowContractInfo.DepositManager);
+    targets.push(mainnetContractInfo.DepositManagerProxy);
     functionBytecodes.push(functionBytecode1)
+    console.log("setSelectorImplementations2 done")
 
     const param = Web3EthAbi.encodeParameters(
         ["address[]", "uint128", "uint128", "bool", "bytes[]"],
@@ -107,7 +120,7 @@ async function Setting_changeDAOStructure() {
             targets, 
             noticePeriod.toString(), 
             votingPeriod.toString(), 
-            false, 
+            true, 
             functionBytecodes
         ]
     );
@@ -121,6 +134,8 @@ async function Setting_changeDAOStructure() {
         agendaFee,
         param
     );
+    console.log("create agenda done")
+
 
 
 }

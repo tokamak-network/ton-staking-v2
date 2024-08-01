@@ -125,6 +125,7 @@ describe("DAOAgenda Test", () => {
     }
 
     let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
+    let setDelayAddr = "0xAB9231f3081B5C3C27d34Ed4CEFc1280f89ff687" 
 
     before('create fixture loader', async () => {
         await hre.network.provider.send("hardhat_impersonateAccount", [
@@ -365,7 +366,9 @@ describe("DAOAgenda Test", () => {
             let targets = [];
             let functionBytecodes = [];
             // const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
-            const logicAddress = depositManagerSetDelay.address
+            // const logicAddress = depositManagerSetDelay.address
+            // const logicAddress = "0xAB9231f3081B5C3C27d34Ed4CEFc1280f89ff687"
+            const logicAddress = setDelayAddr
             const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
             //--------------
 
@@ -396,7 +399,7 @@ describe("DAOAgenda Test", () => {
                     targets,
                     noticePeriod.toString(),
                     votingPeriod.toString(),
-                    false,
+                    true,
                     functionBytecodes
                 ]
             )
@@ -563,7 +566,7 @@ describe("DAOAgenda Test", () => {
             let logic = await depositManagerProxy.getSelectorImplementation2(selector1)
             let logic2 = await depositManagerProxy.implementation2(1)
             expect(logic).to.be.equal(logic2)
-            expect(logic).to.be.equal(depositManagerSetDelay.address)
+            expect(logic).to.be.equal(setDelayAddr)
         })
         
 

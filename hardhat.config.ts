@@ -160,10 +160,10 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         // mainnet or sepolia
-        // url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        // blockNumber: 20131000
-        url: `${process.env.ETH_NODE_URI_sepolia}`,
-        blockNumber: 6000000
+        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        blockNumber: 20425200
+        // url: `${process.env.ETH_NODE_URI_sepolia}`,
+        // blockNumber: 6000000
       },
       allowUnlimitedContractSize: true,
       // deploy: ['deploy-migration']
@@ -176,8 +176,9 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
-      gasPrice: 40000000000,
+      accounts: [`${process.env.AGENDA_KEY}`],
+      gasPrice: 8000000000,
+      // gasPrice: 40000000000, //40 Gwei
       // deploy: ['deploy']
     },
     goerli: {
