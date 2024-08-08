@@ -76,6 +76,9 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
    */
   event WithdrawalAndDeposited(address indexed layer2, address account, uint256 amount);
 
+  event DepositedERC20To(address l1Bridge,address l1Ton, address l2Ton, address caller, uint256 tonAmount, uint32 minDepositGasLimit);
+
+
   function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
     minDepositGasLimit = gasLimit_;
   }
@@ -104,6 +107,7 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     (bool result, address l1Bridge, address portal, address l2Ton) = abi.decode(data, (bool,address,address,address));
     if (!result) revert CheckL1BridgeError(2);
     if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
+    require(l2Ton != address(0), "l2Ton: zero address");
 
     uint32 _minDepositGasLimit = 0;
     if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
@@ -130,6 +134,8 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
       _minDepositGasLimit,
       '0x'
     );
+
+    emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
 
     require(IERC20(_ton).balanceOf(checkAddress) == bal + tonAmount, "fail depositERC20To");
 
