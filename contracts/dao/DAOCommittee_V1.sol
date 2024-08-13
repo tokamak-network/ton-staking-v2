@@ -286,6 +286,17 @@ contract DAOCommittee_V1 is
         return candidateContract;
     }
 
+    /// @notice Registers the exist layer2 on DAO by owner
+    /// @param _operator Operator address of the layer2 contract
+    /// @param _layer2 Layer2 contract address to be registered
+    /// @param _memo A memo for the candidate
+    function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo)
+        external
+        onlyOwner
+    {
+        _registerLayer2Candidate(_operator, _layer2, _memo);
+    }
+
     /// @notice Replaces an existing member
     /// @param _memberIndex The member slot index to be replaced
     /// @return Whether or not the execution succeeded
@@ -517,7 +528,7 @@ contract DAOCommittee_V1 is
                 require(success, "DAOCommittee: Failed to execute the agenda");
             }
         } 
-        
+
         emit AgendaExecuted(_agendaID, target);
     }
 
@@ -596,6 +607,58 @@ contract DAOCommittee_V1 is
 
         require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
         require(IERC20(ton).transfer(address(1), fee), "DAOCommittee: failed to burn");
+    }
+
+    function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
+        internal
+        validSeigManager
+        validLayer2Registry
+        validCommitteeL2Factory
+    {
+        require(!isExistCandidate(_layer2), "DAOCommittee: candidate already registerd");
+
+        require(
+            _layer2 != address(0),
+            "DAOCommittee: deployed candidateContract is zero"
+        );
+        require(
+            _candidateInfos[_layer2].candidateContract == address(0),
+            "DAOCommittee: The candidate already has contract"
+        );
+        ILayer2 layer2 = ILayer2(_layer2);
+        require(
+            layer2.isLayer2(),
+            "DAOCommittee: invalid layer2 contract"
+        );
+        require(
+            layer2.operator() == _operator,
+            "DAOCommittee: invalid operator"
+        );
+
+        address candidateContract = candidateFactory.deploy(
+            _layer2,
+            true,
+            _memo,
+            address(this),
+            address(seigManager)
+        );
+
+        require(
+            candidateContract != address(0),
+            "DAOCommittee: deployed candidateContract is zero"
+        );
+
+        _candidateInfos[_layer2] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
+
+        candidates.push(_layer2);
+
+        emit Layer2Registered(_layer2, candidateContract, _memo);
     }
 
     function _createAgenda(
