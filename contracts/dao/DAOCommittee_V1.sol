@@ -415,6 +415,7 @@ contract DAOCommittee_V1 is
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
+        require(agendaData.atomicExecute == true, "atomicExecute need true");
          
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
@@ -515,23 +516,8 @@ contract DAOCommittee_V1 is
                 (bool success, ) = address(target[i]).call(functionBytecode[i]);
                 require(success, "DAOCommittee: Failed to execute the agenda");
             }
-        } else {
-            uint256 succeeded = 0;
-            for (uint256 i = executeStartFrom; i < target.length; i++) {
-                bool success = _call(target[i], functionBytecode[i].length, functionBytecode[i]);
-                if (success) {
-                    succeeded = succeeded + 1;
-                } else {
-                    break;
-                }
-            }
-
-            agendaManager.setExecutedCount(_agendaID, succeeded);
-            if (executeStartFrom + succeeded == target.length) {
-                agendaManager.setExecutedAgenda(_agendaID);
-            }
-        }
-
+        } 
+        
         emit AgendaExecuted(_agendaID, target);
     }
 
