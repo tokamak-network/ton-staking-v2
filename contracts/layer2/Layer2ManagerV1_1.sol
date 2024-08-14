@@ -35,7 +35,7 @@ error ExcludeError();
 error OnApproveError(uint x);
 
 interface IL2Register {
-    function systemConfigType(address systemConfig) external view returns (uint8);
+    function rollupType(address systemConfig) external view returns (uint8);
     function checkLayer2TVL(address _systemConfig) external view returns (bool result, uint256 amount);
 }
 
@@ -353,7 +353,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      */
     function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
 
-        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
+        uint8 _type = IL2Register(l2Register).rollupType(_systemConfig);
 
         if (systemConfigInfo[_systemConfig].stateIssue == 1) {
 
@@ -415,7 +415,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     function _checkLayer2TVL(address _systemConfig) internal view returns (bool result, uint256 amount) {
 
-        uint8 _type = IL2Register(l2Register).systemConfigType(_systemConfig);
+        uint8 _type = IL2Register(l2Register).rollupType(_systemConfig);
 
         if (_type == 1) { // optimism legacy : titan
 

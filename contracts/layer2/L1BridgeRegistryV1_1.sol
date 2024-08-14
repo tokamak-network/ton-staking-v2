@@ -158,7 +158,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     )  external onlySeigniorageCommittee() {
         if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
 
-        require (systemConfigType[_systemConfig] != 0, "NonRegistered");
+        require (rollupType[_systemConfig] != 0, "NonRegistered");
 
         rejectSystemConfig[_systemConfig] = true;
         ILayer2Manager(layer2Manager).pauseLayer2Candidate(_systemConfig);
@@ -210,10 +210,10 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
     function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
-        if (systemConfigType[_systemConfig] == 0) revert ChangeError(1);
-        if (systemConfigType[_systemConfig] == _type) revert ChangeError(2);
+        if (rollupType[_systemConfig] == 0) revert ChangeError(1);
+        if (rollupType[_systemConfig] == _type) revert ChangeError(2);
 
-        systemConfigType[_systemConfig] = _type;
+        rollupType[_systemConfig] = _type;
 
         emit ChangedType(_systemConfig, _type);
     }
@@ -226,7 +226,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      */
     function layer2TVL(address _systemConfig) public view returns (uint256 amount){
 
-        uint _type = systemConfigType[_systemConfig];
+        uint _type = rollupType[_systemConfig];
 
         if (_type == 1) {
             address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
@@ -260,10 +260,10 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function _registerSystemConfig(address _systemConfig, uint8 _type) internal {
 
         if (_type == 0 || _type > uint8(type(TYPE_SYSTEMCONFIG).max)) revert RegisterError(1);
-        if (systemConfigType[_systemConfig] != 0) revert RegisterError(2);
+        if (rollupType[_systemConfig] != 0) revert RegisterError(2);
         if (!_availableForRegistration(_systemConfig, _type)) revert RegisterError(3);
 
-        systemConfigType[_systemConfig] = _type;
+        rollupType[_systemConfig] = _type;
         if (_type == 1) {
             address bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
             if (bridge_ == address(0)) revert BridgeError();
@@ -284,11 +284,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
             address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
             if(l1Bridge_ != address(0)) {
                 if (_type == 1) {
-                    if(systemConfigType[_systemConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
+                    if(rollupType[_systemConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
                 } else if (_type == 2) {
                     address portal_ = ISystemConfig(_systemConfig).optimismPortal();
                     if (portal_ != address(0)) {
-                        if (systemConfigType[_systemConfig] == 0 && !portal[portal_]) valid = true;
+                        if (rollupType[_systemConfig] == 0 && !portal[portal_]) valid = true;
                     }
                 }
             }

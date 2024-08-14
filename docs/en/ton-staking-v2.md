@@ -191,7 +191,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     address public seigniorageCommittee;
 
     /// systemConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
-    mapping (address => uint8) public systemConfigType;
+    mapping (address => uint8) public rollupType;
 
     /// For registered bridges, set to true.
     mapping (address => bool) public l1Bridge;

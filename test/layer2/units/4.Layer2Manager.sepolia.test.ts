@@ -425,7 +425,7 @@ describe('Layer2Manager', () => {
             let systemConfig = l1MessengerAddress
 
             expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
-            expect(await l1BridgeRegistry.systemConfigType(systemConfig)).to.be.eq(0)
+            expect(await l1BridgeRegistry.rollupType(systemConfig)).to.be.eq(0)
 
             let check = await layer2Manager.checkLayer2TVL(systemConfig)
             expect(check.result).to.be.eq(false)
@@ -435,7 +435,7 @@ describe('Layer2Manager', () => {
         it('If the SystemConfig or L1Bridge address exist, the result is returned as false.', async () => {
 
             expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
-            expect(await l1BridgeRegistry.systemConfigType(legacySystemConfig.address)).to.be.eq(1)
+            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(1)
 
             let check = await layer2Manager.checkLayer2TVL(legacySystemConfig.address)
             expect(check.result).to.be.eq(true)

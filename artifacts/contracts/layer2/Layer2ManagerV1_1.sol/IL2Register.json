@@ -35,7 +35,7 @@
           "type": "address"
         }
       ],
-      "name": "systemConfigType",
+      "name": "rollupType",
       "outputs": [
         {
           "internalType": "uint8",

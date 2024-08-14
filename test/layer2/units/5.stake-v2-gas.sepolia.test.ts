@@ -502,7 +502,7 @@ describe('Layer2Manager', () => {
             let systemConfig = l1MessengerAddress
 
             expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
-            expect(await l1BridgeRegistry.systemConfigType(systemConfig)).to.be.eq(0)
+            expect(await l1BridgeRegistry.rollupType(systemConfig)).to.be.eq(0)
 
             let check = await layer2Manager.checkLayer2TVL(systemConfig)
 
@@ -513,7 +513,7 @@ describe('Layer2Manager', () => {
         it('If the SystemConfig or L1Bridge address exist, the result is returned as false.', async () => {
 
             expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
-            expect(await l1BridgeRegistry.systemConfigType(legacySystemConfig.address)).to.be.eq(1)
+            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(1)
 
             let check = await layer2Manager.checkLayer2TVL(legacySystemConfig.address)
             expect(check.result).to.be.eq(true)
@@ -2268,7 +2268,7 @@ describe('Layer2Manager', () => {
             thanosLayerAddress = deployedEvent.args.layer2Candidate;
             thanosOperatorContractAddress = deployedEvent.args.operator;
             expect((await layer2Manager.issueStatusLayer2(thanosSystemConfig))).to.be.eq(1)
-            expect((await l1BridgeRegistry.systemConfigType(thanosSystemConfig))).to.be.eq(2)
+            expect((await l1BridgeRegistry.rollupType(thanosSystemConfig))).to.be.eq(2)
 
             thanosLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", thanosLayerAddress, deployer)) as Layer2CandidateV1_1
             thanosOperatorContract = (await ethers.getContractAt("OperatorV1_1", thanosOperatorContractAddress, deployer)) as OperatorV1_1

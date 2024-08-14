@@ -154,7 +154,7 @@ describe('L1BridgeRegistry', () => {
             expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
-            expect(await l1BridgeRegistry.systemConfigType(legacySystemConfig.address)).to.be.eq(type)
+            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(type)
 
         })
 
@@ -207,7 +207,7 @@ describe('L1BridgeRegistry', () => {
             expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
-            expect(await l1BridgeRegistry.systemConfigType(legacySystemConfig.address)).to.be.eq(type)
+            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(type)
 
         })
 
