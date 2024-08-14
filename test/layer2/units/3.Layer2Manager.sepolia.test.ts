@@ -472,7 +472,7 @@ describe('Layer2Manager', () => {
              await expect(l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
-            )).to.be.revertedWith("unavailable for registration")
+            )).to.be.revertedWith("RegisterError")
         })
     })
 
@@ -687,7 +687,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+            )).to.be.rejectedWith("RegisterError")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
@@ -719,7 +719,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError")
         })
 
         it('registerLayer2Candidate : titanLayer2Candidate', async () => {
@@ -780,7 +780,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
         it('Layers that are not registered in the L cannot be registered.', async () => {
@@ -801,7 +801,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
@@ -1959,7 +1959,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {
@@ -2013,7 +2013,7 @@ describe('Layer2Manager', () => {
                 l1BridgeRegistry.connect(addr1).rejectLayer2Candidate(
                     legacySystemConfig.address
                 )
-            ).to.be.revertedWith("sender is not seigniorageCommittee")
+            ).to.be.revertedWith("PermissionError")
         })
 
         it('reject Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {
@@ -3283,7 +3283,7 @@ describe('Layer2Manager', () => {
                 l1BridgeRegistry.connect(addr1).restoreLayer2Candidate(
                     legacySystemConfig.address
                 )
-            ).to.be.revertedWith("sender is not seigniorageCommittee")
+            ).to.be.revertedWith("PermissionError")
         })
 
         it('restore Layer2Candidate (titanlayer2Candidate) : Only rejected layers can be restored.', async () => {
@@ -3295,7 +3295,7 @@ describe('Layer2Manager', () => {
                 l1BridgeRegistry.connect(seigniorageCommittee).restoreLayer2Candidate(
                     thanosSystemConfig
                 )
-            ).to.be.revertedWith("not rejected")
+            ).to.be.revertedWith("OnlyRejectedError")
         })
 
         it('restore Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {

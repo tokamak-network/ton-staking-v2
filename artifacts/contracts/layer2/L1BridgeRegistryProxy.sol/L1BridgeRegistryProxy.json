@@ -1,6 +1,6 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "L2RegistryProxy",
+  "contractName": "L1BridgeRegistryProxy",
   "sourceName": "contracts/layer2/L1BridgeRegistryProxy.sol",
   "abi": [
     {
