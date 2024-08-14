@@ -43,15 +43,11 @@ interface OnApprove {
     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
 }
 
-interface ISystemConfig {
+interface IOptimismSystemConfig {
     function owner() external view returns (address);
     function l1CrossDomainMessenger() external view returns (address addr_);
-    // function l1ERC721Bridge() external view returns (address addr_);
     function l1StandardBridge() external view returns (address addr_);
-    function l2OutputOracle() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_) ;
-    // function optimismMintableERC20Factory() external view returns (address addr_);
-    // function batchInbox() external view returns (address addr_) ;
     function l2Ton() external view returns (address addr_) ;
 }
 
@@ -357,10 +353,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (systemConfigInfo[_systemConfig].stateIssue == 1) {
 
-            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            address l1Bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
 
             if (l1Bridge_ != address(0)) {
-                if (_type == 1) l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                if (_type == 1) l2Ton = IOptimismSystemConfig(_systemConfig).l2Ton();
                 else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
 
                 if (l2Ton != address(0)) {
@@ -370,7 +366,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             }
 
             if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
-                address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+                address portal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
 
                 if (portal_ == address(0)) result = false;
                 else portal = portal_;
@@ -419,9 +415,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (_type == 1) { // optimism legacy : titan
 
-            address l1Bridge = ISystemConfig(_systemConfig).l1StandardBridge();
+            address l1Bridge = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
             if (l1Bridge != address(0)) {
-                address l2Ton = ISystemConfig(_systemConfig).l2Ton();
+                address l2Ton = IOptimismSystemConfig(_systemConfig).l2Ton();
                 if (l2Ton != address(0)) {
                     amount = IStandardBridge(l1Bridge).deposits(ton, l2Ton);
                     result = true;
@@ -430,7 +426,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
 
-            address optimismPortal = ISystemConfig(_systemConfig).optimismPortal();
+            address optimismPortal = IOptimismSystemConfig(_systemConfig).optimismPortal();
             if (optimismPortal != address(0)) {
                 amount = IOptimismPortal(optimismPortal).depositedAmount();
                 result = true;

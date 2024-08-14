@@ -32,11 +32,10 @@ interface IERC20 {
     function balanceOf(address addr) external view returns (uint256);
 }
 
-interface ISystemConfig {
+interface IOptimismSystemConfig {
     function owner() external view returns (address);
     function l1CrossDomainMessenger() external view returns (address addr_);
     function l1StandardBridge() external view returns (address addr_);
-    function l2OutputOracle() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_) ;
     function l2Ton() external view returns (address addr_) ;
 }
@@ -229,11 +228,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         uint _type = rollupType[_systemConfig];
 
         if (_type == 1) {
-            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            address l1Bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
             if (l1Bridge[l1Bridge_]) amount = IERC20(ton).balanceOf(l1Bridge_);
 
         } else if (_type == 2) {
-             address optimismPortal_ = ISystemConfig(_systemConfig).optimismPortal();
+             address optimismPortal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
             if (portal[optimismPortal_]) amount = IERC20(ton).balanceOf(optimismPortal_);
         }
     }
@@ -265,12 +264,12 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
         rollupType[_systemConfig] = _type;
         if (_type == 1) {
-            address bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            address bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
             if (bridge_ == address(0)) revert BridgeError();
             l1Bridge[bridge_] = true;
             emit AddedBridge(_systemConfig, bridge_);
         } else if (_type == 2) {
-            address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+            address portal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
             if (portal_ == address(0)) revert PortalError();
             portal[portal_] = true;
             emit AddedPortal(_systemConfig, portal_);
@@ -281,12 +280,12 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     function _availableForRegistration(address _systemConfig, uint8 _type) internal view returns (bool valid){
         if (!rejectSystemConfig[_systemConfig]) {
-            address l1Bridge_ = ISystemConfig(_systemConfig).l1StandardBridge();
+            address l1Bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
             if(l1Bridge_ != address(0)) {
                 if (_type == 1) {
                     if(rollupType[_systemConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
                 } else if (_type == 2) {
-                    address portal_ = ISystemConfig(_systemConfig).optimismPortal();
+                    address portal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
                     if (portal_ != address(0)) {
                         if (rollupType[_systemConfig] == 0 && !portal[portal_]) valid = true;
                     }
