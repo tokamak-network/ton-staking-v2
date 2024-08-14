@@ -3,8 +3,8 @@
   "contractName": "Layer2CandidateStorage",
   "sourceName": "contracts/dao/Layer2CandidateStorage.sol",
   "abi": [],
-  "bytecode": "0x608080604052346013576011908160198239f35b600080fdfe600080fdfea164736f6c6343000812000a",
-  "deployedBytecode": "0x600080fdfea164736f6c6343000812000a",
+  "bytecode": "0x608080604052346013576011908160198239f35b600080fdfe600080fdfea164736f6c6343000813000a",
+  "deployedBytecode": "0x600080fdfea164736f6c6343000813000a",
   "linkReferences": {},
   "deployedLinkReferences": {}
 }

@@ -211,10 +211,6 @@ describe('Layer2Manager', () => {
 
             operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
 
-            await (await operatorFactory.connect(deployer).setAddresses(
-                DepositManager,
-                TON,
-                WTON)).wait()
 
         });
     })
@@ -259,6 +255,18 @@ describe('Layer2Manager', () => {
             await (await l1BridgeRegistryProxy.connect(deployer).addManager(manager.address)).wait()
             expect(await l1BridgeRegistryProxy.isManager(manager.address)).to.be.eq(true)
         })
+
+        it('operatorFactory.setAddresses', async () => {
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2ManagerProxy.address
+            )).wait()
+        })
+
     })
 
     describe('# setAddresses', () => {
@@ -407,7 +415,7 @@ describe('Layer2Manager', () => {
              await expect(l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
-            )).to.be.revertedWith("unavailable for registration")
+            )).to.be.revertedWith("RegisterError")
         })
     })
 
@@ -596,7 +604,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+            )).to.be.rejectedWith("RegisterError")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
@@ -628,7 +636,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError")
         })
 
         it('registerLayer2Candidate', async () => {
@@ -689,7 +697,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
         it('Layers that are not registered in the L1BridgeRegistry cannot be registered.', async () => {
@@ -710,7 +718,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
@@ -1884,7 +1892,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {

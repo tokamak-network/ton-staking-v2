@@ -23,7 +23,7 @@ import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/
 import { Layer2CandidateFactory } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
 
 import { Layer2CandidateV1_1 } from "../../../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
@@ -407,7 +407,7 @@ describe('Layer2Manager', () => {
              await expect(l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
-            )).to.be.revertedWith("unavailable for registration")
+            )).to.be.revertedWith("RegisterError")
         })
     })
 
@@ -576,7 +576,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+            )).to.be.rejectedWith("RegisterError")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
@@ -608,7 +608,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError")
         })
 
         it('registerLayer2Candidate', async () => {
@@ -669,7 +669,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
         it('Layers that are not registered in the L1BridgeRegistry cannot be registered.', async () => {
@@ -690,7 +690,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
@@ -1848,7 +1848,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {

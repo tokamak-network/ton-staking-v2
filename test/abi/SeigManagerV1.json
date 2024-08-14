@@ -246,11 +246,11 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "l2Registry_",
+          "name": "l1BridgeRegistry_",
           "type": "address"
         }
       ],
-      "name": "setL2Registry",
+      "name": "setL1BridgeRegistry",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

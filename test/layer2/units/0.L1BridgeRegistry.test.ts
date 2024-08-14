@@ -126,7 +126,7 @@ describe('L1BridgeRegistry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("zero type")
+            ).to.be.revertedWith("RegisterError")
         })
 
         it('registerSystemConfigByManager : type over max is not accepted.', async () => {
@@ -136,7 +136,7 @@ describe('L1BridgeRegistry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("unsupported type")
+            ).to.be.revertedWith("RegisterError")
         })
 
         it('registerSystemConfigByManager  ', async () => {
@@ -165,7 +165,7 @@ describe('L1BridgeRegistry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("already registered")
+            ).to.be.revertedWith("RegisterError")
         })
     });
 
@@ -190,7 +190,7 @@ describe('L1BridgeRegistry', () => {
                     legacySystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("same type")
+            ).to.be.revertedWith("ChangeError")
         })
 
         it('changeType  ', async () => {
@@ -234,7 +234,7 @@ describe('L1BridgeRegistry', () => {
                     sampleSystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("zero type")
+            ).to.be.revertedWith("RegisterError")
         })
 
         it('registerSystemConfig : type over max is not accepted.', async () => {
@@ -244,7 +244,7 @@ describe('L1BridgeRegistry', () => {
                     sampleSystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("unsupported type")
+            ).to.be.revertedWith("RegisterError")
         })
 
         it('registerSystemConfig :  ', async () => {
@@ -255,7 +255,7 @@ describe('L1BridgeRegistry', () => {
                     sampleSystemConfig.address,
                     type
                 )
-            ).to.be.revertedWith("unavailable for registration")
+            ).to.be.revertedWith("RegisterError")
 
         })
 
