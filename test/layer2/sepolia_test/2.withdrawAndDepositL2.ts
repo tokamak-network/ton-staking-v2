@@ -8,8 +8,9 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+
+import { L1BridgeRegistry } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
@@ -70,7 +71,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 describe('Layer2Manager', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
@@ -155,7 +156,7 @@ describe('Layer2Manager', () => {
 
     // describe('# upgradeTo Layer2ManagerV1_1 ', () => {
     //     it('deploy', async () => {
-    //         const layer2ManagerV1_1 = (await (await ethers.getContractFactory("Layer2ManagerV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
+    //         const layer2ManagerV1_1 = (await (await ethers.getContractFactory("Layer2ManagerV1_1")).connect(deployer).deploy()) as L1BridgeRegistryV1_1;
 
     //         await (await layer2ManagerProxy.connect(tonHave).upgradeTo(layer2ManagerV1_1.address)).wait()
 
@@ -164,7 +165,7 @@ describe('Layer2Manager', () => {
 
     describe('# upgradeTo DepositManagerV1_1 ', () => {
         it('deploy', async () => {
-            const depositManagerV1_1 = (await (await ethers.getContractFactory("DepositManagerV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
+            const depositManagerV1_1 = (await (await ethers.getContractFactory("DepositManagerV1_1")).connect(deployer).deploy()) as DepositManagerV1_1;
 
             const selector1 = encodeFunctionSignature("ton()");
             const selector2 = encodeFunctionSignature("minDepositGasLimit()");

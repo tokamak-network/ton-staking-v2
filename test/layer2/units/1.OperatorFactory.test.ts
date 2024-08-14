@@ -4,8 +4,9 @@ import { ethers, network, getNamedAccounts} from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 // import { l2ProjectLaunchFixtures, l1Fixtures } from './shared/fixtures'
 // import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
@@ -13,7 +14,7 @@ import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/Operator
 
 describe('OperatorFactory', () => {
     let deployer: Signer, addr1: Signer, addr2: Signer, manager: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
     let legacySystemConfig: LegacySystemConfig
     let sampleSystemConfig: LegacySystemConfig
     let operatorFactory: OperatorFactory
@@ -28,12 +29,12 @@ describe('OperatorFactory', () => {
 
         const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-        l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
-        l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
+        l1BridgeRegistryV_1 = (await (await ethers.getContractFactory("L1BridgeRegistryV1_1")).connect(deployer).deploy()) as L1BridgeRegistryV1_1;
+        l1BridgeRegistryProxy = (await (await ethers.getContractFactory("L1BridgeRegistryProxy")).connect(deployer).deploy()) as L1BridgeRegistryProxy;
 
-        await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+        await (await l1BridgeRegistryProxy.connect(deployer).upgradeTo(l1BridgeRegistryV_1.address)).wait()
 
-        l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+        l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", l1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
 
         operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
         operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
@@ -64,7 +65,7 @@ describe('OperatorFactory', () => {
             let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(manager).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l2Ton, l1BridgeRegistryProxy.address
             )).wait()
         })
 
@@ -85,7 +86,7 @@ describe('OperatorFactory', () => {
             let l2Ton = l2TonAddress
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton,  l2RegistryProxy.address
+                name, addresses, l2Ton,  l1BridgeRegistryProxy.address
             )).wait()
         })
     })

@@ -78,8 +78,8 @@ The first thing to understand is the issue of how to check Layer 2 in L1. Layer 
 The added contracts in the blue part will be explained in detail in the contract part below.
 
 # Use case
-## For registrant of L2Registry
-An account with registrant permission in the L2Registry contract can register SystemConfig, which holds unique information about Layer2. Registering SystemConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered SystemConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
+## For registrant of L1BridgeRegistry
+An account with registrant permission in the L1BridgeRegistry contract can register SystemConfig, which holds unique information about Layer2. Registering SystemConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered SystemConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
@@ -89,7 +89,7 @@ An account with registrant permission in the L2Registry contract can register Sy
 
 
 ## For everyone
-Anyone can register Layer2Candidate for SystemConfig registered in L2Registry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
+Anyone can register Layer2Candidate for SystemConfig registered in L1BridgeRegistry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
@@ -113,7 +113,7 @@ Users who have staked on Layer2Candidate can perform the function of withdrawing
 
 Simple Staking V2 has designed an economy that issues TON seigniorage to the sequencer of Layer2Candidate, which operates Layer2. However, there must be a function to stop issuing TON seigniorages to the corresponding Layer 2 sequencer as soon as it detects actions such as not actually operating Layer 2 or unreasonably allocating seigniorage.
 
-Created a Seigniorage Committee account defined in the L2Registry contract. The Seigniorage Committee can perform the function of suspending or canceling issuance of Seigniorage for the Layer 2 sequencer.
+Created a Seigniorage Committee account defined in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending or canceling issuance of Seigniorage for the Layer 2 sequencer.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-4.png"
@@ -130,7 +130,7 @@ When registering a Layer2Candidate, you must deposit at least the minimum deposi
 
 When registering Layer2Candidate. You must present the SystemConfig contract address that holds Layer 2 configuration information.
 
-Additionally, the SystemConfig you enter must be registered in L2Registry before registration. (Only accounts with L2Registry Registrant privileges can register with L2Registry.)
+Additionally, the SystemConfig you enter must be registered in L1BridgeRegistry before registration. (Only accounts with L1BridgeRegistry Registrant privileges can register with L1BridgeRegistry.)
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
@@ -170,13 +170,13 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 # Contract Details
 
-## L2Registry
+## L1BridgeRegistry
 
 - Basic understanding
     - By registering an authenticated layer 2 SystemConfig contract, it can be used in the simple staking service.
     - For Titan and Thanos Layer 2, SystemConfig is registered manually by the owner.
     - Contracts created in on-demand L2 are automatically registered when the contract is created.
-    - There was a Layer2Registry contract in Simple Staking previously, so we named it L2Registry to distinguish it.
+    - There was a Layer2Registry contract in Simple Staking previously, so we named it L1BridgeRegistry to distinguish it.
     - It must be upgradeable by configuring it as a proxy, considering support for other layers (ex, zk-EVM) in the future.
 - Authority
     - Owner: The owner has the right to upgrade logic and can designate a manager.
@@ -810,7 +810,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     address public ton;
     address public wton;
 
-    address public onDemandL2Registry;
+    address public onDemandL1BridgeRegistry;
     ```
 
 - Event
@@ -1011,8 +1011,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         uint256 initialDebt;
     }
 
-    /// L2Registry address
-    address public l2Registry;
+    /// L1BridgeRegistry address
+    address public L1BridgeRegistry;
 
     /// Layer2Manager address
     address public layer2Manager;

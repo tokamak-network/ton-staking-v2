@@ -21,7 +21,7 @@ contract LegacySystemConfig is Ownable {
     address public l2Ton;
     string public name;
 
-    address public l2Registry;
+    address public l1BridgeRegistry;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -34,11 +34,11 @@ contract LegacySystemConfig is Ownable {
 
     /* ========== onlyOwner ========== */
 
-    function setAddresses(string memory _name, Addresses memory _addresses, address _l2Ton, address _l2Registry) external onlyOwner {
+    function setAddresses(string memory _name, Addresses memory _addresses, address _l2Ton, address _l1BridgeRegistry) external onlyOwner {
         name = _name;
         addresses = _addresses;
         l2Ton = _l2Ton;
-        l2Registry = _l2Registry;
+        l1BridgeRegistry = _l1BridgeRegistry;
     }
 
     /* ========== onlyL1Bridge ========== */

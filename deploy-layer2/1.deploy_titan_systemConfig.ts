@@ -20,11 +20,11 @@ const deployTitanSystemConfig: DeployFunction = async function (hre: HardhatRunt
           ]);
     }
 
-    const deployedSimpleStakingV2 = await hre.deployments.get("L2RegistryProxy");
+    const deployedSimpleStakingV2 = await hre.deployments.get("L1BridgeRegistryProxy");
 
     const name = "Titan_Test1"
     let l2Ton = titanL2TON
-    let l2Registry = deployedSimpleStakingV2.address
+    let l1BridgeRegistry = deployedSimpleStakingV2.address
 
     //==== LegacySystemConfig =================================
      const LegacySystemConfigDeployment = await deploy("LegacySystemConfig", {
@@ -61,7 +61,7 @@ const deployTitanSystemConfig: DeployFunction = async function (hre: HardhatRunt
             name,
             addesses,
             l2Ton,
-            l2Registry
+            l1BridgeRegistry
         )).wait()
     }
 }

@@ -1,16 +1,16 @@
 const { ethers } = require("hardhat");
 
-async function L2RegistryV1_1() {
+async function L1BridgeRegistryV1_1() {
 
-  //==== L2RegistryV1_1 =================================
-  const L2RegistryV1_1Dep = await ethers.getContractFactory("L2RegistryV1_1");
-  const l2RegistryV1_1 = await L2RegistryV1_1Dep.deploy();
-  await l2RegistryV1_1.deployed();
-  console.log('L2RegistryV1_1' , l2RegistryV1_1.address)
+  //==== L1BridgeRegistryV1_1 =================================
+  const L1BridgeRegistryV1_1Dep = await ethers.getContractFactory("L1BridgeRegistryV1_1");
+  const l1BridgeRegistryV1_1 = await L1BridgeRegistryV1_1Dep.deploy();
+  await l1BridgeRegistryV1_1.deployed();
+  console.log('L1BridgeRegistryV1_1' , l1BridgeRegistryV1_1.address)
 }
 
 const main = async () => {
-  await L2RegistryV1_1()
+  await L1BridgeRegistryV1_1()
 }
 
 

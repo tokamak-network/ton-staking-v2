@@ -19,7 +19,7 @@ interface ILayer2Candidate {
     ) external;
 }
 
-interface IOnDemandL2Registry {
+interface IOnDemandL1BridgeRegistry {
     function exists(address _systemConfig) external view returns (bool);
 }
 
@@ -56,17 +56,17 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         address _layer2CandidateImp,
         address _ton,
         address _wton,
-        address _onDemandL2Registry
+        address _onDemandL1BridgeRegistry
     ) external onlyOwner {
         require(
             _ton != address(0) && _wton != address(0) &&
             _depositManager != address(0) && _daoCommittee != address(0) && _layer2CandidateImp != address(0)
-            && _onDemandL2Registry != address(0) , "zero");
+            && _onDemandL1BridgeRegistry != address(0) , "zero");
 
         require(
             ton != _ton || wton != _wton ||
             depositManager != _depositManager || daoCommittee != _daoCommittee || layer2CandidateImp != _layer2CandidateImp
-            || onDemandL2Registry != _onDemandL2Registry , "same");
+            || onDemandL1BridgeRegistry != _onDemandL1BridgeRegistry , "same");
 
         depositManager = _depositManager;
         daoCommittee = _daoCommittee;
@@ -74,7 +74,7 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         ton = _ton;
         wton = _wton;
 
-        onDemandL2Registry = _onDemandL2Registry;
+        onDemandL1BridgeRegistry = _onDemandL1BridgeRegistry;
     }
 
     /**
