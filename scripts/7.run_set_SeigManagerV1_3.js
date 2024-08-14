@@ -13,7 +13,7 @@ async function setSeigManagerV1_3() {
 
   const DepositManagerAddress = "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F"
   const SeigManagerAddress = "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7"
-  const L2RegistryProxyAddress = "0x817442BB8aa891AaE2a1EA009086f61c7FB14372"
+  const L1BridgeRegistryProxyAddress = "0x817442BB8aa891AaE2a1EA009086f61c7FB14372"
   const Layer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
 
   const deployedTitanLayer = "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
@@ -37,8 +37,8 @@ async function setSeigManagerV1_3() {
   //   Layer2ManagerProxyAddress
   // )).wait()
 
-  // await (await seigManager.connect(deployer).setL2Registry(
-  //   L2RegistryProxyAddress
+  // await (await seigManager.connect(deployer).setL1BridgeRegistry(
+  //   L1BridgeRegistryProxyAddress
   // )).wait()
 
   let initialTotalSupply = await seigManager.initialTotalSupply()

@@ -8,8 +8,9 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+
+import { L1BridgeRegistry } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
@@ -75,7 +76,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 describe('Layer2Candidate', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
@@ -185,78 +186,7 @@ describe('Layer2Candidate', () => {
 
 
     describe('# 1.updateSeigs and Claim ', () => {
-        // it('upgrade Logic Layer2CandidateV1_1', async () => {
-        //     const Layer2CandidateV1_1_3Dep = await ethers.getContractFactory("Layer2CandidateV1_1");
-        //     const Layer2CandidateV1_1Logic = await Layer2CandidateV1_1_3Dep.deploy();
-        //     await Layer2CandidateV1_1Logic.deployed()
 
-        //     const titanLayerProxy = new ethers.Contract(deployedTitanLayer, Layer2CandidateProxy_Json.abi, deployer)
-
-        //     await (await titanLayerProxy.connect(daoAdmin).upgradeTo(
-        //         Layer2CandidateV1_1Logic.address
-        //     )).wait()
-
-        // })
-
-        // it('upgrade Logic DepositManagerV1_1', async () => {
-        //     const DepositManagerV1_1_3Dep = await ethers.getContractFactory("DepositManagerV1_1");
-        //     const DepositManagerV1_1Logic = await DepositManagerV1_1_3Dep.deploy();
-        //     await DepositManagerV1_1Logic.deployed()
-
-        //     const selector1 = encodeFunctionSignature("ton()");
-        //     const selector2 = encodeFunctionSignature("minDepositGasLimit()");
-        //     const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
-        //     const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
-
-
-        //     let functionBytecodes = [
-        //         selector1, selector2, selector3, selector4  ];
-
-        //     await (await depositManagerProxy.connect(daoOwner).setImplementation2(
-        //         DepositManagerV1_1Logic.address, 1, true
-        //     )).wait()
-
-        //     await (await depositManagerProxy.connect(daoOwner).setSelectorImplementations2(
-        //         functionBytecodes, DepositManagerV1_1Logic.address
-        //     )).wait()
-
-        // })
-
-        // it('upgrade Logic SeigManagerV1_3', async () => {
-        //     const SeigManagerV1_3Dep = await ethers.getContractFactory("SeigManagerV1_3");
-        //     const SeigManagerV1_3Logic = await SeigManagerV1_3Dep.deploy();
-        //     await SeigManagerV1_3Logic.deployed()
-
-        //     const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
-        //     const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-        //     const selector3 = encodeFunctionSignature("setL2Registry(address)");
-        //     const selector4 = encodeFunctionSignature("updateSeigniorage()");
-        //     const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
-        //     const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
-        //     const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs()");
-        //     const selector8 = encodeFunctionSignature("totalLayer2TVL()");
-        //     const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-        //     const selector10 = encodeFunctionSignature("l2Registry()");
-        //     const selector11 = encodeFunctionSignature("layer2Manager()");
-        //     const selector12 = encodeFunctionSignature("layer2StartBlock()");
-        //     const selector13 = encodeFunctionSignature("l2RewardPerUint()");
-        //     const selector14 = encodeFunctionSignature("unSettledReward(address)");
-        //     const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-
-        //     let functionBytecodes = [
-        //         selector1, selector2, selector3, selector4, selector5,
-        //         selector6, selector7, selector8, selector9, selector10,
-        //         selector11, selector12, selector13, selector14, selector15 ];
-
-        //     await (await seigManagerProxy.connect(daoOwner).setImplementation2(
-        //         SeigManagerV1_3Logic.address, 1, true
-        //     )).wait()
-
-        //     await (await seigManagerProxy.connect(daoOwner).setSelectorImplementations2(
-        //         functionBytecodes, SeigManagerV1_3Logic.address
-        //     )).wait()
-
-        // })
 
         it('TitanCandidate updateSeigniorage(uint256 afterCall)', async () => {
 

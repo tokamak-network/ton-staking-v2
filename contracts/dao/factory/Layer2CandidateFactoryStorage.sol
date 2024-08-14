@@ -9,5 +9,5 @@ contract Layer2CandidateFactoryStorage  {
   address public ton;
   address public wton;
 
-  address public onDemandL2Registry;
+  address public onDemandL1BridgeRegistry;
 }

@@ -10,8 +10,8 @@ contract SeigManagerV1_3Storage  {
         uint256 initialDebt;
     }
 
-    /// L2Registry address
-    address public l2Registry;
+    /// L1BridgeRegistry address
+    address public l1BridgeRegistry;
     /// Layer2Manager address
     address public layer2Manager;
 

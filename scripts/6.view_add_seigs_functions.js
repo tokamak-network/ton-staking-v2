@@ -5,14 +5,14 @@ async function func1() {
 
   const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
   const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-  const selector3 = encodeFunctionSignature("setL2Registry(address)");
+  const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
   const selector4 = encodeFunctionSignature("updateSeigniorage()");
   const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
   const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
   const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
   const selector8 = encodeFunctionSignature("totalLayer2TVL()");
   const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-  const selector10 = encodeFunctionSignature("l2Registry()");
+  const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
   const selector11 = encodeFunctionSignature("layer2Manager()");
   const selector12 = encodeFunctionSignature("layer2StartBlock()");
   const selector13 = encodeFunctionSignature("l2RewardPerUint()");

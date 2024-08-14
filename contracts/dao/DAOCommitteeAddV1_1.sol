@@ -30,7 +30,7 @@ interface ILayer2CandidateFactory {
 
 interface ITarget {
     function setLayer2Manager(address layer2Manager_) external;
-    function setL2Registry(address l2Registry_) external;
+    function setL1BridgeRegistry(address l1BridgeRegistry_) external;
     function setLayer2StartBlock(uint256 startBlock_) external;
     function setImplementation2(address newImplementation, uint256 index, bool alive) external;
     function setSelectorImplementations2(
@@ -83,8 +83,8 @@ contract DAOCommitteeAddV1_1 is
         ITarget(target).setLayer2Manager(layer2Manager_);
     }
 
-    function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
-        ITarget(target).setL2Registry(l2Registry_);
+    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
+        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
     }
 
     function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {

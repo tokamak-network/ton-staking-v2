@@ -3,8 +3,8 @@ import { DeployFunction } from "hardhat-deploy/types";
 // import "hardhat-deploy/src/type-extensions";
 // import "@nomiclabs/hardhat-ethers";
 
-import { L2RegistryProxy } from "../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+import { L1BridgeRegistryProxy } from "../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 
 import { DepositManagerProxy } from "../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManagerProxy } from "../typechain-types/contracts/stake/managers/SeigManagerProxy"
@@ -22,10 +22,10 @@ import { Layer2CandidateV1_1 } from "../typechain-types/contracts/dao/Layer2Cand
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
-// write down th manager address of L2Registry
-// const L2Registry_Manager_Address = null
+// write down th manager address of L1BridgeRegistry
+// const L1BridgeRegistry_Manager_Address = null
 // sepolia test
-const L2Registry_Manager_Address = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
+const L1BridgeRegistry_Manager_Address = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
 
 const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
@@ -49,34 +49,34 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
           ]);
     }
 
-    //==== L2Registry =================================
-    const L2RegistryDeployment = await deploy("L2RegistryV1_1", {
+    //==== L1BridgeRegistry =================================
+    const L1BridgeRegistryDeployment = await deploy("L1BridgeRegistryV1_1", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const L2RegistryProxyDeployment = await deploy("L2RegistryProxy", {
+    const L1BridgeRegistryProxyDeployment = await deploy("L1BridgeRegistryProxy", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const l2RegistryProxy = (await hre.ethers.getContractAt(
-        L2RegistryProxyDeployment.abi,
-        L2RegistryProxyDeployment.address
-    )) as L2RegistryProxy;
+    const l1BridgeRegistryProxy = (await hre.ethers.getContractAt(
+        L1BridgeRegistryProxyDeployment.abi,
+        L1BridgeRegistryProxyDeployment.address
+    )) as L1BridgeRegistryProxy;
 
 
-    let impl_l2RegistryProxy = await l2RegistryProxy.implementation()
-    if (impl_l2RegistryProxy != L2RegistryDeployment.address) {
-        await (await l2RegistryProxy.connect(deploySigner).upgradeTo(L2RegistryDeployment.address)).wait()
+    let impl_l1BridgeRegistry = await l1BridgeRegistryProxy.implementation()
+    if (impl_l1BridgeRegistry != L1BridgeRegistryProxyDeployment.address) {
+        await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryProxyDeployment.address)).wait()
     }
 
-    const l2Registry = (await hre.ethers.getContractAt(
-        L2RegistryDeployment.abi,
-        l2RegistryProxy.address
-    )) as L2RegistryV1_1;
+    const l1BridgeRegistry = (await hre.ethers.getContractAt(
+        L1BridgeRegistryProxyDeployment.abi,
+        l1BridgeRegistryProxy.address
+    )) as L1BridgeRegistryV1_1;
 
 
     //==== OperatorFactory =========================
@@ -146,7 +146,7 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
             Layer2CandidateV1_1Deployment.address,
             TON,
             WTON,
-            l2RegistryProxy.address
+            l1BridgeRegistryProxy.address
         )).wait()
     }
 
@@ -173,10 +173,10 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
     }
 
-    if (L2Registry_Manager_Address != null) {
-        let res = await l2RegistryProxy.isManager(L2Registry_Manager_Address)
+    if (L1BridgeRegistry_Manager_Address != null) {
+        let res = await l1BridgeRegistryProxy.isManager(L1BridgeRegistry_Manager_Address)
         if (res == false) {
-            await (await l2RegistryProxy.connect(deploySigner).addManager(L2Registry_Manager_Address)).wait()
+            await (await l1BridgeRegistryProxy.connect(deploySigner).addManager(L1BridgeRegistry_Manager_Address)).wait()
         }
     }
 
@@ -186,9 +186,9 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     )) as Layer2ManagerV1_1;
 
     let l2Register_layer2Manager = await layer2Manager.l2Register()
-    if (l2Register_layer2Manager != l2RegistryProxy.address) {
+    if (l2Register_layer2Manager != l1BridgeRegistryProxy.address) {
         await (await layer2Manager.connect(deploySigner).setAddresses(
-                l2RegistryProxy.address,
+                l1BridgeRegistryProxy.address,
                 operatorFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager,
                 SeigManager, swapProxy
@@ -205,9 +205,9 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     }
 
 
-    let ton_l2Registry = await l2Registry.ton()
-    if (TON != ton_l2Registry) {
-        await (await l2Registry.connect(deploySigner).setAddresses(
+    let ton_l1BridgeRegistry = await l1BridgeRegistry.ton()
+    if (TON != ton_l1BridgeRegistry) {
+        await (await l1BridgeRegistry.connect(deploySigner).setAddresses(
             layer2Manager.address,
             SeigManager,
             TON

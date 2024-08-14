@@ -72,8 +72,8 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
 먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 옵티미즘 롤업이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인경우로 제한한다는 것을 기억해주길 바란다.  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 Layer2를 구별할 수 있는 주소로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 Layer2를 구별할 수 있는 주소록 사용해야 한다.
 
 # Use case
-## For registrant of L2Registry
-L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
+## For registrant of L1BridgeRegistry
+L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
@@ -83,7 +83,7 @@ L2Registry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유�
 
 
 ## For everyone
-누구나 L2Registry에 등록된 SystemConfig에 대해서 Layer2Candidate를 등록할 수 있다. Layer2Candidate 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘Layer2Candidate 등록’ 기능을 통해 Operator, Layer2Candidate, Coinage 컨트랙이 생성된다.
+누구나 L1BridgeRegistry에 등록된 SystemConfig에 대해서 Layer2Candidate를 등록할 수 있다. Layer2Candidate 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘Layer2Candidate 등록’ 기능을 통해 Operator, Layer2Candidate, Coinage 컨트랙이 생성된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
@@ -119,7 +119,7 @@ Layer2Candidate를 등록할때에는 해당 레이어의 오퍼레이터 이름
 
 Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있는 SystemConfig 컨트랙 주소를 제시해야 합니다.
 
-또한 입력하는 SystemConfig는 등록전에 L2Registry에 등록되어 있어야 합니다. ( L2Registry에 등록하는 권한은 L2Registry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
+또한 입력하는 SystemConfig는 등록전에 L1BridgeRegistry에 등록되어 있어야 합니다. ( L1BridgeRegistry에 등록하는 권한은 L1BridgeRegistry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
@@ -160,13 +160,13 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 # Contract Details
 
-## L2Registry
+## L1BridgeRegistry
 
 - 개요
     - 토카막 네트웤에서 운영되는 레이어2의 SystemConfig 컨트랙 주소가 등록된  컨트랙입니다.
     - 타이탄, 타노스는 어드민에 의해 수동으로 SystemConfig를 입력합니다.
     - on-demand L2에서 생성된 컨트랙은 컨트랙 생성시 자동으로 등록됩니다.
-    - 기존에 심플스테이킹에 Layer2Registry가 존재하여 구별을 주고자 L2Registry 로 이름을 정했다.
+    - 기존에 심플스테이킹에 Layer2Registry가 존재하여 구별을 주고자 L1BridgeRegistry 로 이름을 정했다.
     - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 한다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 매니저를 지정할 수 있다.
@@ -794,7 +794,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     address public ton;
     address public wton;
 
-    address public onDemandL2Registry;
+    address public onDemandL1BridgeRegistry;
     ```
 
 - 이벤트
@@ -994,8 +994,8 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         uint256 initialDebt;
     }
 
-    /// L2Registry address
-    address public l2Registry;
+    /// L1BridgeRegistry address
+    address public L1BridgeRegistry;
 
     /// Layer2Manager address
     address public layer2Manager;

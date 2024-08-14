@@ -29,7 +29,7 @@ interface ICandidate {
   function updateSeigniorage() external returns (bool);
 }
 
-interface IL2Registry {
+interface IL1BridgeRegistry {
   function layer2TVL(address _systemConfig) external view returns (uint256 amount);
 }
 
@@ -129,11 +129,11 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   /**
-   * @notice Set the l2Registry_ address
-   * @param l2Registry_    the l2Registry address
+   * @notice Set the l1BridgeRegistry_ address
+   * @param l1BridgeRegistry_    the l1BridgeRegistry address
    */
-  function setL2Registry(address l2Registry_) external onlyOwner {
-    l2Registry = l2Registry_;
+  function setL1BridgeRegistry(address l1BridgeRegistry_) external onlyOwner {
+    l1BridgeRegistry = l1BridgeRegistry_;
   }
 
   //////////////////////////////
@@ -259,7 +259,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
 
       if (layer2Allowed) {
-        curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+        curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(systemConfig);
         if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
       }
     }
@@ -540,7 +540,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     if(_layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number) {
       (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-      if (layer2Allowed) curLayer2Tvl = IL2Registry(l2Registry).layer2TVL(systemConfig);
+      if (layer2Allowed) curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(systemConfig);
       if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
     }
 

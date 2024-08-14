@@ -8,8 +8,9 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
+
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
@@ -63,7 +64,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 describe('Layer2Manager', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
@@ -188,14 +189,15 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# L2Registry', () => {
+    describe('# L1BridgeRegistry', () => {
         it('deploy', async () => {
-            l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
-            l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
+            l1BridgeRegistryV_1 = (await (await ethers.getContractFactory("L1BridgeRegistryV1_1")).connect(deployer).deploy()) as L1BridgeRegistryV1_1;
+            l1BridgeRegistryProxy = (await (await ethers.getContractFactory("L1BridgeRegistryProxy")).connect(deployer).deploy()) as L1BridgeRegistryProxy;
 
-            await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+            await (await l1BridgeRegistryProxy.connect(deployer).upgradeTo(l1BridgeRegistryV_1.address)).wait()
 
-            l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+            l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", l1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
+
         });
     })
 
@@ -240,7 +242,7 @@ describe('Layer2Manager', () => {
                 layer2CandidateV1_1Imp.address,
                 TON,
                 WTON,
-                l2RegistryProxy.address
+                l1BridgeRegistryProxy.address
             )).wait()
         });
     })
@@ -254,8 +256,8 @@ describe('Layer2Manager', () => {
         });
 
         it('addManager can be executed by admin', async () => {
-            await (await l2RegistryProxy.connect(deployer).addManager(manager.address)).wait()
-            expect(await l2RegistryProxy.isManager(manager.address)).to.be.eq(true)
+            await (await l1BridgeRegistryProxy.connect(deployer).addManager(manager.address)).wait()
+            expect(await l1BridgeRegistryProxy.isManager(manager.address)).to.be.eq(true)
         })
     })
 
@@ -268,7 +270,7 @@ describe('Layer2Manager', () => {
 
             await expect(
                 layer2Manager.connect(addr1).setAddresses(
-                    l2RegistryProxy.address,
+                    l1BridgeRegistryProxy.address,
                     operatorFactory.address,
                     TON, WTON, DAOCommitteeProxy, DepositManager,
                     SeigManager, swapProxy
@@ -282,7 +284,7 @@ describe('Layer2Manager', () => {
             expect(await layer2Manager.isAdmin(deployer.address)).to.be.eq(true)
 
             let receipt = await (await layer2Manager.connect(deployer).setAddresses(
-                l2RegistryProxy.address,
+                l1BridgeRegistryProxy.address,
                 operatorFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager, SeigManager, swapProxy
             )).wait()
@@ -291,7 +293,7 @@ describe('Layer2Manager', () => {
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = layer2Manager.interface.parseLog(log);
 
-            expect(deployedEvent.args._l2Register).to.be.eq(l2RegistryProxy.address)
+            expect(deployedEvent.args._l2Register).to.be.eq(l1BridgeRegistryProxy.address)
             expect(deployedEvent.args._operatorFactory).to.be.eq(operatorFactory.address)
             expect(deployedEvent.args._ton).to.be.eq(TON)
             expect(deployedEvent.args._wton).to.be.eq(WTON)
@@ -355,21 +357,21 @@ describe('Layer2Manager', () => {
             let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l2Ton, l1BridgeRegistryProxy.address
             )).wait()
         })
 
         it('registerSystemConfigByManager  ', async () => {
             let type = 1;
 
-            let receipt = await (await l2Registry.connect(manager).registerSystemConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfig.address,
                 type
             )).wait()
 
-            const topic = l2Registry.interface.getEventTopic('RegisteredSystemConfig');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredSystemConfig');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
             expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
@@ -395,14 +397,14 @@ describe('Layer2Manager', () => {
             let l2Ton = l2TonAddress
 
             await (await legacySystemConfigTest2.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l2Ton, l1BridgeRegistryProxy.address
             )).wait()
         })
 
         it('registerSystemConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
 
-             await expect(l2Registry.connect(manager).registerSystemConfigByManager(
+             await expect(l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
             )).to.be.revertedWith("unavailable for registration")
@@ -414,8 +416,8 @@ describe('Layer2Manager', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
             let systemConfig = l1MessengerAddress
 
-            expect(await layer2Manager.l2Register()).to.be.eq(l2Registry.address)
-            expect(await l2Registry.systemConfigType(systemConfig)).to.be.eq(0)
+            expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
+            expect(await l1BridgeRegistry.systemConfigType(systemConfig)).to.be.eq(0)
 
             let check = await layer2Manager.checkLayer2TVL(systemConfig)
             expect(check.result).to.be.eq(false)
@@ -424,8 +426,8 @@ describe('Layer2Manager', () => {
 
         it('If the SystemConfig or L1Bridge address exist, the result is returned as false.', async () => {
 
-            expect(await layer2Manager.l2Register()).to.be.eq(l2Registry.address)
-            expect(await l2Registry.systemConfigType(legacySystemConfig.address)).to.be.eq(1)
+            expect(await layer2Manager.l2Register()).to.be.eq(l1BridgeRegistry.address)
+            expect(await l1BridgeRegistry.systemConfigType(legacySystemConfig.address)).to.be.eq(1)
 
             let check = await layer2Manager.checkLayer2TVL(legacySystemConfig.address)
             expect(check.result).to.be.eq(true)
@@ -466,14 +468,14 @@ describe('Layer2Manager', () => {
 
             const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
             const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-            const selector3 = encodeFunctionSignature("setL2Registry(address)");
+            const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
             const selector4 = encodeFunctionSignature("updateSeigniorage()");
             const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
             const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
             const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
             const selector8 = encodeFunctionSignature("totalLayer2TVL()");
             const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-            const selector10 = encodeFunctionSignature("l2Registry()");
+            const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector11 = encodeFunctionSignature("layer2Manager()");
             const selector12 = encodeFunctionSignature("layer2StartBlock()");
             const selector13 = encodeFunctionSignature("l2RewardPerUint()");
@@ -578,10 +580,10 @@ describe('Layer2Manager', () => {
             await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
         })
 
-        it('setTargetSetL2Registry to l2Register', async () => {
-            // await (await daoV2Contract.connect(daoOwner).setTargetSetL2Registry(seigManager.address, l2Registry.address)).wait()
+        it('setTargetSetL1BridgeRegistry to l2Register', async () => {
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetL1BridgeRegistry(seigManager.address, l1BridgeRegistry.address)).wait()
 
-            await (await seigManager.connect(daoOwner).setL2Registry(l2Registry.address)).wait()
+            await (await seigManager.connect(daoOwner).setL1BridgeRegistry(l1BridgeRegistry.address)).wait()
         })
     })
 
@@ -590,7 +592,7 @@ describe('Layer2Manager', () => {
             const amount = await layer2Manager.minimumInitialDepositAmount()
 
             await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
-                l2Registry.address,
+                l1BridgeRegistry.address,
                 amount,
                 true,
                 'test1'
@@ -690,7 +692,7 @@ describe('Layer2Manager', () => {
             ) ).to.be.revertedWith("already registered");
         })
 
-        it('Layers that are not registered in the L2Registry cannot be registered.', async () => {
+        it('Layers that are not registered in the L1BridgeRegistry cannot be registered.', async () => {
             expect((await layer2Manager.issueStatusLayer2(legacySystemConfigTest2.address))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
@@ -721,7 +723,7 @@ describe('Layer2Manager', () => {
                 const {TON} = await getNamedAccounts();
 
                 await expect(
-                    l2Registry.connect(addr1).setAddresses(
+                    l1BridgeRegistry.connect(addr1).setAddresses(
                         layer2Manager.address,
                         seigManager.address,
                         TON
@@ -732,13 +734,13 @@ describe('Layer2Manager', () => {
             it('setAddresses : onlyOwner ', async () => {
                 const {TON} = await getNamedAccounts();
 
-                await (await l2Registry.connect(deployer).setAddresses(
+                await (await l1BridgeRegistry.connect(deployer).setAddresses(
                         layer2Manager.address,
                         seigManager.address,
                         TON
                 )).wait()
 
-                expect(await l2Registry.layer2Manager()).to.be.eq(layer2Manager.address)
+                expect(await l1BridgeRegistry.layer2Manager()).to.be.eq(layer2Manager.address)
             })
         })
 
@@ -882,7 +884,7 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
             const l2RewardPerUint1 = await seigManager.l2RewardPerUint()
             // console.log('=== the first =====')
             // console.log('prev totalTvl', totalTvl)
@@ -993,7 +995,7 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
             const l2RewardPerUint1 = await seigManager.l2RewardPerUint()
 
             // console.log('=== the second =====')
@@ -1114,7 +1116,7 @@ describe('Layer2Manager', () => {
 
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -1242,7 +1244,7 @@ describe('Layer2Manager', () => {
 
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -1902,7 +1904,7 @@ describe('Layer2Manager', () => {
             let systemConfig = await titanOperatorContract.systemConfig()
             expect(systemConfig).to.be.not.eq(ethers.constants.AddressZero)
 
-            let prevLayer2TVL = await l2Registry.layer2TVL(systemConfig)
+            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(systemConfig)
 
             let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
 
@@ -1922,7 +1924,7 @@ describe('Layer2Manager', () => {
             expect(stakedB).to.be.eq(ethers.constants.Zero)
 
             const afterTonBalance = await tonContract.balanceOf(depositManager.address);
-            expect(await l2Registry.layer2TVL(systemConfig)).to.be.eq(
+            expect(await l1BridgeRegistry.layer2TVL(systemConfig)).to.be.eq(
                 prevLayer2TVL.add(stakedA.div(BigNumber.from("1000000000"))))
 
         })
