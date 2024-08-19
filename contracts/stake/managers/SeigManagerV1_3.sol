@@ -30,13 +30,13 @@ interface ICandidate {
 }
 
 interface IL1BridgeRegistry {
-  function layer2TVL(address _systemConfig) external view returns (uint256 amount);
+  function layer2TVL(address _rollupConfig) external view returns (uint256 amount);
 }
 
 interface ILayer2Manager {
-  function updateSeigniorage(address systemConfig, uint256 amount) external ;
-  function systemConfigOfOperator(address operator) external view returns (address);
-  function issueStatusLayer2(address systemConfig) external view returns (uint8);
+  function updateSeigniorage(address rollupConfig, uint256 amount) external ;
+  function rollupConfigOfOperator(address operator) external view returns (address);
+  function statusLayer2(address rollupConfig) external view returns (uint8);
 }
 
 /**
@@ -249,17 +249,17 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // L2 sequencers
     uint256 curLayer2Tvl = 0;
-    address systemConfig;
+    address rollupConfig;
     bool layer2Allowed;
     uint256 tempLayer2StartBlock = layer2StartBlock;
     Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
     if (layer2StartBlock == 0) tempLayer2StartBlock = blockNumber - 1;
 
     if(layer2Manager != address(0) && tempLayer2StartBlock != 1 && tempLayer2StartBlock < blockNumber) {
-      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
+      (rollupConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
 
       if (layer2Allowed) {
-        curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(systemConfig);
+        curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
         if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
       }
     }
@@ -300,15 +300,15 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   /**
    * @notice Check layer2 information managed in Layer2Manager
    * @param layer2            The layer2 address
-   * @return systemConfig     The systemConfig address of layer2
+   * @return rollupConfig     The rollupConfig address of layer2
    * @return allowed          Seigniorage distribution status on layer2.
    *                          If true, seigniorage is being distributed.
    */
-  function allowIssuanceLayer2Seigs(address layer2) public view returns (address systemConfig, bool allowed) {
-      systemConfig = ILayer2Manager(layer2Manager).systemConfigOfOperator(Layer2I(layer2).operator());
+  function allowIssuanceLayer2Seigs(address layer2) public view returns (address rollupConfig, bool allowed) {
+      rollupConfig = ILayer2Manager(layer2Manager).rollupConfigOfOperator(Layer2I(layer2).operator());
 
-      if (systemConfig == address(0)) allowed = false;
-      else if (ILayer2Manager(layer2Manager).issueStatusLayer2(systemConfig) == 1) allowed = true;
+      if (rollupConfig == address(0)) allowed = false;
+      else if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
 
   }
 
@@ -528,7 +528,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     // L2 sequencers
     uint256 l2TotalSeigs;
     uint256 curLayer2Tvl;
-    address systemConfig;
+    address rollupConfig;
     bool layer2Allowed;
 
     // L2 seigs settlement
@@ -539,8 +539,8 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
     if(_layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number) {
-      (systemConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-      if (layer2Allowed) curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(systemConfig);
+      (rollupConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
+      if (layer2Allowed) curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
       if (totalLayer2TVL != 0)  l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9),tos);
     }
 
@@ -593,7 +593,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
           layer2Seigs = unSettledReward(msg.sender);
 
           if (layer2Seigs != 0) {
-            ILayer2Manager(_layer2Manager).updateSeigniorage(systemConfig, layer2Seigs);
+            ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, layer2Seigs);
             newLayer2Info.initialDebt += layer2Seigs;
           }
 

@@ -6,16 +6,16 @@ pragma solidity ^0.8.4;
 contract Layer2ManagerStorage  {
 
     struct OperatorInfo {
-        address systemConfig;
-        address layer2Candidate;
+        address rollupConfig;
+        address candidateAddOn;
     }
 
-    struct SystemConfigInfo {
-        uint8 stateIssue; // status for giving seigniorage ( 0: none , 1: registered, 2: paused )
-        address operator;
+    struct SeqSeigStatus {
+        uint8 status; // status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+        address operatorManager;
     }
 
-    address public l2Register;
+    address public l1BridgeRegistry;
     address public operatorFactory;
 
     address public ton;
@@ -27,10 +27,10 @@ contract Layer2ManagerStorage  {
 
     uint256 public minimumInitialDepositAmount;   /// ton
 
-    /// systemConfig - SystemConfigInfo
-    mapping (address => SystemConfigInfo) public systemConfigInfo;
+    /// rollupConfig - SeqSeigStatus
+    mapping (address => SeqSeigStatus) public rollupConfigInfo;
 
-    /// operator - OperatorInfo
+    /// candidateAddOn - OperatorInfo
     mapping (address => OperatorInfo) public operatorInfo;
 
     bool internal _lock;

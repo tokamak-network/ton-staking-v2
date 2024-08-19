@@ -117,7 +117,6 @@ contract DAOCommitteeAddV1_1 is
             address(this),
             address(seigManager)
         );
-
         if (candidateContract == address(0)) revert CreateCandiateError(1);
         if (_candidateInfos[_operatorAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 

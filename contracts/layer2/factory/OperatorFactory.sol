@@ -10,22 +10,20 @@ error SameVariableError();
 error AlreadySetError();
 
 interface IOperator {
-    function setSystemConfig(address _systemConfig) external;
     function transferOwnership(address newOwner) external;
     function transferManager(address addr) external;
-    function addOperator(address addr) external;
     function upgradeTo(address _logic) external;
     function setAddresses(address _layer2Manager, address _depositManager, address _ton, address _wton) external;
 }
 
-interface ISystemConfig {
+interface IRollupConfig {
     function owner() external view returns (address);
 }
 
 /**
  * @notice  Error in createOperator function
  * @param x 1: sender is not Layer2Manager
- *          2: zero systemConfig's owner
+ *          2: zero rollupConfig's owner
  *          3: already created Operator
  */
 error CreateError(uint x);
@@ -56,12 +54,12 @@ contract OperatorFactory is Ownable {
 
     /**
      * @notice Event occured when create the Operator Contract
-     * @param systemConfig  the systemConfig address
+     * @param rollupConfig  the rollupConfig address
      * @param owner         the owner address
      * @param manager       the manager address
      * @param operator      the operator address
      */
-    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
+    event CreatedOperator(address rollupConfig, address owner, address manager, address operator);
 
     constructor(address _operatorImplementation) {
         operatorImplementation = _operatorImplementation;
@@ -108,39 +106,38 @@ contract OperatorFactory is Ownable {
      *          return revert if the account is already deployed.
      *          Note. Only Layer2Manager Contract can be called.
      *          When creating the Layer2Candidate, create an Operator contract
-     *          that is mapped to SystemConfig.
-     * @param systemConfig  the systemConfig address
+     *          that is mapped to RollupConfig.
+     * @param rollupConfig  the rollupConfig address
      */
-    function createOperator(address systemConfig) external returns (address operator) {
+    function createOperator(address rollupConfig) external returns (address operator) {
         if (msg.sender != layer2Manager) revert CreateError(1);
-        require(getAddress(systemConfig).code.length == 0, "already created");
+        require(getAddress(rollupConfig).code.length == 0, "already created");
 
-        address sManager = ISystemConfig(systemConfig).owner();
+        address sManager = IRollupConfig(rollupConfig).owner();
         if (sManager == address(0)) revert CreateError(2);
 
         address sOwner = owner();
-        operator = address(new OperatorProxy{salt : bytes32(CREATE_SALT)}(systemConfig));
+        operator = address(new OperatorProxy{salt : bytes32(CREATE_SALT)}(rollupConfig));
         IOperator(operator).upgradeTo(operatorImplementation);
         IOperator(operator).transferManager(sManager);
-        IOperator(operator).addOperator(sManager);
         IOperator(operator).transferOwnership(sOwner);
         IOperator(operator).setAddresses(msg.sender, depositManager, ton, wton);
+        emit CreatedOperator(rollupConfig, sOwner, sManager, operator);
 
-        emit CreatedOperator(systemConfig, sOwner, sManager, operator);
     }
 
     /**
-     * @notice  Returns the operator contract address matching systemConfig.
-     * @param systemConfig  the systemConfig address
+     * @notice  Returns the operator contract address matching rollupConfig.
+     * @param rollupConfig  the rollupConfig address
      */
-    function getAddress(address systemConfig) public view returns (address) {
+    function getAddress(address rollupConfig) public view returns (address) {
 
         return address(uint160(uint(keccak256(
             abi.encodePacked(
                 bytes1(0xff),
                 address(this),
                 CREATE_SALT,
-                keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(systemConfig)))
+                keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(rollupConfig)))
             )
         ))));
     }

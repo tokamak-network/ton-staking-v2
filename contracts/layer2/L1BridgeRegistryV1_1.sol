@@ -4,7 +4,6 @@ pragma solidity ^0.8.4;
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
 import "./L1BridgeRegistryStorage.sol";
-import "./L1BridgeRegistryV1_1Storage.sol";
 
 /**
  * @notice  Error occurred when executing changeType function
@@ -14,7 +13,7 @@ import "./L1BridgeRegistryV1_1Storage.sol";
 error ChangeError(uint x);
 
 /**
- * @notice  Error when executing registerSystemConfig function
+ * @notice  Error when executing registerRollupConfig function
  * @param x 1: unsupported type
  *          2: already registered
  *          3: unavailable for registration
@@ -41,13 +40,13 @@ interface IOptimismSystemConfig {
 }
 
 interface ILayer2Manager {
-    function pauseLayer2Candidate(address systemConfig) external;
-    function unpauseLayer2Cnadidate(address systemConfig) external;
+    function pauseLayer2Candidate(address rollupConfig) external;
+    function unpauseLayer2Cnadidate(address rollupConfig) external;
 }
 
-contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage, L1BridgeRegistryV1_1Storage {
+contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage {
 
-    enum TYPE_SYSTEMCONFIG {
+    enum TYPE_ROLLUPCONFIG {
         NONE,
         LEGARCY,
         OPTIMISM_BEDROCK
@@ -57,54 +56,54 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     event SetSeigniorageCommittee(address _seigniorageCommittee);
 
     /**
-     * @notice  Event occurs when registering SystemConfig
-     * @param   systemConfig  the systemConfig address
+     * @notice  Event occurs when registering rollupConfig
+     * @param   rollupConfig      the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
      */
-    event RegisteredSystemConfig(address systemConfig, uint8 type_);
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_);
 
     /**
      * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
-     * @param   systemConfig  the systemConfig address
+     * @param   rollupConfig      the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
      */
-    event ChangedType(address systemConfig, uint8 type_);
+    event ChangedType(address rollupConfig, uint8 type_);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   rollupConfig  the rollupConfig address
      */
-    event RejectedLayer2Candidate(address _systemConfig);
+    event RejectedLayer2Candidate(address rollupConfig);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   rollupConfig  the rollupConfig address
      */
-    event RestoredLayer2Candidate(address _systemConfig);
+    event RestoredLayer2Candidate(address rollupConfig);
 
     /**
      * @notice  Event occurs when a bridge address is registered during system configuration registration.
-     * @param   _systemConfig   the systemConfig address
+     * @param   rollupConfig        the rollupConfig address
      * @param   bridge          the bridge address
      */
-    event AddedBridge(address _systemConfig, address bridge);
+    event AddedBridge(address rollupConfig, address bridge);
 
     /**
      * @notice  Event occurs when a optimismPortal address is registered during system configuration registration.
-     * @param _systemConfig     the systemConfig address
+     * @param rollupConfig          the rollupConfig address
      * @param portal            the bridge address
      */
-    event AddedPortal(address _systemConfig, address portal);
+    event AddedPortal(address rollupConfig, address portal);
 
     modifier onlySeigniorageCommittee() {
         require(seigniorageCommittee == msg.sender, "PermissionError");
         _;
     }
 
-    modifier nonRejected(address systemConfig) {
-        require(!rejectSystemConfig[systemConfig], "rejected");
+    modifier nonRejected(address rollupConfig) {
+        require(!rejectRollupConfig[rollupConfig], "rejected");
         _;
     }
 
@@ -149,101 +148,101 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     /* ========== onlySeigniorageCommittee ========== */
 
     /**
-     * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific systemConfig.
-     * @param _systemConfig the systemConfig address
+     * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     * @param rollupConfig the rollupConfig address
      */
     function rejectLayer2Candidate(
-        address _systemConfig
+        address rollupConfig
     )  external onlySeigniorageCommittee() {
-        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
+        if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
 
-        require (rollupType[_systemConfig] != 0, "NonRegistered");
+        require (rollupType[rollupConfig] != 0, "NonRegistered");
 
-        rejectSystemConfig[_systemConfig] = true;
-        ILayer2Manager(layer2Manager).pauseLayer2Candidate(_systemConfig);
-        emit RejectedLayer2Candidate(_systemConfig);
+        rejectRollupConfig[rollupConfig] = true;
+        ILayer2Manager(layer2Manager).pauseLayer2Candidate(rollupConfig);
+        emit RejectedLayer2Candidate(rollupConfig);
     }
 
     /**
-     * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific systemConfig.
-     * @param _systemConfig the systemConfig address
+     * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     * @param rollupConfig the rollupConfig address
      */
     function restoreLayer2Candidate(
-        address _systemConfig
+        address rollupConfig
     )  external onlySeigniorageCommittee() {
-        _onlyRejectedSystemConfig(_systemConfig);
+        _onlyRejectedRollupConfig(rollupConfig);
 
-        rejectSystemConfig[_systemConfig] = false;
-        ILayer2Manager(layer2Manager).unpauseLayer2Cnadidate(_systemConfig);
-        emit RestoredLayer2Candidate(_systemConfig);
+        rejectRollupConfig[rollupConfig] = false;
+        ILayer2Manager(layer2Manager).unpauseLayer2Cnadidate(rollupConfig);
+        emit RestoredLayer2Candidate(rollupConfig);
     }
 
     /* ========== onlyManager ========== */
 
     /**
-     * @notice Registers Layer2 for a specific systemConfig by the manager.
-     * @param _systemConfig the systemConfig address
-     * @param _type          1: legacy, 2: bedrock with nativeTON
+     * @notice Registers Layer2 for a specific rollupConfig by the manager.
+     * @param rollupConfig      the rollupConfig address
+     * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager {
-        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
-        _registerSystemConfig(_systemConfig, _type);
+    function registerRollupConfigByManager(address rollupConfig, uint8 _type)  external  onlyManager {
+        if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
+        _registerRollupConfig(rollupConfig, _type);
     }
 
     /* ========== onlyRegistrant ========== */
 
 
     /**
-     * @notice Registers Layer2 for a specific systemConfig by Registrant.
-     * @param _systemConfig the systemConfig address
+     * @notice Registers Layer2 for a specific rollupConfig by Registrant.
+     * @param rollupConfig       the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant {
-        if(rejectSystemConfig[_systemConfig]) revert NonRejectedError();
-        _registerSystemConfig(_systemConfig, _type);
+    function registerRollupConfig(address rollupConfig, uint8 _type)  external  onlyRegistrant {
+        if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
+        _registerRollupConfig(rollupConfig, _type);
     }
 
     /**
-     * @notice Changes the Layer2 type for a specific systemConfig by Registrant.
-     * @param _systemConfig the systemConfig address
+     * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
+     * @param rollupConfig the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant {
-        if (rollupType[_systemConfig] == 0) revert ChangeError(1);
-        if (rollupType[_systemConfig] == _type) revert ChangeError(2);
+    function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant {
+        if (rollupType[rollupConfig] == 0) revert ChangeError(1);
+        if (rollupType[rollupConfig] == _type) revert ChangeError(2);
 
-        rollupType[_systemConfig] = _type;
+        rollupType[rollupConfig] = _type;
 
-        emit ChangedType(_systemConfig, _type);
+        emit ChangedType(rollupConfig, _type);
     }
 
     /* ========== public ========== */
 
     /**
-     * @notice View the liquidity of Layer2 TON for a specific systemConfig.
-     * @param _systemConfig the systemConfig address
+     * @notice View the liquidity of Layer2 TON for a specific rollupConfig.
+     * @param rollupConfig the rollupConfig address
      */
-    function layer2TVL(address _systemConfig) public view returns (uint256 amount){
+    function layer2TVL(address rollupConfig) public view returns (uint256 amount){
 
-        uint _type = rollupType[_systemConfig];
+        uint _type = rollupType[rollupConfig];
 
         if (_type == 1) {
-            address l1Bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
+            address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if (l1Bridge[l1Bridge_]) amount = IERC20(ton).balanceOf(l1Bridge_);
 
         } else if (_type == 2) {
-             address optimismPortal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
+             address optimismPortal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (portal[optimismPortal_]) amount = IERC20(ton).balanceOf(optimismPortal_);
         }
     }
 
     /**
-     * @notice Check whether a specific systemConfig can be registered as a type.
-     * @param _systemConfig the systemConfig address
+     * @notice Check whether a specific rollupConfig can be registered as a type.
+     * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid){
-        return _availableForRegistration(_systemConfig, _type);
+    function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid){
+        return _availableForRegistration(rollupConfig, _type);
     }
 
     /* ========== internal ========== */
@@ -252,42 +251,42 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if(_addr1 == address(0) || _addr2 == address(0) || _addr3 == address(0) ) revert ZeroAddressError();
     }
 
-    function _onlyRejectedSystemConfig(address _systemConfig) internal view {
-        if(!rejectSystemConfig[_systemConfig]) revert OnlyRejectedError();
+    function _onlyRejectedRollupConfig(address rollupConfig) internal view {
+        if(!rejectRollupConfig[rollupConfig]) revert OnlyRejectedError();
     }
 
-    function _registerSystemConfig(address _systemConfig, uint8 _type) internal {
+    function _registerRollupConfig(address rollupConfig, uint8 _type) internal {
 
-        if (_type == 0 || _type > uint8(type(TYPE_SYSTEMCONFIG).max)) revert RegisterError(1);
-        if (rollupType[_systemConfig] != 0) revert RegisterError(2);
-        if (!_availableForRegistration(_systemConfig, _type)) revert RegisterError(3);
+        if (_type == 0 || _type > uint8(type(TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
+        if (rollupType[rollupConfig] != 0) revert RegisterError(2);
+        if (!_availableForRegistration(rollupConfig, _type)) revert RegisterError(3);
 
-        rollupType[_systemConfig] = _type;
+        rollupType[rollupConfig] = _type;
         if (_type == 1) {
-            address bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
+            address bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if (bridge_ == address(0)) revert BridgeError();
             l1Bridge[bridge_] = true;
-            emit AddedBridge(_systemConfig, bridge_);
+            emit AddedBridge(rollupConfig, bridge_);
         } else if (_type == 2) {
-            address portal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
+            address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (portal_ == address(0)) revert PortalError();
             portal[portal_] = true;
-            emit AddedPortal(_systemConfig, portal_);
+            emit AddedPortal(rollupConfig, portal_);
         }
 
-        emit RegisteredSystemConfig(_systemConfig, _type);
+        emit RegisteredRollupConfig(rollupConfig, _type);
     }
 
-    function _availableForRegistration(address _systemConfig, uint8 _type) internal view returns (bool valid){
-        if (!rejectSystemConfig[_systemConfig]) {
-            address l1Bridge_ = IOptimismSystemConfig(_systemConfig).l1StandardBridge();
+    function _availableForRegistration(address rollupConfig, uint8 _type) internal view returns (bool valid){
+        if (!rejectRollupConfig[rollupConfig]) {
+            address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if(l1Bridge_ != address(0)) {
                 if (_type == 1) {
-                    if(rollupType[_systemConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
+                    if(rollupType[rollupConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
                 } else if (_type == 2) {
-                    address portal_ = IOptimismSystemConfig(_systemConfig).optimismPortal();
+                    address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
                     if (portal_ != address(0)) {
-                        if (rollupType[_systemConfig] == 0 && !portal[portal_]) valid = true;
+                        if (rollupType[rollupConfig] == 0 && !portal[portal_]) valid = true;
                     }
                 }
             }

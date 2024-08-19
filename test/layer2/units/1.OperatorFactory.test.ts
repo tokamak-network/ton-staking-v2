@@ -73,7 +73,7 @@ describe('OperatorFactory', () => {
 
     })
 
-    describe('SystemConfig', () => {
+    describe('rollupConfig', () => {
 
         it('set Titan LegacySystemConfig ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
@@ -132,26 +132,6 @@ describe('OperatorFactory', () => {
 
         })
 
-        // it('createOperator can be executed by Layer2Manager', async () => {
-
-        //     expect(await legacySystemConfig.owner()).to.be.eq(manager.address)
-
-        //     let operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
-
-        //     let receipt = await (await operatorFactory.connect(manager).createOperator(
-        //         legacySystemConfig.address
-        //     )).wait()
-
-        //     const topic = operatorFactory.interface.getEventTopic('CreatedOperator');
-        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-        //     const deployedEvent = operatorFactory.interface.parseLog(log);
-
-        //     expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
-        //     expect(deployedEvent.args.owner).to.be.eq(deployer.address)
-        //     expect(deployedEvent.args.manager).to.be.eq(manager.address)
-        //     expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
-
-        // })
     })
 
     describe('# changeOperatorImplementaion ', () => {

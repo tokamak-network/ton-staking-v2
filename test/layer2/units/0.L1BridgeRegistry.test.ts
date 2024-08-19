@@ -91,77 +91,77 @@ describe('L1BridgeRegistry', () => {
         })
     })
 
-    describe('# addOperator', () => {
+    describe('# addRegistrant', () => {
 
-        it('addOperator can not be executed by not an admin', async () => {
+        it('addRegistrant can not be executed by not an admin', async () => {
             await expect(
                 l1BridgeRegistryProxy.connect(operator).addRegistrant(operator.address)
                 ).to.be.revertedWith("AuthControl: Caller is not an admin")
         })
 
-        it('addOperator can be executed by admin', async () => {
+        it('addRegistrant can be executed by admin', async () => {
             await (await l1BridgeRegistryProxy.connect(deployer).addRegistrant(operator.address)).wait()
             expect(await l1BridgeRegistryProxy.isRegistrant(operator.address)).to.be.eq(true)
         })
     })
 
-    describe('# registerSystemConfigByManager', () => {
+    describe('# registerRollupConfigByManager', () => {
 
-        it('registerSystemConfigByManager can not be executed by not manager', async () => {
+        it('registerRollupConfigByManager can not be executed by not manager', async () => {
 
             let type = 1;
 
             await expect(
-                l1BridgeRegistry.connect(operator).registerSystemConfigByManager(
+                l1BridgeRegistry.connect(operator).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a manager")
         })
 
-        it('registerSystemConfigByManager : zero type is not accepted.', async () => {
+        it('registerRollupConfigByManager : zero type is not accepted.', async () => {
             let type = 0;
             await expect(
-                l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
+                l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerSystemConfigByManager : type over max is not accepted.', async () => {
+        it('registerRollupConfigByManager : type over max is not accepted.', async () => {
             let type = 3;
             await expect(
-                l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
+                l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerSystemConfigByManager  ', async () => {
+        it('registerL2RollupConfigByManager  ', async () => {
             let type = 1;
 
-            let receipt = await (await l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
                 type
             )).wait()
 
-            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredSystemConfig');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
             expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(type)
 
         })
 
-        it('cannot be registered with same systemConfig ', async () => {
+        it('cannot be registered with same rollupConfig ', async () => {
             let type = 2;
             await expect(
-                l1BridgeRegistry.connect(manager).registerSystemConfigByManager(
+                l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type
                 )
@@ -204,7 +204,7 @@ describe('L1BridgeRegistry', () => {
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
             expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(type)
@@ -213,45 +213,45 @@ describe('L1BridgeRegistry', () => {
 
     });
 
-    describe('# registerSystemConfig', () => {
+    describe('# registerL1Config', () => {
 
-        it('registerSystemConfig can not be executed by not a registrant', async () => {
+        it('registerL1Config can not be executed by not a registrant', async () => {
 
             let type = 1;
 
             await expect(
-                l1BridgeRegistry.connect(deployer).registerSystemConfig(
+                l1BridgeRegistry.connect(deployer).registerRollupConfig(
                     legacySystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
 
-        it('registerSystemConfig : zero type is not accepted.', async () => {
+        it('registerL1Config : zero type is not accepted.', async () => {
             let type = 0;
             await expect(
-                l1BridgeRegistry.connect(operator).registerSystemConfig(
+                l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerSystemConfig : type over max is not accepted.', async () => {
+        it('registerL1Config : type over max is not accepted.', async () => {
             let type = 3;
             await expect(
-                l1BridgeRegistry.connect(operator).registerSystemConfig(
+                l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerSystemConfig :  ', async () => {
+        it('registerL1Config :  ', async () => {
 
             let type = 2;
             await expect(
-                l1BridgeRegistry.connect(operator).registerSystemConfig(
+                l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type
                 )

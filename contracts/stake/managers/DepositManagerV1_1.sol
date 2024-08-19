@@ -32,10 +32,6 @@ interface ISeigManager {
   function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
 }
 
-// interface IOperator {
-//   function checkL1Bridge() external view returns (bool result, address l1Bridge, address l2Ton);
-// }
-
 interface IL1Bridge {
   function depositERC20To(
         address _l1Token,

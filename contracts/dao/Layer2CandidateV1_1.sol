@@ -11,7 +11,7 @@ import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
 
 interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
-    function systemConfig() external view returns (address) ;
+    function rollupConfig() external view returns (address) ;
     function manager() external view returns (address) ;
     function claimByLayer2Candidate(uint256 amount) external;
     function depositByLayer2Canddiate(uint256 amount) external ;
@@ -53,7 +53,7 @@ contract Layer2CandidateV1_1 is
             "Candidate: input is zero"
         );
 
-        require(IOperateContract(_operateContract).systemConfig() != address(0), 'zero systemConfig');
+        require(IOperateContract(_operateContract).rollupConfig() != address(0), 'zero rollupConfig');
 
         candidate = _operateContract;
         isLayer2Candidate = true;

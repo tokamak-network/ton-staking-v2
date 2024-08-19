@@ -6,8 +6,6 @@ import { Layer2CandidateProxy } from "../Layer2CandidateProxy.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./Layer2CandidateFactoryStorage.sol";
-// import "hardhat/console.sol";
-
 interface ILayer2Candidate {
     function initialize(
         address _candidate,
@@ -20,7 +18,7 @@ interface ILayer2Candidate {
 }
 
 interface IOnDemandL1BridgeRegistry {
-    function exists(address _systemConfig) external view returns (bool);
+    function exists(address _rollupConfig) external view returns (bool);
 }
 
 contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2CandidateFactoryStorage {
@@ -99,7 +97,6 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         require(address(c) != address(0), "zero Layer2CandidateProxy");
 
         c.upgradeTo(layer2CandidateImp);
-
         ILayer2Candidate(address(c)).initialize(
             _sender,
             _name,
@@ -109,7 +106,6 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
             wton
         );
         c.transferAdmin(_committee);
-
         emit DeployedCandidate(
             _sender,
             address(c),

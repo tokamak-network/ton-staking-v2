@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./OperatorStorage.sol";
-import "./OperatorV1_1Storage.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,13 +16,13 @@ error ParameterError();
 error SameAddressError();
 error SameError();
 
-interface ISystemConfig {
+interface IRollupConfig {
     function owner() external view returns (address);
 }
 
 interface ILayer2Manager {
     function layer2CandidateOfOperator(address operator) external view returns (address);
-    function checkL1Bridge(address _systemConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
+    function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
 }
 
 interface IDepositManager {
@@ -34,7 +33,7 @@ interface IDepositManager {
 
 /// @title
 /// @notice
-contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
+contract OperatorV1_1 is Ownable, OperatorStorage {
     using SafeERC20 for IERC20;
 
     /**
@@ -129,26 +128,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
     }
 
     /**
-     * @notice  Add the operator privilege account
-     * @param addr_ the operator address
-     */
-    function addOperator(address addr_) external nonZeroAddress(addr_) onlyOwnerOrManager {
-        require(!operator[addr_], "already added");
-        operator[addr_] = true;
-        emit AddedOperator(addr_);
-    }
-
-    /**
-     * @notice  Delete the operator privilege account
-     * @param addr_ the operator address
-     */
-    function deleteOperator(address addr_) external nonZeroAddress(addr_) onlyOwnerOrManager {
-        require(operator[addr_], "not operator");
-        operator[addr_] = false;
-        emit DeletedOperator(addr_);
-    }
-
-    /**
      * @notice  Give ETH to a manager through the manager(or owner) claim
      */
     function claimETH() external onlyOwnerOrManager {
@@ -201,7 +180,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
      */
     function acquireManager() external {
         require (msg.sender != manager, "already manager");
-        require (msg.sender == ISystemConfig(systemConfig).owner(), "not config's owner");
+        require (msg.sender == IRollupConfig(rollupConfig).owner(), "not config's owner");
 
         emit TransferredManager(manager, msg.sender);
         manager = msg.sender;
@@ -212,7 +191,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
      * @param addr the address to check
      */
     function isOperator(address addr) public view returns (bool) {
-        return operator[addr];
+        return (addr != address(0) && addr == manager);
     }
 
     /**
@@ -225,7 +204,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
      *                  In this case, the native token of Layer 2 is TON.
      */
     function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
-        return ILayer2Manager(layer2Manager).checkL1Bridge(systemConfig);
+        return ILayer2Manager(layer2Manager).checkL1Bridge(rollupConfig);
     }
 
     /* ========== internal ========== */
@@ -236,10 +215,6 @@ contract OperatorV1_1 is Ownable, OperatorStorage, OperatorV1_1Storage {
 
     function _alreadySet(address _addr) internal pure {
         if (_addr != address(0)) revert AlreadySetError();
-    }
-
-    function _onlyOperator() internal view {
-        if (!operator[msg.sender]) revert NotOperatorError();
     }
 
     function _claim(address token, address to, uint256 amount) internal {

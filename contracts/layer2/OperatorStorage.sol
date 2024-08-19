@@ -4,14 +4,14 @@ pragma solidity ^0.8.4;
 /// @title
 /// @notice
 contract OperatorStorage {
-    address public systemConfig;
+    address public rollupConfig;
     address public layer2Manager;
     address public depositManager;
     address public ton;
     address public wton;
 
     address public manager;
-    mapping(address => bool) public operator;
+    string public explorer;
 
     modifier onlyManager() {
         require(msg.sender == manager, "not manager");

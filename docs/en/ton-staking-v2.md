@@ -73,23 +73,23 @@ V2 maintains the configuration of V1 and adds Layer2Candidate. The contract conf
     <figcaption> </figcaption>
 </figure>
 
-The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup. Layer 2 of Optimism is applied first, and contracts can be upgraded so that other layers can also be applied. Optimism Layer 2 has a legacy version and a bedrock version. Please remember that the initial application target is limited to cases where the L2 nativeToken is TON among Optimism Legacy Version and Optimism Bedrock Version. The Optimism Bedrock version contains the information and environment settings of the L1 contract in the SystemConfig contract. Therefore, the address of SystemConfig will be used as an address to distinguish Layer2. In the case of the legacy version, SystemConfig does not exist, so a separate legacySystemConfig contract was created. In the case of legacy layer 2, you must deploy the legacySystemConfig contract and use this address as an address book to distinguish the corresponding layer 2.
+The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup. Layer 2 of Optimism is applied first, and contracts can be upgraded so that other layers can also be applied. Optimism Layer 2 has a legacy version and a bedrock version. Please remember that the initial application target is limited to cases where the L2 nativeToken is TON among Optimism Legacy Version and Optimism Bedrock Version. The Optimism Bedrock version contains the information and environment settings of the L1 contract in the RollupConfig contract. Therefore, the address of RollupConfig will be used as an address to distinguish Layer2. In the case of the legacy version, RollupConfig does not exist, so a separate legacySystemConfig(RollupConfig) contract was created. In the case of legacy layer 2, you must deploy the legacySystemConfig(RollupConfig) contract and use this address as an address book to distinguish the corresponding layer 2.
 
 The added contracts in the blue part will be explained in detail in the contract part below.
 
 # Use case
 ## For registrant of L1BridgeRegistry
-An account with registrant permission in the L1BridgeRegistry contract can register SystemConfig, which holds unique information about Layer2. Registering SystemConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered SystemConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
+An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered RollupConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
-         alt="Register SystemConfig" width=400 ></center>
+         alt="Register RollupConfig" width=400 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
 ## For everyone
-Anyone can register Layer2Candidate for SystemConfig registered in L1BridgeRegistry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
+Anyone can register Layer2Candidate for RollupConfig registered in L1BridgeRegistry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
@@ -128,9 +128,9 @@ Created a Seigniorage Committee account defined in the L1BridgeRegistry contract
 
 When registering a Layer2Candidate, you must deposit at least the minimum deposit amount in the name of the operator of that layer.
 
-When registering Layer2Candidate. You must present the SystemConfig contract address that holds Layer 2 configuration information.
+When registering Layer2Candidate. You must present the RollupConfig contract address that holds Layer 2 configuration information.
 
-Additionally, the SystemConfig you enter must be registered in L1BridgeRegistry before registration. (Only accounts with L1BridgeRegistry Registrant privileges can register with L1BridgeRegistry.)
+Additionally, the RollupConfig you enter must be registered in L1BridgeRegistry before registration. (Only accounts with L1BridgeRegistry Registrant privileges can register with L1BridgeRegistry.)
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
@@ -174,7 +174,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 - Basic understanding
     - By registering an authenticated layer 2 SystemConfig contract, it can be used in the simple staking service.
-    - For Titan and Thanos Layer 2, SystemConfig is registered manually by the owner.
+    - For Titan and Thanos Layer 2, rollupConfig is registered manually by the owner.
     - Contracts created in on-demand L2 are automatically registered when the contract is created.
     - There was a Layer2Registry contract in Simple Staking previously, so we named it L1BridgeRegistry to distinguish it.
     - It must be upgradeable by configuring it as a proxy, considering support for other layers (ex, zk-EVM) in the future.
@@ -190,7 +190,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     address public ton;
     address public seigniorageCommittee;
 
-    /// systemConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
+    /// rollupConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
     mapping (address => uint8) public rollupType;
 
     /// For registered bridges, set to true.
@@ -200,7 +200,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     mapping (address => bool) public portal;
 
     /// Set the layer where seigniorage issuance has been suspended to true.
-    mapping (address => bool) public rejectSystemConfig;
+    mapping (address => bool) public rejectRollupConfig;
     ```
 
 - Event
@@ -210,115 +210,115 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     event SetSeigniorageCommittee(address _seigniorageCommittee);
 
     /**
-     * @notice  Event occurs when registering SystemConfig
-     * @param   systemConfig  the systemConfig address
+     * @notice  Event occurs when registering rollupConfig
+     * @param   rollupConfig  the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
      */
-    event RegisteredSystemConfig(address systemConfig, uint8 type_);
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_);
 
     /**
      * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
-     * @param   systemConfig  the systemConfig address
+     * @param   rollupConfig  the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
      */
-    event ChangedType(address systemConfig, uint8 type_);
+    event ChangedType(address rollupConfig, uint8 type_);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   _rollupConfig  the rollupConfig address
      */
-    event RejectedLayer2Candidate(address _systemConfig);
+    event RejectedLayer2Candidate(address _rollupConfig);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   _rollupConfig  the rollupConfig address
      */
-    event RestoredLayer2Candidate(address _systemConfig);
+    event RestoredLayer2Candidate(address _rollupConfig);
 
     ```
 
 - Transaction Functions
-    - function rejectLayer2Candidate(address _systemConfig)  external onlySeigniorageCommittee()
+    - function rejectLayer2Candidate(address _rollupConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
-         * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific systemConfig.
-         * @param _systemConfig the systemConfig address
+         * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
+         * @param _rollupConfig the rollupConfig address
          */
         function rejectLayer2Candidate(
-            address _systemConfig
+            address _rollupConfig
         )  external onlySeigniorageCommittee()
         ```
 
-    - function restoreLayer2Candidate(address _systemConfig)  external onlySeigniorageCommittee()
+    - function restoreLayer2Candidate(address _rollupConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
-         * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific systemConfig.
-         * @param _systemConfig the systemConfig address
+         * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+         * @param _rollupConfig the rollupConfig address
          */
         function restoreLayer2Candidate(
-            address _systemConfig
+            address _rollupConfig
         )  external onlySeigniorageCommittee()
         ```
 
-    - function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external onlyManager
+    - function registerrollupConfigByManager(address _rollupConfig, uint8 _type)  external onlyManager
 
         ```solidity
         /**
-         * @notice Registers Layer2 for a specific systemConfig by the manager.
-         * @param _systemConfig  the systemConfig address
+         * @notice Registers Layer2 for a specific rollupConfig by the manager.
+         * @param _rollupConfig  the rollupConfig address
          * @param _type          1: legacy, 2: bedrock with nativeTON
          */
-        function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager
+        function registerRollupConfigByManager(address _rollupConfig, uint8 _type)  external  onlyManager
 
         ```
 
-    - function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant
+    - function registerRollupConfig(address _rollupConfig, uint8 _type)  external  onlyRegistrant
 
         ```solidity
         /**
-         * @notice Registers Layer2 for a specific systemConfig by Registrant.
-         * @param _systemConfig the systemConfig address
+         * @notice Registers Layer2 for a specific rollupConfig by Registrant.
+         * @param _rollupConfig the rollupConfig address
          * @param _type          1: legacy, 2: bedrock with nativeTON
          */
-        function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant
+        function registerRollupConfig(address _rollupConfig, uint8 _type)  external  onlyRegistrant
 
         ```
 
-    - function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant
+    - function changeType(address _rollupConfig, uint8 _type)  external  onlyRegistrant
 
         ```solidity
         /**
-         * @notice Changes the Layer2 type for a specific systemConfig by Registrant.
-         * @param _systemConfig the systemConfig address
+         * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
+         * @param _rollupConfig the rollupConfig address
          * @param _type          1: legacy, 2: bedrock with nativeTON
          */
-        function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant
+        function changeType(address _rollupConfig, uint8 _type)  external  onlyRegistrant
         ```
 
 - View Functions
-    - function layer2TVL(address _systemConfig) public view returns (uint256 amount)
+    - function layer2TVL(address _rollupConfig) public view returns (uint256 amount)
 
         ```solidity
         /**
-         * @notice View the liquidity of Layer2 TON for a specific systemConfig.
-         * @param _systemConfig the systemConfig address
+         * @notice View the liquidity of Layer2 TON for a specific rollupConfig.
+         * @param _rollupConfig the rollupConfig address
          */
-        function layer2TVL(address _systemConfig) public view returns (uint256 amount)
+        function layer2TVL(address _rollupConfig) public view returns (uint256 amount)
         ```
 
-    - function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid)
+    - function availableForRegistration(address _rollupConfig, uint8 _type) public view returns (bool valid)
 
         ```solidity
         /**
-         * @notice Check whether a specific systemConfig can be registered as a type.
-         * @param _systemConfig the systemConfig address
+         * @notice Check whether a specific rollupConfig can be registered as a type.
+         * @param _rollupConfig the rollupConfig address
          * @param _type         1: legacy, 2: bedrock with nativeTON
          */
-        function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid)
+        function availableForRegistration(address _rollupConfig, uint8 _type) public view returns (bool valid)
 
         ```
 
@@ -326,7 +326,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 - Basic understanding
 
-    When Layer2Candidate is registered as a member in DAOCommittee, the operator address of Layer2Candidate is registered as the key value of the mapping, so the operator address should not be changed. However, because the operator of the L2 layer (SystemConfig) can change at any time, an Operator contract was created. The Operator contract is a contract that maps to the SystemConfig contract. In other words, the address of the Operator contract must be created using the SystemConfig (L2 layer) contract address. Because there is a possibility of logic changes in the future, it was implemented as a proxy.
+    When Layer2Candidate is registered as a member in DAOCommittee, the operator address of Layer2Candidate is registered as the key value of the mapping, so the operator address should not be changed. However, because the operator of the L2 layer (rollupConfig) can change at any time, an Operator contract was created. The Operator contract is a contract that maps to the rollupConfig contract. In other words, the address of the Operator contract must be created using the rollupConfig (L2 layer) contract address. Because there is a possibility of logic changes in the future, it was implemented as a proxy.
 
 - Authority
     - Owner: The owner can set the logic of the deployed operator.
@@ -361,12 +361,12 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
     /**
      * @notice Event occured when create the Operator Contract
-     * @param systemConfig  the systemConfig address
+     * @param rollupConfig  the rollupConfig address
      * @param owner         the owner address
      * @param manager       the manager address
      * @param operator      the operator address
      */
-    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
+    event CreatedOperator(address rollupConfig, address owner, address manager, address operator);
 
     ```
 
@@ -381,7 +381,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
         ```
 
-    - function createOperator(address systemConfig) external returns (address operator)
+    - function createOperator(address rollupConfig) external returns (address operator)
 
         ```solidity
         /**
@@ -389,22 +389,22 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
          *          return revert if the account is already deployed.
          *          Note. Only Layer2Manager Contract can be called.
          *          When creating the Layer2Candidate, create an Operator contract
-         *          that is mapped to SystemConfig.
-         * @param systemConfig  the systemConfig address
+         *          that is mapped to rollupConfig.
+         * @param rollupConfig  the rollupConfig address
          */
-        function createOperator(address systemConfig) external returns (address operator) {
+        function createOperator(address rollupConfig) external returns (address operator) {
 
         ```
 
 - View functions
-    - function getAddress(address systemConfig) public view returns (address)
+    - function getAddress(address rollupConfig) public view returns (address)
 
         ```solidity
         /**
-         * @notice  Returns the operator contract address matching systemConfig.
-         * @param systemConfig  the systemConfig address
+         * @notice  Returns the operator contract address matching rollupConfig.
+         * @param rollupConfig  the rollupConfig address
          */
-        function getAddress(address systemConfig) public view returns (address)
+        function getAddress(address rollupConfig) public view returns (address)
         ```
 
 
@@ -422,8 +422,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         - Owner can change the manager.
         - Owner can add/delete operators.
     - manager
-        - Administrator privileges can register and remove operators. When deploying for the first time, designate the owner of SystemConfig as manager.
-        - When the owner of SystemConfig changes in the future, the manager must be changed using transferManager. (SystemConfig.owner provides an interface to take the manager.)
+        - Administrator privileges can register and remove operators. When deploying for the first time, designate the owner of RollupConfig as manager.
+        - When the owner of RollupConfig changes in the future, the manager must be changed using transferManager. (RollupConfig.owner provides an interface to take the manager.)
 
     - operator  (onlyCandidate)
         - Possesses operator authority. You can use the functions of DAO members.
@@ -437,7 +437,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Storage
 
     ```jsx
-    address public systemConfig;
+    address public rollupConfig;
     address public layer2Manager;
     address public depositManager;
     address public ton;
@@ -569,7 +569,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 ## Layer2Manager
 - Basic understanding
-    - In order for the Layer2 sequencer to receive seigniorage, the SystemConfig address must be registered in the Layer2Manager.
+    - In order for the Layer2 sequencer to receive seigniorage, the RollupConfig address must be registered in the Layer2Manager.
     - When distributing seigniorage, the seigniorage paid to Layer 2 sequencers is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of Layer2Candidate is settled.
 
 - Authority
@@ -579,11 +579,11 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
     ```jsx
     struct OperatorInfo {
-        address systemConfig;
+        address rollupConfig;
         address layer2Candidate;
     }
 
-    struct SystemConfigInfo {
+    struct RollupConfigInfo {
         uint8 stateIssue; // status for giving seigniorage ( 0: none, 1: registered, 2: paused )
         address operator;
     }

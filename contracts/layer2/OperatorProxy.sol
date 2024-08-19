@@ -9,10 +9,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @title
 /// @notice
 contract OperatorProxy is Proxy, ERC1967Upgrade, Ownable {
-    address public systemConfig;
+    address public rollupConfig;
 
-    constructor(address _systemConfig) {
-        systemConfig = _systemConfig;
+    constructor(address _rollupConfig) {
+        rollupConfig = _rollupConfig;
     }
 
     function upgradeTo(address newImplementation) external onlyOwner {
