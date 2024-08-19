@@ -11,7 +11,7 @@ import { SeigManagerProxy } from "../typechain-types/contracts/stake/managers/Se
 
 import { Layer2ManagerProxy } from "../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
+import { OperatorManagerFactory } from "../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
 import { OperatorV1_1 } from "../typechain-types/contracts/layer2/OperatorV1_1.sol"
 
 import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
@@ -79,27 +79,27 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     )) as L1BridgeRegistryV1_1;
 
 
-    //==== OperatorFactory =========================
+    //==== OperatorManagerFactory =========================
     const OperatorV1_1Deployment = await deploy("OperatorV1_1", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const OperatorFactoryDeployment = await deploy("OperatorFactory", {
+    const OperatorManagerFactoryDeployment = await deploy("OperatorManagerFactory", {
         from: deployer,
         args: [OperatorV1_1Deployment.address],
         log: true
     });
 
-    const operatorFactory = (await hre.ethers.getContractAt(
-        OperatorFactoryDeployment.abi,
-        OperatorFactoryDeployment.address
-    )) as OperatorFactory;
+    const operatorManagerFactory = (await hre.ethers.getContractAt(
+        OperatorManagerFactoryDeployment.abi,
+        OperatorManagerFactoryDeployment.address
+    )) as OperatorManagerFactory;
 
-    let ton_operatorFactory = await operatorFactory.ton()
-    if (TON != ton_operatorFactory) {
-        await (await operatorFactory.connect(deploySigner).setAddresses(
+    let ton_operatorManagerFactory = await operatorManagerFactory.ton()
+    if (TON != ton_operatorManagerFactory) {
+        await (await operatorManagerFactory.connect(deploySigner).setAddresses(
             DepositManager,
             TON,
             WTON)).wait()
@@ -189,7 +189,7 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     if (l2Register_layer2Manager != l1BridgeRegistryProxy.address) {
         await (await layer2Manager.connect(deploySigner).setAddresses(
                 l1BridgeRegistryProxy.address,
-                operatorFactory.address,
+                operatorManagerFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager,
                 SeigManager, swapProxy
             )

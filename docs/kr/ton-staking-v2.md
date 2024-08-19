@@ -312,7 +312,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
         ```
 
-## OperatorFactory
+## OperatorManagerFactory
 
 - 개요
 
@@ -562,18 +562,18 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 - 스토리지
 
     ```jsx
-    struct OperatorInfo {
-        address systemConfig;
+    struct CandidateAddOnInfo {
+        address rollupConfig;
         address candidateAddOn;
     }
 
-    struct SystemConfigInfo {
-        uint8 stateIssue; // status for giving seigniorage ( 0: none, 1: registered, 2: paused )
-        address operator;
+    struct RollupConfigInfo {
+        uint8 status; // status for giving seigniorage ( 0: none, 1: registered, 2: paused )
+        address operatorManager;
     }
 
     address public l2Register;
-    address public operatorFactory;
+    address public operatorManagerFactory;
     address public ton;
     address public wton;
     address public dao;
@@ -586,11 +586,11 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     /// DepositManager's minimum deposit + 0.1 TON
     uint256 public minimumInitialDepositAmount;
 
-    /// systemConfig - SystemConfigInfo
-    mapping (address => SystemConfigInfo) public systemConfigInfo;
+    /// rollupConfig - SystemConfigInfo
+    mapping (address => SystemConfigInfo) public rollupConfigInfo;
 
-    /// operator - OperatorInfo
-    mapping (address => OperatorInfo) public operatorInfo;
+    /// operator - CandidateAddOnInfo
+    mapping (address => CandidateAddOnInfo) public operatorInfo;
 
     ```
 

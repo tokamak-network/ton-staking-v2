@@ -66,8 +66,8 @@ interface IIDepositManager {
     function deposit(address layer2, address account, uint256 amount) external returns (bool);
 }
 
-interface IOperatorFactory {
-    function createOperator(address _rollupConfig) external returns (address);
+interface IOperatorManagerFactory {
+    function createOperatorManager(address _rollupConfig) external returns (address);
 }
 
 interface ITON {
@@ -91,7 +91,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     event SetAddresses(
         address _l2Register,
-        address _operatorFactory,
+        address _operatorManagerFactory,
         address _ton,
         address _wton,
         address _dao,
@@ -148,7 +148,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     function setAddresses(
         address _l1BridgeRegistry,
-        address _operatorFactory,
+        address _operatorManagerFactory,
         address _ton,
         address _wton,
         address _dao,
@@ -157,7 +157,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         address _swapProxy
     )  external  onlyOwner {
         l1BridgeRegistry = _l1BridgeRegistry;
-        operatorFactory = _operatorFactory;
+        operatorManagerFactory = _operatorManagerFactory;
         ton = _ton;
         wton = _wton;
         dao = _dao;
@@ -165,7 +165,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         seigManager = _seigManager;
         swapProxy = _swapProxy;
 
-        emit SetAddresses(_l1BridgeRegistry, _operatorFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
+        emit SetAddresses(_l1BridgeRegistry, _operatorManagerFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
     }
 
     /**
@@ -385,12 +385,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         uint256 _wtonAmount,
         string calldata _memo
     ) internal  {
-        address operator = IOperatorFactory(operatorFactory).createOperator(_rollupConfig);
+        address operator = IOperatorManagerFactory(operatorManagerFactory).createOperatorManager(_rollupConfig);
 
         if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].rollupConfig != address(0)) revert RegisterError(2);
         address candidateAddOn = IIDAOCommittee(dao).createCandidateAddOn(_memo, operator);
-        operatorInfo[operator] = OperatorInfo({
+        operatorInfo[operator] = CandidateAddOnInfo({
             rollupConfig: _rollupConfig,
             candidateAddOn : candidateAddOn
         });

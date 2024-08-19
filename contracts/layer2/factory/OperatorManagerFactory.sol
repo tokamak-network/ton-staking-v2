@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../OperatorProxy.sol";
+import "../OperatorManagerProxy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../../libraries/Create2.sol";
 
@@ -9,7 +9,7 @@ error ZeroAddressError();
 error SameVariableError();
 error AlreadySetError();
 
-interface IOperator {
+interface IOperatorManager {
     function transferOwnership(address newOwner) external;
     function transferManager(address addr) external;
     function upgradeTo(address _logic) external;
@@ -21,17 +21,17 @@ interface IRollupConfig {
 }
 
 /**
- * @notice  Error in createOperator function
+ * @notice  Error in createOperatorManager function
  * @param x 1: sender is not Layer2Manager
  *          2: zero rollupConfig's owner
  *          3: already created Operator
  */
 error CreateError(uint x);
 
-contract OperatorFactory is Ownable {
+contract OperatorManagerFactory is Ownable {
 
     uint256 private constant CREATE_SALT = 0;
-    address public operatorImplementation;
+    address public operatorManagerImp;
     address public depositManager;
     address public ton;
     address public wton;
@@ -47,34 +47,34 @@ contract OperatorFactory is Ownable {
     event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
 
     /**
-     * @notice Event occured when change the operator implementaion address
-     * @param newOperatorImplementation the operator implementaion address
+     * @notice Event occured when change the operatorManager implementaion address
+     * @param newOperatorManagerImp the operatorManager implementaion address
      */
-    event ChangedOperatorImplementaion(address newOperatorImplementation);
+    event ChangedOperatorManagerImp(address newOperatorManagerImp);
 
     /**
-     * @notice Event occured when create the Operator Contract
-     * @param rollupConfig  the rollupConfig address
-     * @param owner         the owner address
-     * @param manager       the manager address
-     * @param operator      the operator address
+     * @notice Event occured when create the OperatorManager Contract
+     * @param rollupConfig      the rollupConfig address
+     * @param owner             the owner address
+     * @param manager           the manager address
+     * @param operatorManager   the operatorManager address
      */
-    event CreatedOperator(address rollupConfig, address owner, address manager, address operator);
+    event CreatedOperatorManager(address rollupConfig, address owner, address manager, address operatorManager);
 
-    constructor(address _operatorImplementation) {
-        operatorImplementation = _operatorImplementation;
+    constructor(address _operatorManagerImplementation) {
+        operatorManagerImp = _operatorManagerImplementation;
     }
 
     /**
-     * @notice Change the operator implementaion address by Owner
-     * @param newOperatorImplementation the operator implementaion address
+     * @notice Change the operatorManager implementaion address by Owner
+     * @param newOperatorManagerImp the operatorManager implementaion address
      */
-    function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner {
-        _nonZeroAddress(newOperatorImplementation);
-        if (operatorImplementation == newOperatorImplementation) revert SameVariableError();
-        operatorImplementation = newOperatorImplementation;
+    function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner {
+        _nonZeroAddress(newOperatorManagerImp);
+        if (operatorManagerImp == newOperatorManagerImp) revert SameVariableError();
+        operatorManagerImp = newOperatorManagerImp;
 
-        emit ChangedOperatorImplementaion(newOperatorImplementation);
+        emit ChangedOperatorManagerImp(newOperatorManagerImp);
     }
 
     /**
@@ -102,14 +102,14 @@ contract OperatorFactory is Ownable {
     }
 
     /**
-     * @notice  Create an Operator Contract, and return its address.
+     * @notice  Create an OperatorManager Contract, and return its address.
      *          return revert if the account is already deployed.
      *          Note. Only Layer2Manager Contract can be called.
-     *          When creating the CandidateAddOn, create an Operator contract
+     *          When creating the CandidateAddOn, create an OperatorManager contract
      *          that is mapped to RollupConfig.
      * @param rollupConfig  the rollupConfig address
      */
-    function createOperator(address rollupConfig) external returns (address operator) {
+    function createOperatorManager(address rollupConfig) external returns (address operatorManager) {
         if (msg.sender != layer2Manager) revert CreateError(1);
         require(getAddress(rollupConfig).code.length == 0, "already created");
 
@@ -117,17 +117,17 @@ contract OperatorFactory is Ownable {
         if (sManager == address(0)) revert CreateError(2);
 
         address sOwner = owner();
-        operator = address(new OperatorProxy{salt : bytes32(CREATE_SALT)}(rollupConfig));
-        IOperator(operator).upgradeTo(operatorImplementation);
-        IOperator(operator).transferManager(sManager);
-        IOperator(operator).transferOwnership(sOwner);
-        IOperator(operator).setAddresses(msg.sender, depositManager, ton, wton);
-        emit CreatedOperator(rollupConfig, sOwner, sManager, operator);
+        operatorManager = address(new OperatorManagerProxy{salt : bytes32(CREATE_SALT)}(rollupConfig));
+        IOperatorManager(operatorManager).upgradeTo(operatorManagerImp);
+        IOperatorManager(operatorManager).transferManager(sManager);
+        IOperatorManager(operatorManager).transferOwnership(sOwner);
+        IOperatorManager(operatorManager).setAddresses(msg.sender, depositManager, ton, wton);
+        emit CreatedOperatorManager(rollupConfig, sOwner, sManager, operatorManager);
 
     }
 
     /**
-     * @notice  Returns the operator contract address matching rollupConfig.
+     * @notice  Returns the operatorManager contract address matching rollupConfig.
      * @param rollupConfig  the rollupConfig address
      */
     function getAddress(address rollupConfig) public view returns (address) {
@@ -137,7 +137,7 @@ contract OperatorFactory is Ownable {
                 bytes1(0xff),
                 address(this),
                 CREATE_SALT,
-                keccak256(abi.encodePacked(type(OperatorProxy).creationCode, abi.encode(rollupConfig)))
+                keccak256(abi.encodePacked(type(OperatorManagerProxy).creationCode, abi.encode(rollupConfig)))
             )
         ))));
     }

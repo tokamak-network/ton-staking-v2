@@ -5,7 +5,7 @@ pragma solidity ^0.8.4;
 /// @notice
 contract Layer2ManagerStorage  {
 
-    struct OperatorInfo {
+    struct CandidateAddOnInfo {
         address rollupConfig;
         address candidateAddOn;
     }
@@ -16,7 +16,7 @@ contract Layer2ManagerStorage  {
     }
 
     address public l1BridgeRegistry;
-    address public operatorFactory;
+    address public operatorManagerFactory;
 
     address public ton;
     address public wton;
@@ -30,8 +30,8 @@ contract Layer2ManagerStorage  {
     /// rollupConfig - SeqSeigStatus
     mapping (address => SeqSeigStatus) public rollupConfigInfo;
 
-    /// candidateAddOn - OperatorInfo
-    mapping (address => OperatorInfo) public operatorInfo;
+    /// operator - CandidateAddOnInfo
+    mapping (address => CandidateAddOnInfo) public operatorInfo;
 
     bool internal _lock;
 

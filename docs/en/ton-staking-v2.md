@@ -324,7 +324,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
         ```
 
-## OperatorFactory
+## OperatorManagerFactory
 
 - Basic understanding
 
@@ -356,41 +356,41 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
 
     /**
-     * @notice Event occured when change the operator implementaion address
-     * @param newOperatorImplementation the operator implementaion address
+     * @notice Event occured when change the operatorManager implementaion address
+     * @param newOperatorManagerImp the operatorManager implementaion address
      */
-    event ChangedOperatorImplementaion(address newOperatorImplementation);
+    event ChangedOperatorManagerImp(address newOperatorManagerImp);
 
     /**
-     * @notice Event occured when create the Operator Contract
-     * @param rollupConfig  the rollupConfig address
-     * @param owner         the owner address
-     * @param manager       the manager address
-     * @param operator      the operator address
+     * @notice Event occured when create the OperatorManager Contract
+     * @param rollupConfig      rollupConfig address
+     * @param owner             owner address
+     * @param manager           the manager address
+     * @param operatorManager   the operatorManager address
      */
-    event CreatedOperator(address rollupConfig, address owner, address manager, address operator);
+    event CreatedOperatorManager(address rollupConfig, address owner, address manager, address operator);
 
     ```
 
 - Transaction functions
-    - function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
+    - function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner
 
         ```solidity
         /**
-         * @notice Change the operator implementaion address by Owner
-         * @param newOperatorImplementation the operator implementaion address
+         * @notice Change the operatorManager implementaion address by Owner
+         * @param newOperatorImplementation the operatorManager implementaion address
          */
-        function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
+        function changeOperatorManagerImp(address newOperatorImplementation) external onlyOwner
         ```
 
-    - function createOperator(address rollupConfig) external returns (address operator)
+    - function createOperatorManager(address rollupConfig) external returns (address operator)
 
         ```solidity
         /**
          * @notice  Create an Operator Contract, and return its address.
          *          return revert if the account is already deployed.
          *          Note. Only Layer2Manager Contract can be called.
-         *          When creating the CandidateAddOn, create an Operator contract
+         *          When creating the CandidateAddOn, create an OperatorManager contract
          *          that is mapped to rollupConfig.
          * @param rollupConfig  the rollupConfig address
          */
@@ -403,17 +403,17 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
         ```solidity
         /**
-         * @notice  Returns the operator contract address matching rollupConfig.
+         * @notice  Returns the operatorManager contract address matching rollupConfig.
          * @param rollupConfig  the rollupConfig address
          */
         function getAddress(address rollupConfig) public view returns (address)
         ```
 
 
-## Operator
+## OperatorManager
 
 - Basic understanding
-    - Operator contracts should be designed with the possibility of supporting multiple sequencers (operators) in Layer 2 in the future. Therefore, it is designed with an upgradeable structure.
+    - OperatorManager contracts should be designed with the possibility of supporting multiple sequencers (operators) in Layer 2 in the future. Therefore, it is designed with an upgradeable structure.
     - CandidateAddOn inherits all the functions of DAOCandidate.
     - The onlyCandidate account (an account where Operator.isOperator(msg.sender) is true has operator privileges) can use the functions that onlyCandidate of DAOCandidate can perform.
 
@@ -580,7 +580,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Storage
 
     ```jsx
-    struct OperatorInfo {
+    struct CandidateAddOnInfo {
         address rollupConfig;
         address CandidateAddOn;
     }
@@ -591,7 +591,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     }
 
     address public l2Register;
-    address public operatorFactory;
+    address public operatorManagerFactory;
     address public ton;
     address public wton;
     address public dao;
@@ -607,8 +607,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     /// systemConfig - SystemConfigInfo
     mapping (address => SystemConfigInfo) public systemConfigInfo;
 
-    /// operator - OperatorInfo
-    mapping (address => OperatorInfo) public operatorInfo;
+    /// operator - CandidateAddOnInfo
+    mapping (address => CandidateAddOnInfo) public operatorInfo;
 
     ```
 

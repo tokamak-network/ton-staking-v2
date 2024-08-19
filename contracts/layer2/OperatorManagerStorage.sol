@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 /// @title
 /// @notice
-contract OperatorStorage {
+contract OperatorManagerStorage {
     address public rollupConfig;
     address public layer2Manager;
     address public depositManager;

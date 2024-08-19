@@ -12,7 +12,7 @@ import { L1BridgeRegistry } from "../../../typechain-types/contracts/layer2/L1Br
 import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
 import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
 import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
 import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
@@ -38,7 +38,7 @@ import DAOCandidate_Json from '../../abi/Candidate.json'
 
 import LegacySystemConfig_Json from '../../../artifacts/contracts/layer2/LegacySystemConfig.sol/LegacySystemConfig.json'
 import Layer2ManagerV1_1_Json from '../../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json'
-import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorFactory.sol/OperatorFactory.json'
+import OperatorManagerFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json'
 import Layer2ManagerProxy_Json from '../../../artifacts/contracts/layer2/Layer2ManagerProxy.sol/Layer2ManagerProxy.json'
 
 const layers = [
@@ -74,7 +74,7 @@ describe('Layer2Manager', () => {
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorV1_1:OperatorV1_1 , operatorFactory: OperatorFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorV1_1:OperatorV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
     let layer2CandidateV1_1Imp: Layer2CandidateV1_1
     let layer2CandidateFactoryImp:Layer2CandidateFactory , layer2CandidateFactoryProxy: Layer2CandidateFactoryProxy, layer2CandidateFactory: Layer2CandidateFactory
@@ -103,7 +103,7 @@ describe('Layer2Manager', () => {
     let daoContractAdd : DAOCommitteeAddV1_1;
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
     const deployedLayer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
-    const deployedOperatorFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
+    const deployedOperatorManagerFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
     const deployedDAOAddress = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
     const deployedLayer2CandidateFactory = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
 
@@ -128,15 +128,15 @@ describe('Layer2Manager', () => {
         // const deployedLegacySystemConfig = await deployments.get("LegacySystemConfig")
         // const deployedLayer2ManagerProxy = await deployments.get("Layer2ManagerProxy")
         // const deployedLayer2ManagerV1_1 = await deployments.get("Layer2ManagerV1_1")
-        // const deployedOperatorFactory = await deployments.get("OperatorFactory")
+        // const deployedOperatorManagerFactory = await deployments.get("OperatorManagerFactory")
         // legacySystemConfig = new ethers.Contract(deployedLegacySystemConfig.address, deployedLegacySystemConfig.abi,  deployer) as LegacySystemConfig
         // layer2Manager = new ethers.Contract(deployedLayer2ManagerProxy.address, deployedLayer2ManagerV1_1.abi,  deployer) as Layer2ManagerV1_1
-        // operatorFactory = new ethers.Contract(deployedOperatorFactory.address, deployedOperatorFactory.abi,  deployer) as OperatorFactory
+        // operatorManagerFactory = new ethers.Contract(deployedOperatorManagerFactory.address, deployedOperatorManagerFactory.abi,  deployer) as OperatorManagerFactory
 
 
         legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
-        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorFactory
+        operatorManagerFactory = new ethers.Contract(deployedOperatorManagerFactoryAddress, OperatorManagerFactory_Json.abi,  deployer) as OperatorManagerFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
         // daoContract = new ethers.Contract(deployedDAOAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
 
@@ -205,7 +205,7 @@ describe('Layer2Manager', () => {
             console.log("name", name)
 
 
-            const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
+            const operatorAddress = await OperatorManagerFactory.getAddress(legacySystemConfig.address)
             console.log("operatorAddress", operatorAddress)
 
             console.log("tonHave", tonHave.address)

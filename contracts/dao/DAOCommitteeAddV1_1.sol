@@ -104,7 +104,7 @@ contract DAOCommitteeAddV1_1 is
     //////////////////////////////////////////////////////////////////////
     //
 
-    function createCandidateAddOn(string calldata _memo, address _operatorAddress)
+    function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
         public
         returns (address)
     {
@@ -112,15 +112,15 @@ contract DAOCommitteeAddV1_1 is
 
         // Candidate
         address candidateContract = ICandidateAddOnFactory(candidateAddOnFactory).deploy(
-            _operatorAddress,
+            _operatorManagerAddress,
             _memo,
             address(this),
             address(seigManager)
         );
         if (candidateContract == address(0)) revert CreateCandiateError(1);
-        if (_candidateInfos[_operatorAddress].candidateContract != address(0)) revert CreateCandiateError(2);
+        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 
-        _candidateInfos[_operatorAddress] = CandidateInfo({
+        _candidateInfos[_operatorManagerAddress] = CandidateInfo({
             candidateContract: candidateContract,
             memberJoinedTime: 0,
             indexMembers: 0,
@@ -128,10 +128,10 @@ contract DAOCommitteeAddV1_1 is
             claimedTimestamp: 0
         });
 
-        candidates.push(_operatorAddress);
+        candidates.push(_operatorManagerAddress);
 
         if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
-        emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
+        emit CandidateContractCreated(_operatorManagerAddress, candidateContract, _memo);
 
         return candidateContract;
     }

@@ -16,8 +16,8 @@ import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/
 
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
 import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
 import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
@@ -74,7 +74,7 @@ describe('Layer2Manager', () => {
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorV1_1:OperatorV1_1 , operatorFactory: OperatorFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
     let CandidateAddOnV1_1Imp: CandidateAddOnV1_1
     let CandidateAddOnFactoryImp:CandidateAddOnFactory , CandidateAddOnFactoryProxy: CandidateAddOnFactoryProxy, CandidateAddOnFactory: CandidateAddOnFactory
@@ -88,11 +88,11 @@ describe('Layer2Manager', () => {
 
     let titanLayerAddress: string, titanOperatorContractAddress: string;
     let titanLayerContract: CandidateAddOnV1_1;
-    let titanOperatorContract: OperatorV1_1
+    let titanOperatorContract: OperatorManagerV1_1
 
     let thanosLayerAddress: string, thanosOperatorContractAddress: string;
     let thanosLayerContract: CandidateAddOnV1_1;
-    let thanosOperatorContract: OperatorV1_1
+    let thanosOperatorContract: OperatorManagerV1_1
 
 
     let powerTon: string
@@ -201,17 +201,17 @@ describe('Layer2Manager', () => {
         });
     })
 
-    describe('# OperatorFactory', () => {
-        it('deploy OperatorV1_1', async () => {
-            operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
+    describe('# operatorManagerFactory', () => {
+        it('deploy OperatorManagerV1_1', async () => {
+            operatorManagerV1_1 = (await (await ethers.getContractFactory("OperatorManagerV1_1")).connect(deployer).deploy()) as OperatorManagerV1_1;
         });
 
-        it('deploy OperatorFactory ', async () => {
+        it('deploy operatorManagerFactory ', async () => {
             const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-            operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
+            operatorManagerFactory = (await (await ethers.getContractFactory("OperatorManagerFactory")).connect(deployer).deploy(operatorManagerV1_1.address)) as OperatorManagerFactory;
 
-            await (await operatorFactory.connect(deployer).setAddresses(
+            await (await operatorManagerFactory.connect(deployer).setAddresses(
                 DepositManager,
                 TON,
                 WTON)).wait()
@@ -271,7 +271,7 @@ describe('Layer2Manager', () => {
             await expect(
                 layer2Manager.connect(addr1).setAddresses(
                     l1BridgeRegistryProxy.address,
-                    operatorFactory.address,
+                    operatorManagerFactory.address,
                     TON, WTON, DAOCommitteeProxy, DepositManager,
                     SeigManager, swapProxy
                 )
@@ -285,7 +285,7 @@ describe('Layer2Manager', () => {
 
             let receipt = await (await layer2Manager.connect(deployer).setAddresses(
                 l1BridgeRegistryProxy.address,
-                operatorFactory.address,
+                operatorManagerFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager, SeigManager, swapProxy
             )).wait()
 
@@ -294,7 +294,7 @@ describe('Layer2Manager', () => {
             const deployedEvent = layer2Manager.interface.parseLog(log);
 
             expect(deployedEvent.args._l2Register).to.be.eq(l1BridgeRegistryProxy.address)
-            expect(deployedEvent.args._operatorFactory).to.be.eq(operatorFactory.address)
+            expect(deployedEvent.args._operatorManagerFactory).to.be.eq(operatorManagerFactory.address)
             expect(deployedEvent.args._ton).to.be.eq(TON)
             expect(deployedEvent.args._wton).to.be.eq(WTON)
             expect(deployedEvent.args._dao).to.be.eq(DAOCommitteeProxy)
@@ -629,7 +629,7 @@ describe('Layer2Manager', () => {
             }
 
             const name = await legacySystemConfig.name()
-            const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
+            const operatorAddress = await operatorManagerFactory.getAddress(legacySystemConfig.address)
 
             const receipt = await (await layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
@@ -653,7 +653,7 @@ describe('Layer2Manager', () => {
             expect((await layer2Manager.statusLayer2(legacySystemConfig.address))).to.be.eq(1)
 
             titanLayerContract =  (await ethers.getContractAt("CandidateAddOnV1_1", titanLayerAddress, deployer)) as CandidateAddOnV1_1
-            titanOperatorContract = (await ethers.getContractAt("OperatorV1_1", titanOperatorContractAddress, deployer)) as OperatorV1_1
+            titanOperatorContract = (await ethers.getContractAt("OperatorManagerV1_1", titanOperatorContractAddress, deployer)) as OperatorManagerV1_1
         })
 
         it('If the layer has already been created, it will fail.', async () => {
