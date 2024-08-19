@@ -17,6 +17,7 @@ error ChangeError(uint x);
  * @param x 1: unsupported type
  *          2: already registered
  *          3: unavailable for registration
+ *          4: zero L2TON
  */
 error RegisterError(uint x);
 error ZeroAddressError();
@@ -184,9 +185,9 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function registerRollupConfigByManager(address rollupConfig, uint8 _type)  external  onlyManager {
+    function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON)  external  onlyManager {
         if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
-        _registerRollupConfig(rollupConfig, _type);
+        _registerRollupConfig(rollupConfig, _type, _l2TON);
     }
 
     /* ========== onlyRegistrant ========== */
@@ -197,9 +198,9 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig       the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function registerRollupConfig(address rollupConfig, uint8 _type)  external  onlyRegistrant {
+    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external  onlyRegistrant {
         if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
-        _registerRollupConfig(rollupConfig, _type);
+        _registerRollupConfig(rollupConfig, _type, _l2TON);
     }
 
     /**
@@ -255,8 +256,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if(!rejectRollupConfig[rollupConfig]) revert OnlyRejectedError();
     }
 
-    function _registerRollupConfig(address rollupConfig, uint8 _type) internal {
-
+    function _registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON) internal {
+        if (_l2TON == address(0)) revert RegisterError(4);
         if (_type == 0 || _type > uint8(type(TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
         if (rollupType[rollupConfig] != 0) revert RegisterError(2);
         if (!_availableForRegistration(rollupConfig, _type)) revert RegisterError(3);

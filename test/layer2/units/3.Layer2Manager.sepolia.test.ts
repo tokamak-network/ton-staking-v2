@@ -427,11 +427,14 @@ describe('Layer2Manager', () => {
         })
 
         it('registerSystemConfigByManager  ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
             let type = 1;
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
-                type
+                type,
+                l2TonAddress
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -468,10 +471,12 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfigTest2.address,
-                type
+                type,
+                l2TonAddress
             )).to.be.revertedWith("RegisterError")
         })
     })
@@ -510,7 +515,8 @@ describe('Layer2Manager', () => {
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 thanosSystemConfig,
-                type
+                type,
+                thanosL2TON
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');

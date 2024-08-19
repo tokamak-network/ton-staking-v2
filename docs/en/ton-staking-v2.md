@@ -264,27 +264,29 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         )  external onlySeigniorageCommittee()
         ```
 
-    - function registerrollupConfigByManager(address _rollupConfig, uint8 _type)  external onlyManager
+    - function registerrollupConfigByManager(address _rollupConfig, uint8 _type, address _l2TON)  external onlyManager
 
         ```solidity
         /**
          * @notice Registers Layer2 for a specific rollupConfig by the manager.
          * @param _rollupConfig  the rollupConfig address
          * @param _type          1: legacy, 2: bedrock with nativeTON
+         * @param _l2TON         a l2TON address
          */
-        function registerRollupConfigByManager(address _rollupConfig, uint8 _type)  external  onlyManager
+        function registerRollupConfigByManager(address _rollupConfig, uint8 _type, address _l2TON)  external  onlyManager
 
         ```
 
-    - function registerRollupConfig(address _rollupConfig, uint8 _type)  external  onlyRegistrant
+    - function registerRollupConfig(address _rollupConfig, uint8 _type, address _l2TON)  external  onlyRegistrant
 
         ```solidity
         /**
          * @notice Registers Layer2 for a specific rollupConfig by Registrant.
          * @param _rollupConfig the rollupConfig address
          * @param _type          1: legacy, 2: bedrock with nativeTON
+        * @param _l2TON         a l2TON address
          */
-        function registerRollupConfig(address _rollupConfig, uint8 _type)  external  onlyRegistrant
+        function registerRollupConfig(address _rollupConfig, uint8 _type, address _l2TON)  external  onlyRegistrant
 
         ```
 

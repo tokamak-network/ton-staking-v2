@@ -22,4 +22,8 @@ contract L1BridgeRegistryStorage   {
     mapping (address => bool) public rejectRollupConfig;
 
     address public seigniorageCommittee;
+
+    /// rollupConfig - l2TON
+    mapping (address => address) public l2TON;
+
 }

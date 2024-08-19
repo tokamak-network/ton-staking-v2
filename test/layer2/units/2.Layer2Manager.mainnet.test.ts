@@ -362,11 +362,14 @@ describe('Layer2Manager', () => {
         })
 
         it('registerSystemConfigByManager  ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
             let type = 1;
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
-                type
+                type,
+                l2TonAddress
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -402,11 +405,14 @@ describe('Layer2Manager', () => {
         })
 
         it('registerSystemConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
             let type = 1;
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfigTest2.address,
-                type
+                type,
+                l2TonAddress
             )).to.be.revertedWith("RegisterError")
         })
     })
