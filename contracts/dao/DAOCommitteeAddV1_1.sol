@@ -17,7 +17,7 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./StorageStateCommitteeV3.sol";
 
-interface ILayer2CandidateFactory {
+interface ICandidateAddOnFactory {
    function deploy(
         address _sender,
         string memory _name,
@@ -69,9 +69,9 @@ contract DAOCommitteeAddV1_1 is
 
     //////////////////////////////////////////////////////////////////////
     // setters
-    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner {
-        _nonZeroAddress(_layer2CandidateFactory);
-        layer2CandidateFactory = _layer2CandidateFactory;
+    function setCandidateAddOnFactory(address _candidateAddOnFactory) external onlyOwner {
+        _nonZeroAddress(_candidateAddOnFactory);
+        candidateAddOnFactory = _candidateAddOnFactory;
     }
 
     function setLayer2Manager(address _layer2Manager) external onlyOwner {
@@ -104,14 +104,14 @@ contract DAOCommitteeAddV1_1 is
     //////////////////////////////////////////////////////////////////////
     //
 
-    function createLayer2Candidate(string calldata _memo, address _operatorAddress)
+    function createCandidateAddOn(string calldata _memo, address _operatorAddress)
         public
         returns (address)
     {
         if (msg.sender != layer2Manager) revert PermissionError();
 
         // Candidate
-        address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
+        address candidateContract = ICandidateAddOnFactory(candidateAddOnFactory).deploy(
             _operatorAddress,
             _memo,
             address(this),

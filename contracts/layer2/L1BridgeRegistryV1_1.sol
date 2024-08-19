@@ -41,8 +41,8 @@ interface IOptimismSystemConfig {
 }
 
 interface ILayer2Manager {
-    function pauseLayer2Candidate(address rollupConfig) external;
-    function unpauseLayer2Cnadidate(address rollupConfig) external;
+    function pauseCandidateAddOn(address rollupConfig) external;
+    function unpauseCandidateAddOn(address rollupConfig) external;
 }
 
 contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage {
@@ -75,14 +75,14 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      *          to the layer 2 sequencer of a specific rollupConfig.
      * @param   rollupConfig  the rollupConfig address
      */
-    event RejectedLayer2Candidate(address rollupConfig);
+    event RejectedCandidateAddOn(address rollupConfig);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
      *          to the layer 2 sequencer of a specific rollupConfig.
      * @param   rollupConfig  the rollupConfig address
      */
-    event RestoredLayer2Candidate(address rollupConfig);
+    event RestoredCandidateAddOn(address rollupConfig);
 
     /**
      * @notice  Event occurs when a bridge address is registered during system configuration registration.
@@ -152,7 +152,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
-    function rejectLayer2Candidate(
+    function rejectCandidateAddOn(
         address rollupConfig
     )  external onlySeigniorageCommittee() {
         if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
@@ -160,22 +160,22 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         require (rollupType[rollupConfig] != 0, "NonRegistered");
 
         rejectRollupConfig[rollupConfig] = true;
-        ILayer2Manager(layer2Manager).pauseLayer2Candidate(rollupConfig);
-        emit RejectedLayer2Candidate(rollupConfig);
+        ILayer2Manager(layer2Manager).pauseCandidateAddOn(rollupConfig);
+        emit RejectedCandidateAddOn(rollupConfig);
     }
 
     /**
      * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
-    function restoreLayer2Candidate(
+    function restoreCandidateAddOn(
         address rollupConfig
     )  external onlySeigniorageCommittee() {
         _onlyRejectedRollupConfig(rollupConfig);
 
         rejectRollupConfig[rollupConfig] = false;
-        ILayer2Manager(layer2Manager).unpauseLayer2Cnadidate(rollupConfig);
-        emit RestoredLayer2Candidate(rollupConfig);
+        ILayer2Manager(layer2Manager).unpauseCandidateAddOn(rollupConfig);
+        emit RestoredCandidateAddOn(rollupConfig);
     }
 
     /* ========== onlyManager ========== */

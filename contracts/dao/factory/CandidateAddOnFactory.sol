@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { Layer2CandidateProxy } from "../Layer2CandidateProxy.sol";
+import { CandidateAddOnProxy } from "../CandidateAddOnProxy.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
-import "./Layer2CandidateFactoryStorage.sol";
-interface ILayer2Candidate {
+import "./CandidateAddOnFactoryStorage.sol";
+interface ICandidateAddOn {
     function initialize(
         address _candidate,
         string memory _memo,
@@ -21,7 +21,7 @@ interface IOnDemandL1BridgeRegistry {
     function exists(address _rollupConfig) external view returns (bool);
 }
 
-contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2CandidateFactoryStorage {
+contract CandidateAddOnFactory is ProxyStorage, AccessibleCommon, CandidateAddOnFactoryStorage {
 
     /**
      * @notice  Event that occurs when a Candidate is created
@@ -51,24 +51,24 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
     function setAddress(
         address _depositManager,
         address _daoCommittee,
-        address _layer2CandidateImp,
+        address _candidateAddOnImp,
         address _ton,
         address _wton,
         address _onDemandL1BridgeRegistry
     ) external onlyOwner {
         require(
             _ton != address(0) && _wton != address(0) &&
-            _depositManager != address(0) && _daoCommittee != address(0) && _layer2CandidateImp != address(0)
+            _depositManager != address(0) && _daoCommittee != address(0) && _candidateAddOnImp != address(0)
             && _onDemandL1BridgeRegistry != address(0) , "zero");
 
         require(
             ton != _ton || wton != _wton ||
-            depositManager != _depositManager || daoCommittee != _daoCommittee || layer2CandidateImp != _layer2CandidateImp
+            depositManager != _depositManager || daoCommittee != _daoCommittee || candidateAddOnImp != _candidateAddOnImp
             || onDemandL1BridgeRegistry != _onDemandL1BridgeRegistry , "same");
 
         depositManager = _depositManager;
         daoCommittee = _daoCommittee;
-        layer2CandidateImp = _layer2CandidateImp;
+        candidateAddOnImp = _candidateAddOnImp;
         ton = _ton;
         wton = _wton;
 
@@ -93,11 +93,11 @@ contract Layer2CandidateFactory is ProxyStorage, AccessibleCommon, Layer2Candida
         returns (address)
     {
         require(daoCommittee == _committee, "different daoCommittee");
-        Layer2CandidateProxy c = new Layer2CandidateProxy();
-        require(address(c) != address(0), "zero Layer2CandidateProxy");
+        CandidateAddOnProxy c = new CandidateAddOnProxy();
+        require(address(c) != address(0), "zero CandidateAddOnProxy");
 
-        c.upgradeTo(layer2CandidateImp);
-        ILayer2Candidate(address(c)).initialize(
+        c.upgradeTo(candidateAddOnImp);
+        ICandidateAddOn(address(c)).initialize(
             _sender,
             _name,
             _committee,

@@ -96,7 +96,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
    * @param pseig         Seigniorage equal to relativeSeigRate ratio from unstakedSeig amount
    *                      Seigniorage given to stakers = stakedSeig + pseig
    * @param l2TotalSeigs  Seigniorage distributed to L2 sequencer
-   * @param layer2Seigs   Seigniorage currently settled (give) to layer2Candidate's operator contract
+   * @param layer2Seigs   Seigniorage currently settled (give) to CandidateAddOn's operatorManager contract
    */
   event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
@@ -170,7 +170,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   /**
    * @notice Distribute the issuing seigniorage.
-   *         If caller is a Layer2Candidate, the seigniorage is settled to the L2 Operator.
+   *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 Operator.
    */
   function updateSeigniorageOperator()
     external
@@ -219,7 +219,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
    * @return daoSeig            the amount calculated to be distributed to DAO
    * @return relativeSeig       the amount equal to relativeSeigRate ratio from unstakedSeig amount
    * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
-   * @return layer2Seigs        the amount currently to be settled (give)  to layer2Candidate's operator contract
+   * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operatorManager contract
    */
   function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
     external view

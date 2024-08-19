@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import "../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import "./CandidateStorage.sol";
-import "./Layer2CandidateStorage.sol";
+import "./CandidateAddOnStorage.sol";
 import { ICandidate } from "./interfaces/ICandidate.sol";
 import { IERC20 } from  "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
@@ -13,8 +13,8 @@ interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
     function rollupConfig() external view returns (address) ;
     function manager() external view returns (address) ;
-    function claimByLayer2Candidate(uint256 amount) external;
-    function depositByLayer2Canddiate(uint256 amount) external ;
+    function claimByCandidateAddOn(uint256 amount) external;
+    function depositByCandidateAddOn(uint256 amount) external ;
 }
 
 interface IISeigManager {
@@ -24,9 +24,9 @@ interface IISeigManager {
     function onSettleReward(address layer2) external returns (bool);
 }
 
-/// @title Managing a Layer2Candidate
-contract Layer2CandidateV1_1 is
-    ProxyStorage, AccessibleCommon, CandidateStorage, Layer2CandidateStorage
+/// @title Managing a CandidateAddOn
+contract CandidateAddOnV1_1 is
+    ProxyStorage, AccessibleCommon, CandidateStorage, CandidateAddOnStorage
 {
     modifier onlyCandidate() {
         require(IOperateContract(candidate).isOperator(msg.sender),
@@ -140,9 +140,9 @@ contract Layer2CandidateV1_1 is
                 uint256 amount = IERC20(wton).balanceOf(candidate);
                 if (amount!= 0) {
                     if (afterCall == 2) {
-                        IOperateContract(candidate).depositByLayer2Canddiate(amount);
+                        IOperateContract(candidate).depositByCandidateAddOn(amount);
                     } else if (afterCall == 1) {
-                        IOperateContract(candidate).claimByLayer2Candidate(amount);
+                        IOperateContract(candidate).claimByCandidateAddOn(amount);
                     }
                 }
             }

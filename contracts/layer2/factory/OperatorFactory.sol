@@ -105,7 +105,7 @@ contract OperatorFactory is Ownable {
      * @notice  Create an Operator Contract, and return its address.
      *          return revert if the account is already deployed.
      *          Note. Only Layer2Manager Contract can be called.
-     *          When creating the Layer2Candidate, create an Operator contract
+     *          When creating the CandidateAddOn, create an Operator contract
      *          that is mapped to RollupConfig.
      * @param rollupConfig  the rollupConfig address
      */

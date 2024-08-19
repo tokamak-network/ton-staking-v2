@@ -21,7 +21,7 @@ interface IRollupConfig {
 }
 
 interface ILayer2Manager {
-    function layer2CandidateOfOperator(address operator) external view returns (address);
+    function candidateAddOnOfOperator(address operator) external view returns (address);
     function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
 }
 
@@ -87,8 +87,8 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
         _;
     }
 
-    modifier onlyLayer2Candidate() {
-        require(msg.sender == ILayer2Manager(layer2Manager).layer2CandidateOfOperator(address(this)), "not onlyLayer2Candidate");
+    modifier onlyCandidateAddOn() {
+        require(msg.sender == ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this)), "not onlyCandidateAddOn");
         _;
     }
 
@@ -155,13 +155,13 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
     }
 
 
-    /* ========== onlyLayer2Candidate ========== */
+    /* ========== onlyCandidateAddOn ========== */
 
     /**
      * @notice Deposit wton amount to DepositManager as named Layer2
      * @param amount    the deposit wton amount (ray)
      */
-    function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate {
+    function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
         _deposit(msg.sender, amount);
     }
 
@@ -169,7 +169,7 @@ contract OperatorV1_1 is Ownable, OperatorStorage {
      * @notice Claim WTON to a manager
      * @param amount    the deposit wton amount (ray)
      */
-    function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate {
+    function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
         _claim(wton, manager, amount);
     }
 

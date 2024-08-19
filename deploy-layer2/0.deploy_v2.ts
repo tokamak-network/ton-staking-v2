@@ -15,9 +15,9 @@ import { OperatorFactory } from "../typechain-types/contracts/layer2/factory/Ope
 import { OperatorV1_1 } from "../typechain-types/contracts/layer2/OperatorV1_1.sol"
 
 import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
-import { Layer2CandidateFactoryProxy } from "../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
-import { Layer2CandidateFactory } from "../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
-import { Layer2CandidateV1_1 } from "../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
+import { CandidateAddOnFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
+import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
@@ -105,42 +105,42 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
             WTON)).wait()
     }
 
-    //==== Layer2CandidateV1_1 =================================
-    const Layer2CandidateV1_1Deployment = await deploy("Layer2CandidateV1_1", {
+    //==== CandidateAddOnV1_1 =================================
+    const Layer2CandidateV1_1Deployment = await deploy("CandidateAddOnV1_1", {
         from: deployer,
         args: [],
         log: true
     });
 
-    //==== Layer2CandidateFactory =================================
-    const Layer2CandidateFactoryDeployment = await deploy("Layer2CandidateFactory", {
+    //==== CandidateAddOnFactory =================================
+    const CandidateAddOnFactoryDeployment = await deploy("CandidateAddOnFactory", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const Layer2CandidateFactoryProxyDeployment = await deploy("Layer2CandidateFactoryProxy", {
+    const CandidateAddOnFactoryProxyDeployment = await deploy("CandidateAddOnFactoryProxy", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const layer2CandidateFactoryProxy = (await hre.ethers.getContractAt(
-        Layer2CandidateFactoryProxyDeployment.abi,
-        Layer2CandidateFactoryProxyDeployment.address
-    )) as Layer2CandidateFactoryProxy;
+    const candidateAddOnFactoryProxy = (await hre.ethers.getContractAt(
+        CandidateAddOnFactoryProxyDeployment.abi,
+        CandidateAddOnFactoryProxyDeployment.address
+    )) as CandidateAddOnFactoryProxy;
 
-    let impl_layer2CandidateFactoryProxy = await layer2CandidateFactoryProxy.implementation()
-    if (impl_layer2CandidateFactoryProxy != Layer2CandidateFactoryDeployment.address) {
-        await (await layer2CandidateFactoryProxy.connect(deploySigner).upgradeTo(Layer2CandidateFactoryDeployment.address)).wait()
+    let impl_candidateAddOnFactoryProxy = await candidateAddOnFactoryProxy.implementation()
+    if (impl_candidateAddOnFactoryProxy != CandidateAddOnFactoryDeployment.address) {
+        await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
     }
 
-    const layer2CandidateFactory = (await hre.ethers.getContractAt("Layer2CandidateFactory", layer2CandidateFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
+    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
 
-    let layer2CandidateImp_layer2CandidateFactory = await layer2CandidateFactory.layer2CandidateImp()
+    let layer2CandidateImp_layer2CandidateFactory = await candidateAddOnFactory.candidateAddOnImp()
 
     if (Layer2CandidateV1_1Deployment.address != layer2CandidateImp_layer2CandidateFactory) {
-        await (await layer2CandidateFactory.connect(deploySigner).setAddress(
+        await (await candidateAddOnFactory.connect(deploySigner).setAddress(
             DepositManager,
             DAOCommitteeProxy,
             Layer2CandidateV1_1Deployment.address,

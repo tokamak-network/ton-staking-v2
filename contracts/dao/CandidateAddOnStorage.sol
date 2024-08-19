@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 /// @title
 /// @notice
-contract Layer2CandidateStorage {
+contract CandidateAddOnStorage {
     address ton;
     address wton;
 }

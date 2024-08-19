@@ -29,26 +29,26 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
 </figure>
 
 
-## Add Layer2Candidate
+## Add CandidateAddOn
 
 In V1, DAOCandidate Layer2 existed. DAOCandidate is Layer 2 that can become a DAO committee.
 
-Layer2Candidate added in V2 inherits all the functions of DAOCandidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
+CandidateAddOn added in V2 inherits all the functions of DAOCandidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
 
 ## Provides withdrawal and L2 deposit functions executed at once
 
-As a feature added in Layer2Candidate, it provides a function that deposits to L2 (withdrawAndDepositL2) at the same time as withdrawal by linking Layer2's unique deposit function with the withdraw function.
+As a feature added in CandidateAddOn, it provides a function that deposits to L2 (withdrawAndDepositL2) at the same time as withdrawal by linking Layer2's unique deposit function with the withdraw function.
 
 TThe withdrawAndDepositL2 function is a function that withdraw the staking amount and deposits it to Layer 2 at the same time. The strength of this feature compared to V1 is that withdrawal is possible immediately  without waiting time (93046  waiting blocks ). As soon as the function is executed, funds tied up in L1 can be used as L2 liquidity.
 
-## Stop providing seigniorage to the L2 sequencer in Layer2Candidate
+## Stop providing seigniorage to the L2 sequencer in CandidateAddOn
 
 Because the layer 2 sequencer is judged to contribute to the tokamak economy, it is designed to provide seigniorage.
-However, if it is determined that Layer 2 is not contributing positively to the Tokamak economy, the Seigniorage Committee may suspend seigniorage granted to the sequencer of the Layer2Candidate.
+However, if it is determined that Layer 2 is not contributing positively to the Tokamak economy, the Seigniorage Committee may suspend seigniorage granted to the sequencer of the CandidateAddOn.
 
 ## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-Layer2Candidate's seigniorage suspension can be reinstated by the seigniorage committee if it is determined that there is a valid reason or improvement.
+CandidateAddOn's seigniorage suspension can be reinstated by the seigniorage committee if it is determined that there is a valid reason or improvement.
 
 
 # TON Stake Contracts
@@ -65,7 +65,7 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 
 ## TON Stake V2 Contracts
 
-V2 maintains the configuration of V1 and adds Layer2Candidate. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
+V2 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
@@ -79,7 +79,7 @@ The added contracts in the blue part will be explained in detail in the contract
 
 # Use case
 ## For registrant of L1BridgeRegistry
-An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered RollupConfig can be registered as Layer2Candidate. Only after being registered as Layer2Candidate can the sequencer receive seigniorage.
+An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered RollupConfig can be registered as CandidateAddOn. Only after being registered as CandidateAddOn can the sequencer receive seigniorage.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
@@ -89,18 +89,18 @@ An account with registrant permission in the L1BridgeRegistry contract can regis
 
 
 ## For everyone
-Anyone can register Layer2Candidate for RollupConfig registered in L1BridgeRegistry. When registering Layer2Candidate, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, Layer2Candidate, and Coinage contracts are created through the ‘registerLayer2Candidate’ function.
+Anyone can register CandidateAddOn for RollupConfig registered in L1BridgeRegistry. When registering CandidateAddOn, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, CandidateAddOn, and Coinage contracts are created through the ‘registerCandidateAddOn’ function.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
-         alt="Register Layer2Candidate" width=500 ></center>
+         alt="Register CandidateAddOn" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
-## For staker in Layer2Candidate
+## For staker in CandidateAddOn
 
-Users who have staked on Layer2Candidate can perform the function of withdrawing the staking amount and simultaneously depositing the withdrawn amount into the corresponding Layer2 through the WithdrawAndDepositL2 function. At this time, when withdrawing the staking amount, withdrawal and L2 deposit are made immediately without waiting time.
+Users who have staked on CandidateAddOn can perform the function of withdrawing the staking amount and simultaneously depositing the withdrawn amount into the corresponding Layer2 through the WithdrawAndDepositL2 function. At this time, when withdrawing the staking amount, withdrawal and L2 deposit are made immediately without waiting time.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
@@ -111,7 +111,7 @@ Users who have staked on Layer2Candidate can perform the function of withdrawing
 
 ## For seigniorageCommittee
 
-Simple Staking V2 has designed an economy that issues TON seigniorage to the sequencer of Layer2Candidate, which operates Layer2. However, there must be a function to stop issuing TON seigniorages to the corresponding Layer 2 sequencer as soon as it detects actions such as not actually operating Layer 2 or unreasonably allocating seigniorage.
+Simple Staking V2 has designed an economy that issues TON seigniorage to the sequencer of CandidateAddOn, which operates Layer2. However, there must be a function to stop issuing TON seigniorages to the corresponding Layer 2 sequencer as soon as it detects actions such as not actually operating Layer 2 or unreasonably allocating seigniorage.
 
 Created a Seigniorage Committee account defined in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending or canceling issuance of Seigniorage for the Layer 2 sequencer.
 
@@ -124,11 +124,11 @@ Created a Seigniorage Committee account defined in the L1BridgeRegistry contract
 
 # Sequence Diagrams
 
-## Register Layer2Candidate
+## Register CandidateAddOn
 
-When registering a Layer2Candidate, you must deposit at least the minimum deposit amount in the name of the operator of that layer.
+When registering a CandidateAddOn, you must deposit at least the minimum deposit amount in the name of the operator of that layer.
 
-When registering Layer2Candidate. You must present the RollupConfig contract address that holds Layer 2 configuration information.
+When registering CandidateAddOn. You must present the RollupConfig contract address that holds Layer 2 configuration information.
 
 Additionally, the RollupConfig you enter must be registered in L1BridgeRegistry before registration. (Only accounts with L1BridgeRegistry Registrant privileges can register with L1BridgeRegistry.)
 <figure>
@@ -139,7 +139,7 @@ Additionally, the RollupConfig you enter must be registered in L1BridgeRegistry 
 
 ## Withdraw And Deposit L2
 
-Users who stake on Layer2Candidate can withdraw the staked amount immediately and deposit it on Layer2 concurrently.
+Users who stake on CandidateAddOn can withdraw the staked amount immediately and deposit it on Layer2 concurrently.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-2.png"
@@ -228,38 +228,38 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
      *          to the layer 2 sequencer of a specific rollupConfig.
      * @param   _rollupConfig  the rollupConfig address
      */
-    event RejectedLayer2Candidate(address _rollupConfig);
+    event RejectedCandidateAddOn(address _rollupConfig);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
      *          to the layer 2 sequencer of a specific rollupConfig.
      * @param   _rollupConfig  the rollupConfig address
      */
-    event RestoredLayer2Candidate(address _rollupConfig);
+    event RestoredCandidateAddOn(address _rollupConfig);
 
     ```
 
 - Transaction Functions
-    - function rejectLayer2Candidate(address _rollupConfig)  external onlySeigniorageCommittee()
+    - function rejectCandidateAddOn(address _rollupConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
          * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
          * @param _rollupConfig the rollupConfig address
          */
-        function rejectLayer2Candidate(
+        function rejectCandidateAddOn(
             address _rollupConfig
         )  external onlySeigniorageCommittee()
         ```
 
-    - function restoreLayer2Candidate(address _rollupConfig)  external onlySeigniorageCommittee()
+    - function restoreCandidateAddOn(address _rollupConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
          * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific rollupConfig.
          * @param _rollupConfig the rollupConfig address
          */
-        function restoreLayer2Candidate(
+        function restoreCandidateAddOn(
             address _rollupConfig
         )  external onlySeigniorageCommittee()
         ```
@@ -328,7 +328,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 - Basic understanding
 
-    When Layer2Candidate is registered as a member in DAOCommittee, the operator address of Layer2Candidate is registered as the key value of the mapping, so the operator address should not be changed. However, because the operator of the L2 layer (rollupConfig) can change at any time, an Operator contract was created. The Operator contract is a contract that maps to the rollupConfig contract. In other words, the address of the Operator contract must be created using the rollupConfig (L2 layer) contract address. Because there is a possibility of logic changes in the future, it was implemented as a proxy.
+    When CandidateAddOn is registered as a member in DAOCommittee, the operator address of CandidateAddOn is registered as the key value of the mapping, so the operator address should not be changed. However, because the operator of the L2 layer (rollupConfig) can change at any time, an Operator contract was created. The Operator contract is a contract that maps to the rollupConfig contract. In other words, the address of the Operator contract must be created using the rollupConfig (L2 layer) contract address. Because there is a possibility of logic changes in the future, it was implemented as a proxy.
 
 - Authority
     - Owner: The owner can set the logic of the deployed operator.
@@ -390,7 +390,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
          * @notice  Create an Operator Contract, and return its address.
          *          return revert if the account is already deployed.
          *          Note. Only Layer2Manager Contract can be called.
-         *          When creating the Layer2Candidate, create an Operator contract
+         *          When creating the CandidateAddOn, create an Operator contract
          *          that is mapped to rollupConfig.
          * @param rollupConfig  the rollupConfig address
          */
@@ -414,7 +414,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 - Basic understanding
     - Operator contracts should be designed with the possibility of supporting multiple sequencers (operators) in Layer 2 in the future. Therefore, it is designed with an upgradeable structure.
-    - Layer2Candidate inherits all the functions of DAOCandidate.
+    - CandidateAddOn inherits all the functions of DAOCandidate.
     - The onlyCandidate account (an account where Operator.isOperator(msg.sender) is true has operator privileges) can use the functions that onlyCandidate of DAOCandidate can perform.
 
 - Authority
@@ -512,24 +512,24 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate
+    - function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
          * @notice Deposit wton amount to DepositManager as named Layer2
          * @param amount    the deposit wton amount (ray)
          */
-        function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate
+        function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
         ```
 
-    - function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate
+    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
         * @notice Claim WTON to a manager
         * @param amount    the deposit wton amount (ray)
         */
-        function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate
+        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
         ```
 
 - View functions
@@ -572,7 +572,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 ## Layer2Manager
 - Basic understanding
     - In order for the Layer2 sequencer to receive seigniorage, the RollupConfig address must be registered in the Layer2Manager.
-    - When distributing seigniorage, the seigniorage paid to Layer 2 sequencers is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of Layer2Candidate is settled.
+    - When distributing seigniorage, the seigniorage paid to Layer 2 sequencers is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of CandidateAddOn is settled.
 
 - Authority
     - Owner : The owner has the authority to upgrade logic and can set settings.
@@ -582,7 +582,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     ```jsx
     struct OperatorInfo {
         address rollupConfig;
-        address layer2Candidate;
+        address CandidateAddOn;
     }
 
     struct RollupConfigInfo {
@@ -599,7 +599,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     address public seigManager;
     address public swapProxy;
 
-    /// The minimum TON deposit amount required when creating a Layer2Candidate.
+    /// The minimum TON deposit amount required when creating a CandidateAddOn.
     /// Due to calculating swton, It is recommended to set
     /// DepositManager's minimum deposit + 0.1 TON
     uint256 public minimumInitialDepositAmount;
@@ -622,42 +622,42 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
-     * @notice Event occurs when registering Layer2Candidate
+     * @notice Event occurs when registering CandidateAddOn
      * @param systemConfig      the systemConfig address
      * @param wtonAmount        the wton amount depositing when registering Layer2Canddiate
      * @param memo              the name of Layer2Canddiate
      * @param operator          a opperator contract address
-     * @param layer2Candidate   a layer2Candidate address
+     * @param candidateAddOn   a candidateAddOn address
      */
-    event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event RegisteredCandidateAddOn(address systemConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param systemConfig      the systemConfig address
      * @param _layer2           the layer2 address
      */
-    event PausedLayer2Candidate(address systemConfig, address _layer2);
+    event PausedCandidateAddOn(address systemConfig, address _layer2);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param systemConfig      the systemConfig address
      * @param _layer2           the layer2 address
      */
-    event UnpausedLayer2Candidate(address systemConfig, address _layer2);
+    event UnpausedCandidateAddOn(address systemConfig, address _layer2);
     ```
 
 - Transaction functions
-    - function registerLayer2Candidate(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
+    - function registerCandidateAddOn(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
 
         ```jsx
         /**
-         * @notice Register the Layer2Candidate
+         * @notice Register the CandidateAddOn
          * @param systemConfig     systemConfig's address
          * @param amount           transfered amount
          * @param flagTon          if true, amount is ton, otherwise it it wton
          * param memo             layer's name
          */
-        function registerLayer2Candidate(
+        function registerCandidateAddOn(
             address systemConfig,
             uint256 amount,
             bool flagTon,
@@ -678,24 +678,24 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool)
         ```
 
-    - function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree
+    - function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
 
         ```jsx
         /**
-         * @notice Pause the layer2 candidate
+         * @notice Pause the CandidateAddOn
          * @param systemConfig the systemConfig address
          */
-        function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree
+        function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
         ```
 
-    - function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
+    - function unpauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
 
         ```solidity
         /**
-         * @notice Unpause the layer2 candidate
+         * @notice Unpause the CandidateAddOn
          * @param systemConfig the systemConfig address
          */
-        function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
+        function unpauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
         ```
 
     - function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger
@@ -713,7 +713,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
         ```jsx
         /**
-        * @notice  Set the minimum TON deposit amount required when creating a Layer2Candidate.
+        * @notice  Set the minimum TON deposit amount required when creating a CandidateAddOn.
         *          Due to calculating swton, it is recommended to set DepositManager's minimum deposit + 0.1 TON
         * @param   _minimumInitialDepositAmount the minimum initial deposit amount
         */
@@ -744,15 +744,15 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function operatorOfSystemConfig(address _sys) external view returns (address)
         ```
 
-    - function layer2CandidateOfOperator(address _oper) external view returns (address)
+    - function candidateAddOnOfOperator(address _oper) external view returns (address)
 
         ```jsx
         /**
-         * @notice  View the layer2Candidate address of the operator address.
+         * @notice  View the candidateAddOn address of the operator address.
          * @param _oper     the operator address
-         * @return          the layer2Candidate address
+         * @return          the candidateAddOn address
          */
-        function layer2CandidateOfOperator(address _oper) external view returns (address)
+        function candidateAddOnOfOperator(address _oper) external view returns (address)
         ```
 
     - function issueStatusLayer2(address _sys) external view returns (uint8)
@@ -808,7 +808,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     ```jsx
     address public depositManager;
     address public daoCommittee;
-    address public layer2CandidateImp;
+    address public candidateAddOnImp;
     address public ton;
     address public wton;
 
@@ -868,11 +868,11 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Basic understanding
     - Supports the basic functions of Simple Staking (Tone Staking) (deposit, update seigniorage-interest payment, withdrawal function).
     - Supports DAO member functions available in DAOCandidate.
-    - When executing update seigniorage, Layer2Candidate’s sequencer (operator) can receive seigniorage.
+    - When executing update seigniorage, CandidateAddOn’s sequencer (operator) can receive seigniorage.
 
 - Authority
     - Owner : The owner has the authority to upgrade logic and can initialize settings.
-    - onlyCandidate : Account with operator privileges of the Operator contract of Layer2Candidate
+    - onlyCandidate : Account with operator privileges of the Operator contract of CandidateAddOn
 
         ```jsx
          modifier onlyCandidate() {
@@ -998,8 +998,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 ## SeigManagerV1_3
 - Basic understanding
-    - When Layer2Candidate's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the Operator contract.
-    - A sequencer with operator privileges in the Operator contract can select the claim and staking option when executing the update seigniorage of Layer2Candidate (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
+    - When CandidateAddOn's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the Operator contract.
+    - A sequencer with operator privileges in the Operator contract can select the claim and staking option when executing the update seigniorage of CandidateAddOn (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
     - The seigniorage distribution logic distributed to the L2 sequencer is done according to the seigniorage distribution rules of v2. [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
     - Since SeigManager is already deployed and operated in V1, only the update seigniorage function is executed with the changed logic in SeigManagerV1_3 without changing other functions.
     - Add storage to manage the seigniorage provided to Layer 2 when executing the update seigniorage function.
@@ -1059,7 +1059,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
      *                      Seigniorage given to stakers = stakedSeig + pseig
      * @param l2TotalSeigs  Seigniorage distributed to L2 sequencer
      * @param layer2Seigs   Seigniorage currently settled (give)
-     *                      to layer2Candidate's operator contract
+     *                      to CandidateAddOn's operator contract
      */
     event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
@@ -1083,7 +1083,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         ```jsx
         /**
         * @notice Distribute the issuing seigniorage.
-        *         If caller is a Layer2Candidate, the seigniorage is settled to the L2 Operator.
+        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 Operator.
         */
         function updateSeigniorageOperator()
         external
@@ -1136,7 +1136,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         * @return daoSeig            the amount calculated to be distributed to DAO
         * @return relativeSeig       the amount equal to relativeSeigRate ratio from unstakedSeig amount
         * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
-        * @return layer2Seigs        the amount currently to be settled (give)  to layer2Candidate's operator contract
+        * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operator contract
         */
         function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
         external view
@@ -1148,8 +1148,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 ## DepositManagerV1_1
 
 - Basic understanding
-    - In the case of Layer2Candidate, it supports the function (withdrawAndDepositL2) that allows you to withdraw tons staking and deposit to Layer 2 at the same time. In this case, the money is withdrawn immediately without delay and deposited in L2.
-    - An error occurs when requesting the withdrawAndDepositL2 function from a layer other than Layer2Candidate.
+    - In the case of CandidateAddOn, it supports the function (withdrawAndDepositL2) that allows you to withdraw tons staking and deposit to Layer 2 at the same time. In this case, the money is withdrawn immediately without delay and deposited in L2.
+    - An error occurs when requesting the withdrawAndDepositL2 function from a layer other than CandidateAddOn.
     - Didn't change the existing logic in DepositManagerProxy as is and add only the withdrawAndDepositL2 function.
 
 - Storage

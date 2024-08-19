@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 /**
- * @notice  Error that occurs when registering Layer2Candidate
+ * @notice  Error that occurs when registering CandidateAddOn
  * @param x 1: don't create operator
  *          2: already rollupConfigOfOperator registered
  *          3: fail deposit
@@ -59,7 +59,7 @@ interface IOptimismPortal {
 }
 
 interface IIDAOCommittee {
-     function createLayer2Candidate(string calldata _memo, address _rollupConfig) external returns (address);
+     function createCandidateAddOn(string calldata _memo, address _rollupConfig) external returns (address);
 }
 
 interface IIDepositManager {
@@ -107,28 +107,28 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
-     * @notice Event occurs when registering Layer2Candidate
+     * @notice Event occurs when registering CandidateAddOn
      * @param rollupConfig          the rollupConfig address
-     * @param wtonAmount        the wton amount depositing when registering Layer2Canddiate
-     * @param memo              the name of Layer2Canddiate
+     * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
+     * @param memo              the name of CandidateAddOn
      * @param operator          a opperator contract address
-     * @param layer2Candidate   a layer2Candidate address
+     * @param candidateAddOn   a candidateAddOn address
      */
-    event RegisteredLayer2Candidate(address rollupConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param rollupConfig      the rollupConfig address
      * @param _layer2           the layer2 address
      */
-    event PausedLayer2Candidate(address rollupConfig, address _layer2);
+    event PausedCandidateAddOn(address rollupConfig, address _layer2);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param rollupConfig      the rollupConfig address
      * @param _layer2           the layer2 address
      */
-    event UnpausedLayer2Candidate(address rollupConfig, address _layer2);
+    event UnpausedCandidateAddOn(address rollupConfig, address _layer2);
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -169,7 +169,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     /**
-     * @notice  Set the minimum TON deposit amount required when creating a Layer2Candidate.
+     * @notice  Set the minimum TON deposit amount required when creating a CandidateAddOn.
      *          Due to calculating swton, it is recommended to set DepositManager's minimum deposit + 0.1 TON
      * @param   _minimumInitialDepositAmount the minimum initial deposit amount
      */
@@ -184,10 +184,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== onlyL2Register ========== */
 
     /**
-     * @notice Pause the layer2 candidate
+     * @notice Pause the CandidateAddOn
      * @param rollupConfig the rollupConfig address
      */
-    function pauseLayer2Candidate(address rollupConfig) external onlyL1BridgeRegistry ifFree {
+    function pauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree {
          SeqSeigStatus memory info = rollupConfigInfo[rollupConfig];
         // require(info.stateIssue == 1, "not in normal status");
         if (info.status != 1) revert StatusError();
@@ -196,7 +196,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _nonZeroAddress(_layer2);
 
         rollupConfigInfo[rollupConfig].status = 2;
-        emit PausedLayer2Candidate(rollupConfig, _layer2);
+        emit PausedCandidateAddOn(rollupConfig, _layer2);
 
         (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
         if (!success) revert ExcludeError();
@@ -204,16 +204,16 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     /**
-     * @notice Unpause the layer2 candidate
+     * @notice Unpause the CandidateAddOn
      * @param rollupConfig the rollupConfig address
      */
-    function unpauseLayer2Cnadidate(address rollupConfig) external onlyL1BridgeRegistry ifFree {
+    function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree {
         SeqSeigStatus memory info = rollupConfigInfo[rollupConfig];
         // require(info.stateIssue == 2, "not in pause status");
         if (info.status != 2) revert StatusError();
 
         rollupConfigInfo[rollupConfig].status = 1;
-        emit UnpausedLayer2Candidate(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
+        emit UnpausedCandidateAddOn(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
     }
 
     /* ========== onlySeigManger  ========== */
@@ -231,13 +231,13 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /* ========== Anybody can execute ========== */
 
     /**
-     * @notice Register the Layer2Candidate
+     * @notice Register the CandidateAddOn
      * @param rollupConfig     rollupConfig's address
      * @param amount           transfered amount
      * @param flagTon          if true, amount is ton, otherwise it it wton
      * param memo             layer's name
      */
-    function registerLayer2Candidate(
+    function registerCandidateAddOn(
         address rollupConfig,
         uint256 amount,
         bool flagTon,
@@ -310,11 +310,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     /**
-     * @notice  View the layer2Candidate address of the operator address.
+     * @notice  View the CandidateAddOn address of the operator address.
      * @param _oper     the operator address
      * @return          the candidateAddOn address
      */
-    function layer2CandidateOfOperator(address _oper) external view returns (address) {
+    function candidateAddOnOfOperator(address _oper) external view returns (address) {
         return operatorInfo[_oper].candidateAddOn;
     }
 
@@ -380,7 +380,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         if(_addr == address(0)) revert ZeroAddressError();
     }
 
-    function _registerLayer2Candidate(
+    function _registerCandidateAddOn(
         address _rollupConfig,
         uint256 _wtonAmount,
         string calldata _memo
@@ -389,10 +389,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
         if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].rollupConfig != address(0)) revert RegisterError(2);
-        address layer2Candidate = IIDAOCommittee(dao).createLayer2Candidate(_memo, operator);
+        address candidateAddOn = IIDAOCommittee(dao).createCandidateAddOn(_memo, operator);
         operatorInfo[operator] = OperatorInfo({
             rollupConfig: _rollupConfig,
-            candidateAddOn : layer2Candidate
+            candidateAddOn : candidateAddOn
         });
 
         rollupConfigInfo[_rollupConfig] = SeqSeigStatus({
@@ -400,10 +400,10 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             operatorManager: operator
         });
 
-        emit RegisteredLayer2Candidate(_rollupConfig, _wtonAmount, _memo, operator, layer2Candidate);
+        emit RegisteredCandidateAddOn(_rollupConfig, _wtonAmount, _memo, operator, candidateAddOn);
 
         if (IERC20(wton).allowance(address(this), depositManager) < _wtonAmount) IERC20(wton).approve(depositManager, type(uint256).max);
-        if (!IIDepositManager(depositManager).deposit(layer2Candidate, operator, _wtonAmount)) revert RegisterError(3);
+        if (!IIDepositManager(depositManager).deposit(candidateAddOn, operator, _wtonAmount)) revert RegisterError(3);
 
     }
 
@@ -452,13 +452,13 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             IERC20(_ton).safeTransferFrom(sender, address(this), amount);
             if (IERC20(_ton).allowance(address(this), _wton) < amount) IERC20(_ton).approve(_wton, type(uint256).max);
             if (!IWTON(_wton).swapFromTON(amount)) revert RegisterError(7);
-            _registerLayer2Candidate(_rollupConfig, amount*1e9, memo);
+            _registerCandidateAddOn(_rollupConfig, amount*1e9, memo);
 
         } else { // with wton
 
             if ((amount / 1e9) < minimumInitialDepositAmount) revert RegisterError(6);
             IERC20(_wton).safeTransferFrom(sender, address(this), amount);
-            _registerLayer2Candidate(_rollupConfig, amount, memo);
+            _registerCandidateAddOn(_rollupConfig, amount, memo);
 
         }
     }

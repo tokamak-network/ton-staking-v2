@@ -27,26 +27,26 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
 </figure>
 
 
-## Layer2Candidate 추가
+## CandidateAddOn 추가
 
 V1에서는 DAOCandidate Layer2 가 존재하였습니다. DAOCandidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
 
-V2에서 추가되는 Layer2Candidate는 DAOCandidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
+V2에서 추가되는 CandidateAddOn는 DAOCandidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
 
 ## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
-Layer2Candidate 에서 추가된 기능으로, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여,  인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
+CandidateAddOn 에서 추가된 기능으로, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여,  인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
 
 withdrawAndDepositL2 함수는 스테이킹 금액을 언스테이킹하면서 동시에 Layer2에 예치하는 기능입니다. 이 기능이 V1과 비교했을때의 강점은 언스테이킹 요청 후 대기 시간없이(대기 블록: 93046 블록) 바로 언스테이킹이 가능하다는데 있습니다.  함수 실행 즉시 L1에 묶인 자금을 L2  유동성으로 사용할 수 있습니다.
 
 
-## Layer2Candidate 의 L2시퀀서 시뇨리지 제공 중지
+## CandidateAddOn 의 L2시퀀서 시뇨리지 제공 중지
 
-레이어2 시퀀서에게 시뇨리지를 부여하는 기능은 토카막 이코노미의 큰 권한을 부여받은 것입니다. 그런데, 이러한 레이어2가 토카막 이코노미에 적절한 역할을 하지 못한다고 판단될 경우, 시뇨리지 위원회는 해당 Layer2Candidate의 시퀀서에게 부여되는 시뇨리지를 중지할 수 있습니다.
+레이어2 시퀀서에게 시뇨리지를 부여하는 기능은 토카막 이코노미의 큰 권한을 부여받은 것입니다. 그런데, 이러한 레이어2가 토카막 이코노미에 적절한 역할을 하지 못한다고 판단될 경우, 시뇨리지 위원회는 해당 CandidateAddOn의 시퀀서에게 부여되는 시뇨리지를 중지할 수 있습니다.
 
-## Layer2Candidate 의 L2시퀀서 시뇨리지 제공 중지 취소
+## CandidateAddOn 의 L2시퀀서 시뇨리지 제공 중지 취소
 
-Layer2Candidate의 시뇨리지 중지의 복구는 타당한 이유 및 개선이 있다고 판단될 경우, 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
+CandidateAddOn의 시뇨리지 중지의 복구는 타당한 이유 및 개선이 있다고 판단될 경우, 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
 # TON Stake Contracts
 
 ## TON Stake V1 Contracts
@@ -61,7 +61,7 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 
 ## TON Stake V2 Contracts
 
-V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
+V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
@@ -73,7 +73,7 @@ V2는 V1의 구성을 유지하면서 Layer2Candidate가 추가되었다. 컨트
 
 # Use case
 ## For registrant of L1BridgeRegistry
-L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 Layer2Candidate로 등록될 수 있다.  Layer2Candidate 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
+L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 CandidateAddOn로 등록될 수 있다.  CandidateAddOn 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
@@ -83,16 +83,16 @@ L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 �
 
 
 ## For everyone
-누구나 L1BridgeRegistry에 등록된 SystemConfig에 대해서 Layer2Candidate를 등록할 수 있다. Layer2Candidate 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘Layer2Candidate 등록’ 기능을 통해 Operator, Layer2Candidate, Coinage 컨트랙이 생성된다.
+누구나 L1BridgeRegistry에 등록된 SystemConfig에 대해서 CandidateAddOn를 등록할 수 있다. CandidateAddOn 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘CandidateAddOn 등록’ 기능을 통해 Operator, CandidateAddOn, Coinage 컨트랙이 생성된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
-         alt="Register Layer2Candidate" width=500 ></center>
+         alt="Register CandidateAddOn" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
-## For staker in Layer2Candidate
+## For staker in CandidateAddOn
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
@@ -113,11 +113,11 @@ L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 �
 
 # Sequence Diagrams
 
-## Register Layer2Candidate
+## Register CandidateAddOn
 
-Layer2Candidate를 등록할때에는 해당 레이어의 오퍼레이터 이름으로 최소 예치금액 이상을 예치해야 합니다.
+CandidateAddOn를 등록할때에는 해당 레이어의 오퍼레이터 이름으로 최소 예치금액 이상을 예치해야 합니다.
 
-Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있는 SystemConfig 컨트랙 주소를 제시해야 합니다.
+CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있는 SystemConfig 컨트랙 주소를 제시해야 합니다.
 
 또한 입력하는 SystemConfig는 등록전에 L1BridgeRegistry에 등록되어 있어야 합니다. ( L1BridgeRegistry에 등록하는 권한은 L1BridgeRegistry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
@@ -129,7 +129,7 @@ Layer2Candidate를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 
 ## Withdraw And Deposit L2
 
-Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
+CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-2.png"
@@ -218,38 +218,38 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
      *          to the layer 2 sequencer of a specific systemConfig.
      * @param   _systemConfig  the systemConfig address
      */
-    event RejectedLayer2Candidate(address _systemConfig);
+    event RejectedCandidateAddOn(address _systemConfig);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
      *          to the layer 2 sequencer of a specific systemConfig.
      * @param   _systemConfig  the systemConfig address
      */
-    event RestoredLayer2Candidate(address _systemConfig);
+    event RestoredCandidateAddOn(address _systemConfig);
 
     ```
 
 - 주요 Transaction Functions
-    - function rejectLayer2Candidate(address _systemConfig)  external onlySeigniorageCommittee()
+    - function rejectCandidateAddOn(address _systemConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
          * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific systemConfig.
          * @param _systemConfig the systemConfig address
          */
-        function rejectLayer2Candidate(
+        function rejectCandidateAddOn(
             address _systemConfig
         )  external onlySeigniorageCommittee()
         ```
 
-    - function restoreLayer2Candidate(address _systemConfig)  external onlySeigniorageCommittee()
+    - function restoreCandidateAddOn(address _systemConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
          * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific systemConfig.
          * @param _systemConfig the systemConfig address
          */
-        function restoreLayer2Candidate(
+        function restoreCandidateAddOn(
             address _systemConfig
         )  external onlySeigniorageCommittee()
         ```
@@ -316,7 +316,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 - 개요
 
-    DAOCommittee 에 Layer2Candidate가 멤버로 등록될때 Layer2Candidate의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다.    추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
+    DAOCommittee 에 CandidateAddOn가 멤버로 등록될때 CandidateAddOn의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다.    추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
 
 - 권한
     - 오너 : 오너는 배포되는 오퍼레이터의 로직을 설정할 수 있다.
@@ -377,7 +377,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
          * @notice  Create an Operator Contract, and return its address.
          *          return revert if the account is already deployed.
          *          Note. Only Layer2Manager Contract can be called.
-         *          When creating the Layer2Candidate, create an Operator contract
+         *          When creating the CandidateAddOn, create an Operator contract
          *          that is mapped to SystemConfig.
          * @param systemConfig  the systemConfig address
          */
@@ -401,8 +401,8 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 - 개요
     - Operator 컨트랙은 추후 Layer2에서 다중 시퀀서(오퍼레이터)를 지원할 가능성이 있다는 것을 염두에 두고 설계되어야 한다.  따라서 업그레이드 가능한 구조로 설계된다.
-    - Layer2Candidate 는 DAOCandidate의 모든 기능을 상속받았다. DAOCandidate의 onlyCandidate 의 정의
-        - **Operator.isOperator(msg.sender)** 가 true은 계정을 의미하며, operator 권한을 가진 계정은 Layer2Candidate의 오퍼레이터 함수를 사용할수 있게 한다.
+    - CandidateAddOn 는 DAOCandidate의 모든 기능을 상속받았다. DAOCandidate의 onlyCandidate 의 정의
+        - **Operator.isOperator(msg.sender)** 가 true은 계정을 의미하며, operator 권한을 가진 계정은 CandidateAddOn의 오퍼레이터 함수를 사용할수 있게 한다.
 - 권한
     - owner
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
@@ -496,24 +496,24 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate
+    - function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
          * @notice Deposit wton amount to DepositManager as named Layer2
          * @param amount    the deposit wton amount (ray)
          */
-        function depositByLayer2Canddiate(uint256 amount) external onlyLayer2Candidate
+        function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
         ```
 
-    - function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate
+    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
         * @notice Claim WTON to a manager
         * @param amount    the deposit wton amount (ray)
         */
-        function claimByLayer2Candidate(uint256 amount) external onlyLayer2Candidate
+        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
         ```
 
 - 주요 View 함수
@@ -556,7 +556,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 ## Layer2Manager
 - 개요
     - Layer2 시퀀서가 시뇨리지를 받기 위해서는 SystemConfig 주소를  Layer2Manager에 등록해야 합니다.
-    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager 는 Layer2Candidate 의 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
+    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager 는 CandidateAddOn 의 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
 - 스토리지
@@ -564,7 +564,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     ```jsx
     struct OperatorInfo {
         address systemConfig;
-        address layer2Candidate;
+        address candidateAddOn;
     }
 
     struct SystemConfigInfo {
@@ -581,7 +581,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     address public seigManager;
     address public swapProxy;
 
-    /// The minimum TON deposit amount required when creating a Layer2Candidate.
+    /// The minimum TON deposit amount required when creating a candidateAddOn.
     /// Due to calculating swton, It is recommended to set
     /// DepositManager's minimum deposit + 0.1 TON
     uint256 public minimumInitialDepositAmount;
@@ -604,42 +604,42 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
-     * @notice Event occurs when registering Layer2Candidate
+     * @notice Event occurs when registering candidateAddOn
      * @param systemConfig      the systemConfig address
      * @param wtonAmount        the wton amount depositing when registering Layer2Canddiate
      * @param memo              the name of Layer2Canddiate
      * @param operator          a opperator contract address
-     * @param layer2Candidate   a layer2Candidate address
+     * @param candidateAddOn   a candidateAddOn address
      */
-    event RegisteredLayer2Candidate(address systemConfig, uint256 wtonAmount, string memo, address operator, address layer2Candidate);
+    event RegisteredCandidateAddOn(address systemConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param systemConfig      the systemConfig address
      * @param _layer2           the layer2 address
      */
-    event PausedLayer2Candidate(address systemConfig, address _layer2);
+    event PausedCandidateAddOn(address systemConfig, address _layer2);
 
     /**
-     * @notice Event occurs when pausing the layer2 candidate
+     * @notice Event occurs when pausing the CandidateAddOn
      * @param systemConfig      the systemConfig address
      * @param _layer2           the layer2 address
      */
-    event UnpausedLayer2Candidate(address systemConfig, address _layer2);
+    event UnpausedCandidateAddOn(address systemConfig, address _layer2);
     ```
 
 - 주요  Transaction 함수
-    - function registerLayer2Candidate(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
+    - function registerCandidateAddOn(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
 
         ```jsx
         /**
-         * @notice Register the Layer2Candidate
+         * @notice Register the CandidateAddOn
          * @param systemConfig     systemConfig's address
          * @param amount           transfered amount
          * @param flagTon          if true, amount is ton, otherwise it it wton
          * param memo             layer's name
          */
-        function registerLayer2Candidate(
+        function registerCandidateAddOn(
             address systemConfig,
             uint256 amount,
             bool flagTon,
@@ -660,21 +660,21 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool)
         ```
 
-    - function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree
+    - function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
 
         ```jsx
         /**
-         * @notice Pause the layer2 candidate
+         * @notice Pause the CandidateAddOn
          * @param systemConfig the systemConfig address
          */
-        function pauseLayer2Candidate(address systemConfig) external onlyL2Register ifFree
+        function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
         ```
 
     - function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
 
         ```solidity
         /**
-         * @notice Unpause the layer2 candidate
+         * @notice Unpause the CandidateAddOn
          * @param systemConfig the systemConfig address
          */
         function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
@@ -695,7 +695,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
         ```jsx
         /**
-        * @notice  Set the minimum TON deposit amount required when creating a Layer2Candidate.
+        * @notice  Set the minimum TON deposit amount required when creating a CandidateAddOn.
         *          Due to calculating swton, it is recommended to set DepositManager's minimum deposit + 0.1 TON
         * @param   _minimumInitialDepositAmount the minimum initial deposit amount
         */
@@ -728,15 +728,15 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         function operatorOfSystemConfig(address _sys) external view returns (address)
         ```
 
-    - function layer2CandidateOfOperator(address _oper) external view returns (address)
+    - function candidateAddOnOfOperator(address _oper) external view returns (address)
 
         ```jsx
         /**
-         * @notice  View the layer2Candidate address of the operator address.
+         * @notice  View the candidateAddOn address of the operator address.
          * @param _oper     the operator address
-         * @return          the layer2Candidate address
+         * @return          the candidateAddOn address
          */
-        function layer2CandidateOfOperator(address _oper) external view returns (address)
+        function candidateAddOnOfOperator(address _oper) external view returns (address)
         ```
 
     - function issueStatusLayer2(address _sys) external view returns (uint8)
@@ -790,7 +790,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
     ```jsx
     address public depositManager;
     address public daoCommittee;
-    address public layer2CandidateImp;
+    address public candidateAddOnImp;
     address public ton;
     address public wton;
 
@@ -850,10 +850,10 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 - 개요
     - 심플스테이킹(톤 스테이킹)의 기본기능(예치, 업데이트시뇨리지-이자지급, 출금 기능)을 지원한다.
     - DAOCandidate에서 할 수 있는 다오 멤버 기능을 지원한다.
-    - 업데이트 시뇨리지 실행시, Layer2Candidate의 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
+    - 업데이트 시뇨리지 실행시, CandidateAddOn의 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
 - 권한
     - Owner : 오너는 로직 업그레이드 권한을 갖으며, 설정값을 초기화 할 수 있다.
-    - onlyCandidate : Layer2Candidate 에 매칭되는 Operator 컨트랙의 오퍼레이터 권한을 갖는 계정
+    - onlyCandidate : CandidateAddOn 에 매칭되는 Operator 컨트랙의 오퍼레이터 권한을 갖는 계정
 
         ```jsx
          modifier onlyCandidate() {
@@ -979,8 +979,8 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 
 ## SeigManagerV1_3
 - 개요
-    - Layer2Candidate의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 Operator 컨트랙에게 정산됩니다.
-    - Operator 컨트랙의 오퍼레이터권한을 갖는 시퀀서가 Layer2Candidate 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
+    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 Operator 컨트랙에게 정산됩니다.
+    - Operator 컨트랙의 오퍼레이터권한을 갖는 시퀀서가 CandidateAddOn 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
     - L2 시퀀서에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
     - V1에서 이미 SeigManager 가 배포되어 운영되고 있으므로, 다른 기능은 변경없이 업데이트 시뇨리지 함수만  SeigManagerV1_3에 변경된 로직으로 실행되도록 한다.
     - 업데이트 시뇨리지 함수실행시 Layer2에게 제공하는 시뇨리지를 관리하기 위한 스토리지를 추가한다.
@@ -1040,7 +1040,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
      *                      Seigniorage given to stakers = stakedSeig + pseig
      * @param l2TotalSeigs  Seigniorage distributed to L2 sequencer
      * @param layer2Seigs   Seigniorage currently settled (give)
-     *                      to layer2Candidate's operator contract
+     *                      to CandidateAddOn's operator contract
      */
     event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
@@ -1064,7 +1064,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         ```jsx
         /**
         * @notice Distribute the issuing seigniorage.
-        *         If caller is a Layer2Candidate, the seigniorage is settled to the L2 Operator.
+        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 Operator.
         */
         function updateSeigniorageOperator()
         external
@@ -1117,7 +1117,7 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
         * @return daoSeig            the amount calculated to be distributed to DAO
         * @return relativeSeig       the amount equal to relativeSeigRate ratio from unstakedSeig amount
         * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
-        * @return layer2Seigs        the amount currently to be settled (give)  to layer2Candidate's operator contract
+        * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operator contract
         */
         function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
         external view
@@ -1129,8 +1129,8 @@ Layer2Candidate 에 스테이킹한 사용자는 스테이킹한 금액을 즉�
 ## DepositManagerV1_1
 
 - 개요
-    - Layer2Candidate 의 경우라면 톤스테이킹출금을 하면서, 동시에 해당 Layer2에 예치할 수 있는 기능 (withdrawAndDepositL2) 을 지원한다. 이 때에는 출금시 지연시간 없이 즉시 출금 후, L1에 예치된다.
-    - Layer2Candidate가 아닌 레이어에 withdrawAndDepositL2 함수를 요청할때는 에러를 발생한다.
+    - CandidateAddOn 의 경우라면 톤스테이킹출금을 하면서, 동시에 해당 Layer2에 예치할 수 있는 기능 (withdrawAndDepositL2) 을 지원한다. 이 때에는 출금시 지연시간 없이 즉시 출금 후, L1에 예치된다.
+    - CandidateAddOn가 아닌 레이어에 withdrawAndDepositL2 함수를 요청할때는 에러를 발생한다.
     - DepositManagerProxy에 기존 로직은 그대로 두고, withdrawAndDepositL2 함수만 추가되도록 한다.
 - 스토리지
 
