@@ -109,6 +109,7 @@ describe('Layer2Candidate', () => {
     let daoContractAdd : DAOCommitteeAddV1_1;
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
     const deployedLayer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
+    // impl :   0x96380d80Ed20B2f4B397e550575D2D2E5a728eB6
     const deployedOperatorFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
     const deployedDAOAddress = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
     const deployedLayer2CandidateFactory = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
@@ -185,6 +186,47 @@ describe('Layer2Candidate', () => {
 
 
     describe('# 1.updateSeigs and Claim ', () => {
+        // it('upgrade Logic Layer2ManagerV1_1', async () => {
+
+        //     const Layer2ManagerV1_1Dep = await ethers.getContractFactory("Layer2ManagerV1_1");
+        //     const Layer2ManagerV1_1Logic = await Layer2ManagerV1_1Dep.deploy();
+        //     await Layer2ManagerV1_1Logic.deployed()
+
+        //     await (await layer2ManagerProxy.connect(tonHave).upgradeTo(
+        //         Layer2ManagerV1_1Logic.address
+        //     )).wait()
+
+        //     const titan_info = {
+        //         systemConfig: "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87",
+        //         operator : "0x1A8e48401697DcF297A02c90d3480c35885f8959",
+        //         layer2Candidate: "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
+        //     }
+
+        //     const thanos_info = {
+        //         systemConfig: "0xf8FCFDbdb7C4E734D035A5681Fd1fe08ec85e387",
+        //         operator : "0x97f70424857fa4c79B76ef90E057e1FD4b8287Db",
+        //         layer2Candidate: "0xF78d3E1f7ca9EFc672969cfc771c6207e3AfEB7E"
+        //     }
+
+        //     await (await layer2Manager.connect(tonHave).setSystemOperatorConfigInfo(
+        //         titan_info.systemConfig,
+        //         1,
+        //         titan_info.operator,
+        //         titan_info.layer2Candidate
+        //     )).wait()
+
+        //     const operatorInfo = await layer2Manager.operatorInfo(titan_info.operator);
+        //     console.log("operatorInfo", operatorInfo)
+
+        //     const systemConfigOfOperator = await layer2Manager.systemConfigOfOperator(titan_info.operator);
+        //     console.log("operatorInfo.systemConfig", systemConfigOfOperator)
+
+        //     const layer2CandidateOfOperator = await layer2Manager.layer2CandidateOfOperator(titan_info.operator);
+        //     console.log("operatorInfo.layer2CandidateOfOperator", layer2CandidateOfOperator)
+
+
+        // })
+
         // it('upgrade Logic Layer2CandidateV1_1', async () => {
         //     const Layer2CandidateV1_1_3Dep = await ethers.getContractFactory("Layer2CandidateV1_1");
         //     const Layer2CandidateV1_1Logic = await Layer2CandidateV1_1_3Dep.deploy();
@@ -283,7 +325,7 @@ describe('Layer2Candidate', () => {
             const receipt = await (await titanLayerContract.connect(tonHave)["updateSeigniorage(uint256)"](
                 1
             )).wait()
-            // console.log("receipt", receipt)
+            console.log("receipt", receipt)
             let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
             console.log("stakeOf1", stakeOf1)
 
