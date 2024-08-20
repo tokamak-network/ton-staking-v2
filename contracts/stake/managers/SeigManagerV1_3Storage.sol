@@ -23,7 +23,7 @@ contract SeigManagerV1_3Storage  {
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
 
-    /// layer2 reward information for each layer2.
+    /// layer2 reward information for each layer2(candidate).
     mapping (address => Layer2Reward) public layer2RewardInfo;
 
     bool internal _lock;
