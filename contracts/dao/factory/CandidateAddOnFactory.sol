@@ -26,8 +26,8 @@ contract CandidateAddOnFactory is ProxyStorage, AccessibleCommon, CandidateAddOn
     /**
      * @notice  Event that occurs when a Candidate is created
      * @param sender            the sender address
-     * @param layer2            the layer2 address
-     * @param operator          the operator address
+     * @param layer2            the candidate address
+     * @param operator          the operator/operatorManager address
      * @param isLayer2Candidate whether it is Layer2Candidate
      * @param name              the name of Layer2
      * @param committee         the committee address

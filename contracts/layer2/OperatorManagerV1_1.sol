@@ -102,7 +102,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     function setAddresses(address _layer2Manager, address _depositManager, address _ton, address _wton)
         external
         nonZeroAddress(_layer2Manager) nonZeroAddress(_depositManager)
-        nonZeroAddress(_ton) nonZeroAddress(_wton)
+        nonZeroAddress(_ton) nonZeroAddress(_wton) onlyOwner
     {
         _alreadySet(layer2Manager);
 
@@ -176,7 +176,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     /* ========== public ========== */
 
     /**
-     * @notice acquire administrator privileges.
+     * @notice acquire manager privileges.
      */
     function acquireManager() external {
         require (msg.sender != manager, "already manager");
@@ -187,7 +187,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     }
 
     /**
-     * @notice Returns true if the operator has permission.
+     * @notice Returns true if the the addr is a manager.
      * @param addr the address to check
      */
     function isOperator(address addr) public view returns (bool) {

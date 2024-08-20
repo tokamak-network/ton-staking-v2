@@ -47,13 +47,13 @@ contract OperatorManagerFactory is Ownable {
     event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
 
     /**
-     * @notice Event occured when change the operatorManager implementaion address
-     * @param newOperatorManagerImp the operatorManager implementaion address
+     * @notice Event occurred when changing the operatorManager implementation address
+     * @param newOperatorManagerImp the operatorManager implementation address
      */
     event ChangedOperatorManagerImp(address newOperatorManagerImp);
 
     /**
-     * @notice Event occured when create the OperatorManager Contract
+     * @notice Event occurred when creating the OperatorManager Contract
      * @param rollupConfig      the rollupConfig address
      * @param owner             the owner address
      * @param manager           the manager address
@@ -66,8 +66,8 @@ contract OperatorManagerFactory is Ownable {
     }
 
     /**
-     * @notice Change the operatorManager implementaion address by Owner
-     * @param newOperatorManagerImp the operatorManager implementaion address
+     * @notice Change the operatorManager implementation address by Owner
+     * @param newOperatorManagerImp the operatorManager implementation address
      */
     function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner {
         _nonZeroAddress(newOperatorManagerImp);
@@ -103,7 +103,7 @@ contract OperatorManagerFactory is Ownable {
 
     /**
      * @notice  Create an OperatorManager Contract, and return its address.
-     *          return revert if the account is already deployed.
+     *          return revert if the account has already been deployed.
      *          Note. Only Layer2Manager Contract can be called.
      *          When creating the CandidateAddOn, create an OperatorManager contract
      *          that is mapped to RollupConfig.

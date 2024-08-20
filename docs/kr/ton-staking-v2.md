@@ -17,44 +17,44 @@ $TON seigs :　발행되는　TON　시뇨리지　양$<br/>
 $D :　Layer2 들의　총　TON 유동성$<br/>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
     <figcaption>V1 의 시뇨리지 분배</figcaption>
 </figure>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
     <figcaption>V2의 시뇨리지 분배</figcaption>
 </figure>
 
 
 ## CandidateAddOn 추가
 
-V1에서는 DAOCandidate Layer2 가 존재하였습니다. DAOCandidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
+V1에서는 Candidate 가 존재하였습니다. Candidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
 
-V2에서 추가되는 CandidateAddOn는 DAOCandidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
+V2에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
 
 ## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
-CandidateAddOn 에서 추가된 기능으로, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여,  인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
+CandidateAddOn 에서 추가된 기능은, 해당 Layer2의 독자적인 예치 기능을 언스테이킹 기능과 연계하여, 스테이킹된 톤을 인출과 동시에 L2에 예치하는(withdrawAndDepositL2) 함수를 제공합니다.
 
-withdrawAndDepositL2 함수는 스테이킹 금액을 언스테이킹하면서 동시에 Layer2에 예치하는 기능입니다. 이 기능이 V1과 비교했을때의 강점은 언스테이킹 요청 후 대기 시간없이(대기 블록: 93046 블록) 바로 언스테이킹이 가능하다는데 있습니다.  함수 실행 즉시 L1에 묶인 자금을 L2  유동성으로 사용할 수 있습니다.
-
+withdrawAndDepositL2 함수는 스테이킹 금액을 언스테이킹하면서 동시에 Layer2에 예치하는 기능입니다. 이 기능이 V1과 비교했을때의 강점은 언스테이킹 요청 후 대기 시간없이(대기 블록: 93046 블록) 바로 언스테이킹이 가능하다는데 있습니다.  함수 실행 즉시 L1에 묶인 자금을 L2 유동성으로 사용할 수 있습니다.
 
 ## CandidateAddOn 의 L2시퀀서 시뇨리지 제공 중지
 
-레이어2 시퀀서에게 시뇨리지를 부여하는 기능은 토카막 이코노미의 큰 권한을 부여받은 것입니다. 그런데, 이러한 레이어2가 토카막 이코노미에 적절한 역할을 하지 못한다고 판단될 경우, 시뇨리지 위원회는 해당 CandidateAddOn의 시퀀서에게 부여되는 시뇨리지를 중지할 수 있습니다.
+시뇨리지 위원회는 특정 CandidateAddOn의 레이어2 시퀀서에게 부여되는 시뇨리지를 중지할 수 있습니다. 만일의 경우를 위해 존재하는 기능입니다.
 
 ## CandidateAddOn 의 L2시퀀서 시뇨리지 제공 중지 취소
 
-CandidateAddOn의 시뇨리지 중지의 복구는 타당한 이유 및 개선이 있다고 판단될 경우, 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
+Layer2Candidate의 시뇨리지 중지의 복구는 시뇨리지 위원회에 의해 다시 중지취소가 가능합니다.
+
 # TON Stake Contracts
 
 ## TON Stake V1 Contracts
 
-V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 daoCandiate가 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, DAOCandidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (DAOCandidate) 마다 별도의 AutoCoinage 가 생성된다.
+V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 Candidate는 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, Candidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (Candidate) 마다 별도의 AutoCoinage 가 생성된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-1.png"
          alt="TON Stake V1 Contracts Relationship" width=700></center>
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
@@ -64,48 +64,64 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. DAOCandidate는 DAO
 V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
-   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/2-2.png"
+   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
          alt="TON Stake V2 Contracts Relationship" width=700 ></center>
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
 
-먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 옵티미즘 롤업이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인경우로 제한한다는 것을 기억해주길 바란다.  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 Layer2를 구별할 수 있는 주소로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 Layer2를 구별할 수 있는 주소록 사용해야 한다.
+먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 Optimism Rollup이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인 경우로 제한한다는 것을 기억해주길 바란다.
+
+우리는 RollupConfig, RollupType, L2TON 의 정보를 입력받아, 레이어2를 확인할 것이다.
+
+- RollupConfig
+  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 RollupConfig (Layer2를 구별할 수 있는 주소)로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 RollupConfig (Layer2를 구별할 수 있는 주소) 정보로 사용해야 한다.
+
+- RollupType
+  옵티미즘 레거시 버전을 0으로 사용하고,
+  옵티미즘 배드락 버전이고, native TON을 사용하는 경우는 1 값을 사용한다.
+  다른 형태의 롤업을 지원할때 해당 타입을 추가로 지정해주면서 업그레이드한다.
+
+- L2TON
+  CandidateAddOn을 등록할때, 해당 레이어2에서 사용하는 L2 TON의 주소를 입력받아야 한다.
 
 # Use case
 ## For registrant of L1BridgeRegistry
-L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 SystemConfig를 등록할 수 있다. SystemConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 SystemConfig의 레이어2만 CandidateAddOn로 등록될 수 있다.  CandidateAddOn 로 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
+L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 RollupConfig를 등록할 수 있다. RollupConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 RollupConfig의 레이어2만 CandidateAddOn으로 등록될 수 있다.  CandidateAddOn 이 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-1.png"
          alt="Register SystemConfig" width=400 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
 ## For everyone
-누구나 L1BridgeRegistry에 등록된 SystemConfig에 대해서 CandidateAddOn를 등록할 수 있다. CandidateAddOn 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘CandidateAddOn 등록’ 기능을 통해 Operator, CandidateAddOn, Coinage 컨트랙이 생성된다.
+누구나 L1BridgeRegistry에 등록된 RollupConfig 값으로만 CandidateAddOn을 등록할 수 있다. CandidateAddOn 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘CandidateAddOn 등록’ 기능을 통해 OperatorManager, CandidateAddOn, Coinage 컨트랙이 생성된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-2.png"
          alt="Register CandidateAddOn" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
 ## For staker in CandidateAddOn
+CandidateAddOn 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 통해 스테이킹을 금액 인출과 동시에 인출된 금액을 해당 Layer2 에 예치하는 기능을 수행할 수 있습니다. 이때 스테이킹 금액을 인출할 때 대기시간없이 바로 인출 및 L2 예치가 됩니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-3.png"
          alt="Withdraw and deposit to L2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
 
 
 ## For seigniorageCommittee
+심플 스테이킹 V2는 CandidateAddOn의 OperatorManager 에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 해당 레이어2 시퀀서는 OperatorManager 컨트랙에 보관된 시뇨리지를 클래임하여 가져갈 수 있습니다.
 
+만일의 경우를 대비해서, 해당 OperatorManager에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다. L1BridgeRegistry 컨트랙에 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 특정 CandidateAddOn의 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/3-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -117,12 +133,12 @@ L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 �
 
 CandidateAddOn를 등록할때에는 해당 레이어의 오퍼레이터 이름으로 최소 예치금액 이상을 예치해야 합니다.
 
-CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있는 SystemConfig 컨트랙 주소를 제시해야 합니다.
+CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있는 RollupConfig(SystemConfig) 컨트랙 주소를 제시해야 합니다.
 
-또한 입력하는 SystemConfig는 등록전에 L1BridgeRegistry에 등록되어 있어야 합니다. ( L1BridgeRegistry에 등록하는 권한은 L1BridgeRegistry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
+또한 입력하는 RollupConfig(SystemConfig)는 등록전에 L1BridgeRegistry에 등록되어 있어야 합니다. ( L1BridgeRegistry에 등록하는 권한은 L1BridgeRegistry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -132,7 +148,7 @@ CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-2.png"
          alt="Reject and Restore Layer2" width=800 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -142,7 +158,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 시뇨리지 위원회는  특정 레이어2가 시뇨리지를 받기에 불합리하다고 판단될때, 해당 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-3.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -152,7 +168,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 시뇨리지 위원회는  특정 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지했던 것을 취소하여, 다시 시뇨리지를 지급할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/15-create-a-document/docs/img/4-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -163,14 +179,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 ## L1BridgeRegistry
 
 - 개요
-    - 토카막 네트웤에서 운영되는 레이어2의 SystemConfig 컨트랙 주소가 등록된  컨트랙입니다.
-    - 타이탄, 타노스는 어드민에 의해 수동으로 SystemConfig를 입력합니다.
+    - 레이어2의 L1 컨트랙 정보가 저장된 컨트랙을 rollupConfig 스토리지에 저장합니다.
+    - 옵티미즘 롤업 배드락의 경우, SystemConfig 주소를 rollupConfig 로 지정합니다.
+    - 타이탄, 타노스는 어드민에 의해 수동으로 SystemConfig을 rollupConfig로 저장합니다.
     - on-demand L2에서 생성된 컨트랙은 컨트랙 생성시 자동으로 등록됩니다.
-    - 기존에 심플스테이킹에 Layer2Registry가 존재하여 구별을 주고자 L1BridgeRegistry 로 이름을 정했다.
-    - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 한다.
+    - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 합니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 매니저를 지정할 수 있다.
-    - Manager : 재단은 MANAGER_ROLE 을 보유하고 있고, 매니저는 오퍼레이터를 등록하거나 제거할 수 있다.  SeigniorageCommittee
+    - Manager : 재단은 MANAGER_ROLE 을 보유하고 있고, 매니저는 Registrant를 등록하거나 제거할 수 있다.
     - Registrant:  on-demand-L2 오픈시, L2를 실제 배포하는 서버의 EOA에게 REGISTRANT_ROLE 을 주어야 한다.
 - 스토리지
 
@@ -178,9 +194,8 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     address public layer2Manager;
     address public seigManager;
     address public ton;
-    address public seigniorageCommittee;
 
-    /// systemConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
+    /// rollupConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
     mapping (address => uint8) public rollupType;
 
     /// For registered bridges, set to true.
@@ -190,7 +205,12 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     mapping (address => bool) public portal;
 
     /// Set the layer where seigniorage issuance has been suspended to true.
-    mapping (address => bool) public rejectSystemConfig;
+    mapping (address => bool) public rejectRollupConfig;
+
+    address public seigniorageCommittee;
+
+    /// rollupConfig - l2TON
+    mapping (address => address) public l2TON;
     ```
 
 - 이벤트
@@ -200,45 +220,60 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     event SetSeigniorageCommittee(address _seigniorageCommittee);
 
     /**
-     * @notice  Event occurs when registering SystemConfig
-     * @param   systemConfig  the systemConfig address
-     * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
-     */
-    event RegisteredSystemConfig(address systemConfig, uint8 type_);
+    * @notice  Event occurs when registering rollupConfig
+    * @param   rollupConfig      the rollupConfig address
+    * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+    */
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_);
 
     /**
-     * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
-     * @param   systemConfig  the systemConfig address
-     * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
-     */
-    event ChangedType(address systemConfig, uint8 type_);
+    * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
+    * @param   rollupConfig      the rollupConfig address
+    * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+    */
+    event ChangedType(address rollupConfig, uint8 type_);
 
     /**
-     * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
-     */
-    event RejectedCandidateAddOn(address _systemConfig);
+    * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
+    *          to the layer 2 sequencer of a specific rollupConfig.
+    * @param   rollupConfig  the rollupConfig address
+    */
+    event RejectedCandidateAddOn(address rollupConfig);
 
     /**
-     * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
-     *          to the layer 2 sequencer of a specific systemConfig.
-     * @param   _systemConfig  the systemConfig address
-     */
-    event RestoredCandidateAddOn(address _systemConfig);
+    * @notice  Event occurs when onlySeigniorageCommittee cancels stopping issuing seigniorage
+    *          to the layer 2 sequencer of a specific rollupConfig.
+    * @param   rollupConfig  the rollupConfig address
+    */
+    event RestoredCandidateAddOn(address rollupConfig);
+
+    /**
+    * @notice  Event occurs when a bridge address is registered during system configuration registration.
+    * @param   rollupConfig        the rollupConfig address
+    * @param   bridge          the bridge address
+    */
+    event AddedBridge(address rollupConfig, address bridge);
+
+    /**
+    * @notice  Event occurs when an optimismPortal address is registered during system configuration registration.
+    * @param rollupConfig          the rollupConfig address
+    * @param portal            the bridge address
+    */
+    event AddedPortal(address rollupConfig, address portal);
+
 
     ```
 
 - 주요 Transaction Functions
-    - function rejectCandidateAddOn(address _systemConfig)  external onlySeigniorageCommittee()
+    - function rejectCandidateAddOn(address rollupConfig)  external onlySeigniorageCommittee()
 
         ```solidity
         /**
-         * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific systemConfig.
-         * @param _systemConfig the systemConfig address
-         */
+        * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
+        * @param rollupConfig the rollupConfig address
+        */
         function rejectCandidateAddOn(
-            address _systemConfig
+        address rollupConfig
         )  external onlySeigniorageCommittee()
         ```
 
@@ -246,69 +281,69 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
         ```solidity
         /**
-         * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific systemConfig.
-         * @param _systemConfig the systemConfig address
-         */
+        * Restore cancel stopping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+        * @param rollupConfig the rollupConfig address
+        */
         function restoreCandidateAddOn(
-            address _systemConfig
+            address rollupConfig
         )  external onlySeigniorageCommittee()
         ```
 
-    - function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external onlyManager
+    - function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON) external onlyManager
 
         ```solidity
         /**
-         * @notice Registers Layer2 for a specific systemConfig by the manager.
-         * @param _systemConfig  the systemConfig address
-         * @param _type          1: legacy, 2: bedrock with nativeTON
-         */
-        function registerSystemConfigByManager(address _systemConfig, uint8 _type)  external  onlyManager
+        * @notice Registers Layer2 for a specific rollupConfig by the manager.
+        * @param rollupConfig       the rollupConfig address
+        * @param _type              1: legacy, 2: bedrock with nativeTON
+        */
+        function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON)  external  onlyManager
 
         ```
 
-    - function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant
+    - function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON) external  onlyRegistrant
 
         ```solidity
         /**
-         * @notice Registers Layer2 for a specific systemConfig by Registrant.
-         * @param _systemConfig the systemConfig address
-         * @param _type          1: legacy, 2: bedrock with nativeTON
-         */
-        function registerSystemConfig(address _systemConfig, uint8 _type)  external  onlyRegistrant
+        * @notice Registers Layer2 for a specific rollupConfig by Registrant.
+        * @param rollupConfig       the rollupConfig address
+        * @param _type          1: legacy, 2: bedrock with native TON
+        */
+        function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external  onlyRegistrant
 
         ```
 
-    - function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant
+    - function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant
 
         ```solidity
         /**
-         * @notice Changes the Layer2 type for a specific systemConfig by Registrant.
-         * @param _systemConfig the systemConfig address
-         * @param _type          1: legacy, 2: bedrock with nativeTON
-         */
-        function changeType(address _systemConfig, uint8 _type)  external  onlyRegistrant
+        * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
+        * @param rollupConfig the rollupConfig address
+        * @param _type          1: legacy, 2: bedrock with native TON
+        */
+        function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant
         ```
 
 - 주요 View Functions
-    - function layer2TVL(address _systemConfig) public view returns (uint256 amount)
+    - function layer2TVL(address rollupConfig) public view returns (uint256 amount)
 
         ```solidity
         /**
-         * @notice View the liquidity of Layer2 TON for a specific systemConfig.
-         * @param _systemConfig the systemConfig address
-         */
-        function layer2TVL(address _systemConfig) public view returns (uint256 amount)
+        * @notice View the liquidity of Layer2 TON for a specific systemConfig.
+        * @param rollupConfig the rollupConfig address
+        */
+        function layer2TVL(address rollupConfig) public view returns (uint256 amount)
         ```
 
-    - function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid)
+    - function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid)
 
         ```solidity
         /**
-         * @notice Check whether a specific systemConfig can be registered as a type.
-         * @param _systemConfig the systemConfig address
-         * @param _type         1: legacy, 2: bedrock with nativeTON
-         */
-        function availableForRegistration(address _systemConfig, uint8 _type) public view returns (bool valid)
+        * @notice Check whether a specific systemConfig can be registered as a type.
+        * @param rollupConfig the rollupConfig address
+        * @param _type         1: legacy, 2: bedrock with native TON
+        */
+        function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid)
 
         ```
 
@@ -316,14 +351,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 - 개요
 
-    DAOCommittee 에 CandidateAddOn가 멤버로 등록될때 CandidateAddOn의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그러나 L2레이어(SystemConfig)의 오퍼레이터는 언제든지 바뀔수 있기 때문에 Operator 컨트랙을 만들었다.  Operator 컨트랙은 SystemConfig 컨트랙에 매핑되는 컨트랙이다. 즉, SystemConfig (L2레이어) 컨트랙 주소로 Operator 컨트랙의 주소를 생성하여야 한다.    추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
+    DAOCommittee 에 CandidateAddOn이 멤버로 등록될때 CandidateAddOn의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그래서, 해당 OperatorManager 컨트랙을 만들어, 오퍼레이터 주소 대신 사용하고, 실제 오퍼레이터는  OperatorManager의 manager로 등록하여, 시뇨리지를 가져갈 수 있도록 설계하였다.  OperatorManager 컨트랙은 RollupConfig 주소에 매핑되는 컨트랙이다. 즉, RollupConfig (L2레이어) 컨트랙 주소로 OperatorManager 컨트랙의 주소를 생성하여야 한다.   추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
 
 - 권한
     - 오너 : 오너는 배포되는 오퍼레이터의 로직을 설정할 수 있다.
 - 스토리지
 
     ```jsx
-    address public operatorImplementation;
+    address public operatorManagerImp;
     address public depositManager;
     address public ton;
     address public wton;
@@ -334,103 +369,100 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
     ```jsx
     /**
-     * @notice Event occured when set the addresses
-     * @param depositManager    the depositManager address
-     * @param ton               TON address
-     * @param wton              WTON
-     * @param layer2Manager     the layer2Manager address
-     */
+     * @notice Event occurs when set the addresses
+    * @param depositManager    the depositManager address
+    * @param ton               TON address
+    * @param wton              WTON
+    * @param layer2Manager     the layer2Manager address
+    */
     event SetAddresses(address depositManager, address ton, address wton, address layer2Manager);
 
     /**
-     * @notice Event occured when change the operator implementaion address
-     * @param newOperatorImplementation the operator implementaion address
-     */
-    event ChangedOperatorImplementaion(address newOperatorImplementation);
+    * @notice Event occurred when changing the operatorManager implimplementationementaion address
+    * @param newOperatorManagerImp the operatorManager implementation address
+    */
+    event ChangedOperatorManagerImp(address newOperatorManagerImp);
 
     /**
-     * @notice Event occured when create the Operator Contract
-     * @param systemConfig  the systemConfig address
-     * @param owner         the owner address
-     * @param manager       the manager address
-     * @param operator      the operator address
-     */
-    event CreatedOperator(address systemConfig, address owner, address manager, address operator);
+    * @notice Event occurred when creating the OperatorManager Contract
+    * @param rollupConfig      the rollupConfig address
+    * @param owner             the owner address
+    * @param manager           the manager address
+    * @param operatorManager   the operatorManager address
+    */
+    event CreatedOperatorManager(address rollupConfig, address owner, address manager, address operatorManager);
 
     ```
 
 - 주요  Transaction 함수
-    - function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
+    - function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner
 
         ```solidity
         /**
-         * @notice Change the operator implementaion address by Owner
-         * @param newOperatorImplementation the operator implementaion address
-         */
-        function changeOperatorImplementaion(address newOperatorImplementation) external onlyOwner
+        * @notice Change the operatorManager implementation address by Owner
+        * @param newOperatorManagerImp the operatorManager implementation address
+        */
+        function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner
         ```
 
-    - function createOperator(address systemConfig) external returns (address operator)
+    - function createOperatorManager(address rollupConfig) external returns (address operator)
 
         ```solidity
         /**
-         * @notice  Create an Operator Contract, and return its address.
-         *          return revert if the account is already deployed.
-         *          Note. Only Layer2Manager Contract can be called.
-         *          When creating the CandidateAddOn, create an Operator contract
-         *          that is mapped to SystemConfig.
-         * @param systemConfig  the systemConfig address
-         */
-        function createOperator(address systemConfig) external returns (address operator) {
+        * @notice  Create an OperatorManager Contract and return its address.
+        *          return revert if the account has already been deployed.
+        *          Note. Only Layer2Manager Contract can be called.
+        *          When creating the CandidateAddOn, create an OperatorManager contract
+        *          that is mapped to RollupConfig.
+        * @param rollupConfig  the rollupConfig address
+        */
+        function createOperatorManager(address rollupConfig) external returns (address operatorManager)
 
         ```
 
 - 주요 View 함수
-    - function getAddress(address systemConfig) public view returns (address)
+    - function getAddress(address rollupConfig) public view returns (address)
 
         ```solidity
         /**
-         * @notice  Returns the operator contract address matching systemConfig.
-         * @param systemConfig  the systemConfig address
-         */
-        function getAddress(address systemConfig) public view returns (address)
+        * @notice  Returns the operatorManager contract address matching rollupConfig.
+        * @param rollupConfig  the rollupConfig address
+        */
+        function getAddress(address rollupConfig) public view returns (address)
         ```
 
 
-## Operator
+## OperatorManager
 
 - 개요
-    - Operator 컨트랙은 추후 Layer2에서 다중 시퀀서(오퍼레이터)를 지원할 가능성이 있다는 것을 염두에 두고 설계되어야 한다.  따라서 업그레이드 가능한 구조로 설계된다.
-    - CandidateAddOn 는 DAOCandidate의 모든 기능을 상속받았다. DAOCandidate의 onlyCandidate 의 정의
-        - **Operator.isOperator(msg.sender)** 가 true은 계정을 의미하며, operator 권한을 가진 계정은 CandidateAddOn의 오퍼레이터 함수를 사용할수 있게 한다.
+    - OperatorManager 컨트랙은 추후 Layer2에서 다중 시퀀서(오퍼레이터)를 지원할 가능성이 있다는 것을 염두에 두고 설계되어야 한다. 따라서 업그레이드 가능한 구조로 설계된다.
+    - CandidateAddOn 는 Candidate의 모든 기능을 상속받았다. Candidate의 onlyCandidate 의 정의
+        - **Operator.isOperator(msg.sender)** 가 true인 계정을 의미하며, OperatorManager 의 manager로 지정된 계정이 CandidateAddOn의 오퍼레이터 함수를 사용할수 있다.
 - 권한
-    - owner
+   - owner
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
-        - 프록시 오너는 재단이 보유한다.
         - 매니저를 변경할 수 있다.
-        - 오퍼레이터를 추가/삭제할 수 있다.
     - manager
-        - 관리자 권한은 오퍼레이터 등록 및 제거 할 수 있다. 최초 배포시 SystemConfig의 오너를 manager 로 지정한다.
-        - 추후 SystemConfig의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.owner 가 manager를 가져갈 수 있는 인터페이스를 제공한다. )
-    - operator  (onlyCandidate)
-        - 오퍼레이터 권한을 보유한다. 다오멤버의 함수를 사용할 수 있다.
-        - onlyCandidate : **Operator.isOperator(msg.sender)**  == true 인 계정이다.
-        - DAOCandidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수는 오퍼페이터가 실행할 수 있다.
-            - changeMember 함수 → Operator 컨트랙이 다오의 멤버가 된다.
-            - retireMember 함수 → Operator 컨트랙이 다오 멤버에서 사임한다.
-            - castVote 함수  → Operator 컨트랙 이름으로 안건에 투표한다.
-            - claimActivityReward 함수 → 리워드는 Operator 컨트랙이 받는다.
+        - 관리자는 레이어2의 시퀀서로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 owner()를 manager 로 지정한다.
+        - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.owner 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
+        - CandidateAddOn 의 오퍼레이터 권한을 보유하여, 다오멤버의 함수를 사용할 수 있다.
+            - Candidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수를 실행할 수 있다.
+            - changeMember 함수 → OperatorManager 컨트랙이 다오의 멤버가 된다.
+            - retireMember 함수 → OperatorManager 컨트랙이 다오 멤버에서 사임한다.
+            - castVote 함수  → OperatorManager 컨트랙 이름으로 안건에 투표한다.
+            - claimActivityReward 함수 → 리워드는 OperatorManager 컨트랙이 받는다.
+    - RollupConfig 컨트랙은 반드시 owner() 함수를 지원해야 한다.
 - 스토리지
 
     ```jsx
-    address public systemConfig;
+    address public rollupConfig;
     address public layer2Manager;
     address public depositManager;
     address public ton;
     address public wton;
 
     address public manager;
-    mapping(address => bool) public operator;
+    string public explorer;
     ```
 
 - 이벤트
@@ -473,6 +505,12 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     */
     event Claimed(address token, address caller, address to, uint256 amount);
 
+    /**
+    * @notice Event occurs when setting the explorer url
+    * @param _explorer a explorer url
+    */
+    event SetExplorer(string _explorer);
+
     ```
 
 - 주요  Transaction 함수
@@ -496,21 +534,21 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
+    - function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
-         * @notice Deposit wton amount to DepositManager as named Layer2
-         * @param amount    the deposit wton amount (ray)
-         */
-        function depositByLayer2Canddiate(uint256 amount) external onlyCandidateAddOn
+        * @notice Deposit wton amount to DepositManager as named Layer2
+        * @param amount    the deposit wton amount (ray)
+        */
+        function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
         ```
 
     - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
 
         ```jsx
         /**
-        * @notice Claim WTON to a manager
+         * @notice Claim WTON to a manager
         * @param amount    the deposit wton amount (ray)
         */
         function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
@@ -521,7 +559,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
         ```jsx
         /**
-         * @notice acquire administrator privileges.
+         * @notice acquire manager privileges.
          */
         function acquireManager() external
         ```
@@ -530,7 +568,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
         ```jsx
         /**
-         * @notice Returns true if the operator has permission.
+         * @notice Returns true if the the addr is a manager.
          * @param addr the address to check
          */
         function isOperator(address addr) public view returns (bool)
@@ -555,8 +593,8 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## Layer2Manager
 - 개요
-    - Layer2 시퀀서가 시뇨리지를 받기 위해서는 SystemConfig 주소를  Layer2Manager에 등록해야 합니다.
-    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager 는 CandidateAddOn 의 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
+    - Layer2 시퀀서가 시뇨리지를 받기 위해서는 RollupConfig(SystemConfig) 주소를  Layer2Manager에 등록해야 합니다.
+    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager는 특정 CandidateAddOn의 시퀀서 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
 - 스토리지
@@ -567,13 +605,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         address candidateAddOn;
     }
 
-    struct RollupConfigInfo {
+    struct SeqSeigStatus {
         uint8 status; // status for giving seigniorage ( 0: none, 1: registered, 2: paused )
         address operatorManager;
     }
 
-    address public l2Register;
+    address public l1BridgeRegistry;
     address public operatorManagerFactory;
+
     address public ton;
     address public wton;
     address public dao;
@@ -581,13 +620,10 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     address public seigManager;
     address public swapProxy;
 
-    /// The minimum TON deposit amount required when creating a candidateAddOn.
-    /// Due to calculating swton, It is recommended to set
-    /// DepositManager's minimum deposit + 0.1 TON
-    uint256 public minimumInitialDepositAmount;
+    uint256 public minimumInitialDepositAmount;   /// ton
 
-    /// rollupConfig - SystemConfigInfo
-    mapping (address => SystemConfigInfo) public rollupConfigInfo;
+    /// rollupConfig - SeqSeigStatus
+    mapping (address => SeqSeigStatus) public rollupConfigInfo;
 
     /// operator - CandidateAddOnInfo
     mapping (address => CandidateAddOnInfo) public operatorInfo;
@@ -598,54 +634,54 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
     ```jsx
     /**
-     * @notice Event occurs when setting the minimum initial deposit amount
-     * @param _minimumInitialDepositAmount the inimum initial deposit amount
-     */
+    * @notice Event occurs when setting the minimum initial deposit amount
+    * @param _minimumInitialDepositAmount the minimum initial deposit amount
+    */
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
-     * @notice Event occurs when registering candidateAddOn
-     * @param systemConfig      the systemConfig address
-     * @param wtonAmount        the wton amount depositing when registering Layer2Canddiate
-     * @param memo              the name of Layer2Canddiate
-     * @param operator          a opperator contract address
-     * @param candidateAddOn   a candidateAddOn address
-     */
-    event RegisteredCandidateAddOn(address systemConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
+    * @notice Event occurs when registering CandidateAddOn
+    * @param rollupConfig      the rollupConfig address
+    * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
+    * @param memo              the name of CandidateAddOn
+    * @param operator          an operator contract address
+    * @param candidateAddOn    a candidateAddOn address
+    */
+    event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
-     * @notice Event occurs when pausing the CandidateAddOn
-     * @param systemConfig      the systemConfig address
-     * @param _layer2           the layer2 address
-     */
-    event PausedCandidateAddOn(address systemConfig, address _layer2);
+    * @notice Event occurs when pausing the CandidateAddOn
+    * @param rollupConfig      the rollupConfig address
+    * @param candidateAddOn    the candidateAddOn address
+    */
+    event PausedCandidateAddOn(address rollupConfig, address candidateAddOn);
 
     /**
-     * @notice Event occurs when pausing the CandidateAddOn
-     * @param systemConfig      the systemConfig address
-     * @param _layer2           the layer2 address
-     */
-    event UnpausedCandidateAddOn(address systemConfig, address _layer2);
+    * @notice Event occurs when pausing the CandidateAddOn
+    * @param rollupConfig      the rollupConfig address
+    * @param candidateAddOn    the candidateAddOn address
+    */
+    event UnpausedCandidateAddOn(address rollupConfig, address candidateAddOn);
     ```
 
 - 주요  Transaction 함수
-    - function registerCandidateAddOn(address systemConfig, uint256 amount, bool flagTon, string calldata memo) external
+    - function registerCandidateAddOn(address rollupConfig, uint256 amount, bool flagTon, string calldata memo) external
 
         ```jsx
-        /**
-         * @notice Register the CandidateAddOn
-         * @param systemConfig     systemConfig's address
-         * @param amount           transfered amount
-         * @param flagTon          if true, amount is ton, otherwise it it wton
-         * param memo             layer's name
-         */
+       /**
+        * @notice Register the CandidateAddOn
+        * @param rollupConfig     rollupConfig's address
+        * @param amount           transferred amount
+        * @param flagTon          if true, amount is ton, otherwise it wton
+        * @param memo             layer's name
+        */
         function registerCandidateAddOn(
-            address systemConfig,
-            uint256 amount,
-            bool flagTon,
-            string calldata memo
+        address rollupConfig,
+        uint256 amount,
+        bool flagTon,
+        string calldata memo
         )
-            external
+        external
         ```
 
     - function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool)
@@ -660,72 +696,69 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool)
         ```
 
-    - function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
+    - function pauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree
 
         ```jsx
         /**
          * @notice Pause the CandidateAddOn
-         * @param systemConfig the systemConfig address
-         */
-        function pauseCandidateAddOn(address systemConfig) external onlyL2Register ifFree
+        * @param rollupConfig the rollupConfig address
+        */
+        function pauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree
         ```
 
-    - function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
+    - function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree
 
         ```solidity
         /**
-         * @notice Unpause the CandidateAddOn
-         * @param systemConfig the systemConfig address
-         */
-        function unpauseLayer2Cnadidate(address systemConfig) external onlyL2Register ifFree
+        * @notice Unpause the CandidateAddOn
+        * @param rollupConfig the rollupConfig address
+        */
+        function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree
         ```
 
-    - function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger
+    - function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger
 
         ```jsx
         /**
-        * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
-        * @param systemConfig the systemConfig address
+         * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
+        * @param rollupConfig the rollupConfig address
         * @param amount the amount to give a seigniorage
         */
-        function updateSeigniorage(address systemConfig, uint256 amount) external onlySeigManger
+        function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger
         ```
 
     - function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner
 
         ```jsx
         /**
-        * @notice  Set the minimum TON deposit amount required when creating a CandidateAddOn.
+         * @notice  Set the minimum TON deposit amount required when creating a CandidateAddOn.
         *          Due to calculating swton, it is recommended to set DepositManager's minimum deposit + 0.1 TON
-        * @param   _minimumInitialDepositAmount the minimum initial deposit amount
+        * @param _minimumInitialDepositAmount the minimum initial deposit amount
         */
         function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner
         ```
 
-
-
-
 - 주요 View 함수
-    - function systemConfigOfOperator(address _oper) external view returns (address)
+    - function candidateAddOnOfOperator(address _oper) external view returns (address)
 
         ```jsx
         /**
-         * @notice View the systemConfig address of the operator address.
-         * @param _oper     the operator address
-         * @return          the systemConfig address
-         */
-        function systemConfigOfOperator(address _oper) external view returns (address)
+         * @notice  View the CandidateAddOn address of the operator address.
+        * @param _oper     the operator address
+        * @return          the candidateAddOn address
+        */
+        function candidateAddOnOfOperator(address _oper) external view returns (address)
         ```
 
-    - function operatorOfSystemConfig(address _sys) external view returns (address)
+    - function operatorOfRollupConfig(address _rollupConfig) external view returns (address)
 
         ```jsx
         /**
-         * @notice View the operator address of the systemConfig address.
-         * @param _sys      the systemConfig address
-         * @return          the operator address
-         */
-        function operatorOfSystemConfig(address _sys) external view returns (address)
+         * @notice View the operator address of the rollupConfig address.
+        * @param _rollupConfig      the rollupConfig address
+        * @return                   the operator address
+        */
+        function operatorOfRollupConfig(address _rollupConfig) external view returns (address)
         ```
 
     - function candidateAddOnOfOperator(address _oper) external view returns (address)
@@ -739,50 +772,50 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function candidateAddOnOfOperator(address _oper) external view returns (address)
         ```
 
-    - function issueStatusLayer2(address _sys) external view returns (uint8)
+    - function statusLayer2(address _rollupConfig) external view returns (uint8)
 
         ```jsx
         /**
-         * @notice View the status of seigniorage provision for Layer 2 corresponding to SystemConfig.
-         * @param _sys      the systemConfig address
-         * @return          the status of seigniorage provision for Layer 2
-         *                  ( 0: none , 1: registered, 2: paused )
-         */
-        function issueStatusLayer2(address _sys) external view returns (uint8)
+        * @notice View the status of seigniorage provision for Layer 2 corresponding to rollupConfig.
+        * @param _rollupConfig   the rollupConfig address
+        * @return                the status of seigniorage provision for Layer 2
+        *                        ( 0: none , 1: registered, 2: paused )
+        */
+        function statusLayer2(address _rollupConfig) external view returns (uint8)
         ```
 
-    - function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount)
+    - function checkLayer2TVL(address _rollupConfig) public view returns (bool result, uint256 amount)
 
         ```jsx
         /**
-         * @notice  Check Layer 2’s TON liquidity related information
-         * @param _systemConfig the syatemConfig address
-         * @return result       whether layer 2 TON liquidity can be checked
-         * @return amount       the layer 2's TON amount (total value liquidity)
-         */
-        function checkLayer2TVL(address _systemConfig) public view returns (bool result, uint256 amount)
+         * @notice  Check Layer 2’s TON liquidity-related information
+        * @param _rollupConfig the rollupConfig address
+        * @return result       whether layer 2 TON liquidity can be checked
+        * @return amount       the layer 2's TON amount (total value liquidity)
+        */
+        function checkLayer2TVL(address _rollupConfig) public view returns (bool result, uint256 amount)
         ```
 
-    - function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton)
+    - function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton)
 
         ```jsx
         /**
-         * @notice Layer 2 related information search
-         * @param _systemConfig     the systemConfig address
-         * @return result           whether Layer2 information can be searched
-         * @return l1Bridge         the L1 bridge address
-         * @return portal           the optimism portal address
-         * @return l2Ton            the L2 TON address
-         */
-        function checkL1Bridge(address _systemConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton)
+        * @notice Layer 2 related information search
+        * @param _rollupConfig     the rollupConfig address
+        * @return result           whether Layer2 information can be searched
+        * @return l1Bridge         the L1 bridge address
+        * @return portal           the optimism portal address
+        * @return l2Ton            the L2 TON address
+        */
+        function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton)
 
         ```
 
 
-## Layer2ContractFactory
+## CandidateAddOnFactory
 
 - 개요
-    - Layer2Candiate 를 생성하는 컨트랙입니다.
+    - CandidateAddOn 를 생성하는 컨트랙입니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
 - 스토리지
@@ -790,7 +823,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```jsx
     address public depositManager;
     address public daoCommittee;
-    address public candidateAddOnImp;
+    address public layer2CandidateImp;
     address public ton;
     address public wton;
 
@@ -802,14 +835,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```jsx
     /**
      * @notice  Event that occurs when a Candidate is created
-     * @param sender            the sender address
-     * @param layer2            the layer2 address
-     * @param operator          the operator address
-     * @param isLayer2Candidate whether it is Layer2Candidate
-     * @param name              the name of Layer2
-     * @param committee         the committee address
-     * @param seigManager       the seigManager address
-     */
+    * @param sender            the sender address
+    * @param layer2            the layer2(candidate) address
+    * @param operator          the operator address
+    * @param isLayer2Candidate whether it is Layer2Candidate
+    * @param name              the name of Layer2
+    * @param committee         the committee address
+    * @param seigManager       the seigManager address
+    */
     event DeployedCandidate(
         address sender,
         address layer2,
@@ -845,15 +878,15 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 
 
-## Layer2Contract
+## CandidateAddOn
 
 - 개요
     - 심플스테이킹(톤 스테이킹)의 기본기능(예치, 업데이트시뇨리지-이자지급, 출금 기능)을 지원한다.
-    - DAOCandidate에서 할 수 있는 다오 멤버 기능을 지원한다.
-    - 업데이트 시뇨리지 실행시, CandidateAddOn의 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
+    - Candidate에서 할 수 있는 다오 멤버 기능을 지원한다.
+    - 업데이트 시뇨리지 실행시, CandidateAddOn의 레이어2 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
 - 권한
     - Owner : 오너는 로직 업그레이드 권한을 갖으며, 설정값을 초기화 할 수 있다.
-    - onlyCandidate : CandidateAddOn 에 매칭되는 Operator 컨트랙의 오퍼레이터 권한을 갖는 계정
+    - onlyCandidate : CandidateAddOn 에 매칭되는 OperatorManager 컨트랙의 manager 계정
 
         ```jsx
          modifier onlyCandidate() {
@@ -868,13 +901,13 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```solidity
         mapping(bytes4 => bool) internal _supportedInterfaces;
         bool public isLayer2Candidate;
-        address public candidate;
+        address public candidate;  /// operatorManager
         string public memo;
 
         address public committee;
         address public seigManager;
-        address ton;
-        address wton;
+        address public ton;
+        address public wton;
     ```
 
 - 이벤트
@@ -955,11 +988,11 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
         ```jsx
         /// @notice Retrieves the total staked balance on this candidate
-        /// @return totalsupply Total staked amount on this candidate
+        /// @return totalSupply Total staked amount on this candidate
         function totalStaked()
             external
             view
-            returns (uint256 totalsupply)
+            returns (uint256 totalSupply)
         ```
 
     - function stakedOf(address _account)  external  view returns (uint256 amount)
@@ -979,8 +1012,8 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## SeigManagerV1_3
 - 개요
-    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 Operator 컨트랙에게 정산됩니다.
-    - Operator 컨트랙의 오퍼레이터권한을 갖는 시퀀서가 CandidateAddOn 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
+    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 OperatorManager 컨트랙에게 정산됩니다.
+    - OperatorManager 컨트랙의 manager 계정은  CandidateAddOn 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
     - L2 시퀀서에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
     - V1에서 이미 SeigManager 가 배포되어 운영되고 있으므로, 다른 기능은 변경없이 업데이트 시뇨리지 함수만  SeigManagerV1_3에 변경된 로직으로 실행되도록 한다.
     - 업데이트 시뇨리지 함수실행시 Layer2에게 제공하는 시뇨리지를 관리하기 위한 스토리지를 추가한다.
@@ -1028,7 +1061,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```jsx
     /**
      * Event that occurs when seigniorage is distributed when update seigniorage is executed
-     * @param layer2        The layer2 address
+     * @param layer2        The layer2(candidateAddOn) address
      * @param totalSeig     Total amount of seigniorage issued
      * @param stakedSeig    Seigniorage equal to the staking ratio of ton total
      *                      supply in total issued seigniorage
@@ -1052,7 +1085,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         ```
         /**
         * @notice Exclude the layer2 in distributing a seigniorage
-        * @param _layer2     the layer2 address
+        * @param _layer2     the layer2(candidate) address
         */
         function excludeFromSeigniorage (address _layer2)
         external
@@ -1064,7 +1097,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         ```jsx
         /**
         * @notice Distribute the issuing seigniorage.
-        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 Operator.
+        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 OperatorManager.
         */
         function updateSeigniorageOperator()
         external
@@ -1144,7 +1177,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```jsx
     /**
      * @notice Event that occurs when calling the withdrawAndDepositL2 function
-     * @param layer2    The layer2 address
+     * @param layer2    The layer2(candidate) address
      * @param account   The account address
      * @param amount    The amount of withdrawal and deposit L2
      */
@@ -1158,7 +1191,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     ```jsx
     /**
      * @notice Withdrawal from L1 and deposit to L2
-     * @param layer2    The layer2 address
+     * @param layer2    The layer2(candidate) address
      * @param amount    The amount to be withdrawal and deposit L2. ()`amount` WTON in RAY)
      */
     function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool)

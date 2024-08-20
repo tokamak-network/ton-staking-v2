@@ -142,7 +142,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   /**
    * @notice Exclude the layer2 in distributing a seigniorage
-   * @param _layer2     the layer2 address
+   * @param _layer2     the layer2(candidate) address
    */
   function excludeFromSeigniorage (address _layer2)
     external
@@ -170,7 +170,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   /**
    * @notice Distribute the issuing seigniorage.
-   *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 Operator.
+   *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 OperatorManager.
    */
   function updateSeigniorageOperator()
     external
@@ -194,7 +194,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   /**
-   * @notice Distribute the issuing seigniorage on layer2.
+   * @notice Distribute the issuing seigniorage on layer2(candidate).
    */
   function updateSeigniorageLayer(address layer2) external returns (bool) {
     if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
@@ -291,6 +291,7 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   /**
    * @notice Query the staking amount held by the operator
+   * @param layer2 the layer2(candidate) address
    */
   function getOperatorAmount(address layer2) external view returns (uint256) {
     address operator = Layer2I(layer2).operator();

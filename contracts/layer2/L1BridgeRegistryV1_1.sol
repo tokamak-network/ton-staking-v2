@@ -78,7 +78,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     event RejectedCandidateAddOn(address rollupConfig);
 
     /**
-     * @notice  Event occurs when onlySeigniorageCommittee cancels stoping issuing seigniorage
+     * @notice  Event occurs when onlySeigniorageCommittee cancels stopping issuing seigniorage
      *          to the layer 2 sequencer of a specific rollupConfig.
      * @param   rollupConfig  the rollupConfig address
      */
@@ -86,13 +86,13 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     /**
      * @notice  Event occurs when a bridge address is registered during system configuration registration.
-     * @param   rollupConfig        the rollupConfig address
+     * @param   rollupConfig    the rollupConfig address
      * @param   bridge          the bridge address
      */
     event AddedBridge(address rollupConfig, address bridge);
 
     /**
-     * @notice  Event occurs when a optimismPortal address is registered during system configuration registration.
+     * @notice  Event occurs when an optimismPortal address is registered during system configuration registration.
      * @param rollupConfig          the rollupConfig address
      * @param portal            the bridge address
      */
@@ -165,7 +165,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     }
 
     /**
-     * Restore cancel stoping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     * Restore cancel stopping seigniorage to the layer 2 sequencer of a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
     function restoreCandidateAddOn(

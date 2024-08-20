@@ -129,7 +129,7 @@ contract CandidateAddOnV1_1 is
     }
 
     /// @notice Call updateSeigniorage on SeigManager
-    /// @param afterCall    After running update seigniorage, option to run additional functions
+    /// @param afterCall    After running the update seigniorage, the option to run additional functions
     ///                     0: none, 1: claim, 2: staking
     /// @return             Whether or not the execution succeeded
     function updateSeigniorage(uint256 afterCall) public returns (bool) {
@@ -162,11 +162,11 @@ contract CandidateAddOnV1_1 is
     }
 
     /// @notice Retrieves the total staked balance on this candidate
-    /// @return totalsupply Total staked amount on this candidate
+    /// @return totalSupply Total staked amount on this candidate
     function totalStaked()
         external
         view
-        returns (uint256 totalsupply)
+        returns (uint256 totalSupply)
     {
         IERC20 coinage = _getCoinageToken();
         return coinage.totalSupply();

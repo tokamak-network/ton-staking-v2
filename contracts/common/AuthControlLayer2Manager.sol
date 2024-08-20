@@ -39,15 +39,15 @@ contract AuthControlLayer2Manager is AuthRoleLayer2Manager, ERC165Storage, Acces
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, account);
+        revokeRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function removeManager(address account) public virtual onlyOwner {
-        renounceRole(MANAGER_ROLE, account);
+        revokeRole(MANAGER_ROLE, account);
     }
 
     function removeOperator(address account) public virtual onlyOwner {
-        renounceRole(OPERATOR_ROLE, account);
+        revokeRole(OPERATOR_ROLE, account);
     }
 
     /// @dev transfer admin

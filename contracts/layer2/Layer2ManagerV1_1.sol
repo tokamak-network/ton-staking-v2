@@ -102,33 +102,33 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     /**
      * @notice Event occurs when setting the minimum initial deposit amount
-     * @param _minimumInitialDepositAmount the inimum initial deposit amount
+     * @param _minimumInitialDepositAmount the minimum initial deposit amount
      */
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
      * @notice Event occurs when registering CandidateAddOn
-     * @param rollupConfig          the rollupConfig address
+     * @param rollupConfig      the rollupConfig address
      * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
      * @param memo              the name of CandidateAddOn
-     * @param operator          a opperator contract address
-     * @param candidateAddOn   a candidateAddOn address
+     * @param operator          an operator contract address
+     * @param candidateAddOn    a candidateAddOn address
      */
     event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
      * @notice Event occurs when pausing the CandidateAddOn
      * @param rollupConfig      the rollupConfig address
-     * @param _layer2           the layer2 address
+     * @param candidateAddOn    the candidateAddOn address
      */
-    event PausedCandidateAddOn(address rollupConfig, address _layer2);
+    event PausedCandidateAddOn(address rollupConfig, address candidateAddOn);
 
     /**
      * @notice Event occurs when pausing the CandidateAddOn
      * @param rollupConfig      the rollupConfig address
-     * @param _layer2           the layer2 address
+     * @param candidateAddOn    the candidateAddOn address
      */
-    event UnpausedCandidateAddOn(address rollupConfig, address _layer2);
+    event UnpausedCandidateAddOn(address rollupConfig, address candidateAddOn);
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -233,9 +233,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     /**
      * @notice Register the CandidateAddOn
      * @param rollupConfig     rollupConfig's address
-     * @param amount           transfered amount
-     * @param flagTon          if true, amount is ton, otherwise it it wton
-     * param memo             layer's name
+     * @param amount           transferred amount
+     * @param flagTon          if true, amount is ton, otherwise it wton
+     * @param memo             layer's name
      */
     function registerCandidateAddOn(
         address rollupConfig,
@@ -329,8 +329,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     }
 
     /**
-     * @notice  Check Layer 2’s TON liquidity related information
-     * @param _rollupConfig the syatemConfig address
+     * @notice  Check Layer 2’s TON liquidity-related information
+     * @param _rollupConfig the rollupConfig address
      * @return result       whether layer 2 TON liquidity can be checked
      * @return amount       the layer 2's TON amount (total value liquidity)
      */

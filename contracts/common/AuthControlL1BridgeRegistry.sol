@@ -32,22 +32,22 @@ contract AuthControlL1BridgeRegistry is AuthRoleL1BridgeRegistry, ERC165Storage,
         grantRole(MANAGER_ROLE, account);
     }
 
-    function addRegistrant(address account) public virtual onlyOwner {
-        grantRole(REGISTRANT_ROLE, account);
+    function addRegistrant(address account) public virtual onlyManager {
+        _grantRole(REGISTRANT_ROLE, account);
     }
 
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, account);
+        revokeRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function removeManager(address account) public virtual onlyOwner {
-        renounceRole(MANAGER_ROLE, account);
+        revokeRole(MANAGER_ROLE, account);
     }
 
-    function removeRegistrant(address account) public virtual onlyOwner {
-        renounceRole(REGISTRANT_ROLE, account);
+    function removeRegistrant(address account) public virtual onlyManager {
+        _revokeRole(REGISTRANT_ROLE, account);
     }
 
     /// @dev transfer admin
@@ -64,7 +64,7 @@ contract AuthControlL1BridgeRegistry is AuthRoleL1BridgeRegistry, ERC165Storage,
         transferAdmin(newAdmin);
     }
 
-    function renounceOwnership() public onlyOwner {
+    function renounceOwnership() public {
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
