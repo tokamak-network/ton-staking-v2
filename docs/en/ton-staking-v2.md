@@ -658,7 +658,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     * @param rollupConfig      the rollupConfig address
     * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
     * @param memo              the name of CandidateAddOn
-    * @param operator          an operator contract address
+    * @param operator          an operatorManager contract address
     * @param candidateAddOn    a candidateAddOn address
     */
     event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);

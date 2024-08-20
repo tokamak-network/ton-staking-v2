@@ -644,7 +644,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     * @param rollupConfig      the rollupConfig address
     * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
     * @param memo              the name of CandidateAddOn
-    * @param operator          an operator contract address
+    * @param operator          an operatorManager contract address
     * @param candidateAddOn    a candidateAddOn address
     */
     event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);

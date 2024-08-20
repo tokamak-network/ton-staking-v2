@@ -19,6 +19,7 @@ contract L1BridgeRegistryStorage   {
     mapping (address => bool) public portal;
 
     /// Set the layer where seigniorage issuance has been suspended to true.
+    // rollupConfig - bool
     mapping (address => bool) public rejectRollupConfig;
 
     address public seigniorageCommittee;
