@@ -7,11 +7,11 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "rollupConfig",
           "type": "address"
         }
       ],
-      "name": "pauseLayer2Candidate",
+      "name": "pauseCandidateAddOn",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -20,11 +20,11 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "rollupConfig",
           "type": "address"
         }
       ],
-      "name": "unpauseLayer2Cnadidate",
+      "name": "unpauseCandidateAddOn",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

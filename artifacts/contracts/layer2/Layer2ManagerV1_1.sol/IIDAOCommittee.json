@@ -12,11 +12,11 @@
         },
         {
           "internalType": "address",
-          "name": "_systemConfig",
+          "name": "_rollupConfig",
           "type": "address"
         }
       ],
-      "name": "createLayer2Candidate",
+      "name": "createCandidateAddOn",
       "outputs": [
         {
           "internalType": "address",
