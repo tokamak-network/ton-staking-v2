@@ -119,9 +119,9 @@ contract OperatorManagerFactory is Ownable {
         address sOwner = owner();
         operatorManager = address(new OperatorManagerProxy{salt : bytes32(CREATE_SALT)}(rollupConfig));
         IOperatorManager(operatorManager).upgradeTo(operatorManagerImp);
+        IOperatorManager(operatorManager).setAddresses(msg.sender, depositManager, ton, wton);
         IOperatorManager(operatorManager).transferManager(sManager);
         IOperatorManager(operatorManager).transferOwnership(sOwner);
-        IOperatorManager(operatorManager).setAddresses(msg.sender, depositManager, ton, wton);
         emit CreatedOperatorManager(rollupConfig, sOwner, sManager, operatorManager);
 
     }

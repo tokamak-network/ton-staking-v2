@@ -2152,7 +2152,7 @@ describe('Layer2Manager', () => {
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = layer2Manager.interface.parseLog(log1);
             expect(deployedEvent1.args.rollupConfig).to.be.eq(legacySystemConfig.address)
-            expect(deployedEvent1.args._layer2).to.be.eq(titanLayerAddress)
+            expect(deployedEvent1.args.candidateAddOn).to.be.eq(titanLayerAddress)
 
             const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromSeigniorage');
             const log2 = receipt.logs.find(x => x.topics.indexOf(topic2) >= 0);

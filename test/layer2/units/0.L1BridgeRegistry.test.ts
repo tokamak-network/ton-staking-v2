@@ -93,14 +93,14 @@ describe('L1BridgeRegistry', () => {
 
     describe('# addRegistrant', () => {
 
-        it('addRegistrant can not be executed by not an admin', async () => {
+        it('addRegistrant can not be executed by not an manager', async () => {
             await expect(
                 l1BridgeRegistryProxy.connect(operator).addRegistrant(operator.address)
-                ).to.be.revertedWith("AuthControl: Caller is not an admin")
+                ).to.be.revertedWith("AuthControl: Caller is not a manager")
         })
 
-        it('addRegistrant can be executed by admin', async () => {
-            await (await l1BridgeRegistryProxy.connect(deployer).addRegistrant(operator.address)).wait()
+        it('addRegistrant can be executed by manager', async () => {
+            await (await l1BridgeRegistryProxy.connect(manager).addRegistrant(operator.address)).wait()
             expect(await l1BridgeRegistryProxy.isRegistrant(operator.address)).to.be.eq(true)
         })
     })
