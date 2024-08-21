@@ -12,7 +12,7 @@ import { SeigManagerProxy } from "../typechain-types/contracts/stake/managers/Se
 import { Layer2ManagerProxy } from "../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 import { OperatorManagerFactory } from "../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
-import { OperatorV1_1 } from "../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 
 import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
 import { CandidateAddOnFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
@@ -21,6 +21,8 @@ import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAd
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+
+import {Signer} from "ethers"
 
 // write down th manager address of L1BridgeRegistry
 // const L1BridgeRegistry_Manager_Address = null
@@ -80,7 +82,7 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
 
     //==== OperatorManagerFactory =========================
-    const OperatorV1_1Deployment = await deploy("OperatorV1_1", {
+    const OperatorManagerV1_1Deployment = await deploy("OperatorManagerV1_1", {
         from: deployer,
         args: [],
         log: true
@@ -88,7 +90,7 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
     const OperatorManagerFactoryDeployment = await deploy("OperatorManagerFactory", {
         from: deployer,
-        args: [OperatorV1_1Deployment.address],
+        args: [OperatorManagerV1_1Deployment.address],
         log: true
     });
 
@@ -96,14 +98,6 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         OperatorManagerFactoryDeployment.abi,
         OperatorManagerFactoryDeployment.address
     )) as OperatorManagerFactory;
-
-    let ton_operatorManagerFactory = await operatorManagerFactory.ton()
-    if (TON != ton_operatorManagerFactory) {
-        await (await operatorManagerFactory.connect(deploySigner).setAddresses(
-            DepositManager,
-            TON,
-            WTON)).wait()
-    }
 
     //==== CandidateAddOnV1_1 =================================
     const Layer2CandidateV1_1Deployment = await deploy("CandidateAddOnV1_1", {
@@ -168,6 +162,18 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         Layer2ManagerProxy_1Deployment.address
     )) as Layer2ManagerProxy;
 
+    // operatorManagerFactory.setAddresses
+    let ton_operatorManagerFactory = await operatorManagerFactory.ton()
+    if (TON != ton_operatorManagerFactory) {
+        await (await operatorManagerFactory.connect(deploySigner).setAddresses(
+            DepositManager,
+            TON,
+            WTON,
+            layer2ManagerProxy.address
+        )).wait()
+    }
+
+
     let impl_layer2ManagerProxy = await layer2ManagerProxy.implementation()
     if (impl_layer2ManagerProxy != Layer2ManagerV1_1Deployment.address) {
         await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
@@ -185,8 +191,8 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         Layer2ManagerProxy_1Deployment.address
     )) as Layer2ManagerV1_1;
 
-    let l2Register_layer2Manager = await layer2Manager.l2Register()
-    if (l2Register_layer2Manager != l1BridgeRegistryProxy.address) {
+    let l1BridgeRegistry_layer2Manager = await layer2Manager.l1BridgeRegistry()
+    if (l1BridgeRegistry_layer2Manager != l1BridgeRegistryProxy.address) {
         await (await layer2Manager.connect(deploySigner).setAddresses(
                 l1BridgeRegistryProxy.address,
                 operatorManagerFactory.address,
@@ -215,8 +221,13 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     }
 
     //==== SeigManagerV1_3 =================================
-
-
+    // const seigManagerV1_3 = (await hre.ethers.getContractAt("SeigManagerV1_3", SeigManager, deploySigner)) as SeigManagerV1_3
+    // seigManagerV1_3.l1BridgeRegistry()
+    // seigManagerV1_3.layer2Manager()
+    // seigManagerV1_3.layer2StartBlock()
+    // seigManagerV1_3.l2RewardPerUint()
+    // seigManagerV1_3.totalLayer2TVL()
+    // seigManagerV1_3.layer2RewardInfo()
 
     //==== DepositManagerV1_1 =================================
 
