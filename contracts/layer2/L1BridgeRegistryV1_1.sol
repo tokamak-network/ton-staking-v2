@@ -9,6 +9,7 @@ import "./L1BridgeRegistryStorage.sol";
  * @notice  Error occurred when executing changeType function
  * @param x 1: sender is not ton nor wton
  *          2: wrong spender parameter
+ *          3: zeroAddress l2 ton
  */
 error ChangeError(uint x);
 
@@ -34,10 +35,8 @@ interface IERC20 {
 
 interface IOptimismSystemConfig {
     function owner() external view returns (address);
-    function l1CrossDomainMessenger() external view returns (address addr_);
     function l1StandardBridge() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_) ;
-    function l2Ton() external view returns (address addr_) ;
 }
 
 interface ILayer2Manager {
@@ -60,15 +59,17 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice  Event occurs when registering rollupConfig
      * @param   rollupConfig      the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+     * @param   _l2TON        the L2 TON address
      */
-    event RegisteredRollupConfig(address rollupConfig, uint8 type_);
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_, address _l2TON);
 
     /**
      * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
      * @param   rollupConfig      the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+     * @param   _l2TON        the L2 TON address
      */
-    event ChangedType(address rollupConfig, uint8 type_);
+    event ChangedType(address rollupConfig, uint8 type_, address _l2TON);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
@@ -208,13 +209,15 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant {
+    function changeType(address rollupConfig, uint8 _type,  address _l2TON)  external  onlyRegistrant {
         if (rollupType[rollupConfig] == 0) revert ChangeError(1);
         if (rollupType[rollupConfig] == _type) revert ChangeError(2);
+        if (_l2TON == address(0)) revert ChangeError(3);
 
         rollupType[rollupConfig] = _type;
+        l2TON[rollupConfig] = _l2TON;
 
-        emit ChangedType(rollupConfig, _type);
+        emit ChangedType(rollupConfig, _type, _l2TON);
     }
 
     /* ========== public ========== */
@@ -263,6 +266,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if (!_availableForRegistration(rollupConfig, _type)) revert RegisterError(3);
 
         rollupType[rollupConfig] = _type;
+        l2TON[rollupConfig] = _l2TON;
         if (_type == 1) {
             address bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if (bridge_ == address(0)) revert BridgeError();
@@ -275,7 +279,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
             emit AddedPortal(rollupConfig, portal_);
         }
 
-        emit RegisteredRollupConfig(rollupConfig, _type);
+        emit RegisteredRollupConfig(rollupConfig, _type, _l2TON);
     }
 
     function _availableForRegistration(address rollupConfig, uint8 _type) internal view returns (bool valid){

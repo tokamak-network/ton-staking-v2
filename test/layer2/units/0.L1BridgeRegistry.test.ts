@@ -186,32 +186,39 @@ describe('L1BridgeRegistry', () => {
     describe('# changeType', () => {
 
         it('changeType can not be executed by not registrant', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 0;
             await expect(
                 l1BridgeRegistry.connect(deployer).changeType(
                     legacySystemConfig.address,
-                    type
+                    type,
+                    l2TonAddress
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
 
         it('cannot be changed to the same value', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
             await expect(
                 l1BridgeRegistry.connect(operator).changeType(
                     legacySystemConfig.address,
-                    type
+                    type,
+                    l2TonAddress
                 )
             ).to.be.revertedWith("ChangeError")
         })
 
         it('changeType  ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
             let type = 2;
             let receipt = await (await l1BridgeRegistry.connect(operator).changeType(
                 legacySystemConfig.address,
-                type
+                type,
+                l2TonAddress
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('ChangedType');

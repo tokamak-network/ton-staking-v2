@@ -34,6 +34,7 @@ error ExcludeError();
 error OnApproveError(uint x);
 
 interface IL1BridgeRegistry {
+    function l2TON(address rollupConfig) external view returns (address);
     function rollupType(address rollupConfig) external view returns (uint8);
     function checkLayer2TVL(address _rollupConfig) external view returns (bool result, uint256 amount);
 }
@@ -44,10 +45,8 @@ interface OnApprove {
 
 interface IOptimismSystemConfig {
     function owner() external view returns (address);
-    function l1CrossDomainMessenger() external view returns (address addr_);
+    function optimismPortal() external view returns (address addr_);
     function l1StandardBridge() external view returns (address addr_);
-    function optimismPortal() external view returns (address addr_) ;
-    function l2Ton() external view returns (address addr_) ;
 }
 
 interface IStandardBridge {
@@ -347,7 +346,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      * @return l2Ton            the L2 TON address
      */
     function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
-
         uint8 _type = IL1BridgeRegistry(l1BridgeRegistry).rollupType(_rollupConfig);
 
         if (rollupConfigInfo[_rollupConfig].status == 1) {
@@ -355,8 +353,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             address l1Bridge_ = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
 
             if (l1Bridge_ != address(0)) {
-                if (_type == 1) l2Ton = IOptimismSystemConfig(_rollupConfig).l2Ton();
-                else if (_type == 2) l2Ton = LEGACY_ERC20_NATIVE_TOKEN;
+                if (_type == 1 || _type == 2) l2Ton = IL1BridgeRegistry(l1BridgeRegistry).l2TON(_rollupConfig);
 
                 if (l2Ton != address(0)) {
                     result = true;
@@ -364,7 +361,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
                 }
             }
 
-            if (l2Ton == LEGACY_ERC20_NATIVE_TOKEN) {
+            if (_type == 2) {
                 address portal_ = IOptimismSystemConfig(_rollupConfig).optimismPortal();
 
                 if (portal_ == address(0)) result = false;
@@ -415,18 +412,15 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
             address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
             if (l1Bridge != address(0)) {
-                address l2Ton = IOptimismSystemConfig(_rollupConfig).l2Ton();
-                if (l2Ton != address(0)) {
-                    amount = IStandardBridge(l1Bridge).deposits(ton, l2Ton);
-                    result = true;
-                }
+                amount = IERC20(ton).balanceOf(l1Bridge);
+                result = true;
             }
 
         } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
 
             address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
             if (optimismPortal != address(0)) {
-                amount = IOptimismPortal(optimismPortal).depositedAmount();
+                amount = IERC20(ton).balanceOf(optimismPortal);
                 result = true;
             }
         }
