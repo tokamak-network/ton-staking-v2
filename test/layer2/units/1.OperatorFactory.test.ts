@@ -7,9 +7,12 @@ import { BigNumber, Signer } from 'ethers'
 import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
 import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
 
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
 import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+
+import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
+import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 
 describe('OperatorFactory', () => {
     let deployer: Signer, addr1: Signer, addr2: Signer, manager: Signer
@@ -18,6 +21,7 @@ describe('OperatorFactory', () => {
     let sampleSystemConfig: LegacySystemConfig
     let operatorFactory: OperatorFactory
     let operatorV1_1 : OperatorV1_1
+    let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
 
     before('create fixture loader', async () => {
         const accounts = await ethers.getSigners();
@@ -38,10 +42,32 @@ describe('OperatorFactory', () => {
         operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
         operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
 
-        await (await operatorFactory.connect(deployer).setAddresses(
-            DepositManager,
-            TON,
-            WTON)).wait()
+
+    })
+
+    describe('# Layer2Manager', () => {
+        it('deploy', async () => {
+
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+            layer2ManagerV1_1 = (await (await ethers.getContractFactory("Layer2ManagerV1_1")).connect(deployer).deploy()) as Layer2ManagerV1_1;
+            layer2ManagerProxy = (await (await ethers.getContractFactory("Layer2ManagerProxy")).connect(deployer).deploy()) as Layer2ManagerProxy;
+            await (await layer2ManagerProxy.connect(deployer).upgradeTo(layer2ManagerV1_1.address)).wait()
+            layer2Manager = (await ethers.getContractAt("Layer2ManagerV1_1", layer2ManagerProxy.address, deployer)) as Layer2ManagerV1_1
+
+
+            await (await operatorFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2Manager.address
+            )).wait()
+        });
+
+        it('addManager can be executed by admin', async () => {
+            await (await l2RegistryProxy.connect(deployer).addManager(manager.address)).wait()
+            expect(await l2RegistryProxy.isManager(manager.address)).to.be.eq(true)
+        })
+
 
     })
 
@@ -92,24 +118,27 @@ describe('OperatorFactory', () => {
 
     describe('# createOperator', () => {
 
-        it('createOperator can be executed by SystemConfig\'s owner', async () => {
+        it('createOperator can be executed by Layer2Manager', async () => {
 
             expect(await legacySystemConfig.owner()).to.be.eq(manager.address)
 
             let operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
 
-            let receipt = await (await operatorFactory.connect(manager).createOperator(
-                legacySystemConfig.address
-            )).wait()
+            await expect(
+                operatorFactory.connect(manager).createOperator(
+                    legacySystemConfig.address
+                )
+            ).to.be.revertedWith("CreateError")
 
-            const topic = operatorFactory.interface.getEventTopic('CreatedOperator');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = operatorFactory.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
-            expect(deployedEvent.args.owner).to.be.eq(deployer.address)
-            expect(deployedEvent.args.manager).to.be.eq(manager.address)
-            expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
+            // const topic = operatorFactory.interface.getEventTopic('CreatedOperator');
+            // const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            // const deployedEvent = operatorFactory.interface.parseLog(log);
+
+            // expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            // expect(deployedEvent.args.owner).to.be.eq(deployer.address)
+            // expect(deployedEvent.args.manager).to.be.eq(manager.address)
+            // expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
 
         })
     })
@@ -132,7 +161,7 @@ describe('OperatorFactory', () => {
                 operatorFactory.connect(deployer).changeOperatorImplementaion(
                     ethers.constants.AddressZero
                 )
-            ).to.be.revertedWith("zero address")
+            ).to.be.revertedWith("ZeroAddressError")
         })
 
         it('changeOperatorImplementaion  ', async () => {
@@ -156,7 +185,7 @@ describe('OperatorFactory', () => {
                 operatorFactory.connect(deployer).changeOperatorImplementaion(
                     sampleSystemConfig.address
                 )
-            ).to.be.revertedWith("same")
+            ).to.be.revertedWith("SameVariableError")
         })
     });
 

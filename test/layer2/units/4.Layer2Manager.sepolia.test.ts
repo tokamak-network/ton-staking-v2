@@ -209,11 +209,6 @@ describe('Layer2Manager', () => {
 
             operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
 
-            await (await operatorFactory.connect(deployer).setAddresses(
-                DepositManager,
-                TON,
-                WTON)).wait()
-
         });
     })
 
@@ -251,11 +246,24 @@ describe('Layer2Manager', () => {
             layer2ManagerProxy = (await (await ethers.getContractFactory("Layer2ManagerProxy")).connect(deployer).deploy()) as Layer2ManagerProxy;
             await (await layer2ManagerProxy.connect(deployer).upgradeTo(layer2ManagerV1_1.address)).wait()
             layer2Manager = (await ethers.getContractAt("Layer2ManagerV1_1", layer2ManagerProxy.address, deployer)) as Layer2ManagerV1_1
+
         });
 
         it('addManager can be executed by admin', async () => {
             await (await l2RegistryProxy.connect(deployer).addManager(manager.address)).wait()
             expect(await l2RegistryProxy.isManager(manager.address)).to.be.eq(true)
+        })
+
+        it('operatorFactory.setAddresses', async () => {
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2ManagerProxy.address
+            )).wait()
+
         })
     })
 
@@ -405,7 +413,7 @@ describe('Layer2Manager', () => {
              await expect(l2Registry.connect(manager).registerSystemConfigByManager(
                 legacySystemConfigTest2.address,
                 type
-            )).to.be.revertedWith("unavailable for registration")
+            )).to.be.revertedWith("RegisterError")
         })
     })
 
@@ -594,7 +602,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+            )).to.be.rejectedWith("RegisterError")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
@@ -626,7 +634,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError()")
         })
 
         it('registerLayer2Candidate', async () => {
@@ -687,7 +695,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
         it('Layers that are not registered in the L2Registry cannot be registered.', async () => {
@@ -708,7 +716,7 @@ describe('Layer2Manager', () => {
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
@@ -1882,7 +1890,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {
