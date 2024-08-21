@@ -20,7 +20,7 @@ interface ITarget {
     function setWTON(address wtonAddr) external;
     function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
     function setLayer2Manager(address layer2Manager_) external;
-    function setL2Registry(address l2Registry_) external;
+    function setL1BridgeRegistry(address l1BridgeRegistry_) external;
     function setLayer2StartBlock(uint256 startBlock_) external;
     function setImplementation2(address newImplementation, uint256 index, bool alive) external;
     function setSelectorImplementations2(
@@ -77,11 +77,19 @@ contract DAOCommitteeOwner is
         _;
     }
 
-    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner nonZero(_layer2CandidateFactory) {
-        layer2CandidateFactory = _layer2CandidateFactory;
+    function setCandidateAddOnFactory(address _candidateAddOnFactory) 
+        external 
+        onlyOwner 
+        nonZero(_candidateAddOnFactory)
+    {
+        candidateAddOnFactory = _candidateAddOnFactory;
     }
 
-    function setLayer2Manager(address _layer2Manager) external onlyOwner nonZero(_layer2Manager) {
+    function setLayer2Manager(address _layer2Manager) 
+        external 
+        onlyOwner 
+        nonZero(_layer2Manager) 
+    {
         layer2Manager = _layer2Manager;
     }
 
@@ -89,9 +97,10 @@ contract DAOCommitteeOwner is
         ITarget(target).setLayer2Manager(layer2Manager_);
     }
 
-    function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
-        ITarget(target).setL2Registry(l2Registry_);
+    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
+        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
     }
+
 
     function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
         ITarget(target).setLayer2StartBlock(startBlock_);

@@ -30,7 +30,7 @@ interface IICoinage {
     function balanceOf(address account) external view returns (uint256);
 }
 
-interface ILayer2CandidateFactory {
+interface ICandidateAddOnFactory {
    function deploy(
         address _sender,
         string memory _name,
@@ -40,6 +40,16 @@ interface ILayer2CandidateFactory {
         external
         returns (address);
 }
+
+/**
+ * @notice Error that occurs when creating Candidate
+ * @param x 1: deployed candidateContract is zero
+ *          2: The candidate already has contract
+ *          3: failed to registerAndDeployCoinage
+ */
+error CreateCandiateError(uint x);
+error PermissionError();
+error ZeroAddressError();
 
 contract DAOCommittee_V1 is 
     StorageStateCommittee, 
@@ -243,30 +253,23 @@ contract DAOCommittee_V1 is
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
     }
 
-    function createLayer2Candidate(string calldata _memo, address _operatorAddress)
+    function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
         public
-        onlyLayer2Manager
         returns (address)
     {
+        if (msg.sender != layer2Manager) revert PermissionError();
+
         // Candidate
-        address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
-            _operatorAddress,
+        address candidateContract = ICandidateAddOnFactory(candidateAddOnFactory).deploy(
+            _operatorManagerAddress,
             _memo,
             address(this),
             address(seigManager)
         );
+        if (candidateContract == address(0)) revert CreateCandiateError(1);
+        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 
-        require(
-            candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
-
-        require(
-            _candidateInfos[_operatorAddress].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
-        );
-
-        _candidateInfos[_operatorAddress] = CandidateInfo({
+        _candidateInfos[_operatorManagerAddress] = CandidateInfo({
             candidateContract: candidateContract,
             memberJoinedTime: 0,
             indexMembers: 0,
@@ -274,14 +277,10 @@ contract DAOCommittee_V1 is
             claimedTimestamp: 0
         });
 
-        candidates.push(_operatorAddress);
+        candidates.push(_operatorManagerAddress);
 
-        require(
-            layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-            "DAOCommittee: failed to registerAndDeployCoinage"
-        );
-
-        emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
+        if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
+        emit CandidateContractCreated(_operatorManagerAddress, candidateContract, _memo);
 
         return candidateContract;
     }
