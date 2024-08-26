@@ -282,7 +282,7 @@
         },
         {
           "internalType": "address",
-          "name": "_operatorAddress",
+          "name": "_operatorManagerAddress",
           "type": "address"
         }
       ],

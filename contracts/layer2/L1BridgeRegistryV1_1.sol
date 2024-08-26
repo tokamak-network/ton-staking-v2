@@ -147,6 +147,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         emit SetSeigniorageCommittee(_seigniorageCommittee);
     }
 
+    /// @dev
+    // function resetRollupConfig(address rollupConfig)  external  onlyOwner {
+    // _resetRollupConfig(rollupConfig);
+    // }
+
     /* ========== onlySeigniorageCommittee ========== */
 
     /**
@@ -178,6 +183,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         ILayer2Manager(layer2Manager).unpauseCandidateAddOn(rollupConfig);
         emit RestoredCandidateAddOn(rollupConfig);
     }
+
 
     /* ========== onlyManager ========== */
 
@@ -214,8 +220,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if (rollupType[rollupConfig] == _type) revert ChangeError(2);
         if (_l2TON == address(0)) revert ChangeError(3);
 
-        rollupType[rollupConfig] = _type;
-        l2TON[rollupConfig] = _l2TON;
+        _resetRollupConfig(rollupConfig) ;
+        _registerRollupConfig(rollupConfig, _type, _l2TON);
+
+        // rollupType[rollupConfig] = _type;
+        // l2TON[rollupConfig] = _l2TON;
 
         emit ChangedType(rollupConfig, _type, _l2TON);
     }
@@ -265,19 +274,22 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if (rollupType[rollupConfig] != 0) revert RegisterError(2);
         if (!_availableForRegistration(rollupConfig, _type)) revert RegisterError(3);
 
-        rollupType[rollupConfig] = _type;
-        l2TON[rollupConfig] = _l2TON;
-        if (_type == 1) {
+        if (_type == 1 || _type == 2) {
             address bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if (bridge_ == address(0)) revert BridgeError();
             l1Bridge[bridge_] = true;
             emit AddedBridge(rollupConfig, bridge_);
-        } else if (_type == 2) {
+        }
+
+        if (_type == 2) {
             address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (portal_ == address(0)) revert PortalError();
             portal[portal_] = true;
             emit AddedPortal(rollupConfig, portal_);
         }
+
+        rollupType[rollupConfig] = _type;
+        l2TON[rollupConfig] = _l2TON;
 
         emit RegisteredRollupConfig(rollupConfig, _type, _l2TON);
     }
@@ -296,5 +308,17 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
                 }
             }
         }
+    }
+
+    function _resetRollupConfig(address rollupConfig) internal {
+        if(rejectRollupConfig[rollupConfig]) revert NonRejectedError();
+
+        address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
+        address optimismPortal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
+
+        if (l1Bridge_ != address(0) && l1Bridge[l1Bridge_]) l1Bridge[l1Bridge_] = false;
+        if (optimismPortal_ != address(0) && portal[optimismPortal_]) portal[optimismPortal_] = false;
+        l2TON[rollupConfig] = address(0);
+        rollupType[rollupConfig] = 0;
     }
 }

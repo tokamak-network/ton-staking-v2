@@ -71,12 +71,12 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
 
     let impl_l1BridgeRegistry = await l1BridgeRegistryProxy.implementation()
-    if (impl_l1BridgeRegistry != L1BridgeRegistryProxyDeployment.address) {
-        await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryProxyDeployment.address)).wait()
+    if (impl_l1BridgeRegistry != L1BridgeRegistryDeployment.address) {
+        await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryDeployment.address)).wait()
     }
 
     const l1BridgeRegistry = (await hre.ethers.getContractAt(
-        L1BridgeRegistryProxyDeployment.abi,
+        L1BridgeRegistryDeployment.abi,
         l1BridgeRegistryProxy.address
     )) as L1BridgeRegistryV1_1;
 
@@ -210,7 +210,6 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         ).wait()
     }
 
-
     let ton_l1BridgeRegistry = await l1BridgeRegistry.ton()
     if (TON != ton_l1BridgeRegistry) {
         await (await l1BridgeRegistry.connect(deploySigner).setAddresses(
@@ -239,11 +238,11 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
 
     //==== verify =================================
-    if (hre.network.name != "hardhat" && hre.network.name != "local") {
-        await hre.run("etherscan-verify", {
-            network: hre.network.name
-        });
-    }
+    // if (hre.network.name != "hardhat" && hre.network.name != "local") {
+    //     await hre.run("etherscan-verify", {
+    //         network: hre.network.name
+    //     });
+    // }
 
 }
 
