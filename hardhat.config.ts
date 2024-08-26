@@ -382,7 +382,7 @@ const config: HardhatUserConfig = {
       forking: {
         url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
-        blockNumber: 5859537
+        // blockNumber: 5859537
         // blockNumber: 6042730
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 6042730
@@ -394,6 +394,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 5874556,
         // npx hardhat test test/layer2/sepolia_test/3.updateSeigsAndClaim.ts
         // blockNumber: 6536029,
+        blockNumber: 6572251,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:18229970
@@ -437,7 +438,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
-      deploy: ['deploy-layer2']
+      // deploy: ['deploy-layer2']
     },
   },
   deterministicDeployment: (network: string) => {
@@ -457,16 +458,24 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
-      sepolia: `${process.env.ETHERSCAN_API_KEY}`,
+      sepolia: '29AJVCC29QYAIXW25FYADWINVS79ERYVJI',
       titan: "verify",
       titangoerli: "verify"
     } ,
     customChains: [
+      // {
+      //   network: "sepolia",
+      //   chainId: 11155111,
+      //   urls: {
+      //     apiURL: "https://api-sepolia.etherscan.io/api",
+      //     browserURL: "https://sepolia.etherscan.io//"
+      //   }
+      // },
       {
         network: "titan",
         chainId: 55004,
         urls: {
-          apiURL: "https://explorer.titan.tokamak.network//api",
+          apiURL: "https://explorer.titan.tokamak.network/api",
           browserURL: "https://explorer.titan.tokamak.network/"
         }
       },
