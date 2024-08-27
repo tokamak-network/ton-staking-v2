@@ -39,6 +39,11 @@ interface ILayer2Manager {
   function statusLayer2(address rollupConfig) external view returns (uint8);
 }
 
+interface IILayer2Registry {
+  function layer2s(address layer2) external view returns (bool);
+  function numLayer2s() external view  returns (uint256);
+  function layer2ByIndex(uint256 index) external view returns (address);
+}
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
  * For each commit by operator, operator (or user) will get seigniorage
@@ -322,6 +327,33 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
     if (layer2Info.layer2Tvl != 0) amount = l2RewardPerUint * (layer2Info.layer2Tvl  / 1e18) - layer2Info.initialDebt;
 
+  }
+
+
+  function unallocatedSeigniorage() external view returns (uint256 amount) {
+    amount = _tot.totalSupply() - stakeOfAllLayers();
+  }
+
+  function unallocatedSeigniorageAt(uint256 snapshotId) external view returns (uint256 amount) {
+    amount = _tot.totalSupplyAt(snapshotId) - stakeOfAllLayersAt(snapshotId);
+  }
+
+  function stakeOfAllLayers() public view returns (uint256 amount) {
+    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    for (uint256 i = 0 ; i < num; i++){
+      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address coin = address(_coinages[layer2]);
+      if (coin != address(0)) amount += _coinages[layer2].totalSupply();
+    }
+  }
+
+  function stakeOfAllLayersAt(uint256 snapshotId) public view returns (uint256 amount) {
+    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    for (uint256 i = 0 ; i < num; i++){
+      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address coin = address(_coinages[layer2]);
+      if (coin != address(0)) amount += _coinages[layer2].totalSupplyAt(snapshotId);
+    }
   }
 
   //////////////////////////////

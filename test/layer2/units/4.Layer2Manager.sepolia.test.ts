@@ -494,11 +494,19 @@ describe('Layer2Manager', () => {
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
             const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
 
+            const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+            const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
+            const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
+            const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
+            const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
-                selector11, selector12, selector13, selector14, selector15 ];
-
+                selector11, selector12, selector13, selector14, selector15
+                , selector16,
+                selector17, selector18, selector19, selector20
+            ];
             const index = 1;
             // expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
 
