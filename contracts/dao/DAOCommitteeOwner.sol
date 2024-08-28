@@ -101,7 +101,6 @@ contract DAOCommitteeOwner is
         ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
     }
 
-
     function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
         ITarget(target).setLayer2StartBlock(startBlock_);
     }

@@ -563,6 +563,7 @@ describe("DAOAgenda Test", () => {
 
         it("check getSelector", async () => {
             const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
+            console.log("selector1", selector1);
             let logic = await depositManagerProxy.getSelectorImplementation2(selector1)
             let logic2 = await depositManagerProxy.implementation2(1)
             expect(logic).to.be.equal(logic2)
