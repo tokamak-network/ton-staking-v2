@@ -7,11 +7,11 @@
 그래서 저희는 Proxy의 구조를 변경하여서 기존의 기능을 계속 유지하면서 기능을 추가할 수 있고 앞으로도 계속 업그레이드 가능한 구조로 변경하였습니다.
 
 > 기존 DAO 구조
-![DAO_Original](https://hackmd.io/_uploads/S1kHeix5R.jpg)
+![DAO_Original](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/DAO_Original.jpg)
 
 
 > 변경된 DAO 구조
-![DAO_Changed](https://hackmd.io/_uploads/HyRFloeqC.jpg)
+![DAO_Changed](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/DAO_Changed.jpg)
 
 
 ## 기존 DAOCommittee에서 변경점
