@@ -55,20 +55,20 @@ Tokamak DAOCommittee의 Candidate가 될 수 있는 방법은 다음과 같습�
 ### createCandidate 함수 호출
 Candidate가 되고 싶은 누구나 호출할 수 있습니다.
 해당 함수를 호출한 msg.sender의 주소가 operator가 되고 operator로 정상적인 활동을 하기위해서는 만들어진 Candidate에 operator가 1000.1TON 이상 deposit하여야합니다.
-![createCandidate](https://hackmd.io/_uploads/BkST9_d5R.jpg)
+![createCandidate](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/createCandidate.jpg)
 
 
 ### createCandidateAddOn 함수 호출
 Layer2Candidate가 되고 싶은 누구나 호출할 수 있지만 L2Registry에 등록된 SystemConfig에 대해서만 registerCandidateAddOn 등록 가능합니다.
 registerCandidateAddOn 등록시에는 operator가 등록과 동시에 1000.1TON이상을 Deposit하여서 바로 operator로 정상적인 활동이 가능합니다.
-![createCandidateAddOn](https://hackmd.io/_uploads/H1hhZGQjR.jpg)
+![createCandidateAddOn](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/createCandidateAddOn.jpg)
 
 
 ### registerLayer2CandidateByOwner 함수 호출
 자신만의 Layer2를 DAO의 Candidate로 등록하고 싶을때 사용하는 방법입니다.
 자신의 Layer2가 있다면 registerLayer2CandidateByOwner함수가 실행되게 DAO Agenda로 건의를 하고 통과가 되어서 Agenda가 실행이 되면 해당 Layer2가 Candidate로 등록이 됩니다.
 Candidate로 등록 후. Candidate로 활동을 하기 위해서는 1000.1TON 이상 deposit이 필요합니다.
-![registerLayer2CandidateByOwner](https://hackmd.io/_uploads/HJuhS0OcA.jpg)
+![registerLayer2CandidateByOwner](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/registerLayer2CandidateByOwner.jpg)
 
 
 ## For Candidate of DAOCommittee
@@ -77,7 +77,7 @@ Candidate들은 changeMember와 setMemoOnCandidate, setMemoOnCandidateContract �
 changeMember 함수는 자신이 다른 member들보다 Stake된 TON의 양이 많을 경우, 다른 member대신 자신이 member가 될 수 있습니다.
 그리고 setMemoOnCandidate와 setMemoOnCandidateContract를 통해서 자신의 Candidate Contract에 등록된 memo값을 수정할 수 있습니다.
 
-![ForCandidate](https://hackmd.io/_uploads/S1zYGf7sR.jpg)
+![ForCandidate](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForCandidate.jpg)
 
 
 
@@ -90,7 +90,7 @@ endAgendaVoting 함수는 Agenda의 Voting시간이 끝났을 때 실행하는 �
 executeAgenda 함수는 Agenda가 Voting이 끝나고 Status가 WAITING_EXEC이고 Result는 ACCEPT일때 실행가능하며 함수를 호출하게 되면 통과된 Agenda의 함수들을 실행하게 됩니다.
 updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하는 Candidate주소의 Seigniorage를 업데이트 하는 함수입니다.
 
-![ForEveryone](https://hackmd.io/_uploads/ByGczfQiC.jpg)
+![ForEveryone](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForEveryone.jpg)
 
 
 ## For Member of DAOCommittee
@@ -104,7 +104,7 @@ Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니�
 이 reward는 Member를 한 시간과 activityRewardPerSecond값에 의해서 결정됩니다.
 해당 reward를 받을때 claimActivityReward 함수를 호출하여서 받을 수 있습니다.
 
-![ForMember](https://hackmd.io/_uploads/SkgiMzXoA.jpg)
+![ForMember](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForMember.jpg)
 
 
 # Contract Details
