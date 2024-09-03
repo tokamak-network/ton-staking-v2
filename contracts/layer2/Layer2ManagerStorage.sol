@@ -5,8 +5,18 @@ pragma solidity ^0.8.4;
 /// @notice
 contract Layer2ManagerStorage  {
 
-    address public l2Register;
-    address public operatorFactory;
+    struct CandidateAddOnInfo {
+        address rollupConfig;
+        address candidateAddOn;
+    }
+
+    struct SeqSeigStatus {
+        uint8 status; // status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+        address operatorManager;
+    }
+
+    address public l1BridgeRegistry;
+    address public operatorManagerFactory;
 
     address public ton;
     address public wton;
@@ -17,36 +27,18 @@ contract Layer2ManagerStorage  {
 
     uint256 public minimumInitialDepositAmount;   /// ton
 
-    /// issueStatus for giving seigniorage
-    /// systemConfig - stateIssue ( 0: none , 1: registered, 2: paused )
-    mapping (address => uint8) public issueStatusLayer2;
+    /// rollupConfig - SeqSeigStatus
+    mapping (address => SeqSeigStatus) public rollupConfigInfo;
 
-    /// systemConfig - operator
-    mapping (address => address) public operatorOfSystemConfig;
+    /// operator - CandidateAddOnInfo
+    mapping (address => CandidateAddOnInfo) public operatorInfo;
 
-    /// operator - systemConfig
-    mapping (address => address) public systemConfigOfOperator;
-
-    /// operator - layer2Candidate
-    mapping (address => address) public layer2CandidateOfOperator;
-
-
-    bool internal free = true;
-
-    modifier nonZero(uint256 value) {
-        require(value != 0, "Z1");
-        _;
-    }
-
-    modifier nonZeroAddress(address account) {
-        require(account != address(0), "Z2");
-        _;
-    }
+    bool internal _lock;
 
     modifier ifFree {
-        require(free, "lock");
-        free = false;
+        require(!_lock, "lock");
+        _lock = true;
         _;
-        free = true;
+        _lock = false;
     }
 }

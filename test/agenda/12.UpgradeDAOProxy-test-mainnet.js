@@ -1186,7 +1186,7 @@ describe("DAO Proxy Change Test", () => {
                     targets, 
                     noticePeriod.toString(),
                     votingPeriod.toString(),
-                    false,
+                    true,
                     functionBytecodes
                 ]
             )
