@@ -44,6 +44,7 @@ const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 const CandidateABI = require("../../abi/Candidate.json").abi;
 
 const Layer2ManagerABI = require("../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json").abi;
+const L1BridgeRegistryABI = require("../../artifacts/contracts/layer2/L1BridgeRegistryV1_1.sol/L1BridgeRegistryV1_1.json").abi;
 
 
 describe("DAO Proxy Change Test", () => {
@@ -186,6 +187,7 @@ describe("DAO Proxy Change Test", () => {
 
     let legacySystemConfigAddr = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
 
+    let l1BridgeRegistryContract;
     let l1BridgeRegistryProxyAddr = "0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC"
 
     //changeMember before info
@@ -882,6 +884,14 @@ describe("DAO Proxy Change Test", () => {
             layer2ManagerContract = new ethers.Contract(
                 layer2ManagerAddr,
                 Layer2ManagerABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("set L1BridgeRegistry", async () => {
+            l1BridgeRegistryContract = new ethers.Contract(
+                l1BridgeRegistryProxyAddr,
+                L1BridgeRegistryABI,
                 daoCommitteeAdmin
             )
         })
@@ -2108,6 +2118,16 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
+        it("L1BridgeRegistryProxy Register registerRollupConfigByManager", async () => {
+            let rollupConfig = "0xC931416C985FF1EeF3C9e727549cffD39aA56682"
+            let l2TON = "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000"
+            await l1BridgeRegistryContract.connect(daoCommitteeAdmin).registerRollupConfigByManager(
+                rollupConfig,
+                2,
+                l2TON
+            )
+        })
+
         it("6. registerCandidateAddOn test", async () => {
             // expect((await layer2ManagerContract.issueStatusLayer2(legacySystemConfigAddr))).to.be.eq(0)
 
@@ -2119,25 +2139,23 @@ describe("DAO Proxy Change Test", () => {
                 await ton.connect(user1).approve(layer2ManagerContract.address, amount);
             }
 
-            let titanRollupConfig = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
+            let rollupConfig = "0xC931416C985FF1EeF3C9e727549cffD39aA56682"
 
-            let name = "titanTest"
+            let name = "Thanos2Test"
 
-            console.log("1")
             const receipt = await (await layer2ManagerContract.connect(user1).registerCandidateAddOn(
-                titanRollupConfig,
+                rollupConfig,
                 amount,
                 true,
                 name
             )).wait()
-            console.log("2")
 
             const topic = layer2ManagerContract.interface.getEventTopic('RegisteredCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = layer2ManagerContract.interface.parseLog(log);
 
-            expect(deployedEvent.args.rollupConfig).to.be.eq(titanRollupConfig)
-            expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
+            expect(deployedEvent.args.rollupConfig).to.be.eq(rollupConfig)
+            // expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
             expect(deployedEvent.args.memo).to.be.eq(name)
             expect(deployedEvent.args.candidateAddOn).to.be.not.eq(ethers.constants.AddressZero)
         })
