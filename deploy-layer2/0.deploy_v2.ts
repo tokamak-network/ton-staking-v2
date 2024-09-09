@@ -238,11 +238,11 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
 
     //==== verify =================================
-    // if (hre.network.name != "hardhat" && hre.network.name != "local") {
-    //     await hre.run("etherscan-verify", {
-    //         network: hre.network.name
-    //     });
-    // }
+    if (hre.network.name != "hardhat" && hre.network.name != "local") {
+        await hre.run("etherscan-verify", {
+            network: hre.network.name
+        });
+    }
 
 }
 
