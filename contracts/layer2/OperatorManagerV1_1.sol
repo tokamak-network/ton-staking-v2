@@ -23,6 +23,7 @@ interface IRollupConfig {
 interface ILayer2Manager {
     function candidateAddOnOfOperator(address operator) external view returns (address);
     function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
+    function checkL1BridgeDetail(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status);
 }
 
 interface IDepositManager {
@@ -202,9 +203,11 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      * @return l2Ton    the L2 TON address
      *                  L2TON address is 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000,
      *                  In this case, the native token of Layer 2 is TON.
+     * @return _type    the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
+     * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
      */
-    function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
-        return ILayer2Manager(layer2Manager).checkL1Bridge(rollupConfig);
+    function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status) {
+        return ILayer2Manager(layer2Manager).checkL1BridgeDetail(rollupConfig);
     }
 
     /* ========== internal ========== */

@@ -16,6 +16,7 @@ import { DepositManagerV1_1Storage } from "./DepositManagerV1_1Storage.sol";
  *          2: validity result false in checkL1Bridge function
  *          3: zero L1 bridge address
  *          4: zero optimism portal address
+ *          5: unsupported layer2
  */
 error CheckL1BridgeError(uint x);
 error OperatorError();
@@ -30,6 +31,8 @@ interface ILayer2 {
 interface ISeigManager {
   function stakeOf(address layer2, address account) external view returns (uint256);
   function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
+  function l1BridgeRegistry() external view returns (address);
+  function layer2Manager() external view returns (address);
 }
 
 interface IL1Bridge {
@@ -73,12 +76,19 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
   event WithdrawalAndDeposited(address indexed layer2, address account, uint256 amount);
 
   event DepositedERC20To(address l1Bridge, address l1Ton, address l2Ton, address caller, uint256 tonAmount, uint32 minDepositGasLimit);
-
+  event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
+  event SetMinDepositGasLimit(uint32 gasLimit_);
 
   function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
     minDepositGasLimit = gasLimit_;
+    emit SetMinDepositGasLimit(gasLimit_);
   }
 
+  function setAddresses(address _l1BridgeRegistry, address _layer2Manager) external onlyOwner {
+    l1BridgeRegistry = _l1BridgeRegistry;
+    layer2Manager = _layer2Manager;
+    emit SetAddresses(_l1BridgeRegistry, _layer2Manager);
+  }
   /**
    * @notice Withdrawal from L1 and deposit to L2
    * @param layer2    The layer2(candidate) address
@@ -93,6 +103,8 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     if (operator == address(0)) revert OperatorError();
     if (operator.code.length == 0) revert OperatorError();
 
+    if (l1BridgeRegistry == address(0)) l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
+
     // require(operator.code.length != 0, 'not operator contract');
     // (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
 
@@ -100,10 +112,11 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     if (!success) revert CheckL1BridgeError(1);
 
     // require(success, 'false checkL1Bridge');
-    (bool result, address l1Bridge, address portal, address l2Ton) = abi.decode(data, (bool,address,address,address));
+    (bool result, address l1Bridge, address portal, address l2Ton, uint8 l2Type, uint8 status) = abi.decode(data, (bool,address,address,address,uint8,uint8));
     if (!result) revert CheckL1BridgeError(2);
     if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
     require(l2Ton != address(0), "l2Ton: zero address");
+    if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
 
     uint32 _minDepositGasLimit = 0;
     if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
@@ -122,14 +135,25 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     if (portal != address(0)) checkAddress = portal;
     uint256 bal = IERC20(_ton).balanceOf(checkAddress);
 
-    IL1Bridge(l1Bridge).depositERC20To(
-      _ton,
-      l2Ton,
-      msg.sender,
-      tonAmount,
-      _minDepositGasLimit,
-      '0x'
-    );
+    if (l2Type == 1) {
+      IL1Bridge(l1Bridge).depositERC20To(
+        _ton,
+        l2Ton,
+        msg.sender,
+        tonAmount,
+        _minDepositGasLimit,
+        '0x'
+      );
+    } else {
+      IL1Bridge(l1Bridge).depositERC20To(
+        _ton,
+        l2Ton,
+        msg.sender,
+        tonAmount,
+        _minDepositGasLimit,
+        '0x'
+      );
+    }
 
     emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
 

@@ -346,7 +346,30 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      * @return l2Ton            the L2 TON address
      */
     function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
-        uint8 _type = IL1BridgeRegistry(l1BridgeRegistry).rollupType(_rollupConfig);
+         (result, l1Bridge, portal, l2Ton,,) = _checkL1BridgeDetail(_rollupConfig);
+    }
+
+    /**
+     * @notice Layer 2 related information search
+     * @param _rollupConfig     the rollupConfig address
+     * @return result           whether Layer2 information can be searched
+     * @return l1Bridge         the L1 bridge address
+     * @return portal           the optimism portal address
+     * @return l2Ton            the L2 TON address
+     * @return _type            the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
+     * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+     */
+    function checkL1BridgeDetail(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status) {
+         (result, l1Bridge, portal, l2Ton, _type, status) = _checkL1BridgeDetail(_rollupConfig);
+    }
+
+    function _checkL1BridgeDetail(address _rollupConfig)
+        public
+        view
+        returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status)
+    {
+        _type = IL1BridgeRegistry(l1BridgeRegistry).rollupType(_rollupConfig);
+        status = rollupConfigInfo[_rollupConfig].status;
 
         if (rollupConfigInfo[_rollupConfig].status == 1) {
 

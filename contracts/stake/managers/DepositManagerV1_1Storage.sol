@@ -6,6 +6,8 @@ pragma solidity ^0.8.4;
 contract DepositManagerV1_1Storage {
     address public ton;
     uint32 public minDepositGasLimit; /// todo. delete
+    address public l1BridgeRegistry;
+    address public layer2Manager;
 
     bool internal _lock;
 
