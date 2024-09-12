@@ -55,6 +55,50 @@
       ],
       "stateMutability": "view",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "checkL1BridgeDetail",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "result",
+          "type": "bool"
+        },
+        {
+          "internalType": "address",
+          "name": "l1Bridge",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "portal",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "l2Ton",
+          "type": "address"
+        },
+        {
+          "internalType": "uint8",
+          "name": "_type",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint8",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     }
   ],
   "bytecode": "0x",

@@ -35,6 +35,25 @@
           "type": "address"
         }
       ],
+      "name": "l2TON",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
       "name": "rollupType",
       "outputs": [
         {

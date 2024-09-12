@@ -5,33 +5,7 @@
   "abi": [
     {
       "inputs": [],
-      "name": "l1CrossDomainMessenger",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "addr_",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "l1StandardBridge",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "addr_",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "l2Ton",
       "outputs": [
         {
           "internalType": "address",
