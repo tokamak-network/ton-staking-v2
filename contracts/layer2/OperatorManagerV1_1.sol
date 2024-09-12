@@ -30,6 +30,7 @@ interface IDepositManager {
     function deposit(address layer2, uint256 amount) external returns (bool);
     function requestWithdrawal(address layer2, uint256 amount) external returns (bool);
     function processRequest(address layer2, bool receiveTON) external returns (bool);
+    function processRequests(address layer2, uint256 n, bool receiveTON) external returns (bool);
 }
 
 /// @title
@@ -80,6 +81,25 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      */
     event SetExplorer(string _explorer);
 
+    /**
+     * @notice Event occurs when requesting withdraw of staked ton
+     * @param candidate     the candidate address
+     * @param amount        the amount requesting withdrawal
+     */
+    event RequestWithdrawal(address candidate, uint256 amount);
+
+    /**
+     * @notice Event occurs when processing requesting withdrawal
+     * @param candidate     the candidate address
+     */
+    event ProcessRequest(address candidate);
+
+    /**
+     * @notice Event occurs when processing requesting withdrawals
+     * @param candidate     the candidate
+     * @param n             the number of requests
+     */
+    event ProcessRequests(address candidate, uint256 n);
 
     constructor() { }
 
@@ -155,6 +175,33 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         emit SetExplorer(_explorer);
     }
 
+    /**
+     * @notice Request withdrawal the staked ton
+     * @param amount    the amount requesting withdrawal
+     */
+    function requestWithdrawal(uint256 amount) external onlyOwnerOrManager {
+        address candidate = ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this));
+
+        require(IDepositManager(depositManager).requestWithdrawal(candidate, amount), "fail requestWithdraw");
+
+        emit RequestWithdrawal(candidate, amount);
+    }
+
+    function processRequest() external onlyOwnerOrManager {
+        address candidate = ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this));
+
+        require(IDepositManager(depositManager).processRequest(candidate, false), "fail processRequest");
+
+        emit ProcessRequest(candidate);
+    }
+
+    function processRequests(uint256 n) external onlyOwnerOrManager {
+        address candidate = ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this));
+
+        require(IDepositManager(depositManager).processRequests(candidate, n, false), "fail processRequests");
+
+        emit ProcessRequests(candidate, n);
+    }
 
     /* ========== onlyCandidateAddOn ========== */
 

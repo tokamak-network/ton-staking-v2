@@ -214,10 +214,35 @@ describe('L1BridgeRegistry', () => {
         it('changeType  ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-            let type = 2;
-            let receipt = await (await l1BridgeRegistry.connect(operator).changeType(
-                legacySystemConfig.address,
-                type,
+            const sampleSystemConfig1 = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
+
+            let name = 'Sample1'
+            let addresses = {
+                l1CrossDomainMessenger: l1MessengerAddress,
+                l1ERC721Bridge: ethers.constants.AddressZero,
+                l1StandardBridge: l1MessengerAddress,
+                l2OutputOracle: ethers.constants.AddressZero,
+                optimismPortal: l1MessengerAddress,
+                optimismMintableERC20Factory: ethers.constants.AddressZero
+            }
+            let l2Ton = l2TonAddress
+
+            await (await sampleSystemConfig1.connect(deployer).setAddresses(
+                name, addresses, l2Ton,  l1BridgeRegistryProxy.address
+            )).wait()
+
+            let type =1
+
+            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+                sampleSystemConfig1.address,
+                1,
+                l2TonAddress
+            )).wait()
+
+            type =2
+            receipt = await (await l1BridgeRegistry.connect(operator).changeType(
+                sampleSystemConfig1.address,
+                2,
                 l2TonAddress
             )).wait()
 
@@ -225,10 +250,10 @@ describe('L1BridgeRegistry', () => {
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
-            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(sampleSystemConfig1.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
-            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(type)
+            expect(await l1BridgeRegistry.rollupType(sampleSystemConfig1.address)).to.be.eq(type)
 
         })
 

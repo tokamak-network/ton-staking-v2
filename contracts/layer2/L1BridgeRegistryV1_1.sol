@@ -302,6 +302,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
                     if(rollupType[rollupConfig] == 0 && !l1Bridge[l1Bridge_]) valid = true;
                 } else if (_type == 2) {
                     address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
+
                     if (portal_ != address(0)) {
                         if (rollupType[rollupConfig] == 0 && !portal[portal_]) valid = true;
                     }
