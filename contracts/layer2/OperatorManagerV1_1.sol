@@ -207,7 +207,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     /* ========== onlyCandidateAddOn ========== */
 
     /**
-     * @notice Deposit wton amount to DepositManager as named Layer2
+     * @notice Deposit wton amount to DepositManager as named manager(EOA)
      * @param amount    the deposit wton amount (ray)
      */
     function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
