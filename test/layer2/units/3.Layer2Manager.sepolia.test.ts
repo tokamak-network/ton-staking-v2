@@ -1324,6 +1324,8 @@ describe('Layer2Manager', () => {
             // console.log('\nblock number :', block1.number);
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
+            const managerOfOperatorManager = await titanOperatorContract.manager();
+
             // console.log('titanOperatorContractAddress', titanOperatorContractAddress)
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
@@ -1347,6 +1349,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -1373,6 +1376,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -1437,7 +1441,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 
@@ -3831,6 +3837,8 @@ describe('Layer2Manager', () => {
             let operatorContract = titanOperatorContract
             let operatorOwner = deployer
 
+            const managerOfOperatorManager = await titanOperatorContract.manager();
+
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
             // console.log('\nlastSeigBlock', lastSeigBlock)
@@ -3861,6 +3869,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -3887,6 +3896,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -3951,7 +3961,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 

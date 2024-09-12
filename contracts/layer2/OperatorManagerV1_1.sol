@@ -28,6 +28,7 @@ interface ILayer2Manager {
 
 interface IDepositManager {
     function deposit(address layer2, uint256 amount) external returns (bool);
+    function deposit(address layer2, address to, uint256 amount) external returns (bool);
     function requestWithdrawal(address layer2, uint256 amount) external returns (bool);
     function processRequest(address layer2, bool receiveTON) external returns (bool);
     function processRequests(address layer2, uint256 n, bool receiveTON) external returns (bool);
@@ -210,7 +211,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      * @param amount    the deposit wton amount (ray)
      */
     function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
-        _deposit(msg.sender, amount);
+        _depositTo(msg.sender, manager, amount);
     }
 
     /**
@@ -290,4 +291,13 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         IDepositManager(_depositManager).deposit(layer2, amount);
     }
 
+    function _depositTo(address layer2, address to, uint256 amount) internal {
+        address _depositManager = depositManager;
+        address _wton = wton;
+
+        uint256 allowance = IERC20(_wton).allowance(address(this), _depositManager);
+        if (allowance < amount) IERC20(_wton).approve(_depositManager, type(uint256).max);
+
+        IDepositManager(_depositManager).deposit(layer2, to, amount);
+    }
 }
