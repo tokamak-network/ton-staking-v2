@@ -222,7 +222,7 @@ describe('Layer2Candidate', () => {
             const topic = seigManagerV1_3.interface.getEventTopic('SeigGiven2');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = seigManagerV1_3.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            console.log("deployedEvent.args", deployedEvent.args)
 
             let wtonBalanceAfter = await wtonContract.balanceOf(ownerOfOperatorContract)
             console.log("wtonBalanceAfter of ownerOfOperatorContract ", ethers.utils.formatUnits(wtonBalanceAfter, 27) )

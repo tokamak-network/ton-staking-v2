@@ -226,7 +226,7 @@ describe('Layer2Manager', () => {
             const topic = depositManagerV1.interface.getEventTopic('WithdrawalAndDeposited');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = depositManagerV1.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            console.log("deployedEvent.args", deployedEvent.args)
 
         })
 

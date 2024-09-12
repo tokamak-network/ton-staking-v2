@@ -259,7 +259,7 @@ describe('CandidateAddOnV1_1', () => {
             const topic = seigManagerV1_3.interface.getEventTopic('SeigGiven2');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = seigManagerV1_3.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            console.log("deployedEvent.args", deployedEvent.args)
 
 
         })
@@ -282,7 +282,7 @@ describe('CandidateAddOnV1_1', () => {
             const topic = seigManagerV1_3.interface.getEventTopic('SeigGiven2');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = seigManagerV1_3.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            console.log("deployedEvent.args", deployedEvent.args)
 
 
         })
