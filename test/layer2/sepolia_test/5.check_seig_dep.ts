@@ -5,8 +5,20 @@ import { mine } from "@nomicfoundation/hardhat-network-helpers"
 import { BigNumber, Signer, utils, Contract } from 'ethers'
 import { padLeft } from 'web3-utils'
 
-import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
+import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
+import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
+import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
+import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
 
+import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
@@ -17,7 +29,19 @@ import SeigManagerProxy_Json from '../../abi/SeigManagerProxy.json'
 import DepositManagerProxy_Json from '../../abi/DepositManagerProxy.json'
 
 import DepositManager_Json from '../../abi/DepositManager.json'
+import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
+import DAOCandidate_Json from '../../abi/Candidate.json'
+
+import LegacySystemConfig_Json from '../../../artifacts/contracts/layer2/LegacySystemConfig.sol/LegacySystemConfig.json'
+import Layer2ManagerV1_1_Json from '../../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json'
+import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json'
+import Layer2ManagerProxy_Json from '../../../artifacts/contracts/layer2/Layer2ManagerProxy.sol/Layer2ManagerProxy.json'
+import DepositManagerV1_1_Json from '../../../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json'
+import Layer2Candidate_Json from '../../../artifacts/contracts/dao/CandidateAddOnV1_1.sol/CandidateAddOnV1_1.json'
 import SeigManagerV1_3_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json'
+import SeigManagerV1_2_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json'
+import OperatorV1_1_Json from '../../../artifacts/contracts/layer2/OperatorManagerV1_1.sol/OperatorManagerV1_1.json'
+import Layer2CandidateProxy_Json from '../../../artifacts/contracts/dao/CandidateAddOnProxy.sol/CandidateAddOnProxy.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -56,12 +80,17 @@ describe('Check SeigManager, depositManager', () => {
     let powerTon: string
 
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
-    const deployedLayer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
-    // impl :   0x96380d80Ed20B2f4B397e550575D2D2E5a728eB6
-    const deployedOperatorFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
+    const deployedLayer2ManagerProxyAddress = "0xffb690feeFb2225394ad84594C4a270c04be0b55"
+    const deployedOperatorFactoryAddress = "0x8a42BcFC2EB5D38Ca48122854B91333203332919"
+    const deployedDAOAddress = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
+    const deployedLayer2CandidateFactory = "0x63c95fbA722613Cb4385687E609840Ed10262434"
 
-    const deployedTitanLayer = "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
-    const deployedTitanOperator = "0x1A8e48401697DcF297A02c90d3480c35885f8959"
+    const deployedTitanLayer = "0x4400458626eb4d7fc8f10811e9A2fB0A345a8875"
+    const deployedTitanOperator = "0x7afEfd134118B7eCbF25F9E4e73C1aef8BE0603d"
+    const deployedThanosLayer = "0x0e5417d597CC19abFb477Fa7e760AdcABDfe60E2"
+    const deployedThanosOperator = "0xEE85eD759BcE873e0946448a7Fa922A3f177955F"
+
+    const candidateLayer = "0xabd15c021942ca54abd944c91705fe70fea13f0d"
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();

@@ -8,17 +8,17 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L1BridgeRegistry } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
 import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
 import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
-import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
-import { Layer2CandidateFactory } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
+import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
 
-import { Layer2CandidateV1_1 } from "../../../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
+import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
@@ -35,11 +35,16 @@ import DepositManager_Json from '../../abi/DepositManager.json'
 import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
 import DAOCandidate_Json from '../../abi/Candidate.json'
 
-
 import LegacySystemConfig_Json from '../../../artifacts/contracts/layer2/LegacySystemConfig.sol/LegacySystemConfig.json'
 import Layer2ManagerV1_1_Json from '../../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json'
-import OperatorManagerFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json'
+import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json'
 import Layer2ManagerProxy_Json from '../../../artifacts/contracts/layer2/Layer2ManagerProxy.sol/Layer2ManagerProxy.json'
+import DepositManagerV1_1_Json from '../../../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json'
+import Layer2Candidate_Json from '../../../artifacts/contracts/dao/CandidateAddOnV1_1.sol/CandidateAddOnV1_1.json'
+import SeigManagerV1_3_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json'
+import SeigManagerV1_2_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json'
+
+
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -74,10 +79,10 @@ describe('Layer2Manager', () => {
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorV1_1:OperatorV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorV1_1:OperatorManagerV1_1 , operatorFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
-    let layer2CandidateV1_1Imp: Layer2CandidateV1_1
-    let layer2CandidateFactoryImp:Layer2CandidateFactory , layer2CandidateFactoryProxy: Layer2CandidateFactoryProxy, layer2CandidateFactory: Layer2CandidateFactory
+    let layer2CandidateV1_1Imp: CandidateAddOnV1_1
+    let layer2CandidateFactoryImp:CandidateAddOnFactory , layer2CandidateFactoryProxy: CandidateAddOnFactoryProxy, layer2CandidateFactory: CandidateAddOnFactory
     let tonContract: Contract, wtonContract: Contract, daoContract: Contract, daoV2Contract: Contract
     let depositManager: Contract,  depositManagerProxy: Contract, seigManager: Contract, seigManagerProxy: Contract;
     let seigManagerV1_3: SeigManagerV1_3;
@@ -87,13 +92,12 @@ describe('Layer2Manager', () => {
     let daoOwner: Signer;
 
     let titanLayerAddress: string, titanOperatorContractAddress: string;
-    let titanLayerContract: Layer2CandidateV1_1;
-    let titanOperatorContract: OperatorV1_1
+    let titanLayerContract: CandidateAddOnV1_1;
+    let titanOperatorContract: OperatorManagerV1_1
 
     let thanosLayerAddress: string, thanosOperatorContractAddress: string;
-    let thanosLayerContract: Layer2CandidateV1_1;
-    let thanosOperatorContract: OperatorV1_1
-
+    let thanosLayerContract: CandidateAddOnV1_1;
+    let thanosOperatorContract: OperatorManagerV1_1
 
     let powerTon: string
     let pastDepositor:Signer, wtonHave:Signer, tonHave:Signer
@@ -102,10 +106,17 @@ describe('Layer2Manager', () => {
 
     let daoContractAdd : DAOCommitteeAddV1_1;
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
-    const deployedLayer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
-    const deployedOperatorManagerFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
+    const deployedLayer2ManagerProxyAddress = "0xffb690feeFb2225394ad84594C4a270c04be0b55"
+    const deployedOperatorFactoryAddress = "0x8a42BcFC2EB5D38Ca48122854B91333203332919"
     const deployedDAOAddress = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
-    const deployedLayer2CandidateFactory = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
+    const deployedLayer2CandidateFactory = "0x63c95fbA722613Cb4385687E609840Ed10262434"
+
+    const deployedTitanLayer = "0x4400458626eb4d7fc8f10811e9A2fB0A345a8875"
+    const deployedTitanOperator = "0x7afEfd134118B7eCbF25F9E4e73C1aef8BE0603d"
+    const deployedThanosLayer = "0x0e5417d597CC19abFb477Fa7e760AdcABDfe60E2"
+    const deployedThanosOperator = "0xEE85eD759BcE873e0946448a7Fa922A3f177955F"
+
+    const candidateLayer = "0xabd15c021942ca54abd944c91705fe70fea13f0d"
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();
@@ -136,7 +147,7 @@ describe('Layer2Manager', () => {
 
         legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
-        operatorManagerFactory = new ethers.Contract(deployedOperatorManagerFactoryAddress, OperatorManagerFactory_Json.abi,  deployer) as OperatorManagerFactory
+        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorManagerFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
         // daoContract = new ethers.Contract(deployedDAOAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
 
@@ -187,17 +198,17 @@ describe('Layer2Manager', () => {
                 await (await daoContractAdd.connect(tonMinter).setLayer2Manager(layer2ManagerProxy.address)).wait()
             }
 
-            let layer2CandidateFactoryAddress = await daoContractAdd.layer2CandidateFactory();
+            let layer2CandidateFactoryAddress = await daoContractAdd.candidateAddOnFactory();
             console.log('layer2CandidateFactoryAddress', layer2CandidateFactoryAddress)
             if (layer2CandidateFactoryAddress != deployedLayer2CandidateFactory ) {
-                await (await daoContractAdd.connect(tonMinter).setLayer2CandidateFactory(deployedLayer2CandidateFactory)).wait()
+                await (await daoContractAdd.connect(tonMinter).setCandidateAddOnFactory(deployedLayer2CandidateFactory)).wait()
             }
 
         })
 
         it('registerLayer2Candidate', async () => {
 
-            let issueStatusLayer2 = await layer2Manager.issueStatusLayer2(legacySystemConfig.address)
+            let issueStatusLayer2 = await layer2Manager.statusLayer2(legacySystemConfig.address)
             console.log("issueStatusLayer2", issueStatusLayer2)
             const amount = await layer2Manager.minimumInitialDepositAmount();
             console.log("amount", amount)
@@ -205,7 +216,7 @@ describe('Layer2Manager', () => {
             console.log("name", name)
 
 
-            const operatorAddress = await OperatorManagerFactory.getAddress(legacySystemConfig.address)
+            const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
             console.log("operatorAddress", operatorAddress)
 
             console.log("tonHave", tonHave.address)
@@ -216,7 +227,7 @@ describe('Layer2Manager', () => {
             //     await tonContract.connect(addr1).approve(layer2Manager.address, amount);
             // }
 
-            const gasEstimated =  await layer2Manager.connect(tonHave).estimateGas.registerLayer2Candidate(
+            const gasEstimated =  await layer2Manager.connect(tonHave).estimateGas.registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
