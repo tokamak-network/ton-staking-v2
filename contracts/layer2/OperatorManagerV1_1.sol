@@ -77,10 +77,16 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     event Claimed(address token, address caller, address to, uint256 amount);
 
     /**
-     * @notice Event occurs when setting the explorer url
-     * @param _explorer a explorer url
+     * @notice Event occurs when setting the l2 information
+     * @param _l2Info the l2 information
      */
-    event SetExplorer(string _explorer);
+    event SetL2Info(string _l2Info);
+
+    /**
+     * @notice Event occurs when setting the additional notesl2Info
+     * @param _additionalNotesl2Info the additional notesl2Info
+     */
+    event SetAdditionalNotes(string _additionalNotesl2Info);
 
     /**
      * @notice Event occurs when requesting withdraw of staked ton
@@ -166,15 +172,27 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     }
 
     /**
-     * @notice  Set the explorer url
-     * @param _explorer a explorer url
+     * @notice  Set the l2 information
+     * @param _l2Info the l2 information
      */
-    function setExplorer(string calldata _explorer) external onlyOwnerOrManager {
-        if (keccak256(bytes(explorer)) == keccak256(bytes(_explorer))) revert SameError();
-        explorer = _explorer;
+    function setL2Info(string calldata _l2Info) external onlyOwnerOrManager {
+        if (keccak256(bytes(l2Info)) == keccak256(bytes(_l2Info))) revert SameError();
+        l2Info = _l2Info;
 
-        emit SetExplorer(_explorer);
+        emit SetL2Info(_l2Info);
     }
+
+    /**
+     * @notice  Set the additional notes
+     * @param _additionalNotes the additional notes
+     */
+    function setAdditionalNotes(string calldata _additionalNotes) external onlyOwnerOrManager {
+        if (keccak256(bytes(l2Info)) == keccak256(bytes(_additionalNotes))) revert SameError();
+        additionalNotes = _additionalNotes;
+
+        emit SetAdditionalNotes(_additionalNotes);
+    }
+
 
     /**
      * @notice Request withdrawal the staked ton

@@ -862,23 +862,23 @@ describe('Layer2Manager', () => {
 
         })
 
-        it('Only Manager can execute setExplorer function', async () => {
+        it('Only Manager can execute setL2Info function', async () => {
              let url = 'https://explorer.titan-sepolia.tokamak.network/'
-            await expect(titanOperatorContract.connect(addr2).setExplorer(
+            await expect(titanOperatorContract.connect(addr2).setL2Info(
                 url
             )).to.be.rejectedWith("not onlyOwnerOrManager")
         })
 
-        it('Only Manager can execute setExplorer function', async () => {
+        it('Only Manager can execute setL2Info function', async () => {
             let url = 'https://explorer.titan-sepolia.tokamak.network/'
-            const receipt = await (await titanOperatorContract.connect(deployer).setExplorer(
+            const receipt = await (await titanOperatorContract.connect(deployer).setL2Info(
                 url
             )).wait()
 
-            const topic = titanOperatorContract.interface.getEventTopic('SetExplorer');
+            const topic = titanOperatorContract.interface.getEventTopic('SetL2Info');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = titanOperatorContract.interface.parseLog(log);
-            expect(deployedEvent.args._explorer).to.be.eq(url)
+            expect(deployedEvent.args._l2Info).to.be.eq(url)
         })
     })
 
@@ -1394,6 +1394,9 @@ describe('Layer2Manager', () => {
         });
 
         it('Layer2Contract: updateSeigniorage : operator staking : the forth updateSeigniorage to titanLayerAddress : operator ', async () => {
+
+            const managerOfOperatorManager = await titanOperatorContract.manager();
+
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
             // console.log('\nlastSeigBlock', lastSeigBlock)
@@ -1424,6 +1427,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -1451,6 +1455,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -1515,7 +1520,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 
@@ -4017,6 +4024,7 @@ describe('Layer2Manager', () => {
             let layerContract = titanLayerContract
             let operatorContract = titanOperatorContract
             let operatorOwner = deployer
+            const managerOfOperatorManager = await titanOperatorContract.manager();
 
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -4048,6 +4056,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -4075,6 +4084,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -4139,7 +4149,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 
