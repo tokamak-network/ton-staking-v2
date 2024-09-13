@@ -149,12 +149,12 @@ describe('Layer2Candidate', () => {
 
         legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
-        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorFactory
+        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorManagerFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
         // daoContract = new ethers.Contract(deployedDAOAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
 
-        titanOperatorContract = new ethers.Contract(deployedTitanOperator, OperatorV1_1_Json.abi,  deployer) as OperatorV1_1
-        titanLayerContract = new ethers.Contract(deployedTitanLayer, Layer2Candidate_Json.abi,  deployer) as Layer2CandidateV1_1
+        titanOperatorContract = new ethers.Contract(deployedTitanOperator, OperatorV1_1_Json.abi,  deployer) as OperatorManagerV1_1
+        titanLayerContract = new ethers.Contract(deployedTitanLayer, Layer2Candidate_Json.abi,  deployer) as CandidateAddOnV1_1
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             tonHaveAddr,
