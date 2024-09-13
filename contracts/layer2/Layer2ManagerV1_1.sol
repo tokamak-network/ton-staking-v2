@@ -129,6 +129,12 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      */
     event UnpausedCandidateAddOn(address rollupConfig, address candidateAddOn);
 
+    /**
+     * @notice Event occurs when pausisetting the operatorManagerFactory
+     * @param _operatorManagerFactory   the operatorManagerFactory address
+     */
+    event SetOperatorManagerFactory(address _operatorManagerFactory);
+
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
@@ -165,6 +171,13 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         swapProxy = _swapProxy;
 
         emit SetAddresses(_l1BridgeRegistry, _operatorManagerFactory, _ton, _wton, _dao, _depositManager, _seigManager, _swapProxy);
+    }
+
+    function setOperatorManagerFactory(
+        address _operatorManagerFactory
+    )  external  onlyOwner {
+        operatorManagerFactory = _operatorManagerFactory;
+        emit SetOperatorManagerFactory( _operatorManagerFactory);
     }
 
     /**
