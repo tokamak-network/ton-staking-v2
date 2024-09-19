@@ -13,7 +13,10 @@ const sepoliaContractInfo = {
     DAOCommittee_V1: "0xB800a42D9A8e5036B75246aeDA578DCe58f85B18",
     DAOCommitteeOwner: "0x34B6e334D88436Fbbb9c316865A1BA454769C090",
     Layer2CandidateFactory: "0x770739A468D9262960ee0669f9Eaf0db6E21F81A",
-    Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
+    Layer2ManagerProxy: "0xffb690feeFb2225394ad84594C4a270c04be0b55",
+    Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06",
+    CandidateAddOnFactory: "0x63c95fbA722613Cb4385687E609840Ed10262434",
+    L1BridgeRegistryProxy: "0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC"
 }
 
 const mainnetContractInfo = {
@@ -108,8 +111,8 @@ async function Setting_changeDAOStructure() {
     sleep(12000);
 
     //==== Set DAOCommitteeProxy2 selectorImplementations2 DAOCommitteeOwner =================================
-    const _setLayer2CandidateFactory = Web3EthAbi.encodeFunctionSignature(
-        "setLayer2CandidateFactory(address)"
+    const _setCandidateAddOnFactory = Web3EthAbi.encodeFunctionSignature(
+        "setCandidateAddOnFactory(address)"
     ) 
 
     const _setLayer2Manager = Web3EthAbi.encodeFunctionSignature(
@@ -120,8 +123,8 @@ async function Setting_changeDAOStructure() {
         "setTargetSetLayer2Manager(address,address)"
     )
 
-    const _setTargetSetL2Registry = Web3EthAbi.encodeFunctionSignature(
-        "setTargetSetL2Registry(address,address)"
+    const _setTargetSetL1BridgeRegistry = Web3EthAbi.encodeFunctionSignature(
+        "setTargetSetL1BridgeRegistry(address,address)"
     )
 
     const _setTargetLayer2StartBlock = Web3EthAbi.encodeFunctionSignature(
@@ -243,7 +246,7 @@ async function Setting_changeDAOStructure() {
 
     await daoCommitteeProxy2Contract.connect(deployer).setSelectorImplementations2(
             [
-                _setLayer2CandidateFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL2Registry,
+                _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
                 _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
                 _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
                 _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
@@ -254,6 +257,19 @@ async function Setting_changeDAOStructure() {
             ],
             sepoliaContractInfo.DAOCommitteeOwner
     )
+
+    let setSelectorBytes = [
+        _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
+        _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
+        _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+        _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+        _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+        _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
+        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+    ]
+    console.log("setSelectorBytes : ", setSelectorBytes)
+    
     console.log("setSelectorImplementations2 DAOCommitteeOwner done")
 }
 
@@ -268,15 +284,15 @@ async function Set_DAOCommitteeOwner() {
     )
 
 
-    //==== Set Layer2CandidateFactory =================================
-    await daoCommitteeOwner.connect(deployer).setLayer2CandidateFactory(
-        sepoliaContractInfo.Layer2CandidateFactory
+    //==== Set setCandidateAddOnFactory =================================
+    await daoCommitteeOwner.connect(deployer).setCandidateAddOnFactory(
+        sepoliaContractInfo.CandidateAddOnFactory
     )
-    console.log("setLayer2CandidateFactory DAOCommitteeOwner done")
+    console.log("setCandidateAddOnFactory DAOCommitteeOwner done")
 
     //==== Set Layer2Manager =================================
     await daoCommitteeOwner.connect(deployer).setLayer2Manager(
-        sepoliaContractInfo.Layer2Manager
+        sepoliaContractInfo.Layer2ManagerProxy
     )
     console.log("setLayer2Manager DAOCommitteeOwner done")
 

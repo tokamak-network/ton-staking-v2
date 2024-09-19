@@ -771,6 +771,18 @@ describe("DAO Proxy Change Test", () => {
                     ],
                     daoCommitteeOwner.address
             )
+
+            let setSelectorBytes = [
+                _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
+                _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
+                _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+                _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+                _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
+                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+                _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+            ]
+            console.log("setSelectorBytes : ", setSelectorBytes)
         })
 
         it("set DAO NewLogic", async () => {
