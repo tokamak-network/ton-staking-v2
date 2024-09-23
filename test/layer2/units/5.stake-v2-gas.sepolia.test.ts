@@ -433,10 +433,9 @@ describe('Layer2Manager', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             const receipt = await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
 
             logUsedGas.push(gasUsedFunctions('SystemConfig', 'setAddresses', '', receipt))
@@ -479,10 +478,8 @@ describe('Layer2Manager', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
-
             const receipt = await (await legacySystemConfigTest2.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
 
             logUsedGas.push(gasUsedFunctions('L1BridgeRegistry', 'setAddresses', '', receipt))

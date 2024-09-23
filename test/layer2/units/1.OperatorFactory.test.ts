@@ -89,10 +89,9 @@ describe('OperatorManagerFactory', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(manager).setAddresses(
-                name, addresses, l2Ton, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
 
@@ -110,10 +109,9 @@ describe('OperatorManagerFactory', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton,  l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
     })
