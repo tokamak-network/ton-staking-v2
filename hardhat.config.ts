@@ -10,8 +10,9 @@ import "hardhat-gas-reporter";
 import dotenv from "dotenv" ;
 import { HardhatUserConfig } from "hardhat/types";
 import "hardhat-deploy";
-
 dotenv.config();
+import { task, types } from 'hardhat/config'
+import "./tasks";
 
 const config: HardhatUserConfig = {
   namedAccounts: {
