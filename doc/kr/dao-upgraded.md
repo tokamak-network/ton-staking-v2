@@ -214,18 +214,9 @@ export DEPLOYER=${DeployerKey}
 
 ## Mainnet Test
 
-```
-# Proxy upgraded test
-npx hardhat test test/agenda/12.UpgradeDAOProxy-test-mainnet.js
-
-# registerLayer2CandidateByOwner Test
-npx hardhat test test/agenda/18.Layer2CandidateTest-mainnet.js
-```
-
-## Sepolia Test
 change setting hardhat.config.ts 
+
 ```
-# before
 hardhat: {
   forking: {
     // mainnet or sepolia
@@ -237,8 +228,21 @@ hardhat: {
   allowUnlimitedContractSize: true,
   // deploy: ['deploy-migration']
 },
+```
 
-# after
+Test code execution command
+
+```
+# Proxy upgraded test
+npx hardhat test test/agenda/12.UpgradeDAOProxy-test-mainnet.js
+
+# registerLayer2CandidateByOwner Test
+npx hardhat test test/agenda/18.Layer2CandidateTest-mainnet.js
+```
+
+## Sepolia Test
+change setting hardhat.config.ts 
+```
 hardhat: {
   forking: {
     // mainnet or sepolia
@@ -252,7 +256,7 @@ hardhat: {
 },
 ```
 
-Test
+Test code execution command
 ```
 npx hardhat test test/agenda/13.UpgradeDAOProxy-test-sepolia.js
 ```

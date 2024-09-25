@@ -9,14 +9,15 @@ const Web3EthAbi = require('web3-eth-abi');
 
 const sepoliaContractInfo = {
     DAOCommitteeProxy: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-    DAOCommitteeProxy2: "0x0cb4E974302864D1059028de86757Ca55D121Cb8",
-    DAOCommittee_V1: "0xB800a42D9A8e5036B75246aeDA578DCe58f85B18",
-    DAOCommitteeOwner: "0x34B6e334D88436Fbbb9c316865A1BA454769C090",
+    DAOCommitteeProxy2: "0x399A7Aa3BF8da93319494CdFC495Ab20541eC1D4",
+    DAOCommittee_V1: "0xaDf24e3885D4c8DB092514dF364b09f314F1e794",
+    DAOCommitteeOwner: "0x63f116823B6Ed37271B0204A51e8ea4Eaa09c9a6",
     Layer2CandidateFactory: "0x770739A468D9262960ee0669f9Eaf0db6E21F81A",
     Layer2ManagerProxy: "0xffb690feeFb2225394ad84594C4a270c04be0b55",
     Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06",
     CandidateAddOnFactory: "0x63c95fbA722613Cb4385687E609840Ed10262434",
-    L1BridgeRegistryProxy: "0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC"
+    L1BridgeRegistryProxy: "0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC",
+    SeigManagerProxy: "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7"
 }
 
 const mainnetContractInfo = {
@@ -269,7 +270,7 @@ async function Setting_changeDAOStructure() {
         _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
     ]
     console.log("setSelectorBytes : ", setSelectorBytes)
-    
+
     console.log("setSelectorImplementations2 DAOCommitteeOwner done")
 }
 
@@ -294,12 +295,20 @@ async function Set_DAOCommitteeOwner() {
     await daoCommitteeOwner.connect(deployer).setLayer2Manager(
         sepoliaContractInfo.Layer2ManagerProxy
     )
-    console.log("setLayer2Manager DAOCommitteeOwner done")
+    console.log("setLayer2ManagerProxy DAOCommitteeOwner done")
+
+    // //==== Set setTargetSetL1BridgeRegistry =================================
+    // await daoCommitteeOwner.connect(deployer).setTargetSetL1BridgeRegistry(
+    //     sepoliaContractInfo.SeigManagerProxy,
+    //     sepoliaContractInfo.L1BridgeRegistryProxy
+    // )
+    // console.log("setTargetSetL1BridgeRegistry DAOCommitteeOwner done")
+
 
 }
 
 const main = async () => {
-  await Setting_changeDAOStructure()
+//   await Setting_changeDAOStructure()
   await Set_DAOCommitteeOwner()
 }
 
