@@ -454,7 +454,7 @@ describe('Layer2Manager', () => {
 
             legacySystemConfigTest2 = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
 
-            let name = 'Tithan2'
+            let name = 'Thanos'
             let addresses = {
                 l1CrossDomainMessenger: l1MessengerAddress,
                 l1ERC721Bridge: ethers.constants.AddressZero,
@@ -470,7 +470,7 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
-            let name = 'Tithan2'
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(

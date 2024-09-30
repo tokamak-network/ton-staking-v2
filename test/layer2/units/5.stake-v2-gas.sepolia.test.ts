@@ -471,7 +471,7 @@ describe('Layer2Manager', () => {
 
             legacySystemConfigTest2 = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
 
-            let name = 'Thanos1'
+            let name = 'Thanos'
             let addresses = {
                 l1CrossDomainMessenger: l1MessengerAddress,
                 l1ERC721Bridge: ethers.constants.AddressZero,

@@ -189,7 +189,7 @@ describe('L1BridgeRegistry', () => {
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('** cannot be registered with same name ', async () => {
+        it('cannot be registered with same name ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
