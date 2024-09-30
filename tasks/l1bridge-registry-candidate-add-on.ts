@@ -13,6 +13,7 @@ task("l1bridge-register-rollup-config-manager", "Register RollupConfig by onlyMa
   .addParam("rollupConfig", "The RollupConfig Address")
   .addParam("type", "type, 0: legacy, 1: bedrock ton native token")
   .addParam("l2Ton", "L2 TON Address")
+  .addParam("name", "the display name")
   .setAction(async (taskArgs, hre) => {
     console.log(taskArgs)
 
@@ -23,7 +24,7 @@ task("l1bridge-register-rollup-config-manager", "Register RollupConfig by onlyMa
       taskArgs.l1BridgeRegisterAddress, L1BridgeRegistryV1_1_ABI.abi, hre.ethers.provider)
 
     const tx = await l1BridgeRegister.connect(deployer).registerRollupConfigByManager(
-      taskArgs.rollupConfig, taskArgs.type, taskArgs.l2Ton
+      taskArgs.rollupConfig, taskArgs.type, taskArgs.l2Ton,  taskArgs.name
     );
 
     console.log('registerRollupConfigByManager tx: ',tx.hash)
@@ -47,6 +48,7 @@ task("l1bridge-register-rollup-config", "Register RollupConfig")
   .addParam("rollupConfig", "The RollupConfig Address")
   .addParam("type", "type, 0: legacy, 1: bedrock ton native token")
   .addParam("l2Ton", "L2 TON Address")
+  .addParam("name", "the display name")
   .setAction(async (taskArgs, hre) => {
     console.log(taskArgs)
 
@@ -57,7 +59,7 @@ task("l1bridge-register-rollup-config", "Register RollupConfig")
       taskArgs.l1BridgeRegisterAddress, L1BridgeRegistryV1_1_ABI.abi,  hre.ethers.provider)
 
     const tx = await l1BridgeRegister.registerRollupConfigByManager(
-      taskArgs.rollupConfig, taskArgs.type, taskArgs.l2Ton
+      taskArgs.rollupConfig, taskArgs.type, taskArgs.l2Ton,  taskArgs.name
     );
 
     console.log('tx: ',tx)
@@ -128,7 +130,7 @@ task("rollup-config-create-and-register", "Register RollupConfig by onlyManager"
       taskArgs.l1BridgeRegisterAddress, L1BridgeRegistryV1_1_ABI.abi, deployer)
 
     const tx = await l1BridgeRegister.connect(tonMinter).registerRollupConfigByManager(
-      systemConfig.address, taskArgs.type, taskArgs.l2Ton
+      systemConfig.address, taskArgs.type, taskArgs.l2Ton,  taskArgs.name
     );
 
     console.log('registerRollupConfigByManager tx: ',tx.hash)
@@ -188,19 +190,19 @@ task("rollup-config-create-and-register", "Register RollupConfig by onlyManager"
     console.log('registerCandidateAddOn tx: ',tx2.hash)
     const receipt = await tx2.wait();
 
-  const topic = layer2Manager.interface.getEventTopic('RegisteredCandidateAddOn');
-  const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-  const deployedEvent = layer2Manager.interface.parseLog(log);
-  const candidateAddOnAddress = deployedEvent.args.candidateAddOn
-  const candidateAddOn  = new ethers.Contract(candidateAddOnAddress, CandidateAddOn_ABI.abi,  deployer)
-  const operatorManagerAddress = await candidateAddOn.operator()
-  const operatorManager  = new ethers.Contract(operatorManagerAddress, OperatorManager_ABI.abi,  deployer)
-  const manager  = await operatorManager.manager()
+    const topic = layer2Manager.interface.getEventTopic('RegisteredCandidateAddOn');
+    const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+    const deployedEvent = layer2Manager.interface.parseLog(log);
+    const candidateAddOnAddress = deployedEvent.args.candidateAddOn
+    const candidateAddOn  = new ethers.Contract(candidateAddOnAddress, CandidateAddOn_ABI.abi,  deployer)
+    const operatorManagerAddress = await candidateAddOn.operator()
+    const operatorManager  = new ethers.Contract(operatorManagerAddress, OperatorManager_ABI.abi,  deployer)
+    const manager  = await operatorManager.manager()
 
-  console.log('rollupConfig     : ', deployedEvent.args.rollupConfig)
-  console.log('candidateAddOn   : ', candidateAddOnAddress)
-  console.log('operatorManager  : ', operatorManagerAddress)
-  console.log('operatorManager\'s manager  : ', manager)
+    console.log('rollupConfig     : ', deployedEvent.args.rollupConfig)
+    console.log('candidateAddOn   : ', candidateAddOnAddress)
+    console.log('operatorManager  : ', operatorManagerAddress)
+    console.log('operatorManager\'s manager  : ', manager)
 
 });
 

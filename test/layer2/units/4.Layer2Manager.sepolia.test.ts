@@ -369,12 +369,14 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager  ', async () => {
             let type = 1;
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -410,12 +412,14 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfigTest2.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).to.be.revertedWith("RegisterError")
         })
     })
@@ -623,7 +627,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
@@ -633,7 +637,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount.mul(utils.parseEther("1000000000")),
                 false,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
