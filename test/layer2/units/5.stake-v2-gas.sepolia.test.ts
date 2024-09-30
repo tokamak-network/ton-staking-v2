@@ -443,7 +443,7 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager  ', async () => {
             let type = 1;
-            let name = 'Titan1'
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
@@ -471,7 +471,7 @@ describe('Layer2Manager', () => {
 
             legacySystemConfigTest2 = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
 
-            let name = 'Thanos1'
+            let name = 'Thanos'
             let addresses = {
                 l1CrossDomainMessenger: l1MessengerAddress,
                 l1ERC721Bridge: ethers.constants.AddressZero,
@@ -489,7 +489,7 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
-            let name = 'Titan2'
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
@@ -533,7 +533,7 @@ describe('Layer2Manager', () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
             let type = 2;
-            let name = 'Thanos1'
+            let name = 'Thanos'
 
             const availableForRegistration = await l1BridgeRegistry.connect(manager).availableForRegistration(
                 thanosSystemConfig,
@@ -737,7 +737,7 @@ describe('Layer2Manager', () => {
                 l1BridgeRegistry.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("RegisterError(5)")
         })
 
@@ -748,7 +748,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
@@ -758,7 +758,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount.mul(utils.parseEther("1000000000")),
                 false,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
