@@ -109,12 +109,14 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
+            let name = 'Titan'
 
             await expect(
                 l1BridgeRegistry.connect(operator).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a manager")
         })
@@ -123,11 +125,13 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 0;
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
         })
@@ -136,11 +140,13 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 3;
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
         })
@@ -149,11 +155,12 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
-
+            let name = 'Titan'
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -171,14 +178,57 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 2;
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
         })
+
+        it('cannot be registered with same name ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
+            let type = 1;
+            let name = 'Titan'
+
+            const TestRollup = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
+
+            let addresses = {
+                l1CrossDomainMessenger: l1MessengerAddress,
+                l1ERC721Bridge: ethers.constants.AddressZero,
+                l1StandardBridge: l1MessengerAddress,
+                l2OutputOracle: ethers.constants.AddressZero,
+                optimismPortal: l1MessengerAddress,
+                optimismMintableERC20Factory: ethers.constants.AddressZero
+            }
+            await (await TestRollup.connect(deployer).setAddresses(
+                name, addresses, l1BridgeRegistryProxy.address
+            )).wait()
+
+
+            const availableForRegistration = await l1BridgeRegistry.connect(manager).availableForRegistration(
+                TestRollup.address,
+                type,
+                name
+            )
+
+            expect(availableForRegistration).to.be.eq(false)
+
+            await expect(
+                l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+                    TestRollup.address,
+                    type,
+                    l2TonAddress,
+                    name
+                )
+            ).to.be.revertedWith("RegisterError")
+
+        })
+
     });
 
     describe('# changeType', () => {
@@ -187,11 +237,13 @@ describe('L1BridgeRegistry', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 0;
+
             await expect(
                 l1BridgeRegistry.connect(deployer).changeType(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    "Titan"
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
@@ -204,7 +256,8 @@ describe('L1BridgeRegistry', () => {
                 l1BridgeRegistry.connect(operator).changeType(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    "Titan"
                 )
             ).to.be.revertedWith("ChangeError")
         })
@@ -233,14 +286,19 @@ describe('L1BridgeRegistry', () => {
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 sampleSystemConfig1.address,
                 1,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
+            // let info = await l1BridgeRegistry.getRollupInfo(sampleSystemConfig1.address)
+
             type =2
+            name = "Titan2"
             receipt = await (await l1BridgeRegistry.connect(operator).changeType(
                 sampleSystemConfig1.address,
                 2,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('ChangedType');
@@ -249,6 +307,7 @@ describe('L1BridgeRegistry', () => {
 
             expect(deployedEvent.args.rollupConfig).to.be.eq(sampleSystemConfig1.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
+            expect(deployedEvent.args.name).to.be.eq(name)
 
             expect(await l1BridgeRegistry.rollupType(sampleSystemConfig1.address)).to.be.eq(type)
 
@@ -256,57 +315,64 @@ describe('L1BridgeRegistry', () => {
 
     });
 
-    describe('# registerL1Config', () => {
+    describe('# registerRollupConfig', () => {
 
-        it('registerL1Config can not be executed by not a registrant', async () => {
+        it('registerRollupConfig can not be executed by not a registrant', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
-
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(deployer).registerRollupConfig(
                     legacySystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("AuthControl: Caller is not a registrant")
         })
 
-        it('registerL1Config : zero type is not accepted.', async () => {
+        it('registerRollupConfig : zero type is not accepted.', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 0;
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerL1Config : type over max is not accepted.', async () => {
+        it('registerRollupConfig : type over max is not accepted.', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 3;
+            let name = 'Titan'
             await expect(
                 l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
         })
 
-        it('registerL1Config :  ', async () => {
+        it('registerRollupConfig :  ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 2;
+            let name = 'Thanos'
             await expect(
                 l1BridgeRegistry.connect(operator).registerRollupConfig(
                     sampleSystemConfig.address,
                     type,
-                    l2TonAddress
+                    l2TonAddress,
+                    name
                 )
             ).to.be.revertedWith("RegisterError")
 

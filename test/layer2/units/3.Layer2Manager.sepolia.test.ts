@@ -429,11 +429,13 @@ describe('Layer2Manager', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
+            let name = 'Titan'
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -468,12 +470,14 @@ describe('Layer2Manager', () => {
 
         it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
+            let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfigTest2.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).to.be.revertedWith("RegisterError")
         })
     })
@@ -509,11 +513,13 @@ describe('Layer2Manager', () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
             let type = 2;
+            let name = 'Thanos'
 
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 thanosSystemConfig,
                 type,
-                thanosL2TON
+                thanosL2TON,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -696,7 +702,7 @@ describe('Layer2Manager', () => {
                 l1BridgeRegistry.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("RegisterError")
         })
 
@@ -707,7 +713,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
@@ -717,7 +723,7 @@ describe('Layer2Manager', () => {
                 legacySystemConfig.address,
                 amount.mul(utils.parseEther("1000000000")),
                 false,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
@@ -3297,7 +3303,8 @@ describe('Layer2Manager', () => {
             expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.not.eq(addr1.address)
             await expect(
                 l1BridgeRegistry.connect(addr1).restoreCandidateAddOn(
-                    legacySystemConfig.address
+                    legacySystemConfig.address,
+                    false
                 )
             ).to.be.revertedWith("PermissionError")
         })
@@ -3309,7 +3316,8 @@ describe('Layer2Manager', () => {
             expect(await l1BridgeRegistry.rejectRollupConfig(thanosSystemConfig)).to.be.eq(false)
             await expect(
                 l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
-                    thanosSystemConfig
+                    thanosSystemConfig,
+                    false
                 )
             ).to.be.revertedWith("OnlyRejectedError")
         })
@@ -3325,7 +3333,8 @@ describe('Layer2Manager', () => {
             expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(false)
 
             const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
-                legacySystemConfig.address
+                legacySystemConfig.address,
+                false
             )).wait()
             const topic = l1BridgeRegistry.interface.getEventTopic('RestoredCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);

@@ -364,11 +364,12 @@ describe('Layer2Manager', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
-
+            let name = 'Titan'
             let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfig.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).wait()
 
             const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
@@ -406,11 +407,13 @@ describe('Layer2Manager', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
             let type = 1;
+            let name = 'Titan'
 
              await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
                 legacySystemConfigTest2.address,
                 type,
-                l2TonAddress
+                l2TonAddress,
+                name
             )).to.be.revertedWith("RegisterError")
         })
     })

@@ -383,7 +383,7 @@ const config: HardhatUserConfig = {
       forking: {
         url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
-        // blockNumber: 5859537,
+        blockNumber: 5859537,
         // blockNumber: 6042730
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 6042730
