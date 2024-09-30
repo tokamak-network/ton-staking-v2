@@ -5,12 +5,20 @@ pragma solidity ^0.8.4;
 /// @notice
 contract L1BridgeRegistryStorage   {
 
+    struct ROLLUP_INFO {
+        uint8   rollupType;  ///  type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
+        address l2TON;
+        bool    rejectedSeigs;
+        bool    rejectedL2Deposit;
+        string  name;
+    }
+
     address public layer2Manager;
     address public seigManager;
     address public ton;
+    address public seigniorageCommittee;
 
-    /// rollupConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
-    mapping (address => uint8) public rollupType;
+    mapping (address => ROLLUP_INFO) public rollupInfo;
 
     /// For registered bridges, set to true.
     mapping (address => bool) public l1Bridge;
@@ -18,13 +26,6 @@ contract L1BridgeRegistryStorage   {
     /// For registered portals, set to true.
     mapping (address => bool) public portal;
 
-    /// Set the layer where seigniorage issuance has been suspended to true.
-    // rollupConfig - bool
-    mapping (address => bool) public rejectRollupConfig;
-
-    address public seigniorageCommittee;
-
-    /// rollupConfig - l2TON
-    mapping (address => address) public l2TON;
-
+    //  bytes32(bytes(name))
+    mapping (bytes32 => bool) public registeredNames;
 }
