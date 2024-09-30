@@ -34,14 +34,6 @@ error ExcludeError();
 error OnApproveError(uint x);
 
 interface IL1BridgeRegistry {
-    function getRollupInfo(address rollupConfig) external view returns (
-        uint8   rollupType,
-        address l2TON,
-        bool    rejectedSeigs,
-        bool    rejectedL2Deposit,
-        string  memory name
-    );
-    function registeredNames(bytes32 byteName) external view returns (bool);
     function l2TON(address rollupConfig) external view returns (address);
     function rollupType(address rollupConfig) external view returns (uint8);
     function checkLayer2TVL(address _rollupConfig) external view returns (bool result, uint256 amount);
@@ -95,7 +87,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     using SafeERC20 for IERC20;
 
     address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
-
 
     event SetAddresses(
         address _l2Register,
@@ -269,9 +260,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _nonZeroAddress(rollupConfig);
         if (bytes(memo).length == 0) revert ZeroBytesError();
         if (rollupConfigInfo[rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(rollupConfig, memo);
 
-        if (!res) revert RegisterError(5);
+        if (!_checkLayer2(rollupConfig)) revert RegisterError(5);
         _transferDepositAmount(msg.sender, rollupConfig, amount, flagTon, memo);
     }
 
@@ -299,8 +289,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _nonZeroAddress(_rollupConfig);
 
         if (rollupConfigInfo[_rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(_rollupConfig, string(_message));
-        if (!res) revert RegisterError(5);
+
+        if (!_checkLayer2(_rollupConfig)) revert RegisterError(5);
 
         // if (msg.sender == ton) _transferDepositAmount(owner, _rollupConfig, amount, true, string(bytes(data[20:])));
         // else _transferDepositAmount(owner, _rollupConfig, amount, false, string(bytes(data[20:])));
@@ -450,30 +440,6 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     }
 
-    function _availableRegister(address _rollupConfig, string memory _name) internal view returns (bool result, uint256 amount) {
-
-        (uint8 _type,,,,string  memory name_) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
-        if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
-
-        if (_type == 1) { // optimism legacy : titan
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            if (l1Bridge != address(0)) {
-                amount = IERC20(ton).balanceOf(l1Bridge);
-                result = true;
-            }
-
-        } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
-            if (optimismPortal != address(0) && l1Bridge != address(0) ) {
-                amount = IERC20(ton).balanceOf(optimismPortal);
-                result = true;
-            }
-        }
-    }
-
     function _checkLayer2TVL(address _rollupConfig) internal view returns (bool result, uint256 amount) {
 
         uint8 _type = IL1BridgeRegistry(l1BridgeRegistry).rollupType(_rollupConfig);
@@ -487,12 +453,17 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
             }
 
         } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
+
             address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
             if (optimismPortal != address(0)) {
                 amount = IERC20(ton).balanceOf(optimismPortal);
                 result = true;
             }
         }
+    }
+
+    function _checkLayer2(address _rollupConfig) internal view returns (bool check){
+        (check, ) = _checkLayer2TVL(_rollupConfig);
     }
 
     function _transferDepositAmount(
