@@ -247,6 +247,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
      * @param rollupConfig the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
+     * @param _name          the candidate name
      */
     function changeType(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyRegistrant {
 
