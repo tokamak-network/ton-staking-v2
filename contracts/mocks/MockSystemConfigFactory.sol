@@ -46,6 +46,7 @@ contract MockSystemConfigFactory {
         MockSystemConfig c = new MockSystemConfig();
         require(address(c) != address(0), "zero MockSystemConfig");
         c.setName(_name);
+        c.transferOwnership(msg.sender);
 
         emit CreatedMockSystemConfig(
             address(c),

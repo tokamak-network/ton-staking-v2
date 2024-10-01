@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+
 contract MockL1StandardBridge {
     constructor() {}
     receive() external payable {
@@ -16,7 +18,7 @@ contract MockOptimismPortal {
 }
 
 
-contract MockSystemConfig {
+contract MockSystemConfig is Ownable {
 
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
     ///         proxies and will differ for each OP Stack chain.

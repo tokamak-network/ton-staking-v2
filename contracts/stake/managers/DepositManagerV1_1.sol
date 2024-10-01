@@ -17,6 +17,7 @@ import { DepositManagerV1_1Storage } from "./DepositManagerV1_1Storage.sol";
  *          3: zero L1 bridge address
  *          4: zero optimism portal address
  *          5: unsupported layer2
+ *          6: rejectedSeigs or rejectedL2Deposit
  */
 error CheckL1BridgeError(uint x);
 error OperatorError();
@@ -112,8 +113,11 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     if (!success) revert CheckL1BridgeError(1);
 
     // require(success, 'false checkL1Bridge');
-    (bool result, address l1Bridge, address portal, address l2Ton, uint8 l2Type, uint8 status) = abi.decode(data, (bool,address,address,address,uint8,uint8));
+    (bool result, address l1Bridge, address portal, address l2Ton,
+      uint8 l2Type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit) = abi.decode(data, (bool,address,address,address,uint8,uint8,bool,bool));
     if (!result) revert CheckL1BridgeError(2);
+
+    if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
     if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
     require(l2Ton != address(0), "l2Ton: zero address");
     if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);

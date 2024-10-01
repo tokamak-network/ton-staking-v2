@@ -369,7 +369,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      * @return l2Ton            the L2 TON address
      */
     function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
-         (result, l1Bridge, portal, l2Ton,,) = _checkL1BridgeDetail(_rollupConfig);
+         (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 
     /**
@@ -381,17 +381,32 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      * @return l2Ton            the L2 TON address
      * @return _type            the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
      * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+     * @return rejectedSeigs     If it is true, Seigniorage issuance has been stopped for this layer2.
+     * @return rejectedL2Deposit If it is true, stop depositing at this layer.
      */
-    function checkL1BridgeDetail(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status) {
-         (result, l1Bridge, portal, l2Ton, _type, status) = _checkL1BridgeDetail(_rollupConfig);
+    function checkL1BridgeDetail(address _rollupConfig) external view
+        returns (
+            bool result,
+            address l1Bridge,
+            address portal,
+            address l2Ton,
+            uint8 _type,
+            uint8 status,
+            bool rejectedSeigs,
+            bool rejectedL2Deposit
+        )
+    {
+         (result, l1Bridge, portal, l2Ton, _type, status, rejectedSeigs, rejectedL2Deposit) = _checkL1BridgeDetail(_rollupConfig);
     }
 
     function _checkL1BridgeDetail(address _rollupConfig)
         public
         view
-        returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status)
+        returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status,
+        bool rejectedSeigs, bool rejectedL2Deposit)
     {
-        _type = IL1BridgeRegistry(l1BridgeRegistry).rollupType(_rollupConfig);
+        (_type, , rejectedSeigs, rejectedL2Deposit,) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
+
         status = rollupConfigInfo[_rollupConfig].status;
 
         if (rollupConfigInfo[_rollupConfig].status == 1) {

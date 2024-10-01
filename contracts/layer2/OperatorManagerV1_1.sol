@@ -23,7 +23,9 @@ interface IRollupConfig {
 interface ILayer2Manager {
     function candidateAddOnOfOperator(address operator) external view returns (address);
     function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
-    function checkL1BridgeDetail(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status);
+    function checkL1BridgeDetail(address _rollupConfig) external view returns
+        (bool result, address l1Bridge, address portal, address l2Ton,
+        uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit);
 }
 
 interface IDepositManager {
@@ -271,8 +273,12 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      *                  In this case, the native token of Layer 2 is TON.
      * @return _type    the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
      * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+     * @return rejectedSeigs     If it is true, Seigniorage issuance has been stopped for this layer2.
+     * @return rejectedL2Deposit If it is true, stop depositing at this layer.
      */
-    function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status) {
+    function checkL1Bridge() public view returns (
+        bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit
+    ) {
         return ILayer2Manager(layer2Manager).checkL1BridgeDetail(rollupConfig);
     }
 
