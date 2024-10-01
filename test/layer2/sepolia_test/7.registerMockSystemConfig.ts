@@ -20,6 +20,8 @@ import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/fa
 
 import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { MockSystemConfig } from "../../../typechain-types/contracts/mocks/MockSystemConfig.sol/MockSystemConfig"
+
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
@@ -45,6 +47,7 @@ import SeigManagerV1_3_Json from '../../../artifacts/contracts/stake/managers/Se
 import SeigManagerV1_2_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json'
 
 
+import MockSystemConfig_Json from '../../../artifacts/contracts/mocks/MockSystemConfig.sol/MockSystemConfig.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -76,8 +79,8 @@ describe('Layer2Manager', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
-    let legacySystemConfig: LegacySystemConfig
-    let legacySystemConfigTest2: LegacySystemConfig
+    let legacySystemConfig: MockSystemConfig
+    let legacySystemConfigTest2: MockSystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
     let operatorV1_1:OperatorManagerV1_1 , operatorFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
@@ -106,10 +109,11 @@ describe('Layer2Manager', () => {
 
     let daoContractAdd : DAOCommitteeAddV1_1;
 
-    const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
+    const deployedMockSystemConfigAddress = "0x534f74C61Ef45a6f946A86EFf8f1491F68586054"
     const deployedLayer2ManagerProxyAddress = "0xffb690feeFb2225394ad84594C4a270c04be0b55"
-    const deployedOperatorFactoryAddress = "0x8a42BcFC2EB5D38Ca48122854B91333203332919"
+    const deployedOperatorFactoryAddress = "0x2CEe6117d43cFFbDcF46189Cac8928b1B7f92ABd"
     const deployedLayer2CandidateFactory = "0x63c95fbA722613Cb4385687E609840Ed10262434"
+
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();
@@ -129,7 +133,7 @@ describe('Layer2Manager', () => {
         seigManagerProxy = new ethers.Contract(SeigManager,  SeigManagerProxy_Json.abi, deployer)
         powerTon = powerTonAddress
 
-        legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
+        legacySystemConfig = new ethers.Contract(deployedMockSystemConfigAddress, MockSystemConfig_Json.abi,  deployer) as MockSystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
         operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorManagerFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
@@ -139,6 +143,10 @@ describe('Layer2Manager', () => {
             tonHaveAddr,
         ]);
 
+        await hre.network.provider.send("hardhat_setBalance", [
+            tonHaveAddr,
+            "0x10000000000000000000000000",
+        ]);
         tonHave = await hre.ethers.getSigner(tonHaveAddr);
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
@@ -206,9 +214,11 @@ describe('Layer2Manager', () => {
             let allowance = await tonContract.allowance(tonHave.address, layer2Manager.address)
             console.log("allowance", allowance)
 
-            // if(allowance.lt(amount)){
-            //     await tonContract.connect(addr1).approve(layer2Manager.address, amount);
-            // }
+            if(allowance.lt(amount)){
+                await (await tonContract.connect(tonHave).approve(layer2Manager.address, amount)).wait()
+                allowance = await tonContract.allowance(tonHave.address, layer2Manager.address)
+                console.log("allowance", allowance)
+            }
 
             const gasEstimated =  await layer2Manager.connect(tonHave).estimateGas.registerCandidateAddOn(
                 legacySystemConfig.address,

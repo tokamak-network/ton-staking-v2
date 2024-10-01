@@ -399,6 +399,8 @@ const config: HardhatUserConfig = {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
         // blockNumber:
+        // test registerCandidateAddOn
+        // blockNumber: 6793048
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],

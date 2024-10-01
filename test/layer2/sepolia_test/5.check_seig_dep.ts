@@ -114,44 +114,58 @@ describe('Check SeigManager, depositManager', () => {
     })
 
 
-    // describe('# SeigManager ', () => {
+    describe('# SeigManager ', () => {
 
-    //     it('seigManagerV1_3', async () => {
-    //         const l1BridgeRegistry = await seigManagerV1_3.l1BridgeRegistry()
-    //         const layer2Manager = await seigManagerV1_3.layer2Manager()
-    //         const layer2StartBlock = await seigManagerV1_3.layer2StartBlock()
-    //         const l2RewardPerUint = await seigManagerV1_3.l2RewardPerUint()
-    //         const totalLayer2TVL = await seigManagerV1_3.totalLayer2TVL()
+        it('seigManagerV1_3', async () => {
+            const l1BridgeRegistry = await seigManagerV1_3.l1BridgeRegistry()
+            const layer2Manager = await seigManagerV1_3.layer2Manager()
+            const layer2StartBlock = await seigManagerV1_3.layer2StartBlock()
+            const l2RewardPerUint = await seigManagerV1_3.l2RewardPerUint()
+            const totalLayer2TVL = await seigManagerV1_3.totalLayer2TVL()
 
-    //         const titan_info = {
-    //             systemConfig: "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87",
-    //             operator : "0x1A8e48401697DcF297A02c90d3480c35885f8959",
-    //             layer2Candidate: "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
-    //         }
+            // test1
+            // const titan_info = {
+            //     systemConfig: "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87",
+            //     operator : "0x1A8e48401697DcF297A02c90d3480c35885f8959",
+            //     layer2Candidate: "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
+            // }
 
-    //         const thanos_info = {
-    //             systemConfig: "0xf8FCFDbdb7C4E734D035A5681Fd1fe08ec85e387",
-    //             operator : "0x97f70424857fa4c79B76ef90E057e1FD4b8287Db",
-    //             layer2Candidate: "0xF78d3E1f7ca9EFc672969cfc771c6207e3AfEB7E"
-    //         }
+            // const thanos_info = {
+            //     systemConfig: "0xf8FCFDbdb7C4E734D035A5681Fd1fe08ec85e387",
+            //     operator : "0x97f70424857fa4c79B76ef90E057e1FD4b8287Db",
+            //     layer2Candidate: "0xF78d3E1f7ca9EFc672969cfc771c6207e3AfEB7E"
+            // }
 
-    //         const layer2RewardInfo_titan = await seigManagerV1_3.layer2RewardInfo(titan_info.layer2Candidate)
-    //         const layer2RewardInfo_thanos= await seigManagerV1_3.layer2RewardInfo(thanos_info.layer2Candidate)
+            // test2
+            const titan_info = {
+                systemConfig: "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87",
+                operator : "0x7afEfd134118B7eCbF25F9E4e73C1aef8BE0603d",
+                layer2Candidate: "0x4400458626eb4d7fc8f10811e9A2fB0A345a8875"
+            }
+
+            const thanos_info = {
+                systemConfig: "0xB8209Cc81f0A8Ccdb09238bB1313A039e6BFf741",
+                operator : "0xEE85eD759BcE873e0946448a7Fa922A3f177955F",
+                layer2Candidate: "0x0e5417d597CC19abFb477Fa7e760AdcABDfe60E2"
+            }
+
+            const layer2RewardInfo_titan = await seigManagerV1_3.layer2RewardInfo(titan_info.layer2Candidate)
+            const layer2RewardInfo_thanos= await seigManagerV1_3.layer2RewardInfo(thanos_info.layer2Candidate)
 
 
-    //         console.log("l1BridgeRegistry", l1BridgeRegistry)
-    //         console.log("layer2Manager", layer2Manager)
-    //         console.log("layer2StartBlock", layer2StartBlock)
-    //         console.log("l2RewardPerUint", l2RewardPerUint)
+            console.log("l1BridgeRegistry", l1BridgeRegistry)
+            console.log("layer2Manager", layer2Manager)
+            console.log("layer2StartBlock", layer2StartBlock)
+            console.log("l2RewardPerUint", l2RewardPerUint)
 
-    //         console.log("totalLayer2TVL", totalLayer2TVL)
-    //         console.log("layer2RewardInfo_titan", layer2RewardInfo_titan)
-    //         console.log("layer2RewardInfo_thanos", layer2RewardInfo_thanos)
+            console.log("totalLayer2TVL", totalLayer2TVL)
+            console.log("layer2RewardInfo_titan", layer2RewardInfo_titan)
+            console.log("layer2RewardInfo_thanos", layer2RewardInfo_thanos)
 
 
-    //     });
+        });
 
-    // })
+    })
 
     describe('# DepositManager ', () => {
 
