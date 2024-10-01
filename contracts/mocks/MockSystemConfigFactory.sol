@@ -14,6 +14,7 @@ error CreateError(uint x);
 interface IMockSystemConfig {
     function l1StandardBridge() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_);
+    function setName(string calldata _name) external ;
 }
 
 contract MockSystemConfigFactory {
@@ -42,8 +43,9 @@ contract MockSystemConfigFactory {
             address optimismPortal
             )
     {
-        MockSystemConfig c = new MockSystemConfig(_name);
+        MockSystemConfig c = new MockSystemConfig();
         require(address(c) != address(0), "zero MockSystemConfig");
+        c.setName(_name);
 
         emit CreatedMockSystemConfig(
             address(c),

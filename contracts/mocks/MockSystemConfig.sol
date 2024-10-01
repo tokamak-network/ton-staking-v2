@@ -30,13 +30,10 @@ contract MockSystemConfig {
     }
 
     Addresses public addresses;
-    // address public l2Ton;
     string public name;
 
     /* ========== CONSTRUCTOR ========== */
-    constructor(string memory _name) {
-        name = _name;
-
+    constructor() {
         addresses = Addresses(
             address(0),
             address(0),
@@ -46,8 +43,14 @@ contract MockSystemConfig {
             address(0)
         );
     }
+
     receive() external payable {
         revert("cannot receive Ether");
+    }
+
+    function setName(string calldata _name) external {
+        require(bytes(name).length == 0, "already set");
+        name = _name;
     }
 
     /* ========== view ========== */
