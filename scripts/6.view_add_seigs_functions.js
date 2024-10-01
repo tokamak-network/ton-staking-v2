@@ -23,13 +23,14 @@ async function func1() {
   const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
   const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
   const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+  const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
 
     let functionBytecodes = [
         selector1, selector2, selector3, selector4, selector5,
         selector6, selector7, selector8, selector9, selector10,
         selector11, selector12, selector13, selector14, selector15,
         selector16,
-        selector17, selector18, selector19, selector20
+        selector17, selector18, selector19, selector20, selector21
       ];
 
         console.log('SeigManagerV1_3 add functions : ', functionBytecodes)
@@ -41,15 +42,19 @@ async function func2() {
   const selector2 = encodeFunctionSignature("minDepositGasLimit()");
   const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
   const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+  const selector5 = encodeFunctionSignature("l1BridgeRegistry()");
+  const selector6 = encodeFunctionSignature("layer2Manager()");
+  const selector7 = encodeFunctionSignature("setAddresses(address,address)");
 
    let functionBytecodes = [
-                selector1, selector2, selector3, selector4 ];
+            selector1, selector2, selector3, selector4, selector5, selector6, selector7
+            ];
 
       console.log('DepositManagerV1_1 add functions : ', functionBytecodes)
 }
 
 const main = async () => {
-  await func1()
+  // await func1()
   await func2()
 }
 
