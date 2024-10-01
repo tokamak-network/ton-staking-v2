@@ -97,6 +97,7 @@ describe('Check SeigManager, depositManager', () => {
 
         const accounts = await ethers.getSigners();
         deployer = accounts[0]
+        console.log('deployer', deployer.address)
 
         daoOwner = await ethers.getSigner(daoOwnerAddress);
         tonContract = new ethers.Contract(TON, Ton_Json.abi,  deployer)
@@ -113,7 +114,7 @@ describe('Check SeigManager, depositManager', () => {
 
     })
 
-
+    /*
     describe('# SeigManager ', () => {
 
         it('seigManagerV1_3', async () => {
@@ -152,7 +153,6 @@ describe('Check SeigManager, depositManager', () => {
             const layer2RewardInfo_titan = await seigManagerV1_3.layer2RewardInfo(titan_info.layer2Candidate)
             const layer2RewardInfo_thanos= await seigManagerV1_3.layer2RewardInfo(thanos_info.layer2Candidate)
 
-
             console.log("l1BridgeRegistry", l1BridgeRegistry)
             console.log("layer2Manager", layer2Manager)
             console.log("layer2StartBlock", layer2StartBlock)
@@ -162,11 +162,35 @@ describe('Check SeigManager, depositManager', () => {
             console.log("layer2RewardInfo_titan", layer2RewardInfo_titan)
             console.log("layer2RewardInfo_thanos", layer2RewardInfo_thanos)
 
-
         });
 
-    })
+        // it('setLayer2Manager 스토리지 초기화 ', async () => {
+        //     const receipt1 = await (await seigManagerV1_3.setLayer2Manager(ethers.constants.AddressZero)).wait()
+        //     console.log("setLayer2Manager ", receipt1.transactionHash)
+        // });
 
+        // it('setL1BridgeRegistry 스토리지 초기화 ', async () => {
+        //     const receipt2 = await (await seigManagerV1_3.setL1BridgeRegistry(ethers.constants.AddressZero)).wait()
+        //     console.log("setL1BridgeRegistry", receipt2.transactionHash)
+
+        // });
+
+        // it('setLayer2StartBlock 스토리지 초기화 ', async () => {
+        //       const receipt3 = await (await seigManagerV1_3.setLayer2StartBlock(ethers.constants.Zero)).wait()
+
+        //       console.log("setLayer2StartBlock", receipt3.transactionHash)
+
+        // });
+
+        // it('resetL2RewardPerUint 스토리지 초기화 ', async () => {
+        //     const receipt4 = await (await seigManagerV1_3.resetL2RewardPerUint()).wait()
+        //    console.log("resetL2RewardPerUint", receipt4.transactionHash)
+
+        // });
+
+    })
+    */
+   /*
     describe('# DepositManager ', () => {
 
         it('depositManager', async () => {
@@ -175,18 +199,25 @@ describe('Check SeigManager, depositManager', () => {
 
             console.log("ton", ton)
             console.log("minDepositGasLimit", minDepositGasLimit)
-        });
 
+            const l1BridgeRegistry = await  depositManager.l1BridgeRegistry()
+            const layer2Manager = await  depositManager.layer2Manager()
+            console.log("l1BridgeRegistry", l1BridgeRegistry)
+            console.log("layer2Manager", layer2Manager)
+
+        });
     })
+    */
 
     describe('# DAOCommittee ', () => {
 
         it('daoContract', async () => {
             const layer2Manager = await daoContract.layer2Manager()
-            // const candidateAddOnFactory = await  daoContract.candidateAddOnFactory()
+            const candidateAddOnFactory = await  daoContract.candidateAddOnFactory()
 
             console.log("layer2Manager", layer2Manager)
-            // console.log("candidateAddOnFactory", candidateAddOnFactory)
+            console.log("candidateAddOnFactory", candidateAddOnFactory)
+
         });
 
     })
