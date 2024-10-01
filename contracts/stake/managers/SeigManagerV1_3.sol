@@ -141,6 +141,12 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     l1BridgeRegistry = l1BridgeRegistry_;
   }
 
+  function resetL2RewardPerUint() external onlyOwner {
+    require(layer2StartBlock == 0, "Only possible when layer2StartBlock is 0");
+    l2RewardPerUint = 0;
+  }
+
+
   //////////////////////////////
   // onlyLayer2Manager
   //////////////////////////////
