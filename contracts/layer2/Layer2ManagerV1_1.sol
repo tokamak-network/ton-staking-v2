@@ -372,6 +372,11 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
          (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 
+    function availableRegister(address _rollupConfig, string memory _name) external view returns (bool result, uint256 amount) {
+        return _availableRegister(_rollupConfig, _name) ;
+    }
+
+
     /**
      * @notice Layer 2 related information search
      * @param _rollupConfig     the rollupConfig address

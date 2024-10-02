@@ -157,22 +157,22 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         emit SetSeigniorageCommittee(_seigniorageCommittee);
     }
 
-    /**
-     * Sets whether to allow the withdrawDepositL2 function.
-     * @param rollupConfig          the rollupConfig address
-     * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
-     */
-    function setBlockingL2Deposit(
-        address rollupConfig,
-        bool rejectedL2Deposit
-    )  external onlyOwner {
+    // /**
+    //  * Sets whether to allow the withdrawDepositL2 function.
+    //  * @param rollupConfig          the rollupConfig address
+    //  * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
+    //  */
+    // function setBlockingL2Deposit(
+    //     address rollupConfig,
+    //     bool rejectedL2Deposit
+    // )  external onlySeigniorageCommittee {
 
-        require (rollupInfo[rollupConfig].rollupType != 0, "NonRegistered");
+    //     require (rollupInfo[rollupConfig].rollupType != 0, "NonRegistered");
 
-        rollupInfo[rollupConfig].rejectedL2Deposit = rejectedL2Deposit;
+    //     rollupInfo[rollupConfig].rejectedL2Deposit = rejectedL2Deposit;
 
-        emit SetBlockingL2Deposit(rollupConfig, rejectedL2Deposit);
-    }
+    //     emit SetBlockingL2Deposit(rollupConfig, rejectedL2Deposit);
+    // }
 
     /// @dev
     // function resetRollupConfig(address rollupConfig)  external  onlyOwner {
@@ -207,7 +207,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function restoreCandidateAddOn(
         address rollupConfig,
         bool rejectedL2Deposit
-    )  external onlySeigniorageCommittee() {
+    )  external onlySeigniorageCommittee{
         _onlyRejectedRollupConfig(rollupConfig);
 
         rollupInfo[rollupConfig].rejectedSeigs = false;
