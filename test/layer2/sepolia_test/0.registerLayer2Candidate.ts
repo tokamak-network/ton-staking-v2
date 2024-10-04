@@ -53,7 +53,8 @@ const layers = [
 
 let pastAddr = "0xD4335A175c36c0922F6A368b83f9F6671bf07606"
 let wtonhaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
-let tonHaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+// let tonHaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+let tonHaveAddr = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
 
 const daoOwnerAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
 let tonMinterAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
@@ -107,9 +108,9 @@ describe('Layer2Manager', () => {
     let daoContractAdd : DAOCommitteeAddV1_1;
 
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
-    const deployedLayer2ManagerProxyAddress = "0xffb690feeFb2225394ad84594C4a270c04be0b55"
-    const deployedOperatorFactoryAddress = "0x8a42BcFC2EB5D38Ca48122854B91333203332919"
-    const deployedLayer2CandidateFactory = "0x63c95fbA722613Cb4385687E609840Ed10262434"
+    const deployedLayer2ManagerProxyAddress = "0x0fDb12aF5Fece558d17237E2D252EC5dbA25396b"
+    const deployedOperatorFactoryAddress = "0xd33Cb6D1b9374362877A701C16AF48f7D0a06B0b"
+    const deployedLayer2CandidateFactory = "0x2f60005daA6294081a7688bAb9BCb21ad45b0A90"
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();
@@ -162,32 +163,32 @@ describe('Layer2Manager', () => {
 
         })
 
-        it('upgrade Logic DAOCommitteeAddV1_1', async () => {
-            const DAOCommitteeAddV1_1Dep = await ethers.getContractFactory("DAOCommitteeAddV1_1");
-            const DAOCommitteeAddV1_1Logic = await DAOCommitteeAddV1_1Dep.deploy();
-            await DAOCommitteeAddV1_1Logic.deployed()
+        // it('upgrade Logic DAOCommitteeAddV1_1', async () => {
+        //     const DAOCommitteeAddV1_1Dep = await ethers.getContractFactory("DAOCommitteeAddV1_1");
+        //     const DAOCommitteeAddV1_1Logic = await DAOCommitteeAddV1_1Dep.deploy();
+        //     await DAOCommitteeAddV1_1Logic.deployed()
 
-            await daoContract.connect(tonMinter).upgradeTo(DAOCommitteeAddV1_1Logic.address)
+        //     await daoContract.connect(tonMinter).upgradeTo(DAOCommitteeAddV1_1Logic.address)
 
-            daoContractAdd = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi,  deployer) as DAOCommitteeAddV1_1
+        //     daoContractAdd = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi,  deployer) as DAOCommitteeAddV1_1
 
 
-            console.log('layer2ManagerProxy', layer2ManagerProxy.address)
-            console.log('daoContractAdd', daoContractAdd.address)
+        //     console.log('layer2ManagerProxy', layer2ManagerProxy.address)
+        //     console.log('daoContractAdd', daoContractAdd.address)
 
-            let layer2ManagerAddress = await daoContractAdd.layer2Manager();
-            console.log('layer2ManagerAddress', layer2ManagerAddress)
-            if (layer2ManagerAddress != layer2ManagerProxy.address ) {
-                await (await daoContractAdd.connect(tonMinter).setLayer2Manager(layer2ManagerProxy.address)).wait()
-            }
+        //     let layer2ManagerAddress = await daoContractAdd.layer2Manager();
+        //     console.log('layer2ManagerAddress', layer2ManagerAddress)
+        //     if (layer2ManagerAddress != layer2ManagerProxy.address ) {
+        //         await (await daoContractAdd.connect(tonMinter).setLayer2Manager(layer2ManagerProxy.address)).wait()
+        //     }
 
-            let layer2CandidateFactoryAddress = await daoContractAdd.candidateAddOnFactory();
-            console.log('layer2CandidateFactoryAddress', layer2CandidateFactoryAddress)
-            if (layer2CandidateFactoryAddress != deployedLayer2CandidateFactory ) {
-                await (await daoContractAdd.connect(tonMinter).setCandidateAddOnFactory(deployedLayer2CandidateFactory)).wait()
-            }
+        //     let layer2CandidateFactoryAddress = await daoContractAdd.candidateAddOnFactory();
+        //     console.log('layer2CandidateFactoryAddress', layer2CandidateFactoryAddress)
+        //     if (layer2CandidateFactoryAddress != deployedLayer2CandidateFactory ) {
+        //         await (await daoContractAdd.connect(tonMinter).setCandidateAddOnFactory(deployedLayer2CandidateFactory)).wait()
+        //     }
 
-        })
+        // })
 
         it('registerLayer2Candidate', async () => {
 
@@ -206,15 +207,22 @@ describe('Layer2Manager', () => {
             let allowance = await tonContract.allowance(tonHave.address, layer2Manager.address)
             console.log("allowance", allowance)
 
-            // if(allowance.lt(amount)){
-            //     await tonContract.connect(addr1).approve(layer2Manager.address, amount);
-            // }
+            if(allowance.lt(amount)){
+                await (await tonContract.connect(tonHave).approve(layer2Manager.address, amount)).wait()
+            }
+
+            console.log("legacySystemConfig.address", legacySystemConfig.address)
+
+            let name1 = "Titan Sepolia"
+            let availableRegister = await layer2Manager.connect(tonHave).availableRegister(legacySystemConfig.address, name1)
+            console.log("availableRegister", availableRegister)
+
 
             const gasEstimated =  await layer2Manager.connect(tonHave).estimateGas.registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
-                name
+                name1
             )
             console.log("gasEstimated", gasEstimated)
 

@@ -400,7 +400,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 18811511
         // blockNumber:
         // test registerCandidateAddOn
-        blockNumber: 6794312
+        blockNumber: 6797943
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],
@@ -441,7 +441,7 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
-      // deploy: ['deploy-layer2']
+      deploy: ['deploy-layer2']
     },
   },
   deterministicDeployment: (network: string) => {
