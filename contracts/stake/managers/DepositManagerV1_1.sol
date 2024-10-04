@@ -9,7 +9,6 @@ import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
 import { DepositManagerV1_1Storage } from "./DepositManagerV1_1Storage.sol";
 
-// error ZeroPortalError();
 /**
  * @notice Error that occurs when there is a problem as a result of L2 bridge-related information search
  * @param x 1: checkL1Bridge function call error
@@ -124,7 +123,9 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
 
     uint32 _minDepositGasLimit = 0;
     if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
-    else if (portal == address(0)) revert CheckL1BridgeError(4);
+
+    if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
+
 
     if (!ISeigManager(_seig).onWithdraw(layer2, msg.sender, amount)) revert WithdrawError();
     if (!IWTON(_wton).swapToTONAndTransfer(address(this), amount)) revert SwapTonTransferError();
@@ -135,11 +136,11 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
     uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
     if(allowance < tonAmount) IIERC20(_ton).increaseAllowance(l1Bridge, tonAmount-allowance);
 
-    address checkAddress = l1Bridge;
-    if (portal != address(0)) checkAddress = portal;
-    uint256 bal = IERC20(_ton).balanceOf(checkAddress);
+    uint256 bal;
 
     if (l2Type == 1) {
+      bal = IERC20(_ton).balanceOf(l1Bridge);
+
       IL1Bridge(l1Bridge).depositERC20To(
         _ton,
         l2Ton,
@@ -148,7 +149,13 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
         _minDepositGasLimit,
         '0x'
       );
+
+      bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
+
     } else {
+
+      bal = IERC20(_ton).balanceOf(portal);
+
       IL1Bridge(l1Bridge).depositERC20To(
         _ton,
         l2Ton,
@@ -157,12 +164,13 @@ contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerSto
         _minDepositGasLimit,
         '0x'
       );
+
+      bal = IERC20(_ton).balanceOf(portal) - bal;
     }
 
+    require(bal == tonAmount, "fail depositERC20To");
+
     emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
-
-    require(IERC20(_ton).balanceOf(checkAddress) == bal + tonAmount, "fail depositERC20To");
-
     emit WithdrawalAndDeposited(layer2, msg.sender, amount);
     return true;
   }
