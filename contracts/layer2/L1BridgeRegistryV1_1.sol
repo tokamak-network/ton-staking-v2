@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
 import "./L1BridgeRegistryStorage.sol";
-
+import "./L1BridgeRegistryV1_2Storage.sol";
 /**
  * @notice  Error occurred when executing changeType function
  * @param x 1: sender is not ton nor wton
@@ -45,7 +45,7 @@ interface ILayer2Manager {
     function unpauseCandidateAddOn(address rollupConfig) external;
 }
 
-contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage {
+contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage, L1BridgeRegistryV1_2Storage {
 
     enum TYPE_ROLLUPCONFIG {
         NONE,
@@ -109,6 +109,13 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      */
     event SetBlockingL2Deposit(address rollupConfig, bool rejectedL2Deposit);
 
+    /**
+     * @notice  Event occurs when nonCheckRegistrant is set
+     * @param  _nonCheckRegistrant   If it is set to true, registerRollupConfig can executed by anyone.
+
+     */
+    event SetNonCheckRegistrant(bool _nonCheckRegistrant);
+
     modifier onlySeigniorageCommittee() {
         require(seigniorageCommittee == msg.sender, "PermissionError");
         _;
@@ -156,6 +163,18 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
         emit SetSeigniorageCommittee(_seigniorageCommittee);
     }
+
+    function setNonCheckRegistrant(
+        bool _nonCheck
+    )  external
+       onlyOwner
+    {
+        require(nonCheckRegistrant != _nonCheck, "same value");
+        nonCheckRegistrant = _nonCheck;
+
+        emit SetNonCheckRegistrant(_nonCheck);
+    }
+
 
     // /**
     //  * Sets whether to allow the withdrawDepositL2 function.
@@ -237,8 +256,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig       the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyRegistrant {
+    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external {
         _nonRejected(rollupConfig);
+
+        if (!nonCheckRegistrant) require(isRegistrant(msg.sender), "Caller is not a registrant");
+
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
