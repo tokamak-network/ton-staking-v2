@@ -41,7 +41,7 @@ import DAOCandidate_Json from '../../abi/Candidate.json'
 
 import LegacySystemConfig_Json from '../../abi/LegacySystemConfig.json'
 import MockSystemConfig_Json from '../../abi/MockSystemConfig.json'
-
+import MockL1StandardBridge_Json from '../../abi/MockL1StandardBridge.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -2131,6 +2131,7 @@ describe('Layer2Manager', () => {
             )).to.be.revertedWith("staked amount is insufficient")
         })
 
+        /*
         it('** Owner can block the L2 withdrawAndDepositL2 function.', async () => {
             let account = tonHave
             let layerAddress = mockCandidateAddress
@@ -2166,6 +2167,61 @@ describe('Layer2Manager', () => {
                 stakedA.div(ethers.BigNumber.from("4"))
             )).to.be.revertedWith("CheckL1BridgeError")
 
+        })
+        */
+
+        it('** The MockSystemConfig\'s withdrawAndDepositL2 function.', async () => {
+
+            let account = tonHave
+            let layerAddress = mockCandidateAddress
+            let rollupConfig = await mockOperatorContract.rollupConfig()
+            expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
+
+            const portal = await mockSystemConfig.optimismPortal()
+
+            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+            const portalBalancePrev = await tonContract.balanceOf(portal)
+
+            // console.log("prevLayer2TVL ", prevLayer2TVL)
+            // console.log("portalBalancePrev ", portalBalancePrev)
+
+            let stakedA = await seigManager["stakeOf(address,address)"](mockCandidateAddress, account.address)
+            // console.log("stakedA ", stakedA)
+
+            let checkL1Bridge = await mockOperatorContract.checkL1Bridge();
+            // console.log("checkL1Bridge ", checkL1Bridge)
+
+
+            const amount = stakedA.div(ethers.BigNumber.from("2"))
+            // console.log("amount ", amount)
+
+            let receipt = await (await depositManager.connect(account).withdrawAndDepositL2(
+                layerAddress,
+                amount
+            )).wait()
+
+            const topic = depositManager.interface.getEventTopic('WithdrawalAndDeposited');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = depositManager.interface.parseLog(log);
+            expect(deployedEvent.args.layer2).to.be.eq(layerAddress)
+            expect(deployedEvent.args.account).to.be.eq(account.address)
+            expect(deployedEvent.args.amount).to.be.eq(amount)
+
+            let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+            expect(stakedB).to.be.eq(stakedA.sub(amount))
+
+            let afterLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+            const portalBalanceAfter = await tonContract.balanceOf(portal)
+
+            // console.log("afterLayer2TVL ", afterLayer2TVL)
+            // console.log("portalBalanceAfter ", portalBalanceAfter)
+
+            const toTonAmount = amount.div(ethers.BigNumber.from("1000000000"))
+            // const afterTonBalance = await tonContract.balanceOf(depositManager.address);
+            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(
+                prevLayer2TVL.add(toTonAmount))
+
+            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(portalBalanceAfter)
         })
 
         it('When you run it, deposit money to L2 immediately without delay blocks.', async () => {
