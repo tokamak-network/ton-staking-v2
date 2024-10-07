@@ -442,7 +442,7 @@ describe('Layer2Manager', () => {
             let type = 1;
             let name = 'Titan'
 
-            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfig.address,
                 type,
                 l2TonAddress,
@@ -485,7 +485,7 @@ describe('Layer2Manager', () => {
             let type = 2;
             let name = await mockSystemConfig.name()
             let l2TonAddress_native = "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000"
-            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 mockSystemConfig.address,
                 type,
                 l2TonAddress_native,
@@ -528,12 +528,13 @@ describe('Layer2Manager', () => {
             let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-             await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+             await expect(l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfigTest2.address,
                 type,
                 l2TonAddress,
                 name
             )).to.be.revertedWith("RegisterError")
+
         })
     })
 
@@ -570,7 +571,7 @@ describe('Layer2Manager', () => {
             let type = 2;
             let name = 'Thanos'
 
-            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 thanosSystemConfig,
                 type,
                 thanosL2TON,

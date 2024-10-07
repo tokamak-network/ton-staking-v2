@@ -228,6 +228,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
+    function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON)  external  onlyManager {
+        _nonRejected(rollupConfig);
+        _registerRollupConfig(rollupConfig, _type, _l2TON, '');
+    }
+
     /* ========== onlyRegistrant ========== */
 
     /**
@@ -238,6 +243,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external onlyRegistrant {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
+    }
+
+    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external onlyRegistrant {
+        _nonRejected(rollupConfig);
+        _registerRollupConfig(rollupConfig, _type, _l2TON, '');
     }
 
     /**
@@ -390,7 +400,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
         info.rollupType = _type;
         info.l2TON = _l2TON;
-        info.name = _name;
+        if (bytes(_name).length != 0) info.name = _name;
         registeredNames[bytes32(bytes(_name))] = true;
 
         emit RegisteredRollupConfig(rollupConfig, _type, _l2TON, _name);
@@ -398,9 +408,9 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     function _availableForRegistration(address rollupConfig, uint8 _type, string memory _name) internal view returns (bool valid){
 
-        if (registeredNames[bytes32(bytes(_name))] == true) {
-            valid = false;
-        } else {
+        // if (registeredNames[bytes32(bytes(_name))] == true) {
+        //     valid = false;
+        // } else {
             ROLLUP_INFO memory info = rollupInfo[rollupConfig];
 
             if (!info.rejectedSeigs) {
@@ -419,7 +429,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
                     }
                 }
             }
-        }
+        // }
     }
 
     function _resetRollupConfig(address rollupConfig) internal {
