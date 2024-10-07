@@ -11,8 +11,6 @@ contract OperatorManagerStorage {
     address public wton;
 
     address public manager;
-    string public l2Info;
-    string public additionalNotes;
 
     modifier onlyManager() {
         require(msg.sender == manager, "not manager");

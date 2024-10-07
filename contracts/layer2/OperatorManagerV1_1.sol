@@ -178,29 +178,6 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     }
 
     /**
-     * @notice  Set the l2 information
-     * @param _l2Info the l2 information
-     */
-    function setL2Info(string calldata _l2Info) external onlyOwnerOrManager {
-        if (keccak256(bytes(l2Info)) == keccak256(bytes(_l2Info))) revert SameError();
-        l2Info = _l2Info;
-
-        emit SetL2Info(_l2Info);
-    }
-
-    /**
-     * @notice  Set the additional notes
-     * @param _additionalNotes the additional notes
-     */
-    function setAdditionalNotes(string calldata _additionalNotes) external onlyOwnerOrManager {
-        if (keccak256(bytes(l2Info)) == keccak256(bytes(_additionalNotes))) revert SameError();
-        additionalNotes = _additionalNotes;
-
-        emit SetAdditionalNotes(_additionalNotes);
-    }
-
-
-    /**
      * @notice Request withdrawal the staked ton
      * @param amount    the amount requesting withdrawal
      */
