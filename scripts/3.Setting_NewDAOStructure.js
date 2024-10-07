@@ -13,9 +13,9 @@ const sepoliaContractInfo = {
     DAOCommittee_V1: "0xaDf24e3885D4c8DB092514dF364b09f314F1e794",
     DAOCommitteeOwner: "0x63f116823B6Ed37271B0204A51e8ea4Eaa09c9a6",
     Layer2CandidateFactory: "0x770739A468D9262960ee0669f9Eaf0db6E21F81A",
-    Layer2ManagerProxy: "0xffb690feeFb2225394ad84594C4a270c04be0b55",
+    Layer2ManagerProxy: "0x0fDb12aF5Fece558d17237E2D252EC5dbA25396b",
     Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06",
-    CandidateAddOnFactory: "0x63c95fbA722613Cb4385687E609840Ed10262434",
+    CandidateAddOnFactory: "0x2f60005daA6294081a7688bAb9BCb21ad45b0A90",
     L1BridgeRegistryProxy: "0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC",
     SeigManagerProxy: "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7"
 }
@@ -289,12 +289,14 @@ async function Set_DAOCommitteeOwner() {
     await daoCommitteeOwner.connect(deployer).setCandidateAddOnFactory(
         sepoliaContractInfo.CandidateAddOnFactory
     )
+    console.log("CandidateAddOnFactoryProxy : ", sepoliaContractInfo.CandidateAddOnFactory)
     console.log("setCandidateAddOnFactory DAOCommitteeOwner done")
 
     //==== Set Layer2Manager =================================
     await daoCommitteeOwner.connect(deployer).setLayer2Manager(
         sepoliaContractInfo.Layer2ManagerProxy
     )
+    console.log("Layer2ManagerProxy : ", sepoliaContractInfo.Layer2ManagerProxy)
     console.log("setLayer2ManagerProxy DAOCommitteeOwner done")
 
     // //==== Set setTargetSetL1BridgeRegistry =================================
