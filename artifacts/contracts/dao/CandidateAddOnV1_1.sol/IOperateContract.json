@@ -9,6 +9,11 @@
           "internalType": "uint256",
           "name": "amount",
           "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "falgTon",
+          "type": "bool"
         }
       ],
       "name": "claimByCandidateAddOn",
