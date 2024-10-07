@@ -1332,7 +1332,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall, false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -1465,7 +1465,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall, false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -2500,7 +2500,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -2627,7 +2627,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3199,7 +3199,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(thanosSystemConfigOwner.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(thanosSystemConfigOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(thanosSystemConfigOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3335,7 +3335,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3936,7 +3936,7 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : operator claim: the fourth updateSeigniorage to titanCandidateAddOn : operator ', async () => {
+        it('** Layer2Contract: updateSeigniorage : operator claim: the fourth updateSeigniorage to titanCandidateAddOn : operator ', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
@@ -3951,6 +3951,11 @@ describe('Layer2Manager', () => {
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
             // console.log('operatorContractAddress', operatorContractAddress)
+            const prevTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const prevTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const prevTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
+
+
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const prevWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
@@ -3982,7 +3987,8 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            // bool : true -> claim for TON
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,true)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -4041,6 +4047,11 @@ describe('Layer2Manager', () => {
             const afterTotalTvl = await seigManager.totalLayer2TVL()
             const afterWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
 
+            const afterTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const afterTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const afterTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
+
+
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
 
@@ -4050,12 +4061,18 @@ describe('Layer2Manager', () => {
 
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
 
-            // let afterCall = 1; claim mode
+            // let afterCall = 1; claim mode, flag = true , claim for TON
             let totalBalanceOfLayer2Manager = prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs)
             let sendAmountToOperator = deployedEvent1.args.layer2Seigs
 
-            let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
-            expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
+            //==
+            let claimAmount = prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator).div(ethers.BigNumber.from("1000000000"))
+            let managerTonBalance = prevTonBalanceOfManager.add(claimAmount)
+            expect(afterTonBalanceOfManager).to.be.eq(managerTonBalance)
+
+            //=====
+            // let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
+            // expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
 
             expect(afterWtonBalanceOfLayer2Manager).to.be.eq(
                 prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs)
@@ -4119,7 +4136,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);

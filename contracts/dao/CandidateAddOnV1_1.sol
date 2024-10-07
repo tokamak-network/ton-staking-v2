@@ -13,7 +13,7 @@ interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
     function rollupConfig() external view returns (address) ;
     function manager() external view returns (address) ;
-    function claimByCandidateAddOn(uint256 amount) external;
+    function claimByCandidateAddOn(uint256 amount, bool falgTon) external;
     function depositByCandidateAddOn(uint256 amount) external ;
 }
 
@@ -128,11 +128,15 @@ contract CandidateAddOnV1_1 is
         return updateSeigniorage(2);
     }
 
+    function updateSeigniorage(uint256 afterCall) public returns (bool) {
+        return updateSeigniorage(afterCall, true);
+    }
+
     /// @notice Call updateSeigniorage on SeigManager
     /// @param afterCall    After running the update seigniorage, the option to run additional functions
     ///                     0: none, 1: claim, 2: staking
     /// @return             Whether or not the execution succeeded
-    function updateSeigniorage(uint256 afterCall) public returns (bool) {
+    function updateSeigniorage(uint256 afterCall, bool flagTON) public returns (bool) {
 
         if (IOperateContract(candidate).isOperator(msg.sender)) {
             require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");
@@ -142,7 +146,7 @@ contract CandidateAddOnV1_1 is
                     if (afterCall == 2) {
                         IOperateContract(candidate).depositByCandidateAddOn(amount);
                     } else if (afterCall == 1) {
-                        IOperateContract(candidate).claimByCandidateAddOn(amount);
+                        IOperateContract(candidate).claimByCandidateAddOn(amount, flagTON);
                     }
                 }
             }

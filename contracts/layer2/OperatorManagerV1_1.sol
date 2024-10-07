@@ -16,6 +16,10 @@ error ParameterError();
 error SameAddressError();
 error SameError();
 
+interface IWTON {
+     function swapToTON(uint256 wtonAmount) external returns (bool);
+}
+
 interface IRollupConfig {
     function owner() external view returns (address);
 }
@@ -234,12 +238,31 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         _depositTo(msg.sender, manager, amount);
     }
 
+    function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
+        claimByCandidateAddOn(amount, true);
+    }
+
     /**
      * @notice Claim WTON to a manager
      * @param amount    the deposit wton amount (ray)
+     * @param falgTon   If it is true, claim with ton, otherwise claim with wton
      */
-    function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
-        _claim(wton, manager, amount);
+    function claimByCandidateAddOn(uint256 amount, bool falgTon) public onlyCandidateAddOn {
+
+        if (falgTon) {
+            uint256 balanceTON = IERC20(ton).balanceOf(address(this));
+            uint256 tonAmount = amount/1e9;
+            if (balanceTON < tonAmount) {
+                uint256 balanceWTON = IERC20(wton).balanceOf(address(this));
+                uint256 swapWtonToTonAmount = amount - (balanceTON * 1e9);
+
+                if (balanceWTON  < swapWtonToTonAmount) revert InsufficientBalanceError();
+                else IWTON(wton).swapToTON(swapWtonToTonAmount);
+            }
+            _claim(ton, manager, tonAmount);
+        } else {
+            _claim(wton, manager, amount);
+        }
     }
 
     /* ========== public ========== */
