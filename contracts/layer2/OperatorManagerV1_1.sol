@@ -253,10 +253,9 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
             uint256 balanceTON = IERC20(ton).balanceOf(address(this));
             uint256 tonAmount = amount/1e9;
             if (balanceTON < tonAmount) {
-                uint256 balanceWTON = IERC20(wton).balanceOf(address(this));
                 uint256 swapWtonToTonAmount = amount - (balanceTON * 1e9);
 
-                if (balanceWTON  < swapWtonToTonAmount) revert InsufficientBalanceError();
+                if (IERC20(wton).balanceOf(address(this))  < swapWtonToTonAmount) revert InsufficientBalanceError();
                 else IWTON(wton).swapToTON(swapWtonToTonAmount);
             }
             _claim(ton, manager, tonAmount);
