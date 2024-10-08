@@ -473,7 +473,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     function _availableRegister(address _rollupConfig, string memory _name) internal view returns (bool result, uint256 amount) {
 
         (uint8 _type,,,,string  memory name_) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
-        if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
+        // if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
 
         if (_type == 1) { // optimism legacy : titan
 
