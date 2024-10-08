@@ -318,7 +318,6 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
    */
   function allowIssuanceLayer2Seigs(address layer2) public view returns (address rollupConfig, bool allowed) {
       rollupConfig = ILayer2Manager(layer2Manager).rollupConfigOfOperator(Layer2I(layer2).operator());
-
       if (rollupConfig == address(0)) allowed = false;
       else if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
 
