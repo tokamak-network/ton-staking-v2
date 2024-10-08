@@ -15,7 +15,7 @@ import { ERC165A }  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
-import "./StorageStateCommitteeV3.sol";
+// import "./StorageStateCommitteeV3.sol";
 
 interface ICandidateAddOnFactory {
    function deploy(
@@ -50,7 +50,7 @@ error PermissionError();
 error ZeroAddressError();
 
 contract DAOCommitteeAddV1_1 is
-    StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2, StorageStateCommitteeV3 {
+    StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
 
     //////////////////////////////
     // Events

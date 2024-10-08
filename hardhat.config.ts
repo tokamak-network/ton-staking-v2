@@ -444,7 +444,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.SEPOLIA_PRIVATE_KEY}`],
       // gasPrice: 40000000000,
       // deploy: ['deploy_l2_proxy']
-      deploy: ['deploy-layer2']
+      // deploy: ['deploy-layer2']
     },
   },
   deterministicDeployment: (network: string) => {
