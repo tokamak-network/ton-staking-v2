@@ -18,4 +18,7 @@ contract StorageStateCommitteeV2 {
     }
 
     address public wton;
+    address public layer2Manager;
+    address public candidateAddOnFactory;
+    
 }

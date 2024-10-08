@@ -14,10 +14,50 @@ import {AccessControl} from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
+import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
+import "hardhat/console.sol";
+
+interface IISeigManager {
+    function coinages(address layer2) external view returns (address);
+    function getOperatorAmount(address layer2) external view returns (uint256);
+    function minimumAmount() external view returns (uint256);
+}
+
+interface IICoinage {
+    function balanceOf(address account) external view returns (uint256);
+}
+
+interface ICandidateAddOnFactory {
+   function deploy(
+        address _sender,
+        string memory _name,
+        address _committee,
+        address _seigManager
+    )
+        external
+        returns (address);
+}
+
+/**
+ * @notice Error that occurs when creating Candidate
+ * @param x 1: deployed candidateContract is zero
+ *          2: The candidate already has contract
+ *          3: failed to registerAndDeployCoinage
+ */
+error CreateCandiateError(uint x);
+error PermissionError();
+error ZeroAddressError();
+
+contract DAOCommittee_V1 is 
+    StorageStateCommittee, 
+    AccessControl, 
+    ERC165A, 
+    ProxyStorage2, 
+    StorageStateCommitteeV2 
+{
     using BytesLib for bytes;
 
     bytes constant claimTONBytes = hex"ef0d5594";
@@ -37,10 +77,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     //////////////////////////////
     // Events
     //////////////////////////////
-
-    event QuorumChanged(
-        uint256 newQuorum
-    );
 
     event AgendaCreated(
         address indexed from,
@@ -81,11 +117,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         address indexed newMember
     );
 
-    event ChangedSlotMaximum(
-        uint256 indexed prevSlotMax,
-        uint256 indexed slotMax
-    );
-
     event ClaimedActivityReward(
         address indexed candidate,
         address receiver,
@@ -93,7 +124,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     );
 
     event ChangedMemo(
-        address candidate,
+        address candidateContract,
         string newMemo
     );
 
@@ -116,25 +147,9 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         return super.supportsInterface(interfaceId);
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // setters
-
-    /// @notice Increases the number of member slot
-    /// @param _newMaxMember New number of member slot
-    /// @param _quorum New quorum
-    function increaseMaxMember(
-        uint256 _newMaxMember,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-    {
-        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
-        uint256 prevMaxMember = maxMember;
-        maxMember = _newMaxMember;
-        fillMemberSlot();
-        setQuorum(_quorum);
-        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    modifier onlyLayer2Manager() {
+        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
+        _;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -181,7 +196,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     }
 
-    function createCandidate(string calldata _memo, address _operatorAddress)
+    function createCandidateOwner(string calldata _memo, address _operatorAddress)
         public
         validSeigManager
         validLayer2Registry
@@ -238,13 +253,36 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
     }
 
-
-    /// @notice Registers the exist layer2 on DAO
-    /// @param _layer2 Layer2 contract address to be registered
-    /// @param _memo A memo for the candidate
-    function registerLayer2Candidate(address _layer2, string memory _memo) external
+    function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
+        public
+        returns (address)
     {
-        _registerLayer2Candidate(msg.sender, _layer2, _memo);
+        if (msg.sender != layer2Manager) revert PermissionError();
+
+        // Candidate
+        address candidateContract = ICandidateAddOnFactory(candidateAddOnFactory).deploy(
+            _operatorManagerAddress,
+            _memo,
+            address(this),
+            address(seigManager)
+        );
+        if (candidateContract == address(0)) revert CreateCandiateError(1);
+        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
+
+        _candidateInfos[_operatorManagerAddress] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
+
+        candidates.push(_operatorManagerAddress);
+
+        if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
+        emit CandidateContractCreated(_operatorManagerAddress, candidateContract, _memo);
+
+        return candidateContract;
     }
 
     /// @notice Registers the exist layer2 on DAO by owner
@@ -269,6 +307,10 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         returns (bool)
     {
         address newMember = ICandidate(msg.sender).candidate();
+        uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
+        uint256 minimumAmount = IISeigManager(address(seigManager)).minimumAmount();
+        require(operatorAmount >= minimumAmount, "need more operatorDeposit");
+
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
         require(
             ICandidate(msg.sender).isCandidateContract(),
@@ -303,7 +345,11 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
         CandidateInfo storage prevCandidateInfo = _candidateInfos[prevMember];
         prevCandidateInfo.indexMembers = 0;
-        prevCandidateInfo.rewardPeriod = uint128(uint256(prevCandidateInfo.rewardPeriod) + (block.timestamp - (prevCandidateInfo.memberJoinedTime)));
+        if (prevCandidateInfo.memberJoinedTime > prevCandidateInfo.claimedTimestamp) {
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.memberJoinedTime);
+        } else {
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.claimedTimestamp);
+        }
         prevCandidateInfo.memberJoinedTime = 0;
 
         emit ChangedMember(_memberIndex, prevMember, newMember);
@@ -321,7 +367,11 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
             "DAOCommittee: invalid candidate contract"
         );
         members[candidateInfo.indexMembers] = address(0);
-        candidateInfo.rewardPeriod = uint128(uint256(candidateInfo.rewardPeriod) + (block.timestamp - (candidateInfo.memberJoinedTime)));
+        if (candidateInfo.memberJoinedTime > candidateInfo.claimedTimestamp) {
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.memberJoinedTime);
+        } else {
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.claimedTimestamp);
+        }
         candidateInfo.memberJoinedTime = 0;
 
         uint256 prevIndex = candidateInfo.indexMembers;
@@ -361,40 +411,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         );
 
         ICandidate(_candidateContract).setMemo(_memo);
-        emit ChangedMemo(candidate, _memo);
-    }
-
-    /// @notice Decreases the number of member slot
-    /// @param _reducingMemberIndex Reducing member slot index
-    /// @param _quorum New quorum
-    function decreaseMaxMember(
-        uint256 _reducingMemberIndex,
-        uint256 _quorum
-    )
-        external
-        onlyOwner
-        validMemberIndex(_reducingMemberIndex)
-    {
-        address reducingMember = members[_reducingMemberIndex];
-        CandidateInfo storage reducingCandidate = _candidateInfos[reducingMember];
-
-        if (_reducingMemberIndex != members.length - 1) {
-            address tailMember = members[members.length - 1];
-            CandidateInfo storage tailCandidate = _candidateInfos[tailMember];
-
-            tailCandidate.indexMembers = _reducingMemberIndex;
-            members[_reducingMemberIndex] = tailMember;
-        }
-        reducingCandidate.indexMembers = 0;
-        reducingCandidate.rewardPeriod = uint128(uint256(reducingCandidate.rewardPeriod) + (block.timestamp - (reducingCandidate.memberJoinedTime)));
-        reducingCandidate.memberJoinedTime = 0;
-
-        members.pop();
-        maxMember = maxMember - 1;
-        setQuorum(_quorum);
-
-        emit ChangedMember(_reducingMemberIndex, reducingMember, address(0));
-        emit ChangedSlotMaximum(maxMember + 1, maxMember);
+        emit ChangedMemo(_candidateContract, _memo);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -408,7 +425,8 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
-
+        require(agendaData.atomicExecute == true, "atomicExecute need true");
+         
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
@@ -438,39 +456,9 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         return true;
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
-        return abi.encodePacked(a);
-    }
-
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
-    }
-
-    /// @notice Set new quorum
-    /// @param _quorum New quorum
-    function setQuorum(
-        uint256 _quorum
-    )
-        public
-        onlyOwner
-        validAgendaManager
-    {
-        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
-        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
-        quorum = _quorum;
-        emit QuorumChanged(quorum);
-    }
-
     /// @notice Vote on an agenda
     /// @param _agendaID The agenda ID
-    /// @param _vote voting type
+    /// @param _vote voting type (counting 0:abstainVotes 1:yesVotes 2:noVotes)
     /// @param _comment voting comment
     function castVote(
         uint256 _agendaID,
@@ -538,22 +526,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                 (bool success, ) = address(target[i]).call(functionBytecode[i]);
                 require(success, "DAOCommittee: Failed to execute the agenda");
             }
-        } else {
-            uint256 succeeded = 0;
-            for (uint256 i = executeStartFrom; i < target.length; i++) {
-                bool success = _call(target[i], functionBytecode[i].length, functionBytecode[i]);
-                if (success) {
-                    succeeded = succeeded + 1;
-                } else {
-                    break;
-                }
-            }
-
-            agendaManager.setExecutedCount(_agendaID, succeeded);
-            if (executeStartFrom + succeeded == target.length) {
-                agendaManager.setExecutedAgenda(_agendaID);
-            }
-        }
+        } 
 
         emit AgendaExecuted(_agendaID, target);
     }
@@ -573,20 +546,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     function updateSeigniorage(address _candidate) public returns (bool) {
         address candidateContract = _candidateInfos[_candidate].candidateContract;
         return ICandidate(candidateContract).updateSeigniorage();
-    }
-
-    /// @notice Call updateSeigniorage on SeigManager
-    /// @param _candidates Candidate addresses to be updated
-    /// @return Whether or not the execution succeeded
-    function updateSeigniorages(address[] calldata _candidates) external returns (bool) {
-        for (uint256 i = 0; i < _candidates.length; i++) {
-            require(
-                updateSeigniorage(_candidates[i]),
-                "DAOCommittee: failed to update seigniorage"
-            );
-        }
-
-        return true;
     }
 
     /// @notice Claims the activity reward for member
@@ -610,6 +569,43 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     function _toRAY(uint256 v) public pure returns (uint256) {
         return v * 10 ** 9;
+    }
+
+    function fillMemberSlot() internal {
+        for (uint256 i = members.length; i < maxMember; i++) {
+            members.push(address(0));
+        }
+    }
+
+    function _decodeAgendaData(bytes calldata input)
+        internal
+        pure
+        returns (AgendaCreatingData memory data)
+    {
+        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode) =
+            abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
+    }
+
+    function toBytes(address a) internal pure returns (bytes memory) {
+        return abi.encodePacked(a);
+    }
+
+    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
+        if (reason.length != 32) {
+            if (reason.length < 68) revert('Unexpected error');
+            assembly {
+                reason := add(reason, 0x04)
+            }
+            revert(abi.decode(reason, (string)));
+        }
+        return abi.decode(reason, (uint256));
+    }
+
+    function payCreatingAgendaFee(address _creator) internal {
+        uint256 fee = agendaManager.createAgendaFees();
+
+        require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
+        require(IERC20(ton).transfer(address(1), fee), "DAOCommittee: failed to burn");
     }
 
     function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
@@ -662,28 +658,6 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
         candidates.push(_layer2);
 
         emit Layer2Registered(_layer2, candidateContract, _memo);
-    }
-
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
-    }
-
-    function _decodeAgendaData(bytes calldata input)
-        internal
-        pure
-        returns (AgendaCreatingData memory data)
-    {
-        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode) =
-            abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
-    }
-
-    function payCreatingAgendaFee(address _creator) internal {
-        uint256 fee = agendaManager.createAgendaFees();
-
-        require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
-        require(IERC20(ton).transfer(address(1), fee), "DAOCommittee: failed to burn");
     }
 
     function _createAgenda(
@@ -823,5 +797,10 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
 
     function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
+    }
+
+    function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
+        address coinage = IISeigManager(address(seigManager)).coinages(layer2); 
+        operatorAmount = IICoinage(coinage).balanceOf(operator);
     }
 }
