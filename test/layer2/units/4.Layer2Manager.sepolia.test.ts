@@ -372,7 +372,7 @@ describe('Layer2Manager', () => {
             let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-            let receipt = await (await l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfig.address,
                 type,
                 l2TonAddress,
@@ -415,7 +415,7 @@ describe('Layer2Manager', () => {
             let name = 'Titan'
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-             await expect(l1BridgeRegistry.connect(manager).registerRollupConfigByManager(
+             await expect(l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfigTest2.address,
                 type,
                 l2TonAddress,
@@ -1159,7 +1159,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -1292,7 +1292,7 @@ describe('Layer2Manager', () => {
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
