@@ -204,19 +204,6 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "string",
-          "name": "_l2Info",
-          "type": "string"
-        }
-      ],
-      "name": "SetL2Info",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
           "internalType": "address",
           "name": "previousManager",
           "type": "address"

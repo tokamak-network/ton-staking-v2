@@ -83,12 +83,6 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     event Claimed(address token, address caller, address to, uint256 amount);
 
     /**
-     * @notice Event occurs when setting the l2 information
-     * @param _l2Info the l2 information
-     */
-    event SetL2Info(string _l2Info);
-
-    /**
      * @notice Event occurs when setting the additional notesl2Info
      * @param _additionalNotesl2Info the additional notesl2Info
      */

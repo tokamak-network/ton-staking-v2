@@ -205,15 +205,15 @@ describe('CandidateAddOn', () => {
             let operator = await TitanCandidate.operator()
 
             // 오퍼레이터의 오너(오퍼레이터권한을 가진 주소)가 호출을 하면 오퍼레이터로 인지함.
-            const gasEstimated =  await titanLayerContract.connect(tonHave).estimateGas["updateSeigniorage(uint256)"](
-                1
+            const gasEstimated =  await titanLayerContract.connect(tonHave).estimateGas["updateSeigniorage(uint256,bool)"](
+                1, false
             )
             console.log("gasEstimated", gasEstimated)
 
             console.log("====================")
 
-            const receipt = await (await titanLayerContract.connect(tonHave)["updateSeigniorage(uint256)"](
-                1
+            const receipt = await (await titanLayerContract.connect(tonHave)["updateSeigniorage(uint256,bool)"](
+                1, false
             )).wait()
             // console.log("receipt", receipt)
             let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
