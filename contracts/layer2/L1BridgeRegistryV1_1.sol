@@ -357,8 +357,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function availableForRegistration(address rollupConfig, uint8 _type, string calldata _name) public view returns (bool valid){
-        return _availableForRegistration(rollupConfig, _type, _name);
+    function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid){
+        return _availableForRegistration(rollupConfig, _type);
     }
 
     /* ========== internal ========== */
@@ -382,7 +382,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         ROLLUP_INFO storage info = rollupInfo[rollupConfig];
 
         if (info.rollupType != 0) revert RegisterError(2);
-        if (!_availableForRegistration(rollupConfig, _type, _name)) revert RegisterError(3);
+        if (!_availableForRegistration(rollupConfig, _type)) revert RegisterError(3);
 
         if (_type == 1 || _type == 2) {
             address bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
@@ -401,12 +401,12 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         info.rollupType = _type;
         info.l2TON = _l2TON;
         if (bytes(_name).length != 0) info.name = _name;
-        registeredNames[bytes32(bytes(_name))] = true;
+        // registeredNames[bytes32(bytes(_name))] = true;
 
         emit RegisteredRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
-    function _availableForRegistration(address rollupConfig, uint8 _type, string memory _name) internal view returns (bool valid){
+    function _availableForRegistration(address rollupConfig, uint8 _type) internal view returns (bool valid){
 
         // if (registeredNames[bytes32(bytes(_name))] == true) {
         //     valid = false;
@@ -442,7 +442,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         if (l1Bridge_ != address(0) && l1Bridge[l1Bridge_]) l1Bridge[l1Bridge_] = false;
         if (optimismPortal_ != address(0) && portal[optimismPortal_]) portal[optimismPortal_] = false;
 
-        registeredNames[bytes32(bytes(info.name))] = false;
+        // registeredNames[bytes32(bytes(info.name))] = false;
 
         info.rollupType = 0;
         info.l2TON = address(0);

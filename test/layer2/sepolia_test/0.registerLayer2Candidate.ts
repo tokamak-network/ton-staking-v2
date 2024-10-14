@@ -214,7 +214,7 @@ describe('Layer2Manager', () => {
             console.log("legacySystemConfig.address", legacySystemConfig.address)
 
             let name1 = "Titan Sepolia"
-            let availableRegister = await layer2Manager.connect(tonHave).availableRegister(legacySystemConfig.address, name1)
+            let availableRegister = await layer2Manager.connect(tonHave).availableRegister(legacySystemConfig.address)
             console.log("availableRegister", availableRegister)
 
 

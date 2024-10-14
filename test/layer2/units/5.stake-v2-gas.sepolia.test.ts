@@ -537,8 +537,7 @@ describe('Layer2Manager', () => {
 
             const availableForRegistration = await l1BridgeRegistry.connect(manager).availableForRegistration(
                 thanosSystemConfig,
-                type,
-                name
+                type
             )
 
             expect(availableForRegistration).to.be.eq(true)

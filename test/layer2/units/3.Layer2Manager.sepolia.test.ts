@@ -2132,44 +2132,42 @@ describe('Layer2Manager', () => {
             )).to.be.revertedWith("staked amount is insufficient")
         })
 
-        /*
-        it('** Owner can block the L2 withdrawAndDepositL2 function.', async () => {
-            let account = tonHave
-            let layerAddress = mockCandidateAddress
-            let rollupConfig = await mockOperatorContract.rollupConfig()
-            expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
+        // it('** Owner can block the L2 withdrawAndDepositL2 function.', async () => {
+        //     let account = tonHave
+        //     let layerAddress = mockCandidateAddress
+        //     let rollupConfig = await mockOperatorContract.rollupConfig()
+        //     expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
 
-            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+        //     let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
 
-            const portal = await mockSystemConfig.optimismPortal()
-            await (await tonContract.connect(account).transfer(portal, ethers.utils.parseEther("100"))).wait()
+        //     const portal = await mockSystemConfig.optimismPortal()
+        //     await (await tonContract.connect(account).transfer(portal, ethers.utils.parseEther("100"))).wait()
 
-            const portalBalance = await tonContract.balanceOf(portal)
+        //     const portalBalance = await tonContract.balanceOf(portal)
 
-            prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+        //     prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
 
-            let stakedA = await seigManager["stakeOf(address,address)"](mockCandidateAddress, account.address)
+        //     let stakedA = await seigManager["stakeOf(address,address)"](mockCandidateAddress, account.address)
 
-            let receipt = await (await l1BridgeRegistry.connect(deployer).setBlockingL2Deposit(
-                rollupConfig, true
-            )).wait()
+        //     let receipt = await (await l1BridgeRegistry.connect(deployer).setBlockingL2Deposit(
+        //         rollupConfig, true
+        //     )).wait()
 
-            const topic = l1BridgeRegistry.interface.getEventTopic('SetBlockingL2Deposit');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
-            expect(deployedEvent.args.rollupConfig).to.be.eq(rollupConfig)
-            expect(deployedEvent.args.rejectedL2Deposit).to.be.eq(true)
+        //     const topic = l1BridgeRegistry.interface.getEventTopic('SetBlockingL2Deposit');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
+        //     expect(deployedEvent.args.rollupConfig).to.be.eq(rollupConfig)
+        //     expect(deployedEvent.args.rejectedL2Deposit).to.be.eq(true)
 
-            const info = await l1BridgeRegistry.getRollupInfo(rollupConfig)
-            expect(info.rejectedL2Deposit_).to.be.eq(true)
+        //     const info = await l1BridgeRegistry.getRollupInfo(rollupConfig)
+        //     expect(info.rejectedL2Deposit_).to.be.eq(true)
 
-            await expect(depositManager.connect(account).withdrawAndDepositL2(
-                layerAddress,
-                stakedA.div(ethers.BigNumber.from("4"))
-            )).to.be.revertedWith("CheckL1BridgeError")
+        //     await expect(depositManager.connect(account).withdrawAndDepositL2(
+        //         layerAddress,
+        //         stakedA.div(ethers.BigNumber.from("4"))
+        //     )).to.be.revertedWith("CheckL1BridgeError")
 
-        })
-        */
+        // })
 
         it('** The MockSystemConfig\'s withdrawAndDepositL2 function.', async () => {
 

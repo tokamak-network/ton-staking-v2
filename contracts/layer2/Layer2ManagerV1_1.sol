@@ -268,7 +268,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _nonZeroAddress(rollupConfig);
         if (bytes(memo).length == 0) revert ZeroBytesError();
         if (rollupConfigInfo[rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(rollupConfig, memo);
+        (bool res,) = _availableRegister(rollupConfig);
 
         if (!res) revert RegisterError(5);
         _transferDepositAmount(msg.sender, rollupConfig, amount, flagTon, memo);
@@ -298,7 +298,7 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
         _nonZeroAddress(_rollupConfig);
 
         if (rollupConfigInfo[_rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(_rollupConfig, string(_message));
+        (bool res,) = _availableRegister(_rollupConfig);
         if (!res) revert RegisterError(5);
 
         // if (msg.sender == ton) _transferDepositAmount(owner, _rollupConfig, amount, true, string(bytes(data[20:])));
@@ -371,8 +371,8 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
          (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 
-    function availableRegister(address _rollupConfig, string memory _name) external view returns (bool result, uint256 amount) {
-        return _availableRegister(_rollupConfig, _name) ;
+    function availableRegister(address _rollupConfig) external view returns (bool result, uint256 amount) {
+        return _availableRegister(_rollupConfig) ;
     }
 
 
@@ -469,9 +469,9 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
 
     }
 
-    function _availableRegister(address _rollupConfig, string memory _name) internal view returns (bool result, uint256 amount) {
+    function _availableRegister(address _rollupConfig) internal view returns (bool result, uint256 amount) {
 
-        (uint8 _type,,,,string  memory name_) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
+        (uint8 _type,,,, ) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
         // if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
 
         if (_type == 1) { // optimism legacy : titan
