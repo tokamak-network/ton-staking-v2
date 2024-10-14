@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.24;
 
 import "./Layer2ManagerStorage.sol";
 import "../proxy/ProxyStorage.sol";
@@ -7,6 +7,8 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
+
+import "hardhat/console.sol";
 
 /**
  * @notice  Error that occurs when registering CandidateAddOn
@@ -95,6 +97,23 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
     using SafeERC20 for IERC20;
 
     address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
+
+    modifier lock() {
+        bool data;
+        console.logBool(data);
+        assembly {
+            data := tload(0)
+            // if tload(0){
+            //     revert(0,0)
+            // }
+            tstore(0,1)
+        }
+        _;
+        // assembly {
+        //     tstore(0,0)
+        // }
+        console.logBool(data);
+    }
 
     event SetAddresses(
         address _l2Register,
@@ -227,7 +246,21 @@ contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStor
      * @notice Unpause the CandidateAddOn
      * @param rollupConfig the rollupConfig address
      */
-    function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree {
+    function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry  {
+        uint a;
+        console.log("a: %s", a);
+        assembly {
+            tstore(0, 1)
+            a := tload(0)
+        }
+        console.log("a1: %s", a);
+
+        assembly {
+            tstore(0, 0)
+            a := tload(0)
+        }
+        console.log("a2: %s", a);
+
         SeqSeigStatus memory info = rollupConfigInfo[rollupConfig];
         // require(info.stateIssue == 2, "not in pause status");
         if (info.status != 2) revert StatusError();

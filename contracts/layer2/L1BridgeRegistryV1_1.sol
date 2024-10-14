@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.24;
 
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
