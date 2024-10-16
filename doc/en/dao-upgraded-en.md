@@ -80,7 +80,7 @@ And you can modify the memo value registered in your Candidate Contract through 
 
 
 ## For everyone
-모든 유저들은 onApprove와 endAgendaVoting, executeAgenda, updateSeigniorage를 사용할 수 있습니다.
+All users can use onApprove, endAgendaVoting, executeAgenda, and updateSeigniorage.
 
 The onApprove function is a function used when creating an Agenda. Users can create an Agenda through TONContract's ApproveAndCall without directly calling the onApprove function.
 The endAgendaVoting function is executed when the voting time for the Agenda has ended, and updates the Status and Result status of the Agenda.
@@ -91,15 +91,13 @@ The updateSeigniorage function is a function that updates the Seigniorage of the
 
 
 ## For Member of DAOCommittee
-Member들은 retireMember와 castVote, claimActivityReward 함수들을 사용할 수 있습니다.
+Members can use the retireMember, castVote, and claimActivityReward functions.
 
-retireMember 함수는 Member들이 Member의 역할을 은퇴하고 Candidate의 역할로 돌아갈 때 사용하는 함수입니다.
-castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다.
-해당 Agenda에 대해서 comment와 함께 찬성할지 반대할지 중립인지에 대해서 투표할 수 있습니다.
-claimActivityReward 함수는 member와 그리고 member였던 Candidate들이 호출할 수 있는 함수입니다.
-Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니다.
-이 reward는 Member를 한 시간과 activityRewardPerSecond값에 의해서 결정됩니다.
-해당 reward를 받을때 claimActivityReward 함수를 호출하여서 받을 수 있습니다.
+The retireMember function is used when Members retire from the Member role and return to the Candidate role.
+The castVote function is used when Members vote on the Agenda. This function allows you to express your opinion for, against, or neutral about the Agenda with a comment.
+The claimActivityReward function can be called by current Members and former Candidates. 
+Members receive a reward for performing the role, which is determined by the time they spent as a Member and the value of activityRewardPerSecond.
+To receive this reward, you must call the claimActivityReward function.
 
 ![ForMember](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForMember.jpg)
 
@@ -108,18 +106,18 @@ Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니�
 
 ## DAOCommittee
 
-- 개요
-    - 토카막 네트워크에서 운영하는 DAO 컨트랙트입니다.
-    - 로직은 DAOCommittee_V1, DAOCommitteeOwner으로 구성되어있습니다.
-    - 추후 업그레이드를 고려하여서 Proxy구조를 변경하였습니다.
-    - 누구나 Candidate가 될 수 있습니다.
-    - Candidate 중 Staking이 많이 되어있는 순으로 Member가 될 수 있습니다.
-- 권한
-    - Owner : 오너는 DAOCommitteeContract 자신이며, Agenda를 통해서 로직 업그레이드와 로직 실행을 할 수 있습니다.
-    - DAOContract는 TON, WTON, SeigManager, DepositManager의 Owner입니다.
-    - Candidate : 누구나 Candidate가 될 수 있으며 Candidate가 되면 Candidate들이 사용할 수 있는 함수들을 사용할 수 있습니다.
-    - Member : Candidate들 중 Member보다 TON Staking이 더 많이 되어있으면 해당 Member를 Candidate로 변경하고 자신이 Member가 될 수 있습니다. Member가 되면 Member들이 사용할 수 있는 함수를 사용할 수 있습니다.
-- 스토리지
+- Overview
+    - This is a DAO contract that operates on the Tokamak network.
+    - The logic consists of DAOCommittee_V1 and DAOCommitteeOwner.
+    - The Proxy structure has been changed in consideration of future upgrades.
+    - Anyone can become a Candidate.
+    - Among the Candidates, those with the most Staking can become Members.
+- Authority
+    - Owner : The owner is DAOCommitteeContract itself, and can upgrade logic and execute logic through Agenda.
+    - DAOContract is the owner of TON, WTON, SeigManager, and DepositManager.
+    - Candidate : Anyone can become a Candidate, and once you become a Candidate, you can use the functions that Candidates can use.
+    - Member : If there are more TON Stakings than Members among the Candidates, you can change the Member to a Candidate and become a Member. Once you become a Member, you can use the functions that Members can use.
+- Storage
     ```
     struct CandidateInfo {
         address candidateContract;
