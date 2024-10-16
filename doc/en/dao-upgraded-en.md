@@ -14,35 +14,35 @@ The existing Proxy structure had a problem in that it could only refer to one lo
 
 ## Changes from the existing DAOCommittee
 
-### 1. Add createLayer2Candidate function
+### 1. Added createLayer2Candidate function
 In TON StakingV2, a Layer2Candidate different from the existing Candidate has been added.
 Accordingly, the Layer2Candidate can be added in the DAO.
-For more information,You can check it at the following [Link].(https://github.com/tokamak-network/ton-staking-v2/blob/codeReview/docs/en/ton-staking-v2.md#add-layer2candidate)
+For more information,You can check it at the following [Link](https://github.com/tokamak-network/ton-staking-v2/blob/codeReview/docs/en/ton-staking-v2.md#add-layer2candidate).
 
-### 2. setCandidateAddOnFactory 함수 추가
-TON StakingV2에서 CandidateAddOn 추가되면서 해당 함수에서 사용하는 candidateAddOnFactory를 설정하여야합니다.
-그에 따라서 해당 값을 설정할 수 있는 setCandidateAddOnFactory 함수가 추가 되었습니다.
+### 2. Added setCandidateAddOnFactory function
+With the addition of CandidateAddOn in TON StakingV2, the candidateAddOnFactory used in the function must be set. Accordingly, a new function setCandidateAddOnFactory has been added to set the value.
 
-### 3. setLayer2Manager 함수 추가
-createLayer2Candidate함수를 통해서 Layer2Candidate를 생성하고자할때 해당 함수를 호출할 수 있는 권한은 Layer2ManagerContract에서만 호출할 수 있도록 하였습니다.
-Layer2Manager주소를 설정하여서 해당 호출이 Layer2ManagerContract에서 호출이 되었는지 체크합니다.
+### 3. Added setLayer2Manager function
+When creating a Layer2Candidate via the createLayer2Candidate function, the permission to call the function is restricted to only Layer2ManagerContract. Set the Layer2Manager address to verify that the call was actually made from Layer2ManagerContract.
 
-### 4. setTargetSetLayer2Manager 함수 추가
-TONStakingV2로 업데이트 되면서 SeigManagerContract에서 Layer2ManagerContract와 상호작용하게 되었습니다.
-그래서 SeigManagerContract에서 Layer2ManagerContract의 함수를 호출하기 위해서 layer2Manager를 설정할 수 있도록 하였습니다.
+### 4. Added setTargetSetLayer2Manager function
+With the update to TON StakingV2, SeigManagerContract now interacts with Layer2ManagerContract. 
+Accordingly, we have enabled layer2Manager to be set up so that SeigManagerContract can call functions of Layer2ManagerContract.
 
-### 5. setTargetSetL1BridgeRegistry 함수 추가
-TONStakingV2로 업데이트 되면서 SeigManagerContract에 L1BridgeRegistryContract와 상호작용하게 되었습니다.
-그래서 SeigManagerContract에 L1BridgeRegistryContract의 함수를 호출하기 위해서 l1BridgeRegistry를 설정할 수 있도록 하였습니다.
+### 5. Added setTargetSetL1BridgeRegistry function
+With the update to TON StakingV2, SeigManagerContract now interacts with L1BridgeRegistryContract. 
+Accordingly, we have enabled setting l1BridgeRegistry so that SeigManagerContract can call functions of L1BridgeRegistryContract.
  
-### 6. setTargetLayer2StartBlock 함수 추가
-TONStakingV2로 업데이트 되면서 
+### 6. Added setTargetLayer2StartBlock function
+With the update to TON StakingV2, it is now possible to designate a specific block in Layer2 as a reference point.
+From this reference point onwards, seigniorage can be calculated.
+For this function, a function that sets the value of the reference block has been added.
 
-### 7. setTargetSetImplementation2 함수 추가
-DAO가 Owner 역할을 하는 Proxy Contract의 로직을 Agenda를 통해서 수정할 수 있게 함수를 추가하였습니다.
+### 7. Added setTargetSetImplementation2 function
+Added a function to allow modifying the logic of a Proxy Contract where the DAO acts as the Owner via the Agenda.
 
-### 8. setTargetSetSelectorImplementations2 함수 추가
-DAO가 Owner 역할을 하는 Proxy Contract의 로직 function을 Agenda를 통해서 관리할 수 있도록 함수를 추가하였습니다.
+### 8. Added setTargetSetSelectorImplementations2 function
+We added a function to enable DAO to manage the logic function of the Proxy Contract, which acts as the Owner, through the Agenda.
 
 
 # Use Case
