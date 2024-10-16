@@ -376,6 +376,30 @@ const config: HardhatUserConfig = {
       hardhat: '0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000',
       local: '0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000',
       sepolia: '0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000'
+    },
+    daoMember1: {
+      default: 43,
+      mainnet: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      goerli: '',
+      hardhat: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      local: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      sepolia: '0xD4335A175c36c0922F6A368b83f9F6671bf07606'
+    },
+    daoMember2: {
+      default: 44,
+      mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      goerli: '',
+      hardhat: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      local: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      sepolia: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea'
+    },
+    daoMember3: {
+      default: 45,
+      mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      goerli: '',
+      hardhat: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      local: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     }
   },
   networks: {

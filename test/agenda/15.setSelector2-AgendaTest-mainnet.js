@@ -125,24 +125,24 @@ describe("DAOAgenda Test", () => {
     }
 
     let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
-    let setDelayAddr = "0xAB9231f3081B5C3C27d34Ed4CEFc1280f89ff687" 
+    let setDelayAddr = "0xAB9231f3081B5C3C27d34Ed4CEFc1280f89ff687"
 
     before('create fixture loader', async () => {
         await hre.network.provider.send("hardhat_impersonateAccount", [
             daoAdminAddress,
         ]);
         daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member1Addr,
         ]);
         member1 = await hre.ethers.getSigner(member1Addr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member2Addr,
         ]);
         member2 = await hre.ethers.getSigner(member2Addr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member3Addr,
         ]);
@@ -152,17 +152,17 @@ describe("DAOAgenda Test", () => {
             member1ContractAddr,
         ]);
         member1Contract = await hre.ethers.getSigner(member1ContractAddr);
-    
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member2ContractAddr,
         ]);
         member2Contract = await hre.ethers.getSigner(member2ContractAddr);
-        
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             member3ContractAddr,
         ]);
         member3Contract = await hre.ethers.getSigner(member3ContractAddr);
-        
+
         await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
             sendether
@@ -259,8 +259,8 @@ describe("DAOAgenda Test", () => {
 
         it("set depositManager", async () => {
             depositManagerProxy = new ethers.Contract(
-                nowContractInfo.DepositManager,  
-                DepositManagerProxy_Json.abi, 
+                nowContractInfo.DepositManager,
+                DepositManagerProxy_Json.abi,
                 daoCommitteeAdmin
             )
         })
@@ -290,7 +290,7 @@ describe("DAOAgenda Test", () => {
 
     //         const receipt0 = await (await depositManagerProxy.connect(daoCommitteeSigner).setImplementation2(
     //             logicAddress,
-    //             1, 
+    //             1,
     //             true
     //         )).wait()
     //         // console.log(receipt0)
@@ -303,7 +303,7 @@ describe("DAOAgenda Test", () => {
     //         const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
 
     //         const receipt = await (await depositManagerProxy.connect(daoCommitteeSigner).setSelectorImplementations2(
-    //             [selector1], 
+    //             [selector1],
     //             logicAddress
     //         )).wait()
     //         // console.log(receipt)
@@ -362,7 +362,7 @@ describe("DAOAgenda Test", () => {
             // const functionBytecode = selector.concat(data);
             // // const functionBytecode = "0x4a5df50f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dc5a709f00000000000000000000000000000000000000000000000000000000"
             // console.log("functionBytecode :", functionBytecode)
-            
+
             let targets = [];
             let functionBytecodes = [];
             // const logicAddress = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5"
@@ -406,7 +406,7 @@ describe("DAOAgenda Test", () => {
             // console.log("param : ", param)
 
             // const param = "0x00000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000002a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000b58ca72b12f01fc05f8f252e226f3e2089bd00e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000647cd5f6630000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000844a5df50f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000002be5e8c109e2197d077d13a82daead6a9b3433c50000000000000000000000000000000000000000000000000000000000000001a818d6510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    
+
             const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
             const agendaFee = await daoagendaManager.createAgendaFees();
             expect(agendaFee).to.be.gt(0);
@@ -436,7 +436,7 @@ describe("DAOAgenda Test", () => {
         })
 
         it('increase block time and check votable', async function () {
-            const agenda = await daoagendaManager.agendas(agendaID);  
+            const agenda = await daoagendaManager.agendas(agendaID);
             // console.log(agenda)
             // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
             const noticeEndTimestamp = agenda[1];
@@ -446,14 +446,14 @@ describe("DAOAgenda Test", () => {
         });
 
         it("cast vote (member2)", async () => {
-            const agenda = await daoagendaManager.agendas(agendaID);  
+            const agenda = await daoagendaManager.agendas(agendaID);
             // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
             const beforeCountingYes = agenda[7];
             const beforeCountingNo = agenda[8];
             const beforeCountingAbstain = agenda[9];
-            
+
             const vote = 1
-            
+
             // first cast not setting so check member
             let checkMember = await daoCommittee.isMember(member2Addr)
             expect(checkMember).to.be.equal(true)
@@ -483,7 +483,7 @@ describe("DAOAgenda Test", () => {
             expect(result[1]).to.be.equal(vote);
         })
 
-        it("setAgendaStatus test (Owner)", async () => {    
+        it("setAgendaStatus test (Owner)", async () => {
             expect(await daoagendaManager.getAgendaStatus(agendaID)).to.be.equal(2);
             //setAgendaStatus(_agendaID,_status, _result)
             //_status = 3 -> AGENDA_STATUS_WAITING_EXEC
@@ -520,25 +520,25 @@ describe("DAOAgenda Test", () => {
             }
         });
 
-        
+
         it("execute agenda (anyone)", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);
             const agendaInfo = await daoagendaManager.getExecutionInfo(agendaID);
             expect(agenda[6]).to.be.equal(0);
-            // console.log("agendaInfo : ", agendaInfo)            
+            // console.log("agendaInfo : ", agendaInfo)
             await (await daoCommittee.executeAgenda(agendaID)).wait();;
 
-            const afterAgenda = await daoagendaManager.agendas(agendaID); 
-            const afterAgendaInfo = await daoagendaManager.getExecutionInfo(agendaID); 
-            // console.log("afterAgendaInfo : ", afterAgendaInfo)            
+            const afterAgenda = await daoagendaManager.agendas(agendaID);
+            const afterAgendaInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("afterAgendaInfo : ", afterAgendaInfo)
             expect(afterAgenda[13]).to.be.equal(true);
-            expect(afterAgenda[6]).to.be.gt(0); 
+            expect(afterAgenda[6]).to.be.gt(0);
         })
 
         it("set depositManager", async () => {
             depositManager = new ethers.Contract(
-                nowContractInfo.DepositManager,  
-                DepositManagerABI, 
+                nowContractInfo.DepositManager,
+                DepositManagerABI,
                 daoCommitteeAdmin
             )
         })
@@ -569,7 +569,7 @@ describe("DAOAgenda Test", () => {
             expect(logic).to.be.equal(logic2)
             expect(logic).to.be.equal(setDelayAddr)
         })
-        
+
 
     })
 })
