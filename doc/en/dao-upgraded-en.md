@@ -48,32 +48,32 @@ We added a function to enable DAO to manage the logic function of the Proxy Cont
 # Use Case
 
 ## For User who want to become a candidate
-Tokamak DAOCommittee의 Candidate가 될 수 있는 방법은 다음과 같습니다.
+Here's how you can become a Candidate for the Tokamak DAOCommittee
 
-### createCandidate 함수 호출
-Candidate가 되고 싶은 누구나 호출할 수 있습니다.
-해당 함수를 호출한 msg.sender의 주소가 operator가 되고 operator로 정상적인 활동을 하기위해서는 만들어진 Candidate에 operator가 1000.1TON 이상 deposit하여야합니다.
+### Call the createCandidate function
+Anyone who wants to become a Candidate can call it. 
+The address of the msg.sender that called the function becomes the operator, and in order to perform normal activities as an operator, the operator must deposit more than 1000.1TON in the created Candidate.
 ![createCandidate](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/createCandidate.jpg)
 
 
-### createCandidateAddOn 함수 호출
-Layer2Candidate가 되고 싶은 누구나 호출할 수 있지만 L2Registry에 등록된 SystemConfig에 대해서만 registerCandidateAddOn 등록 가능합니다.
-registerCandidateAddOn 등록시에는 operator가 등록과 동시에 1000.1TON이상을 Deposit하여서 바로 operator로 정상적인 활동이 가능합니다.
+### Call the createCandidateAddOn function
+Anyone who wants to become a Layer2Candidate can call, but only SystemConfig registered in L2Registry can registerCandidateAddOn. 
+When registerCandidateAddOn is registered, the operator must deposit more than 1000.1TON at the same time as registration, so that the operator can immediately perform normal activities.
 ![createCandidateAddOn](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/createCandidateAddOn.jpg)
 
 
-### registerLayer2CandidateByOwner 함수 호출
-자신만의 Layer2를 DAO의 Candidate로 등록하고 싶을때 사용하는 방법입니다.
-자신의 Layer2가 있다면 registerLayer2CandidateByOwner함수가 실행되게 DAO Agenda로 건의를 하고 통과가 되어서 Agenda가 실행이 되면 해당 Layer2가 Candidate로 등록이 됩니다.
-Candidate로 등록 후. Candidate로 활동을 하기 위해서는 1000.1TON 이상 deposit이 필요합니다.
+### Call the registerLayer2CandidateByOwner function
+This is the method used when you want to register your own Layer2 as a Candidate of DAO.
+If you have your own Layer2, you can make a proposal to the DAO Agenda so that the registerLayer2CandidateByOwner function is executed, and if this proposal passes and the Agenda is executed, the Layer2 will be registered as a Candidate.
+After registering as a Candidate, a deposit of 1000.1 TON or more is required to act as a Candidate.
 ![registerLayer2CandidateByOwner](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/registerLayer2CandidateByOwner.jpg)
 
 
 ## For Candidate of DAOCommittee
-Candidate들은 changeMember와 setMemoOnCandidate, setMemoOnCandidateContract 함수를 호출할 수 있습니다.
+Candidates can call the changeMember, setMemoOnCandidate, and setMemoOnCandidateContract functions.
 
-changeMember 함수는 자신이 다른 member들보다 Stake된 TON의 양이 많을 경우, 다른 member대신 자신이 member가 될 수 있습니다.
-그리고 setMemoOnCandidate와 setMemoOnCandidateContract를 통해서 자신의 Candidate Contract에 등록된 memo값을 수정할 수 있습니다.
+The changeMember function allows you to become a member instead of another member if you have more TON staked than other members.
+And you can modify the memo value registered in your Candidate Contract through setMemoOnCandidate and setMemoOnCandidateContract.
 
 ![ForCandidate](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForCandidate.jpg)
 
@@ -82,11 +82,10 @@ changeMember 함수는 자신이 다른 member들보다 Stake된 TON의 양이 �
 ## For everyone
 모든 유저들은 onApprove와 endAgendaVoting, executeAgenda, updateSeigniorage를 사용할 수 있습니다.
 
-onApprove함수는 Agenda를 생성할때 쓰는 함수입니다.
-유저들이 바로 직접적으로 onApprove함수를 콜하지않고 TONContract의 ApproveAndCall을 통해서 호출하여서 Agenda를 생성할 수 있습니다.
-endAgendaVoting 함수는 Agenda의 Voting시간이 끝났을 때 실행하는 함수로 해당 Agenda의 Status와 Result 상태를 변경합니다.
-executeAgenda 함수는 Agenda가 Voting이 끝나고 Status가 WAITING_EXEC이고 Result는 ACCEPT일때 실행가능하며 함수를 호출하게 되면 통과된 Agenda의 함수들을 실행하게 됩니다.
-updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하는 Candidate주소의 Seigniorage를 업데이트 하는 함수입니다.
+The onApprove function is a function used when creating an Agenda. Users can create an Agenda through TONContract's ApproveAndCall without directly calling the onApprove function.
+The endAgendaVoting function is executed when the voting time for the Agenda has ended, and updates the Status and Result status of the Agenda.
+The executeAgenda function can be executed when the voting for the Agenda is finished, the Status is WAITING_EXEC, and the Result is ACCEPT. When this function is called, the functions of the passed Agenda are executed.
+The updateSeigniorage function is a function that updates the Seigniorage of the Candidate address entered when executing.
 
 ![ForEveryone](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForEveryone.jpg)
 

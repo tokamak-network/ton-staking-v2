@@ -38,10 +38,12 @@ TONStakingV2로 업데이트 되면서 SeigManagerContract에 L1BridgeRegistryCo
 그래서 SeigManagerContract에 L1BridgeRegistryContract의 함수를 호출하기 위해서 l1BridgeRegistry를 설정할 수 있도록 하였습니다.
  
 ### 6. setTargetLayer2StartBlock 함수 추가
-TONStakingV2로 업데이트 되면서 
+TON StakingV2로 업데이트되면서 Layer2의 특정 블록을 기준점으로 지정할 수 있게 되었습니다. 
+이 기준점 이후부터 시뇨리지(seigniorage)를 계산할 수 있게 되었습니다. 
+이 기능을 위해 기준이 되는 블록의 값을 설정하는 함수가 추가되었습니다.
 
 ### 7. setTargetSetImplementation2 함수 추가
-DAO가 Owner 역할을 하는 Proxy Contract의 로직을 Agenda를 통해서 수정할 수 있게 함수를 추가하였습니다.
+DAO가 Owner 역할을 하는 Proxy Contract의 로직을 Agenda를 통해 수정할 수 있도록 함수를 추가했습니다.
 
 ### 8. setTargetSetSelectorImplementations2 함수 추가
 DAO가 Owner 역할을 하는 Proxy Contract의 로직 function을 Agenda를 통해서 관리할 수 있도록 함수를 추가하였습니다.
@@ -65,9 +67,9 @@ registerCandidateAddOn 등록시에는 operator가 등록과 동시에 1000.1TON
 
 
 ### registerLayer2CandidateByOwner 함수 호출
-자신만의 Layer2를 DAO의 Candidate로 등록하고 싶을때 사용하는 방법입니다.
-자신의 Layer2가 있다면 registerLayer2CandidateByOwner함수가 실행되게 DAO Agenda로 건의를 하고 통과가 되어서 Agenda가 실행이 되면 해당 Layer2가 Candidate로 등록이 됩니다.
-Candidate로 등록 후. Candidate로 활동을 하기 위해서는 1000.1TON 이상 deposit이 필요합니다.
+자신만의 Layer2를 DAO의 Candidate로 등록하고 싶을 때 사용하는 방법입니다.
+자신의 Layer2가 있다면 registerLayer2CandidateByOwner 함수가 실행되도록 DAO Agenda로 제안을 하고, 이 제안이 통과되어 Agenda가 실행되면 해당 Layer2가 Candidate로 등록됩니다.
+Candidate로 등록 후, Candidate로 활동하기 위해서는 1000.1 TON 이상의 deposit이 필요합니다.
 ![registerLayer2CandidateByOwner](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/registerLayer2CandidateByOwner.jpg)
 
 
@@ -84,11 +86,10 @@ changeMember 함수는 자신이 다른 member들보다 Stake된 TON의 양이 �
 ## For everyone
 모든 유저들은 onApprove와 endAgendaVoting, executeAgenda, updateSeigniorage를 사용할 수 있습니다.
 
-onApprove함수는 Agenda를 생성할때 쓰는 함수입니다.
-유저들이 바로 직접적으로 onApprove함수를 콜하지않고 TONContract의 ApproveAndCall을 통해서 호출하여서 Agenda를 생성할 수 있습니다.
-endAgendaVoting 함수는 Agenda의 Voting시간이 끝났을 때 실행하는 함수로 해당 Agenda의 Status와 Result 상태를 변경합니다.
-executeAgenda 함수는 Agenda가 Voting이 끝나고 Status가 WAITING_EXEC이고 Result는 ACCEPT일때 실행가능하며 함수를 호출하게 되면 통과된 Agenda의 함수들을 실행하게 됩니다.
-updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하는 Candidate주소의 Seigniorage를 업데이트 하는 함수입니다.
+onApprove 함수는 Agenda를 생성할 때 사용하는 함수입니다. 유저들은 직접 onApprove 함수를 호출하지 않고, TONContract의 ApproveAndCall을 통해 Agenda를 생성할 수 있습니다.
+endAgendaVoting 함수는 Agenda의 투표 시간이 종료되었을 때 실행되며, 해당 Agenda의 Status와 Result 상태를 갱신합니다.
+executeAgenda 함수는 Agenda의 투표가 끝나고 Status가 WAITING_EXEC이며 Result가 ACCEPT일 때 실행 가능합니다. 이 함수를 호출하면 통과된 Agenda의 함수들이 실행됩니다.
+updateSeigniorage 함수는 실행 시 입력된 Candidate 주소의 Seigniorage를 갱신하는 함수입니다.
 
 ![ForEveryone](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForEveryone.jpg)
 
