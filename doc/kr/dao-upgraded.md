@@ -97,13 +97,10 @@ updateSeigniorage 함수는 실행 시 입력된 Candidate 주소의 Seigniorage
 ## For Member of DAOCommittee
 Member들은 retireMember와 castVote, claimActivityReward 함수들을 사용할 수 있습니다.
 
-retireMember 함수는 Member들이 Member의 역할을 은퇴하고 Candidate의 역할로 돌아갈 때 사용하는 함수입니다.
-castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다.
-해당 Agenda에 대해서 comment와 함께 찬성할지 반대할지 중립인지에 대해서 투표할 수 있습니다.
-claimActivityReward 함수는 member와 그리고 member였던 Candidate들이 호출할 수 있는 함수입니다.
-Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니다.
-이 reward는 Member를 한 시간과 activityRewardPerSecond값에 의해서 결정됩니다.
-해당 reward를 받을때 claimActivityReward 함수를 호출하여서 받을 수 있습니다.
+retireMember 함수는 Member들이 Member 역할을 은퇴하고 Candidate 역할로 돌아갈 때 사용합니다.
+castVote 함수는 Member들이 Agenda에 대해 투표할 때 사용합니다. 이 함수를 통해 Agenda에 대한 찬성, 반대, 중립 의견을 comment와 함께 표현할 수 있습니다.
+claimActivityReward 함수는 현재 Member와 과거 Member였던 Candidate들이 호출할 수 있습니다. Member들은 그 역할 수행에 대한 보상(reward)을 받게 되는데, 이 보상은 Member로 활동한 시간과 activityRewardPerSecond 값에 따라 결정됩니다. 
+이 보상을 받기 위해서는 claimActivityReward 함수를 호출해야 합니다.
 
 ![ForMember](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForMember.jpg)
 
