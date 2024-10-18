@@ -51,7 +51,7 @@ import MockL1StandardBridge_Json from '../../abi/MockL1StandardBridge.json'
 import DAOAgendaManager_Json from '../../abi/DAOAgendaManager.json'
 import DAOCommittee_V1_Json from '../../abi/DAOCommittee_.json'
 import Candidate_Json from '../../abi/Candidate.json'
-
+import DAOCommitteeProxy2_Josn from '../../abi/DAOCommitteeProxy2.json'
 
 const layers = [
     {"oldLayer":"0x42ccf0769e87cb2952634f607df1c7d62e0bbc52","newLayer":"0x0F42D1C40b95DF7A1478639918fc358B4aF5298D","operator":"0xd1820b18be7f6429f1f44104e4e15d16fb199a43","name":"level"},
@@ -91,6 +91,9 @@ let ownerAddressInfo =  {
     OperatorManagerFactory: {
         owner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
     },
+    Titan : {
+        MultiProposerableTransactionExecutor: "0x014E38eAA7C9B33FeF08661F8F0bFC6FE43f1496"
+    }
 }
 
 function roundDown(val:BigNumber, decimals:number) {
@@ -109,7 +112,6 @@ describe('Layer2Manager', () => {
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
-    let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
     let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
@@ -236,8 +238,16 @@ describe('Layer2Manager', () => {
         ]);
         seigniorageCommittee = await hre.ethers.getSigner(seigniorageCommitteeAddress);
 
-
     })
+
+    describe('# Tester', () => {
+        it('mint ton', async () => {
+
+            await (await tonContract.connect(daoAdmin).mint(addr1.address, ethers.utils.parseEther("2000"))).wait()
+            await (await tonContract.connect(daoAdmin).mint(addr2.address, ethers.utils.parseEther("2000"))).wait()
+        })
+    })
+
 
     describe('# L1BridgeRegistry', () => {
         it('deploy', async () => {
@@ -318,6 +328,18 @@ describe('Layer2Manager', () => {
                 layer2ManagerProxy.address
             )).wait()
         })
+
+        it('L1BridgeRegistry.setAddresses : onlyOwner ', async () => {
+            const {TON} = await getNamedAccounts();
+
+            await (await l1BridgeRegistry.connect(deployer).setAddresses(
+                layer2ManagerProxy.address,
+                seigManager.address,
+                TON
+            )).wait()
+
+            expect(await l1BridgeRegistry.layer2Manager()).to.be.eq(layer2ManagerProxy.address)
+        })
     })
 
     describe('# setAddresses', () => {
@@ -383,6 +405,11 @@ describe('Layer2Manager', () => {
             await (await legacySystemConfig.connect(deployer).setAddresses(
                 name, addresses, l1BridgeRegistryProxy.address
             )).wait()
+
+            await (await legacySystemConfig.connect(deployer).transferOwnership(
+                ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
+            )).wait()
+
         })
 
     })
@@ -426,26 +453,30 @@ describe('Layer2Manager', () => {
             let params = []
             let callDtata
 
+            // =========================================
             // 1. upgradeTO daoCommitteeProxy2Contract
             targets.push(DAOCommitteeProxy)
             callDtata = depositManagerProxy.interface.encodeFunctionData("upgradeTo", [daoCommitteeProxy2Contract.address])
             params.push(callDtata)
 
+            // =========================================
             // 2. upgradeTo2 daoCommittee_V1
             targets.push(DAOCommitteeProxy)
             callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [daoCommittee_V1.address])
             params.push(callDtata)
 
+            // =========================================
             // 3. setImplementation2 1, true, daoCommitteeOwner
             targets.push(DAOCommitteeProxy)
             callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [daoCommitteeOwner.address, 1, true])
             params.push(callDtata)
 
+            // =========================================
             // 4. setSelectorImplementations2  daoCommitteeOwner
-            const _setLayer2CandidateFactory = encodeFunctionSignature("setLayer2CandidateFactory(address)");
+            const _setLayer2CandidateFactory = encodeFunctionSignature("setCandidateAddOnFactory(address)");
             const _setLayer2Manager = encodeFunctionSignature("setLayer2Manager(address)");
             const _setTargetSetLayer2Manager = encodeFunctionSignature("setTargetSetLayer2Manager(address,address)");
-            const _setTargetSetL2Registry = encodeFunctionSignature("setTargetSetL2Registry(address,address)");
+            const _setTargetSetL2Registry = encodeFunctionSignature("setTargetSetL1BridgeRegistry(address,address)");
             const _setTargetLayer2StartBlock = encodeFunctionSignature("setTargetLayer2StartBlock(address,uint256)");
             const _setTargetSetImplementation2 = encodeFunctionSignature("setTargetSetImplementation2(address,address,uint256,bool)");
             const _setTargetSetSelectorImplementations2 = encodeFunctionSignature("setTargetSetSelectorImplementations2(address,bytes4[],address)");
@@ -477,25 +508,151 @@ describe('Layer2Manager', () => {
             const _decreaseMaxMember = encodeFunctionSignature("decreaseMaxMember(uint256,uint256)")
             const _setBurntAmountAtDAO = encodeFunctionSignature("setBurntAmountAtDAO(uint256)")
 
+            const functions = [
+                _setLayer2CandidateFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL2Registry,
+                _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
+                _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+                _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+                _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
+                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+                _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+            ]
+
             targets.push(DAOCommitteeProxy)
             callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
                 "setSelectorImplementations2", [
-                    [
-                        _setLayer2CandidateFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL2Registry,
-                        _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
-                        _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
-                        _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
-                        _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                        _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
-                    ],
+                    functions,
                     daoCommitteeOwner.address
                  ])
             params.push(callDtata)
 
+             // =========================================
+            //  upgrade SeigManager setTargetSetImplementation2
+            targets.push(seigManagerProxy.address)
+            callDtata = seigManagerProxy.interface.encodeFunctionData("setImplementation2",
+                [
+                    seigManagerV1_3.address,
+                    1,
+                    true
+                ])
+            params.push(callDtata)
 
-            // 4. make an agenda
+
+            // =========================================
+            //  upgrade SeigManager setTargetSetSelectorImplementations2
+            targets.push(seigManagerProxy.address)
+
+            const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
+            const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
+            const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
+            const selector4 = encodeFunctionSignature("updateSeigniorage()");
+            const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
+            const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
+            const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
+            const selector8 = encodeFunctionSignature("totalLayer2TVL()");
+            const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
+            const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
+            const selector11 = encodeFunctionSignature("layer2Manager()");
+            const selector12 = encodeFunctionSignature("layer2StartBlock()");
+            const selector13 = encodeFunctionSignature("l2RewardPerUint()");
+            const selector14 = encodeFunctionSignature("unSettledReward(address)");
+            const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+            const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+             const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
+            const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
+            const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
+            const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+
+            let functionBytecodes = [
+                selector1, selector2, selector3, selector4, selector5,
+                selector6, selector7, selector8, selector9, selector10,
+                selector11, selector12, selector13, selector14, selector15,
+                selector16,selector17, selector18, selector19, selector20
+            ];
+
+            callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                [
+                    functionBytecodes,
+                    seigManagerV1_3.address
+                ])
+            params.push(callDtata)
+
+            // =========================================
+            //  upgrade DepositManager setTargetSetImplementation2
+            targets.push(depositManagerProxy.address)
+            callDtata = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
+                [
+                    depositManagerV1_1.address,
+                    2,
+                    true
+                ])
+            params.push(callDtata)
+
+            // =========================================
+            //  upgrade DepositManager setTargetSetSelectorImplementations2
+            targets.push(depositManagerProxy.address)
+            const selector_1 = encodeFunctionSignature("ton()");
+            const selector_2 = encodeFunctionSignature("minDepositGasLimit()");
+            const selector_3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+            const selector_4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+            const selector_5 = encodeFunctionSignature("l1BridgeRegistry()");
+            const selector_6 = encodeFunctionSignature("layer2Manager()");
+            const selector_7 = encodeFunctionSignature("setAddresses(address,address)");
+
+            let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7];
+
+            callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                [
+                    functionBytecodes_1,
+                    depositManagerV1_1.address
+
+                ])
+            params.push(callDtata)
+
+            // =========================================
+            //  set DAOCommitteeProxy candidateAddOnFactory
+            targets.push(DAOCommitteeProxy)
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactory.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  set DAOCommitteeProxy layer2Manager
+            targets.push(DAOCommitteeProxy)
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2Manager.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  set seigManagerProxy setLayer2Manager
+            targets.push(seigManagerProxy.address)
+            callDtata = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  set seigManagerProxy setLayer2Manager
+            targets.push(seigManagerProxy.address)
+            callDtata = seigManagerV1_3.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+            params.push(callDtata)
+
+
+            // =========================================
+            //  set DAOCommitteeProxy setAddresses
+            targets.push(depositManagerProxy.address)
+            callDtata = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
+                l1BridgeRegistryProxy.address,
+                layer2Manager.address ])
+            params.push(callDtata)
+
+            // =========================================
+            //  registerSystemConfigByManager  Titan
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+            let name = 'Titan'
+            targets.push(l1BridgeRegistry.address)
+            callDtata = l1BridgeRegistry.interface.encodeFunctionData("registerRollupConfigByManager(address,uint8,address,string)", [ legacySystemConfig.address, 1,  l2TonAddress, name])
+            params.push(callDtata)
+
+            // =========================================
+            // . make an agenda
             const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
             const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
             const agendaFee = await daoAgendaManagerContract.createAgendaFees();
@@ -510,6 +667,8 @@ describe('Layer2Manager', () => {
                 ]
             )
 
+            // =========================================
+            // Propose an agenda
             let receipt = await (await tonContract.connect(tonHave).approveAndCall(
                 DAOCommitteeProxy,
                 agendaFee,
@@ -519,10 +678,10 @@ describe('Layer2Manager', () => {
             // console.log('receipt ', receipt)
             agendaId = (await daoAgendaManagerContract.numAgendas()).sub(1);
             const executionInfo = await daoAgendaManagerContract.getExecutionInfo(agendaId);
-            console.log("executionInfo :", executionInfo);
+            // console.log("executionInfo :", executionInfo);
             // expect(executionInfo[0][0]).to.be.equal(DAOCommitteeProxy);
             // expect(executionInfo[1][0]).to.be.equal(param);
-        })
+        }).timeout(100000000);
 
         it('Pass the noticePeriod before voting', async function () {
             // console.log('agendaId  ', agendaId)
@@ -616,181 +775,56 @@ describe('Layer2Manager', () => {
         })
 
         it('Pass the votingPeriod before executing', async function () {
-            let agendaInfo = await daoAgendaManagerContract.agendas(agendaId);
-            console.log('agendaInfo  ', agendaInfo)
+            // let agendaInfo = await daoAgendaManagerContract.agendas(agendaId);
+            // console.log('agendaInfo  ', agendaInfo)
 
             let votingEndTime = await daoAgendaManagerContract.getAgendaVotingEndTimeSeconds(agendaId)
-            console.log('votingEndTime  ', votingEndTime)
-            // const noticeEndTimestamp = agenda[1];
-            // await time.increaseTo(Number(noticeEndTimestamp));
-            // expect(await daoAgendaManagerContract.isVotableStatus(agendaId)).to.be.equal(true);
+
+            await time.increaseTo(Number(votingEndTime));
+            expect(await daoAgendaManagerContract.canExecuteAgenda(agendaId)).to.be.equal(true);
+
         });
 
         it('Execute an agenda', async () => {
+            let agenda = await daoAgendaManagerContract.agendas(agendaId);
+            expect(agenda.executedTimestamp).to.be.equal(0);
+            expect(agenda.executed).to.be.equal(false);
+
+            await (await daoCommitteeContract.executeAgenda(agendaId)).wait();
+
+            agenda = await daoAgendaManagerContract.agendas(agendaId);
+            expect(agenda.executedTimestamp).to.be.gt(0);
+            expect(agenda.executed).to.be.equal(true);
+
+        })
+
+        it('Check the storages', async () => {
+
+            //----- check logic
+            const { DAOCommitteeProxy, daoMember1, daoMember2, daoMember3 } = await getNamedAccounts();
+            const daoCommitteeContractV2 = new ethers.Contract(DAOCommitteeProxy, DAOCommitteeProxy2_Josn.abi,  deployer)
+            const _setTargetSetImplementation2 = encodeFunctionSignature("setTargetSetImplementation2(address,address,uint256,bool)");
+            let logic = await daoCommitteeContractV2.getSelectorImplementation2(_setTargetSetImplementation2)
+
+            expect(logic).to.be.equal(daoCommitteeOwner.address)
+            expect(await daoCommitteeContractV2.implementation2(1)).to.be.equal(daoCommitteeOwner.address)
+
+            //-- check titan rollupConfig
+            const {l2TonAddress } = await getNamedAccounts();
+            let titanInfo = await l1BridgeRegistry.rollupInfo(legacySystemConfig.address)
+            expect(titanInfo.l2TON).to.be.equal(l2TonAddress)
+            expect(titanInfo.rejectedSeigs).to.be.equal(false)
+            expect(titanInfo.rejectedSeigs).to.be.equal(false)
+            expect(titanInfo.name).to.be.equal('Titan')
 
         })
 
     })
 
 
-    /*
-    // describe('# Agenda ', () => {
-    //     it('making an agenda', async () => {
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetL1BridgeRegistry(seigManager.address, l1BridgeRegistry.address)).wait()
-    //     })
-
-    //     it('SeigManager register function ', async () => {
-    //         daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi, deployer);
-
-    //         const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
-    //         const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-    //         const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
-    //         const selector4 = encodeFunctionSignature("updateSeigniorage()");
-    //         const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
-    //         const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
-    //         const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
-    //         const selector8 = encodeFunctionSignature("totalLayer2TVL()");
-    //         const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-    //         const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
-    //         const selector11 = encodeFunctionSignature("layer2Manager()");
-    //         const selector12 = encodeFunctionSignature("layer2StartBlock()");
-    //         const selector13 = encodeFunctionSignature("l2RewardPerUint()");
-    //         const selector14 = encodeFunctionSignature("unSettledReward(address)");
-    //         const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-
-    //         const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
-    //         const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
-    //         const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
-    //         const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
-    //         const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
-    //         const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
-
-    //         let functionBytecodes = [
-    //             selector1, selector2, selector3, selector4, selector5,
-    //             selector6, selector7, selector8, selector9, selector10,
-    //             selector11, selector12, selector13, selector14, selector15
-    //             , selector16,
-    //             selector17, selector18, selector19, selector20, selector21
-    //         ];
-    //         const index = 1;
-    //         expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
-
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
-    //             seigManager.address,
-    //             seigManagerV1_3.address,
-    //             index, true)).wait();
-
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
-    //             seigManager.address,
-    //             functionBytecodes,
-    //             seigManagerV1_3.address)).wait()
-
-    //         expect(await seigManagerProxy.implementation2(index)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector1)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector5)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector6)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector7)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector8)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector9)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector9)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector10)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector11)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector12)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector13)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector14)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector15)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector16)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector17)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector18)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector19)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector20)).to.be.eq(seigManagerV1_3.address)
-    //         expect(await seigManagerProxy.getSelectorImplementation2(selector21)).to.be.eq(seigManagerV1_3.address)
-    //     })
-
-    //     it('DepositManager register function ', async () => {
-
-    //         const selector1 = encodeFunctionSignature("ton()");
-    //         const selector2 = encodeFunctionSignature("minDepositGasLimit()");
-    //         const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
-    //         const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
-    //         const selector5 = encodeFunctionSignature("l1BridgeRegistry()");
-    //         const selector6 = encodeFunctionSignature("layer2Manager()");
-    //         const selector7 = encodeFunctionSignature("setAddresses(address,address)");
-
-    //         let functionBytecodes = [
-    //             selector1, selector2, selector3, selector4, selector5, selector6, selector7 ];
-
-    //         const index = 2;  //mainnet
-    //         expect(await depositManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
-
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
-    //             depositManager.address,
-    //             depositManagerV1_1.address,
-    //             index, true)).wait();
-
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
-    //             depositManager.address,
-    //             functionBytecodes,
-    //             depositManagerV1_1.address)).wait()
-
-    //         expect(await depositManagerProxy.implementation2(index)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector1)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector5)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector6)).to.be.eq(depositManagerV1_1.address)
-    //         expect(await depositManagerProxy.getSelectorImplementation2(selector7)).to.be.eq(depositManagerV1_1.address)
-
-    //     })
-
-    //     it('setCandidateFactory to candidateAddOnFactory', async () => {
-    //         await (await daoV2Contract.connect(daoOwner).setCandidateAddOnFactory(candidateAddOnFactory.address)).wait()
-    //     })
-
-    //     it('setLayer2Manager to layer2Manager', async () => {
-    //         await (await daoV2Contract.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
-    //     })
-
-    //     it('setTargetSetLayer2Manager to layer2Manager', async () => {
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetLayer2Manager(seigManager.address, layer2Manager.address)).wait()
-    //     })
-
-    //     it('setTargetSetL1BridgeRegistry to l2Register', async () => {
-    //         await (await daoV2Contract.connect(daoOwner).setTargetSetL1BridgeRegistry(seigManager.address, l1BridgeRegistry.address)).wait()
-    //     })
-
-    // })
-
-    /*
     ///---- After executing an agenda --------------------------------
 
-    describe('# Titan ', () => {
-        it('registerSystemConfigByManager  ', async () => {
-            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
-
-            let type = 1;
-            let name = 'Titan'
-            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
-                legacySystemConfig.address,
-                type,
-                l2TonAddress,
-                name
-            )).wait()
-
-            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
-
-            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
-            expect(deployedEvent.args.type_).to.be.eq(type)
-        })
-    })
-
-    describe('# checkLayer2TVL', () => {
+    describe('# Titan checkLayer2TVL', () => {
         it('If the rollupConfig or L1Bridge address does not exist, the result is returned as false.', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
             let rollupConfig = l1MessengerAddress
@@ -812,12 +846,10 @@ describe('Layer2Manager', () => {
             expect(check.result).to.be.eq(true)
             expect(check.amount).to.be.gt(ethers.constants.Zero)
         })
-
     })
 
-
-
     describe('# registerCandidateAddOn ', () => {
+
         it('Fail if systemConfig is an invalid address', async () => {
             const amount = await layer2Manager.minimumInitialDepositAmount()
 
@@ -864,18 +896,22 @@ describe('Layer2Manager', () => {
         it('registerCandidateAddOn : titanCandidateAddOn', async () => {
             expect((await layer2Manager.statusLayer2(legacySystemConfig.address))).to.be.eq(0)
 
-            const amount = await layer2Manager.minimumInitialDepositAmount();
+            const addr = tonHave
+            let amount = await layer2Manager.minimumInitialDepositAmount();
+            amount = amount.add(ethers.utils.parseEther("0.1"))
 
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
-            let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
+            let balance = await tonContract.balanceOf(addr.address)
+            expect(balance).to.be.gt(amount)
+
+            let allowance = await tonContract.allowance(addr.address, layer2Manager.address)
             if(allowance.lt(amount)){
-                await tonContract.connect(addr1).approve(layer2Manager.address, amount);
+                await tonContract.connect(addr).approve(layer2Manager.address, amount);
             }
 
             const name = await legacySystemConfig.name()
             const operatorAddress = await operatorManagerFactory.getAddress(legacySystemConfig.address)
 
-            const receipt = await (await layer2Manager.connect(addr1).registerCandidateAddOn(
+            const receipt = await (await layer2Manager.connect(addr).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
@@ -922,78 +958,16 @@ describe('Layer2Manager', () => {
             ) ).to.be.revertedWith("RegisterError");
         })
 
-        it('Layers that are not registered in the L1BridgeRegistry cannot be registered.', async () => {
-            expect((await layer2Manager.statusLayer2(legacySystemConfigTest2.address))).to.be.eq(0)
-
-            const amount = await layer2Manager.minimumInitialDepositAmount();
-
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
-            let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
-            if(allowance.lt(amount)){
-                await tonContract.connect(addr1).approve(layer2Manager.address, amount);
-            }
-
-            const name = await legacySystemConfigTest2.name()
-
-            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
-                legacySystemConfigTest2.address,
-                amount,
-                true,
-                name
-            ) ).to.be.revertedWith("RegisterError");
-
-        });
-
     })
 
-    describe('# L2Register', () => {
-
-        describe('# setAddresses', () => {
-            it('setAddresses : onlyOwner ', async () => {
-                const {TON} = await getNamedAccounts();
-
-                await expect(
-                    l1BridgeRegistry.connect(addr1).setAddresses(
-                        layer2Manager.address,
-                        seigManager.address,
-                        TON
-                    )
-                ).to.be.revertedWith("AuthControl: Caller is not an admin")
-            })
-
-            it('setAddresses : onlyOwner ', async () => {
-                const {TON} = await getNamedAccounts();
-
-                await (await l1BridgeRegistry.connect(deployer).setAddresses(
-                        layer2Manager.address,
-                        seigManager.address,
-                        TON
-                )).wait()
-
-                expect(await l1BridgeRegistry.layer2Manager()).to.be.eq(layer2Manager.address)
-            })
-        })
-
-    })
-
-    // describe('# SeigManagerV1_3', () => {
-    //     it('SeigManagerV1_3 : setLayer2StartBlock', async () => {
-    //         let block1 = await ethers.provider.getBlock('latest');
-    //         await (await daoV2Contract.connect(daoOwner).setTargetLayer2StartBlock(seigManager.address, block1.number + 1))
-    //     });
-    // });
 
 
     describe('# DepositManager : CandidateAddOn ', () => {
 
-        // titanLayerAddress = deployedEvent.args.candidateAddOn;
-        // titanOperatorContractAddress = deployedEvent.args.operator;
-
         it('deposit to titanLayerAddress using approveAndCall', async () => {
 
-            let account = addr1
+            let account = tonHave
             let amount = ethers.utils.parseEther("2000")
-            await (await tonContract.connect(daoAdmin).mint(addr1.address, amount))
 
             const beforeBalance = await tonContract.balanceOf(account.address);
             expect(beforeBalance).to.be.gte(amount)
@@ -1029,7 +1003,7 @@ describe('Layer2Manager', () => {
         it('deposit to titanLayerAddress using deposit(address,uint256)', async () => {
             // console.log(deployed.seigManagerV2)
 
-            let account = addr2
+            let account = wtonHave
 
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
             await (await wtonContract.connect(daoAdmin).mint(account.address, wtonAmount))
@@ -1060,7 +1034,7 @@ describe('Layer2Manager', () => {
 
         it('deposit to titanLayerAddress using deposit(address,address,uint256) ', async () => {
 
-            let account = addr1
+            let account = tonHave
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
             await (await wtonContract.connect(daoAdmin).mint(account.address, wtonAmount))
 
@@ -1099,7 +1073,7 @@ describe('Layer2Manager', () => {
             // console.log(ethers.utils.formatUnits(staked, 27) )
             expect(await seigManager.minimumAmount()).to.be.not.gt(staked)
         })
-
+        /*
         it('seigManager: updateSeigniorageLayer : first updateSeigniorage to titanLayerAddress : no give seigniorage to l2', async () => {
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -1676,9 +1650,11 @@ describe('Layer2Manager', () => {
             ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
 
         });
-
+        */
     })
 
+
+    /*
 
     // 기존의 다오 candidate 테스트
     describe('# DepositManager : DAOCandidate ', () => {
