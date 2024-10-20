@@ -449,6 +449,37 @@ describe('Layer2Manager', () => {
 
     })
 
+    describe('# TransferOwner to DAOCommittee ', () => {
+
+        it('CandidateAddOnFactoryProxy ', async () => {
+            const {DAOCommitteeProxy} = await getNamedAccounts();
+            await (await candidateAddOnFactoryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+
+            expect(await candidateAddOnFactoryProxy.isAdmin(deployer.address)).to.be.eq(false)
+            expect(await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+        });
+
+        it('operatorManagerFactory ', async () => {
+            const {DAOCommitteeProxy} = await getNamedAccounts();
+            await (await operatorManagerFactory.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+            expect(await operatorManagerFactory.owner()).to.be.eq(DAOCommitteeProxy)
+        });
+
+        it('L1BridgeRegistryProxy ', async () => {
+            const {DAOCommitteeProxy} = await getNamedAccounts();
+            await (await l1BridgeRegistryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+            expect(await l1BridgeRegistryProxy.isAdmin(deployer.address)).to.be.eq(false)
+            expect(await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+        });
+
+        it('Layer2ManagerProxy ', async () => {
+            const {DAOCommitteeProxy} = await getNamedAccounts();
+            await (await layer2ManagerProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+            expect(await layer2ManagerProxy.isAdmin(deployer.address)).to.be.eq(false)
+            expect(await layer2ManagerProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+        });
+    })
+
     ///--- Agenda ---------------------------------
     describe('# Agenda', () => {
 
@@ -1272,7 +1303,6 @@ describe('Layer2Manager', () => {
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
             // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
-
 
             let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
@@ -2117,37 +2147,6 @@ describe('Layer2Manager', () => {
                 prevLayer2TVL.add(stakedA.div(BigNumber.from("1000000000"))))
 
         })
-    })
-
-    describe('# TransferOwner to DAOCommittee ', () => {
-
-        it('CandidateAddOnFactoryProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await candidateAddOnFactoryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-
-            expect(await candidateAddOnFactoryProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
-
-        it('operatorManagerFactory ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await operatorManagerFactory.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await operatorManagerFactory.owner()).to.be.eq(DAOCommitteeProxy)
-        });
-
-        it('L1BridgeRegistryProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await l1BridgeRegistryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await l1BridgeRegistryProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
-
-        it('Layer2ManagerProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await layer2ManagerProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await layer2ManagerProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await layer2ManagerProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
     })
 
     describe('# reject CandidateAddOn : L1BridgeRegistry ', () => {
