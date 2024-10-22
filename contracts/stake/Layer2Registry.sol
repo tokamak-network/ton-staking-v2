@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import { Layer2RegistryI } from "../dao/interfaces/Layer2RegistryI.sol";
 
 import "../proxy/ProxyStorage.sol";
-import {  } from "../common/AuthControlCoinage.sol";
+import { AuthControlCoinage } from "../common/AuthControlCoinage.sol";
 import { Layer2RegistryStorage } from "./Layer2RegistryStorage.sol";
 
 interface IISeigManager {
