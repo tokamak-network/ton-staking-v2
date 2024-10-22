@@ -429,6 +429,7 @@ const config: HardhatUserConfig = {
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
