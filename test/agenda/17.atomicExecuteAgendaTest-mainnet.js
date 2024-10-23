@@ -979,6 +979,7 @@ describe("DAO Proxy Change Test", () => {
 
             const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
                 "setSelectorImplementations2", [[selector1],logicAddress])
+            console.log("functionBytecode1", functionBytecode1)
 
             targets.push(nowContractInfo.DepositManager);
             functionBytecodes.push(functionBytecode1)
