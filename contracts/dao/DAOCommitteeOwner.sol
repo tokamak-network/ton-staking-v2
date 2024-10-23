@@ -34,10 +34,10 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is 
-    StorageStateCommittee, 
-    AccessControl, 
-    ERC165A, 
+contract DAOCommitteeOwner is
+    StorageStateCommittee,
+    AccessControl,
+    ERC165A,
     ProxyStorage2,
     StorageStateCommitteeV2
 {
@@ -77,18 +77,18 @@ contract DAOCommitteeOwner is
         _;
     }
 
-    function setCandidateAddOnFactory(address _candidateAddOnFactory) 
-        external 
-        onlyOwner 
+    function setCandidateAddOnFactory(address _candidateAddOnFactory)
+        external
+        onlyOwner
         nonZero(_candidateAddOnFactory)
     {
         candidateAddOnFactory = _candidateAddOnFactory;
     }
 
-    function setLayer2Manager(address _layer2Manager) 
-        external 
-        onlyOwner 
-        nonZero(_layer2Manager) 
+    function setLayer2Manager(address _layer2Manager)
+        external
+        onlyOwner
+        nonZero(_layer2Manager)
     {
         layer2Manager = _layer2Manager;
     }
@@ -256,7 +256,7 @@ contract DAOCommitteeOwner is
         emit ActivityRewardChanged(_value);
     }
 
-    
+
      /// @notice Set SeigManager contract address on candidate contracts
     /// @param _candidateContracts Candidate contracts to be set
     /// @param _seigManager New SeigManager contract address

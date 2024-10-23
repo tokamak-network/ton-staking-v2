@@ -18,8 +18,6 @@ import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-import "hardhat/console.sol";
-
 interface IISeigManager {
     function coinages(address layer2) external view returns (address);
     function getOperatorAmount(address layer2) external view returns (uint256);
@@ -51,12 +49,12 @@ error CreateCandiateError(uint x);
 error PermissionError();
 error ZeroAddressError();
 
-contract DAOCommittee_V1 is 
-    StorageStateCommittee, 
-    AccessControl, 
-    ERC165A, 
-    ProxyStorage2, 
-    StorageStateCommitteeV2 
+contract DAOCommittee_V1 is
+    StorageStateCommittee,
+    AccessControl,
+    ERC165A,
+    ProxyStorage2,
+    StorageStateCommitteeV2
 {
     using BytesLib for bytes;
 
@@ -426,7 +424,7 @@ contract DAOCommittee_V1 is
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
         require(agendaData.atomicExecute == true, "atomicExecute need true");
-         
+
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
@@ -526,7 +524,7 @@ contract DAOCommittee_V1 is
                 (bool success, ) = address(target[i]).call(functionBytecode[i]);
                 require(success, "DAOCommittee: Failed to execute the agenda");
             }
-        } 
+        }
 
         emit AgendaExecuted(_agendaID, target);
     }
@@ -800,7 +798,7 @@ contract DAOCommittee_V1 is
     }
 
     function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
-        address coinage = IISeigManager(address(seigManager)).coinages(layer2); 
+        address coinage = IISeigManager(address(seigManager)).coinages(layer2);
         operatorAmount = IICoinage(coinage).balanceOf(operator);
     }
 }
