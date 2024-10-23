@@ -418,13 +418,12 @@ contract SeigManagerV1_3 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     );
 
     // gives seigniorages to the layer2 as coinage
-    coinage.setFactor(
+    require (coinage.setFactor(
       _calcNewFactor(
         prevTotalSupply,
         nextTotalSupply,
         coinage.factor()
-      )
-    );
+      )), "fail setFactor");
 
     // give commission to operator or delegators
     if (operatorSeigs != 0) {
