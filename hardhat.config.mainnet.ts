@@ -515,6 +515,9 @@ const config: HardhatUserConfig = {
     gasPrice: 21,
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
   },
+  mocha: {
+    timeout: 100000000
+  },
   solidity: {
     version: '0.8.19',
     settings: {
