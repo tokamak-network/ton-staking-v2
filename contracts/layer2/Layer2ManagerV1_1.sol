@@ -89,7 +89,7 @@ interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
 
-contract  Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
+contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
     /* ========== DEPENDENCIES ========== */
     using SafeERC20 for IERC20;

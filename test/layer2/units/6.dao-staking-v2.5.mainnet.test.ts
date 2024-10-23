@@ -1349,7 +1349,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -1477,8 +1476,6 @@ describe('Layer2Manager', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
             let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
-
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -1856,8 +1853,6 @@ describe('Layer2Manager', () => {
             // console.log( ' totalSupplyOfTon (before)   ', ethers.utils.formatUnits(totalSupplyOfTon,27) , 'WTON')
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
-
-            // console.log('\n updateSeigniorage... ' )
 
             const receipt = await (await seigManager.connect(pastDepositor).updateSeigniorageLayer(layer2Info_1.layer2)).wait()
 
@@ -2341,7 +2336,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2370,7 +2364,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-
             let block2 = await ethers.provider.getBlock('latest');
 
             // console.log('\nblock number :', block2.number);
@@ -2464,8 +2457,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
-
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -2873,7 +2864,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
 
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2998,7 +2988,6 @@ describe('Layer2Manager', () => {
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
-
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -3143,8 +3132,6 @@ describe('Layer2Manager', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
             let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
-
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -3526,8 +3513,6 @@ describe('Layer2Manager', () => {
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
-            // console.log('\n updateSeigniorage... ' )
-
             const receipt = await (await seigManager.connect(pastDepositor).updateSeigniorageLayer(layer2Info_1.layer2)).wait()
 
             const topic = seigManager.interface.getEventTopic('CommitLog1');
@@ -3539,7 +3524,6 @@ describe('Layer2Manager', () => {
             let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
             expect(stakedB).to.be.gt(stakedA)
-
             let block2 = await ethers.provider.getBlock('latest');
 
             // console.log('\nblock number :', block2.number);

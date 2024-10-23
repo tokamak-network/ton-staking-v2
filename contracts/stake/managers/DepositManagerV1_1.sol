@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IWTON } from "../../dao/interfaces/IWTON.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../proxy/ProxyStorage.sol";
-import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
-import { DepositManagerStorage } from "./DepositManagerStorage.sol";
-import { DepositManagerV1_1Storage } from "./DepositManagerV1_1Storage.sol";
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {IWTON} from '../../dao/interfaces/IWTON.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '../../proxy/ProxyStorage.sol';
+import {AccessibleCommon} from '../../common/AccessibleCommon.sol';
+import {DepositManagerStorage} from './DepositManagerStorage.sol';
+import {DepositManagerV1_1Storage} from './DepositManagerV1_1Storage.sol';
 
 /**
  * @notice Error that occurs when there is a problem as a result of L2 bridge-related information search
@@ -25,154 +25,176 @@ error SwapTonTransferError();
 error ZeroValueError();
 
 interface ILayer2 {
-  function operator() external view returns (address);
+    function operator() external view returns (address);
 }
 
 interface ISeigManager {
-  function stakeOf(address layer2, address account) external view returns (uint256);
-  function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
-  function l1BridgeRegistry() external view returns (address);
-  function layer2Manager() external view returns (address);
+    function stakeOf(address layer2, address account) external view returns (uint256);
+    function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
+    function l1BridgeRegistry() external view returns (address);
+    function layer2Manager() external view returns (address);
 }
 
 interface IL1Bridge {
-  function depositERC20To(
+    function depositERC20To(
         address _l1Token,
         address _l2Token,
         address _to,
         uint256 _amount,
         uint32 _minGasLimit,
         bytes calldata _extraData
-    ) external ;
+    ) external;
 }
 
 interface IIERC20 {
-  function ton() external view returns (address) ;
-  function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
+    function ton() external view returns (address);
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
 }
 
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
  */
 //ERC165
-contract DepositManagerV1_1 is ProxyStorage, AccessibleCommon, DepositManagerStorage, DepositManagerV1_1Storage{
-  using SafeERC20 for IERC20;
+contract DepositManagerV1_1 is
+    ProxyStorage,
+    AccessibleCommon,
+    DepositManagerStorage,
+    DepositManagerV1_1Storage
+{
+    using SafeERC20 for IERC20;
 
-  address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
-  bytes4 internal constant SELECTOR_CHECK_L1_BRIDGE = 0x632b03ad; //checkL1Bridge()
-  bytes4 internal constant SELECTOR_ON_WITHDRAW = 0xf850ffaa; //onWithdraw(address,address,uint256)
-  bytes4 internal constant SELECTOR_SWAP_TOON_AND_TRANSFER = 0xe3b99e85; //swapToTONAndTransfer(address,uint256)
+    address internal constant LEGACY_ERC20_NATIVE_TOKEN =
+        0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
+    bytes4 internal constant SELECTOR_CHECK_L1_BRIDGE = 0x632b03ad; //checkL1Bridge()
+    bytes4 internal constant SELECTOR_ON_WITHDRAW = 0xf850ffaa; //onWithdraw(address,address,uint256)
+    bytes4 internal constant SELECTOR_SWAP_TOON_AND_TRANSFER = 0xe3b99e85; //swapToTONAndTransfer(address,uint256)
 
-  ////////////////////
-  // Events
-  ////////////////////
+    ////////////////////
+    // Events
+    ////////////////////
 
-  /**
-   * @notice Event that occurs when calling the withdrawAndDepositL2 function
-   * @param layer2    The layer2(candidate) address
-   * @param account   The account address
-   * @param amount    The amount of withdrawal and deposit L2
-   */
-  event WithdrawalAndDeposited(address indexed layer2, address account, uint256 amount);
+    /**
+     * @notice Event that occurs when calling the withdrawAndDepositL2 function
+     * @param layer2    The layer2(candidate) address
+     * @param account   The account address
+     * @param amount    The amount of withdrawal and deposit L2
+     */
+    event WithdrawalAndDeposited(address indexed layer2, address account, uint256 amount);
 
-  event DepositedERC20To(address l1Bridge, address l1Ton, address l2Ton, address caller, uint256 tonAmount, uint32 minDepositGasLimit);
-  event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
-  event SetMinDepositGasLimit(uint32 gasLimit_);
+    event DepositedERC20To(
+        address l1Bridge,
+        address l1Ton,
+        address l2Ton,
+        address caller,
+        uint256 tonAmount,
+        uint32 minDepositGasLimit
+    );
+    event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
+    event SetMinDepositGasLimit(uint32 gasLimit_);
 
-  function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
-    minDepositGasLimit = gasLimit_;
-    emit SetMinDepositGasLimit(gasLimit_);
-  }
-
-  function setAddresses(address _l1BridgeRegistry, address _layer2Manager) external onlyOwner {
-    l1BridgeRegistry = _l1BridgeRegistry;
-    layer2Manager = _layer2Manager;
-    emit SetAddresses(_l1BridgeRegistry, _layer2Manager);
-  }
-  /**
-   * @notice Withdrawal from L1 and deposit to L2
-   * @param layer2    The layer2(candidate) address
-   * @param amount    The amount to be withdrawal and deposit L2. ()`amount` WTON in RAY)
-   */
-  function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool) {
-    if (amount == 0) revert ZeroValueError();
-    address _seig = _seigManager;
-    require(ISeigManager(_seig).stakeOf(layer2, msg.sender) >= amount, 'staked amount is insufficient');
-
-    address operator = ILayer2(layer2).operator();
-    if (operator == address(0)) revert OperatorError();
-    if (operator.code.length == 0) revert OperatorError();
-
-    if (l1BridgeRegistry == address(0)) l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
-
-    // require(operator.code.length != 0, 'not operator contract');
-    // (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
-
-    (bool success, bytes memory data) = operator.call(abi.encode(SELECTOR_CHECK_L1_BRIDGE));
-    if (!success) revert CheckL1BridgeError(1);
-
-    // require(success, 'false checkL1Bridge');
-    (bool result, address l1Bridge, address portal, address l2Ton,
-      uint8 l2Type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit) = abi.decode(data, (bool,address,address,address,uint8,uint8,bool,bool));
-    if (!result) revert CheckL1BridgeError(2);
-
-    if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
-    if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
-    require(l2Ton != address(0), "l2Ton: zero address");
-    if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
-
-    uint32 _minDepositGasLimit = 0;
-    if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
-
-    if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
-
-
-    if (!ISeigManager(_seig).onWithdraw(layer2, msg.sender, amount)) revert WithdrawError();
-    if (!IWTON(_wton).swapToTONAndTransfer(address(this), amount)) revert SwapTonTransferError();
-
-    if (ton == address(0)) ton = IIERC20(_wton).ton();
-    address _ton = ton;
-    uint256 tonAmount = amount/1e9;
-    uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
-    if(allowance < tonAmount) IIERC20(_ton).increaseAllowance(l1Bridge, tonAmount-allowance);
-
-    uint256 bal;
-
-    if (l2Type == 1) {
-      bal = IERC20(_ton).balanceOf(l1Bridge);
-
-      IL1Bridge(l1Bridge).depositERC20To(
-        _ton,
-        l2Ton,
-        msg.sender,
-        tonAmount,
-        _minDepositGasLimit,
-        '0x'
-      );
-
-      bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
-
-    } else {
-
-      bal = IERC20(_ton).balanceOf(portal);
-
-      IL1Bridge(l1Bridge).depositERC20To(
-        _ton,
-        l2Ton,
-        msg.sender,
-        tonAmount,
-        _minDepositGasLimit,
-        '0x'
-      );
-
-      bal = IERC20(_ton).balanceOf(portal) - bal;
+    function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
+        minDepositGasLimit = gasLimit_;
+        emit SetMinDepositGasLimit(gasLimit_);
     }
 
-    require(bal == tonAmount, "fail depositERC20To");
+    function setAddresses(address _l1BridgeRegistry, address _layer2Manager) external onlyOwner {
+        l1BridgeRegistry = _l1BridgeRegistry;
+        layer2Manager = _layer2Manager;
+        emit SetAddresses(_l1BridgeRegistry, _layer2Manager);
+    }
+    /**
+     * @notice Withdrawal from L1 and deposit to L2
+     * @param layer2    The layer2(candidate) address
+     * @param amount    The amount to be withdrawal and deposit L2. ()`amount` WTON in RAY)
+     */
+    function withdrawAndDepositL2(address layer2, uint256 amount) external ifFree returns (bool) {
+        if (amount == 0) revert ZeroValueError();
+        address _seig = _seigManager;
+        require(
+            ISeigManager(_seig).stakeOf(layer2, msg.sender) >= amount,
+            'staked amount is insufficient'
+        );
 
-    emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
-    emit WithdrawalAndDeposited(layer2, msg.sender, amount);
-    return true;
-  }
+        address operator = ILayer2(layer2).operator();
+        if (operator == address(0)) revert OperatorError();
+        if (operator.code.length == 0) revert OperatorError();
 
+        if (l1BridgeRegistry == address(0))
+            l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
+
+        // require(operator.code.length != 0, 'not operator contract');
+        // (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
+
+        (bool success, bytes memory data) = operator.call(abi.encode(SELECTOR_CHECK_L1_BRIDGE));
+        if (!success) revert CheckL1BridgeError(1);
+
+        // require(success, 'false checkL1Bridge');
+        (
+            bool result,
+            address l1Bridge,
+            address portal,
+            address l2Ton,
+            uint8 l2Type,
+            uint8 status,
+            bool rejectedSeigs,
+            bool rejectedL2Deposit
+        ) = abi.decode(data, (bool, address, address, address, uint8, uint8, bool, bool));
+        if (!result) revert CheckL1BridgeError(2);
+
+        if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
+        if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
+        require(l2Ton != address(0), 'l2Ton: zero address');
+        if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
+
+        uint32 _minDepositGasLimit = 0;
+        if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
+
+        if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
+
+        if (!ISeigManager(_seig).onWithdraw(layer2, msg.sender, amount)) revert WithdrawError();
+        if (!IWTON(_wton).swapToTONAndTransfer(address(this), amount))
+            revert SwapTonTransferError();
+
+        if (ton == address(0)) ton = IIERC20(_wton).ton();
+        address _ton = ton;
+        uint256 tonAmount = amount / 1e9;
+        uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
+        if (allowance < tonAmount) IIERC20(_ton).increaseAllowance(l1Bridge, tonAmount - allowance);
+
+        uint256 bal;
+
+        if (l2Type == 1) {
+            bal = IERC20(_ton).balanceOf(l1Bridge);
+
+            IL1Bridge(l1Bridge).depositERC20To(
+                _ton,
+                l2Ton,
+                msg.sender,
+                tonAmount,
+                _minDepositGasLimit,
+                '0x'
+            );
+
+            bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
+        } else {
+            bal = IERC20(_ton).balanceOf(portal);
+
+            IL1Bridge(l1Bridge).depositERC20To(
+                _ton,
+                l2Ton,
+                msg.sender,
+                tonAmount,
+                _minDepositGasLimit,
+                '0x'
+            );
+
+            bal = IERC20(_ton).balanceOf(portal) - bal;
+        }
+
+        require(bal == tonAmount, 'fail depositERC20To');
+
+        emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
+        emit WithdrawalAndDeposited(layer2, msg.sender, amount);
+        return true;
+    }
 }
