@@ -280,6 +280,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         LegacySystemConfig.address
     )) as LegacySystemConfig;
 
+    // 추가되는 레이어의 이름을 확인하자.
     let name = 'Titan'
     let addresses = {
         l1CrossDomainMessenger: l1MessengerAddress,
@@ -289,6 +290,9 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         optimismPortal: hre.ethers.constants.AddressZero,
         optimismMintableERC20Factory: hre.ethers.constants.AddressZero
     }
+    console.log("legacySystemConfig: ", legacySystemConfig.address)
+    console.log("name: ", name)
+    console.log("addresses: ", addresses)
 
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
         name, addresses, l1BridgeRegistryProxy.address
@@ -297,6 +301,25 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     await (await legacySystemConfig.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
     )).wait()
+
+    //======= TransferOwner to DAOCommittee ======================================
+
+    await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+
+    console.log("candidateAddOnFactoryProxy.isAdmin(deployer): ", await candidateAddOnFactoryProxy.isAdmin(deployer))
+    console.log("candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy): ", await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy))
+
+    console.log("operatorManagerFactory.owner(): ", await operatorManagerFactory.owner())
+
+    console.log("l1BridgeRegistryProxy.isAdmin(deployer): ", await l1BridgeRegistryProxy.isAdmin(deployer))
+    console.log("l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy): ", await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy))
+
+    console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
+    console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))
+
 
     //==== verify =================================
     if (hre.network.name != "hardhat" && hre.network.name != "local") {
