@@ -4,6 +4,26 @@
   "sourceName": "contracts/stake/managers/SeigManagerV1_1.sol",
   "abi": [
     {
+      "inputs": [],
+      "name": "l1BridgeRegistry",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "resetL2RewardPerUint",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
