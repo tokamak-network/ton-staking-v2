@@ -274,6 +274,7 @@ describe('Layer2Manager', () => {
             daoCommitteeProxy2Contract = (await ethers.getContractAt("DAOCommitteeProxy2", deployed.DAOCommitteeProxy2.address, deployer)) as DAOCommitteeProxy2;
             daoCommitteeOwner = (await ethers.getContractAt("DAOCommitteeOwner", deployed.DAOCommitteeOwner.address, deployer)) as DAOCommitteeOwner;
             daoCommittee_V1 = (await ethers.getContractAt("DAOCommittee_V1", deployed.DAOCommittee_V1.address, deployer)) as DAOCommittee_V1;
+            legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfig.address, deployer )) as LegacySystemConfig;
 
             // console.log('l1BridgeRegistryProxy', l1BridgeRegistryProxy.address)
             // console.log('l1BridgeRegistry', l1BridgeRegistry.address)
@@ -291,64 +292,6 @@ describe('Layer2Manager', () => {
             // console.log('daoCommitteeOwner', daoCommitteeOwner.address)
             // console.log('daoCommittee_V1', daoCommittee_V1.address)
         })
-    })
-
-    // describe('# DAO.upgradeTo(DAOCommitteeAddV1_1) , SeigManagerV1_3 ', () => {
-    //     it('deploy DAOCommitteeAddV1_1', async () => {
-    //         daoCommitteeAddV1_1 = (await (await ethers.getContractFactory("DAOCommitteeAddV1_1")).connect(deployer).deploy()) as DAOCommitteeAddV1_1;
-    //     })
-
-    //     it('deploy SeigManagerV1_3', async () => {
-    //         seigManagerV1_3 = (await (await ethers.getContractFactory("SeigManagerV1_3")).connect(deployer).deploy()) as SeigManagerV1_3;
-    //     })
-
-    //     it('deploy DepositManagerV1_1', async () => {
-    //         depositManagerV1_1 = (await (await ethers.getContractFactory("DepositManagerV1_1")).connect(deployer).deploy()) as DepositManagerV1_1;
-    //     })
-
-    //     it("Deploy the DAOCommitteeProxy2", async () => {
-    //         daoCommitteeProxy2Contract = (await (await ethers.getContractFactory("DAOCommitteeProxy2")).connect(deployer).deploy()) as DAOCommitteeProxy2
-    //     })
-
-    //     it("Deploy the DAOCommitte_V1", async () => {
-    //         daoCommittee_V1 = (await (await ethers.getContractFactory("DAOCommittee_V1")).connect(deployer).deploy()) as DAOCommittee_V1
-    //     })
-
-    //     it("Deploy the DAOCommitteOwner", async () => {
-    //         daoCommitteeOwner =  (await (await ethers.getContractFactory("DAOCommitteeOwner")).connect(deployer).deploy()) as DAOCommitteeOwner
-    //     })
-
-    // })
-
-
-    describe('# LegacySystemConfig : Titan ', () => {
-
-        it('set Titan LegacySystemConfig ', async () => {
-            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
-
-            legacySystemConfig = (await (await ethers.getContractFactory("LegacySystemConfig")).connect(deployer).deploy()) as LegacySystemConfig;
-
-            let name = 'Titan'
-            let addresses = {
-                l1CrossDomainMessenger: l1MessengerAddress,
-                l1ERC721Bridge: ethers.constants.AddressZero,
-                l1StandardBridge: l1BridgeAddress,
-                l2OutputOracle: ethers.constants.AddressZero,
-                optimismPortal: ethers.constants.AddressZero,
-                optimismMintableERC20Factory: ethers.constants.AddressZero
-            }
-            // console.log(addresses)
-
-            await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
-            )).wait()
-
-            await (await legacySystemConfig.connect(deployer).transferOwnership(
-                ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
-            )).wait()
-
-        })
-
     })
 
     describe('# TransferOwner to DAOCommittee ', () => {
