@@ -42,6 +42,7 @@ const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 
 const CandidateABI = require("../../abi/Candidate.json").abi;
 const DepositManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
+const SeigManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
 
 
 describe("DAO Proxy Change Test", () => {
@@ -56,6 +57,7 @@ describe("DAO Proxy Change Test", () => {
     
     let depositManagerContract;
     let seigManagerContract;
+    let seigManagerProxy;
     let seigManagerProxyContract;
     let seigManagerV1Contract;
 
@@ -63,6 +65,9 @@ describe("DAO Proxy Change Test", () => {
     let daoCommitteeOwner;
     let daoagendaManager;
     let daovault;
+
+    let seigManagerV1_3;
+    let depositManagerV1_1;
 
     let testAddr = "f0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea";
     let tonAddr = "2be5e8c109e2197D077D13A82dAead6a9b3433C5";
@@ -364,6 +369,20 @@ describe("DAO Proxy Change Test", () => {
 
             await daoCommitteeOwner.deployed();
         })
+
+        it("Deploy the SeigManagerV1_3", async () => {
+            const SeigManagerV1_3Contract = await ethers.getContractFactory("SeigManagerV1_3");
+            seigManagerV1_3 = await SeigManagerV1_3Contract.deploy();
+
+            await seigManagerV1_3.deployed();
+        })
+
+        it('Deploy the DepositManagerV1_1', async () => {
+            const DepositMangerV1_1 = await ethers.getContractFactory("DepositManagerV1_1")
+            depositManagerV1_1 = await DepositMangerV1_1.deploy();
+            
+            await depositManagerV1_1.deployed()
+        })
     })
 
     describe("Set Contract", () => {
@@ -425,6 +444,15 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeAdmin
             )
         })
+
+        it("set seigManagerProxy", async () => {
+            seigManagerProxy = new ethers.Contract(
+                nowContractInfo.SeigManager,  
+                SeigManagerProxy_Json.abi, 
+                daoCommitteeAdmin
+            )
+        })
+
     })
 
     describe("create Agenda", () => {
@@ -580,14 +608,6 @@ describe("DAO Proxy Change Test", () => {
 
                 let targets = [];
                 let functionBytecodes = [];
-
-                // const functionBytecode0 = depositManagerProxy.interface.encodeFunctionData(
-                //     "setImplementation2", [logicAddress,1,true])
-                // const selector = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)");
-                
-                // const functionBytecode1 = depositManagerProxy.interface.encodeFunctionData(
-                //     "setSelectorImplementations2", [[selector1],logicAddress])
-                // const selector1 = Web3EthAbi.encodeFunctionSignature("setWithdrawalDelay(address,uint256)");
                 
                 const functionBytecode0 = daoCommitteeProxy.interface.encodeFunctionData(
                     "upgradeTo", [daoCommitteeProxy2.address]
@@ -627,6 +647,80 @@ describe("DAO Proxy Change Test", () => {
 
                 targets.push(oldContractInfo.DAOCommitteeProxy);
                 functionBytecodes.push(functionBytecode3)
+
+                const functionBytecode4 = seigManagerProxy.interface.encodeFunctionData("setImplementation2",
+                [
+                    seigManagerV1_3.address,
+                    1,
+                    true
+                ])
+                targets.push(seigManagerProxy.address)
+                functionBytecodes.push(functionBytecode4)
+
+                const selector1 = Web3EthAbi.encodeFunctionSignature("setLayer2StartBlock(uint256)");
+                const selector2 = Web3EthAbi.encodeFunctionSignature("setLayer2Manager(address)");
+                const selector3 = Web3EthAbi.encodeFunctionSignature("setL1BridgeRegistry(address)");
+                const selector4 = Web3EthAbi.encodeFunctionSignature("updateSeigniorage()");
+                const selector5 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageOperator()");
+                const selector6 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer()");
+                const selector7 = Web3EthAbi.encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
+                const selector8 = Web3EthAbi.encodeFunctionSignature("totalLayer2TVL()");
+                const selector9 = Web3EthAbi.encodeFunctionSignature("layer2RewardInfo(address)");
+                const selector10 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
+                const selector11 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
+                const selector12 = Web3EthAbi.encodeFunctionSignature("layer2StartBlock()");
+                const selector13 = Web3EthAbi.encodeFunctionSignature("l2RewardPerUint()");
+                const selector14 = Web3EthAbi.encodeFunctionSignature("unSettledReward(address)");
+                const selector15 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+                const selector16 = Web3EthAbi.encodeFunctionSignature("excludeFromSeigniorage(address)");
+                const selector17 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorage()");
+                const selector18 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
+                const selector19 = Web3EthAbi.encodeFunctionSignature("stakeOfAllLayers()");
+                const selector20 = Web3EthAbi.encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+
+                let setSelectorBytes2 = [
+                    selector1, selector2, selector3, selector4, selector5,
+                    selector6, selector7, selector8, selector9, selector10,
+                    selector11, selector12, selector13, selector14, selector15,
+                    selector16,selector17, selector18, selector19, selector20
+                ];
+
+                const functionBytecode5 = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                    [
+                        setSelectorBytes2,
+                        seigManagerV1_3.address
+                    ])
+                targets.push(seigManagerProxy.address)
+                functionBytecodes.push(functionBytecode5)
+
+                const functionBytecode6 = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
+                    [
+                        depositManagerV1_1.address,
+                        2,
+                        true
+                    ])
+                targets.push(depositManagerProxy.address)
+                functionBytecodes.push(functionBytecode6)
+
+                const selector_1 = Web3EthAbi.encodeFunctionSignature("ton()");
+                const selector_2 = Web3EthAbi.encodeFunctionSignature("minDepositGasLimit()");
+                const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+                const selector_4 = Web3EthAbi.encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+                const selector_5 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
+                const selector_6 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
+                const selector_7 = Web3EthAbi.encodeFunctionSignature("setAddresses(address,address)");
+
+                let setSelectorBytes3 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7];
+
+                const functionBytecode7 = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                    [
+                        setSelectorBytes3,
+                        depositManagerV1_1.address
+
+                    ])
+                targets.push(depositManagerProxy.address)
+                functionBytecodes.push(functionBytecode7)
+
 
                 const param = Web3EthAbi.encodeParameters(
                     ["address[]", "uint128", "uint128", "bool", "bytes[]"],
