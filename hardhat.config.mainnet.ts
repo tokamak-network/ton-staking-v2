@@ -379,26 +379,26 @@ const config: HardhatUserConfig = {
     },
     daoMember1: {
       default: 43,
-      mainnet: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      mainnet: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
       goerli: '',
-      hardhat: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
-      local: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      hardhat: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
+      local: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
       sepolia: '0xD4335A175c36c0922F6A368b83f9F6671bf07606'
     },
     daoMember2: {
       default: 44,
-      mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      mainnet: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
       goerli: '',
-      hardhat: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
-      local: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      hardhat: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
+      local: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
       sepolia: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea'
     },
     daoMember3: {
       default: 45,
-      mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
       goerli: '',
-      hardhat: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
-      local: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      hardhat: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      local: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     }
   },
@@ -428,7 +428,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 6797943
       },
       // allowUnlimitedContractSize: false,
-      // deploy: ['deploy-layer2'],
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -441,6 +441,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.PRIVATE_KEY}`],
       gasPrice: 50000000000,
       // deploy: ['deploy']
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,

@@ -381,25 +381,25 @@ const config: HardhatUserConfig = {
       default: 43,
       mainnet: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
       goerli: '',
-      hardhat: '0xD4335A175c36c0922F6A368b83f9F6671bf07606',
-      local: '0xD4335A175c36c0922F6A368b83f9F6671bf07606',
-      sepolia: '0xD4335A175c36c0922F6A368b83f9F6671bf07606'
+      hardhat: '0xaeb0463a2fd96c68369c1347ce72997406ed6409',
+      local: '0xaeb0463a2fd96c68369c1347ce72997406ed6409',
+      sepolia: '0xaeb0463a2fd96c68369c1347ce72997406ed6409'
     },
     daoMember2: {
       default: 44,
       mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
       goerli: '',
-      hardhat: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea',
-      local: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea',
-      sepolia: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea'
+      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
     },
     daoMember3: {
       default: 45,
       mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
       goerli: '',
-      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-      sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
+      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
     }
   },
   networks: {
@@ -408,7 +408,7 @@ const config: HardhatUserConfig = {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
-        blockNumber: 5859537,
+        // blockNumber: 5859537,
         // blockNumber: 6042730
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 6042730
@@ -429,6 +429,8 @@ const config: HardhatUserConfig = {
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],
+      // deploy: ['deploy-staking-v2.5-mainnet'],
+      deploy: ['deploy-staking-v2.5-sepolia'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -441,6 +443,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.PRIVATE_KEY}`],
       gasPrice: 50000000000,
       // deploy: ['deploy']
+      // deploy: ['deploy-staking-v2.5-mainnet']
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,
@@ -465,8 +468,8 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
-      // deploy: ['deploy_l2_proxy']
-      deploy: ['deploy-layer2']
+      // deploy: ['deploy-layer2']
+      deploy: ['deploy-staking-v2.5-sepolia']
     },
   },
   deterministicDeployment: (network: string) => {

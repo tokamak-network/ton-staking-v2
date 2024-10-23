@@ -23,87 +23,87 @@ const config: HardhatUserConfig = {
       default: 3,
       mainnet: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       goerli: '0x446ece59ef429B774Ff116432bbB123f1915D9E3',
-      hardhat: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7',
-      local: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7',
+      hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       sepolia: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7'
     },
     DepositManager: {
       default: 4,
       mainnet: '0x0b58ca72b12F01FC05F8f252e226f3E2089BD00E',
       goerli: '0x0ad659558851f6ba8a8094614303F56d42f8f39A',
-      hardhat: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F',
-      local: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F',
+      hardhat: '0x0b58ca72b12F01FC05F8f252e226f3E2089BD00E',
+      local: '0x0b58ca72b12F01FC05F8f252e226f3E2089BD00E',
       sepolia: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F'
     },
     L2Registry: {
       default: 5,
       mainnet: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       goerli: '0x6817e1c04748eae68EBFF13216280Df1ec15ba86',
-      hardhat: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581',
-      local: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581',
+      hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       sepolia: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581'
     },
     CoinageFactory: {
       default: 6,
       mainnet: '0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43',
       goerli: '0x09207BdB146E41dadad015aB3d835f66498b0A0c',
-      hardhat: '0x93258413Ef2998572AB4B269b5DCb963dD35D440',
-      local: '0x93258413Ef2998572AB4B269b5DCb963dD35D440',
+      hardhat: '0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43',
+      local: '0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43',
       sepolia: '0x93258413Ef2998572AB4B269b5DCb963dD35D440'
     },
     TON: {
       default: 7,
       mainnet: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
       goerli: '0x68c1F9620aeC7F2913430aD6daC1bb16D8444F00',
-      hardhat: '0xa30fe40285b8f5c0457dbc3b7c8a280373c40044',
-      local: '0xa30fe40285b8f5c0457dbc3b7c8a280373c40044',
+      hardhat: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
+      local: '0x2be5e8c109e2197D077D13A82dAead6a9b3433C5',
       sepolia: '0xa30fe40285b8f5c0457dbc3b7c8a280373c40044'
     },
     WTON: {
       default: 8,
       mainnet: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
       goerli: '0xe86fCf5213C785AcF9a8BFfEeDEfA9a2199f7Da6',
-      hardhat: '0x79e0d92670106c85e9067b56b8f674340dca0bbd',
-      local: '0x79e0d92670106c85e9067b56b8f674340dca0bbd',
+      hardhat: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
+      local: '0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2',
       sepolia: '0x79e0d92670106c85e9067b56b8f674340dca0bbd'
     },
     TOS: {
       default: 9,
       mainnet: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       goerli: '0x67F3bE272b1913602B191B3A68F7C238A2D81Bb9',
-      hardhat: '0xff3ef745d9878afe5934ff0b130868afddbc58e8',
-      local: '0xff3ef745d9878afe5934ff0b130868afddbc58e8',
+      hardhat: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
+      local: '0x409c4D8cd5d2924b9bc5509230d16a61289c8153',
       sepolia: '0xff3ef745d9878afe5934ff0b130868afddbc58e8'
     },
     DAOCommitteeProxy: {
       default: 10,
       mainnet: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
       goerli: '0x3C5ffEe61A384B384ed38c0983429dcDb49843F6',
-      hardhat: '0xA2101482b28E3D99ff6ced517bA41EFf4971a386',
-      local: '0xA2101482b28E3D99ff6ced517bA41EFf4971a386',
+      hardhat: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
+      local: '0xDD9f0cCc044B0781289Ee318e5971b0139602C26',
       sepolia: '0xA2101482b28E3D99ff6ced517bA41EFf4971a386'
     },
     CandidateFactory: {
       default: 11,
       mainnet: '0x9fc7100a16407ee24a79c834a56e6eca555a5d7c',
       goerli: '0xd1c4fE0Ac211F8A41817c26D1801fd549D56E31e',
-      hardhat: '0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f',
-      local: '0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f',
+      hardhat: '0x9fc7100a16407ee24a79c834a56e6eca555a5d7c',
+      local: '0x9fc7100a16407ee24a79c834a56e6eca555a5d7c',
       sepolia: '0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f'
     },
     DAOAgendaManager: {
       default: 12,
       mainnet: '0xcD4421d082752f363E1687544a09d5112cD4f484',
       goerli: '0x0e1583da47cf641305eDD1e4C6dB6DD18e138a21',
-      hardhat: '0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08',
-      local: '0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08',
+      hardhat: '0xcD4421d082752f363E1687544a09d5112cD4f484',
+      local: '0xcD4421d082752f363E1687544a09d5112cD4f484',
       sepolia: '0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08'
     },
     AutoCoinageSnapshot2: {
       default: 13,
       mainnet: '0x85Ca9f611C363065252EA9462c90743922767b55',
       goerli: '',
-      hardhat: '0xcD4421d082752f363E1687544a09d5112cD4f484',
+      hardhat: '0x85Ca9f611C363065252EA9462c90743922767b55',
       local: '0x85Ca9f611C363065252EA9462c90743922767b55',
       sepolia: ''
     },
@@ -111,24 +111,24 @@ const config: HardhatUserConfig = {
       default: 14,
       mainnet: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
       goerli: '',
-      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      hardhat: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
+      local: '0xb4983da083a5118c903910db4f5a480b1d9f3687',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     },
     powerTonAddress: {
       default: 15,
       mainnet: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
       goerli: '',
-      hardhat: '0xbe16830EeD019227892938Ae13C54Ec218772f48',
-      local: '0xbe16830EeD019227892938Ae13C54Ec218772f48',
+      hardhat: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
+      local: '0x970298189050aBd4dc4F119ccae14ee145ad9371',
       sepolia: '0xbe16830EeD019227892938Ae13C54Ec218772f48'
     },
     daoVaultAddress: {
       default: 16,
       mainnet: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
       goerli: '',
-      hardhat: '0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4',
-      local: '0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4',
+      hardhat: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
+      local: '0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303',
       sepolia: '0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4'
     },
     level19Address: {
@@ -167,32 +167,32 @@ const config: HardhatUserConfig = {
       default: 21,
       mainnet: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       goerli: '',
-      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      hardhat: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
+      local: '0x15280a52e79fd4ab35f4b9acbb376dcd72b44fd1',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     },
     SeigManagerProxy: {
       default: 22,
       mainnet: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       goerli: '',
-      hardhat: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7',
-      local: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7',
+      hardhat: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
+      local: '0x0b55a0f463b6defb81c6063973763951712d0e5f',
       sepolia: '0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7'
     },
     DepositManagerProxy: {
       default: 23,
       mainnet: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
       goerli: '',
-      hardhat: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F',
-      local: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F',
+      hardhat: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
+      local: '0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e',
       sepolia: '0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F'
     },
     Layer2RegistryProxy: {
       default: 23,
       mainnet: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       goerli: '',
-      hardhat: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581',
-      local: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581',
+      hardhat: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
+      local: '0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b',
       sepolia: '0xA0a9576b437E52114aDA8b0BC4149F2F5c604581'
     },
     // tonAdminAddress: {
@@ -205,24 +205,24 @@ const config: HardhatUserConfig = {
       default: 22,
       mainnet: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       goerli: '0x2878373BA3Be0Ef2a93Ba5b3F7210D76cb222e63',
-      hardhat: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A',
-      local: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A',
+      hardhat: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      local: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       sepolia: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A'
     },
     l1BridgeAddress: {
       default: 23,
       mainnet: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       goerli: '0x7377F3D0F64d7a54Cf367193eb74a052ff8578FD',
-      hardhat: '0x1F032B938125f9bE411801fb127785430E7b3971',
-      local: '0x1F032B938125f9bE411801fb127785430E7b3971',
+      hardhat: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       sepolia: '0x1F032B938125f9bE411801fb127785430E7b3971'
     },
     l1AddressManagerAddress: {
       default: 24,
       mainnet: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
       goerli: '0xEFa07e4263D511fC3a7476772e2392efFb1BDb92',
-      hardhat: '0x79a53E72e9CcfAe63B0fB9A4edb66C7563d74Dc3',
-      local: '0x79a53E72e9CcfAe63B0fB9A4edb66C7563d74Dc3',
+      hardhat: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
+      local: '0xeDf6C92fA72Fa6015B15C9821ada145a16c85571',
       sepolia: '0x79a53E72e9CcfAe63B0fB9A4edb66C7563d74Dc3'
     },
     l2TokenFactoryAddress: {
@@ -245,32 +245,32 @@ const config: HardhatUserConfig = {
       default: 27,
       mainnet: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
       goerli: '',
-      hardhat: '0x690f994b82f001059e24d79292c3c476854b767a',
-      local: '0x690f994b82f001059e24d79292c3c476854b767a',
+      hardhat: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
+      local: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
       sepolia: '0x690f994b82f001059e24d79292c3c476854b767a'
     },
     DAOCommitteeOwner : {
       default: 28,
       mainnet: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       goerli: '',
-      hardhat: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-      local: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+      hardhat: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
+      local: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     },
     titanL1StandardBridge : {
       default: 29,
       mainnet: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       goerli: '',
-      hardhat: '0x1F032B938125f9bE411801fb127785430E7b3971',
-      local: '0x1F032B938125f9bE411801fb127785430E7b3971',
+      hardhat: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
+      local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       sepolia: '0x1F032B938125f9bE411801fb127785430E7b3971'
     },
     titanL1CrossDomainMessenger : {
       default: 30,
       mainnet: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       goerli: '',
-      hardhat: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A',
-      local: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A',
+      hardhat: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
+      local: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       sepolia: '0xc123047238e8f4bFB7Ad849cA4364b721B5ABD8A'
     },
     titanL1ERC721Bridge: {
@@ -379,34 +379,34 @@ const config: HardhatUserConfig = {
     },
     daoMember1: {
       default: 43,
-      mainnet: '0x39a13a796a3cd9f480c28259230d2ef0a7026033',
+      mainnet: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
       goerli: '',
-      hardhat: '0xaeb0463a2fd96c68369c1347ce72997406ed6409',
-      local: '0xaeb0463a2fd96c68369c1347ce72997406ed6409',
-      sepolia: '0xaeb0463a2fd96c68369c1347ce72997406ed6409'
+      hardhat: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
+      local: '0x0f42d1c40b95df7a1478639918fc358b4af5298d',
+      sepolia: '0xD4335A175c36c0922F6A368b83f9F6671bf07606'
     },
     daoMember2: {
       default: 44,
-      mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
+      mainnet: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
       goerli: '',
-      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
+      hardhat: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
+      local: '0xf3b17fdb808c7d0df9acd24da34700ce069007df',
+      sepolia: '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea'
     },
     daoMember3: {
       default: 45,
-      mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
       goerli: '',
-      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
+      hardhat: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      local: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     }
   },
   networks: {
     hardhat: {
       forking: {
-        // url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        url: `${process.env.ETH_NODE_URI_sepolia}`,
+        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        // url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 5859537,
         // blockNumber: 6042730
@@ -428,9 +428,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 6797943
       },
       // allowUnlimitedContractSize: false,
-      // deploy: ['deploy-layer2'],
-      // deploy: ['deploy-staking-v2.5-mainnet'],
-      deploy: ['deploy-staking-v2.5-sepolia'],
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -443,7 +441,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.PRIVATE_KEY}`],
       gasPrice: 50000000000,
       // deploy: ['deploy']
-      // deploy: ['deploy-staking-v2.5-mainnet']
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     goerli: {
       url: `${process.env.ETH_NODE_URI_goerli}`,
@@ -468,8 +466,8 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
-      // deploy: ['deploy-layer2']
-      deploy: ['deploy-staking-v2.5-sepolia']
+      // deploy: ['deploy_l2_proxy']
+      deploy: ['deploy-layer2']
     },
   },
   deterministicDeployment: (network: string) => {
@@ -517,6 +515,9 @@ const config: HardhatUserConfig = {
     currency: 'USD',
     gasPrice: 21,
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
+  },
+  mocha: {
+    timeout: 100000000
   },
   solidity: {
     version: '0.8.19',
