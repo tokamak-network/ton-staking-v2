@@ -294,36 +294,36 @@ describe('Layer2Manager', () => {
         })
     })
 
-    describe('# TransferOwner to DAOCommittee ', () => {
+    // describe('# TransferOwner to DAOCommittee ', () => {
 
-        it('CandidateAddOnFactoryProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await candidateAddOnFactoryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+    //     it('CandidateAddOnFactoryProxy ', async () => {
+    //         const {DAOCommitteeProxy} = await getNamedAccounts();
+    //         await (await candidateAddOnFactoryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
 
-            expect(await candidateAddOnFactoryProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
+    //         expect(await candidateAddOnFactoryProxy.isAdmin(deployer.address)).to.be.eq(false)
+    //         expect(await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+    //     });
 
-        it('operatorManagerFactory ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await operatorManagerFactory.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await operatorManagerFactory.owner()).to.be.eq(DAOCommitteeProxy)
-        });
+    //     it('operatorManagerFactory ', async () => {
+    //         const {DAOCommitteeProxy} = await getNamedAccounts();
+    //         await (await operatorManagerFactory.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+    //         expect(await operatorManagerFactory.owner()).to.be.eq(DAOCommitteeProxy)
+    //     });
 
-        it('L1BridgeRegistryProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await l1BridgeRegistryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await l1BridgeRegistryProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
+    //     it('L1BridgeRegistryProxy ', async () => {
+    //         const {DAOCommitteeProxy} = await getNamedAccounts();
+    //         await (await l1BridgeRegistryProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+    //         expect(await l1BridgeRegistryProxy.isAdmin(deployer.address)).to.be.eq(false)
+    //         expect(await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+    //     });
 
-        it('Layer2ManagerProxy ', async () => {
-            const {DAOCommitteeProxy} = await getNamedAccounts();
-            await (await layer2ManagerProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
-            expect(await layer2ManagerProxy.isAdmin(deployer.address)).to.be.eq(false)
-            expect(await layer2ManagerProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
-        });
-    })
+    //     it('Layer2ManagerProxy ', async () => {
+    //         const {DAOCommitteeProxy} = await getNamedAccounts();
+    //         await (await layer2ManagerProxy.connect(deployer).transferOwnership(DAOCommitteeProxy)).wait()
+    //         expect(await layer2ManagerProxy.isAdmin(deployer.address)).to.be.eq(false)
+    //         expect(await layer2ManagerProxy.isAdmin(DAOCommitteeProxy)).to.be.eq(true)
+    //     });
+    // })
 
     ///--- Agenda ---------------------------------
     describe('# Agenda', () => {

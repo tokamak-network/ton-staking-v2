@@ -53,6 +53,24 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             MultiProposerableTransactionExecutor: "0x014E38eAA7C9B33FeF08661F8F0bFC6FE43f1496"
         }
     }
+    console.log("\n=== ownerAddressInfo ===" )
+    console.log(ownerAddressInfo)
+
+    const name = 'Titan'
+    const addresses = {
+        l1CrossDomainMessenger: l1MessengerAddress,
+        l1ERC721Bridge: hre.ethers.constants.AddressZero,
+        l1StandardBridge: l1BridgeAddress,
+        l2OutputOracle: hre.ethers.constants.AddressZero,
+        optimismPortal: hre.ethers.constants.AddressZero,
+        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    }
+    console.log("\n === Titan Candidate ===" )
+    console.log("name: ", name)
+    console.log("addresses: ", addresses)
+
+
+    // return;
 
     const { deploy } = hre.deployments;
 
@@ -283,16 +301,6 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         LegacySystemConfig.address
     )) as LegacySystemConfig;
 
-    let name = 'Titan'
-    let addresses = {
-        l1CrossDomainMessenger: l1MessengerAddress,
-        l1ERC721Bridge: hre.ethers.constants.AddressZero,
-        l1StandardBridge: l1BridgeAddress,
-        l2OutputOracle: hre.ethers.constants.AddressZero,
-        optimismPortal: hre.ethers.constants.AddressZero,
-        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
-    }
-
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
         name, addresses, l1BridgeRegistryProxy.address
     )).wait()
@@ -300,6 +308,25 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     await (await legacySystemConfig.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
     )).wait()
+
+
+    //======= TransferOwner to DAOCommittee ======================================
+
+    await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+
+    console.log("candidateAddOnFactoryProxy.isAdmin(deployer): ", await candidateAddOnFactoryProxy.isAdmin(deployer))
+    console.log("candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy): ", await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy))
+
+    console.log("operatorManagerFactory.owner(): ", await operatorManagerFactory.owner())
+
+    console.log("l1BridgeRegistryProxy.isAdmin(deployer): ", await l1BridgeRegistryProxy.isAdmin(deployer))
+    console.log("l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy): ", await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy))
+
+    console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
+    console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))
 
     //==== verify =================================
     if (hre.network.name != "hardhat" && hre.network.name != "local") {
