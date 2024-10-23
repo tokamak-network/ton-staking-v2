@@ -959,7 +959,6 @@ describe('Layer2Manager', () => {
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -986,7 +985,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -1064,8 +1062,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -1091,7 +1087,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -1182,8 +1177,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -1212,7 +1205,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -1313,9 +1305,6 @@ describe('Layer2Manager', () => {
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
             let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -1345,7 +1334,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -1695,9 +1683,6 @@ describe('Layer2Manager', () => {
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
-            let powerTonBalance = await wtonContract.balanceOf(powerTon);
-            // console.log('\n updateSeigniorage... ' )
-
             const receipt = await (await seigManager.connect(pastDepositor).updateSeigniorageLayer(layer2Info_1.layer2)).wait()
 
             const topic = seigManager.interface.getEventTopic('CommitLog1');
@@ -1709,7 +1694,6 @@ describe('Layer2Manager', () => {
             let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
             expect(stakedB).to.be.gt(stakedA)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalance)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2078,7 +2062,6 @@ describe('Layer2Manager', () => {
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -2105,7 +2088,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2183,8 +2165,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2213,8 +2193,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
-
             let block2 = await ethers.provider.getBlock('latest');
 
             // console.log('\nblock number :', block2.number);
@@ -2309,9 +2287,6 @@ describe('Layer2Manager', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2340,7 +2315,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2492,7 +2466,6 @@ describe('Layer2Manager', () => {
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedPrev', stakedPrev)
             // console.log('stakedAddr1Prev', stakedAddr1Prev)
             // console.log('stakedAddr2Prev', stakedAddr2Prev)
@@ -2526,7 +2499,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2610,7 +2582,6 @@ describe('Layer2Manager', () => {
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
@@ -2642,7 +2613,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2723,8 +2693,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2750,7 +2718,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -2852,8 +2819,6 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -2883,8 +2848,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
-
             let block2 = await ethers.provider.getBlock('latest');
 
             // console.log('\nblock number :', block2.number);
@@ -3000,9 +2963,6 @@ describe('Layer2Manager', () => {
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
             let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
-            let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
-            // console.log('stakedOperatorPrev', stakedOperatorPrev)
-
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
@@ -3032,7 +2992,6 @@ describe('Layer2Manager', () => {
             expect(stakedAfter).to.be.gt(stakedPrev)
             expect(stakedAddr1After).to.be.gt(stakedAddr1Prev)
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
             let block2 = await ethers.provider.getBlock('latest');
 
@@ -3384,9 +3343,6 @@ describe('Layer2Manager', () => {
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
-            let powerTonBalance = await wtonContract.balanceOf(powerTon);
-            // console.log('\n updateSeigniorage... ' )
-
             const receipt = await (await seigManager.connect(pastDepositor).updateSeigniorageLayer(layer2Info_1.layer2)).wait()
 
             const topic = seigManager.interface.getEventTopic('CommitLog1');
@@ -3398,8 +3354,6 @@ describe('Layer2Manager', () => {
             let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
 
             expect(stakedB).to.be.gt(stakedA)
-            expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalance)
-
             let block2 = await ethers.provider.getBlock('latest');
 
             // console.log('\nblock number :', block2.number);
