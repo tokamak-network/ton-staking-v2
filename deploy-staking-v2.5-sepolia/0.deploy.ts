@@ -19,23 +19,9 @@ import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAd
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
-import {Signer} from "ethers"
+import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
 
-let ownerAddressInfo =  {
-    L1BridgeRegistry: {
-        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-        manager: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-    },
-    Layer2Manager: {
-        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
-    },
-    OperatorManagerFactory: {
-        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
-    },
-    Titan : {
-        MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
-    }
-}
+import {Signer} from "ethers"
 
 const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
@@ -45,7 +31,26 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     console.log('minimumInitialDepositAmount', minimumInitialDepositAmount )
 
-    const { deployer, DepositManager, SeigManager, swapProxy, DAOCommitteeProxy, TON, WTON } = await hre.getNamedAccounts();
+    const { deployer, DepositManager, SeigManager, swapProxy, DAOCommitteeProxy, TON, WTON,
+        l1MessengerAddress, l1BridgeAddress, l2TonAddress
+     } = await hre.getNamedAccounts();
+
+    const ownerAddressInfo =  {
+        L1BridgeRegistry: {
+            owner: DAOCommitteeProxy,
+            manager: DAOCommitteeProxy,
+        },
+        Layer2Manager: {
+            owner: DAOCommitteeProxy
+        },
+        OperatorManagerFactory: {
+            owner: DAOCommitteeProxy
+        },
+        Titan : {
+            MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+        }
+    }
+
     const { deploy } = hre.deployments;
 
     const deploySigner = await hre.ethers.getSigner(deployer);
@@ -262,6 +267,36 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         args: [],
         log: true
     });
+
+    //==== LegacySystemConfig =================================
+    const LegacySystemConfig = await deploy("LegacySystemConfig", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    const legacySystemConfig = (await hre.ethers.getContractAt(
+        LegacySystemConfig.abi,
+        LegacySystemConfig.address
+    )) as LegacySystemConfig;
+
+    let name = 'Titan'
+    let addresses = {
+        l1CrossDomainMessenger: l1MessengerAddress,
+        l1ERC721Bridge: hre.ethers.constants.AddressZero,
+        l1StandardBridge: l1BridgeAddress,
+        l2OutputOracle: hre.ethers.constants.AddressZero,
+        optimismPortal: hre.ethers.constants.AddressZero,
+        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    }
+
+    await (await legacySystemConfig.connect(deploySigner).setAddresses(
+        name, addresses, l1BridgeRegistryProxy.address
+    )).wait()
+
+    await (await legacySystemConfig.connect(deploySigner).transferOwnership(
+        ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
+    )).wait()
 
     //==== verify =================================
     if (hre.network.name != "hardhat" && hre.network.name != "local") {
