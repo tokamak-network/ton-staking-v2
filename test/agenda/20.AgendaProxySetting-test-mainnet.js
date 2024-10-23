@@ -603,361 +603,30 @@ describe("DAO Proxy Change Test", () => {
                 targets.push(oldContractInfo.DAOCommitteeProxy);
                 functionBytecodes.push(functionBytecode1)
 
-                // const functionBytecode2 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-                //     "setSelectorImplementations2", [
-                //         [
-                //             _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
-                //             _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
-                //             _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
-                //             _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
-                //             _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                //             _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                //             _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                //             _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
-                //         ],
-                //         daoCommitteeOwner.address]
-                //     )
-
-                // targets.push(oldContractInfo.DAOCommitteeProxy);
-                // functionBytecodes.push(functionBytecode2)
-
-                const param = Web3EthAbi.encodeParameters(
-                    ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-                    [
-                        targets,
-                        noticePeriod.toString(),
-                        votingPeriod.toString(),
-                        true,
-                        functionBytecodes
-                    ]
-                )
-
-                const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
-                if (agendaFee.gt(beforeBalance))
-                        await (await ton.connect(daoCommitteeAdmin).mint(daoCommitteeAdmin.address, agendaFee)).wait();
-
-                // let agendaID = (await daoagendaManager.numAgendas()).sub(1);
-
-                await ton.connect(daoCommitteeAdmin).approveAndCall(
-                    daoCommitteeProxy.address,
-                    agendaFee,
-                    param
-                );
-
-                agendaID = (await daoagendaManager.numAgendas()).sub(1);
-            })
-
-            it('increase block time and check votable', async function () {
-                const agenda = await daoagendaManager.agendas(agendaID);  
-                // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-                const noticeEndTimestamp = agenda[1];
-                await time.increaseTo(Number(noticeEndTimestamp));
-                expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-            });
-
-            it("Cast vote (member2)", async () => {
-                const agenda = await daoagendaManager.agendas(agendaID);  
-                // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-                const beforeCountingYes = agenda[7];
-                const beforeCountingNo = agenda[8];
-                const beforeCountingAbstain = agenda[9];
-                
-                const vote = 1
-                
-                // first cast not setting so check member
-                let checkMember = await daoCommittee_V1_Contract.isMember(member2Addr)
-                expect(checkMember).to.be.equal(true)
-
-                // counting 0:abstainVotes 1:yesVotes 2:noVotes
-                await daoCommittee_V1_Contract.connect(member2Contract).castVote(
-                    agendaID,
-                    vote,
-                    "member2 vote"
-                )
-
-                const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member2Addr);
-                // expect(voterInfo2[VOTER_INFO_ISVOTER]).to.be.equal(true);
-                expect(voterInfo2[0]).to.be.equal(true);
-                // expect(voterInfo2[VOTER_INFO_HAS_VOTED]).to.be.equal(true);
-                expect(voterInfo2[1]).to.be.equal(true);
-                // expect(voterInfo2[VOTER_INFO_VOTE]).to.be.equal(_vote);
-                expect(voterInfo2[2]).to.be.equal(vote);
-
-                const agenda2 = await daoagendaManager.agendas(agendaID);
-                expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-                expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-                expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
-
-                const result = await daoagendaManager.getVoteStatus(agendaID, member2Addr);
-                expect(result[0]).to.be.equal(true);
-                expect(result[1]).to.be.equal(vote);
-            })
-
-            it("Cast vote (member3)", async () => {
-                const agenda = await daoagendaManager.agendas(agendaID);  
-                // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-                const beforeCountingYes = agenda[7];
-                const beforeCountingNo = agenda[8];
-                const beforeCountingAbstain = agenda[9];
-                
-                const vote = 1
-                
-                // first cast not setting so check member
-                let checkMember = await daoCommittee_V1_Contract.isMember(member2Addr)
-                expect(checkMember).to.be.equal(true)
-
-                // counting 0:abstainVotes 1:yesVotes 2:noVotes
-                await daoCommittee_V1_Contract.connect(member3Contract).castVote(
-                    agendaID,
-                    vote,
-                    "member3 vote"
-                )
-
-                const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
-                // expect(voterInfo2[VOTER_INFO_ISVOTER]).to.be.equal(true);
-                expect(voterInfo2[0]).to.be.equal(true);
-                // expect(voterInfo2[VOTER_INFO_HAS_VOTED]).to.be.equal(true);
-                expect(voterInfo2[1]).to.be.equal(true);
-                // expect(voterInfo2[VOTER_INFO_VOTE]).to.be.equal(_vote);
-                expect(voterInfo2[2]).to.be.equal(vote);
-
-                const agenda2 = await daoagendaManager.agendas(agendaID);
-                expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-                expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-                expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
-
-                const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
-                expect(result[0]).to.be.equal(true);
-                expect(result[1]).to.be.equal(vote);
-            })
-
-            it("check vote result/status & increase can ExecuteTime", async () => {
-                const agenda = await daoagendaManager.agendas(agendaID);
-                // console.log("agenda Result :", agenda[10])
-                // console.log("agenda status :", agenda[11])
-    
-                if (agenda[10] == 3) {
-                    const votingEndTimestamp = agenda[4];
-                    const currentTime = await time.latest();
-                    if (currentTime < votingEndTimestamp) {
-                        await time.increaseTo(Number(votingEndTimestamp));
-                    }
-                    expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
-                }
-            });
-
-            it("execute agenda", async () => {
-                const agenda = await daoagendaManager.agendas(agendaID);
-                expect(agenda[6]).to.be.equal(0);
-
-                const beforeValue = await daoagendaManager.minimumNoticePeriodSeconds();
-                // console.log("agendaID : ", agendaID)
-                // console.log("beforeAgendaID : ", beforeAgendaID)
-                // console.log("beforeValue :", beforeValue)
-                
-                // let diffAgenda = agendaID - beforeAgendaID
-                
-                await daoCommittee_V1_Contract.executeAgenda(agendaID);
-                // const afterValue = await daoagendaManager.minimumNoticePeriodSeconds();
-
-                // expect(beforeValue).to.be.not.equal(afterValue);
-                // expect(afterValue).to.be.equal(30);
-
-                const afterAgenda = await daoagendaManager.agendas(agendaID); 
-                expect(afterAgenda[13]).to.be.equal(true);
-                expect(afterAgenda[6]).to.be.gt(0); 
-            })
-
-            // it('increase block time', async function () {
-            //     await time.increaseTo(Number(noticeEndTimestamp));
-            //     // const agenda = await daoagendaManager.agendas(agendaID);  
-            //     // const noticeEndTimestamp = agenda[1];
-            //     // expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-            // });
-
-            it("CreateAgenda2 upgraded DAOContract", async () => {
-                const _setCandidateAddOnFactory = Web3EthAbi.encodeFunctionSignature(
-                    "setCandidateAddOnFactory(address)"
-                )
-                console.log("_setCandidateAddOnFactory", _setCandidateAddOnFactory); 
-    
-                const _setLayer2Manager = Web3EthAbi.encodeFunctionSignature(
-                    "setLayer2Manager(address)"
-                ) 
-    
-                const _setTargetSetLayer2Manager = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetLayer2Manager(address,address)"
-                )
-    
-                const _setTargetSetL1BridgeRegistry = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetL1BridgeRegistry(address,address)"
-                )
-    
-                const _setTargetLayer2StartBlock = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetLayer2StartBlock(address,uint256)"
-                )
-    
-                const _setTargetSetImplementation2 = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetImplementation2(address,address,uint256,bool)"
-                )
-    
-                const _setTargetSetSelectorImplementations2 = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetSelectorImplementations2(address,bytes4[],address)"
-                )
-    
-                const _setSeigManager = Web3EthAbi.encodeFunctionSignature(
-                    "setSeigManager(address)"
-                )
-    
-                const _setTargetSeigManager = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSeigManager(address,address)"
-                )
-    
-                const _setSeigPause = Web3EthAbi.encodeFunctionSignature(
-                    "setSeigPause()"
-                )
-    
-                const _setSeigUnpause = Web3EthAbi.encodeFunctionSignature(
-                    "setSeigUnpause()"
-                )
-    
-                const _setTargetGlobalWithdrawalDelay = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetGlobalWithdrawalDelay(address,uint256)"
-                )
-    
-                const _setTargetAddMinter = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetAddMinter(address,address)"
-                )
-    
-                const _setTargetUpgradeTo = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetUpgradeTo(address,address)"
-                )
-    
-                const _setTargetSetTON = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetTON(address,address)"
-                )
-                
-                const _setTargetSetWTON = Web3EthAbi.encodeFunctionSignature(
-                    "setTargetSetWTON(address,address)"
-                )
-    
-                const _setDaoVault = Web3EthAbi.encodeFunctionSignature(
-                    "setDaoVault(address)"
-                )
-    
-                const _setLayer2Registry = Web3EthAbi.encodeFunctionSignature(
-                    "setLayer2Registry(address)"
-                )
-    
-                const _setAgendaManager = Web3EthAbi.encodeFunctionSignature(
-                    "setAgendaManager(address)"
-                )
-    
-                const _setCandidateFactory = Web3EthAbi.encodeFunctionSignature(
-                    "setCandidateFactory(address)"
-                )
-    
-                const _setTon = Web3EthAbi.encodeFunctionSignature(
-                    "setTon(address)"
-                )
-    
-                const _setWton = Web3EthAbi.encodeFunctionSignature(
-                    "setWton(address)"
-                )
-    
-                const _increaseMaxMember = Web3EthAbi.encodeFunctionSignature(
-                    "increaseMaxMember(uint256,uint256)"
-                )
-    
-                const _setQuorum = Web3EthAbi.encodeFunctionSignature(
-                    "setQuorum(uint256)"
-                )
-    
-                const _decreaseMaxMember = Web3EthAbi.encodeFunctionSignature(
-                    "decreaseMaxMember(uint256,uint256)"
-                )
-    
-                const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature(
-                    "setBurntAmountAtDAO(uint256)"
-                )
-    
-                const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature(
-                    "setActivityRewardPerSecond(uint256)"
-                )
-    
-                const _setCandidatesSeigManager = Web3EthAbi.encodeFunctionSignature(
-                    "setCandidatesSeigManager(address[],address)"
-                )
-    
-                const _setCandidatesCommittee = Web3EthAbi.encodeFunctionSignature(
-                    "setCandidatesCommittee(address[],address)"
-                )
-    
-                const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
-                    "setCreateAgendaFees(uint256)"
-                )
-    
-                const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                    "setMinimumNoticePeriodSeconds(uint256)"
-                )
-    
-                const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                    "setMinimumVotingPeriodSeconds(uint256)"
-                )
-    
-                const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                    "setExecutingPeriodSeconds(uint256)"
-                )
-
-
-                let setSelectorBytes = [
-                    _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
-                    _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
-                    _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
-                    _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
-                    _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                    _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                    _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                    _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
-                ]
-
-                const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-                const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-
-                const agendaFee = await daoagendaManager.createAgendaFees();
-
-                let targets = [];
-                let functionBytecodes = [];
-
-                let selector = ["0x401e23e6"]
-                
-                let selector2 = [_setCandidateAddOnFactory]
-                console.log(selector)
-                console.log(selector2)
-
-                const functionBytecode1 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+                const functionBytecode2 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
                     "setImplementation2", [daoCommitteeOwner.address, 1, true]
                 )
 
                 targets.push(oldContractInfo.DAOCommitteeProxy);
-                functionBytecodes.push(functionBytecode1)
-                
-                const functionBytecode2 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-                    "setSelectorImplementations2", [[_setCandidateAddOnFactory,_setLayer2Manager],daoCommitteeOwner.address])
-                console.log("functionBytecode2", functionBytecode2)
+                functionBytecodes.push(functionBytecode2)
 
-                let selector1 = Web3EthAbi.encodeFunctionSignature("setSelectorImplementations2(bytes4[],address)")
-                console.log("selector1", selector1)
-
-                // let data1 = padLeft(selector2.toString(), 64);
-                // let data2 = padLeft(daoCommitteeOwner.address.toString(), 64);
-                // let data3 = data1 + data2
-
-                // let functionBytecode1 = selector1.concat(data3);
-                // console.log("functionBytecode1", functionBytecode1)
+                const functionBytecode3 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+                    "setSelectorImplementations2", [
+                        [
+                            _setCandidateAddOnFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL1BridgeRegistry,
+                            _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
+                            _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
+                            _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
+                            _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
+                            _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
+                            _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
+                            _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+                        ],
+                        daoCommitteeOwner.address]
+                    )
 
                 targets.push(oldContractInfo.DAOCommitteeProxy);
-                functionBytecodes.push(functionBytecode2)
+                functionBytecodes.push(functionBytecode3)
 
                 const param = Web3EthAbi.encodeParameters(
                     ["address[]", "uint128", "uint128", "bool", "bytes[]"],
@@ -1105,6 +774,7 @@ describe("DAO Proxy Change Test", () => {
                 expect(afterAgenda[13]).to.be.equal(true);
                 expect(afterAgenda[6]).to.be.gt(0); 
             })
+
         })
 
         describe("SeigManager Agenda", () => {
