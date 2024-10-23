@@ -23,17 +23,17 @@ import {Signer} from "ethers"
 
 let ownerAddressInfo =  {
     L1BridgeRegistry: {
-        owner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
-        manager: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
+        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
+        manager: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
     },
     Layer2Manager: {
-        owner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
     },
     OperatorManagerFactory: {
-        owner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
+        owner: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
     },
     Titan : {
-        MultiProposerableTransactionExecutor: "0x014E38eAA7C9B33FeF08661F8F0bFC6FE43f1496"
+        MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
     }
 }
 
