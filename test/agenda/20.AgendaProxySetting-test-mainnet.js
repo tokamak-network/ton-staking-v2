@@ -186,6 +186,13 @@ describe("DAO Proxy Change Test", () => {
     let agendaID;
     let beforeAgendaID;
 
+    let l1BridgeRegistryV_1;
+    let l1BridgeRegistryProxy;
+    let layer2ManagerV1_1;
+    let layer2ManagerProxy;
+    let candidateAddOnFactoryImp;
+    let candidateAddOnFactoryProxy;
+
     //changeMember before info
     // [
     //     '0x576C7a48fcEf1C70db632bb1504D9A5C0D0190D3',
@@ -383,6 +390,48 @@ describe("DAO Proxy Change Test", () => {
             
             await depositManagerV1_1.deployed()
         })
+
+        it('Deploy the l1BridgeRegistryProxy', async () => {
+            const l1BridgeRegistryV_1Contract = await ethers.getContractFactory("L1BridgeRegistryV1_1")
+            l1BridgeRegistryV_1 = await l1BridgeRegistryV_1Contract.deploy();
+
+            await l1BridgeRegistryV_1.deployed()
+            
+            const l1BridgeRegistryProxyContract = await ethers.getContractFactory("L1BridgeRegistryProxy")
+            l1BridgeRegistryProxy = await l1BridgeRegistryProxyContract.deploy();
+
+            await l1BridgeRegistryProxy.deployed()
+
+            await (await l1BridgeRegistryProxy.upgradeTo(l1BridgeRegistryV_1.address)).wait()
+        });
+
+        it('Deploy the Layer2Manager', async () => {
+            const layer2ManagerV1_1Contract = await ethers.getContractFactory("Layer2ManagerV1_1")
+            layer2ManagerV1_1 = await layer2ManagerV1_1Contract.deploy();
+
+            await layer2ManagerV1_1.deployed()
+            
+            const layer2ManagerProxyContract = await ethers.getContractFactory("Layer2ManagerProxy")
+            layer2ManagerProxy = await layer2ManagerProxyContract.deploy();
+
+            await layer2ManagerProxy.deployed()
+
+            await (await layer2ManagerProxy.upgradeTo(layer2ManagerV1_1.address)).wait()
+        });
+
+        it('Deploy the CandidateAddOnFactory', async () => {
+            const candidateAddOnFactoryImpContract = await ethers.getContractFactory("CandidateAddOnFactory")
+            candidateAddOnFactoryImp = await candidateAddOnFactoryImpContract.deploy();
+
+            await candidateAddOnFactoryImp.deployed()
+            
+            const candidateAddOnFactoryProxyContract = await ethers.getContractFactory("CandidateAddOnFactoryProxy")
+            candidateAddOnFactoryProxy = await candidateAddOnFactoryProxyContract.deploy();
+
+            await candidateAddOnFactoryProxy.deployed()
+
+            await (await candidateAddOnFactoryProxy.upgradeTo(candidateAddOnFactoryImp.address)).wait()
+        });
     })
 
     describe("Set Contract", () => {
@@ -721,11 +770,11 @@ describe("DAO Proxy Change Test", () => {
                 targets.push(depositManagerProxy.address)
                 functionBytecodes.push(functionBytecode7)
 
-                const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactory.address])
+                const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
                 targets.push(oldContractInfo.DAOCommitteeProxy)
                 functionBytecodes.push(functionBytecode8)
 
-                const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2Manager.address])
+                const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
                 targets.push(oldContractInfo.DAOCommitteeProxy)
                 functionBytecodes.push(functionBytecode9)
 
@@ -733,6 +782,15 @@ describe("DAO Proxy Change Test", () => {
                 targets.push(seigManagerProxy.address)
                 functionBytecodes.push(functionBytecode10)
 
+                const functionBytecode11 = seigManagerV1_3.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+                targets.push(seigManagerProxy.address)
+                functionBytecodes.push(functionBytecode11)
+
+                const functionBytecode12 = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
+                    l1BridgeRegistryProxy.address,
+                    layer2ManagerProxy.address ])
+                targets.push(depositManagerProxy.address)
+                functionBytecodes.push(functionBytecode12)
 
 
                 const param = Web3EthAbi.encodeParameters(
