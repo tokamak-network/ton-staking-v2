@@ -20,6 +20,7 @@ import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/Sei
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
+import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/LegacySystemConfigProxy"
 
 import {Signer} from "ethers"
 
@@ -47,7 +48,8 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             owner: DAOCommitteeProxy
         },
         Titan : {
-            MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+            proxyOwner: DAOCommitteeProxy,
+            manager: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
         }
     }
     console.log("\n=== ownerAddressInfo ===" )
@@ -285,23 +287,42 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     });
 
     //==== LegacySystemConfig =================================
-    const LegacySystemConfig = await deploy("LegacySystemConfig", {
+    const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
         from: deployer,
         args: [],
         log: true
     });
 
+    const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
+        LegacySystemConfigProxyDep.abi,
+        LegacySystemConfigProxyDep.address
+    )) as LegacySystemConfigProxy;
+
     const legacySystemConfig = (await hre.ethers.getContractAt(
-        LegacySystemConfig.abi,
-        LegacySystemConfig.address
+        LegacySystemConfigDep.abi,
+        LegacySystemConfigProxyDep.address
     )) as LegacySystemConfig;
+
+    await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
+        LegacySystemConfigDep.address
+    )).wait()
 
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
         name, addresses, l1BridgeRegistryProxy.address
     )).wait()
 
-    await (await legacySystemConfig.connect(deploySigner).transferOwnership(
-        ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
+    await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
+        ownerAddressInfo.Titan.proxyOwner
+    )).wait()
+
+    await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
+        ownerAddressInfo.Titan.manager
     )).wait()
 
     //======= TransferOwner to DAOCommittee ======================================
