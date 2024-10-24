@@ -38,16 +38,32 @@ async function totalSupplyOfTon (deployer, blockNumber) {
 
 
 async function estimatedDistribute (
-    deployer,
-    blockNumber
+    deployer
 ) {
     const seigManager = new ethers.Contract(SeigManagerAddress,  SeigManagerV1_2_Json.abi, deployer)
     const spansYear = 365*(60*60*24)/12;
     const lastSeigBlock = await seigManager.lastSeigBlock()
+
+    let monthSpan = 60*60*24*30 /12
+
+    let block = await ethers.provider.getBlock('latest')
+    //======================
+    // 현재 바로 실행해할때,
+    console.log('=================================')
+    console.log('******** 현재 바로 업데이트 시뇨리지 실행했을 때')
+    let blockNumber = block.number +1
     let spans = blockNumber - lastSeigBlock;
+    // 가장 최근 업데이트 시뇨리지 실행 한달 뒤에 실행할때,
+    // console.log('=================================')
+    // console.log('******** 이전 업데이트 시뇨리지 이후, 한달 후에 실행시  ')
+    // let blockNumber = lastSeigBlock + monthSpan
+    // let spans = monthSpan;
+    //======================
+
     let spansBN = ethers.BigNumber.from(""+spans)
+
     console.log('lastSeigBlock', lastSeigBlock)
-    console.log('spansYear', spansYear)
+    // console.log('spansYear', spansYear)
     console.log('spans', spans)
 
     let tos = await totalSupplyOfTon(deployer, ethers.BigNumber.from(""+blockNumber));
@@ -59,19 +75,19 @@ async function estimatedDistribute (
 
     let totalPseig = (maxSeig.sub(stakedSeig).sub(l2TotalSeigs)).mul(RelativeSeigRate).div(RAY)
 
-    console.log('tos', tos)
-    console.log('prevTotalSupply', prevTotalSupply)
-    console.log('stakedSeig', stakedSeig)
-    console.log('totalPseig', totalPseig)
+    // console.log('tos', tos)
+    // console.log('prevTotalSupply', prevTotalSupply)
+    // console.log('stakedSeig', stakedSeig)
+    // console.log('totalPseig', totalPseig)
 
     let seigsPerStakedTon = stakedSeig.add(totalPseig).div(prevTotalSupply.div(RAY))
     console.log('seigsPerStakedTon', ethers.utils.formatUnits(seigsPerStakedTon,27) ," WTON")
 
-    let seigsOneBlockPerStakedTon = seigsPerStakedTon.div(spansBN)
-    console.log('seigsOneBlockPerStakedTon', ethers.utils.formatUnits(seigsOneBlockPerStakedTon,27) ," WTON")
+    // let seigsOneBlockPerStakedTon = seigsPerStakedTon.div(spansBN)
+    // console.log('seigsOneBlockPerStakedTon', ethers.utils.formatUnits(seigsOneBlockPerStakedTon,27) ," WTON")
 
-    let seigsYearPerStakedTon = seigsOneBlockPerStakedTon.mul(spansYear)
-    console.log('seigsYearPerStakedTon', ethers.utils.formatUnits(seigsYearPerStakedTon,27) ," WTON")
+    // let seigsYearPerStakedTon = seigsOneBlockPerStakedTon.mul(spansYear)
+    // console.log('seigsYearPerStakedTon', ethers.utils.formatUnits(seigsYearPerStakedTon,27) ," WTON")
 
     console.log('=================================')
     console.log('APR (단리) = 단위 수익률 x 연간 정산 횟수')
@@ -117,10 +133,7 @@ async function checkApy() {
     const seigManager = new ethers.Contract(SeigManagerAddress,  SeigManager_Json.abi, deployer)
     const seigManagerV1_3 = new ethers.Contract(SeigManagerAddress,  SeigManagerV1_3_Json.abi, deployer)
 
-    let block = await ethers.provider.getBlock('latest')
-    console.log('block', block.number)
-
-    await estimatedDistribute(deployer, block.number);
+    await estimatedDistribute(deployer );
 
 }
 
