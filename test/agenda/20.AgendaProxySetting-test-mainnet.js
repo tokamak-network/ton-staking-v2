@@ -721,6 +721,19 @@ describe("DAO Proxy Change Test", () => {
                 targets.push(depositManagerProxy.address)
                 functionBytecodes.push(functionBytecode7)
 
+                const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactory.address])
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                functionBytecodes.push(functionBytecode8)
+
+                const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2Manager.address])
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                functionBytecodes.push(functionBytecode9)
+
+                const functionBytecode10 = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+                targets.push(seigManagerProxy.address)
+                functionBytecodes.push(functionBytecode10)
+
+
 
                 const param = Web3EthAbi.encodeParameters(
                     ["address[]", "uint128", "uint128", "bool", "bytes[]"],
