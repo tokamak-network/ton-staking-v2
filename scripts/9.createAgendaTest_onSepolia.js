@@ -5,7 +5,6 @@ const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const DAOCommitteeOwnerABI = require("../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
 const DAOAgendaManagerABI = require("../abi/daoAgendaManager.json").abi;
-const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const SeigManagerProxy_Json = require('../abi/DepositManagerProxy.json')
 const DepositManagerProxy_Json = require('../abi/DepositManagerProxy.json')
 const TonABI = require("../abi/TON.json").abi;
@@ -52,6 +51,7 @@ async function CreateAgendaTest() {
     let layer2ManagerProxyAddr = "0xab303E7CBFd19C998268e19d830770e215AbDF7F";
     let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
     let legacySystemConfigAddr = "0x501C74df1aDEb8024738D880B01306a92d6e722d"
+    let candidateAddOnFactoryProxyAddr = "0x31BE6c47233A65fA60877c087634DB582082E4da"
     
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================
@@ -400,19 +400,19 @@ async function CreateAgendaTest() {
     targets.push(depositManagerProxy.address)
     functionBytecodes.push(functionBytecode7)
 
-    const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
+    const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxyAddr])
     targets.push(sepoliaContractInfo.DAOCommitteeProxy)
     functionBytecodes.push(functionBytecode8)
 
-    const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+    const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxyAddr])
     targets.push(sepoliaContractInfo.DAOCommitteeProxy)
     functionBytecodes.push(functionBytecode9)
 
-    const functionBytecode10 = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+    const functionBytecode10 = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxyAddr])
     targets.push(seigManagerProxy.address)
     functionBytecodes.push(functionBytecode10)
 
-    const functionBytecode11 = seigManagerV1_3.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+    const functionBytecode11 = seigManagerV1_3.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxyAddr])
     targets.push(seigManagerProxy.address)
     functionBytecodes.push(functionBytecode11)
 
