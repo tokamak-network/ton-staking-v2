@@ -93,7 +93,7 @@ async function estimatedDistribute (
     console.log('APR (단리) = 단위 수익률 x 연간 정산 횟수')
     console.log('APY (복리) = (1+단위 수익률)^연간 정산 횟수 - 1')
 
-    let uint = spans * 12
+    let uint = spans * 12    // 1 블록을 12초로 계산
     let uintDay = spans * 12 / (60*60*24)
     let numberOfSettles =  spansYear/spans
     let yieldUnit = seigsPerStakedTon.mul(WAI).div(RAY).mul(ethers.BigNumber.from("100"))
