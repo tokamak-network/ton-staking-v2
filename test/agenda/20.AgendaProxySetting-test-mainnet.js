@@ -188,10 +188,12 @@ describe("DAO Proxy Change Test", () => {
 
     let l1BridgeRegistryV_1;
     let l1BridgeRegistryProxy;
+    let l1BridgeRegistry;
     let layer2ManagerV1_1;
     let layer2ManagerProxy;
     let candidateAddOnFactoryImp;
     let candidateAddOnFactoryProxy;
+    let legacySystemConfig;
 
     //changeMember before info
     // [
@@ -432,6 +434,13 @@ describe("DAO Proxy Change Test", () => {
 
             await (await candidateAddOnFactoryProxy.upgradeTo(candidateAddOnFactoryImp.address)).wait()
         });
+
+        it("Deploy the LegacySystemConfig", async () => {
+            const legacySystemConfigContract = await ethers.getContractFactory("LegacySystemConfig")
+            legacySystemConfig = await legacySystemConfigContract.deploy();
+
+            await legacySystemConfig.deployed()
+        })
     })
 
     describe("Set Contract", () => {
@@ -501,6 +510,38 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeAdmin
             )
         })
+
+        it("set l1BridgeRegistry", async () => {
+            l1BridgeRegistry = await ethers.getContractAt(
+                "L1BridgeRegistryV1_1", 
+                l1BridgeRegistryProxy.address, 
+                daoCommitteeAdmin
+            )
+        })
+
+        it("setting the LegacySystemConfig", async () => {
+            let name = 'Titan'
+            let l1MessengerAddress = "0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE"
+            let l1BridgeAddress = "0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD"
+
+            let addresses = {
+                l1CrossDomainMessenger: l1MessengerAddress,
+                l1ERC721Bridge: ethers.constants.AddressZero,
+                l1StandardBridge: l1BridgeAddress,
+                l2OutputOracle: ethers.constants.AddressZero,
+                optimismPortal: ethers.constants.AddressZero,
+                optimismMintableERC20Factory: ethers.constants.AddressZero
+            }
+            await (await legacySystemConfig.setAddresses(
+                name, addresses, l1BridgeRegistryProxy.address
+            )).wait()
+        })
+
+        it('L1BridgeRegistryProxy transferOwnership', async () => {
+            await (await l1BridgeRegistryProxy.addManager(oldContractInfo.DAOCommitteeProxy)).wait()
+            await (await l1BridgeRegistryProxy.transferOwnership(oldContractInfo.DAOCommitteeProxy)).wait()
+            expect(await l1BridgeRegistryProxy.isAdmin(oldContractInfo.DAOCommitteeProxy)).to.be.eq(true)
+        });
 
     })
 
@@ -791,6 +832,12 @@ describe("DAO Proxy Change Test", () => {
                     layer2ManagerProxy.address ])
                 targets.push(depositManagerProxy.address)
                 functionBytecodes.push(functionBytecode12)
+
+                let name = 'Titan'
+                let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
+                const functionBytecode13 = l1BridgeRegistry.interface.encodeFunctionData("registerRollupConfigByManager(address,uint8,address,string)", [ legacySystemConfig.address, 1,  l2TonAddress, name])
+                targets.push(l1BridgeRegistryProxy.address)
+                functionBytecodes.push(functionBytecode13)
 
 
                 const param = Web3EthAbi.encodeParameters(
