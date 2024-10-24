@@ -50,9 +50,10 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             owner: DAOCommitteeProxy
         },
         Titan : {
-            MultiProposerableTransactionExecutor: "0x014E38eAA7C9B33FeF08661F8F0bFC6FE43f1496"
+            manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
         }
     }
+
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
@@ -306,7 +307,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )).wait()
 
     await (await legacySystemConfig.connect(deploySigner).transferOwnership(
-        ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
+        ownerAddressInfo.Titan.manager
     )).wait()
 
 
