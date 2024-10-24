@@ -3,25 +3,10 @@ pragma solidity ^0.8.4;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
+import "./LegacySystemConfigStorage.sol";
 
-contract LegacySystemConfig is Ownable {
 
-    /// @notice Struct representing the addresses of L1 system contracts. These should be the
-    ///         proxies and will differ for each OP Stack chain.
-    struct Addresses {
-        address l1CrossDomainMessenger;
-        address l1ERC721Bridge;
-        address l1StandardBridge;
-        address l2OutputOracle;
-        address optimismPortal;
-        address optimismMintableERC20Factory;
-    }
-
-    Addresses public addresses;
-    // address public l2Ton;
-    string public name;
-
-    address public l1BridgeRegistry;
+contract LegacySystemConfig is Ownable, LegacySystemConfigStorage {
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {

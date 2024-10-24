@@ -20,6 +20,7 @@ import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/Sei
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
+import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/LegacySystemConfigProxy"
 
 
 import {Signer} from "ethers"
@@ -50,28 +51,10 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             owner: DAOCommitteeProxy
         },
         Titan : {
+            proxyOwner: DAOCommitteeProxy,
             manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
         }
     }
-    console.log("\n=== ownerAddressInfo ===" )
-    console.log(ownerAddressInfo)
-
-    const name = 'Titan'
-    const addresses = {
-        l1CrossDomainMessenger: l1MessengerAddress,
-        l1ERC721Bridge: hre.ethers.constants.AddressZero,
-        l1StandardBridge: l1BridgeAddress,
-        l2OutputOracle: hre.ethers.constants.AddressZero,
-        optimismPortal: hre.ethers.constants.AddressZero,
-        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
-    }
-    console.log("\n === Titan Candidate ===" )
-    console.log("name: ", name)
-    console.log("addresses: ", addresses)
-
-
-    // return;
-
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
@@ -309,25 +292,46 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     });
 
     //==== LegacySystemConfig =================================
-    const LegacySystemConfig = await deploy("LegacySystemConfig", {
+    const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
         from: deployer,
         args: [],
         log: true
     });
 
+    const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
+        LegacySystemConfigProxyDep.abi,
+        LegacySystemConfigProxyDep.address
+    )) as LegacySystemConfigProxy;
+
     const legacySystemConfig = (await hre.ethers.getContractAt(
-        LegacySystemConfig.abi,
-        LegacySystemConfig.address
+        LegacySystemConfigDep.abi,
+        LegacySystemConfigProxyDep.address
     )) as LegacySystemConfig;
+
+
+    await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
+        LegacySystemConfigDep.address
+    )).wait()
 
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
         name, addresses, l1BridgeRegistryProxy.address
     )).wait()
 
-    await (await legacySystemConfig.connect(deploySigner).transferOwnership(
-        ownerAddressInfo.Titan.manager
+    console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
+    await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
+        ownerAddressInfo.Titan.proxyOwner
     )).wait()
 
+    console.log('ownerAddressInfo.Titan.manager', ownerAddressInfo.Titan.manager)
+    await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
+        ownerAddressInfo.Titan.manager
+    )).wait()
 
     //======= TransferOwner to DAOCommittee ======================================
 

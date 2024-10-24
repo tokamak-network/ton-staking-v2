@@ -92,7 +92,8 @@ let ownerAddressInfo =  {
         owner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
     },
     Titan : {
-        MultiProposerableTransactionExecutor: "0x014E38eAA7C9B33FeF08661F8F0bFC6FE43f1496"
+        proxyOwner: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
+        manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
     }
 }
 
@@ -237,14 +238,15 @@ describe('Layer2Manager', () => {
         seigniorageCommittee = await hre.ethers.getSigner(seigniorageCommitteeAddress);
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
-            ownerAddressInfo.Titan.MultiProposerableTransactionExecutor,
+            ownerAddressInfo.Titan.manager,
         ]);
         await hre.network.provider.send("hardhat_setBalance", [
-            ownerAddressInfo.Titan.MultiProposerableTransactionExecutor,
+            ownerAddressInfo.Titan.manager,
             "0x10000000000000000000000000",
         ]);
-        titanManager =  await hre.ethers.getSigner(ownerAddressInfo.Titan.MultiProposerableTransactionExecutor);
 
+        titanManager =  await hre.ethers.getSigner(ownerAddressInfo.Titan.manager);
+        tonMinter = daoAdmin
     })
 
     describe('# Tester', () => {
@@ -252,6 +254,9 @@ describe('Layer2Manager', () => {
 
             await (await tonContract.connect(daoAdmin).mint(addr1.address, ethers.utils.parseEther("2000"))).wait()
             await (await tonContract.connect(daoAdmin).mint(addr2.address, ethers.utils.parseEther("2000"))).wait()
+            await (await tonContract.connect(tonMinter).mint(tonHave.address, ethers.utils.parseEther("2000"))).wait()
+            await (await tonContract.connect(tonMinter).mint(pastAddr, ethers.utils.parseEther("2000"))).wait()
+            await (await wtonContract.connect(tonMinter).mint(wtonHave.address, ethers.utils.parseEther("3000000000000"))).wait()
 
         })
     })
@@ -274,7 +279,7 @@ describe('Layer2Manager', () => {
             daoCommitteeProxy2Contract = (await ethers.getContractAt("DAOCommitteeProxy2", deployed.DAOCommitteeProxy2.address, deployer)) as DAOCommitteeProxy2;
             daoCommitteeOwner = (await ethers.getContractAt("DAOCommitteeOwner", deployed.DAOCommitteeOwner.address, deployer)) as DAOCommitteeOwner;
             daoCommittee_V1 = (await ethers.getContractAt("DAOCommittee_V1", deployed.DAOCommittee_V1.address, deployer)) as DAOCommittee_V1;
-            legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfig.address, deployer )) as LegacySystemConfig;
+            legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfigProxy.address, deployer )) as LegacySystemConfig;
 
             // console.log('l1BridgeRegistryProxy', l1BridgeRegistryProxy.address)
             // console.log('l1BridgeRegistry', l1BridgeRegistry.address)
@@ -1175,6 +1180,7 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const prevWtonBalanceOfManager = await wtonContract.balanceOf(titanManager.address)
+
             const prevUnSettledReward = await seigManager.unSettledReward(titanLayerAddress)
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
@@ -1243,7 +1249,7 @@ describe('Layer2Manager', () => {
             const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = seigManager.interface.parseLog(log1);
-            // console.log(deployedEvent1.args)
+            console.log(deployedEvent1.args)
 
             expect(estimatedDistribute.maxSeig).to.be.eq(deployedEvent1.args.totalSeig)
             expect(estimatedDistribute.stakedSeig).to.be.eq(deployedEvent1.args.stakedSeig)
@@ -1280,7 +1286,7 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(afterWtonBalanceOfManager).to.be.eq(prevWtonBalanceOfLayer2Operator.add(estimatedDistribute.layer2Seigs))
+            expect(afterWtonBalanceOfManager).to.be.eq(prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator).add(estimatedDistribute.layer2Seigs))
 
         })
 

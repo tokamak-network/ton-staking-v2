@@ -135,6 +135,7 @@ contract CandidateAddOnV1_1 is
     /// @notice Call updateSeigniorage on SeigManager
     /// @param afterCall    After running the update seigniorage, the option to run additional functions
     ///                     0: none, 1: claim, 2: staking
+    /// @param flagTON      If it is true, claim with ton, otherwise claim with wton
     /// @return             Whether or not the execution succeeded
     function updateSeigniorage(uint256 afterCall, bool flagTON) public returns (bool) {
 
