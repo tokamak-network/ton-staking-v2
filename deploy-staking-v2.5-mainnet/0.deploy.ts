@@ -53,6 +53,24 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
         }
     }
+    console.log("\n=== ownerAddressInfo ===" )
+    console.log(ownerAddressInfo)
+
+    const name = 'Titan'
+    const addresses = {
+        l1CrossDomainMessenger: l1MessengerAddress,
+        l1ERC721Bridge: hre.ethers.constants.AddressZero,
+        l1StandardBridge: l1BridgeAddress,
+        l2OutputOracle: hre.ethers.constants.AddressZero,
+        optimismPortal: hre.ethers.constants.AddressZero,
+        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    }
+    console.log("\n === Titan Candidate ===" )
+    console.log("name: ", name)
+    console.log("addresses: ", addresses)
+
+
+    // return;
 
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)

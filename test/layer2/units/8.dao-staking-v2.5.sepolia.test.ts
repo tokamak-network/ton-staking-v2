@@ -261,8 +261,10 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
 
         it('Reject all layers of L1BridgeRegistry', async () => {
 
-            let L1BridgeRegistryProxyOldAddress = "0x58813D18b019F670d43be0D80Af968C99cc82c05"
-            let Layer2ManagerOldAddress = "0x0fDb12aF5Fece558d17237E2D252EC5dbA25396b"
+            // let L1BridgeRegistryProxyOldAddress = "0x58813D18b019F670d43be0D80Af968C99cc82c05"
+            // let Layer2ManagerOldAddress = "0x0fDb12aF5Fece558d17237E2D252EC5dbA25396b"
+            let L1BridgeRegistryProxyOldAddress = "0x3268e4D8276c58A806E83B3B080Cf29514A837cf"
+            let Layer2ManagerOldAddress = "0xab303E7CBFd19C998268e19d830770e215AbDF7F"
 
 
             const l1BridgeRegistryOld = (await ethers.getContractAt("L1BridgeRegistryV1_1", L1BridgeRegistryProxyOldAddress, deployer)) as L1BridgeRegistryV1_1
@@ -270,12 +272,24 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
 
             let seigniorageCommittee1 = await l1BridgeRegistryOld.seigniorageCommittee()
             // console.log('seigniorageCommittee', seigniorageCommittee1)
-            await (await l1BridgeRegistryOld.connect(daoOwner).setSeigniorageCommittee(seigniorageCommitteeAddress)).wait()
+            await (await l1BridgeRegistryOld.connect(daoAdmin).setSeigniorageCommittee(seigniorageCommitteeAddress)).wait()
             seigniorageCommittee1 = await l1BridgeRegistryOld.seigniorageCommittee()
 
             let totalLayer2TVL = await seigManager.totalLayer2TVL()
 
+            let titan = "0x501C74df1aDEb8024738D880B01306a92d6e722d"
 
+            let rollup = titan
+            let info = await Layer2ManagerOld.rollupConfigInfo(rollup)
+            console.log(info)
+
+            if (info.status == 1) {
+                await (await l1BridgeRegistryOld.connect(seigniorageCommittee).rejectCandidateAddOn(rollup)).wait()
+                totalLayer2TVL = await seigManager.totalLayer2TVL()
+                console.log('totalLayer2TVL reject TitanSepolia', totalLayer2TVL)
+            }
+
+            /*
             let TitanSepolia = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
             let ThanosSepolia = "0xB8209Cc81f0A8Ccdb09238bB1313A039e6BFf741"
             let TokamakArbitrum = "0x78907DE91f579945762c69B0A200564F0BB1E0bE"
@@ -337,10 +351,10 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
                 totalLayer2TVL = await seigManager.totalLayer2TVL()
                 // console.log('totalLayer2TVL reject dao_victor', totalLayer2TVL)
             }
-
+            */
             expect(await seigManager.totalLayer2TVL()).to.be.eq(ethers.constants.Zero)
 
-            await (await l1BridgeRegistryOld.connect(daoOwner).setSeigniorageCommittee(ethers.constants.AddressZero)).wait()
+            await (await l1BridgeRegistryOld.connect(daoAdmin).setSeigniorageCommittee(ethers.constants.AddressZero)).wait()
 
         })
 
@@ -380,7 +394,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             daoCommitteeProxy2Contract = (await ethers.getContractAt("DAOCommitteeProxy2", deployed.DAOCommitteeProxy2.address, deployer)) as DAOCommitteeProxy2;
             daoCommitteeOwner = (await ethers.getContractAt("DAOCommitteeOwner", deployed.DAOCommitteeOwner.address, deployer)) as DAOCommitteeOwner;
             daoCommittee_V1 = (await ethers.getContractAt("DAOCommittee_V1", deployed.DAOCommittee_V1.address, deployer)) as DAOCommittee_V1;
-            legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfig.address, deployer )) as LegacySystemConfig;
+            legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfigProxy.address, deployer )) as LegacySystemConfig;
 
             // console.log('l1BridgeRegistryProxy', l1BridgeRegistryProxy.address)
             // console.log('l1BridgeRegistry', l1BridgeRegistry.address)
