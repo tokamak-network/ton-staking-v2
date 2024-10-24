@@ -13,15 +13,15 @@ async function rejectCandidates() {
     let deployer = accounts[0]
     let deployerAddress = await deployer.getAddress()
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        tester,
-    ]);
-    await hre.network.provider.send("hardhat_setBalance", [
-        tester,
-        "0x10000000000000000000000000",
-    ]);
-    deployer = await hre.ethers.getSigner(tester);
-    deployerAddress = tester
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     tester,
+    // ]);
+    // await hre.network.provider.send("hardhat_setBalance", [
+    //     tester,
+    //     "0x10000000000000000000000000",
+    // ]);
+    // deployer = await hre.ethers.getSigner(tester);
+    // deployerAddress = tester
 
     // console.log('deployer ', deployerAddress)
     let L1BridgeRegistryProxyOldAddress = "0x58813D18b019F670d43be0D80Af968C99cc82c05"
@@ -116,15 +116,15 @@ async function initialze() {
     let deployerAddress = await deployer.getAddress()
     let SeigManagerAddress = "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7"
 
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-        tester,
-    ]);
-    await hre.network.provider.send("hardhat_setBalance", [
-        tester,
-        "0x10000000000000000000000000",
-    ]);
-    deployer = await hre.ethers.getSigner(tester);
-    deployerAddress = tester
+    // await hre.network.provider.send("hardhat_impersonateAccount", [
+    //     tester,
+    // ]);
+    // await hre.network.provider.send("hardhat_setBalance", [
+    //     tester,
+    //     "0x10000000000000000000000000",
+    // ]);
+    // deployer = await hre.ethers.getSigner(tester);
+    // deployerAddress = tester
 
     // console.log('deployer ', deployerAddress)
     const seigManager = new ethers.Contract(SeigManagerAddress,  SeigManager_Json.abi, deployer)
