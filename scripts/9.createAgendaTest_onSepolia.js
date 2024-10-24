@@ -8,6 +8,11 @@ const DAOAgendaManagerABI = require("../abi/daoAgendaManager.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const SeigManagerProxy_Json = require('../abi/DepositManagerProxy.json')
 const DepositManagerProxy_Json = require('../abi/DepositManagerProxy.json')
+const TonABI = require("../abi/TON.json").abi;
+const SeigManagerV3ABI = require("../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json").abi;
+const DepositManagerV1ABI = require("../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json").abi;
+const l1BridgeRegistryV1ABI = require("../artifacts/contracts/layer2/L1BridgeRegistryV1_1.sol/L1BridgeRegistryV1_1.json").abi;
+
 
 const Web3EthAbi = require('web3-eth-abi');
 
@@ -20,6 +25,8 @@ const sepoliaContractInfo = {
     Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06",
     DAOAgendaManager: "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08",
     SeigManagerProxy : "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7",
+    DepositManagerProxy : "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F",
+    TON: "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044",
 }
 
 const mainnetContractInfo = {
@@ -36,10 +43,15 @@ function sleep(ms) {
 
 async function CreateAgendaTest() {
     //need Pre-setting
-    let daoCommitteeProxy2 = "";
-    let daoCommitteeLogic = "";
-    let daoCommitteeOwner = "";
-    let seigManagerV1_3 = "";
+    let daoCommitteeProxy2 = "0xbFDE9Bf0eb9f4D2ae12dD17Cb770c3289dC4fd42";
+    let daoCommitteeLogic = "0x1E44122E3230957309B29636938e223705C0Da35";
+    let daoCommitteeOwnerAddr = "0x84868ca4DD708cC035bcE0578054aa62c663e309";
+    let seigManagerV1_3Addr = "0xB0A131FCc74F40b9Fb0379C4AEa7b97617305C31";
+    let depositManagerV1_1Addr = "0x18D0F9bC41a82A540e166C949a4A5C02036dffcA";
+    let l1BridgeRegistryProxyAddr = "0x3268e4D8276c58A806E83B3B080Cf29514A837cf";
+    let layer2ManagerProxyAddr = "0xab303E7CBFd19C998268e19d830770e215AbDF7F";
+    let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
+    let legacySystemConfigAddr = "0x501C74df1aDEb8024738D880B01306a92d6e722d"
     
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================
@@ -49,7 +61,7 @@ async function CreateAgendaTest() {
         ethers.provider
     )
 
-    let oldDAOLogicAddress = "0xDC7e4c6cAe2123758f17D17572c6f6e820D2b431"
+    // let oldDAOLogicAddress = "0xDC7e4c6cAe2123758f17D17572c6f6e820D2b431"
 
     //==== Set DAOAgendaManager =================================
     let daoagendaManager = new ethers.Contract(
@@ -65,13 +77,54 @@ async function CreateAgendaTest() {
         ethers.provider
     )
 
-    //==== Set seigManagerProxy =================================
+    //==== Set SeigManagerProxy =================================
     let seigManagerProxy = new ethers.Contract(
         sepoliaContractInfo.SeigManagerProxy,  
         SeigManagerProxy_Json.abi, 
         ethers.provider    
     ) 
+
+    //==== Set DepositManagerProxy =================================
+    let depositManagerProxy = new ethers.Contract(
+        sepoliaContractInfo.DepositManagerProxy,  
+        DepositManagerProxy_Json.abi, 
+        ethers.provider
+    ) 
+
+    //==== Set DaoCommitteeOwner =================================
+    let daoCommitteeOwner = new ethers.Contract(
+        daoCommitteeOwnerAddr,  
+        DAOCommitteeOwnerABI, 
+        ethers.provider
+    ) 
+
+    //==== Set seigManagerV1_3 =================================
+    let seigManagerV1_3 = new ethers.Contract(
+        seigManagerV1_3Addr,  
+        SeigManagerV3ABI, 
+        ethers.provider
+    )
+
+    //==== Set depositManagerV1_1 =================================
+    let depositManagerV1_1 = new ethers.Contract(
+        depositManagerV1_1Addr,  
+        DepositManagerV1ABI, 
+        ethers.provider
+    ) 
     
+    //==== Set TON =================================
+    let ton = new ethers.Contract(
+        sepoliaContractInfo.TON,
+        TonABI,
+        ethers.provider
+    )
+
+    //==== Set l1BridgeRegistry =================================
+    let l1BridgeRegistry = new ethers.Contract(
+        l1BridgeRegistryProxyAddr,
+        l1BridgeRegistryV1ABI,
+        ethers.provider
+    )
 
     //==== pauseCheck =================================
     let pauseProxy = await daoCommitteeProxy.pauseProxy()
@@ -250,7 +303,7 @@ async function CreateAgendaTest() {
     functionBytecodes.push(functionBytecode1)
 
     const functionBytecode2 = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-        "setImplementation2", [daoCommitteeOwner, 1, true]
+        "setImplementation2", [daoCommitteeOwner.address, 1, true]
     )
 
     targets.push(sepoliaContractInfo.DAOCommitteeProxy);
@@ -268,7 +321,7 @@ async function CreateAgendaTest() {
                 _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
                 _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
             ],
-            daoCommitteeOwner]
+            daoCommitteeOwner.address]
         )
 
     targets.push(sepoliaContractInfo.DAOCommitteeProxy);
@@ -276,12 +329,120 @@ async function CreateAgendaTest() {
 
     const functionBytecode4 = seigManagerProxy.interface.encodeFunctionData("setImplementation2",
         [
-            seigManagerV1_3,
+            seigManagerV1_3.address,
             1,
             true
         ])
     targets.push(seigManagerProxy.address)
     functionBytecodes.push(functionBytecode4)
+
+    const selector1 = Web3EthAbi.encodeFunctionSignature("setLayer2StartBlock(uint256)");
+    const selector2 = Web3EthAbi.encodeFunctionSignature("setLayer2Manager(address)");
+    const selector3 = Web3EthAbi.encodeFunctionSignature("setL1BridgeRegistry(address)");
+    const selector4 = Web3EthAbi.encodeFunctionSignature("updateSeigniorage()");
+    const selector5 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageOperator()");
+    const selector6 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer()");
+    const selector7 = Web3EthAbi.encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
+    const selector8 = Web3EthAbi.encodeFunctionSignature("totalLayer2TVL()");
+    const selector9 = Web3EthAbi.encodeFunctionSignature("layer2RewardInfo(address)");
+    const selector10 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
+    const selector11 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
+    const selector12 = Web3EthAbi.encodeFunctionSignature("layer2StartBlock()");
+    const selector13 = Web3EthAbi.encodeFunctionSignature("l2RewardPerUint()");
+    const selector14 = Web3EthAbi.encodeFunctionSignature("unSettledReward(address)");
+    const selector15 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+    const selector16 = Web3EthAbi.encodeFunctionSignature("excludeFromSeigniorage(address)");
+    const selector17 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorage()");
+    const selector18 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
+    const selector19 = Web3EthAbi.encodeFunctionSignature("stakeOfAllLayers()");
+    const selector20 = Web3EthAbi.encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+
+    let setSelectorBytes2 = [
+        selector1, selector2, selector3, selector4, selector5,
+        selector6, selector7, selector8, selector9, selector10,
+        selector11, selector12, selector13, selector14, selector15,
+        selector16,selector17, selector18, selector19, selector20
+    ];
+
+    const functionBytecode5 = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+        [
+            setSelectorBytes2,
+            seigManagerV1_3.address
+        ])
+    targets.push(seigManagerProxy.address)
+    functionBytecodes.push(functionBytecode5)
+
+    const functionBytecode6 = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
+        [
+            depositManagerV1_1.address,
+            3,
+            true
+        ])
+    targets.push(depositManagerProxy.address)
+    functionBytecodes.push(functionBytecode6)
+
+    const selector_1 = Web3EthAbi.encodeFunctionSignature("ton()");
+    const selector_2 = Web3EthAbi.encodeFunctionSignature("minDepositGasLimit()");
+    const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+    const selector_4 = Web3EthAbi.encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+    const selector_5 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
+    const selector_6 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
+    const selector_7 = Web3EthAbi.encodeFunctionSignature("setAddresses(address,address)");
+
+    let setSelectorBytes3 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7];
+
+    const functionBytecode7 = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+        [
+            setSelectorBytes3,
+            depositManagerV1_1.address
+
+        ])
+    targets.push(depositManagerProxy.address)
+    functionBytecodes.push(functionBytecode7)
+
+    const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
+    targets.push(sepoliaContractInfo.DAOCommitteeProxy)
+    functionBytecodes.push(functionBytecode8)
+
+    const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+    targets.push(sepoliaContractInfo.DAOCommitteeProxy)
+    functionBytecodes.push(functionBytecode9)
+
+    const functionBytecode10 = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+    targets.push(seigManagerProxy.address)
+    functionBytecodes.push(functionBytecode10)
+
+    const functionBytecode11 = seigManagerV1_3.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+    targets.push(seigManagerProxy.address)
+    functionBytecodes.push(functionBytecode11)
+
+    const functionBytecode12 = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
+        l1BridgeRegistryProxyAddr,
+        layer2ManagerProxyAddr ])
+    targets.push(depositManagerProxy.address)
+    functionBytecodes.push(functionBytecode12)
+
+    let name = 'Titan'
+    const functionBytecode13 = l1BridgeRegistry.interface.encodeFunctionData("registerRollupConfigByManager(address,uint8,address,string)", [ legacySystemConfigAddr, 1,  l2TonAddress, name])
+    targets.push(l1BridgeRegistryProxyAddr)
+    functionBytecodes.push(functionBytecode13)
+
+    const param = Web3EthAbi.encodeParameters(
+        ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+        [
+            targets,
+            noticePeriod.toString(),
+            votingPeriod.toString(),
+            true,
+            functionBytecodes
+        ]
+    )
+
+    await ton.connect(deployer).approveAndCall(
+        daoCommitteeProxy.address,
+        agendaFee,
+        param
+    );
 }
 
 
