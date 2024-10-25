@@ -24,9 +24,13 @@ import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/Leg
 
 import {Signer} from "ethers"
 
+import { gasUsedFunctions, exportLogsToExcel } from '../test/shared/logUtils';
+
 const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
     console.log('deploy hre.network.name', hre.network.name)
+    let receipt
+    let logUsedGas: Array<any> = []
 
     const minimumInitialDepositAmount = hre.ethers.utils.parseEther("1000.1")
 
@@ -103,7 +107,8 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     let impl_l1BridgeRegistry = await l1BridgeRegistryProxy.implementation()
     if (impl_l1BridgeRegistry != L1BridgeRegistryDeployment.address) {
-        await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryDeployment.address)).wait()
+        receipt = await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryDeployment.address)).wait()
+        logUsedGas.push(gasUsedFunctions('l1BridgeRegistryProxy', 'upgradeTo', '', receipt))
     }
 
     const l1BridgeRegistry = (await hre.ethers.getContractAt(
@@ -157,7 +162,8 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     let impl_candidateAddOnFactoryProxy = await candidateAddOnFactoryProxy.implementation()
     if (impl_candidateAddOnFactoryProxy != CandidateAddOnFactoryDeployment.address) {
-        await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
+        receipt = await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
+        logUsedGas.push(gasUsedFunctions('candidateAddOnFactoryProxy', 'upgradeTo', '', receipt))
     }
 
     const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
@@ -165,7 +171,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     let layer2CandidateImp_layer2CandidateFactory = await candidateAddOnFactory.candidateAddOnImp()
 
     if (Layer2CandidateV1_1Deployment.address != layer2CandidateImp_layer2CandidateFactory) {
-        await (await candidateAddOnFactory.connect(deploySigner).setAddress(
+        receipt = await (await candidateAddOnFactory.connect(deploySigner).setAddress(
             DepositManager,
             DAOCommitteeProxy,
             Layer2CandidateV1_1Deployment.address,
@@ -173,6 +179,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             WTON,
             l1BridgeRegistryProxy.address
         )).wait()
+        logUsedGas.push(gasUsedFunctions('candidateAddOnFactory', 'setAddress', '', receipt))
     }
 
     //==== Layer2Manager =================================
@@ -196,24 +203,27 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     // operatorManagerFactory.setAddresses
     let ton_operatorManagerFactory = await operatorManagerFactory.ton()
     if (TON != ton_operatorManagerFactory) {
-        await (await operatorManagerFactory.connect(deploySigner).setAddresses(
+        receipt = await (await operatorManagerFactory.connect(deploySigner).setAddresses(
             DepositManager,
             TON,
             WTON,
             layer2ManagerProxy.address
         )).wait()
+        logUsedGas.push(gasUsedFunctions('operatorManagerFactory', 'setAddresses', '', receipt))
     }
 
 
     let impl_layer2ManagerProxy = await layer2ManagerProxy.implementation()
     if (impl_layer2ManagerProxy != Layer2ManagerV1_1Deployment.address) {
-        await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
+        receipt = await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
+        logUsedGas.push(gasUsedFunctions('layer2ManagerProxy', 'upgradeTo', '', receipt))
     }
 
     if (ownerAddressInfo.L1BridgeRegistry.manager != null) {
         let res = await l1BridgeRegistryProxy.isManager(ownerAddressInfo.L1BridgeRegistry.manager)
         if (res == false) {
-            await (await l1BridgeRegistryProxy.connect(deploySigner).addManager(ownerAddressInfo.L1BridgeRegistry.manager)).wait()
+            receipt = await (await l1BridgeRegistryProxy.connect(deploySigner).addManager(ownerAddressInfo.L1BridgeRegistry.manager)).wait()
+            logUsedGas.push(gasUsedFunctions('l1BridgeRegistryProxy', 'addManager', '', receipt))
         }
     }
 
@@ -224,30 +234,33 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     let l1BridgeRegistry_layer2Manager = await layer2Manager.l1BridgeRegistry()
     if (l1BridgeRegistry_layer2Manager != l1BridgeRegistryProxy.address) {
-        await (await layer2Manager.connect(deploySigner).setAddresses(
+        receipt = await (await layer2Manager.connect(deploySigner).setAddresses(
                 l1BridgeRegistryProxy.address,
                 operatorManagerFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager,
                 SeigManager, swapProxy
             )
         ).wait()
+        logUsedGas.push(gasUsedFunctions('layer2Manager', 'setAddresses', '', receipt))
     }
 
     let minimumInitialDepositAmount_layer2Manager = await layer2Manager.minimumInitialDepositAmount()
 
     if (!(minimumInitialDepositAmount_layer2Manager.eq(minimumInitialDepositAmount))) {
-        await (await layer2Manager.connect(deploySigner).setMinimumInitialDepositAmount(
+        receipt = await (await layer2Manager.connect(deploySigner).setMinimumInitialDepositAmount(
             minimumInitialDepositAmount)
         ).wait()
+        logUsedGas.push(gasUsedFunctions('layer2Manager', 'setMinimumInitialDepositAmount', '', receipt))
     }
 
     let ton_l1BridgeRegistry = await l1BridgeRegistry.ton()
     if (TON != ton_l1BridgeRegistry) {
-        await (await l1BridgeRegistry.connect(deploySigner).setAddresses(
+        receipt = await (await l1BridgeRegistry.connect(deploySigner).setAddresses(
             layer2Manager.address,
             SeigManager,
             TON
-            )).wait()
+        )).wait()
+        logUsedGas.push(gasUsedFunctions('l1BridgeRegistry', 'setAddresses', '', receipt))
     }
 
     //==== SeigManagerV1_3 =================================
@@ -309,28 +322,39 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         LegacySystemConfigProxyDep.address
     )) as LegacySystemConfig;
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
+    receipt = await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
         LegacySystemConfigDep.address
     )).wait()
+    logUsedGas.push(gasUsedFunctions('LegacySystemConfigProxy', 'upgradeTo', '', receipt))
 
-    await (await legacySystemConfig.connect(deploySigner).setAddresses(
+    receipt = await (await legacySystemConfig.connect(deploySigner).setAddresses(
         name, addresses, l1BridgeRegistryProxy.address
     )).wait()
+    logUsedGas.push(gasUsedFunctions('LegacySystemConfigProxy', 'setAddresses', '', receipt))
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
+    receipt = await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
         ownerAddressInfo.Titan.proxyOwner
     )).wait()
+    logUsedGas.push(gasUsedFunctions('LegacySystemConfigProxy', 'transferProxyOwnership', '', receipt))
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
+    receipt = await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.manager
     )).wait()
+    logUsedGas.push(gasUsedFunctions('LegacySystemConfigProxy', 'transferOwnership', '', receipt))
 
     //======= TransferOwner to DAOCommittee ======================================
 
-    await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
-    await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
-    await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
-    await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    receipt = await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    logUsedGas.push(gasUsedFunctions('candidateAddOnFactoryProxy', 'transferOwnership', '', receipt))
+
+    receipt = await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    logUsedGas.push(gasUsedFunctions('operatorManagerFactory', 'transferOwnership', '', receipt))
+
+    receipt = await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    logUsedGas.push(gasUsedFunctions('l1BridgeRegistryProxy', 'transferOwnership', '', receipt))
+
+    receipt = await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    logUsedGas.push(gasUsedFunctions('layer2ManagerProxy', 'transferOwnership', '', receipt))
 
     console.log("candidateAddOnFactoryProxy.isAdmin(deployer): ", await candidateAddOnFactoryProxy.isAdmin(deployer))
     console.log("candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy): ", await candidateAddOnFactoryProxy.isAdmin(DAOCommitteeProxy))
