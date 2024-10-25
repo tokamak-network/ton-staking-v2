@@ -29,7 +29,7 @@ interface IPauser {
 
 contract DAOCommitteeExtend is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
 
-    enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
+    enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADD_MEMBER_FAIL, LOW_BALANCE }
 
     struct AgendaCreatingData {
         address[] target;
