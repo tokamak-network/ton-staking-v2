@@ -62,7 +62,7 @@ contract DAOCommittee_V1 is
     bytes constant claimERC20Bytes = hex"f848091a";
     bytes constant claimWTONBytes = hex"f52bba70";
 
-    enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADDMEMBER_FAIL, LOW_BALANCE }
+    enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADD_MEMBER_FAIL, LOW_BALANCE }
 
     struct AgendaCreatingData {
         address[] target;
