@@ -58,7 +58,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
-    const name = 'Titan'
+    const name = 'Titan DAO'
     const addresses = {
         l1CrossDomainMessenger: l1MessengerAddress,
         l1ERC721Bridge: hre.ethers.constants.AddressZero,
@@ -209,7 +209,6 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         )).wait()
     }
 
-
     let impl_layer2ManagerProxy = await layer2ManagerProxy.implementation()
     if (impl_layer2ManagerProxy != Layer2ManagerV1_1Deployment.address) {
         await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
@@ -323,12 +322,12 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         name, addresses, l1BridgeRegistryProxy.address
     )).wait()
 
-    console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
+    // console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
     await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
         ownerAddressInfo.Titan.proxyOwner
     )).wait()
 
-    console.log('ownerAddressInfo.Titan.manager', ownerAddressInfo.Titan.manager)
+    // console.log('ownerAddressInfo.Titan.manager', ownerAddressInfo.Titan.manager)
     await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.manager
     )).wait()

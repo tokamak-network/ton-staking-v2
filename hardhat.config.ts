@@ -439,7 +439,7 @@ const config: HardhatUserConfig = {
     mainnet: {
       url: `${process.env.ETH_NODE_URI_MAINNET}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
-      gasPrice: 50000000000,
+      gasPrice: 10000000000,
       // deploy: ['deploy']
       deploy: ['deploy-staking-v2.5-mainnet'],
     },
