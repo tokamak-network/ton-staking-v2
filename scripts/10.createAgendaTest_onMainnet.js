@@ -30,10 +30,10 @@ const sepoliaContractInfo = {
 
 const mainnetContractInfo = {
     DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
-    DAOAgendaManager: "",
-    SeigManagerProxy: "",
-    DepositManagerProxy: "",
-    TON: "",
+    DAOAgendaManager: "0xcD4421d082752f363E1687544a09d5112cD4f484",
+    SeigManagerProxy: "0x0b55a0f463b6defb81c6063973763951712d0e5f",
+    DepositManagerProxy: "0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e",
+    TON: "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5",
 }
 
 function sleep(ms) {
