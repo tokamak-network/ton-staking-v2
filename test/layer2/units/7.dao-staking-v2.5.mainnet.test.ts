@@ -21,6 +21,8 @@ import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/fa
 
 import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { LegacySystemConfigProxy } from "../../../typechain-types/contracts/layer2/LegacySystemConfigProxy"
+
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
@@ -45,6 +47,7 @@ import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
 import DAOCandidate_Json from '../../abi/Candidate.json'
 
 import LegacySystemConfig_Json from '../../abi/LegacySystemConfig.json'
+import LegacySystemConfigProxy_Json from '../../abi/LegacySystemConfigProxy.json'
 import MockSystemConfig_Json from '../../abi/MockSystemConfig.json'
 import MockL1StandardBridge_Json from '../../abi/MockL1StandardBridge.json'
 
@@ -113,6 +116,7 @@ describe('Layer2Manager', () => {
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
+    let legacySystemConfigProxy: LegacySystemConfigProxy
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
     let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
@@ -140,6 +144,7 @@ describe('Layer2Manager', () => {
     let daoCommitteeOwner: DAOCommitteeOwner
     let daoCommitteeContract:  Contract
     let agendaId: BigNumber
+    let deployed: any
 
     // const daoOwnerAddress = "0xb4983da083a5118c903910db4f5a480b1d9f3687"
 
@@ -264,7 +269,7 @@ describe('Layer2Manager', () => {
     describe('# Contracts from deployments', () => {
         it('deployments', async () => {
             await deployments.fixture();
-            let deployed = await deployments.all()
+            deployed = await deployments.all()
             l1BridgeRegistryProxy = (await ethers.getContractAt("L1BridgeRegistryProxy", deployed.L1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryProxy
             l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", deployed.L1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
             operatorManagerFactory = (await ethers.getContractAt("OperatorManagerFactory", deployed.OperatorManagerFactory.address, deployer)) as OperatorManagerFactory;
@@ -280,6 +285,7 @@ describe('Layer2Manager', () => {
             daoCommitteeOwner = (await ethers.getContractAt("DAOCommitteeOwner", deployed.DAOCommitteeOwner.address, deployer)) as DAOCommitteeOwner;
             daoCommittee_V1 = (await ethers.getContractAt("DAOCommittee_V1", deployed.DAOCommittee_V1.address, deployer)) as DAOCommittee_V1;
             legacySystemConfig = (await ethers.getContractAt("LegacySystemConfig", deployed.LegacySystemConfigProxy.address, deployer )) as LegacySystemConfig;
+            legacySystemConfigProxy = (await ethers.getContractAt("LegacySystemConfigProxy", deployed.LegacySystemConfigProxy.address, deployer )) as LegacySystemConfigProxy;
 
             // console.log('l1BridgeRegistryProxy', l1BridgeRegistryProxy.address)
             // console.log('l1BridgeRegistry', l1BridgeRegistry.address)
@@ -848,6 +854,68 @@ describe('Layer2Manager', () => {
 
     })
 
+    describe('# LegacySystemConfig : Titan SystemConfig ', () => {
+        it('proxy owner', async () => {
+            // let proxyOwner = await  legacySystemConfig.proxyOwner()
+            expect(await  legacySystemConfig.proxyOwner()).to.be.eq(ownerAddressInfo.Titan.proxyOwner)
+            await (await  legacySystemConfigProxy.connect(daoAdmin).transferProxyOwnership(titanManager.address)).wait()
+            expect(await  legacySystemConfig.proxyOwner()).to.be.eq(titanManager.address)
+            await (await  legacySystemConfigProxy.connect(titanManager).transferProxyOwnership(daoAdmin.address)).wait()
+            expect(await  legacySystemConfig.proxyOwner()).to.be.eq(daoAdmin.address)
+        })
+
+        it('upgradeTo: proxy owner', async () => {
+            await expect(legacySystemConfigProxy.connect(titanManager).upgradeTo(
+                seigManager.address
+            ) ).to.be.revertedWith("LegacySystemConfigProxy: caller is not the proxyOwner");
+
+            await (await legacySystemConfigProxy.connect(daoAdmin).upgradeTo(seigManager.address)).wait()
+            expect(await legacySystemConfigProxy.implementation()).to.be.eq(seigManager.address)
+
+            await (await legacySystemConfigProxy.connect(daoAdmin).upgradeTo(deployed.LegacySystemConfig.address)).wait()
+            expect(await legacySystemConfigProxy.implementation()).to.be.eq(deployed.LegacySystemConfig.address)
+
+        })
+
+        it('manager', async () => {
+            expect(await  legacySystemConfig.owner()).to.be.eq(ownerAddressInfo.Titan.manager)
+            await (await  legacySystemConfig.connect(titanManager).transferOwnership(daoAdmin.address)).wait()
+            expect(await  legacySystemConfig.proxyOwner()).to.be.eq(daoAdmin.address)
+            await (await  legacySystemConfig.connect(daoAdmin).transferOwnership(titanManager.address)).wait()
+            expect(await  legacySystemConfig.owner()).to.be.eq(ownerAddressInfo.Titan.manager)
+        })
+
+        it('setAddresses: manager', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
+            const name = 'Titan DAO'
+            const addresses = {
+                l1CrossDomainMessenger: l1MessengerAddress,
+                l1ERC721Bridge: hre.ethers.constants.AddressZero,
+                l1StandardBridge: l1BridgeAddress,
+                l2OutputOracle: hre.ethers.constants.AddressZero,
+                optimismPortal: hre.ethers.constants.AddressZero,
+                optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+            }
+
+            await expect(legacySystemConfig.connect(daoAdmin).setAddresses(
+                name, addresses, ethers.constants.AddressZero
+            ) ).to.be.revertedWith("Ownable: caller is not the owner");
+
+            await (await legacySystemConfig.connect(titanManager).setAddresses(
+                name, addresses, ethers.constants.AddressZero
+            )).wait()
+
+            expect(await legacySystemConfigProxy.l1BridgeRegistry()).to.be.eq(ethers.constants.AddressZero)
+
+            await (await legacySystemConfig.connect(titanManager).setAddresses(
+                name, addresses, deployed.LegacySystemConfig.address
+            )).wait()
+
+            expect(await legacySystemConfig.l1BridgeRegistry()).to.be.eq(deployed.LegacySystemConfig.address)
+        })
+    })
+
 
     describe('# DepositManager : CandidateAddOn ', () => {
 
@@ -1249,7 +1317,7 @@ describe('Layer2Manager', () => {
             const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = seigManager.interface.parseLog(log1);
-            console.log(deployedEvent1.args)
+            // console.log(deployedEvent1.args)
 
             expect(estimatedDistribute.maxSeig).to.be.eq(deployedEvent1.args.totalSeig)
             expect(estimatedDistribute.stakedSeig).to.be.eq(deployedEvent1.args.stakedSeig)
