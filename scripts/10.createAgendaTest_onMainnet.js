@@ -54,6 +54,7 @@ async function CreateAgendaTest() {
     let candidateAddOnFactoryProxyAddr = ""
     let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
     let name = 'Titan'
+    need the check setImplementation2 SeigManger & DepositManager number
     
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================
@@ -377,7 +378,7 @@ async function CreateAgendaTest() {
     const functionBytecode6 = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
         [
             depositManagerV1_1.address,
-            3,
+            2,
             true
         ])
     targets.push(depositManagerProxy.address)
