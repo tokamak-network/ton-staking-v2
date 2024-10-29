@@ -39,7 +39,7 @@ async function CreateAgendaTest() {
     let legacySystemConfigAddr = ""
     let candidateAddOnFactoryProxyAddr = ""
     let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
-    let name = 'Titan'
+    let name = 'Titan DAO'
     need the check setImplementation2 SeigManger & DepositManager number
     
     const [deployer] = await ethers.getSigners();
@@ -390,11 +390,11 @@ async function CreateAgendaTest() {
     functionBytecodes.push(functionBytecode7)
 
     const functionBytecode8 = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxyAddr])
-    targets.push(sepoliaContractInfo.DAOCommitteeProxy)
+    targets.push(mainnetContractInfo.DAOCommitteeProxy)
     functionBytecodes.push(functionBytecode8)
 
     const functionBytecode9 = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxyAddr])
-    targets.push(sepoliaContractInfo.DAOCommitteeProxy)
+    targets.push(mainnetContractInfo.DAOCommitteeProxy)
     functionBytecodes.push(functionBytecode9)
 
     const functionBytecode10 = seigManagerV1_3.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxyAddr])
