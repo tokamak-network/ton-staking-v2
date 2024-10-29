@@ -330,7 +330,7 @@ async function CreateAgendaTest() {
     const selector3 = Web3EthAbi.encodeFunctionSignature("setL1BridgeRegistry(address)");
     const selector4 = Web3EthAbi.encodeFunctionSignature("updateSeigniorage()");
     const selector5 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageOperator()");
-    const selector6 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer()");
+    const selector6 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer(address)");
     const selector7 = Web3EthAbi.encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
     const selector8 = Web3EthAbi.encodeFunctionSignature("totalLayer2TVL()");
     const selector9 = Web3EthAbi.encodeFunctionSignature("layer2RewardInfo(address)");
