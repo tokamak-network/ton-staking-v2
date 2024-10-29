@@ -173,7 +173,7 @@ describe('Layer2Manager', () => {
 
             const selector1 = encodeFunctionSignature("ton()");
             const selector2 = encodeFunctionSignature("minDepositGasLimit()");
-            const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+            const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint32)");
             const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
 
             let functionBytecodes = [

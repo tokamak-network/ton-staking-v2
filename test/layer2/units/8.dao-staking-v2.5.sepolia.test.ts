@@ -550,7 +550,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
             const selector4 = encodeFunctionSignature("updateSeigniorage()");
             const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
-            const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
+            const selector6 = encodeFunctionSignature("updateSeigniorageLayer(address)");
             const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
             const selector8 = encodeFunctionSignature("totalLayer2TVL()");
             const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
@@ -596,7 +596,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             targets.push(depositManagerProxy.address)
             const selector_1 = encodeFunctionSignature("ton()");
             const selector_2 = encodeFunctionSignature("minDepositGasLimit()");
-            const selector_3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+            const selector_3 = encodeFunctionSignature("setMinDepositGasLimit(uint32)");
             const selector_4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
             const selector_5 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector_6 = encodeFunctionSignature("layer2Manager()");
