@@ -12,21 +12,7 @@ const SeigManagerV3ABI = require("../artifacts/contracts/stake/managers/SeigMana
 const DepositManagerV1ABI = require("../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json").abi;
 const l1BridgeRegistryV1ABI = require("../artifacts/contracts/layer2/L1BridgeRegistryV1_1.sol/L1BridgeRegistryV1_1.json").abi;
 
-
 const Web3EthAbi = require('web3-eth-abi');
-
-const sepoliaContractInfo = {
-    DAOCommitteeProxy: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
-    DAOCommitteeProxy2: "0x0cb4E974302864D1059028de86757Ca55D121Cb8",
-    DAOCommittee_V1: "0xB800a42D9A8e5036B75246aeDA578DCe58f85B18",
-    DAOCommitteeOwner: "0x34B6e334D88436Fbbb9c316865A1BA454769C090",
-    Layer2CandidateFactory: "0x770739A468D9262960ee0669f9Eaf0db6E21F81A",
-    Layer2Manager: "0x0237839A14194085B5145D1d1e1E77dc92aCAF06",
-    DAOAgendaManager: "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08",
-    SeigManagerProxy : "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7",
-    DepositManagerProxy : "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F",
-    TON: "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044",
-}
 
 const mainnetContractInfo = {
     DAOCommitteeProxy: "0xDD9f0cCc044B0781289Ee318e5971b0139602C26",
