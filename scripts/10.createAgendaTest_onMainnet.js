@@ -372,7 +372,7 @@ async function CreateAgendaTest() {
 
     const selector_1 = Web3EthAbi.encodeFunctionSignature("ton()");
     const selector_2 = Web3EthAbi.encodeFunctionSignature("minDepositGasLimit()");
-    const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+    const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint32)");
     const selector_4 = Web3EthAbi.encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
     const selector_5 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
     const selector_6 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
