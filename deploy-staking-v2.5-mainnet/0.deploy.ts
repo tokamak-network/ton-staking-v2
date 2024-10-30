@@ -71,13 +71,13 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log("name: ", name)
     console.log("addresses: ", addresses)
 
+    console.log("deployer", deployer)
 
     // return;
 
     const { deploy } = hre.deployments;
 
     const deploySigner = await hre.ethers.getSigner(deployer);
-    console.log(deployer)
 
     if (hre.network.name == "hardhat" || hre.network.name == "local") {
 
@@ -349,6 +349,9 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
     console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))
+
+    console.log("[Titan RollupConfig] legacySystemConfig.proxyOwner(): ", await legacySystemConfig.proxyOwner())
+    console.log("[Titan RollupConfig] legacySystemConfig.owner(): ", await legacySystemConfig.owner())
 
     //==== verify =================================
     if (hre.network.name != "hardhat" && hre.network.name != "local") {
