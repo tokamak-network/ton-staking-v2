@@ -29,18 +29,18 @@ function sleep(ms) {
 
 async function CreateAgendaTest() {
     //need Pre-setting
-    let daoCommitteeProxy2 = "";
-    let daoCommitteeLogic = "";
-    let daoCommitteeOwnerAddr = "";
-    let seigManagerV1_3Addr = "";
-    let depositManagerV1_1Addr = "";
-    let l1BridgeRegistryProxyAddr = "";
-    let layer2ManagerProxyAddr = "";
-    let legacySystemConfigAddr = ""
-    let candidateAddOnFactoryProxyAddr = ""
+    let daoCommitteeProxy2 = "0xD6175F575F4d32392508Ee2FBbDec9a2E8B3c01a";
+    let daoCommitteeLogic = "0xcC88dFa531512f24A8a5CbCB88F7B6731807EEFe";
+    let daoCommitteeOwnerAddr = "0x5991Aebb5271522d33C457bf6DF26d83c0dAa221";
+    let seigManagerV1_3Addr = "0xBC71FB7373Fe0dD9Fc003D7850D710d5aAd98750";
+    let depositManagerV1_1Addr = "0x769E782b60e80A395096aA9eb42A910A2b25DD52";
+    let l1BridgeRegistryProxyAddr = "0x17Fa32DFf4c26cf0AC65Ff6700B57a4826513Fa0";
+    let layer2ManagerProxyAddr = "0xC534047FFD60c151E818C4Ac5A51fFbC234A3F77";
+    let legacySystemConfigAddr = "0xB8439E3939647746821dE85b0d3A50460147b292"
+    let candidateAddOnFactoryProxyAddr = "0x61a80Dcf8269f18Ed9bb6C563035651A1756B263"
     let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
     let name = 'Titan DAO'
-    need the check setImplementation2 SeigManger & DepositManager number
+    // need the check setImplementation2 SeigManger & DepositManager number
     
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================
