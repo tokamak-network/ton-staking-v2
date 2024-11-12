@@ -3,29 +3,31 @@ import { DeployFunction } from "hardhat-deploy/types";
 // import "hardhat-deploy/src/type-extensions";
 // import "@nomiclabs/hardhat-ethers";
 
-import { L2RegistryProxy } from "../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+import { L1BridgeRegistryProxy } from "../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 
 import { DepositManagerProxy } from "../typechain-types/contracts/stake/managers/DepositManagerProxy"
 import { SeigManagerProxy } from "../typechain-types/contracts/stake/managers/SeigManagerProxy"
 
 import { Layer2ManagerProxy } from "../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerFactory } from "../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 
 import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
-import { Layer2CandidateFactoryProxy } from "../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
-import { Layer2CandidateFactory } from "../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
-import { Layer2CandidateV1_1 } from "../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
+import { CandidateAddOnFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
+import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
-// write down th manager address of L2Registry
-// const L2Registry_Manager_Address = null
+import {Signer} from "ethers"
+
+// write down th manager address of L1BridgeRegistry
+// const L1BridgeRegistry_Manager_Address = null
 // sepolia test
-const L2Registry_Manager_Address = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
+const L1BridgeRegistry_Manager_Address = '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
 
 const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('deploy hre.network.config.chainId', hre.network.config.chainId)
@@ -49,104 +51,96 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
           ]);
     }
 
-    //==== L2Registry =================================
-    const L2RegistryDeployment = await deploy("L2RegistryV1_1", {
+    //==== L1BridgeRegistry =================================
+    const L1BridgeRegistryDeployment = await deploy("L1BridgeRegistryV1_1", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const L2RegistryProxyDeployment = await deploy("L2RegistryProxy", {
+    const L1BridgeRegistryProxyDeployment = await deploy("L1BridgeRegistryProxy", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const l2RegistryProxy = (await hre.ethers.getContractAt(
-        L2RegistryProxyDeployment.abi,
-        L2RegistryProxyDeployment.address
-    )) as L2RegistryProxy;
+    const l1BridgeRegistryProxy = (await hre.ethers.getContractAt(
+        L1BridgeRegistryProxyDeployment.abi,
+        L1BridgeRegistryProxyDeployment.address
+    )) as L1BridgeRegistryProxy;
 
 
-    let impl_l2RegistryProxy = await l2RegistryProxy.implementation()
-    if (impl_l2RegistryProxy != L2RegistryDeployment.address) {
-        await (await l2RegistryProxy.connect(deploySigner).upgradeTo(L2RegistryDeployment.address)).wait()
+    let impl_l1BridgeRegistry = await l1BridgeRegistryProxy.implementation()
+    if (impl_l1BridgeRegistry != L1BridgeRegistryDeployment.address) {
+        await (await l1BridgeRegistryProxy.connect(deploySigner).upgradeTo(L1BridgeRegistryDeployment.address)).wait()
     }
 
-    const l2Registry = (await hre.ethers.getContractAt(
-        L2RegistryDeployment.abi,
-        l2RegistryProxy.address
-    )) as L2RegistryV1_1;
+    const l1BridgeRegistry = (await hre.ethers.getContractAt(
+        L1BridgeRegistryDeployment.abi,
+        l1BridgeRegistryProxy.address
+    )) as L1BridgeRegistryV1_1;
 
 
-    //==== OperatorFactory =========================
-    const OperatorV1_1Deployment = await deploy("OperatorV1_1", {
+    //==== OperatorManagerFactory =========================
+    const OperatorManagerV1_1Deployment = await deploy("OperatorManagerV1_1", {
         from: deployer,
         args: [],
         log: true
     });
 
-    const OperatorFactoryDeployment = await deploy("OperatorFactory", {
+    const OperatorManagerFactoryDeployment = await deploy("OperatorManagerFactory", {
         from: deployer,
-        args: [OperatorV1_1Deployment.address],
+        args: [OperatorManagerV1_1Deployment.address],
         log: true
     });
 
-    const operatorFactory = (await hre.ethers.getContractAt(
-        OperatorFactoryDeployment.abi,
-        OperatorFactoryDeployment.address
-    )) as OperatorFactory;
+    const operatorManagerFactory = (await hre.ethers.getContractAt(
+        OperatorManagerFactoryDeployment.abi,
+        OperatorManagerFactoryDeployment.address
+    )) as OperatorManagerFactory;
 
-    let ton_operatorFactory = await operatorFactory.ton()
-    if (TON != ton_operatorFactory) {
-        await (await operatorFactory.connect(deploySigner).setAddresses(
-            DepositManager,
-            TON,
-            WTON)).wait()
+    //==== CandidateAddOnV1_1 =================================
+    const Layer2CandidateV1_1Deployment = await deploy("CandidateAddOnV1_1", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    //==== CandidateAddOnFactory =================================
+    const CandidateAddOnFactoryDeployment = await deploy("CandidateAddOnFactory", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    const CandidateAddOnFactoryProxyDeployment = await deploy("CandidateAddOnFactoryProxy", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    const candidateAddOnFactoryProxy = (await hre.ethers.getContractAt(
+        CandidateAddOnFactoryProxyDeployment.abi,
+        CandidateAddOnFactoryProxyDeployment.address
+    )) as CandidateAddOnFactoryProxy;
+
+    let impl_candidateAddOnFactoryProxy = await candidateAddOnFactoryProxy.implementation()
+    if (impl_candidateAddOnFactoryProxy != CandidateAddOnFactoryDeployment.address) {
+        await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
     }
 
-    //==== Layer2CandidateV1_1 =================================
-    const Layer2CandidateV1_1Deployment = await deploy("Layer2CandidateV1_1", {
-        from: deployer,
-        args: [],
-        log: true
-    });
+    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
 
-    //==== Layer2CandidateFactory =================================
-    const Layer2CandidateFactoryDeployment = await deploy("Layer2CandidateFactory", {
-        from: deployer,
-        args: [],
-        log: true
-    });
-
-    const Layer2CandidateFactoryProxyDeployment = await deploy("Layer2CandidateFactoryProxy", {
-        from: deployer,
-        args: [],
-        log: true
-    });
-
-    const layer2CandidateFactoryProxy = (await hre.ethers.getContractAt(
-        Layer2CandidateFactoryProxyDeployment.abi,
-        Layer2CandidateFactoryProxyDeployment.address
-    )) as Layer2CandidateFactoryProxy;
-
-    let impl_layer2CandidateFactoryProxy = await layer2CandidateFactoryProxy.implementation()
-    if (impl_layer2CandidateFactoryProxy != Layer2CandidateFactoryDeployment.address) {
-        await (await layer2CandidateFactoryProxy.connect(deploySigner).upgradeTo(Layer2CandidateFactoryDeployment.address)).wait()
-    }
-
-    const layer2CandidateFactory = (await hre.ethers.getContractAt("Layer2CandidateFactory", layer2CandidateFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
-
-    let layer2CandidateImp_layer2CandidateFactory = await layer2CandidateFactory.layer2CandidateImp()
+    let layer2CandidateImp_layer2CandidateFactory = await candidateAddOnFactory.candidateAddOnImp()
 
     if (Layer2CandidateV1_1Deployment.address != layer2CandidateImp_layer2CandidateFactory) {
-        await (await layer2CandidateFactory.connect(deploySigner).setAddress(
+        await (await candidateAddOnFactory.connect(deploySigner).setAddress(
             DepositManager,
             DAOCommitteeProxy,
             Layer2CandidateV1_1Deployment.address,
             TON,
             WTON,
-            l2RegistryProxy.address
+            l1BridgeRegistryProxy.address
         )).wait()
     }
 
@@ -168,15 +162,27 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         Layer2ManagerProxy_1Deployment.address
     )) as Layer2ManagerProxy;
 
+    // operatorManagerFactory.setAddresses
+    let ton_operatorManagerFactory = await operatorManagerFactory.ton()
+    if (TON != ton_operatorManagerFactory) {
+        await (await operatorManagerFactory.connect(deploySigner).setAddresses(
+            DepositManager,
+            TON,
+            WTON,
+            layer2ManagerProxy.address
+        )).wait()
+    }
+
+
     let impl_layer2ManagerProxy = await layer2ManagerProxy.implementation()
     if (impl_layer2ManagerProxy != Layer2ManagerV1_1Deployment.address) {
         await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
     }
 
-    if (L2Registry_Manager_Address != null) {
-        let res = await l2RegistryProxy.isManager(L2Registry_Manager_Address)
+    if (L1BridgeRegistry_Manager_Address != null) {
+        let res = await l1BridgeRegistryProxy.isManager(L1BridgeRegistry_Manager_Address)
         if (res == false) {
-            await (await l2RegistryProxy.connect(deploySigner).addManager(L2Registry_Manager_Address)).wait()
+            await (await l1BridgeRegistryProxy.connect(deploySigner).addManager(L1BridgeRegistry_Manager_Address)).wait()
         }
     }
 
@@ -185,11 +191,11 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         Layer2ManagerProxy_1Deployment.address
     )) as Layer2ManagerV1_1;
 
-    let l2Register_layer2Manager = await layer2Manager.l2Register()
-    if (l2Register_layer2Manager != l2RegistryProxy.address) {
+    let l1BridgeRegistry_layer2Manager = await layer2Manager.l1BridgeRegistry()
+    if (l1BridgeRegistry_layer2Manager != l1BridgeRegistryProxy.address) {
         await (await layer2Manager.connect(deploySigner).setAddresses(
-                l2RegistryProxy.address,
-                operatorFactory.address,
+                l1BridgeRegistryProxy.address,
+                operatorManagerFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager,
                 SeigManager, swapProxy
             )
@@ -204,10 +210,9 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
         ).wait()
     }
 
-
-    let ton_l2Registry = await l2Registry.ton()
-    if (TON != ton_l2Registry) {
-        await (await l2Registry.connect(deploySigner).setAddresses(
+    let ton_l1BridgeRegistry = await l1BridgeRegistry.ton()
+    if (TON != ton_l1BridgeRegistry) {
+        await (await l1BridgeRegistry.connect(deploySigner).setAddresses(
             layer2Manager.address,
             SeigManager,
             TON
@@ -215,8 +220,13 @@ const deployV2: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     }
 
     //==== SeigManagerV1_3 =================================
-
-
+    // const seigManagerV1_3 = (await hre.ethers.getContractAt("SeigManagerV1_3", SeigManager, deploySigner)) as SeigManagerV1_3
+    // seigManagerV1_3.l1BridgeRegistry()
+    // seigManagerV1_3.layer2Manager()
+    // seigManagerV1_3.layer2StartBlock()
+    // seigManagerV1_3.l2RewardPerUint()
+    // seigManagerV1_3.totalLayer2TVL()
+    // seigManagerV1_3.layer2RewardInfo()
 
     //==== DepositManagerV1_1 =================================
 

@@ -8,7 +8,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import "../interfaces/IProxyEvent.sol";
 import "../interfaces/IProxyAction.sol";
 
-contract ProxyL2Registry is ProxyStorage, AuthControlLayer2Manager, IProxyEvent, IProxyAction
+contract ProxyLayer2Manager is ProxyStorage, AuthControlLayer2Manager, IProxyEvent, IProxyAction
 {
 
     /* ========== DEPENDENCIES ========== */

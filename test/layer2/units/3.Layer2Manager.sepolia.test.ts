@@ -8,20 +8,24 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
+
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
-import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
-import { Layer2CandidateFactory } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
+import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
 
-import { Layer2CandidateV1_1 } from "../../../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
+import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+
+import { MockSystemConfigFactory } from "../../../typechain-types/contracts/mocks/MockSystemConfigFactory.sol"
+import { MockSystemConfig } from "../../../typechain-types/contracts/mocks/MockSystemConfig.sol"
 
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
@@ -36,6 +40,8 @@ import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
 import DAOCandidate_Json from '../../abi/Candidate.json'
 
 import LegacySystemConfig_Json from '../../abi/LegacySystemConfig.json'
+import MockSystemConfig_Json from '../../abi/MockSystemConfig.json'
+import MockL1StandardBridge_Json from '../../abi/MockL1StandardBridge.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -70,15 +76,15 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 
 describe('Layer2Manager', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorV1_1:OperatorV1_1 , operatorFactory: OperatorFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
-    let layer2CandidateV1_1Imp: Layer2CandidateV1_1
-    let layer2CandidateFactoryImp:Layer2CandidateFactory , layer2CandidateFactoryProxy: Layer2CandidateFactoryProxy, layer2CandidateFactory: Layer2CandidateFactory
+    let candidateAddOnV1_1Imp: CandidateAddOnV1_1
+    let candidateAddOnFactoryImp:CandidateAddOnFactory , candidateAddOnFactoryProxy: CandidateAddOnFactoryProxy, candidateAddOnFactory: CandidateAddOnFactory
     let tonContract: Contract, wtonContract: Contract, daoContract: Contract, daoV2Contract: Contract
     let depositManager: Contract,  depositManagerProxy: Contract, seigManager: Contract, seigManagerProxy: Contract;
     let seigManagerV1_3: SeigManagerV1_3;
@@ -88,12 +94,18 @@ describe('Layer2Manager', () => {
     let daoOwner: Signer;
 
     let titanLayerAddress: string, titanOperatorContractAddress: string;
-    let titanLayerContract: Layer2CandidateV1_1;
-    let titanOperatorContract: OperatorV1_1
+    let titanLayerContract: CandidateAddOnV1_1;
+    let titanOperatorContract: OperatorManagerV1_1
 
     let thanosLayerAddress: string, thanosOperatorContractAddress: string;
-    let thanosLayerContract: Layer2CandidateV1_1;
-    let thanosOperatorContract: OperatorV1_1
+    let thanosLayerContract: CandidateAddOnV1_1;
+    let thanosOperatorContract: OperatorManagerV1_1
+
+    let mockSystemConfigFactory: MockSystemConfigFactory
+    let mockSystemConfig: MockSystemConfig
+    let mockCandidateAddress: string, mockOperatorContractAddress: string;
+    let mockCandidateCotract: CandidateAddOnV1_1
+    let mockOperatorContract: OperatorManagerV1_1
 
 
     let powerTon: string
@@ -215,14 +227,15 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# L2Registry', () => {
+    describe('# L1BridgeRegistry', () => {
         it('deploy', async () => {
-            l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
-            l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
+            l1BridgeRegistryV_1 = (await (await ethers.getContractFactory("L1BridgeRegistryV1_1")).connect(deployer).deploy()) as L1BridgeRegistryV1_1;
+            l1BridgeRegistryProxy = (await (await ethers.getContractFactory("L1BridgeRegistryProxy")).connect(deployer).deploy()) as L1BridgeRegistryProxy;
 
-            await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+            await (await l1BridgeRegistryProxy.connect(deployer).upgradeTo(l1BridgeRegistryV_1.address)).wait()
 
-            l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+            l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", l1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
+
         });
     })
 
@@ -230,69 +243,69 @@ describe('Layer2Manager', () => {
 
         it('setSeigniorageCommittee can not be executed by not an admin', async () => {
 
-            expect(await l2Registry.isAdmin(addr1.address)).to.be.eq(false)
+            expect(await l1BridgeRegistry.isAdmin(addr1.address)).to.be.eq(false)
 
             await expect(
-                l2Registry.connect(addr1).setSeigniorageCommittee(
+                l1BridgeRegistry.connect(addr1).setSeigniorageCommittee(
                     seigniorageCommitteeAddress
                 )
                 ).to.be.revertedWith("AuthControl: Caller is not an admin")
         })
 
         it('setSeigniorageCommittee can be executed by admin', async () => {
-            expect(await l2Registry.isAdmin(deployer.address)).to.be.eq(true)
+            expect(await l1BridgeRegistry.isAdmin(deployer.address)).to.be.eq(true)
 
-            let receipt = await (await l2Registry.connect(deployer).setSeigniorageCommittee(
+            let receipt = await (await l1BridgeRegistry.connect(deployer).setSeigniorageCommittee(
                 seigniorageCommitteeAddress
             )).wait()
 
-            const topic = l2Registry.interface.getEventTopic('SetSeigniorageCommittee');
+            const topic = l1BridgeRegistry.interface.getEventTopic('SetSeigniorageCommittee');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
             expect(deployedEvent.args._seigniorageCommittee).to.be.eq(seigniorageCommitteeAddress)
-            expect(await l2Registry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
         })
 
     })
 
-    describe('# OperatorFactory', () => {
-        it('deploy OperatorV1_1', async () => {
-            operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
+    describe('# OperatorManagerFactory', () => {
+        it('deploy OperatorManagerV1_1', async () => {
+            operatorManagerV1_1 = (await (await ethers.getContractFactory("OperatorManagerV1_1")).connect(deployer).deploy()) as OperatorManagerV1_1;
         });
 
-        it('deploy OperatorFactory ', async () => {
+        it('deploy OperatorManagerFactory ', async () => {
             const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-            operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
+            operatorManagerFactory = (await (await ethers.getContractFactory("OperatorManagerFactory")).connect(deployer).deploy(operatorManagerV1_1.address)) as OperatorManagerFactory;
 
         });
     })
 
-    describe('# Layer2CandidateV1_1', () => {
-        it('deploy layer2CandidateV1_1Imp', async () => {
-            layer2CandidateV1_1Imp = (await (await ethers.getContractFactory("Layer2CandidateV1_1")).connect(deployer).deploy()) as Layer2CandidateV1_1;
+    describe('# CandidateAddOnV1_1', () => {
+        it('deploy CandidateAddOnV1_1Imp', async () => {
+            candidateAddOnV1_1Imp = (await (await ethers.getContractFactory("CandidateAddOnV1_1")).connect(deployer).deploy()) as CandidateAddOnV1_1;
         });
     })
 
-    describe('# Layer2CandidateFactoryProxy', () => {
+    describe('# CandidateAddOnFactoryProxy', () => {
         it('deploy', async () => {
-            layer2CandidateFactoryImp = (await (await ethers.getContractFactory("Layer2CandidateFactory")).connect(deployer).deploy()) as Layer2CandidateFactory;
-            layer2CandidateFactoryProxy = (await (await ethers.getContractFactory("Layer2CandidateFactoryProxy")).connect(deployer).deploy()) as Layer2CandidateFactoryProxy;
+            candidateAddOnFactoryImp = (await (await ethers.getContractFactory("CandidateAddOnFactory")).connect(deployer).deploy()) as CandidateAddOnFactory;
+            candidateAddOnFactoryProxy = (await (await ethers.getContractFactory("CandidateAddOnFactoryProxy")).connect(deployer).deploy()) as CandidateAddOnFactoryProxy;
 
-            await (await layer2CandidateFactoryProxy.connect(deployer).upgradeTo(layer2CandidateFactoryImp.address)).wait()
+            await (await candidateAddOnFactoryProxy.connect(deployer).upgradeTo(candidateAddOnFactoryImp.address)).wait()
 
-            layer2CandidateFactory = (await ethers.getContractAt("Layer2CandidateFactory", layer2CandidateFactoryProxy.address, deployer)) as Layer2CandidateFactory
+            candidateAddOnFactory = (await ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deployer)) as CandidateAddOnFactory
 
             const { DepositManager, DAOCommitteeProxy, TON, WTON} = await getNamedAccounts();
 
-            await (await layer2CandidateFactory.connect(deployer).setAddress(
+            await (await candidateAddOnFactory.connect(deployer).setAddress(
                 DepositManager,
                 DAOCommitteeProxy,
-                layer2CandidateV1_1Imp.address,
+                candidateAddOnV1_1Imp.address,
                 TON,
                 WTON,
-                l2RegistryProxy.address
+                l1BridgeRegistryProxy.address
             )).wait()
         });
     })
@@ -306,14 +319,14 @@ describe('Layer2Manager', () => {
         });
 
         it('addManager can be executed by admin', async () => {
-            await (await l2RegistryProxy.connect(deployer).addManager(manager.address)).wait()
-            expect(await l2RegistryProxy.isManager(manager.address)).to.be.eq(true)
+            await (await l1BridgeRegistryProxy.connect(deployer).addManager(manager.address)).wait()
+            expect(await l1BridgeRegistryProxy.isManager(manager.address)).to.be.eq(true)
         })
 
-        it('operatorFactory.setAddresses', async () => {
+        it('OperatorManagerFactory.setAddresses', async () => {
             const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-            const receipt = await (await operatorFactory.connect(deployer).setAddresses(
+            const receipt = await (await operatorManagerFactory.connect(deployer).setAddresses(
                 DepositManager,
                 TON,
                 WTON,
@@ -332,8 +345,8 @@ describe('Layer2Manager', () => {
 
             await expect(
                 layer2Manager.connect(addr1).setAddresses(
-                    l2RegistryProxy.address,
-                    operatorFactory.address,
+                    l1BridgeRegistryProxy.address,
+                    operatorManagerFactory.address,
                     TON, WTON, DAOCommitteeProxy, DepositManager,
                     SeigManager, swapProxy
                 )
@@ -346,8 +359,8 @@ describe('Layer2Manager', () => {
             expect(await layer2Manager.isAdmin(deployer.address)).to.be.eq(true)
 
             let receipt = await (await layer2Manager.connect(deployer).setAddresses(
-                l2RegistryProxy.address,
-                operatorFactory.address,
+                l1BridgeRegistryProxy.address,
+                operatorManagerFactory.address,
                 TON, WTON, DAOCommitteeProxy, DepositManager, SeigManager, swapProxy
             )).wait()
 
@@ -355,8 +368,8 @@ describe('Layer2Manager', () => {
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = layer2Manager.interface.parseLog(log);
 
-            expect(deployedEvent.args._l2Register).to.be.eq(l2RegistryProxy.address)
-            expect(deployedEvent.args._operatorFactory).to.be.eq(operatorFactory.address)
+            expect(deployedEvent.args._l2Register).to.be.eq(l1BridgeRegistryProxy.address)
+            expect(deployedEvent.args._operatorManagerFactory).to.be.eq(operatorManagerFactory.address)
             expect(deployedEvent.args._ton).to.be.eq(TON)
             expect(deployedEvent.args._wton).to.be.eq(WTON)
             expect(deployedEvent.args._dao).to.be.eq(DAOCommitteeProxy)
@@ -417,28 +430,76 @@ describe('Layer2Manager', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
 
         it('registerSystemConfigByManager  ', async () => {
-            let type = 1;
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-            let receipt = await (await l2Registry.connect(manager).registerSystemConfigByManager(
+            let type = 1;
+            let name = 'Titan'
+
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfig.address,
-                type
+                type,
+                l2TonAddress,
+                name
             )).wait()
 
-            const topic = l2Registry.interface.getEventTopic('RegisteredSystemConfig');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.type_).to.be.eq(type)
         })
+    })
+
+    describe('# MockSystemConfigFactory ', () => {
+        it('set MockSystemConfigFactory ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
+            mockSystemConfigFactory = (await (await ethers.getContractFactory("MockSystemConfigFactory")).connect(deployer).deploy()) as MockSystemConfigFactory;
+
+            let name = 'MockSystemConfigTest1'
+
+            const receipt = await (await mockSystemConfigFactory.connect(deployer).createMockSystemConfig(
+                name
+            )).wait()
+
+            const topic = mockSystemConfigFactory.interface.getEventTopic('CreatedMockSystemConfig');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = mockSystemConfigFactory.interface.parseLog(log);
+
+            expect(deployedEvent.args.name).to.be.eq(name)
+
+            mockSystemConfig = (new ethers.Contract(deployedEvent.args.mockSystemConfig,  MockSystemConfig_Json.abi, deployer)) as MockSystemConfig
+        })
+
+        it('registerSystemConfigByManager  ', async () => {
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
+
+            let type = 2;
+            let name = await mockSystemConfig.name()
+            let l2TonAddress_native = "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000"
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
+                mockSystemConfig.address,
+                type,
+                l2TonAddress_native,
+                name
+            )).wait()
+
+            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
+
+            expect(deployedEvent.args.rollupConfig).to.be.eq(mockSystemConfig.address)
+            expect(deployedEvent.args.type_).to.be.eq(type)
+        })
+
     })
 
     describe('# LegacySystemConfig Test2', () => {
@@ -457,40 +518,43 @@ describe('Layer2Manager', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
-
             await (await legacySystemConfigTest2.connect(deployer).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
 
-        it('registerSystemConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
+        it('registerRollupConfigByManager : Already registered l2Bridge addresses cannot be registered. ', async () => {
             let type = 1;
+            let name = 'Titan'
+            const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
 
-             await expect(l2Registry.connect(manager).registerSystemConfigByManager(
+             await expect(l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 legacySystemConfigTest2.address,
-                type
-            )).to.be.revertedWith("unavailable for registration")
+                type,
+                l2TonAddress,
+                name
+            )).to.be.revertedWith("RegisterError")
+
         })
     })
 
     describe('# checkLayer2TVL', () => {
-        it('If the SystemConfig or L1Bridge address does not exist, the result is returned as false.', async () => {
+        it('If the rollupConfig or L1Bridge address does not exist, the result is returned as false.', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
-            let systemConfig = l1MessengerAddress
+            let rollupConfig = l1MessengerAddress
 
-            expect(await layer2Manager.l2Register()).to.be.eq(l2Registry.address)
-            expect(await l2Registry.systemConfigType(systemConfig)).to.be.eq(0)
+            expect(await layer2Manager.l1BridgeRegistry()).to.be.eq(l1BridgeRegistry.address)
+            expect(await l1BridgeRegistry.rollupType(rollupConfig)).to.be.eq(0)
 
-            let check = await layer2Manager.checkLayer2TVL(systemConfig)
+            let check = await layer2Manager.checkLayer2TVL(rollupConfig)
             expect(check.result).to.be.eq(false)
             expect(check.amount).to.be.eq(ethers.constants.Zero)
         })
 
-        it('If the SystemConfig or L1Bridge address exist, the result is returned as false.', async () => {
+        it('If the rollupConfig or L1Bridge address exist, the result is returned as false.', async () => {
 
-            expect(await layer2Manager.l2Register()).to.be.eq(l2Registry.address)
-            expect(await l2Registry.systemConfigType(legacySystemConfig.address)).to.be.eq(1)
+            expect(await layer2Manager.l1BridgeRegistry()).to.be.eq(l1BridgeRegistry.address)
+            expect(await l1BridgeRegistry.rollupType(legacySystemConfig.address)).to.be.eq(1)
 
             let check = await layer2Manager.checkLayer2TVL(legacySystemConfig.address)
             expect(check.result).to.be.eq(true)
@@ -501,21 +565,24 @@ describe('Layer2Manager', () => {
 
     describe('# ThanosSystemConfig : Thanos ', () => {
 
-        it('registerSystemConfigByManager  ', async () => {
+        it('registerRollupConfigByManager  ', async () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
             let type = 2;
+            let name = 'Thanos'
 
-            let receipt = await (await l2Registry.connect(manager).registerSystemConfigByManager(
+            let receipt = await (await l1BridgeRegistry.connect(manager)["registerRollupConfigByManager(address,uint8,address,string)"](
                 thanosSystemConfig,
-                type
+                type,
+                thanosL2TON,
+                name
             )).wait()
 
-            const topic = l2Registry.interface.getEventTopic('RegisteredSystemConfig');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RegisteredRollupConfig');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(thanosSystemConfig)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(thanosSystemConfig)
             expect(deployedEvent.args.type_).to.be.eq(type)
 
         })
@@ -553,26 +620,33 @@ describe('Layer2Manager', () => {
 
             const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
             const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-            const selector3 = encodeFunctionSignature("setL2Registry(address)");
+            const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
             const selector4 = encodeFunctionSignature("updateSeigniorage()");
             const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
-            const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
+            const selector6 = encodeFunctionSignature("updateSeigniorageLayer(address)");
             const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
             const selector8 = encodeFunctionSignature("totalLayer2TVL()");
             const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-            const selector10 = encodeFunctionSignature("l2Registry()");
+            const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector11 = encodeFunctionSignature("layer2Manager()");
             const selector12 = encodeFunctionSignature("layer2StartBlock()");
             const selector13 = encodeFunctionSignature("l2RewardPerUint()");
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
             const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+
             const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+            const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
+            const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
+            const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
+            const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
-                selector11, selector12, selector13, selector14, selector15,
-                selector16 ];
+                selector11, selector12, selector13, selector14, selector15
+                , selector16,
+                selector17, selector18, selector19, selector20
+            ];
 
             const index = 1;
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
@@ -620,7 +694,7 @@ describe('Layer2Manager', () => {
 
             const selector1 = encodeFunctionSignature("ton()");
             const selector2 = encodeFunctionSignature("minDepositGasLimit()");
-            const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
+            const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint32)");
             const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
 
             let functionBytecodes = [
@@ -655,8 +729,8 @@ describe('Layer2Manager', () => {
 
         })
 
-        it('setCandidateFactory to layer2CandidateFactory', async () => {
-            await (await daoV2Contract.connect(daoOwner).setLayer2CandidateFactory(layer2CandidateFactory.address)).wait()
+        it('setCandidateFactory to candidateAddOnFactory', async () => {
+            await (await daoV2Contract.connect(daoOwner).setCandidateAddOnFactory(candidateAddOnFactory.address)).wait()
         })
 
         it('setLayer2Manager to layer2Manager', async () => {
@@ -669,59 +743,105 @@ describe('Layer2Manager', () => {
             await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
         })
 
-        it('setTargetSetL2Registry to l2Register', async () => {
-            // await (await daoV2Contract.connect(daoOwner).setTargetSetL2Registry(seigManager.address, l2Registry.address)).wait()
+        it('setTargetSetL1BridgeRegistry to l2Register', async () => {
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetL1BridgeRegistry(seigManager.address, l1BridgeRegistry.address)).wait()
 
-            await (await seigManager.connect(daoOwner).setL2Registry(l2Registry.address)).wait()
+            await (await seigManager.connect(daoOwner).setL1BridgeRegistry(l1BridgeRegistry.address)).wait()
         })
     })
 
-    describe('# registerLayer2Candidate ', () => {
-        it('Fail if systemConfig is an invalid address', async () => {
-            const amount = await layer2Manager.minimumInitialDepositAmount()
 
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
-                l2Registry.address,
+    describe('# registerCandidateAddOn : MockSystemConfig  ', () => {
+
+        it('registerCandidateAddOn : MockSystemConfig ', async () => {
+            const systemConfig = mockSystemConfig;
+
+            expect((await layer2Manager.statusLayer2(systemConfig.address))).to.be.eq(0)
+
+            const amount = await layer2Manager.minimumInitialDepositAmount();
+
+            await (await tonContract.connect(tonMinter).mint(addr1.address, amount))
+            let allowance = await tonContract.allowance(addr1.address, layer2Manager.address)
+            if(allowance.lt(amount)){
+                await tonContract.connect(addr1).approve(layer2Manager.address, amount);
+            }
+
+            const name = await systemConfig.name()
+            const operatorAddress = await operatorManagerFactory.getAddress(systemConfig.address)
+
+            const receipt = await (await layer2Manager.connect(addr1).registerCandidateAddOn(
+                systemConfig.address,
                 amount,
                 true,
-                'test1'
-            )).to.be.rejectedWith("unValidated Layer2")
+                name
+            )).wait()
+
+            const topic = layer2Manager.interface.getEventTopic('RegisteredCandidateAddOn');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = layer2Manager.interface.parseLog(log);
+            // console.log(deployedEvent.args)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(systemConfig.address)
+            expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
+            expect(deployedEvent.args.memo).to.be.eq(name)
+            expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
+            expect(deployedEvent.args.candidateAddOn).to.be.not.eq(ethers.constants.AddressZero)
+
+            mockCandidateAddress = deployedEvent.args.candidateAddOn;
+            mockOperatorContractAddress = deployedEvent.args.operator;
+            expect((await layer2Manager.statusLayer2(systemConfig.address))).to.be.eq(1)
+
+            mockCandidateCotract =  (await ethers.getContractAt("CandidateAddOnV1_1", mockCandidateAddress, deployer)) as CandidateAddOnV1_1
+            mockOperatorContract = (await ethers.getContractAt("OperatorManagerV1_1", mockOperatorContractAddress, deployer)) as OperatorManagerV1_1
+        })
+
+    })
+
+    describe('# registerCandidateAddOn ', () => {
+        it('Fail if rollupConfig is an invalid address', async () => {
+            const amount = await layer2Manager.minimumInitialDepositAmount()
+
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
+                l1BridgeRegistry.address,
+                amount,
+                true,
+                'Titan'
+            )).to.be.rejectedWith("RegisterError")
         })
 
         it('Failure in case of insufficient ton balance', async () => {
             const amount = await layer2Manager.minimumInitialDepositAmount()
 
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
         it('Failure when there is no prior approval of wton', async () => {
             const amount = await layer2Manager.minimumInitialDepositAmount()
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount.mul(utils.parseEther("1000000000")),
                 false,
-                'test1'
+                'Titan'
             )).to.be.rejectedWith("TRANSFER_FROM_FAILED")
         })
 
         it('Fail if there is no content in memo', async () => {
             const amount = await layer2Manager.minimumInitialDepositAmount()
 
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
                 ''
-            )).to.be.rejectedWith("check memo")
+            )).to.be.rejectedWith("ZeroBytesError")
         })
 
-        it('registerLayer2Candidate : titanLayer2Candidate', async () => {
-            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(0)
+        it('registerCandidateAddOn : titanCandidateAddOn', async () => {
+            expect((await layer2Manager.statusLayer2(legacySystemConfig.address))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -732,36 +852,36 @@ describe('Layer2Manager', () => {
             }
 
             const name = await legacySystemConfig.name()
-            const operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
+            const operatorAddress = await operatorManagerFactory.getAddress(legacySystemConfig.address)
 
-            const receipt = await (await layer2Manager.connect(addr1).registerLayer2Candidate(
+            const receipt = await (await layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
                 name
             )).wait()
 
-            const topic = layer2Manager.interface.getEventTopic('RegisteredLayer2Candidate');
+            const topic = layer2Manager.interface.getEventTopic('RegisteredCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = layer2Manager.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
             expect(deployedEvent.args.memo).to.be.eq(name)
             expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
-            expect(deployedEvent.args.layer2Candidate).to.be.not.eq(ethers.constants.AddressZero)
+            expect(deployedEvent.args.candidateAddOn).to.be.not.eq(ethers.constants.AddressZero)
 
-            titanLayerAddress = deployedEvent.args.layer2Candidate;
+            titanLayerAddress = deployedEvent.args.candidateAddOn;
             titanOperatorContractAddress = deployedEvent.args.operator;
-            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(1)
+            expect((await layer2Manager.statusLayer2(legacySystemConfig.address))).to.be.eq(1)
 
-            titanLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", titanLayerAddress, deployer)) as Layer2CandidateV1_1
-            titanOperatorContract = (await ethers.getContractAt("OperatorV1_1", titanOperatorContractAddress, deployer)) as OperatorV1_1
+            titanLayerContract =  (await ethers.getContractAt("CandidateAddOnV1_1", titanLayerAddress, deployer)) as CandidateAddOnV1_1
+            titanOperatorContract = (await ethers.getContractAt("OperatorManagerV1_1", titanOperatorContractAddress, deployer)) as OperatorManagerV1_1
         })
 
         it('If the layer has already been created, it will fail.', async () => {
 
-            expect((await layer2Manager.issueStatusLayer2(legacySystemConfig.address))).to.be.eq(1)
+            expect((await layer2Manager.statusLayer2(legacySystemConfig.address))).to.be.eq(1)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -773,16 +893,16 @@ describe('Layer2Manager', () => {
 
             const name = await legacySystemConfig.name()
 
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfig.address,
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("already registered");
+            ) ).to.be.revertedWith("RegisterError");
         })
 
-        it('Layers that are not registered in the L2Registry cannot be registered.', async () => {
-            expect((await layer2Manager.issueStatusLayer2(legacySystemConfigTest2.address))).to.be.eq(0)
+        it('Layers that are not registered in the L1BridgeRegistry cannot be registered.', async () => {
+            expect((await layer2Manager.statusLayer2(legacySystemConfigTest2.address))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -794,25 +914,25 @@ describe('Layer2Manager', () => {
 
             const name = await legacySystemConfigTest2.name()
 
-            await expect(layer2Manager.connect(addr1).registerLayer2Candidate(
+            await expect(layer2Manager.connect(addr1).registerCandidateAddOn(
                 legacySystemConfigTest2.address,
                 amount,
                 true,
                 name
-            ) ).to.be.revertedWith("unValidated Layer2");
+            ) ).to.be.revertedWith("RegisterError");
 
         });
 
     })
 
-    describe('# L2Register', () => {
+    describe('# L1BridgeRegistry', () => {
 
         describe('# setAddresses', () => {
             it('setAddresses : onlyOwner ', async () => {
                 const {TON} = await getNamedAccounts();
 
                 await expect(
-                    l2Registry.connect(addr1).setAddresses(
+                    l1BridgeRegistry.connect(addr1).setAddresses(
                         layer2Manager.address,
                         seigManager.address,
                         TON
@@ -823,13 +943,13 @@ describe('Layer2Manager', () => {
             it('setAddresses : onlyOwner ', async () => {
                 const {TON} = await getNamedAccounts();
 
-                await (await l2Registry.connect(deployer).setAddresses(
+                await (await l1BridgeRegistry.connect(deployer).setAddresses(
                         layer2Manager.address,
                         seigManager.address,
                         TON
                 )).wait()
 
-                expect(await l2Registry.layer2Manager()).to.be.eq(layer2Manager.address)
+                expect(await l1BridgeRegistry.layer2Manager()).to.be.eq(layer2Manager.address)
             })
         })
 
@@ -844,9 +964,9 @@ describe('Layer2Manager', () => {
     });
 
 
-    describe('# DepositManager : Layer2Candidate ', () => {
+    describe('# DepositManager : CandidateAddOn ', () => {
 
-        // titanLayerAddress = deployedEvent.args.layer2Candidate;
+        // titanLayerAddress = deployedEvent.args.candidateAddOn;
         // titanOperatorContractAddress = deployedEvent.args.operator;
 
         it('deposit to titanLayerAddress using approveAndCall', async () => {
@@ -971,9 +1091,9 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
 
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -1076,8 +1196,8 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -1173,7 +1293,7 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : operator claim:  third updateSeigniorage to titanLayerAddress : operator ', async () => {
+        it('Layer2Contract: updateSeigniorage : operator claim: the third updateSeigniorage to titanLayerAddress : operator ', async () => {
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
             // console.log('\nlastSeigBlock', lastSeigBlock)
@@ -1189,8 +1309,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -1209,10 +1329,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall, false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -1301,13 +1421,15 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : operator staking :  forth updateSeigniorage to titanLayerAddress : operator ', async () => {
+        it('Layer2Contract: updateSeigniorage : operator staking : the forth updateSeigniorage to titanLayerAddress : operator ', async () => {
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
             // console.log('\nlastSeigBlock', lastSeigBlock)
             let block1 = await ethers.provider.getBlock('latest');
             // console.log('\nblock number :', block1.number);
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
+
+            const managerOfOperatorManager = await titanOperatorContract.manager();
 
             // console.log('titanOperatorContractAddress', titanOperatorContractAddress)
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
@@ -1317,8 +1439,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -1332,6 +1454,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -1339,10 +1462,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall, false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -1358,6 +1481,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](titanLayerAddress, titanOperatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -1422,7 +1546,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 
@@ -1949,6 +2075,41 @@ describe('Layer2Manager', () => {
             )
         })
 
+        it('deposit to MockSystemConfig using approveAndCall', async () => {
+
+            let account = tonHave
+            let tonAmount = ethers.utils.parseEther("100")
+            let layerAddress = mockCandidateAddress
+
+            const beforeBalance = await tonContract.balanceOf(account.address);
+            expect(beforeBalance).to.be.gte(tonAmount)
+
+            let stakedA = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+
+            const data = marshalString(
+                [depositManager.address, layerAddress]
+                  .map(unmarshalString)
+                  .map(str => padLeft(str, 64))
+                  .join(''),
+            );
+
+            await (await tonContract.connect(account).approveAndCall(
+                wtonContract.address,
+                tonAmount,
+                data,
+                {from: account.address}
+            )).wait()
+
+            const afterBalance = await tonContract.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
+
+            let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+
+            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
+            )
+        })
+
         it('withdrawAndDepositL2 : Not supported in DAOCandidate layer.', async () => {
             let layer2 = layer2Info_1.layer2
             let account = tonHave
@@ -1957,7 +2118,7 @@ describe('Layer2Manager', () => {
             await expect(depositManager.connect(account).withdrawAndDepositL2(
                 layer2,
                 wtonAmount
-            )).to.be.revertedWith("not operator contract")
+            )).to.be.revertedWith("OperatorError")
         })
 
         it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {
@@ -1971,13 +2132,104 @@ describe('Layer2Manager', () => {
             )).to.be.revertedWith("staked amount is insufficient")
         })
 
+        // it('** Owner can block the L2 withdrawAndDepositL2 function.', async () => {
+        //     let account = tonHave
+        //     let layerAddress = mockCandidateAddress
+        //     let rollupConfig = await mockOperatorContract.rollupConfig()
+        //     expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
+
+        //     let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+
+        //     const portal = await mockSystemConfig.optimismPortal()
+        //     await (await tonContract.connect(account).transfer(portal, ethers.utils.parseEther("100"))).wait()
+
+        //     const portalBalance = await tonContract.balanceOf(portal)
+
+        //     prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+
+        //     let stakedA = await seigManager["stakeOf(address,address)"](mockCandidateAddress, account.address)
+
+        //     let receipt = await (await l1BridgeRegistry.connect(deployer).setBlockingL2Deposit(
+        //         rollupConfig, true
+        //     )).wait()
+
+        //     const topic = l1BridgeRegistry.interface.getEventTopic('SetBlockingL2Deposit');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
+        //     expect(deployedEvent.args.rollupConfig).to.be.eq(rollupConfig)
+        //     expect(deployedEvent.args.rejectedL2Deposit).to.be.eq(true)
+
+        //     const info = await l1BridgeRegistry.getRollupInfo(rollupConfig)
+        //     expect(info.rejectedL2Deposit_).to.be.eq(true)
+
+        //     await expect(depositManager.connect(account).withdrawAndDepositL2(
+        //         layerAddress,
+        //         stakedA.div(ethers.BigNumber.from("4"))
+        //     )).to.be.revertedWith("CheckL1BridgeError")
+
+        // })
+
+        it('** The MockSystemConfig\'s withdrawAndDepositL2 function.', async () => {
+
+            let account = tonHave
+            let layerAddress = mockCandidateAddress
+            let rollupConfig = await mockOperatorContract.rollupConfig()
+            expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
+
+            const portal = await mockSystemConfig.optimismPortal()
+
+            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+            const portalBalancePrev = await tonContract.balanceOf(portal)
+
+            // console.log("prevLayer2TVL ", prevLayer2TVL)
+            // console.log("portalBalancePrev ", portalBalancePrev)
+
+            let stakedA = await seigManager["stakeOf(address,address)"](mockCandidateAddress, account.address)
+            // console.log("stakedA ", stakedA)
+
+            let checkL1Bridge = await mockOperatorContract.checkL1Bridge();
+            // console.log("checkL1Bridge ", checkL1Bridge)
+
+
+            const amount = stakedA.div(ethers.BigNumber.from("2"))
+            // console.log("amount ", amount)
+
+            let receipt = await (await depositManager.connect(account).withdrawAndDepositL2(
+                layerAddress,
+                amount
+            )).wait()
+
+            const topic = depositManager.interface.getEventTopic('WithdrawalAndDeposited');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = depositManager.interface.parseLog(log);
+            expect(deployedEvent.args.layer2).to.be.eq(layerAddress)
+            expect(deployedEvent.args.account).to.be.eq(account.address)
+            expect(deployedEvent.args.amount).to.be.eq(amount)
+
+            let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+            expect(stakedB).to.be.eq(stakedA.sub(amount))
+
+            let afterLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
+            const portalBalanceAfter = await tonContract.balanceOf(portal)
+
+            // console.log("afterLayer2TVL ", afterLayer2TVL)
+            // console.log("portalBalanceAfter ", portalBalanceAfter)
+
+            const toTonAmount = amount.div(ethers.BigNumber.from("1000000000"))
+            // const afterTonBalance = await tonContract.balanceOf(depositManager.address);
+            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(
+                prevLayer2TVL.add(toTonAmount))
+
+            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(portalBalanceAfter)
+        })
+
         it('When you run it, deposit money to L2 immediately without delay blocks.', async () => {
             let account = tonHave
 
-            let systemConfig = await titanOperatorContract.systemConfig()
-            expect(systemConfig).to.be.not.eq(ethers.constants.AddressZero)
+            let rollupConfig = await titanOperatorContract.rollupConfig()
+            expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
 
-            let prevLayer2TVL = await l2Registry.layer2TVL(systemConfig)
+            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
 
             let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
 
@@ -1997,46 +2249,49 @@ describe('Layer2Manager', () => {
             expect(stakedB).to.be.eq(ethers.constants.Zero)
 
             const afterTonBalance = await tonContract.balanceOf(depositManager.address);
-            expect(await l2Registry.layer2TVL(systemConfig)).to.be.eq(
+            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(
                 prevLayer2TVL.add(stakedA.div(BigNumber.from("1000000000"))))
 
         })
+
+
     })
 
-    describe('# reject Layer2Candidate : L2Registry ', () => {
 
-        it('reject Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {
-            expect(await l2Registry.seigniorageCommittee()).to.be.not.eq(addr1.address)
+    describe('# reject CandidateAddOn : L1BridgeRegistry ', () => {
+
+        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.not.eq(addr1.address)
             await expect(
-                l2Registry.connect(addr1).rejectLayer2Candidate(
+                l1BridgeRegistry.connect(addr1).rejectCandidateAddOn(
                     legacySystemConfig.address
                 )
-            ).to.be.revertedWith("sender is not seigniorageCommittee")
+            ).to.be.revertedWith("PermissionError")
         })
 
-        it('reject Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {
+        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
 
-            expect(await l2Registry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
-            expect(await l2Registry.rejectSystemConfig(legacySystemConfig.address)).to.be.eq(false)
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
+            expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(false)
 
             let l2Info = await seigManager.layer2RewardInfo(titanLayerAddress)
             let totalLayer2TVL = await seigManager.totalLayer2TVL()
             let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
             expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(true)
 
-            const receipt =  await (await l2Registry.connect(seigniorageCommittee).rejectLayer2Candidate(
+            const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).rejectCandidateAddOn(
                 legacySystemConfig.address
             )).wait()
-            const topic = l2Registry.interface.getEventTopic('RejectedLayer2Candidate');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RejectedCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
-            expect(deployedEvent.args._systemConfig).to.be.eq(legacySystemConfig.address)
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
 
-            const topic1 = layer2Manager.interface.getEventTopic('PausedLayer2Candidate');
+            const topic1 = layer2Manager.interface.getEventTopic('PausedCandidateAddOn');
             const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
             const deployedEvent1 = layer2Manager.interface.parseLog(log1);
-            expect(deployedEvent1.args.systemConfig).to.be.eq(legacySystemConfig.address)
-            expect(deployedEvent1.args._layer2).to.be.eq(titanLayerAddress)
+            expect(deployedEvent1.args.rollupConfig).to.be.eq(legacySystemConfig.address)
+            expect(deployedEvent1.args.candidateAddOn).to.be.eq(titanLayerAddress)
 
             const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromSeigniorage');
             const log2 = receipt.logs.find(x => x.topics.indexOf(topic2) >= 0);
@@ -2047,7 +2302,7 @@ describe('Layer2Manager', () => {
             expect(deployedEvent2.args.initialDebt).to.be.eq(l2Info.initialDebt)
 
 
-            expect(await l2Registry.rejectSystemConfig(legacySystemConfig.address)).to.be.eq(true)
+            expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
             let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
@@ -2060,10 +2315,10 @@ describe('Layer2Manager', () => {
 
         })
 
-        it('register Layer2Candidate : thanosLayer2Candidate', async () => {
+        it('register CandidateAddOn : thanosCandidateAddOn', async () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
-            expect((await layer2Manager.issueStatusLayer2(thanosSystemConfig))).to.be.eq(0)
+            expect((await layer2Manager.statusLayer2(thanosSystemConfig))).to.be.eq(0)
 
             const amount = await layer2Manager.minimumInitialDepositAmount();
 
@@ -2074,37 +2329,37 @@ describe('Layer2Manager', () => {
             }
 
             const name = 'Thanos'
-            const operatorAddress = await operatorFactory.getAddress(thanosSystemConfig)
+            const operatorAddress = await operatorManagerFactory.getAddress(thanosSystemConfig)
 
-            const receipt = await (await layer2Manager.connect(addr1).registerLayer2Candidate(
+            const receipt = await (await layer2Manager.connect(addr1).registerCandidateAddOn(
                 thanosSystemConfig,
                 amount,
                 true,
                 name
             )).wait()
 
-            const topic = layer2Manager.interface.getEventTopic('RegisteredLayer2Candidate');
+            const topic = layer2Manager.interface.getEventTopic('RegisteredCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = layer2Manager.interface.parseLog(log);
 
-            expect(deployedEvent.args.systemConfig).to.be.eq(thanosSystemConfig)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(thanosSystemConfig)
             expect(deployedEvent.args.wtonAmount).to.be.eq(amount.mul(BigNumber.from("1000000000")))
             expect(deployedEvent.args.memo).to.be.eq(name)
             expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
-            expect(deployedEvent.args.layer2Candidate).to.be.not.eq(ethers.constants.AddressZero)
+            expect(deployedEvent.args.candidateAddOn).to.be.not.eq(ethers.constants.AddressZero)
 
-            thanosLayerAddress = deployedEvent.args.layer2Candidate;
+            thanosLayerAddress = deployedEvent.args.candidateAddOn;
             thanosOperatorContractAddress = deployedEvent.args.operator;
-            expect((await layer2Manager.issueStatusLayer2(thanosSystemConfig))).to.be.eq(1)
-            expect((await l2Registry.systemConfigType(thanosSystemConfig))).to.be.eq(2)
+            expect((await layer2Manager.statusLayer2(thanosSystemConfig))).to.be.eq(1)
+            expect((await l1BridgeRegistry.rollupType(thanosSystemConfig))).to.be.eq(2)
 
-            thanosLayerContract =  (await ethers.getContractAt("Layer2CandidateV1_1", thanosLayerAddress, deployer)) as Layer2CandidateV1_1
-            thanosOperatorContract = (await ethers.getContractAt("OperatorV1_1", thanosOperatorContractAddress, deployer)) as OperatorV1_1
+            thanosLayerContract =  (await ethers.getContractAt("CandidateAddOnV1_1", thanosLayerAddress, deployer)) as CandidateAddOnV1_1
+            thanosOperatorContract = (await ethers.getContractAt("OperatorManagerV1_1", thanosOperatorContractAddress, deployer)) as OperatorManagerV1_1
         })
 
     })
 
-    describe('# DepositManager : Layer2Candidate : titanLayer2Candidate ', () => {
+    describe('# DepositManager : CandidateAddOn : titanCandidateAddOn ', () => {
 
         it('seigManager: updateSeigniorageLayer : updateSeigniorage to titanLayerAddress : no give seigniorage to l2', async () => {
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
@@ -2117,8 +2372,8 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -2220,8 +2475,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -2240,10 +2495,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -2345,8 +2600,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(titanOperatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -2367,10 +2622,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await titanOperatorContract.isOperator(deployer.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await titanLayerContract.connect(deployer)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -2454,7 +2709,7 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# DepositManager : Layer2Candidate : thanosLayer2Candidate ', () => {
+    describe('# DepositManager : CandidateAddOn : thanosCandidateAddOn ', () => {
 
         it('deposit to thanosLayerAddress using approveAndCall', async () => {
             let layerAddress = thanosLayerAddress
@@ -2541,8 +2796,8 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -2686,10 +2941,10 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            // console.log('systemConfig', systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            // console.log('rollupConfig', rollupConfig)
 
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -2800,8 +3055,8 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -2919,8 +3174,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -2939,10 +3194,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(thanosSystemConfigOwner.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(thanosSystemConfigOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(thanosSystemConfigOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3053,8 +3308,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -3075,10 +3330,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3273,49 +3528,52 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# restore Layer2Candidate : L2Registry ', () => {
+    describe('# restore CandidateAddOn : L1BridgeRegistry ', () => {
 
-        it('restore Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {
-            expect(await l2Registry.seigniorageCommittee()).to.be.not.eq(addr1.address)
+        it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.not.eq(addr1.address)
             await expect(
-                l2Registry.connect(addr1).restoreLayer2Candidate(
-                    legacySystemConfig.address
+                l1BridgeRegistry.connect(addr1).restoreCandidateAddOn(
+                    legacySystemConfig.address,
+                    false
                 )
-            ).to.be.revertedWith("sender is not seigniorageCommittee")
+            ).to.be.revertedWith("PermissionError")
         })
 
-        it('restore Layer2Candidate (titanlayer2Candidate) : Only rejected layers can be restored.', async () => {
+        it('restore CandidateAddOn (titanCandidateAddOn) : Only rejected layers can be restored.', async () => {
             const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
 
-            expect(await l2Registry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
-            expect(await l2Registry.rejectSystemConfig(thanosSystemConfig)).to.be.eq(false)
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
+            expect(await l1BridgeRegistry.rejectRollupConfig(thanosSystemConfig)).to.be.eq(false)
             await expect(
-                l2Registry.connect(seigniorageCommittee).restoreLayer2Candidate(
-                    thanosSystemConfig
+                l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
+                    thanosSystemConfig,
+                    false
                 )
-            ).to.be.revertedWith("not rejected")
+            ).to.be.revertedWith("OnlyRejectedError")
         })
 
-        it('restore Layer2Candidate (titanlayer2Candidate) can be executed by seigniorageCommittee ', async () => {
+        it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
 
-            expect(await l2Registry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
-            expect(await l2Registry.rejectSystemConfig(legacySystemConfig.address)).to.be.eq(true)
+            expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
+            expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
 
             let l2Info = await seigManager.layer2RewardInfo(titanLayerAddress)
             let totalLayer2TVL = await seigManager.totalLayer2TVL()
             let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
             expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(false)
 
-            const receipt =  await (await l2Registry.connect(seigniorageCommittee).restoreLayer2Candidate(
-                legacySystemConfig.address
+            const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
+                legacySystemConfig.address,
+                false
             )).wait()
-            const topic = l2Registry.interface.getEventTopic('RestoredLayer2Candidate');
+            const topic = l1BridgeRegistry.interface.getEventTopic('RestoredCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = l2Registry.interface.parseLog(log);
-            expect(deployedEvent.args._systemConfig).to.be.eq(legacySystemConfig.address)
+            const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
+            // sconsole.log(deployedEvent.args)
+            expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
 
-
-            expect(await l2Registry.rejectSystemConfig(legacySystemConfig.address)).to.be.eq(false)
+            expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(false)
             let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
@@ -3330,9 +3588,9 @@ describe('Layer2Manager', () => {
 
     })
 
-    describe('# DepositManager : Layer2Candidate : titanLayer2Candidate ', () => {
+    describe('# DepositManager : CandidateAddOn : titanCandidateAddOn ', () => {
 
-        it('seigManager: updateSeigniorageLayer : the first updateSeigniorage to titanLayer2Candidate : no give seigniorage to l2', async () => {
+        it('seigManager: updateSeigniorageLayer : the first updateSeigniorage to titanCandidateAddOn : no give seigniorage to l2', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
@@ -3348,9 +3606,9 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
 
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -3450,7 +3708,7 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('seigManager: updateSeigniorageLayer : the second updateSeigniorage to titanLayer2Candidate : give seigniorage to l2', async () => {
+        it('seigManager: updateSeigniorageLayer : the second updateSeigniorage to titanCandidateAddOn : give seigniorage to l2', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
@@ -3465,10 +3723,10 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            // console.log('systemConfig', systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            // console.log('rollupConfig', rollupConfig)
 
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -3562,7 +3820,7 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('seigManager: updateSeigniorageLayer : the third updateSeigniorage to titanLayer2Candidate : not operator ', async () => {
+        it('seigManager: updateSeigniorageLayer : the third updateSeigniorage to titanCandidateAddOn : not operator ', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
@@ -3579,8 +3837,8 @@ describe('Layer2Manager', () => {
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
@@ -3676,7 +3934,7 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : operator claim: the fourth updateSeigniorage to titanLayer2Candidate : operator ', async () => {
+        it('** Layer2Contract: updateSeigniorage : operator claim: the fourth updateSeigniorage to titanCandidateAddOn : operator ', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
@@ -3691,6 +3949,11 @@ describe('Layer2Manager', () => {
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
             // console.log('operatorContractAddress', operatorContractAddress)
+            const prevTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const prevTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const prevTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
+
+
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const prevWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
@@ -3699,8 +3962,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -3719,10 +3982,11 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            // bool : true -> claim for TON
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,true)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3781,6 +4045,11 @@ describe('Layer2Manager', () => {
             const afterTotalTvl = await seigManager.totalLayer2TVL()
             const afterWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
 
+            const afterTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const afterTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const afterTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
+
+
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
 
@@ -3790,12 +4059,18 @@ describe('Layer2Manager', () => {
 
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
 
-            // let afterCall = 1; claim mode
+            // let afterCall = 1; claim mode, flag = true , claim for TON
             let totalBalanceOfLayer2Manager = prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs)
             let sendAmountToOperator = deployedEvent1.args.layer2Seigs
 
-            let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
-            expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
+            //==
+            let claimAmount = prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator).div(ethers.BigNumber.from("1000000000"))
+            let managerTonBalance = prevTonBalanceOfManager.add(claimAmount)
+            expect(afterTonBalanceOfManager).to.be.eq(managerTonBalance)
+
+            //=====
+            // let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
+            // expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
 
             expect(afterWtonBalanceOfLayer2Manager).to.be.eq(
                 prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs)
@@ -3809,12 +4084,14 @@ describe('Layer2Manager', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : operator staking : the fifth updateSeigniorage to titanLayer2Candidate : operator ', async () => {
+        it('Layer2Contract: updateSeigniorage : operator staking : the fifth updateSeigniorage to titanCandidateAddOn : operator ', async () => {
             let layerAddress = titanLayerAddress
             let operatorContractAddress = titanOperatorContractAddress
             let layerContract = titanLayerContract
             let operatorContract = titanOperatorContract
             let operatorOwner = deployer
+
+            const managerOfOperatorManager = await titanOperatorContract.manager();
 
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -3831,8 +4108,8 @@ describe('Layer2Manager', () => {
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.systemConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l2Registry.layer2TVL(systemConfig)
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
@@ -3846,6 +4123,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorPrev = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaPrev: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
@@ -3853,10 +4131,10 @@ describe('Layer2Manager', () => {
             let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
             // console.log('estimatedDistribute', estimatedDistribute)
 
-            // operator 가 직접 정산을 하려면 반드시 Layer2Candidate를 통해 업데이트 시뇨리지를 실행해야 한다.
+            // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
             expect(await operatorContract.isOperator(operatorOwner.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256)"](afterCall)).wait()
+            const receipt = await (await layerContract.connect(operatorOwner)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3872,6 +4150,7 @@ describe('Layer2Manager', () => {
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](layerAddress, operatorContractAddress)
+            let stakedManagerEoaAfter: BigNumber = await seigManager["stakeOf(address,address)"](titanLayerAddress, managerOfOperatorManager)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -3936,7 +4215,9 @@ describe('Layer2Manager', () => {
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev.add(estimatedDistribute.layer2Seigs))
+            expect(stakedOperatorAfter).to.be.gte(stakedOperatorPrev)
+            expect(BigNumber.from(roundDown(stakedManagerEoaAfter,2))).to.be.gte(
+                BigNumber.from(roundDown(stakedManagerEoaPrev.add(estimatedDistribute.layer2Seigs),2)))
 
         })
 
@@ -4394,7 +4675,6 @@ describe('Layer2Manager', () => {
 
         });
     })
-
 
 });
 

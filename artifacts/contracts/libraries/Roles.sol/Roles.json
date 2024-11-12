@@ -3,8 +3,8 @@
   "contractName": "Roles",
   "sourceName": "contracts/libraries/Roles.sol",
   "abi": [],
-  "bytecode": "0x6080806040523460175760119081601d823930815050f35b600080fdfe600080fdfea164736f6c6343000812000a",
-  "deployedBytecode": "0x600080fdfea164736f6c6343000812000a",
+  "bytecode": "0x6080806040523460175760119081601d823930815050f35b600080fdfe600080fdfea164736f6c6343000813000a",
+  "deployedBytecode": "0x600080fdfea164736f6c6343000813000a",
   "linkReferences": {},
   "deployedLinkReferences": {}
 }

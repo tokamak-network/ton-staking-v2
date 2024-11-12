@@ -17,8 +17,6 @@ import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
-// import "hardhat/console.sol";
-
 contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
     using BytesLib for bytes;
 
@@ -410,7 +408,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
-         
+
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
@@ -423,11 +421,7 @@ contract DAOCommitteeDAOVault is StorageStateCommittee, AccessControl, ERC165A, 
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
                 } else if (selector1.equal(claimWTONBytes)) {
-                    uint256 daoWTONamount = IERC20(wton).balanceOf(address(daoVault));
-                    bytes memory amount = abc.slice(22, 46);
-                    bytes memory amount1 = amount.slice(14, 32);
-                    uint256 inputWTONamount = byteToUnit256(amount1);
-                    require(daoWTONamount >= inputWTONamount, 'amount over');
+                    revert('claimWTON dont use');
                 }
             }
         }

@@ -1,0 +1,37 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ILayer2Manager",
+  "sourceName": "contracts/layer2/L1BridgeRegistryV1_1.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "pauseCandidateAddOn",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "unpauseCandidateAddOn",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

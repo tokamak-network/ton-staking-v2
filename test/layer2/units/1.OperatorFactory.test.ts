@@ -4,20 +4,25 @@ import { ethers, network, getNamedAccounts} from 'hardhat'
 import { BigNumber, Signer } from 'ethers'
 // import { l2ProjectLaunchFixtures, l1Fixtures } from './shared/fixtures'
 // import { L2ProjectLaunchFixture, L1Fixture } from './shared/fixtureInterfaces'
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
 
-import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig.sol"
-import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 
-describe('OperatorFactory', () => {
+import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
+import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
+
+import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
+
+describe('OperatorManagerFactory', () => {
     let deployer: Signer, addr1: Signer, addr2: Signer, manager: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
     let legacySystemConfig: LegacySystemConfig
     let sampleSystemConfig: LegacySystemConfig
-    let operatorFactory: OperatorFactory
-    let operatorV1_1 : OperatorV1_1
+    let operatorManagerFactory: OperatorManagerFactory
+    let operatorManagerV1_1 : OperatorManagerV1_1
+    let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
 
     before('create fixture loader', async () => {
         const accounts = await ethers.getSigners();
@@ -28,24 +33,47 @@ describe('OperatorFactory', () => {
 
         const {DepositManager, TON, WTON } = await getNamedAccounts();
 
-        l2RegistryV_1 = (await (await ethers.getContractFactory("L2RegistryV1_1")).connect(deployer).deploy()) as L2RegistryV1_1;
-        l2RegistryProxy = (await (await ethers.getContractFactory("L2RegistryProxy")).connect(deployer).deploy()) as L2RegistryProxy;
+        l1BridgeRegistryV_1 = (await (await ethers.getContractFactory("L1BridgeRegistryV1_1")).connect(deployer).deploy()) as L1BridgeRegistryV1_1;
+        l1BridgeRegistryProxy = (await (await ethers.getContractFactory("L1BridgeRegistryProxy")).connect(deployer).deploy()) as L1BridgeRegistryProxy;
 
-        await (await l2RegistryProxy.connect(deployer).upgradeTo(l2RegistryV_1.address)).wait()
+        await (await l1BridgeRegistryProxy.connect(deployer).upgradeTo(l1BridgeRegistryV_1.address)).wait()
 
-        l2Registry = (await ethers.getContractAt("L2RegistryV1_1", l2RegistryProxy.address, deployer)) as L2RegistryV1_1
+        l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", l1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
 
-        operatorV1_1 = (await (await ethers.getContractFactory("OperatorV1_1")).connect(deployer).deploy()) as OperatorV1_1;
-        operatorFactory = (await (await ethers.getContractFactory("OperatorFactory")).connect(deployer).deploy(operatorV1_1.address)) as OperatorFactory;
+        operatorManagerV1_1 = (await (await ethers.getContractFactory("OperatorManagerV1_1")).connect(deployer).deploy()) as OperatorManagerV1_1;
+        operatorManagerFactory = (await (await ethers.getContractFactory("OperatorManagerFactory")).connect(deployer).deploy(operatorManagerV1_1.address)) as OperatorManagerFactory;
 
-        await (await operatorFactory.connect(deployer).setAddresses(
-            DepositManager,
-            TON,
-            WTON)).wait()
 
     })
 
-    describe('SystemConfig', () => {
+    describe('# Layer2Manager', () => {
+        it('deploy', async () => {
+            layer2ManagerV1_1 = (await (await ethers.getContractFactory("Layer2ManagerV1_1")).connect(deployer).deploy()) as Layer2ManagerV1_1;
+            layer2ManagerProxy = (await (await ethers.getContractFactory("Layer2ManagerProxy")).connect(deployer).deploy()) as Layer2ManagerProxy;
+            await (await layer2ManagerProxy.connect(deployer).upgradeTo(layer2ManagerV1_1.address)).wait()
+            layer2Manager = (await ethers.getContractAt("Layer2ManagerV1_1", layer2ManagerProxy.address, deployer)) as Layer2ManagerV1_1
+        });
+
+        it('addManager can be executed by admin', async () => {
+            await (await l1BridgeRegistryProxy.connect(deployer).addManager(manager.address)).wait()
+            expect(await l1BridgeRegistryProxy.isManager(manager.address)).to.be.eq(true)
+        })
+
+        it('OperatorManagerFactory.setAddresses', async () => {
+            const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+            const receipt = await (await operatorManagerFactory.connect(deployer).setAddresses(
+                DepositManager,
+                TON,
+                WTON,
+                layer2ManagerProxy.address
+            )).wait()
+
+        })
+
+    })
+
+    describe('rollupConfig', () => {
 
         it('set Titan LegacySystemConfig ', async () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
@@ -61,10 +89,9 @@ describe('OperatorFactory', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             await (await legacySystemConfig.connect(manager).setAddresses(
-                name, addresses, l2Ton, l2RegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
 
@@ -82,81 +109,72 @@ describe('OperatorFactory', () => {
                 optimismPortal: ethers.constants.AddressZero,
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
-            let l2Ton = l2TonAddress
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l2Ton,  l2RegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address
             )).wait()
         })
     })
 
-    describe('# createOperator', () => {
+    describe('# createOperatorManager', () => {
 
-        it('createOperator can be executed by SystemConfig\'s owner', async () => {
+        it('createOperatorManager can be executed by Layer2Manager', async () => {
 
             expect(await legacySystemConfig.owner()).to.be.eq(manager.address)
 
-            let operatorAddress = await operatorFactory.getAddress(legacySystemConfig.address)
-
-            let receipt = await (await operatorFactory.connect(manager).createOperator(
-                legacySystemConfig.address
-            )).wait()
-
-            const topic = operatorFactory.interface.getEventTopic('CreatedOperator');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = operatorFactory.interface.parseLog(log);
-
-            expect(deployedEvent.args.systemConfig).to.be.eq(legacySystemConfig.address)
-            expect(deployedEvent.args.owner).to.be.eq(deployer.address)
-            expect(deployedEvent.args.manager).to.be.eq(manager.address)
-            expect(deployedEvent.args.operator).to.be.eq(operatorAddress)
+            await expect(
+                operatorManagerFactory.connect(manager).createOperatorManager(
+                    legacySystemConfig.address
+                )
+            ).to.be.revertedWith("CreateError")
 
         })
+
     })
 
-    describe('# changeOperatorImplementaion ', () => {
+    describe('# changeOperatorManagerImp ', () => {
 
-        it('changeOperatorImplementaion can not be executed by not owner', async () => {
+        it('changeOperatorManagerImp can not be executed by not owner', async () => {
 
-            expect(await operatorFactory.owner()).to.be.not.eq(addr1.address)
+            expect(await operatorManagerFactory.owner()).to.be.not.eq(addr1.address)
             await expect(
-                operatorFactory.connect(addr1).changeOperatorImplementaion(
+                operatorManagerFactory.connect(addr1).changeOperatorManagerImp(
                     legacySystemConfig.address
                 )
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it('changeOperatorImplementaion : zero address is not accepted.', async () => {
-            expect(await operatorFactory.owner()).to.be.eq(deployer.address)
+        it('changeOperatorManagerImp : zero address is not accepted.', async () => {
+            expect(await operatorManagerFactory.owner()).to.be.eq(deployer.address)
             await expect(
-                operatorFactory.connect(deployer).changeOperatorImplementaion(
+                operatorManagerFactory.connect(deployer).changeOperatorManagerImp(
                     ethers.constants.AddressZero
                 )
-            ).to.be.revertedWith("zero address")
+            ).to.be.revertedWith("ZeroAddressError")
         })
 
-        it('changeOperatorImplementaion  ', async () => {
-            expect(await operatorFactory.owner()).to.be.eq(deployer.address)
+        it('changeOperatorManagerImp  ', async () => {
+            expect(await operatorManagerFactory.owner()).to.be.eq(deployer.address)
 
-            let receipt = await (await operatorFactory.connect(deployer).changeOperatorImplementaion(
+            let receipt = await (await operatorManagerFactory.connect(deployer).changeOperatorManagerImp(
                 sampleSystemConfig.address
             )).wait()
 
-            const topic = operatorFactory.interface.getEventTopic('ChangedOperatorImplementaion');
+            const topic = operatorManagerFactory.interface.getEventTopic('ChangedOperatorManagerImp');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = operatorFactory.interface.parseLog(log);
+            const deployedEvent = operatorManagerFactory.interface.parseLog(log);
 
-            expect(deployedEvent.args.newOperatorImplementation).to.be.eq(sampleSystemConfig.address)
-            expect(await operatorFactory.operatorImplementation()).to.be.eq(sampleSystemConfig.address)
+            expect(deployedEvent.args.newOperatorManagerImp).to.be.eq(sampleSystemConfig.address)
+            expect(await operatorManagerFactory.operatorManagerImp()).to.be.eq(sampleSystemConfig.address)
 
         })
 
         it('cannot be changed with same', async () => {
             await expect(
-                operatorFactory.connect(deployer).changeOperatorImplementaion(
+                operatorManagerFactory.connect(deployer).changeOperatorManagerImp(
                     sampleSystemConfig.address
                 )
-            ).to.be.revertedWith("same")
+            ).to.be.revertedWith("SameVariableError")
         })
     });
 

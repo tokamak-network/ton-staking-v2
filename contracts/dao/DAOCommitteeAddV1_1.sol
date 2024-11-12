@@ -15,9 +15,9 @@ import { ERC165A }  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
-import "./StorageStateCommitteeV3.sol";
+// import "./StorageStateCommitteeV3.sol";
 
-interface ILayer2CandidateFactory {
+interface ICandidateAddOnFactory {
    function deploy(
         address _sender,
         string memory _name,
@@ -30,7 +30,7 @@ interface ILayer2CandidateFactory {
 
 interface ITarget {
     function setLayer2Manager(address layer2Manager_) external;
-    function setL2Registry(address l2Registry_) external;
+    function setL1BridgeRegistry(address l1BridgeRegistry_) external;
     function setLayer2StartBlock(uint256 startBlock_) external;
     function setImplementation2(address newImplementation, uint256 index, bool alive) external;
     function setSelectorImplementations2(
@@ -51,7 +51,7 @@ error PermissionError();
 error ZeroAddressError();
 
 contract DAOCommitteeAddV1_1 is
-    StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2, StorageStateCommitteeV3 {
+    StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2 {
 
     //////////////////////////////
     // Events
@@ -70,9 +70,9 @@ contract DAOCommitteeAddV1_1 is
 
     //////////////////////////////////////////////////////////////////////
     // setters
-    function setLayer2CandidateFactory(address _layer2CandidateFactory) external onlyOwner {
-        _nonZeroAddress(_layer2CandidateFactory);
-        layer2CandidateFactory = _layer2CandidateFactory;
+    function setCandidateAddOnFactory(address _candidateAddOnFactory) external onlyOwner {
+        _nonZeroAddress(_candidateAddOnFactory);
+        candidateAddOnFactory = _candidateAddOnFactory;
     }
 
     function setLayer2Manager(address _layer2Manager) external onlyOwner {
@@ -84,8 +84,8 @@ contract DAOCommitteeAddV1_1 is
         ITarget(target).setLayer2Manager(layer2Manager_);
     }
 
-    function setTargetSetL2Registry(address target, address l2Registry_) external onlyOwner {
-        ITarget(target).setL2Registry(l2Registry_);
+    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
+        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
     }
 
     function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
@@ -109,24 +109,23 @@ contract DAOCommitteeAddV1_1 is
     //////////////////////////////////////////////////////////////////////
     //
 
-    function createLayer2Candidate(string calldata _memo, address _operatorAddress)
+    function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
         public
         returns (address)
     {
         if (msg.sender != layer2Manager) revert PermissionError();
 
         // Candidate
-        address candidateContract = ILayer2CandidateFactory(layer2CandidateFactory).deploy(
-            _operatorAddress,
+        address candidateContract = ICandidateAddOnFactory(candidateAddOnFactory).deploy(
+            _operatorManagerAddress,
             _memo,
             address(this),
             address(seigManager)
         );
-
         if (candidateContract == address(0)) revert CreateCandiateError(1);
-        if (_candidateInfos[_operatorAddress].candidateContract != address(0)) revert CreateCandiateError(2);
+        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 
-        _candidateInfos[_operatorAddress] = CandidateInfo({
+        _candidateInfos[_operatorManagerAddress] = CandidateInfo({
             candidateContract: candidateContract,
             memberJoinedTime: 0,
             indexMembers: 0,
@@ -134,10 +133,10 @@ contract DAOCommitteeAddV1_1 is
             claimedTimestamp: 0
         });
 
-        candidates.push(_operatorAddress);
+        candidates.push(_operatorManagerAddress);
 
         if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
-        emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
+        emit CandidateContractCreated(_operatorManagerAddress, candidateContract, _memo);
 
         return candidateContract;
     }

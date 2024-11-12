@@ -7,11 +7,30 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "systemConfig",
+          "name": "operator",
           "type": "address"
         }
       ],
-      "name": "issueStatusLayer2",
+      "name": "rollupConfigOfOperator",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "statusLayer2",
       "outputs": [
         {
           "internalType": "uint8",
@@ -26,26 +45,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "operator",
-          "type": "address"
-        }
-      ],
-      "name": "systemConfigOfOperator",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "systemConfig",
+          "name": "rollupConfig",
           "type": "address"
         },
         {

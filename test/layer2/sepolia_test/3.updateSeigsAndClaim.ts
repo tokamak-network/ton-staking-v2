@@ -8,21 +8,21 @@ import { padLeft } from 'web3-utils'
 import {encodeFunctionSignature} from 'web3-eth-abi'
 import { marshalString, unmarshalString } from '../../shared/marshal';
 
-import { L2RegistryProxy } from "../../../typechain-types/contracts/layer2/L2RegistryProxy"
-import { L2RegistryV1_1 } from "../../../typechain-types/contracts/layer2/L2RegistryV1_1.sol"
+
+import { L1BridgeRegistryProxy } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
+import { L1BridgeRegistryV1_1 } from "../../../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
 import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/Layer2ManagerProxy"
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
-import { OperatorFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorFactory.sol"
-import { OperatorV1_1 } from "../../../typechain-types/contracts/layer2/OperatorV1_1.sol"
+import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
+import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
 import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
-import { Layer2CandidateFactoryProxy } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactoryProxy"
-import { Layer2CandidateFactory } from "../../../typechain-types/contracts/dao/factory/Layer2CandidateFactory.sol"
+import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
+import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
 
-import { Layer2CandidateV1_1 } from "../../../typechain-types/contracts/dao/Layer2CandidateV1_1.sol"
+import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
-
 
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
@@ -38,14 +38,14 @@ import DAOCandidate_Json from '../../abi/Candidate.json'
 
 import LegacySystemConfig_Json from '../../../artifacts/contracts/layer2/LegacySystemConfig.sol/LegacySystemConfig.json'
 import Layer2ManagerV1_1_Json from '../../../artifacts/contracts/layer2/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json'
-import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorFactory.sol/OperatorFactory.json'
+import OperatorFactory_Json from '../../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json'
 import Layer2ManagerProxy_Json from '../../../artifacts/contracts/layer2/Layer2ManagerProxy.sol/Layer2ManagerProxy.json'
 import DepositManagerV1_1_Json from '../../../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json'
-import Layer2Candidate_Json from '../../../artifacts/contracts/dao/Layer2CandidateV1_1.sol/Layer2CandidateV1_1.json'
+import Layer2Candidate_Json from '../../../artifacts/contracts/dao/CandidateAddOnV1_1.sol/CandidateAddOnV1_1.json'
 import SeigManagerV1_3_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json'
 import SeigManagerV1_2_Json from '../../../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json'
-import OperatorV1_1_Json from '../../../artifacts/contracts/layer2/OperatorV1_1.sol/OperatorV1_1.json'
-import Layer2CandidateProxy_Json from '../../../artifacts/contracts/dao/Layer2CandidateProxy.sol/Layer2CandidateProxy.json'
+import OperatorV1_1_Json from '../../../artifacts/contracts/layer2/OperatorManagerV1_1.sol/OperatorManagerV1_1.json'
+import Layer2CandidateProxy_Json from '../../../artifacts/contracts/dao/CandidateAddOnProxy.sol/CandidateAddOnProxy.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
@@ -73,17 +73,17 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('Layer2Candidate', () => {
+describe('CandidateAddOn', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
-    let l2RegistryProxy: L2RegistryProxy, l2RegistryV_1: L2RegistryV1_1, l2Registry: L2RegistryV1_1
+    let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorV1_1:OperatorV1_1 , operatorFactory: OperatorFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorV1_1:OperatorManagerV1_1 , operatorFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
 
-    let layer2CandidateV1_1Imp: Layer2CandidateV1_1
-    let layer2CandidateFactoryImp:Layer2CandidateFactory , layer2CandidateFactoryProxy: Layer2CandidateFactoryProxy, layer2CandidateFactory: Layer2CandidateFactory
+    let layer2CandidateV1_1Imp: CandidateAddOnV1_1
+    let layer2CandidateFactoryImp:CandidateAddOnFactory , layer2CandidateFactoryProxy: CandidateAddOnFactoryProxy, layer2CandidateFactory: CandidateAddOnFactory
     let tonContract: Contract, wtonContract: Contract, daoContract: Contract, daoV2Contract: Contract
     let depositManager: Contract,  depositManagerProxy: Contract, seigManager: Contract, seigManagerProxy: Contract;
     let seigManagerV1_3: SeigManagerV1_3;
@@ -93,12 +93,12 @@ describe('Layer2Candidate', () => {
     let daoOwner: Signer;
 
     let titanLayerAddress: string, titanOperatorContractAddress: string;
-    let titanLayerContract: Layer2CandidateV1_1;
-    let titanOperatorContract: OperatorV1_1
+    let titanLayerContract: CandidateAddOnV1_1;
+    let titanOperatorContract: OperatorManagerV1_1
 
     let thanosLayerAddress: string, thanosOperatorContractAddress: string;
-    let thanosLayerContract: Layer2CandidateV1_1;
-    let thanosOperatorContract: OperatorV1_1
+    let thanosLayerContract: CandidateAddOnV1_1;
+    let thanosOperatorContract: OperatorManagerV1_1
 
 
     let powerTon: string
@@ -108,17 +108,17 @@ describe('Layer2Candidate', () => {
 
     let daoContractAdd : DAOCommitteeAddV1_1;
     const deployedLegacySystemConfigAddress = "0x1cA73f6E80674E571dc7a8128ba370b8470D4D87"
-    const deployedLayer2ManagerProxyAddress = "0x0237839A14194085B5145D1d1e1E77dc92aCAF06"
-    const deployedOperatorFactoryAddress = "0xBB8e650d9BB5c44E54539851636DEFEF37585E67"
+    const deployedLayer2ManagerProxyAddress = "0xffb690feeFb2225394ad84594C4a270c04be0b55"
+    const deployedOperatorFactoryAddress = "0x8a42BcFC2EB5D38Ca48122854B91333203332919"
     const deployedDAOAddress = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
-    const deployedLayer2CandidateFactory = "0x770739A468D9262960ee0669f9Eaf0db6E21F81A"
+    const deployedLayer2CandidateFactory = "0x63c95fbA722613Cb4385687E609840Ed10262434"
 
-    const deployedTitanLayer = "0xeA2c15fdf4cE802Ba188e7D4460D979E9df5fD51"
-    const deployedTitanOperator = "0x1A8e48401697DcF297A02c90d3480c35885f8959"
-    const deployedThanosLayer = "0xF78d3E1f7ca9EFc672969cfc771c6207e3AfEB7E"
-    const deployedThanosOperator = "0x97f70424857fa4c79B76ef90E057e1FD4b8287Db"
+    const deployedTitanLayer = "0x4400458626eb4d7fc8f10811e9A2fB0A345a8875"
+    const deployedTitanOperator = "0x7afEfd134118B7eCbF25F9E4e73C1aef8BE0603d"
+    const deployedThanosLayer = "0x0e5417d597CC19abFb477Fa7e760AdcABDfe60E2"
+    const deployedThanosOperator = "0xEE85eD759BcE873e0946448a7Fa922A3f177955F"
 
-    const candidateLayer ="0xabd15c021942ca54abd944c91705fe70fea13f0d"
+    const candidateLayer = "0xabd15c021942ca54abd944c91705fe70fea13f0d"
 
     before('create fixture loader', async () => {
         const { TON, DAOCommitteeProxy, WTON, DepositManager, SeigManager, powerTonAddress } = await getNamedAccounts();
@@ -149,12 +149,12 @@ describe('Layer2Candidate', () => {
 
         legacySystemConfig = new ethers.Contract(deployedLegacySystemConfigAddress, LegacySystemConfig_Json.abi,  deployer) as LegacySystemConfig
         layer2Manager = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerV1_1_Json.abi,  deployer) as Layer2ManagerV1_1
-        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorFactory
+        operatorFactory = new ethers.Contract(deployedOperatorFactoryAddress, OperatorFactory_Json.abi,  deployer) as OperatorManagerFactory
         layer2ManagerProxy = new ethers.Contract(deployedLayer2ManagerProxyAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
         // daoContract = new ethers.Contract(deployedDAOAddress, Layer2ManagerProxy_Json.abi,  deployer) as Layer2ManagerProxy
 
-        titanOperatorContract = new ethers.Contract(deployedTitanOperator, OperatorV1_1_Json.abi,  deployer) as OperatorV1_1
-        titanLayerContract = new ethers.Contract(deployedTitanLayer, Layer2Candidate_Json.abi,  deployer) as Layer2CandidateV1_1
+        titanOperatorContract = new ethers.Contract(deployedTitanOperator, OperatorV1_1_Json.abi,  deployer) as OperatorManagerV1_1
+        titanLayerContract = new ethers.Contract(deployedTitanLayer, Layer2Candidate_Json.abi,  deployer) as CandidateAddOnV1_1
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             tonHaveAddr,
@@ -185,78 +185,7 @@ describe('Layer2Candidate', () => {
 
 
     describe('# 1.updateSeigs and Claim ', () => {
-        // it('upgrade Logic Layer2CandidateV1_1', async () => {
-        //     const Layer2CandidateV1_1_3Dep = await ethers.getContractFactory("Layer2CandidateV1_1");
-        //     const Layer2CandidateV1_1Logic = await Layer2CandidateV1_1_3Dep.deploy();
-        //     await Layer2CandidateV1_1Logic.deployed()
 
-        //     const titanLayerProxy = new ethers.Contract(deployedTitanLayer, Layer2CandidateProxy_Json.abi, deployer)
-
-        //     await (await titanLayerProxy.connect(daoAdmin).upgradeTo(
-        //         Layer2CandidateV1_1Logic.address
-        //     )).wait()
-
-        // })
-
-        // it('upgrade Logic DepositManagerV1_1', async () => {
-        //     const DepositManagerV1_1_3Dep = await ethers.getContractFactory("DepositManagerV1_1");
-        //     const DepositManagerV1_1Logic = await DepositManagerV1_1_3Dep.deploy();
-        //     await DepositManagerV1_1Logic.deployed()
-
-        //     const selector1 = encodeFunctionSignature("ton()");
-        //     const selector2 = encodeFunctionSignature("minDepositGasLimit()");
-        //     const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint256)");
-        //     const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
-
-
-        //     let functionBytecodes = [
-        //         selector1, selector2, selector3, selector4  ];
-
-        //     await (await depositManagerProxy.connect(daoOwner).setImplementation2(
-        //         DepositManagerV1_1Logic.address, 1, true
-        //     )).wait()
-
-        //     await (await depositManagerProxy.connect(daoOwner).setSelectorImplementations2(
-        //         functionBytecodes, DepositManagerV1_1Logic.address
-        //     )).wait()
-
-        // })
-
-        // it('upgrade Logic SeigManagerV1_3', async () => {
-        //     const SeigManagerV1_3Dep = await ethers.getContractFactory("SeigManagerV1_3");
-        //     const SeigManagerV1_3Logic = await SeigManagerV1_3Dep.deploy();
-        //     await SeigManagerV1_3Logic.deployed()
-
-        //     const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
-        //     const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-        //     const selector3 = encodeFunctionSignature("setL2Registry(address)");
-        //     const selector4 = encodeFunctionSignature("updateSeigniorage()");
-        //     const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
-        //     const selector6 = encodeFunctionSignature("updateSeigniorageLayer()");
-        //     const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs()");
-        //     const selector8 = encodeFunctionSignature("totalLayer2TVL()");
-        //     const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-        //     const selector10 = encodeFunctionSignature("l2Registry()");
-        //     const selector11 = encodeFunctionSignature("layer2Manager()");
-        //     const selector12 = encodeFunctionSignature("layer2StartBlock()");
-        //     const selector13 = encodeFunctionSignature("l2RewardPerUint()");
-        //     const selector14 = encodeFunctionSignature("unSettledReward(address)");
-        //     const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-
-        //     let functionBytecodes = [
-        //         selector1, selector2, selector3, selector4, selector5,
-        //         selector6, selector7, selector8, selector9, selector10,
-        //         selector11, selector12, selector13, selector14, selector15 ];
-
-        //     await (await seigManagerProxy.connect(daoOwner).setImplementation2(
-        //         SeigManagerV1_3Logic.address, 1, true
-        //     )).wait()
-
-        //     await (await seigManagerProxy.connect(daoOwner).setSelectorImplementations2(
-        //         functionBytecodes, SeigManagerV1_3Logic.address
-        //     )).wait()
-
-        // })
 
         it('TitanCandidate updateSeigniorage(uint256 afterCall)', async () => {
 
@@ -269,19 +198,22 @@ describe('Layer2Candidate', () => {
             let stakeOf = await seigManager["stakeOf(address,address)"](deployedTitanLayer, titanOperatorContract.address);
             console.log("titanOperatorContract stakeOf", stakeOf)
 
+            let stakeOfOwnerOfOperatorContract = await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
+            console.log("ownerOfOperatorContract stakeOf", stakeOfOwnerOfOperatorContract)
+
             const TitanCandidate = new ethers.Contract(deployedTitanLayer,  Layer2Candidate_Json.abi, tonHave)
             let operator = await TitanCandidate.operator()
 
             // 오퍼레이터의 오너(오퍼레이터권한을 가진 주소)가 호출을 하면 오퍼레이터로 인지함.
-            const gasEstimated =  await titanLayerContract.connect(tonHave).estimateGas["updateSeigniorage(uint256)"](
-                1
+            const gasEstimated =  await titanLayerContract.connect(tonHave).estimateGas["updateSeigniorage(uint256,bool)"](
+                1, false
             )
             console.log("gasEstimated", gasEstimated)
 
             console.log("====================")
 
-            const receipt = await (await titanLayerContract.connect(tonHave)["updateSeigniorage(uint256)"](
-                1
+            const receipt = await (await titanLayerContract.connect(tonHave)["updateSeigniorage(uint256,bool)"](
+                1, false
             )).wait()
             // console.log("receipt", receipt)
             let stakeOf1 = await seigManager["stakeOf(address,address)"](deployedTitanLayer, tonHave.address);
@@ -290,13 +222,17 @@ describe('Layer2Candidate', () => {
             const topic = seigManagerV1_3.interface.getEventTopic('SeigGiven2');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = seigManagerV1_3.interface.parseLog(log);
-            console.log("deployedEvent", deployedEvent)
+            console.log("deployedEvent.args", deployedEvent.args)
 
             let wtonBalanceAfter = await wtonContract.balanceOf(ownerOfOperatorContract)
             console.log("wtonBalanceAfter of ownerOfOperatorContract ", ethers.utils.formatUnits(wtonBalanceAfter, 27) )
 
             let stakeOfAfter = await seigManager["stakeOf(address,address)"](deployedTitanLayer, titanOperatorContract.address);
             console.log("titanOperatorContract stakeOf", stakeOfAfter)
+
+            let stakeOfAfterOwnerOfOperatorContract = await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
+            console.log("ownerOfOperatorContract stakeOf", stakeOfAfterOwnerOfOperatorContract)
+
         })
 
     })

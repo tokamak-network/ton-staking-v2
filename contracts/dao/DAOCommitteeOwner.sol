@@ -7,6 +7,7 @@ import { AccessControl } from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
+import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 
 interface ITarget {
@@ -16,6 +17,16 @@ interface ITarget {
     function addMinter(address account) external;
     function upgradeTo(address logic) external;
     function setTON(address tonAddr) external;
+    function setWTON(address wtonAddr) external;
+    function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
+    function setLayer2Manager(address layer2Manager_) external;
+    function setL1BridgeRegistry(address l1BridgeRegistry_) external;
+    function setLayer2StartBlock(uint256 startBlock_) external;
+    function setImplementation2(address newImplementation, uint256 index, bool alive) external;
+    function setSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) external;
 }
 
 interface IPauser {
@@ -23,7 +34,27 @@ interface IPauser {
     function unpause() external;
 }
 
-contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, StorageStateCommitteeV2{
+contract DAOCommitteeOwner is
+    StorageStateCommittee,
+    AccessControl,
+    ERC165A,
+    ProxyStorage2,
+    StorageStateCommitteeV2
+{
+    event ChangedSlotMaximum(
+        uint256 indexed prevSlotMax,
+        uint256 indexed slotMax
+    );
+
+    event QuorumChanged(
+        uint256 newQuorum
+    );
+
+    event ChangedMember(
+        uint256 indexed slotIndex,
+        address prevMember,
+        address indexed newMember
+    );
 
     event ActivityRewardChanged(
         uint256 newReward
@@ -36,9 +67,52 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
         _;
     }
 
+    modifier validMemberIndex(uint256 _index) {
+        require(_index < maxMember, "DAOCommittee: invalid member index");
+        _;
+    }
+
     modifier nonZero(address _addr) {
         require(_addr != address(0), "DAOCommittee: zero address");
         _;
+    }
+
+    function setCandidateAddOnFactory(address _candidateAddOnFactory)
+        external
+        onlyOwner
+        nonZero(_candidateAddOnFactory)
+    {
+        candidateAddOnFactory = _candidateAddOnFactory;
+    }
+
+    function setLayer2Manager(address _layer2Manager)
+        external
+        onlyOwner
+        nonZero(_layer2Manager)
+    {
+        layer2Manager = _layer2Manager;
+    }
+
+    function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
+        ITarget(target).setLayer2Manager(layer2Manager_);
+    }
+
+    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
+        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
+    }
+
+    function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
+        ITarget(target).setLayer2StartBlock(startBlock_);
+    }
+
+    function setTargetSetImplementation2(
+        address target, address newImplementation, uint256 index, bool alive) external onlyOwner {
+        ITarget(target).setImplementation2(newImplementation, index, alive);
+    }
+
+    function setTargetSetSelectorImplementations2(
+        address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
+        ITarget(target).setSelectorImplementations2(_selectors, _imp);
     }
 
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
@@ -73,6 +147,10 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
         ITarget(target).setTON(tonAddr);
     }
 
+    function setTargetSetWTON(address target, address wtonAddr) external onlyOwner {
+        ITarget(target).setWTON(wtonAddr);
+    }
+
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
         daoVault = IDAOVault(_daoVault);
     }
@@ -101,6 +179,76 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
 
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
         wton = _wton;
+    }
+
+    /// @notice Increases the number of member slot
+    /// @param _newMaxMember New number of member slot
+    /// @param _quorum New quorum
+    function increaseMaxMember(
+        uint256 _newMaxMember,
+        uint256 _quorum
+    )
+        external
+        onlyOwner
+    {
+        require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
+        uint256 prevMaxMember = maxMember;
+        maxMember = _newMaxMember;
+        fillMemberSlot();
+        setQuorum(_quorum);
+        emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
+    }
+
+    /// @notice Set new quorum
+    /// @param _quorum New quorum
+    function setQuorum(
+        uint256 _quorum
+    )
+        public
+        onlyOwner
+        validAgendaManager
+    {
+        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
+        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
+        quorum = _quorum;
+        emit QuorumChanged(quorum);
+    }
+
+    /// @notice Decreases the number of member slot
+    /// @param _reducingMemberIndex Reducing member slot index
+    /// @param _quorum New quorum
+    function decreaseMaxMember(
+        uint256 _reducingMemberIndex,
+        uint256 _quorum
+    )
+        external
+        onlyOwner
+        validMemberIndex(_reducingMemberIndex)
+    {
+        address reducingMember = members[_reducingMemberIndex];
+        CandidateInfo storage reducingCandidate = _candidateInfos[reducingMember];
+
+        address tailMember = members[members.length - 1];
+        if (_reducingMemberIndex != members.length - 1) {
+            CandidateInfo storage tailCandidate = _candidateInfos[tailMember];
+
+            tailCandidate.indexMembers = _reducingMemberIndex;
+            members[_reducingMemberIndex] = tailMember;
+        }
+        reducingCandidate.indexMembers = 0;
+        if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
+        } else {
+            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
+        }
+        reducingCandidate.memberJoinedTime = 0;
+
+        members.pop();
+        maxMember = maxMember - 1;
+        setQuorum(_quorum);
+
+        emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
+        emit ChangedSlotMaximum(maxMember + 1, maxMember);
     }
 
     function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
@@ -187,5 +335,22 @@ contract DAOCommitteeOwner is StorageStateCommittee, AccessControl, ERC165A, Sto
         validAgendaManager
     {
         agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
+    }
+
+    function setBurntAmountAtDAO(
+        uint256 _burnAmount
+    )
+        external
+        onlyOwner
+        validSeigManager
+    {
+        ITarget(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
+    }
+
+
+    function fillMemberSlot() internal {
+        for (uint256 i = members.length; i < maxMember; i++) {
+            members.push(address(0));
+        }
     }
 }
