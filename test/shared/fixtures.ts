@@ -5,7 +5,7 @@ import { readContracts, deployedContracts } from "../common_func"
 
 import {  Wallet, Signer, Contract, BigNumber } from 'ethers'
 
-import { TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, SimpleStakeFixture } from './fixtureInterfaces'
+import { DaoFixtures, TonStakingV2Fixtures, TonStakingV2NoSnapshotFixtures, JSONFixture, SimpleStakeFixture } from './fixtureInterfaces'
 
 import { DepositManagerForMigration } from "../../typechain-types/contracts/stake/managers/DepositManagerForMigration.sol"
 import { DepositManager } from "../../typechain-types/contracts/stake/managers/DepositManager.sol"
@@ -47,12 +47,17 @@ import Ton_Json from '../abi/TON.json'
 import Wton_Json from '../abi/WTON.json'
 import Tos_Json from '../abi/TOS.json'
 import DAOCommitteeProxy_Json from '../abi/DAOCommitteeProxy.json'
+import DAOCommitteeProxy2_Json from '../abi/DAOCommitteeProxy2.json'
 import CandidateFactory_Json from '../abi/CandidateFactory.json'
 import DAOAgendaManager_Json from '../abi/DAOAgendaManager.json'
 import RefactorCoinageSnapshot_Json from '../../artifacts/contracts/stake/tokens/RefactorCoinageSnapshot.sol/RefactorCoinageSnapshot.json'
 import DAOCommittee_Json from '../abi/DAOCommittee.json'
 import Candidate_Json from '../../artifacts/contracts/dao/Candidate.sol/Candidate.json'
 import PowerTON_Json from '../abi/PowerTONSwapperProxy.json'
+import DAOCommittee_SecurityCouncil_Json from '../abi/DAOCommittee_SecurityCouncil.json'
+import TokamakGovernor_Json from '../abi/TokamakGovernor.json'
+import TokamakTimelockController_Json from '../abi/TokamakTimelockController.json'
+import TokamakVoteERC20_Json from '../abi/TokamakVoteERC20.json'
 
 export const lastSeigBlock = ethers.BigNumber.from("18169346");
 export const globalWithdrawalDelay  = ethers.BigNumber.from("93046")
@@ -1014,5 +1019,80 @@ export const simpleStakeFixture = async function (boolV2:bool): Promise<SimpleSt
     seigManager: seigManagerV1_1,
     seigManagerV1_2: seigManagerV1_2,
     l2Registry: l2Registry
+  }
+}
+
+
+export const daoSepoliaFixture = async function (): Promise<DaoFixtures> {
+  const [deployer, addr1, addr2 ] = await ethers.getSigners();
+  const {
+    DepositManager, SeigManager, TON, WTON, DAOCommitteeProxy, DaoCommitteeAdminAddress,
+    SecurityCouncilAddress, TokamakTimelockControllerAddress,
+    TokamakGovernorAddress, TokamakVoteERC20Address
+   } = await hre.getNamedAccounts();
+
+  const contractJson = await jsonFixtures()
+
+  await network.provider.send("hardhat_impersonateAccount", [
+    DAOCommitteeProxy,
+  ]);
+
+  await hre.network.provider.send("hardhat_setBalance", [
+    DAOCommitteeProxy,
+    "0x10000000000000000000000000",
+  ]);
+
+  const daoAdmin = await ethers.getSigner(DAOCommitteeProxy);
+
+  await hre.network.provider.send("hardhat_impersonateAccount", [
+    DaoCommitteeAdminAddress,
+  ]);
+
+  await hre.network.provider.send("hardhat_setBalance", [
+    DaoCommitteeAdminAddress,
+    "0x10000000000000000000000000",
+  ]);
+  const daoCommitteeAdmin = await hre.ethers.getSigner(DaoCommitteeAdminAddress);
+
+  const daoCommitteeProxy = new ethers.Contract(DAOCommitteeProxy, DAOCommitteeProxy2_Json.abi, deployer)
+  const daoCommitteeForSecurityCouncil = new ethers.Contract(DAOCommitteeProxy, DAOCommittee_SecurityCouncil_Json.abi, deployer)
+
+  // console.log('DaoCommitteeAdminAddress', DaoCommitteeAdminAddress)
+  //-------------------------------
+  const TONContract = new ethers.Contract(TON, contractJson.TON.abi,  deployer)
+  const WTONContract = new ethers.Contract(WTON,  contractJson.WTON.abi, deployer)
+
+  const TokamakTimelockController = new ethers.Contract(TokamakTimelockControllerAddress,  TokamakTimelockController_Json.abi, deployer)
+  const TokamakGovernor = new ethers.Contract(TokamakGovernorAddress,  TokamakGovernor_Json.abi, deployer)
+  const TokamakVoteERC20 = new ethers.Contract(TokamakVoteERC20Address,  TokamakGovernor_Json.abi, deployer)
+
+  await network.provider.send("hardhat_impersonateAccount", [
+    SecurityCouncilAddress,
+  ]);
+
+  await hre.network.provider.send("hardhat_setBalance", [
+    SecurityCouncilAddress,
+    "0x10000000000000000000000000",
+  ]);
+
+  const SecurityCouncil =  await ethers.getSigner(SecurityCouncilAddress);
+  // for test :
+  // await (await TONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("10000"))).wait()
+  // await (await WTONContract.connect(daoAdmin).mint(deployer.address, ethers.utils.parseEther("1000"+"0".repeat(9)))).wait()
+
+  return  {
+    deployer: deployer,
+    addr1: addr1,
+    addr2: addr2,
+    daoAdmin: daoAdmin,
+    daoCommitteeAdmin: daoCommitteeAdmin,
+    TON: TONContract,
+    WTON: WTONContract,
+    daoCommitteeProxy: daoCommitteeProxy ,
+    daoCommitteeForSecurityCouncil: daoCommitteeForSecurityCouncil,
+    SecurityCouncil: SecurityCouncil,
+    TokamakTimelockController: TokamakTimelockController,
+    TokamakGovernor: TokamakGovernor,
+    TokamakVoteERC20: TokamakVoteERC20
   }
 }

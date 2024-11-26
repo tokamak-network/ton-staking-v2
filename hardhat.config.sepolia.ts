@@ -400,6 +400,38 @@ const config: HardhatUserConfig = {
       hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
       local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
       sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
+    },
+    SecurityCouncil: {
+      default: 46,
+      mainnet: '',
+      goerli: '',
+      hardhat: '0xb62Cff55292EC561e76B823ce126A806874a392E',
+      local: '0xb62Cff55292EC561e76B823ce126A806874a392E',
+      sepolia: '0xb62Cff55292EC561e76B823ce126A806874a392E'
+    },
+    TokamakTimelockController: {
+      default: 47,
+      mainnet: '',
+      goerli: '',
+      hardhat: '0x079cC994fA06C916bA74a5714B6f7672Bd6F7567',
+      local: '0x079cC994fA06C916bA74a5714B6f7672Bd6F7567',
+      sepolia: '0x079cC994fA06C916bA74a5714B6f7672Bd6F7567'
+    },
+    TokamakGovernor: {
+      default: 48,
+      mainnet: '',
+      goerli: '',
+      hardhat: '0x163de77dFe2eF689253d66D8B3fEB32eAdcb9DD3',
+      local: '0x163de77dFe2eF689253d66D8B3fEB32eAdcb9DD3',
+      sepolia: '0x163de77dFe2eF689253d66D8B3fEB32eAdcb9DD3'
+    },
+    TokamakVoteERC20: {
+      default: 49,
+      mainnet: '',
+      goerli: '',
+      hardhat: '0xE9394DAE067eF993Bb79d98917799CfA48BC83F0',
+      local: '0xE9394DAE067eF993Bb79d98917799CfA48BC83F0',
+      sepolia: '0xE9394DAE067eF993Bb79d98917799CfA48BC83F0'
     }
   },
   networks: {

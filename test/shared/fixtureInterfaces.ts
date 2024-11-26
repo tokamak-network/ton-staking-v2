@@ -154,11 +154,28 @@ interface SimpleStakeFixture  {
 }
 
 
+interface DaoFixtures  {
+    deployer: Signer,
+    addr1: Signer,
+    addr2: Signer,
+    daoAdmin: Signer,
+    daoCommitteeAdmin: Signer,
+    TON: any ,
+    WTON: any ,
+    daoCommitteeProxy: any ,
+    daoCommitteeForSecurityCouncil: any,
+    SecurityCouncil: Signer,
+    TokamakTimelockController: any,
+    TokamakGovernor: any,
+    TokamakVoteERC20: any
+}
+
 
 export {
     TonStakingV2Fixtures,
     TonStakingV2NoSnapshotFixtures,
     JSONFixture,
     NewTonStakingV2Fixtures2,
-    SimpleStakeFixture
+    SimpleStakeFixture,
+    DaoFixtures
 }
