@@ -543,7 +543,10 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        version: '0.8.16'
+        version: '0.8.24',
+        settings: {
+          viaIR: true,
+        }
       }
     ],
   }
