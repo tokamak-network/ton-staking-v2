@@ -521,25 +521,32 @@ const config: HardhatUserConfig = {
     timeout: 100000000
   },
   solidity: {
-    version: '0.8.19',
-    settings: {
-      // evmVersion: "cancun",
-      viaIR: true,
-      optimizer: {
-        enabled: true,
-        runs: 200,
-        // details: {
-        //   yul: true,
-        // },
+    compilers: [
+      {
+        version: '0.8.19',
+        settings: {
+          // evmVersion: "cancun",
+          viaIR: true,
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            // details: {
+            //   yul: true,
+            // },
+          },
+          metadata: {
+            // do not include the metadata hash, since this is machine dependent
+            // and we want all generated code to be deterministic
+            // https://docs.soliditylang.org/en/v0.8.12/metadata.html
+            bytecodeHash: 'none',
+          },
+        },
       },
-      metadata: {
-        // do not include the metadata hash, since this is machine dependent
-        // and we want all generated code to be deterministic
-        // https://docs.soliditylang.org/en/v0.8.12/metadata.html
-        bytecodeHash: 'none',
-      },
-    },
-  },
+      {
+        version: '0.8.16'
+      }
+    ],
+  }
 };
 
 export default config;
