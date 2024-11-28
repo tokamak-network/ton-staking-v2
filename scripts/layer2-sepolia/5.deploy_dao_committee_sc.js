@@ -38,34 +38,34 @@ async function deployDAOCommittee_SecurityCouncil() {
     // // console.log('tx' , tx)
     // console.log('DAOCommittee_SecurityCouncil' , DAOCommittee_SecurityCouncil.address)
     // const DAOCommittee_SecurityCouncil_address = DAOCommittee_SecurityCouncil.address
-    const DAOCommittee_SecurityCouncil_address = "0xDB86F93e01ba0424aEECfA2C1D87680a5614d8d2"
-    const selector1 = encodeFunctionSignature("setSecurityCouncil(address)");
-    const selector2 = encodeFunctionSignature("setTimelockController(address)");
-    const selector3 = encodeFunctionSignature("timelockController()");
-    const selector4 = encodeFunctionSignature("securityCouncil()");
-    const selector5 = encodeFunctionSignature("executeTransactions(address[],bytes[],uint256[])");
-    const selector6 = encodeFunctionSignature("executeTransaction(address,bytes,uint256)");
+    const DAOCommittee_SecurityCouncil_address = "0x6596BB84331dbd22a93a099D225C1517FF3796eF"
+    // const selector1 = encodeFunctionSignature("setSecurityCouncil(address)");
+    // const selector2 = encodeFunctionSignature("setTimelockController(address)");
+    // const selector3 = encodeFunctionSignature("timelockController()");
+    // const selector4 = encodeFunctionSignature("securityCouncil()");
+    // const selector5 = encodeFunctionSignature("executeTransactions(address[],bytes[],uint256[])");
+    // const selector6 = encodeFunctionSignature("executeTransaction(address,bytes,uint256)");
 
-    const selectors = [selector1,selector2,selector3,selector4,selector5,selector6]
-    console.log('selectors', selectors)
-    await (await daoProxy.connect(deployer).setImplementation2(
-        DAOCommittee_SecurityCouncil_address,
-        dao_logic_index,
-        true)
-    ).wait()
+    // const selectors = [selector1,selector2,selector3,selector4,selector5,selector6]
+    // console.log('selectors', selectors)
+    // await (await daoProxy.connect(deployer).setImplementation2(
+    //     DAOCommittee_SecurityCouncil_address,
+    //     dao_logic_index,
+    //     true)
+    // ).wait()
 
-    await (await daoProxy.connect(deployer).setSelectorImplementations2(
-        selectors,
-        DAOCommittee_SecurityCouncil_address)
-    ).wait()
+    // await (await daoProxy.connect(deployer).setSelectorImplementations2(
+    //     selectors,
+    //     DAOCommittee_SecurityCouncil_address)
+    // ).wait()
 
-    let selectorLogic = await daoProxy.selectorImplementation(selector3)
-    console.log('timelockController() logic', selectorLogic)
+    // let selectorLogic = await daoProxy.selectorImplementation(selector3)
+    // console.log('timelockController() logic', selectorLogic)
 
     const daoSC = new ethers.Contract(dao_address,  DAOCommittee_SecurityCouncil_Json.abi, deployer)
 
-    await (await daoSC.connect(deployer).setTimelockController(TokamakTimelockController_address)).wait()
-    await (await daoSC.connect(deployer).setSecurityCouncil(SecurityCouncil_address)).wait()
+    // await (await daoSC.connect(deployer).setTimelockController(TokamakTimelockController_address)).wait()
+    // await (await daoSC.connect(deployer).setSecurityCouncil(SecurityCouncil_address)).wait()
 
     let timelockController = await daoSC.timelockController()
     console.log('timelockController', timelockController)
