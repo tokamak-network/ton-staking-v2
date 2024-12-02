@@ -470,6 +470,11 @@ const config: HardhatUserConfig = {
       // deploy: ['deploy_l2_proxy']
       deploy: ['deploy-layer2']
     },
+    thanossepolia: {
+      url: `${process.env.ETH_NODE_URI_THANOS_SEPOLIA}`,
+      accounts: [`${process.env.PRIVATE_KEY}`],
+      chainId: 111551119090,
+    }
   },
   deterministicDeployment: (network: string) => {
     // Skip on hardhat's local network.
@@ -490,7 +495,8 @@ const config: HardhatUserConfig = {
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
       sepolia: `${process.env.ETHERSCAN_API_KEY}`,
       titan: "verify",
-      titangoerli: "verify"
+      titangoerli: "verify",
+      thanossepolia: "verify"
     } ,
     customChains: [
       {
@@ -507,6 +513,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://explorer.titan-goerli.tokamak.network/api",
           browserURL: "https://explorer.titan-goerli.tokamak.network/"
+        }
+      },
+      {
+        network: "thanossepolia",
+        chainId: 111551119090,
+        urls: {
+          apiURL: "https://explorer.thanos-sepolia.tokamak.network/api",
+          browserURL: "https://explorer.thanos-sepolia.tokamak.network/"
         }
       }
     ]

@@ -36,7 +36,7 @@ contract L1DAOExecutor is AccessControlUpgradeable, ReentrancyGuard {
     /// @param _l1DAOContract l1DAOContract Address
     /// @param _l2DAOContract l2DAOContract Address
     function initialize(
-        address _l1crossDomainMessenger
+        address _l1crossDomainMessenger,
         address _l1DAOContract,
         address _l2DAOContract
     ) 
