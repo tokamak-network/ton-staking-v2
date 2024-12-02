@@ -18,7 +18,7 @@ contract L2DAOExecutor is AccessControlUpgradeable, ReentrancyGuard {
     address public l2crossDomainMessenger;
     address public l1DAOContract;
 
-    event Executed(bool success ,address indexed executor, bytes data);
+    event L2Executed(bool success ,address indexed executor, bytes data);
 
     modifier onlyOwner() {
         require(isAdmin(msg.sender), "Accessible: Caller is not an admin");
@@ -61,7 +61,7 @@ contract L2DAOExecutor is AccessControlUpgradeable, ReentrancyGuard {
     {
         (bool success, ) = address(target).call(functionBytecode);
 
-        emit Executed(success, target, functionBytecode);
+        emit L2Executed(success, target, functionBytecode);
     }
 
     function multiExecute(
