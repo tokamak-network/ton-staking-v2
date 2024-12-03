@@ -18,8 +18,8 @@ async function DeployL2DAOExecutor() {
 }
 
 const main = async () => {
-  await DeployL1DAOExecutor()
-  // await DeployL2DAOExecutor()
+  // await DeployL1DAOExecutor()
+  await DeployL2DAOExecutor()
 }
 
 

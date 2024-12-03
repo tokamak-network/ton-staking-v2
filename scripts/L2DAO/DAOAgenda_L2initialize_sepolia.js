@@ -40,6 +40,7 @@ function sleep(ms) {
     while (Date.now() < wakeUpTime) {}
 }
 
+//using the L1 DAO Executor
 async function L1toL2Agenda() {
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================

@@ -9,7 +9,7 @@ const Web3EthAbi = require('web3-eth-abi');
 const sepoliaContractInfo = {
     DAOCommitteeProxy: "0xA2101482b28E3D99ff6ced517bA41EFf4971a386",
     L1DAOExecutor: "0x109c37fdB56850A6dfd0e29290860B423c25f7e6",
-    L2DAOExecutor: "0xDe6b80f4700C2148Ba2aF81640a23E153C007C7F"
+    L2DAOExecutor: "0x988A796F5ca1d4848d00daC1c17d0A2Bbca18a9b"
 }
 
 const mainnetContractInfo = {
@@ -28,6 +28,7 @@ async function Setting_L2DAOExecutor() {
 
     const l2CrossDomainMessenger = "0x4200000000000000000000000000000000000007"
     const l1DAOExecutor = "0x109c37fdB56850A6dfd0e29290860B423c25f7e6"
+    const l1DAOProxy = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386"
 
     //==== Set L2DAOExecutor =================================
     let l2DAOExecutor = new ethers.Contract(
@@ -39,7 +40,7 @@ async function Setting_L2DAOExecutor() {
     //==== initialize L2DAOExecutor =================================
     await l2DAOExecutor.connect(deployer).initialize(
         l2CrossDomainMessenger,
-        l1DAOExecutor
+        l1DAOProxy
     )
 
     sleep(12000);
@@ -50,7 +51,7 @@ async function Setting_L2DAOExecutor() {
 
     //==== Check l1daoexecutorAddr =================================
     let l1daoexecutorAddr = await l2DAOExecutor.l1DAOContract()
-    console.log("l1DaoExecutorAddr : ", l1daoexecutorAddr)
+    console.log("l1DAOProxy : ", l1daoexecutorAddr)
 }
 
 const main = async () => {
