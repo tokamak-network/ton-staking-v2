@@ -8,10 +8,9 @@
 ![Select Write as Proxy](../img/seig-manager-proxy-write.png)
 
 
+### Connect Wallet
+
 > Before executing the execution function, first connect your wallet.
-
-
-![Before connecting wallet](../img/deposit-connect-wallet-0.png)
 
 ![After connecting wallet](../img/deposit-connect-wallet-1.png)
 
@@ -23,12 +22,16 @@ Before staking, you need to approve your WTON to be used by the depositManagerPr
 - [approve of WTON](https://etherscan.io/address/0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2?#writeContract#F2)
   - parameters
     - spender (address): [0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e), DepositManagerProxy address
-    - amount (uint256): Staking amount, enter in RAY(10^27 decimals) units
+    - amount (uint256): Staking amount, enter in RAY(10^27 decimals) units <p>
+                        When trying to stake 1 (W)TON, if you input in RAY units, you should input
+1000000000000000000000000000
 
 - [deposit(address layer2, uint256 amount)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#writeProxyContract#F2)
   - parameters
     - layer2 (address): [Layer address](../deployed-addresses-mainnet.md#layer-addresses)
-    - amount (uint256): Staking amount, enter in RAY(10^27 decimals) units
+    - amount (uint256): Staking amount, enter in RAY(10^27 decimals) units<p>
+                        When trying to stake 1 (W)TON, if you input in RAY units, you should input
+1000000000000000000000000000
 
 
 ### [TON.approveAndCall (address spender, uint256 amount, bytes data)](https://etherscan.io/address/0x2be5e8c109e2197d077d13a82daead6a9b3433c5?#writeContract#F3)
@@ -37,8 +40,6 @@ Staking with **TON** on a specific layer.
     - spender (address): 0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2 [WTON address](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2)
     - amount (uint256): Staking amount, enter in Wei(10^18 decimals) units
     - data (bytes):
-
-
 
 
 ### requestWithdrawal (address layer2, uint256 amount)

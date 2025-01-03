@@ -7,11 +7,9 @@
 
 ![Select Write as Proxy](../img/seig-manager-proxy-write.png)
 
+### Connect Wallet
 
 > Before executing the execution function, first connect your wallet.
-
-
-![Before connecting wallet](../img/connect-wallet-0.png)
 
 ![After connecting wallet](../img/connect-wallet-1.png)
 
