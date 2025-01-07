@@ -8,6 +8,7 @@ You can view information such as staking information, layer information, and tot
 - [Staking amount query functions](./view-functions.md#staking-amount-query-functions)
 - [Layer information query functions](./view-functions.md#layer-information-query-functions)
 - [Other lookup functions](./view-functions.md#other-lookup-functions)
+- [Withdrawal related query functions](./view-functions.md#withdrawal-related-query-functions)
 
 ### Transaction Function
 

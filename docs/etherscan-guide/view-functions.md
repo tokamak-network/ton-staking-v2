@@ -73,7 +73,7 @@ View operator commission rates for layers
 - Parameters
   - layer2 (address) : Layer Address
 - Result
-  - (uint256) : commission rates, expressed in RAY units (10^27)
+  - (uint256) : Commission rates, expressed in RAY units (10^27)
 
 ---
 
@@ -82,7 +82,7 @@ The block number that recently distributed seigniorage at a specific layer
 - Parameters
   - layer2 (address) : Layer Address
 - Result
-  - (uint256) : the block number
+  - (uint256) : The block number
 
 ---
 
@@ -93,7 +93,7 @@ Seigniorage issuance per block
 - Parameters
   - none
 - Result
-  - (uint256) : the issuance amount, expressed in decimals RAY units (10^27).
+  - (uint256) : The issuance amount, expressed in decimals RAY units (10^27).
 
 
 ---
@@ -103,16 +103,61 @@ The block number where the most recent seigniorage was distributed
 - Parameters
   - none
 - Result
-  - (uint256) : the block number
+  - (uint256) : The block number
 
 
 ---
 
 ### [totalSupplyOfTon ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F64)
 Total Supply of TON (including seigniorage issuance)
- - Parameters
+- Parameters
   - none
 - Result
-  - (uint256) : the total amount, expressed in decimals RAY units (10^27).
+  - (uint256) : The total amount, expressed in decimals RAY units (10^27).
+
+---
+
+## Withdrawal related query functions
+
+### [getDelayBlocks (address layer2)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#readProxyContract#F10)
+Withdrawal delay block period
+- Parameters
+  - layer2(address) : Layer Address
+- Result
+  - (uint256) : Delay block period
+
+---
+
+### [numPendingRequests (address layer2, address account)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#readProxyContract#F16)
+Number of pending withdrawal requests
+- Parameters
+  - layer2(address) : Layer Address
+  - account(address) : Account Address
+- Result
+  - (uint256) : Number of pending withdrawal requests
+
+---
+
+### [withdrawalRequest (address layer2, address account, uint256 index)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#readProxyContract#F29)
+Withdrawal request information corresponding to the index
+- Parameters
+  - layer2(address) : Layer Address
+  - account(address) : Account Address
+  - index(uint256) : the index number
+- Result
+  - withdrawableBlockNumber(uint128) : Withdrawal possible block number. Withdrawal is possible from this block due to withdrawal delay block.
+  - amount(uint128) : Withdrawal amount
+  - processed(bool) : Whether withdrawal processing is complete, If true, withdrawal is complete.
+
+---
+
+### [withdrawalRequestIndex (address layer2, address account)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#readProxyContract#F30)
+View the index number where the latest withdrawal was completed
+- Parameters
+  - layer2(address) : Layer Address
+  - account(address) : Account Address
+- Result
+  - index(uint256) : The index number of the latest withdrawal
+
 
 ---

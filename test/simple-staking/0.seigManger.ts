@@ -196,6 +196,7 @@ describe('SeigManager', () => {
                   .join(''),
             );
 
+            console.log(data)
             await (await deployed.TON.connect(account).approveAndCall(
                 deployed.WTON.address,
                 tonAmount,
