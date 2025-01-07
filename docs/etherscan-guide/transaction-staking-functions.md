@@ -20,8 +20,8 @@ Staking with **TON** on a specific layer.
   - parameters
     - spender (address): 0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2 [WTON address](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2)
     - amount (uint256): Staking amount, input in Wei(10^18 decimals) units
-    - data (bytes): DepositManager address (32 bytes) + layer address (32 bytes) <p> If layer address is 0F42D1C40b95DF7A1478639918fc358B4aF5298D, input
-    <span>0x0000000000000000000000000b58ca72b12F01FC05F8f252e226f3E2089BD00E0000000000000000000000000F42D1C40b95DF7A1478639918fc358B4aF5298D</span>
+    - data (bytes): DepositManager address (32 bytes) + layer address (32 bytes) <p> If layer address is <font color="red">0F42D1C40b95DF7A1478639918fc358B4aF5298D</font>, input
+    <span>0x0000000000000000000000000b58ca72b12F01FC05F8f252e226f3E2089BD00E000000000000000000000000<font color="red">0F42D1C40b95DF7A1478639918fc358B4aF5298D</font></span>
 
 
 ### [deposit (address layer2, uint256 amount)](https://etherscan.io/address/0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e?#writeProxyContract#F2)
