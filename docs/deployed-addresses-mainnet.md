@@ -8,8 +8,6 @@
 | WTON      | 0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2  | [link](https://etherscan.io/address/0xc4A11aaf6ea915Ed7Ac194161d2fC9384F15bff2) |
 
 
-
-
 ## Simple Staking Patch Contracts
 
 | Name     | Address | link |

@@ -1,12 +1,18 @@
 
 # Deployed contracts on testnet (Sepolia)
 
-## Simple Staking Patch Contracts
+## TON, WTON
 
 | Name     | Address | link |
 |----------|------|-------------------------------|
 |  TON |  0xa30fe40285b8f5c0457dbc3b7c8a280373c40044     | [link](https://sepolia.etherscan.io/address/0xa30fe40285b8f5c0457dbc3b7c8a280373c40044)
 |  WTON |  0x79e0d92670106c85e9067b56b8f674340dca0bbd     | [link](https://sepolia.etherscan.io/address/0x79e0d92670106c85e9067b56b8f674340dca0bbd)
+
+
+## Simple Staking Patch Contracts
+
+| Name     | Address | link |
+|----------|------|-------------------------------|
 |  DAOCommitteeExtend        | 0xB79DcFE624D0A69c5c2a206a99F240f1d2Ca1D80     | [link](https://sepolia.etherscan.io/address/0xB79DcFE624D0A69c5c2a206a99F240f1d2Ca1D80)
 |  PowerTONUpgrade        |  0x68808D5379763fA07FDb53c707100e1930900F5c    | [link](https://sepolia.etherscan.io/address/0x68808D5379763fA07FDb53c707100e1930900F5c)
 |  SeigManager        |  0xe05d62c21f4bba610F411A6F9BddF63cffb43B63    | [link](https://sepolia.etherscan.io/address/0xe05d62c21f4bba610F411A6F9BddF63cffb43B63)
