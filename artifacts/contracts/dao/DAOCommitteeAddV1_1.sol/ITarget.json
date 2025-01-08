@@ -82,6 +82,19 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "voteToken_",
+          "type": "address"
+        }
+      ],
+      "name": "setVoteToken",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
   ],
   "bytecode": "0x",
