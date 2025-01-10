@@ -10,9 +10,9 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
 **Table of Contracts**
 - [TON](./contracts/TON.md)
 - [WTON](./contracts/WTON.md)
+- [SWTON : RefactorCoinageSnapshot](./contracts/RefactorCoinageSnapshot.md)
 - [DepositManager](./contracts/DepositManager.md)
 - [SeigManager](./contracts/SeigManager.md)
-- [RefactorCoinageSnapshot](./contracts/RefactorCoinageSnapshot.md)
 - [Layer2Registry](./contracts/Layer2Registry.md)
 - [AutoRefactorCoinageFactory](./contracts/AutoRefactorCoinageFactory.md)
 
