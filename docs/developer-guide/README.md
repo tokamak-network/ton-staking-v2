@@ -6,6 +6,15 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
 
 ## Overview Of Contracts
 
+- TON seigniorage token is issued as WTON according to the seigniorage issuance logic in the SeigManager contract.
+- Users can stake TON, requestWithdraw, and processWithdraw through the DepositManager contract, and these staking functions are linked to SeigManager and affect the seigniorage issuance logic.
+- The RefactorCoinageSnapshot contract manages the amount of staked TON and the amount of issued seigniorage, and is expressed as SWTON token.
+- The Layer2Registry contract is a contract that manages Layer 2 information, and
+- SeigManager creates a RefactorCoinageSnapshot contract that manages the staking TON and seigniorage mapped to Layer 2 registered in Layer2Registry using CoinageFactory contract.
+- When the 'updateSeigniorage' function of seigManager is executed for each Layer 2, the issued seigniorage is given to the RefactorCoinageSnapshot mapped to that layer2.
+
+**Layout of Contracts**
+
 
 **Table of Contracts**
 - [TON](./contracts/TON.md)
@@ -14,11 +23,11 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
 - [DepositManager](./contracts/DepositManager.md)
 - [SeigManager](./contracts/SeigManager.md)
 - [Layer2Registry](./contracts/Layer2Registry.md)
-- [AutoRefactorCoinageFactory](./contracts/AutoRefactorCoinageFactory.md)
+- [CoinageFactory](./contracts/CoinageFactory.md)
 
 ## Tokens
 - TON
-    - Utility tokens in the Tokamak ecosystem
+    - Utility token in the Tokamak ecosystem
 
 - WTON
     - TON Seigniorage Token
@@ -28,7 +37,7 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
 
 ## Seigniorage issuance
 - 3.92 TON seigniorage issued per block
-- After staking TON, seigniorage can only be issued through the 'Update Seigniorage' function of SeigManager Contract.
+- After staking TON, seigniorage can only be issued through the 'updateSeigniorage' function of SeigManager Contract.
 
 - Seigniorage Distribution Logic (V1.0 & V2.0)
     - Reference: [White paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#221-ton-staking-v1)
