@@ -1,6 +1,5 @@
 # DepositManager
 
-## Overview
 
 ## Storages
 

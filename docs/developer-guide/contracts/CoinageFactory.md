@@ -1,6 +1,5 @@
 # CoinageFactory
 
-## Overview
 
 ## Storages
 

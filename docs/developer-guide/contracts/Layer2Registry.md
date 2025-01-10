@@ -1,6 +1,5 @@
 # Layer2Registry
 
-## Overview
 
 ## Storages
 

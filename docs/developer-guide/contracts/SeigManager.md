@@ -1,6 +1,5 @@
 # SeigManager
 
-## Overview
 
 ## Storages
 
