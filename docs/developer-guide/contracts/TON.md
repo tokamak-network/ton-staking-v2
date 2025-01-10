@@ -1,8 +1,8 @@
 # TON
 
 ## Overview
-- 토카막 네트웤 생태계의 유틸리티 토큰입니다.
-- ERC20 토큰
+- It is a utility token for the Tokamak Network ecosystem.
+- ERC20 Token
     - Name: Tokamak Network Token
     - Symbol: TON
     - Decimals: 18
