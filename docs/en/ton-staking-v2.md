@@ -1,9 +1,9 @@
 
 > Simple Staking service integrates Layer 2 of TON Economy and is upgraded to ton staking v2. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.
 
-TON Staking v2 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
+TON Staking v2.5 is developed to implement the contents of the V2.5 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
 
-V2 introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
+V2.5 introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2.5 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
 
 # Changes in TON Staking V2
 
@@ -33,7 +33,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
 
 In V1, Candidate Layer2 existed. Candidate is Layer 2 that can become a DAO committee.
 
-CandidateAddOn added in V2 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
+CandidateAddOn added in V2.5 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
 
 ## Provides withdrawal and L2 deposit functions executed at once
 
@@ -62,13 +62,13 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 </figure>
 
 
-## TON Stake V2 Contracts
+## TON Stake V2.5 Contracts
 
-V2 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
+V2.5 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
-         alt="TON Stake V2 Contracts Relationship" width=700 ></center>
+         alt="TON Stake V2.5 Contracts Relationship" width=700 ></center>
     <figcaption> </figcaption>
 </figure>
 
@@ -122,7 +122,7 @@ Users who have staked on CandidateAddOn can perform the function of withdrawing 
 
 ## For seigniorageCommittee
 
-Simple Staking V2 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer can claim the seigniorage stored in the OperatorManager contract.
+Simple Staking V2.5 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer can claim the seigniorage stored in the OperatorManager contract.
 
 Just in case, We must have a function to stop issuing TON seigniorage to OperatorManager. A Seigniorage Committee account was created in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending issuance of seigniorage or canceling suspension of issuance for a sequencer in a specific CandidateAddOn.
 
@@ -181,6 +181,16 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 
 # Contract Details
+
+**Table of Contents**
+- [L1BridgeRegistry](#l1bridgeregistry)
+- [OperatorManagerFactory](#operatormanagerfactory)
+- [OperatorManager](#operatormanager)
+- [Layer2Manager](#layer2manager)
+- [CandidateAddOnFactory](#candidateaddonfactory)
+- [CandidateAddOn](#candidateaddon)
+- [SeigManagerV1_3](#seigmanagerv1_3)
+- [DepositManagerV1_1](#depositmanagerv1_1)
 
 ## L1BridgeRegistry
 
@@ -1031,7 +1041,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Basic understanding
     - When CandidateAddOn's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the OperatorManager contract.
     - A sequencer with manager privileges in the OperatorManager contract can select the claim and staking option when executing the update seigniorage of CandidateAddOn (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
-    - The seigniorage distribution logic distributed to the L2 sequencer is done according to the seigniorage distribution rules of v2. [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
+    - The seigniorage distribution logic distributed to the L2 sequencer is done according to the seigniorage distribution rules of v2. [V2.5 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
     - Since SeigManager is already deployed and operated in V1, only the update seigniorage function is executed with the changed logic in SeigManagerV1_3 without changing other functions.
     - Add storage to manage the seigniorage provided to Layer 2 when executing the update seigniorage function.
 
