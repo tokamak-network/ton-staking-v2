@@ -58,34 +58,33 @@ contract ERC20OnApprove is ERC20 {
 ### [swapToTON (uint256 wtonAmount)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F20)
 swap WTON to TON
 
-    - Parameters
-        - wtonAmount (uint256) : Amount of WTON to convert to TON (in RAY (10^27) unit)
+  - Parameters
+      - wtonAmount (uint256) : Amount of WTON to convert to TON (in RAY (10^27) unit)
 
 ---
 
 ### [swapFromTON (uint256 tonAmount)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F18)
 swap TON to WTON
-
-    - Parameters
-        - tonAmount (uint256) : Amount of TON to convert to WTON (in WEI (10^18) unit)
+  - Parameters
+    - tonAmount (uint256) : Amount of TON to convert to WTON (in WEI (10^18) unit)
 
 ---
 
 ### [swapToTONAndTransfer (address to, uint256 wtonAmount)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F21)
 swap WTON to TON, and transfer TON
 
-    - Parameters
-        - to (address) : Address to receive changed TON
-        - wtonAmount (uint256) :Amount of WTON to convert to TON (in RAY (10^27) unit)
+  - Parameters
+      - to (address) : Address to receive changed TON
+      - wtonAmount (uint256) :Amount of WTON to convert to TON (in RAY (10^27) unit)
 
 ---
 
 ### [swapFromTONAndTransfer (address to, uint256 tonAmount)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F19)
 swap TON to WTON, and transfer WTON
 
-    - Parameters
-        - to (address) : Address to receive changed WTON
-        - tonAmount (uint256) : Amount of TON to convert to WTON (in WEI (10^18) unit)
+  - Parameters
+      - to (address) : Address to receive changed WTON
+      - tonAmount (uint256) : Amount of TON to convert to WTON (in WEI (10^18) unit)
 
 
 ---
