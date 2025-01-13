@@ -13,13 +13,13 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
 - SeigManager creates a RefactorCoinageSnapshot contract that manages the staking TON and seigniorage mapped to Layer 2 registered in Layer2Registry using CoinageFactory contract.
 - When the 'updateSeigniorage' function of seigManager is executed for each Layer 2, the issued seigniorage is given to the RefactorCoinageSnapshot mapped to that layer2.
 
-**Layout of Contracts**
+- [Looking into Tokamak Network’s Staking Contract](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7)
 
 
 **Table of Contracts**
 - [TON](./contracts/TON.md)
 - [WTON](./contracts/WTON.md)
-- [SWTON : RefactorCoinageSnapshot](./contracts/RefactorCoinageSnapshot.md)
+- [SWTON : RefactorCoinageSnapshot](./contracts/SWTON_RefactorCoinageSnapshot.md)
 - [DepositManager](./contracts/DepositManager.md)
 - [SeigManager](./contracts/SeigManager.md)
 - [Layer2Registry](./contracts/Layer2Registry.md)
