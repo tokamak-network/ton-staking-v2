@@ -9,7 +9,7 @@
 
 ## Differentiated functions
 
-- [transferFrom (address sender, address recipient, uint256 amount) public returns (bool)](https://etherscan.io/address/0x2be5e8c109e2197d077d13a82daead6a9b3433c5?#code#L1093)
+###  [transferFrom (address sender, address recipient, uint256 amount) public returns (bool)](https://etherscan.io/address/0x2be5e8c109e2197d077d13a82daead6a9b3433c5?#code#L1093)
 
 When using transferFrom, the caller executing the transaction must be the same account that gives the asset or the account that receives the asset. Otherwise, the transferFrom function will fail.
 Therefore, it cannot be used for services that transfer assets by entrusting them to a third party, such as an escrow service. In such cases, WTON should be used instead of TON.
@@ -21,8 +21,9 @@ Therefore, it cannot be used for services that transfer assets by entrusting the
   }
 ```
 
+---
 
-- [approveAndCall (address spender, uint256 amount, bytes memory data)](https://etherscan.io/address/0x2be5e8c109e2197d077d13a82daead6a9b3433c5#writeContract#F3)
+###  [approveAndCall (address spender, uint256 amount, bytes memory data)](https://etherscan.io/address/0x2be5e8c109e2197d077d13a82daead6a9b3433c5#writeContract#F3)
 
 
 Supports approveAndCall function. By allowing approve and call to be done at the same time, It can provide a more convenient interface for users in terms of UX/UI.
@@ -65,3 +66,5 @@ contract ERC20OnApprove is ERC20 {
 
 }
 ```
+
+---
