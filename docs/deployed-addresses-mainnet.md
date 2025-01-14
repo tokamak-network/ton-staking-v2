@@ -28,7 +28,7 @@
 |  CandidateFactoryProxy        |  0x9fc7100a16407ee24a79c834a56e6eca555a5d7c    |[link](https://etherscan.io/address/0x9fc7100a16407ee24a79c834a56e6eca555a5d7c)
 |  RefactorCoinageSnapshot        | 0xef12310ff8a6e96357b7d2c4a759b19ce94f7dfb     |[link](https://etherscan.io/address/0xef12310ff8a6e96357b7d2c4a759b19ce94f7dfb)
 |  CoinageFactory        | 0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43     | [link](https://etherscan.io/address/0xe8fae91b80dd515c3d8b9fc02cb5b2ecfddabf43)
-
+| SwapProxy      | 0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d  | [link](https://etherscan.io/address/0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d) |
 
 
 ## Layer addresses

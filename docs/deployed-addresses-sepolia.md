@@ -27,4 +27,4 @@
 |  CandidateFactoryProxy        | 0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f     | [link](https://sepolia.etherscan.io/address/0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f)
 |  RefactorCoinageSnapshot        |  0x510036C3dDc8D0AB10B8AbEC2ECdf0Aa1dD25FfA    | [link](https://sepolia.etherscan.io/address/0x510036C3dDc8D0AB10B8AbEC2ECdf0Aa1dD25FfA)
 |  CoinageFactory        | 0x93258413Ef2998572AB4B269b5DCb963dD35D440     | [link](https://sepolia.etherscan.io/address/0x93258413Ef2998572AB4B269b5DCb963dD35D440)
-
+| SwapProxy      | 0x690f994b82f001059e24d79292c3c476854b767a  | [link](https://sepolia.etherscan.io/address/0x690f994b82f001059e24d79292c3c476854b767a) |
