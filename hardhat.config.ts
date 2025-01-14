@@ -429,7 +429,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 6797943
       },
       // allowUnlimitedContractSize: false,
-      // deploy: ['deploy-staking-v2.5-mainnet'],
+      deploy: ['deploy-staking-v2.5-mainnet'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
