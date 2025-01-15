@@ -54,6 +54,13 @@ contract ERC20OnApprove is ERC20 {
 }
 ```
 ---
+### [onApprove (address owner, address spender, uint256 tonAmount, bytes calldata data)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F10)
+- It can only be executed through the TON contract.
+- Swap TON to WTON, approve the use of WTON to the first address included in data, and then call the OnApprove function of the first address.
+- Using this function, you can execute the TON staking function by calling the OnApprove function of the DepositManager contract. [example](../../etherscan-guide/transaction-staking-functions.md#tonapproveandcall-address-spender-uint256-amount-bytes-data)
+- Alternatively, the SwapProxy contract can be used to simply wrap TON for WTON without approving TON in advance.
+
+---
 
 ### [swapToTON (uint256 wtonAmount)](https://etherscan.io/address/0xc4a11aaf6ea915ed7ac194161d2fc9384f15bff2#writeContract#F20)
 swap WTON to TON
