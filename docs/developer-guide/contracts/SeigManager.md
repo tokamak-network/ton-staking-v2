@@ -4,6 +4,8 @@
 - tot: An object containing seigniorage information allocated to the entire layer
 - coinages: An object containing seigniorage information allocated to each layer
 - Using tot and coinages, the seigniorage issued per block is distributed according to [logic](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#2-seigniorage).
+- [Issuance of seigniorage](../README.md#seigniorage-issuance)
+
 
 ## Differentiated functions
 

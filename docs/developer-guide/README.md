@@ -33,7 +33,7 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
     - TON Seigniorage Token
 
 - SWTON
-    - Staked TON Token
+    - Staked TON
 
 ## Seigniorage issuance
 - 3.92 TON seigniorage issued per block
