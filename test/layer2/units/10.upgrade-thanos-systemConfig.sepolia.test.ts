@@ -278,6 +278,7 @@ describe('Upgrade Thanos sepolia', () => {
             console.log(newThanosContract.address)
             const thanosProxy: Contract = (await ethers.getContractAt(Proxy_Json, thanosSepoliaSystemConfig, thanosSepoliaProxyAdminSigner))
             const thanos: Contract = (await ethers.getContractAt(Thanos_Json.abi, thanosSepoliaSystemConfig, deployer))
+            await (await thanosProxy.connect(thanosSepoliaProxyAdminSigner).upgradeTo( newThanosContract.address)).wait()
 
             let l1CrossDomainMessenger_ = await thanos.l1CrossDomainMessenger()
             let l1ERC721Bridge_ = await thanos.l1ERC721Bridge()
@@ -298,9 +299,37 @@ describe('Upgrade Thanos sepolia', () => {
             console.log('nativeTokenAddress_', nativeTokenAddress_)
             console.log('batchInbox_', batchInbox_)
 
-            const callDtata = newThanosContract.interface.encodeFunctionData(
-                "initialize(address,uint32,uint32,bytes32,uint64,address,(uint32,uint8,uint8,uint32,uint32,uint128),address,(address,address,address,address,address,address,address,address,address))",
-                [   thanosSepoliaProxyAdmin,
+            // const callDtata = newThanosContract.interface.encodeFunctionData(
+            //     "initialize(address,uint32,uint32,bytes32,uint64,address,(uint32,uint8,uint8,uint32,uint32,uint128),address,(address,address,address,address,address,address,address,address,address))",
+            //     [   thanosSepoliaProxyAdmin,
+            //         1368,
+            //         810949,
+            //         '0x00000000000000000000000061dc95e5f27266b94805ed23d95b4c9553a3d049',
+            //         200000000,
+            //         '0x0Fd5632f3b52458C31A2C3eE1F4b447001872Be9',
+            //         {
+            //             maxResourceLimit: 20000000,
+            //             elasticityMultiplier: 10,
+            //             baseFeeMaxChangeDenominator: 8,
+            //             minimumBaseFee: 1000000000,
+            //             systemTxMaxGas: 1000000,
+            //             maximumBaseFee: BigNumber.from('340282366920938463463374607431768211455')
+            //         },
+            //         batchInbox_,
+            //         {
+            //             l1CrossDomainMessenger: l1CrossDomainMessenger_,
+            //             l1ERC721Bridge: l1ERC721Bridge_,
+            //             l1StandardBridge: l1StandardBridge_,
+            //             disputeGameFactory: disputeGameFactory_,
+            //             optimismPortal: optimismPortal_,
+            //             optimismMintableERC20Factory: optimismMintableERC20Factory_,
+            //             gasPayingToken: gasPayingToken_[0],
+            //             nativeTokenAddress: nativeTokenAddress_,
+            //             seigniorageReceiver: deployer.address
+            //         }  ])
+
+            await (await thanos.connect(deployer).initialize(
+                thanosSepoliaProxyAdmin,
                     1368,
                     810949,
                     '0x00000000000000000000000061dc95e5f27266b94805ed23d95b4c9553a3d049',
@@ -325,10 +354,8 @@ describe('Upgrade Thanos sepolia', () => {
                         gasPayingToken: gasPayingToken_[0],
                         nativeTokenAddress: nativeTokenAddress_,
                         seigniorageReceiver: deployer.address
-                    }  ])
-
-            await (await thanosProxy.connect(thanosSepoliaProxyAdminSigner).
-                upgradeToAndCall( newThanosContract.address, callDtata)).wait()
+                    }
+            )).wait()
 
             expect(await thanosProxy.l1CrossDomainMessenger()).to.be.eq(l1CrossDomainMessenger_)
             expect(await thanosProxy.l1ERC721Bridge()).to.be.eq(l1ERC721Bridge_)
@@ -340,8 +367,6 @@ describe('Upgrade Thanos sepolia', () => {
             expect(await thanosProxy.nativeTokenAddress()).to.be.eq(nativeTokenAddress_)
             expect(await thanosProxy.batchInbox()).to.be.eq(nativeTokenAddress_)
             expect(await thanosProxy.seigniorageReceiver()).to.be.eq(deployer.address)
-
-            // l1BridgeRegistry = (await ethers.getContractAt("L1BridgeRegistryV1_1", l1BridgeRegistryProxy.address, deployer)) as L1BridgeRegistryV1_1
 
         })
     })
