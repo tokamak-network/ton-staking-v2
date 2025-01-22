@@ -19,10 +19,20 @@ contract LegacySystemConfig is Ownable, LegacySystemConfigStorage {
 
     /* ========== onlyOwner ========== */
 
-    function setAddresses(string memory _name, Addresses memory _addresses, address _l1BridgeRegistry) external onlyOwner {
+    function setAddresses(
+        string memory _name,
+        Addresses memory _addresses,
+        address _l1BridgeRegistry,
+        address _seigniorageReceiver
+    ) external onlyOwner {
         name = _name;
         addresses = _addresses;
         l1BridgeRegistry = _l1BridgeRegistry;
+        seigniorageReceiver = _seigniorageReceiver;
+    }
+
+    function setSeigniorageReceiver(address _seigniorageReceiver) external onlyOwner {
+        seigniorageReceiver = _seigniorageReceiver;
     }
 
     /* ========== onlyL1Bridge ========== */

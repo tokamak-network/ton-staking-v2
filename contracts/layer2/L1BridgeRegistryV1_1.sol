@@ -34,7 +34,6 @@ interface IERC20 {
 }
 
 interface IOptimismSystemConfig {
-    function owner() external view returns (address);
     function l1StandardBridge() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_) ;
 }

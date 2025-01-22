@@ -44,6 +44,15 @@ interface IL1Bridge {
         uint32 _minGasLimit,
         bytes calldata _extraData
     ) external;
+
+    function bridgeERC20To(
+        address _l1Token,
+        address _l2Token,
+        address _to,
+        uint256 _amount,
+        uint32 _minGasLimit,
+        bytes calldata _extraData
+    ) external;
 }
 
 interface IIERC20 {
@@ -179,7 +188,7 @@ contract DepositManagerV1_1 is
         } else {
             bal = IERC20(_ton).balanceOf(portal);
 
-            IL1Bridge(l1Bridge).depositERC20To(
+            IL1Bridge(l1Bridge).bridgeERC20To(
                 _ton,
                 l2Ton,
                 msg.sender,

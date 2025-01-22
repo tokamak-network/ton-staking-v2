@@ -22,4 +22,5 @@ contract LegacySystemConfigStorage {
 
     address public l1BridgeRegistry;
 
+    address public seigniorageReceiver;
 }

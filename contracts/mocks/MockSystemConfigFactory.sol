@@ -15,6 +15,7 @@ interface IMockSystemConfig {
     function l1StandardBridge() external view returns (address addr_);
     function optimismPortal() external view returns (address addr_);
     function setName(string calldata _name) external ;
+    function setOperstor(address _operator) external ;
 }
 
 contract MockSystemConfigFactory {
@@ -48,6 +49,7 @@ contract MockSystemConfigFactory {
         c.setName(_name);
         c.setTargetOwner(c.optimismPortal(), msg.sender);
         c.transferOwnership(msg.sender);
+        c.setSeigniorageReceiver(msg.sender);
 
         emit CreatedMockSystemConfig(
             address(c),
