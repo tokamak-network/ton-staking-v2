@@ -160,7 +160,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
     }
 
-    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
+    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as CandidateAddOnFactory
 
     let layer2CandidateImp_layer2CandidateFactory = await candidateAddOnFactory.candidateAddOnImp()
 
@@ -314,7 +314,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )).wait()
 
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
-        name, addresses, l1BridgeRegistryProxy.address
+        name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
     )).wait()
 
     await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(

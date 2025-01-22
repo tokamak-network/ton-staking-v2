@@ -319,7 +319,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     )).wait()
 
     await (await legacySystemConfig.connect(deploySigner).setAddresses(
-        name, addresses, l1BridgeRegistryProxy.address
+        name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
     )).wait()
 
     // console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
