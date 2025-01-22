@@ -389,17 +389,17 @@ const config: HardhatUserConfig = {
       default: 44,
       mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
       goerli: '',
-      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
+      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
     },
     daoMember3: {
       default: 45,
       mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
       goerli: '',
-      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
+      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
     }
   },
   networks: {
