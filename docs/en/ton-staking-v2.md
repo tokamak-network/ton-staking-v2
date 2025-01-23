@@ -1,15 +1,15 @@
 
-> Simple Staking service integrates Layer 2 of TON Economy and is upgraded to ton staking v2. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.
+> Simple Staking service integrates Layer 2 of TON Economy and is upgraded to ton staking v2.5. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.5.
 
-TON Staking v2 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
+TON Staking v2.5 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
 
-V2 introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
+the V2 white paper introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
 
-# Changes in TON Staking V2
+# Changes in TON Staking V2.5
 
 ## Changes in seigniorage distribution
 
-In V2, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
+In V2.5, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
 
 $S:　TON　staking　amount$ <br/>
 $T :　Total　TON　supply$<br/>
@@ -22,7 +22,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
     <figcaption> </figcaption>
 </figure>
 
-- Seigniorage distribution of V2
+- Seigniorage distribution of V2.5
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
     <figcaption> </figcaption>
@@ -33,13 +33,13 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
 
 In V1, Candidate Layer2 existed. Candidate is Layer 2 that can become a DAO committee.
 
-CandidateAddOn added in V2 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer can receive seigniorage.
+CandidateAddOn added in V2.5 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer(seigniorageReceiver) can receive seigniorage.
 
 ## Provides withdrawal and L2 deposit functions executed at once
 
-As a feature added in CandidateAddOn, it provides a function that deposits to L2 (withdrawAndDepositL2) at the same time as withdrawal by linking Layer2's unique deposit function with the withdraw function.
+As a feature added in CandidateAddOn, it provides a function that deposits to L2 (withdrawAndDepositL2) at the same time as withdrawal by linking Layer2's deposit function with the withdraw function.
 
-TThe withdrawAndDepositL2 function is a function that withdraw the staking amount and deposits it to Layer 2 at the same time. The strength of this feature compared to V1 is that withdrawal is possible immediately  without waiting time (93046  waiting blocks ). As soon as the function is executed, funds tied up in L1 can be used as L2 liquidity.
+TThe withdrawAndDepositL2 function is a function that withdraw the staking amount and deposits it to Layer 2 at the same time. The strength of this feature compared to V1 is that withdrawal is possible immediately without waiting time (93046 waiting blocks). As soon as the function is executed, funds tied up in L1 can be used as L2 liquidity.
 
 ## Stop providing seigniorage to the L2 sequencer in CandidateAddOn
 
@@ -53,7 +53,7 @@ Restoration of Layer2Candidate's seigniorage suspension can be canceled again by
 
 ## TON Stake V1 Contracts
 
-V1’s contract is structured as follows. DAOCandidate can be created through DAOCommittee, and when the created daoCandiate is registered through Layer2Registry and registered in SeigManager, an AutoCoinage mapped to DAOCandidate is created. AutoCoinage manages the staking amount and has logic to pay compound interest. Therefore, a separate AutoCoinage is created for each layer (DAOCandidate).
+V1’s contract is structured as follows. DAOCandidate can be created through DAOCommittee, and when the created daoCandiate is registered through Layer2Registry and registered in SeigManager, an AutoCoinage (RefactorCoinage) mapped to DAOCandidate is created. AutoCoinage(RefactorCoinage) manages the staking amount and has logic to pay seigniorages. Therefore, a separate AutoCoinage(RefactorCoinage) is created for each layer(DAOCandidate).
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-1.png"
@@ -62,9 +62,9 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 </figure>
 
 
-## TON Stake V2 Contracts
+## TON Stake V2.5 Contracts
 
-V2 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
+V2.5 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
@@ -72,16 +72,16 @@ V2 maintains the configuration of V1 and adds CandidateAddOn. The contract confi
     <figcaption> </figcaption>
 </figure>
 
-The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup. Layer 2 of Optimism is applied first, and contracts can be upgraded so that other layers can also be applied. Optimism Layer 2 has a legacy version and a bad rock version. Please remember that the initial application target is limited to cases where the L2 nativeToken is TONE among Optimism Legacy Version and Optimism Bad Rock Version.
+The first thing to understand is the issue of how to check Layer 2 in L1. Layer 2 that we are currently targeting is Optimism Rollup Legacy Version and TRH(Tokamak Rollup Hub)'s Thanos stack. The contract is designed to be upgradable so that other types of layers can be applied in the future.
 
 We will check Layer 2 by receiving information from RollupConfig, RollupType, and L2TON.
 
 - RollupConfig
-  The Optimism Badrock version contains the information and environment settings of the L1 contract in the SystemConfig contract. Therefore, the address of SystemConfig will be used as RollupConfig (an address that can distinguish Layer2). In the case of the legacy version, SystemConfig does not exist, so a separate legacySystemConfig contract was created. In the case of legacy Layer 2, you must deploy the legacySystemConfig contract and use this address as the relevant RollupConfig (address that can distinguish Layer 2) information.
+  TRH's Thanos stack contains the information and environment settings of the L1 contract in the SystemConfig contract. Therefore, the address of SystemConfig will be used as RollupConfig (an address that can distinguish Layer2). In the case of the Optimism Rollup legacy version, SystemConfig does not exist, so a separate legacySystemConfig contract was created. In the case of legacy Layer 2, you must deploy the legacySystemConfig contract and use this address as the relevant RollupConfig (address that can distinguish Layer 2) information.
 
 - RollupType
-  Use Optimism legacy version 0,
-  The case of the Optimism Bedrock version and when using native TON, use the value of 1.
+  Use Optimism Rollup legacy version 1,
+  The case of TRH's Thanos stack, we use the value of 2 as rollupType.
   When supporting a different type of rollup, upgrade by additionally specifying the corresponding type.
 
 - L2TON
@@ -90,7 +90,7 @@ We will check Layer 2 by receiving information from RollupConfig, RollupType, an
 
 # Use case
 ## For registrant of L1BridgeRegistry
-An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means confirming that Layer 2 is problem-free. Only Layer 2 of the registered RollupConfig can be registered as CandidateAddOn. Only after being registered as CandidateAddOn can the sequencer receive seigniorage.
+An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means ensuring that there are no issues in Layer 2. Only Layer 2 of the registered RollupConfig can be registered as CandidateAddOn. Only after being registered as CandidateAddOn can the sequencer(seigniorageReceiver) receive seigniorage.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-1.png"
@@ -122,9 +122,9 @@ Users who have staked on CandidateAddOn can perform the function of withdrawing 
 
 ## For seigniorageCommittee
 
-Simple Staking V2 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer can claim the seigniorage stored in the OperatorManager contract.
+Simple Staking V2.5 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer(RollupConfig's seigniorageReceiver) can claim the seigniorage stored in the OperatorManager contract.
 
-Just in case, We must have a function to stop issuing TON seigniorage to OperatorManager. A Seigniorage Committee account was created in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending issuance of seigniorage or canceling suspension of issuance for a sequencer in a specific CandidateAddOn.
+Just in case, we must have a function to stop issuing TON seigniorage to OperatorManager. A Seigniorage Committee account was created in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending issuance of seigniorage or canceling suspension of issuance for a sequencer in a specific CandidateAddOn.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-4.png"
@@ -185,15 +185,15 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 ## L1BridgeRegistry
 
 - Basic understanding
-    - Save the contract containing layer 2 L1 contract information in rollupConfig storage.
-    - In case of Optimism rollup bedrock, specify the SystemConfig address as rollupConfig.
-    - For Titan and Thanos, SystemConfig is manually saved as rollupConfig by the administrator.
-    - Contracts created in on-demand L2 are automatically registered when the contract is created.
+    - Save the contract addresses containing layer2's L1 contract information in rollupConfig storage.
+    - In case of TRH's Thanos stack, specify the SystemConfig address as rollupConfig.
+    - SystemConfig can be manually registered as rollupConfig by the administrator.
+    - L2's SystemConfig generated from Tokamak Rollup Hub can be optionally registered when generating L2.
     - It must be upgradeable by configuring it as a proxy, considering support for other layers (ex, zk-EVM) in the future.
 - Authority
     - Owner :  The owner has the right to upgrade logic and can designate a manager.
     - Manager : The foundation holds MANAGER_ROLE, and the manager can register or remove Registrant.
-    - Registrant: When opening on-demand-L2, REGISTRANT_ROLE must be given to the EOA of the server that actually distributes L2.
+    - Registrant: Tokamak Rollup Hub team has a registrant account as REGISTRANT_ROLE authority, and the registrant can register the SystemConfig address of L2 as rollupConfig as needed.
 - Storage
 
     ```jsx
@@ -453,8 +453,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         - As a proxy owner, you can upgrade the logic.
         - Owner can change the manager.
     - manager
-        - The manager is considered a layer 2 sequencer account, and upon initial deployment, the owner() of RollupConfig (SystemConfig) is designated as manager.
-        - When the owner of RollupConfig (SystemConfig) changes in the future, the manager must be changed using transferManager. (RollupConfig.owner provides an interface to take the manager.)
+        - The manager is considered a layer 2 sequencer account(seigniorageReceiver), and upon initial deployment, the seigniorageReceiver() of RollupConfig (SystemConfig) is designated as manager.
+        - When the owner of RollupConfig (SystemConfig) changes in the future, the manager must be changed using transferManager. (RollupConfig.seigniorageReceiver() provides an interface to take the manager.)
         - By possessing CandidateAddOn operator authority, manager can use the functions of DAO members
             - Functions that can be used by onlyCandidate inherited from Candidate can be executed.
             - changeMember function → Operator contract becomes a member of DAO.
@@ -462,7 +462,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
             - castVote function → Vote on the agenda by Operator contract.
             - claimActivityReward function → The reward is received by the Operator contract.
 
-    - The RollupConfig contract must support the owner() function.
+    - The RollupConfig contract must support the seigniorageReceiver() function.
 
 - Storage
 
@@ -605,8 +605,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 ## Layer2Manager
 - Basic understanding
-    - In order for the Layer2 sequencer to receive seigniorage, the RollupConfig address must be registered in the Layer2Manager.
-    - When distributing seigniorage, the seigniorage paid to Layer 2 sequencers is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of CandidateAddOn is settled.
+    - In order for the Layer2 sequencer(seigniorageReceiver) to receive seigniorage, the RollupConfig address must be registered in the Layer2Manager.
+    - When distributing seigniorage, the seigniorage paid to Layer 2 sequencer(seigniorageReceiver) is paid to Layer 2 Manager. Therefore, Layer2Manager holds the seigniorage until the seigniorage of CandidateAddOn is settled.
 
 - Authority
     - Owner : The owner has the authority to upgrade logic and can set settings.
@@ -829,7 +829,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 ## CandidateAddOnFactory
 
 - Basic understanding
-    - This is a contract that creates CandidateAddOn .
+    - This is a contract that creates CandidateAddOn.
 
 - Authority
     - Owner : The owner has the authority to upgrade logic and can set settings.
@@ -897,9 +897,9 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 ## CandidateAddOn
 
 - Basic understanding
-    - Supports the basic functions of Simple Staking (TON Staking) (deposit, update seigniorage-interest payment, withdrawal function).
+    - Supports the basic functions of Simple Staking (TON Staking) (deposit, update seigniorage-seigniorage payment, withdrawal function).
     - Supports DAO member functions available in Candidate.
-    - When executing update seigniorage, CandidateAddOn’s sequencer (operator) can receive seigniorage.
+    - When executing update seigniorage, CandidateAddOn’s sequencer (seigniorageReceiver) can receive seigniorage.
 
 - Authority
     - Owner : The owner has the authority to upgrade logic and can initialize settings.
@@ -1029,7 +1029,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
 ## SeigManagerV1_3
 - Basic understanding
-    - When CandidateAddOn's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer according to Layer2's TON TVL, and the paid seigniorage is settled to the OperatorManager contract.
+    - When CandidateAddOn's update seigniorage is executed, seigniorage must be paid to the Layer2 sequencer(seigniorageReceiver) according to Layer2's TON TVL, and the paid seigniorage is settled to the OperatorManager contract.
     - A sequencer with manager privileges in the OperatorManager contract can select the claim and staking option when executing the update seigniorage of CandidateAddOn (when distributing seigniorage) and execute the claim or staking function at the same time as seigniorage settlement.
     - The seigniorage distribution logic distributed to the L2 sequencer is done according to the seigniorage distribution rules of v2. [V2 white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
     - Since SeigManager is already deployed and operated in V1, only the update seigniorage function is executed with the changed logic in SeigManagerV1_3 without changing other functions.

@@ -31,7 +31,7 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
 
 V1에서는 Candidate 가 존재하였습니다. Candidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
 
-V2.5에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
+V2.5에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서(seigniorageReceiver)가 시뇨리지를 받을 수 있습니다.
 
 ## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
@@ -443,7 +443,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
         - 매니저를 변경할 수 있다.
     - manager
-        - 관리자는 레이어2의 시퀀서로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 seigniorageReceiver()를 manager 로 지정한다.
+        - 관리자는 레이어2의 시퀀서(seigniorageReceiver)로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 seigniorageReceiver()를 manager 로 지정한다.
         - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.seigniorageReceiver() 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
         - CandidateAddOn 의 오퍼레이터 권한을 보유하여, 다오멤버의 함수를 사용할 수 있다.
             - Candidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수를 실행할 수 있다.
@@ -593,8 +593,8 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## Layer2Manager
 - 개요
-    - Layer2 시퀀서가 시뇨리지를 받기 위해서는 RollupConfig(SystemConfig) 주소를  Layer2Manager에 등록해야 합니다.
-    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager는 특정 CandidateAddOn의 시퀀서 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
+    - Layer2 시퀀서(seigniorageReceiver)가 시뇨리지를 받기 위해서는 RollupConfig(SystemConfig) 주소를  Layer2Manager에 등록해야 합니다.
+    - 시뇨리지 분배시, Layer2의 시퀀서(seigniorageReceiver)에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager는 특정 CandidateAddOn의 시퀀서 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
 - 스토리지
@@ -1012,9 +1012,9 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## SeigManagerV1_3
 - 개요
-    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 OperatorManager 컨트랙에게 정산됩니다.
+    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서(seigniorageReceiver)에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 OperatorManager 컨트랙에게 정산됩니다.
     - OperatorManager 컨트랙의 manager 계정은  CandidateAddOn 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
-    - L2 시퀀서에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
+    - L2 시퀀서(seigniorageReceiver)에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
     - V1에서 이미 SeigManager 가 배포되어 운영되고 있으므로, 다른 기능은 변경없이 업데이트 시뇨리지 함수만  SeigManagerV1_3에 변경된 로직으로 실행되도록 한다.
     - 업데이트 시뇨리지 함수실행시 Layer2에게 제공하는 시뇨리지를 관리하기 위한 스토리지를 추가한다.
 
