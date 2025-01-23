@@ -40,17 +40,17 @@ contract MockL1StandardBridge {
 
     }
 
-    function bridgeERC20To(
-        address _l1Token,
-        address _l2Token,
+    function bridgeNativeTokenTo(
         address _to,
         uint256 _amount,
         uint32 _l2Gas,
         bytes calldata _data
     ) external {
 
-        require(IERC20(_l1Token).transferFrom(msg.sender, address(this), _amount) , "fail transferFrom");
-        require(IERC20(_l1Token).transfer(portal, _amount), "fail transfer");
+        // sepolia ton
+        address l1token = 0xa30fe40285B8f5c0457DbC3B7C8A280373c40044;
+        require(IERC20(l1token).transferFrom(msg.sender, address(this), _amount) , "fail transferFrom");
+        require(IERC20(l1token).transfer(portal, _amount), "fail transfer");
 
     }
 }

@@ -45,14 +45,13 @@ interface IL1Bridge {
         bytes calldata _extraData
     ) external;
 
-    function bridgeERC20To(
-        address _l1Token,
-        address _l2Token,
+    function bridgeNativeTokenTo(
         address _to,
         uint256 _amount,
         uint32 _minGasLimit,
         bytes calldata _extraData
     ) external;
+
 }
 
 interface IIERC20 {
@@ -172,7 +171,20 @@ contract DepositManagerV1_1 is
 
         uint256 bal;
 
-        if (l2Type == 1) {
+        if (l2Type == 2) {
+            bal = IERC20(_ton).balanceOf(portal);
+
+            IL1Bridge(l1Bridge).bridgeNativeTokenTo(
+                msg.sender,
+                tonAmount,
+                _minDepositGasLimit,
+                '0x'
+            );
+
+            bal = IERC20(_ton).balanceOf(portal) - bal;
+
+        } else {
+
             bal = IERC20(_ton).balanceOf(l1Bridge);
 
             IL1Bridge(l1Bridge).depositERC20To(
@@ -185,19 +197,6 @@ contract DepositManagerV1_1 is
             );
 
             bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
-        } else {
-            bal = IERC20(_ton).balanceOf(portal);
-
-            IL1Bridge(l1Bridge).bridgeERC20To(
-                _ton,
-                l2Ton,
-                msg.sender,
-                tonAmount,
-                _minDepositGasLimit,
-                '0x'
-            );
-
-            bal = IERC20(_ton).balanceOf(portal) - bal;
         }
 
         require(bal == tonAmount, 'fail depositERC20To');
