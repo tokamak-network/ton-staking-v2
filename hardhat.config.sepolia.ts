@@ -389,18 +389,58 @@ const config: HardhatUserConfig = {
       default: 44,
       mainnet: '0xd1820b18be7f6429f1f44104e4e15d16fb199a43',
       goerli: '',
-      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
-      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
+      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
+      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
     },
     daoMember3: {
       default: 45,
       mainnet: '0x42adfaae7db56b294225ddcfebef48b337b34b23',
       goerli: '',
-      hardhat: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      local: '0xbdbb2c17846027c75802464d4afdd23a9192e103',
-      sepolia: '0xbdbb2c17846027c75802464d4afdd23a9192e103'
-    }
+      hardhat: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      local: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599',
+      sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
+    },
+    thanosSepoliaSystemConfig: {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0x6eF61974A3CDa7BbD0a4DD0A613f56d211c8AfDC',
+      local: '0x6eF61974A3CDa7BbD0a4DD0A613f56d211c8AfDC',
+      sepolia: '0x6eF61974A3CDa7BbD0a4DD0A613f56d211c8AfDC'
+    },
+    thanosSepoliaL1CrossDomainMessenger : {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0xd054Bc768aAC07Dd0BaA2856a2fFb68F495E4CC2',
+      local: '0xd054Bc768aAC07Dd0BaA2856a2fFb68F495E4CC2',
+      sepolia: '0xd054Bc768aAC07Dd0BaA2856a2fFb68F495E4CC2'
+    },
+    thanosSepoliaL1StandardBridge : {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0x757EC5b8F81eDdfC31F305F3325Ac6Abf4A63a5D',
+      local: '0x757EC5b8F81eDdfC31F305F3325Ac6Abf4A63a5D',
+      sepolia: '0x757EC5b8F81eDdfC31F305F3325Ac6Abf4A63a5D'
+    },
+    thanosSepoliaOptimismPortal: {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0x2fbD30Fcd1c4573b0288E706Be56B5c0d2DfcAF6',
+      local: '0x2fbD30Fcd1c4573b0288E706Be56B5c0d2DfcAF6',
+      sepolia: '0x2fbD30Fcd1c4573b0288E706Be56B5c0d2DfcAF6'
+    },
+    thanosSepoliaProxyAdmin: {
+      default: 41,
+      mainnet: '0x0000000000000000000000000000000000000000',
+      goerli: '0x0000000000000000000000000000000000000000',
+      hardhat: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1',
+      local: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1',
+      sepolia: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1'
+    },
   },
   networks: {
     hardhat: {

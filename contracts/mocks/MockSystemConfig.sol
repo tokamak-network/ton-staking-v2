@@ -39,6 +39,20 @@ contract MockL1StandardBridge {
         require(IERC20(_l1Token).transfer(portal, _amount), "fail transfer");
 
     }
+
+    function bridgeNativeTokenTo(
+        address _to,
+        uint256 _amount,
+        uint32 _l2Gas,
+        bytes calldata _data
+    ) external {
+
+        // sepolia ton
+        address l1token = 0xa30fe40285B8f5c0457DbC3B7C8A280373c40044;
+        require(IERC20(l1token).transferFrom(msg.sender, address(this), _amount) , "fail transferFrom");
+        require(IERC20(l1token).transfer(portal, _amount), "fail transfer");
+
+    }
 }
 
 contract MockOptimismPortal is Ownable {
@@ -68,12 +82,14 @@ contract MockSystemConfig is Ownable {
 
     Addresses public addresses;
     string public name;
+    address public seigniorageReceiver;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
 
         address portal = address(new MockOptimismPortal());
         MockL1StandardBridge bridge = new MockL1StandardBridge();
+
         bridge.setPortal(portal);
 
         addresses = Addresses(
@@ -88,6 +104,11 @@ contract MockSystemConfig is Ownable {
 
     receive() external payable {
         revert("cannot receive Ether");
+    }
+
+    function setSeigniorageReceiver(address _seigniorageReceiver) external {
+        require(seigniorageReceiver == address(0), "already set");
+        seigniorageReceiver = _seigniorageReceiver;
     }
 
     function setName(string calldata _name) external {

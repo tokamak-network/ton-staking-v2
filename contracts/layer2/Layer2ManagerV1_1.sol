@@ -52,7 +52,6 @@ interface OnApprove {
 }
 
 interface IOptimismSystemConfig {
-    function owner() external view returns (address);
     function optimismPortal() external view returns (address addr_);
     function l1StandardBridge() external view returns (address addr_);
 }

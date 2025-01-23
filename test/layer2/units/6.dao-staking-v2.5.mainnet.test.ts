@@ -411,7 +411,11 @@ describe('Layer2Manager', () => {
             // console.log(addresses)
 
             await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
+            )).wait()
+
+            await (await legacySystemConfig.connect(deployer).setSeigniorageReceiver(
+                ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
             )).wait()
 
             await (await legacySystemConfig.connect(deployer).transferOwnership(

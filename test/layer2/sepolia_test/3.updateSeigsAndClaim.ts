@@ -189,17 +189,17 @@ describe('CandidateAddOn', () => {
 
         it('TitanCandidate updateSeigniorage(uint256 afterCall)', async () => {
 
-            let ownerOfOperatorContract = await titanOperatorContract.owner()
-            console.log("ownerOfOperatorContract", ownerOfOperatorContract)
+            let operatorOfOperatorContract = await titanOperatorContract.owner()
+            console.log("operatorOfOperatorContract", operatorOfOperatorContract)
 
-            let wtonBalancePrev = await wtonContract.balanceOf(ownerOfOperatorContract)
-            console.log("wtonBalancePrev of ownerOfOperatorContract ", ethers.utils.formatUnits(wtonBalancePrev, 27) )
+            let wtonBalancePrev = await wtonContract.balanceOf(operatorOfOperatorContract)
+            console.log("wtonBalancePrev of operatorOfOperatorContract ", ethers.utils.formatUnits(wtonBalancePrev, 27) )
 
             let stakeOf = await seigManager["stakeOf(address,address)"](deployedTitanLayer, titanOperatorContract.address);
             console.log("titanOperatorContract stakeOf", stakeOf)
 
-            let stakeOfOwnerOfOperatorContract = await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
-            console.log("ownerOfOperatorContract stakeOf", stakeOfOwnerOfOperatorContract)
+            let stakeOfOperatorOfOperatorContract= await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
+            console.log("operatorOfOperatorContract stakeOf", stakeOfOperatorOfOperatorContract)
 
             const TitanCandidate = new ethers.Contract(deployedTitanLayer,  Layer2Candidate_Json.abi, tonHave)
             let operator = await TitanCandidate.operator()
@@ -224,14 +224,14 @@ describe('CandidateAddOn', () => {
             const deployedEvent = seigManagerV1_3.interface.parseLog(log);
             console.log("deployedEvent.args", deployedEvent.args)
 
-            let wtonBalanceAfter = await wtonContract.balanceOf(ownerOfOperatorContract)
-            console.log("wtonBalanceAfter of ownerOfOperatorContract ", ethers.utils.formatUnits(wtonBalanceAfter, 27) )
+            let wtonBalanceAfter = await wtonContract.balanceOf(operatorOfOperatorContract)
+            console.log("wtonBalanceAfter of operatorOfOperatorContract ", ethers.utils.formatUnits(wtonBalanceAfter, 27) )
 
             let stakeOfAfter = await seigManager["stakeOf(address,address)"](deployedTitanLayer, titanOperatorContract.address);
             console.log("titanOperatorContract stakeOf", stakeOfAfter)
 
-            let stakeOfAfterOwnerOfOperatorContract = await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
-            console.log("ownerOfOperatorContract stakeOf", stakeOfAfterOwnerOfOperatorContract)
+            let stakeOfAfterOperatorOfOperatorContract= await seigManager["stakeOf(address,address)"](deployedTitanLayer, ownerOfOperatorContract);
+            console.log("operatorOfOperatorContract stakeOf", stakeOfAfterOperatorOfOperatorContract)
 
         })
 

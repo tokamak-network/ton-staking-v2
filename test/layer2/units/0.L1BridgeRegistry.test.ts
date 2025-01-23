@@ -50,7 +50,7 @@ describe('L1BridgeRegistry', () => {
             }
 
             await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
         })
 
@@ -70,7 +70,7 @@ describe('L1BridgeRegistry', () => {
             }
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
         })
     })
@@ -278,7 +278,7 @@ describe('L1BridgeRegistry', () => {
             }
 
             await (await sampleSystemConfig1.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
 
             let type =1

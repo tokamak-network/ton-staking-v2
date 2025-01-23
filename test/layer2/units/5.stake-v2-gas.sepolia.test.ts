@@ -25,6 +25,9 @@ import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/Le
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
+import { MockSystemConfigFactory } from "../../../typechain-types/contracts/mocks/MockSystemConfigFactory.sol"
+import { MockSystemConfig } from "../../../typechain-types/contracts/mocks/MockSystemConfig.sol"
+
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
 import DAOCommitteeProxy_Json from '../../abi/DAOCommitteeProxy.json'
@@ -36,14 +39,18 @@ import DepositManagerProxy_Json from '../../abi/DepositManagerProxy.json'
 import DepositManager_Json from '../../abi/DepositManager.json'
 import DAOCommitteeOwner_Json from '../../abi/DAOCommitteeOwner.json'
 import DAOCandidate_Json from '../../abi/Candidate.json'
+import MockSystemConfig_Json from '../../abi/MockSystemConfig.json'
 
 const layers = [
     {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
     {"oldLayer":"","newLayer":"0xabd15c021942ca54abd944c91705fe70fea13f0d","operator":"0x757de9c340c556b56f62efae859da5e08baae7a2","name":"member_DAO"},
 ]
 
+let mockSystemConfigFactory: MockSystemConfigFactory
 let thanosSystemConfigOwnerAddress = "0x9E628CaAd7A6dD3ce48E78812241B41BdbeF6244"
 let thanosSystemConfigOwner: Signer
+let thanosSystemConfig: any
+let thanosSystemConfigContract: MockSystemConfig
 
 let pastAddr = "0xD4335A175c36c0922F6A368b83f9F6671bf07606"
 let wtonhaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
@@ -70,7 +77,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('Layer2Manager', () => {
+describe('TON Staking V2.5', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 
@@ -214,6 +221,28 @@ describe('Layer2Manager', () => {
         ]);
         thanosSystemConfigOwner = await hre.ethers.getSigner(thanosSystemConfigOwnerAddress);
 
+    })
+
+    describe('# MockSystemConfigFactory ', () => {
+        it('set MockSystemConfigFactory ', async () => {
+
+            mockSystemConfigFactory = (await (await ethers.getContractFactory("MockSystemConfigFactory")).connect(deployer).deploy()) as MockSystemConfigFactory;
+
+            let name = 'Thanos'
+
+            const receipt = await (await mockSystemConfigFactory.connect(thanosSystemConfigOwner).createMockSystemConfig(
+                name
+            )).wait()
+
+            const topic = mockSystemConfigFactory.interface.getEventTopic('CreatedMockSystemConfig');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = mockSystemConfigFactory.interface.parseLog(log);
+
+            expect(deployedEvent.args.name).to.be.eq(name)
+
+            thanosSystemConfigContract = (new ethers.Contract(deployedEvent.args.mockSystemConfig,  MockSystemConfig_Json.abi, deployer)) as MockSystemConfig
+            thanosSystemConfig = thanosSystemConfigContract.address
+        })
     })
 
     describe('# L1BridgeRegistry', () => {
@@ -435,7 +464,7 @@ describe('Layer2Manager', () => {
             }
 
             const receipt = await (await legacySystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
 
             logUsedGas.push(gasUsedFunctions('SystemConfig', 'setAddresses', '', receipt))
@@ -481,7 +510,7 @@ describe('Layer2Manager', () => {
                 optimismMintableERC20Factory: ethers.constants.AddressZero
             }
             const receipt = await (await legacySystemConfigTest2.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
 
             logUsedGas.push(gasUsedFunctions('L1BridgeRegistry', 'setAddresses', '', receipt))
@@ -530,7 +559,7 @@ describe('Layer2Manager', () => {
     describe('# ThanosSystemConfig : Thanos ', () => {
 
         it('registerRollupConfigByManager  ', async () => {
-            const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
+            const {thanosL2TON } = await getNamedAccounts();
 
             let type = 2;
             let name = 'Thanos'
@@ -2240,7 +2269,7 @@ describe('Layer2Manager', () => {
         })
 
         it('register CandidateAddOn : thanosCandidateAddOn', async () => {
-            const {thanosSystemConfig, thanosL2TON } = await getNamedAccounts();
+            const {thanosL2TON } = await getNamedAccounts();
 
             expect((await layer2Manager.statusLayer2(thanosSystemConfig))).to.be.eq(0)
 

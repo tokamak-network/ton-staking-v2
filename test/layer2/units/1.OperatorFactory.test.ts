@@ -91,7 +91,7 @@ describe('OperatorManagerFactory', () => {
             }
 
             await (await legacySystemConfig.connect(manager).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, manager.address
             )).wait()
         })
 
@@ -111,7 +111,7 @@ describe('OperatorManagerFactory', () => {
             }
 
             await (await sampleSystemConfig.connect(deployer).setAddresses(
-                name, addresses, l1BridgeRegistryProxy.address
+                name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
         })
     })
@@ -120,7 +120,7 @@ describe('OperatorManagerFactory', () => {
 
         it('createOperatorManager can be executed by Layer2Manager', async () => {
 
-            expect(await legacySystemConfig.owner()).to.be.eq(manager.address)
+            expect(await legacySystemConfig.seigniorageReceiver()).to.be.eq(manager.address)
 
             await expect(
                 operatorManagerFactory.connect(manager).createOperatorManager(

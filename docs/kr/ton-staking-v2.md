@@ -1,15 +1,15 @@
 
-> Simple Staking 서비스는 TON Economy의 Layer2 를 통합하여, ton staking v2로 업그레이드 됩니다. 이 글에서는 Simple Staking 가 layer2를 어떻게 통합하여 version2로 진화되는지에 대해 알려줄 것입니다.
+> Simple Staking 서비스는 TON Economy의 Layer2 를 통합하여, ton staking v2로 업그레이드 됩니다. 이 글에서는 Simple Staking 가 layer2를 어떻게 통합하여 version 2.5 로 진화되는지에 대해 알려줄 것입니다.
 
-TON Staking v2 는 V2 백서의 내용을 구체화하기 위한 개발이므로,  [백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md)를 사전에 숙지하시기 바랍니다.
+TON Staking v2.5 는  백서 V2 의 내용을 구체화하기 위한 개발이므로,  [백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md)를 사전에 숙지하시기 바랍니다.
 
-V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었으며,  새로 발행되는 톤 시뇨리지의 일부를 L2 시퀀서에게 분배하는 내용이 추가된 내용입니다.  V2는 기존  V1 컨트랙에서 보강된 시스템이기 때문에, V1에 존재하는 컨트랙일 경우, 업그레이드하여 구현합니다.  따라서 본 글을 읽으시는 독자는 V1 시스템을 알고 있어야 합니다.  톤스테이킹 V1에 대해서 더 자세히 알고 싶은 분은 [미디움 글](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7)을 참고하시기 바랍니다.
+백서 V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었으며,  새로 발행되는 톤 시뇨리지의 일부를 L2 시퀀서에게 분배하는 내용이 추가된 내용입니다.  V2는 기존  V1 컨트랙에서 보강된 시스템이기 때문에, V1에 존재하는 컨트랙일 경우, 업그레이드하여 구현합니다.  따라서 본 글을 읽으시는 독자는 V1 시스템을 알고 있어야 합니다.  톤스테이킹 V1에 대해서 더 자세히 알고 싶은 분은 [미디움 글](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7)을 참고하시기 바랍니다.
 
-# Ton Staking V2에서 변경되는 사항들
+# Ton Staking V2.5 에서 변경되는 사항들
 
 ## 시뇨리지 분배의 변화
 
-V2에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
+V2.5에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
 
 $S:　TON　스테이킹　금액$ <br/>
 $T :　TON　총　발행량$<br/>
@@ -31,7 +31,7 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
 
 V1에서는 Candidate 가 존재하였습니다. Candidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
 
-V2에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서가 시뇨리지를 받을 수 있습니다.
+V2.5에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서(seigniorageReceiver)가 시뇨리지를 받을 수 있습니다.
 
 ## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
@@ -51,7 +51,7 @@ Layer2Candidate의 시뇨리지 중지의 복구는 시뇨리지 위원회에 �
 
 ## TON Stake V1 Contracts
 
-V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 Candidate는 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, Candidate와 매핑되는 AutoCoinage가 생성된다. AutoCoinage 는 스테이킹 금액을 관리하면서, 복리이자를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (Candidate) 마다 별도의 AutoCoinage 가 생성된다.
+V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 Candidate는 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, Candidate와 매핑되는 AutoCoinage(RefactorCoinage)가 생성된다. AutoCoinage(RefactorCoinage)는 스테이킹 금액을 관리하면서, 시뇨리지(이자)를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (Candidate) 마다 별도의 AutoCoinage(RefactorCoinage) 가 생성된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-1.png"
@@ -59,9 +59,9 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCom
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
 
-## TON Stake V2 Contracts
+## TON Stake V2.5 Contracts
 
-V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
+V2.5는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
@@ -69,16 +69,16 @@ V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트�
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
 
-먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 Optimism Rollup이다. 옵티미즘의 레이어2를 먼저 적용하고, 다른 레이어도 적용될수 있도록 컨트랙 업그레이가 가능하게 제작한다.  옵티미즘 레이어2는 legacy버전과 배드락 버전이 있다. 처음 적용 대상은 옵티미즘 레거시 버전과 옵티미즘 배드락버전 중 L2 nativeToken이 톤인 경우로 제한한다는 것을 기억해주길 바란다.
+먼저 이해하고 넘어가야 할것은 Layer2를 L1에서 어떻게 확인할 것인가에 대한 문제이다. 우리가 현재 타켓으로 하고 있는 Layer2는 Optimism Rollup legacy 버전과 Tokamak Rollup Hub의 Thanos stack이다. 추후 다른 형태의 레이어도 적용할 수 있도록 컨트랙 업그레이가 가능하게 제작한다.
 
 우리는 RollupConfig, RollupType, L2TON 의 정보를 입력받아, 레이어2를 확인할 것이다.
 
 - RollupConfig
-  옵티미즘 배드락 버전에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 RollupConfig (Layer2를 구별할 수 있는 주소)로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 RollupConfig (Layer2를 구별할 수 있는 주소) 정보로 사용해야 한다.
+  Thanos stack에는 SystemConfig 컨트랙에 L1컨트랙의 정보와 환경설정이 담겨있다. 따라서 SystemConfig의 주소를 RollupConfig (Layer2를 구별할 수 있는 주소)로 사용할 것이다. 레거시 버전의 경우에는 SystemConfig가 존재하지 않기 때문에, legacySystemConfig 컨트랙을 별도 만들었다. 레거시 레이어2의 경우는 legacySystemConfig 컨트랙을 배포하여, 이 주소를 해당 RollupConfig (Layer2를 구별할 수 있는 주소) 정보로 사용해야 한다.
 
 - RollupType
-  옵티미즘 레거시 버전을 0으로 사용하고,
-  옵티미즘 배드락 버전이고, native TON을 사용하는 경우는 1 값을 사용한다.
+  옵티미즘 레거시 버전을 1으로 사용하고,
+  Tokamak Rollup Hub의 Thanos stack을 사용하는 경우는 2 값을 사용한다.
   다른 형태의 롤업을 지원할때 해당 타입을 추가로 지정해주면서 업그레이드한다.
 
 - L2TON
@@ -86,7 +86,7 @@ V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트�
 
 # Use case
 ## For registrant of L1BridgeRegistry
-L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 RollupConfig를 등록할 수 있다. RollupConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 RollupConfig의 레이어2만 CandidateAddOn으로 등록될 수 있다.  CandidateAddOn 이 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
+L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 RollupConfig를 등록할 수 있다. RollupConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 RollupConfig의 레이어2만 CandidateAddOn으로 등록될 수 있다. CandidateAddOn이 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
     <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-1.png"
@@ -116,7 +116,7 @@ CandidateAddOn 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 �
 
 
 ## For seigniorageCommittee
-심플 스테이킹 V2는 CandidateAddOn의 OperatorManager 에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 해당 레이어2 시퀀서는 OperatorManager 컨트랙에 보관된 시뇨리지를 클래임하여 가져갈 수 있습니다.
+심플 스테이킹 V2.5는 CandidateAddOn의 OperatorManager 에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 해당 레이어2 시퀀서(RollupConfig의 seigniorageReceiver)는 OperatorManager 컨트랙에 보관된 시뇨리지를 클래임하여 가져갈 수 있습니다.
 
 만일의 경우를 대비해서, 해당 OperatorManager에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다. L1BridgeRegistry 컨트랙에 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 특정 CandidateAddOn의 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
 
@@ -180,14 +180,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 - 개요
     - 레이어2의 L1 컨트랙 정보가 저장된 컨트랙을 rollupConfig 스토리지에 저장합니다.
-    - 옵티미즘 롤업 배드락의 경우, SystemConfig 주소를 rollupConfig 로 지정합니다.
-    - 타이탄, 타노스는 어드민에 의해 수동으로 SystemConfig을 rollupConfig로 저장합니다.
-    - on-demand L2에서 생성된 컨트랙은 컨트랙 생성시 자동으로 등록됩니다.
+    - Tokamak Rollup Hub의 Thanos Stack의 경우, SystemConfig 주소를 rollupConfig 로 지정합니다.
+    - 어드민에 의해 수동으로 SystemConfig을 rollupConfig에 저장할 수도 있습니다.
+    - Tokamak Rollup Hub에서 생성된 L2 컨트랙은 L2 생성시 선택적으로 등록할 수 있습니다.
     - 추후 다른 레이어(ex, zk-EVM) 지원을 고려하여 프록시로 구성하여 업그레이드 가능해야 합니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 매니저를 지정할 수 있다.
     - Manager : 재단은 MANAGER_ROLE 을 보유하고 있고, 매니저는 Registrant를 등록하거나 제거할 수 있다.
-    - Registrant:  on-demand-L2 오픈시, L2를 실제 배포하는 서버의 EOA에게 REGISTRANT_ROLE 을 주어야 한다.
+    - Registrant:  Tokamak Rollup Hub에서 REGISTRANT_ROLE 권한을 가진 계정을 관리하여, 필요에 따라 L2의 SystemConfig 주소를 rollupConfig로 지정하여 등록할 수 있다.
 - 스토리지
 
     ```jsx
@@ -351,7 +351,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 - 개요
 
-    DAOCommittee 에 CandidateAddOn이 멤버로 등록될때 CandidateAddOn의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그래서, 해당 OperatorManager 컨트랙을 만들어, 오퍼레이터 주소 대신 사용하고, 실제 오퍼레이터는  OperatorManager의 manager로 등록하여, 시뇨리지를 가져갈 수 있도록 설계하였다.  OperatorManager 컨트랙은 RollupConfig 주소에 매핑되는 컨트랙이다. 즉, RollupConfig (L2레이어) 컨트랙 주소로 OperatorManager 컨트랙의 주소를 생성하여야 한다.   추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
+    DAOCommittee 에 CandidateAddOn이 멤버로 등록될때 CandidateAddOn의 오퍼레이터 주소가 매핑의 키값으로 등록되기 때문에 오퍼레이터 주소가 변경되어서는 안된다.  그래서, 해당 OperatorManager 컨트랙을 만들어, 오퍼레이터 주소 대신 사용하고, 실제 오퍼레이터는  OperatorManager의 manager로 등록하여, 시뇨리지를 가져갈 수 있도록 설계하였다.  OperatorManager 컨트랙은 RollupConfig 주소에 매핑되는 컨트랙이다. 즉, RollupConfig (L2's SystemConfig) 컨트랙 주소로 OperatorManager 컨트랙의 주소를 생성하여야 한다. 추후 로직 변경 가능성이 있으므로, 프록시로 구현하였다.
 
 - 권한
     - 오너 : 오너는 배포되는 오퍼레이터의 로직을 설정할 수 있다.
@@ -443,15 +443,15 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
         - 매니저를 변경할 수 있다.
     - manager
-        - 관리자는 레이어2의 시퀀서로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 owner()를 manager 로 지정한다.
-        - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.owner 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
+        - 관리자는 레이어2의 시퀀서(seigniorageReceiver)로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 seigniorageReceiver()를 manager 로 지정한다.
+        - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.seigniorageReceiver() 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
         - CandidateAddOn 의 오퍼레이터 권한을 보유하여, 다오멤버의 함수를 사용할 수 있다.
             - Candidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수를 실행할 수 있다.
             - changeMember 함수 → OperatorManager 컨트랙이 다오의 멤버가 된다.
             - retireMember 함수 → OperatorManager 컨트랙이 다오 멤버에서 사임한다.
             - castVote 함수  → OperatorManager 컨트랙 이름으로 안건에 투표한다.
             - claimActivityReward 함수 → 리워드는 OperatorManager 컨트랙이 받는다.
-    - RollupConfig 컨트랙은 반드시 owner() 함수를 지원해야 한다.
+    - RollupConfig 컨트랙은 반드시 seigniorageReceiver() 함수를 지원해야 한다.
 - 스토리지
 
     ```jsx
@@ -593,8 +593,8 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## Layer2Manager
 - 개요
-    - Layer2 시퀀서가 시뇨리지를 받기 위해서는 RollupConfig(SystemConfig) 주소를  Layer2Manager에 등록해야 합니다.
-    - 시뇨리지 분배시, Layer2의 시퀀서들에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager는 특정 CandidateAddOn의 시퀀서 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
+    - Layer2 시퀀서(seigniorageReceiver)가 시뇨리지를 받기 위해서는 RollupConfig(SystemConfig) 주소를  Layer2Manager에 등록해야 합니다.
+    - 시뇨리지 분배시, Layer2의 시퀀서(seigniorageReceiver)에게 지급되는 시뇨리지를 Layer2Manager에게 지급합니다. 따라서 Layer2Manager는 특정 CandidateAddOn의 시퀀서 시뇨리지 정산 전까지 해당 시뇨리지를 보유하게 됩니다.
 - 권한
     - Owner :  오너는 로직 업그레이드 권한을 갖으며, 설정값들을 설정할 수 있다.
 - 스토리지
@@ -883,7 +883,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 - 개요
     - 심플스테이킹(톤 스테이킹)의 기본기능(예치, 업데이트시뇨리지-이자지급, 출금 기능)을 지원한다.
     - Candidate에서 할 수 있는 다오 멤버 기능을 지원한다.
-    - 업데이트 시뇨리지 실행시, CandidateAddOn의 레이어2 시퀀서(오퍼레이터)가 시뇨리지를 받을 수 있다.
+    - 업데이트 시뇨리지 실행시, CandidateAddOn의 레이어2 오퍼레이터(seigniorageReceiver)가 시뇨리지를 받을 수 있다.
 - 권한
     - Owner : 오너는 로직 업그레이드 권한을 갖으며, 설정값을 초기화 할 수 있다.
     - onlyCandidate : CandidateAddOn 에 매칭되는 OperatorManager 컨트랙의 manager 계정
@@ -1012,9 +1012,9 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 
 ## SeigManagerV1_3
 - 개요
-    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 OperatorManager 컨트랙에게 정산됩니다.
+    - CandidateAddOn의 업데이트 시뇨리지 실행시, layer2의 TON TVL에 따라  Layer2 시퀀서(seigniorageReceiver)에게 시뇨리지를 지급해야 하며, 지급되는 시뇨리지는 OperatorManager 컨트랙에게 정산됩니다.
     - OperatorManager 컨트랙의 manager 계정은  CandidateAddOn 의  업데이트 시뇨리지 실행(시뇨리지 분배시)시, 청구 및 스테이킹 옵션을 선택해서, 시뇨리지 정산과 동시에 청구 또는 스테이킹 기능을  같이 실행할 수 있습니다.
-    - L2 시퀀서에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
+    - L2 시퀀서(seigniorageReceiver)에게 분배되는 시뇨리지 분배로직은 [V2 백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)의 시뇨리지 배분 규칙에 따라 이루어진다.
     - V1에서 이미 SeigManager 가 배포되어 운영되고 있으므로, 다른 기능은 변경없이 업데이트 시뇨리지 함수만  SeigManagerV1_3에 변경된 로직으로 실행되도록 한다.
     - 업데이트 시뇨리지 함수실행시 Layer2에게 제공하는 시뇨리지를 관리하기 위한 스토리지를 추가한다.
 
