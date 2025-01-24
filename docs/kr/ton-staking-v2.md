@@ -443,15 +443,15 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         - 프록시 오너로서, 로직을 업그레이드 할 수 있다.
         - 매니저를 변경할 수 있다.
     - manager
-        - 관리자는 레이어2의 시퀀서(seigniorageReceiver)로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 seigniorageReceiver()를 manager 로 지정한다.
-        - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.seigniorageReceiver() 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
+        - 관리자는 레이어2의 시퀀서(unsafeBlockSigner)로 지정하며, 최초 배포시 RollupConfig(SystemConfig)의 unsafeBlockSigner()를 manager 로 지정한다.
+        - 추후 RollupConfig(SystemConfig)의 오너가 변경될때, transferManager 를 이용하여 manager를 변경해야 한다. (SystemConfig.unsafeBlockSigner() 가 manager를 가져갈 수 있는 인터페이스를 제공한다.)
         - CandidateAddOn 의 오퍼레이터 권한을 보유하여, 다오멤버의 함수를 사용할 수 있다.
             - Candidate에서 상속받은 onlyCandidate가 사용할 수 있는 함수를 실행할 수 있다.
             - changeMember 함수 → OperatorManager 컨트랙이 다오의 멤버가 된다.
             - retireMember 함수 → OperatorManager 컨트랙이 다오 멤버에서 사임한다.
             - castVote 함수  → OperatorManager 컨트랙 이름으로 안건에 투표한다.
             - claimActivityReward 함수 → 리워드는 OperatorManager 컨트랙이 받는다.
-    - RollupConfig 컨트랙은 반드시 seigniorageReceiver() 함수를 지원해야 한다.
+    - RollupConfig 컨트랙은 반드시 unsafeBlockSigner() 함수를 지원해야 한다.
 - 스토리지
 
     ```jsx

@@ -21,7 +21,7 @@ interface IWTON {
 }
 
 interface IRollupConfig {
-    function seigniorageReceiver() external view returns (address);
+    function unsafeBlockSigner() external view returns (address);
 }
 
 interface ILayer2Manager {
@@ -242,7 +242,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      */
     function acquireManager() external {
         require (msg.sender != manager, "already manager");
-        require (msg.sender == IRollupConfig(rollupConfig).seigniorageReceiver(), "not config's seigniorageReceiver");
+        require (msg.sender == IRollupConfig(rollupConfig).unsafeBlockSigner(), "not config's seigniorageReceiver");
 
         emit TransferredManager(manager, msg.sender);
         manager = msg.sender;

@@ -70,6 +70,7 @@ let tonMinter: Signer
 let seigniorageCommitteeAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
 let seigniorageCommittee: Signer
 let titanManager: Signer
+let thanosManager: Signer
 
 let ownerAddressInfo =  {
     L2BridgeRegistry: {
@@ -86,7 +87,7 @@ let ownerAddressInfo =  {
         MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
     },
     Thanos : {
-        MultiProposerableTransactionExecutor: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+        MultiProposerableTransactionExecutor: "0x0Fd5632f3b52458C31A2C3eE1F4b447001872Be9"
     }
 }
 
@@ -242,6 +243,15 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
         ]);
         titanManager =  await hre.ethers.getSigner(ownerAddressInfo.Titan.MultiProposerableTransactionExecutor);
 
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor,
+        ]);
+        await hre.network.provider.send("hardhat_setBalance", [
+            ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor,
+            "0x10000000000000000000000000",
+        ]);
+        thanosManager =  await hre.ethers.getSigner(ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor);
+
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             DAOCommitteeProxy,
@@ -266,85 +276,76 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
         })
     })
 
-    describe('# Upgrade Thanos sepolia', () => {
-        it('deploy Thanos new logic', async () => {
-            const {thanosSepoliaSystemConfig, thanosSepoliaProxyAdmin } = await getNamedAccounts();
-            await network.provider.send("hardhat_impersonateAccount", [ thanosSepoliaProxyAdmin]);
-            await network.provider.send("hardhat_setBalance", [ thanosSepoliaProxyAdmin, "0x10000000000000000000000000", ]);
-            let thanosSepoliaProxyAdminSigner = await ethers.getSigner(thanosSepoliaProxyAdmin);
+    // describe('# Upgrade Thanos sepolia', () => {
+    //     it('deploy Thanos new logic', async () => {
+    //         const {thanosSepoliaSystemConfig, thanosSepoliaProxyAdmin } = await getNamedAccounts();
+    //         await network.provider.send("hardhat_impersonateAccount", [ thanosSepoliaProxyAdmin]);
+    //         await network.provider.send("hardhat_setBalance", [ thanosSepoliaProxyAdmin, "0x10000000000000000000000000", ]);
+    //         let thanosSepoliaProxyAdminSigner = await ethers.getSigner(thanosSepoliaProxyAdmin);
 
-            const newThanosContract = await (new ethers.ContractFactory(Thanos_Json.abi, Thanos_Json.bytecode)).connect(deployer).deploy()
+    //         const newThanosContract = await (new ethers.ContractFactory(Thanos_Json.abi, Thanos_Json.bytecode)).connect(deployer).deploy()
 
-            console.log(newThanosContract.address)
-            const thanosProxy: Contract = (await ethers.getContractAt(Proxy_Json, thanosSepoliaSystemConfig, thanosSepoliaProxyAdminSigner))
-            const thanos: Contract = (await ethers.getContractAt(Thanos_Json.abi, thanosSepoliaSystemConfig, deployer))
+    //         console.log(newThanosContract.address)
+    //         const thanosProxy: Contract = (await ethers.getContractAt(Proxy_Json, thanosSepoliaSystemConfig, thanosSepoliaProxyAdminSigner))
+    //         const thanos: Contract = (await ethers.getContractAt(Thanos_Json.abi, thanosSepoliaSystemConfig, deployer))
 
-            let l1CrossDomainMessenger_ = await thanos.l1CrossDomainMessenger()
-            let l1ERC721Bridge_ = await thanos.l1ERC721Bridge()
-            let l1StandardBridge_ = await thanos.l1StandardBridge()
-            let disputeGameFactory_ = await thanos.disputeGameFactory()
-            let optimismPortal_ = await thanos.optimismPortal()
-            let optimismMintableERC20Factory_ = await thanos.optimismMintableERC20Factory()
-            let gasPayingToken_ = await thanos.gasPayingToken()
-            let nativeTokenAddress_ = await thanos.nativeTokenAddress()
-            let batchInbox_ = await thanos.batchInbox()
-            // console.log('l1CrossDomainMessenger_', l1CrossDomainMessenger_)
-            // console.log('l1ERC721Bridge_', l1ERC721Bridge_)
-            // console.log('l1StandardBridge_', l1StandardBridge_)
-            // console.log('disputeGameFactory_', disputeGameFactory_)
-            // console.log('optimismPortal_', optimismPortal_)
-            // console.log('optimismMintableERC20Factory_', optimismMintableERC20Factory_)
-            // console.log('gasPayingToken_', gasPayingToken_)
-            // console.log('nativeTokenAddress_', nativeTokenAddress_)
-            // console.log('batchInbox_', batchInbox_)
+    //         let l1CrossDomainMessenger_ = await thanos.l1CrossDomainMessenger()
+    //         let l1ERC721Bridge_ = await thanos.l1ERC721Bridge()
+    //         let l1StandardBridge_ = await thanos.l1StandardBridge()
+    //         let disputeGameFactory_ = await thanos.disputeGameFactory()
+    //         let optimismPortal_ = await thanos.optimismPortal()
+    //         let optimismMintableERC20Factory_ = await thanos.optimismMintableERC20Factory()
+    //         let gasPayingToken_ = await thanos.gasPayingToken()
+    //         let nativeTokenAddress_ = await thanos.nativeTokenAddress()
+    //         let batchInbox_ = await thanos.batchInbox()
 
-            const callDtata = newThanosContract.interface.encodeFunctionData(
-                "initialize(address,uint32,uint32,bytes32,uint64,address,(uint32,uint8,uint8,uint32,uint32,uint128),address,(address,address,address,address,address,address,address,address,address))",
-                [   thanosSepoliaProxyAdmin,
-                    1368,
-                    810949,
-                    '0x00000000000000000000000061dc95e5f27266b94805ed23d95b4c9553a3d049',
-                    200000000,
-                    '0x0Fd5632f3b52458C31A2C3eE1F4b447001872Be9',
-                    {
-                        maxResourceLimit: 20000000,
-                        elasticityMultiplier: 10,
-                        baseFeeMaxChangeDenominator: 8,
-                        minimumBaseFee: 1000000000,
-                        systemTxMaxGas: 1000000,
-                        maximumBaseFee: BigNumber.from('340282366920938463463374607431768211455')
-                    },
-                    batchInbox_,
-                    {
-                        l1CrossDomainMessenger: l1CrossDomainMessenger_,
-                        l1ERC721Bridge: l1ERC721Bridge_,
-                        l1StandardBridge: l1StandardBridge_,
-                        disputeGameFactory: disputeGameFactory_,
-                        optimismPortal: optimismPortal_,
-                        optimismMintableERC20Factory: optimismMintableERC20Factory_,
-                        gasPayingToken: gasPayingToken_[0],
-                        nativeTokenAddress: nativeTokenAddress_,
-                        seigniorageReceiver: ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor
-                    }  ])
+    //         const callDtata = newThanosContract.interface.encodeFunctionData(
+    //             "initialize(address,uint32,uint32,bytes32,uint64,address,(uint32,uint8,uint8,uint32,uint32,uint128),address,(address,address,address,address,address,address,address,address,address))",
+    //             [   thanosSepoliaProxyAdmin,
+    //                 1368,
+    //                 810949,
+    //                 '0x00000000000000000000000061dc95e5f27266b94805ed23d95b4c9553a3d049',
+    //                 200000000,
+    //                 '0x0Fd5632f3b52458C31A2C3eE1F4b447001872Be9',
+    //                 {
+    //                     maxResourceLimit: 20000000,
+    //                     elasticityMultiplier: 10,
+    //                     baseFeeMaxChangeDenominator: 8,
+    //                     minimumBaseFee: 1000000000,
+    //                     systemTxMaxGas: 1000000,
+    //                     maximumBaseFee: BigNumber.from('340282366920938463463374607431768211455')
+    //                 },
+    //                 batchInbox_,
+    //                 {
+    //                     l1CrossDomainMessenger: l1CrossDomainMessenger_,
+    //                     l1ERC721Bridge: l1ERC721Bridge_,
+    //                     l1StandardBridge: l1StandardBridge_,
+    //                     disputeGameFactory: disputeGameFactory_,
+    //                     optimismPortal: optimismPortal_,
+    //                     optimismMintableERC20Factory: optimismMintableERC20Factory_,
+    //                     gasPayingToken: gasPayingToken_[0],
+    //                     nativeTokenAddress: nativeTokenAddress_,
+    //                     seigniorageReceiver: ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor
+    //                 }  ])
 
 
-            await (await thanosProxy.connect(thanosSepoliaProxyAdminSigner).upgradeToAndCall(
-                 newThanosContract.address
-                , callDtata)).wait()
+    //         await (await thanosProxy.connect(thanosSepoliaProxyAdminSigner).upgradeToAndCall(
+    //              newThanosContract.address
+    //             , callDtata)).wait()
 
-            expect(await thanos.l1CrossDomainMessenger()).to.be.eq(l1CrossDomainMessenger_)
-            expect(await thanos.l1ERC721Bridge()).to.be.eq(l1ERC721Bridge_)
-            expect(await thanos.l1StandardBridge()).to.be.eq(l1StandardBridge_)
-            expect(await thanos.disputeGameFactory()).to.be.eq(disputeGameFactory_)
-            expect(await thanos.optimismPortal()).to.be.eq(optimismPortal_)
-            expect(await thanos.optimismMintableERC20Factory()).to.be.eq(optimismMintableERC20Factory_)
-            // expect(await thanos.gasPayingToken()).to.be.eq(gasPayingToken_)
-            expect(await thanos.nativeTokenAddress()).to.be.eq(nativeTokenAddress_)
-            expect(await thanos.batchInbox()).to.be.eq(batchInbox_)
-            expect(await thanos.seigniorageReceiver()).to.be.eq(ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor)
+    //         expect(await thanos.l1CrossDomainMessenger()).to.be.eq(l1CrossDomainMessenger_)
+    //         expect(await thanos.l1ERC721Bridge()).to.be.eq(l1ERC721Bridge_)
+    //         expect(await thanos.l1StandardBridge()).to.be.eq(l1StandardBridge_)
+    //         expect(await thanos.disputeGameFactory()).to.be.eq(disputeGameFactory_)
+    //         expect(await thanos.optimismPortal()).to.be.eq(optimismPortal_)
+    //         expect(await thanos.optimismMintableERC20Factory()).to.be.eq(optimismMintableERC20Factory_)
+    //         // expect(await thanos.gasPayingToken()).to.be.eq(gasPayingToken_)
+    //         expect(await thanos.nativeTokenAddress()).to.be.eq(nativeTokenAddress_)
+    //         expect(await thanos.batchInbox()).to.be.eq(batchInbox_)
+    //         expect(await thanos.unsafeBlockSigner()).to.be.eq(ownerAddressInfo.Thanos.MultiProposerableTransactionExecutor)
 
-        })
-    })
+    //     })
+    // })
 
 
     describe('# Initialize of contracts ', () => {
@@ -2985,8 +2986,8 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('operatorContractAddress', operatorContractAddress)
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
-            const prevWtonBalanceOfManager = await wtonContract.balanceOf(titanManager.address)
-            const prevUnSettledReward = await seigManager.unSettledReward(titanLayerAddress)
+            const prevWtonBalanceOfManager = await wtonContract.balanceOf(thanosManager.address)
+            const prevUnSettledReward = await seigManager.unSettledReward(layer)
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
@@ -3012,9 +3013,9 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
-            expect(await operatorContract.isOperator(titanManager.address)).to.be.eq(true)
+            expect(await operatorContract.isOperator(thanosManager.address)).to.be.eq(true)
             let afterCall = 2; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(titanManager)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
+            const receipt = await (await layerContract.connect(thanosManager)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3029,7 +3030,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             let stakedAfter = await layerContract.totalStaked()
             let stakedAddr1After = await seigManager["stakeOf(address,address)"](layer, addr1.address)
             let stakedAddr2After = await seigManager["stakeOf(address,address)"](layer, addr2.address)
-            let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](layer, titanOperatorContractAddress)
+            let stakedOperatorAfter = await seigManager["stakeOf(address,address)"](layer, operatorContractAddress)
 
             // console.log('stakedOperatorAfter', stakedOperatorAfter)
 
@@ -3092,7 +3093,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('operatorContractAddress', operatorContractAddress)
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
-            const prevWtonBalanceOfManager = await wtonContract.balanceOf(titanManager.address)
+            const prevWtonBalanceOfManager = await wtonContract.balanceOf(thanosManager.address)
             const prevUnSettledReward = await seigManager.unSettledReward(layer)
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
@@ -3117,9 +3118,9 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
-            expect(await operatorContract.isOperator(titanManager.address)).to.be.eq(true)
+            expect(await operatorContract.isOperator(thanosManager.address)).to.be.eq(true)
             let afterCall = 1; // 0: none, 1: claim, 2: staking
-            const receipt = await (await layerContract.connect(titanManager)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
+            const receipt = await (await layerContract.connect(thanosManager)["updateSeigniorage(uint256,bool)"](afterCall,false)).wait()
 
             const topic = seigManager.interface.getEventTopic('AddedSeigAtLayer');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
@@ -3175,7 +3176,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
-            const afterWtonBalanceOfManager = await wtonContract.balanceOf(titanManager.address)
+            const afterWtonBalanceOfManager = await wtonContract.balanceOf(thanosManager.address)
 
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layer)
             // console.log('layer2RewardInfo', layer2RewardInfo)

@@ -120,7 +120,7 @@ describe('OperatorManagerFactory', () => {
 
         it('createOperatorManager can be executed by Layer2Manager', async () => {
 
-            expect(await legacySystemConfig.seigniorageReceiver()).to.be.eq(manager.address)
+            expect(await legacySystemConfig.unsafeBlockSigner()).to.be.eq(manager.address)
 
             await expect(
                 operatorManagerFactory.connect(manager).createOperatorManager(

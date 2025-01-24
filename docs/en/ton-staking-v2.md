@@ -453,8 +453,8 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         - As a proxy owner, you can upgrade the logic.
         - Owner can change the manager.
     - manager
-        - The manager is considered a layer 2 sequencer account(seigniorageReceiver), and upon initial deployment, the seigniorageReceiver() of RollupConfig (SystemConfig) is designated as manager.
-        - When the owner of RollupConfig (SystemConfig) changes in the future, the manager must be changed using transferManager. (RollupConfig.seigniorageReceiver() provides an interface to take the manager.)
+        - The manager is considered a layer 2 sequencer account(unsafeBlockSigner), and upon initial deployment, the unsafeBlockSigner() of RollupConfig (SystemConfig) is designated as manager.
+        - When the owner of RollupConfig (SystemConfig) changes in the future, the manager must be changed using transferManager. (RollupConfig.unsafeBlockSigner() provides an interface to take the manager.)
         - By possessing CandidateAddOn operator authority, manager can use the functions of DAO members
             - Functions that can be used by onlyCandidate inherited from Candidate can be executed.
             - changeMember function → Operator contract becomes a member of DAO.
@@ -462,7 +462,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
             - castVote function → Vote on the agenda by Operator contract.
             - claimActivityReward function → The reward is received by the Operator contract.
 
-    - The RollupConfig contract must support the seigniorageReceiver() function.
+    - The RollupConfig contract must support the unsafeBlockSigner() function.
 
 - Storage
 

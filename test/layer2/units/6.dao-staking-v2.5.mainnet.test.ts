@@ -414,7 +414,7 @@ describe('Layer2Manager', () => {
                 name, addresses, l1BridgeRegistryProxy.address, deployer.address
             )).wait()
 
-            await (await legacySystemConfig.connect(deployer).setSeigniorageReceiver(
+            await (await legacySystemConfig.connect(deployer).setUnsafeBlockSigner(
                 ownerAddressInfo.Titan.MultiProposerableTransactionExecutor
             )).wait()
 

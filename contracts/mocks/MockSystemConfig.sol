@@ -82,7 +82,7 @@ contract MockSystemConfig is Ownable {
 
     Addresses public addresses;
     string public name;
-    address public seigniorageReceiver;
+    address public unsafeBlockSigner;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -106,9 +106,9 @@ contract MockSystemConfig is Ownable {
         revert("cannot receive Ether");
     }
 
-    function setSeigniorageReceiver(address _seigniorageReceiver) external {
-        require(seigniorageReceiver == address(0), "already set");
-        seigniorageReceiver = _seigniorageReceiver;
+    function setUnsafeBlockSigner(address _unsafeBlockSigner) external {
+        require(unsafeBlockSigner == address(0), "already set");
+        unsafeBlockSigner = _unsafeBlockSigner;
     }
 
     function setName(string calldata _name) external {

@@ -17,7 +17,7 @@ interface IOperatorManager {
 }
 
 interface IRollupConfig {
-    function seigniorageReceiver() external view returns (address);
+    function unsafeBlockSigner() external view returns (address);
 }
 
 /**
@@ -113,7 +113,7 @@ contract OperatorManagerFactory is Ownable {
         if (msg.sender != layer2Manager) revert CreateError(1);
         require(getAddress(rollupConfig).code.length == 0, "already created");
 
-        address sManager = IRollupConfig(rollupConfig).seigniorageReceiver();
+        address sManager = IRollupConfig(rollupConfig).unsafeBlockSigner();
         if (sManager == address(0)) revert CreateError(2);
 
         address sOwner = owner();

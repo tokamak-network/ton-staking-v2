@@ -402,7 +402,7 @@ const config: HardhatUserConfig = {
       sepolia: '0xcbef7cc221c04ad2e68e623613cc5d33b0fe1599'
     },
     thanosSepoliaSystemConfig: {
-      default: 41,
+      default: 46,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '0x0000000000000000000000000000000000000000',
       hardhat: '0x6eF61974A3CDa7BbD0a4DD0A613f56d211c8AfDC',
@@ -410,7 +410,7 @@ const config: HardhatUserConfig = {
       sepolia: '0x6eF61974A3CDa7BbD0a4DD0A613f56d211c8AfDC'
     },
     thanosSepoliaL1CrossDomainMessenger : {
-      default: 41,
+      default: 47,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '0x0000000000000000000000000000000000000000',
       hardhat: '0xd054Bc768aAC07Dd0BaA2856a2fFb68F495E4CC2',
@@ -418,7 +418,7 @@ const config: HardhatUserConfig = {
       sepolia: '0xd054Bc768aAC07Dd0BaA2856a2fFb68F495E4CC2'
     },
     thanosSepoliaL1StandardBridge : {
-      default: 41,
+      default: 48,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '0x0000000000000000000000000000000000000000',
       hardhat: '0x757EC5b8F81eDdfC31F305F3325Ac6Abf4A63a5D',
@@ -426,7 +426,7 @@ const config: HardhatUserConfig = {
       sepolia: '0x757EC5b8F81eDdfC31F305F3325Ac6Abf4A63a5D'
     },
     thanosSepoliaOptimismPortal: {
-      default: 41,
+      default: 49,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '0x0000000000000000000000000000000000000000',
       hardhat: '0x2fbD30Fcd1c4573b0288E706Be56B5c0d2DfcAF6',
@@ -434,7 +434,7 @@ const config: HardhatUserConfig = {
       sepolia: '0x2fbD30Fcd1c4573b0288E706Be56B5c0d2DfcAF6'
     },
     thanosSepoliaProxyAdmin: {
-      default: 41,
+      default: 50,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '0x0000000000000000000000000000000000000000',
       hardhat: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1',
@@ -466,6 +466,7 @@ const config: HardhatUserConfig = {
         // blockNumber:
         // test registerCandidateAddOn
         // blockNumber: 6797943
+        blockNumber: 7551570,
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],

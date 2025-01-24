@@ -97,7 +97,7 @@ describe('Upgrade Thanos sepolia', () => {
             // expect(await thanos.gasPayingToken()).to.be.eq(gasPayingToken_)
             expect(await thanos.nativeTokenAddress()).to.be.eq(nativeTokenAddress_)
             expect(await thanos.batchInbox()).to.be.eq(batchInbox_)
-            expect(await thanos.seigniorageReceiver()).to.be.eq(deployer.address)
+            expect(await thanos.unsafeBlockSigner()).to.be.eq(deployer.address)
 
         })
     })

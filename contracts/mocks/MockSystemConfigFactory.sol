@@ -49,7 +49,7 @@ contract MockSystemConfigFactory {
         c.setName(_name);
         c.setTargetOwner(c.optimismPortal(), msg.sender);
         c.transferOwnership(msg.sender);
-        c.setSeigniorageReceiver(msg.sender);
+        c.setUnsafeBlockSigner(msg.sender);
 
         emit CreatedMockSystemConfig(
             address(c),
