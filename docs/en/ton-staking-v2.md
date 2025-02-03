@@ -17,16 +17,44 @@ $TON seigs :　Amount　of　TON　seigniorage　issued$<br/>
 $D :　Total　TON　liquidity　of　Layer2$<br/>
 
 - Seigniorage distribution of V1
-<figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
-    <figcaption> </figcaption>
-</figure>
+    - Distribution ratio :
+        The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (Based on block 21762995)
+        - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
+        - PowerTONSeigRate (Distribution ratio to PowerTON): 0
+        - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
+
+    - Seigniorage received by TON stakers : <br/>
+        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+        > $TONseigs* (S/T + 0.5*(T-S)/T)$
+    - Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+        >  $TONseigs*  0.5*(T-S)/T$
+    - Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+        > 0
+
+    <figure>
+        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
+    </figure>
 
 - Seigniorage distribution of V2.5
-<figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
-    <figcaption> </figcaption>
-</figure>
+    - Distribution ratio :
+        The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (If there is no change in the distribution ratio of block 21762995)
+        - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
+        - PowerTONSeigRate (Distribution ratio to PowerTON): 0
+        - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
+     - Total signiﬁcance received by all sequencers in Layer2 : <br/>
+        $TONseigs * D/T  $ <br/>
+        > $TONseigs* D/T$
+    - Seigniorage received by TON stakers : <br/>
+        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+        > $TONseigs* (S/T + 0.5*(T-S)/T)$
+    - Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+        >  $TONseigs*  0.5*(T-S)/T$
+    - Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+        > 0
+
+    <figure>
+        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2.5" width=500>
+    </figure>
 
 
 ## Add CandidateAddOn

@@ -13,18 +13,53 @@ V2.5에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이�
 
 $S:　TON　스테이킹　금액$ <br/>
 $T :　TON　총　발행량$<br/>
-$TON seigs :　발행되는　TON　시뇨리지　양$<br/>
+$TONseigs :　발행되는　TON　시뇨리지　양$<br/>
 $D :　Layer2 들의　총　TON 유동성$<br/>
 
-<figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
-    <figcaption>V1 의 시뇨리지 분배</figcaption>
-</figure>
 
-<figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
-    <figcaption>V2의 시뇨리지 분배</figcaption>
-</figure>
+- V1의 시뇨리지 분배
+
+    - 분배비율 :
+        발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록 기준 )
+        - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
+        - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
+        - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
+
+    - TON 스테이커가 받는 시뇨리지 : <br/>
+        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+        > $TONseigs* (S/T + 0.5*(T-S)/T)$
+    - 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+        >  $TONseigs*  0.5*(T-S)/T$
+    - PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+        > 0
+
+    <figure>
+        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
+    </figure>
+
+- V2.5의 시뇨리지 분배
+
+    - 분배비율 :
+        발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율과 총발행량 대비 L2에 락업된 금액의 비율 을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록의 분배비율에 변함이 없다면 )
+        - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
+        - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
+        - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
+
+    - Layer2의 모든 시퀀서들이 받는 시뇨리지 총합 : <br/>
+        $TONseigs * D/T  $ <br/>
+        > $TONseigs* D/T$
+    - TON 스테이커가 받는 시뇨리지 : <br/>
+        $TONseigs* (S/T +  RelativeSeigRate*(T-S-D)/T)$ <br/>
+        > $TONseigs* (S/T + 0.5*(T-S-D)/T)$
+
+    - 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S-D)/T$ <br/>
+        >  $TONseigs*  0.5*(T-S-D)/T$
+    - PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S-D)/T$  <br/>
+        > 0
+
+    <figure>
+        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="V2.5의 시뇨리지 분배" width=500>
+    </figure>
 
 
 ## CandidateAddOn 추가
