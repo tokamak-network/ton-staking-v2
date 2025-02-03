@@ -11,55 +11,62 @@ TON Staking v2.5 는  백서 V2 의 내용을 구체화하기 위한 개발이�
 
 V2.5에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
 
-$S:　TON　스테이킹　금액$ <br/>
-$T :　TON　총　발행량$<br/>
-$TONseigs :　발행되는　TON　시뇨리지　양$<br/>
-$D :　Layer2 들의　총　TON 유동성$<br/>
 
+### V1의 시뇨리지 분배
 
-- V1의 시뇨리지 분배
+- 표기 : <br/>
+    $S:　TON　스테이킹　금액$ <br/>
+    $T :　TON　총　발행량$<br/>
+    $TONseigs :　발행되는　TON　시뇨리지　양$<br/>
+    $D :　Layer2 들의　총　TON 유동성$<br/>
 
-    - 분배비율 :
-        발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록 기준 )
-        - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
-        - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
-        - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
+- 분배비율 :
+    발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록 기준 )
+    - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
+    - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
+    - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
 
-    - TON 스테이커가 받는 시뇨리지 : <br/>
-        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
-        > $TONseigs* (S/T + 0.5*(T-S)/T)$
-    - 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
-        >  $TONseigs*  0.5*(T-S)/T$
-    - PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
-        > 0
+- TON 스테이커가 받는 시뇨리지 : <br/>
+    $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+    > $TONseigs* (S/T + 0.5*(T-S)/T)$
+- 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+    >  $TONseigs*  0.5*(T-S)/T$
+- PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+    > 0
 
-    <figure>
-        <img src="../img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
-    </figure>
+<figure>
+    <img src="../img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
+</figure>
 
-- V2.5의 시뇨리지 분배
+### V2.5의 시뇨리지 분배
 
-    - 분배비율 :
-        발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율과 총발행량 대비 L2에 락업된 금액의 비율 을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록의 분배비율에 변함이 없다면 )
-        - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
-        - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
-        - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
+- 표기 : <br/>
+    $S:　TON　스테이킹　금액$ <br/>
+    $T :　TON　총　발행량$<br/>
+    $TONseigs :　발행되는　TON　시뇨리지　양$<br/>
+    $D :　Layer2 들의　총　TON 유동성$<br/>
 
-    - Layer2의 모든 시퀀서들이 받는 시뇨리지 총합 : <br/>
-        $TONseigs * D/T  $ <br/>
-        > $TONseigs* D/T$
-    - TON 스테이커가 받는 시뇨리지 : <br/>
-        $TONseigs* (S/T +  RelativeSeigRate*(T-S-D)/T)$ <br/>
-        > $TONseigs* (S/T + 0.5*(T-S-D)/T)$
+- 분배비율 :
+    발행된 시뇨리지 중 총발행량 대비 스테이킹된 금액의 비율과 총발행량 대비 L2에 락업된 금액의 비율 을 뺀 나머지 시뇨리지를 아래 비율에 따라 배분한다. ( 21762995 블록의 분배비율에 변함이 없다면 )
+    - DAOSeigRate (토카막 네트워크 DAO에 분배하는 비율): 0.5
+    - PowerTONSeigRate (PowerTON에 분배하는 비율): 0
+    - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
 
-    - 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S-D)/T$ <br/>
-        >  $TONseigs*  0.5*(T-S-D)/T$
-    - PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S-D)/T$  <br/>
-        > 0
+- Layer2의 모든 시퀀서들이 받는 시뇨리지 총합 : <br/>
+    $TONseigs * D/T  $ <br/>
+    > $TONseigs* D/T$
+- TON 스테이커가 받는 시뇨리지 : <br/>
+    $TONseigs* (S/T +  RelativeSeigRate*(T-S-D)/T)$ <br/>
+    > $TONseigs* (S/T + 0.5*(T-S-D)/T)$
 
-    <figure>
-        <img src="../img/1-2.png" alt="V2.5의 시뇨리지 분배" width=500>
-    </figure>
+- 토카막 네트워크 DAO가 받는 시뇨지 : $TONseigs*  DAOSeigRate*(T-S-D)/T$ <br/>
+    >  $TONseigs*  0.5*(T-S-D)/T$
+- PowerTON이 받는 시뇨리지 : $TONseigs*  PowerTONSeigRate*(T-S-D)/T$  <br/>
+    > 0
+
+<figure>
+    <img src="../img/1-2.png" alt="V2.5의 시뇨리지 분배" width=500>
+</figure>
 
 
 ## CandidateAddOn 추가
