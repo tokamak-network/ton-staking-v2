@@ -11,50 +11,63 @@ the V2 white paper introduces a concept called L2 sequencer, which was not prese
 
 In V2.5, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
 
-$S:　TON　staking　amount$ <br/>
-$T :　Total　TON　supply$<br/>
-$TON seigs :　Amount　of　TON　seigniorage　issued$<br/>
-$D :　Total　TON　liquidity　of　Layer2$<br/>
 
-- Seigniorage distribution of V1
-    - Distribution ratio :
-        The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (Based on block 21762995)
-        - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
-        - PowerTONSeigRate (Distribution ratio to PowerTON): 0
-        - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
+### Seigniorage distribution of V1
 
-    - Seigniorage received by TON stakers : <br/>
-        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
-        > $TONseigs* (S/T + 0.5*(T-S)/T)$
-    - Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
-        >  $TONseigs*  0.5*(T-S)/T$
-    - Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
-        > 0
+- Notation : <br/>
 
-    <figure>
-        <img src="../img/1-1.png" alt="Seigniorage distribution of V1" width=500>
-    </figure>
+    $S:　TON　staking　amount$ <br/>
+    $T :　Total　TON　supply$<br/>
+    $TON seigs :　Amount　of　TON　seigniorage　issued$<br/>
+    $D :　Total　TON　liquidity　of　Layer2$<br/>
 
-- Seigniorage distribution of V2.5
-    - Distribution ratio :
-        The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (If there is no change in the distribution ratio of block 21762995)
-        - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
-        - PowerTONSeigRate (Distribution ratio to PowerTON): 0
-        - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
-     - Total signiﬁcance received by all sequencers in Layer2 : <br/>
-        $TONseigs * D/T  $ <br/>
-        > $TONseigs* D/T$
-    - Seigniorage received by TON stakers : <br/>
-        $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
-        > $TONseigs* (S/T + 0.5*(T-S)/T)$
-    - Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
-        >  $TONseigs*  0.5*(T-S)/T$
-    - Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
-        > 0
+- Distribution ratio :
+    The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (Based on block 21762995)
+    - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
+    - PowerTONSeigRate (Distribution ratio to PowerTON): 0
+    - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
 
-    <figure>
-        <img src="../img/1-2.png" alt="Seigniorage distribution of V2.5" width=500>
-    </figure>
+- Seigniorage received by TON stakers : <br/>
+    $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+    > $TONseigs* (S/T + 0.5*(T-S)/T)$
+- Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+    >  $TONseigs*  0.5*(T-S)/T$
+- Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+    > 0
+
+<figure>
+    <img src="../img/1-1.png" alt="Seigniorage distribution of V1" width=500>
+</figure>
+
+### Seigniorage distribution of V2.5
+
+- Notation : <br/>
+
+    $S:　TON　staking　amount$ <br/>
+    $T :　Total　TON　supply$<br/>
+    $TON seigs :　Amount　of　TON　seigniorage　issued$<br/>
+    $D :　Total　TON　liquidity　of　Layer2$<br/>
+
+
+- Distribution ratio :
+    The seigniorage is distributed according to the following ratio from the remaining seigniorage after deducting the seigniorage equivalent of ratios to the staking amount compared to the TON total supply from the seigniorage issuance (If there is no change in the distribution ratio of block 21762995)
+    - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
+    - PowerTONSeigRate (Distribution ratio to PowerTON): 0
+    - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
+    - Total signiﬁcance received by all sequencers in Layer2 : <br/>
+    $TONseigs * D/T  $ <br/>
+    > $TONseigs* D/T$
+- Seigniorage received by TON stakers : <br/>
+    $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
+    > $TONseigs* (S/T + 0.5*(T-S)/T)$
+- Seigniorage received by Tokamak Network DAO : $TONseigs*  DAOSeigRate*(T-S)/T$ <br/>
+    >  $TONseigs*  0.5*(T-S)/T$
+- Seigniorage received by PowerTON : $TONseigs*  PowerTONSeigRate*(T-S)/T$  <br/>
+    > 0
+
+<figure>
+    <img src="../img/1-2.png" alt="Seigniorage distribution of V2.5" width=500>
+</figure>
 
 
 ## Add CandidateAddOn
