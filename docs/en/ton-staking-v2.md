@@ -32,7 +32,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
         > 0
 
     <figure>
-        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
+        <img src="../img/1-1.png" alt="Seigniorage distribution of V1" width=500>
     </figure>
 
 - Seigniorage distribution of V2.5
@@ -53,7 +53,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
         > 0
 
     <figure>
-        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2.5" width=500>
+        <img src="../img/1-2.png" alt="Seigniorage distribution of V2.5" width=500>
     </figure>
 
 

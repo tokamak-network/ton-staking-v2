@@ -34,7 +34,7 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
         > 0
 
     <figure>
-        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
+        <img src="../img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
     </figure>
 
 - V2.5의 시뇨리지 분배
@@ -58,7 +58,7 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
         > 0
 
     <figure>
-        <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="V2.5의 시뇨리지 분배" width=500>
+        <img src="../img/1-2.png" alt="V2.5의 시뇨리지 분배" width=500>
     </figure>
 
 
