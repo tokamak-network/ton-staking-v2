@@ -54,8 +54,7 @@ In V2.5, the seigniorage from the issued TON is paid to the L2 sequencer in prop
     - DAOSeigRate (Distribution ratio to Tokamak Network DAO): 0.5
     - PowerTONSeigRate (Distribution ratio to PowerTON): 0
     - RelativeSeigRate (Distribution ratio to TON stakers) : 0.5
-    - Total signiﬁcance received by all sequencers in Layer2 : <br/>
-    $TONseigs * D/T  $ <br/>
+- Total signiﬁcance received by all sequencers in Layer2 : $TONseigs * D/T$ <br/>
     > $TONseigs* D/T$
 - Seigniorage received by TON stakers : <br/>
     $TONseigs* (S/T +  RelativeSeigRate*(T-S)/T)$ <br/>
