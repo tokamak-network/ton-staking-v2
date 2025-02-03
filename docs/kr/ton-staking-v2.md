@@ -53,7 +53,7 @@ V2.5에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이�
     - RelativeSeigRate (TON 스테이커에게 분배하는 비율) : 0.5
 
 - Layer2의 모든 시퀀서들이 받는 시뇨리지 총합 : <br/>
-    $TONseigs * D/T$ <br/>
+    $TONseigs * D/T  $ <br/>
     > $TONseigs* D/T$
 - TON 스테이커가 받는 시뇨리지 : <br/>
     $TONseigs* (S/T +  RelativeSeigRate*(T-S-D)/T)$ <br/>
