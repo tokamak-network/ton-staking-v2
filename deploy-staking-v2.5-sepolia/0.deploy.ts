@@ -40,6 +40,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         L1BridgeRegistry: {
             owner: DAOCommitteeProxy,
             manager: DAOCommitteeProxy,
+            registrant: ""
         },
         Layer2Manager: {
             owner: DAOCommitteeProxy
@@ -55,18 +56,18 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
-    const name = 'Titan'
-    const addresses = {
-        l1CrossDomainMessenger: l1MessengerAddress,
-        l1ERC721Bridge: hre.ethers.constants.AddressZero,
-        l1StandardBridge: l1BridgeAddress,
-        l2OutputOracle: hre.ethers.constants.AddressZero,
-        optimismPortal: hre.ethers.constants.AddressZero,
-        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
-    }
-    console.log("\n === Titan Candidate ===" )
-    console.log("name: ", name)
-    console.log("addresses: ", addresses)
+    // const name = 'Titan'
+    // const addresses = {
+    //     l1CrossDomainMessenger: l1MessengerAddress,
+    //     l1ERC721Bridge: hre.ethers.constants.AddressZero,
+    //     l1StandardBridge: l1BridgeAddress,
+    //     l2OutputOracle: hre.ethers.constants.AddressZero,
+    //     optimismPortal: hre.ethers.constants.AddressZero,
+    //     optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    // }
+    // console.log("\n === Titan Candidate ===" )
+    // console.log("name: ", name)
+    // console.log("addresses: ", addresses)
 
     // return;
     const { deploy } = hre.deployments;
@@ -74,13 +75,13 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     const deploySigner = await hre.ethers.getSigner(deployer);
     console.log(deployer)
 
-    if (hre.network.name == "hardhat" || hre.network.name == "local") {
+    // if (hre.network.name == "hardhat" || hre.network.name == "local") {
 
-        await hre.network.provider.send("hardhat_setBalance", [
-            deployer,
-            "0x10000000000000000000000000",
-          ]);
-    }
+    //     await hre.network.provider.send("hardhat_setBalance", [
+    //         deployer,
+    //         "0x10000000000000000000000000",
+    //       ]);
+    // }
 
     //==== L1BridgeRegistry =================================
     const L1BridgeRegistryDeployment = await deploy("L1BridgeRegistryV1_1", {
@@ -204,7 +205,6 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         )).wait()
     }
 
-
     let impl_layer2ManagerProxy = await layer2ManagerProxy.implementation()
     if (impl_layer2ManagerProxy != Layer2ManagerV1_1Deployment.address) {
         await (await layer2ManagerProxy.connect(deploySigner).upgradeTo(Layer2ManagerV1_1Deployment.address)).wait()
@@ -264,7 +264,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
-
+    /*
     //==== DAOCommitteeProxy2 =================================
     const DAOCommitteeProxy2 = await deploy("DAOCommitteeProxy2", {
         from: deployer,
@@ -324,6 +324,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.manager
     )).wait()
+    */
 
     //======= TransferOwner to DAOCommittee ======================================
 
