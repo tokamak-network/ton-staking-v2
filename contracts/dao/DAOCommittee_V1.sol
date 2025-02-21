@@ -432,7 +432,7 @@ contract DAOCommittee_V1 is
 
                 if (selector1.equal(claimTONBytes)) revert('claimTON dont use');
                 else if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = toBytes(ton);
+                    bytes memory tonaddr = _toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
@@ -565,14 +565,8 @@ contract DAOCommittee_V1 is
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
 
-    function _toRAY(uint256 v) public pure returns (uint256) {
+    function _toRAY(uint256 v) internal pure returns (uint256) {
         return v * 10 ** 9;
-    }
-
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
     }
 
     function _decodeAgendaData(bytes calldata input)
@@ -584,22 +578,11 @@ contract DAOCommittee_V1 is
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
+    function _toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
     }
 
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
-    }
-
-    function payCreatingAgendaFee(address _creator) internal {
+    function _payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
         require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
@@ -671,7 +654,7 @@ contract DAOCommittee_V1 is
         returns (uint256)
     {
         // pay to create agenda, burn ton.
-        payCreatingAgendaFee(_creator);
+        _payCreatingAgendaFee(_creator);
 
         uint256 agendaID = agendaManager.newAgenda(
             _targets,

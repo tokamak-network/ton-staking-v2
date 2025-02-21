@@ -194,7 +194,7 @@ contract DAOCommitteeOwner is
         require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
         uint256 prevMaxMember = maxMember;
         maxMember = _newMaxMember;
-        fillMemberSlot();
+        _fillMemberSlot();
         setQuorum(_quorum);
         emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
     }
@@ -348,7 +348,7 @@ contract DAOCommitteeOwner is
     }
 
 
-    function fillMemberSlot() internal {
+    function _fillMemberSlot() internal {
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
         }
