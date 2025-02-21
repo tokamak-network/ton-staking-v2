@@ -544,14 +544,14 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
         ```
 
-    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+    - function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
 
         ```jsx
         /**
          * @notice Claim WTON to a manager
-        * @param amount    the deposit wton amount (ray)
+         * @param flagTon   If it is true, claim with ton, otherwise claim with wton
         */
-        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+        function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
         ```
 
 - 주요 View 함수

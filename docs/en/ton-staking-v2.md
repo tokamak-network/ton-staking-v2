@@ -546,24 +546,23 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+    - function depositByCandidateAddOn() external onlyCandidateAddOn
 
         ```jsx
         /**
         * @notice Deposit wton amount to DepositManager as named Layer2
-        * @param amount    the deposit wton amount (ray)
         */
-        function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+        function depositByCandidateAddOn() external onlyCandidateAddOn
         ```
 
-    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+    - function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
 
         ```jsx
         /**
-         * @notice Claim WTON to a manager
-        * @param amount    the deposit wton amount (ray)
+        * @notice Claim WTON to a manager
+        * @param flagTon   If it is true, claim with ton, otherwise claim with wton
         */
-        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+        function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
         ```
 
 - View Functions
