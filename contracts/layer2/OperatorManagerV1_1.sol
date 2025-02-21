@@ -216,11 +216,11 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     /**
      * @notice Claim WTON to a manager
      * @param amount    the deposit wton amount (ray)
-     * @param falgTon   If it is true, claim with ton, otherwise claim with wton
+     * @param flagTon   If it is true, claim with ton, otherwise claim with wton
      */
-    function claimByCandidateAddOn(uint256 amount, bool falgTon) public onlyCandidateAddOn {
+    function claimByCandidateAddOn(uint256 amount, bool flagTon) public onlyCandidateAddOn {
 
-        if (falgTon) {
+        if (flagTon) {
             uint256 balanceTON = IERC20(ton).balanceOf(address(this));
             uint256 tonAmount = amount/1e9;
             if (balanceTON < tonAmount) {
