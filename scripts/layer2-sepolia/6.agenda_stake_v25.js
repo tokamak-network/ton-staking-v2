@@ -151,11 +151,11 @@ async function upgradeContracts_v25 () {
 
 
     // =========================================
-    //  set DAOCommitteeProxy candidateAddOnFactory
+    //  set DAOCommitteeProxy candidateAddOnFactory --> 이전에 프록시를 해야 하는데, 로직으로 설정을 잘못함.
     targets.push(DAOCommitteeProxy)
-    callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [CandidateAddOnFactory])
+    callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [CandidateAddOnFactoryProxy])
     params.push(callDtata)
-    console.log('set DAOCommitteeProxy candidateAddOnFactory')
+    console.log('set DAOCommitteeProxy CandidateAddOnFactoryProxy')
 
     // =========================================
     //  set DAOCommitteeProxy layer2Manager
