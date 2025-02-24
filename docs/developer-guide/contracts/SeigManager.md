@@ -120,3 +120,93 @@ Total staked amount (based on seigniorage distribution)
   - (uint256) : Staking amount, expressed in decimals RAY units (10^27).
 
 ---
+
+## Calculating seigniorage for L2 sequencers
+
+Added the ability to give seigniorage to L2 sequencers separately.
+You can find more details in [this document](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2.5/docs/en/ton-staking-v2.md#seigniorage-distribution-of-v25).
+
+### Related Storages
+
+- layer2StartBlock : Block that starts giving seigniorage to the L2 sequencer
+- l2RewardPerUint
+  - The amount of seigniorage provided per one L2 liquidity
+  - Seigniorage calculations are applied from layer2StartBlock block(!=0).
+
+- totalLayer2TVL : The total amount of TVL of all L2s
+- layer2RewardInfo : Layer2Reward Information of L2
+  - layer2Tvl : The amount of TVL in L2
+  - initialDebt : The amount to be deducted from seigniorage calculated as l2RewardPerUint
+  - SeigManagerV1_3Storage.sol#L8:11
+  ```
+  struct Layer2Reward {
+      uint256 layer2Tvl;
+      uint256 initialDebt;
+  }
+
+  ```
+
+- SeigManagerV1_3Storage.sol#L13:24
+```
+/// layer2 seigs start block
+uint256 public layer2StartBlock;
+
+uint256 public l2RewardPerUint;  // ray unit .1e27
+
+/// total layer2 TON TVL
+uint256 public totalLayer2TVL;
+
+/// layer2 reward information for each layer2(candidate).
+mapping (address => Layer2Reward) public layer2RewardInfo;
+```
+
+### Related Logics
+
+#### unSettledReward(address layer2) public view returns (uint256 amount)
+The amount of seigniorage that has not yet been settled is the product of L2RewardPerUint and the L2 total liquidity (layer2Tvl), minus the deduction amount(initialDebt).
+
+  - SeigManagerV1_3Storage.sol#L374:378
+  ```
+    function unSettledReward(address layer2) public view returns (uint256 amount) {
+        Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
+        if (layer2Info.layer2Tvl != 0)
+            amount = l2RewardPerUint * (layer2Info.layer2Tvl / 1e18) - layer2Info.initialDebt;
+    }
+  ```
+
+
+#### L2 Seigniorage Settlement in _increaseTot(bool _isSenderOperator)
+
+- The case of L2 seigniorage settlement
+  When l2RewardPerUint seigniorage is greater than zero, L2 seigniorage settlement is made in the following cases:
+  - If you are an operator, (SeigManagerV1_3Storage.sol#L660:666)
+  - If L2 liquidity has decreased compared to the previous update seigniorage, (SeigManagerV1_3Storage.sol#L660:666)
+  - If you execute the first update seigniorage. (SeigManagerV1_3Storage.sol#L667:669)
+    - Since we use l2RewardPerUint to calculate the amount that has not been settled yet, L2 that started receiving seigniorage from a block after layer2StartBlock (!=0) has to deduct the amount (seigniorage between the layer2StartBlock and the start block). Therefore, when the update seigniorage is executed for the first time, we calculate this deductible amount.
+
+- SeigManagerV1_3Storage.sol#L653:674
+  ```
+  // L2 seigs settlement
+  if (layer2Allowed) {
+      if (l2TotalSeigs != 0) l2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+
+      Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+
+      if (l2RewardPerUint != 0) {
+          if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
+              layer2Seigs = unSettledReward(msg.sender);
+
+              if (layer2Seigs != 0) {
+                  ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, layer2Seigs);
+                  newLayer2Info.initialDebt += layer2Seigs;
+              }
+          } else if (_lastCommitBlock[msg.sender] == 0) {
+              newLayer2Info.initialDebt = (l2RewardPerUint * oldLayer2Info.layer2Tvl) / 1e18;
+          }
+      }
+
+      newLayer2Info.layer2Tvl = curLayer2Tvl;
+      totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+  }
+  ```
+
