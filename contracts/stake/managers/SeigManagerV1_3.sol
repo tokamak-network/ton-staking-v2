@@ -141,12 +141,20 @@ contract SeigManagerV1_3 is
     );
 
     /**
-     * @notice Event that occurs when calling excludeFromSeigniorage function
+     * @notice Event that occurs when calling excludeFromL2Seigniorage function
      * @param layer2        the layer2 address
      * @param layer2Tvl     the layer2 TON TVL
      * @param initialDebt   the layer2 initial debt for calculating a reward
      */
-    event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+    event ExcludedFromL2Seigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+
+    /**
+     * @notice Event that occurs when calling includeL2Seigniorage function
+     * @param layer2        the layer2 address
+     * @param layer2Tvl     the layer2 TON TVL
+     * @param initialDebt   the layer2 initial debt for calculating a reward
+     */
+    event IncludedL2Seigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
 
     //////////////////////////////
     // onlyOwner
@@ -189,13 +197,13 @@ contract SeigManagerV1_3 is
      * @notice Exclude the layer2 in distributing a seigniorage
      * @param _layer2     the layer2(candidate) address
      */
-    function excludeFromSeigniorage(address _layer2) external returns (bool) {
+    function excludeFromL2Seigniorage(address _layer2) external returns (bool) {
         _onlyLayer2Manager();
         Layer2Reward storage reward = layer2RewardInfo[_layer2];
         // require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
         if (totalLayer2TVL < reward.layer2Tvl) revert Layer2TvlError();
 
-        emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
+        emit ExcludedFromL2Seigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
 
         if (reward.layer2Tvl != 0) {
             totalLayer2TVL -= reward.layer2Tvl;
@@ -205,6 +213,28 @@ contract SeigManagerV1_3 is
 
         return true;
     }
+
+    /**
+     * @notice Include the layer2 in distributing a seigniorage
+     * @param _rollupConfig     the rollupConfig address
+     * @param _layer2           the layer2(candidate) address
+     */
+    function includeL2Seigniorage(address _rollupConfig, address _layer2) external returns (bool) {
+        _onlyLayer2Manager();
+
+        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(_rollupConfig);
+        if (curLayer2Tvl == 0 || layer2RewardInfo[_layer2].layer2Tvl != 0) revert Layer2TvlError();
+
+        if (!ICandidate(_layer2).updateSeigniorage()) revert UpdateSeigniorageError();
+
+        Layer2Reward storage reward = layer2RewardInfo[_layer2];
+        reward.initialDebt = (l2RewardPerUint * reward.layer2Tvl) / 1e18;
+
+        emit IncludedL2Seigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
+
+        return true;
+    }
+
 
     //////////////////////////////
     // checkCoinage
@@ -657,16 +687,19 @@ contract SeigManagerV1_3 is
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
             if (l2RewardPerUint != 0) {
-                if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
+
+                if (_lastCommitBlock[msg.sender] == 0) {
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / 1e18;
+
+                } else if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
                     layer2Seigs = unSettledReward(msg.sender);
 
                     if (layer2Seigs != 0) {
                         ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, layer2Seigs);
                         newLayer2Info.initialDebt += layer2Seigs;
                     }
-                } else if (_lastCommitBlock[msg.sender] == 0) {
-                    newLayer2Info.initialDebt = (l2RewardPerUint * oldLayer2Info.layer2Tvl) / 1e18;
                 }
+
             }
 
             newLayer2Info.layer2Tvl = curLayer2Tvl;

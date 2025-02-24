@@ -25,6 +25,7 @@ error ZeroBytesError();  // memo check
 error SameValueError();
 error StatusError();
 error ExcludeError();
+error IncludeError();
 /**
  * @notice  Error in onApprove function
  * @param x 1: sender is not ton nor wton
@@ -217,7 +218,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
 
-        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromL2Seigniorage(address)",_layer2));
         if (!success) revert ExcludeError();
 
     }
@@ -231,8 +232,19 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         // require(info.stateIssue == 2, "not in pause status");
         if (info.status != 2) revert StatusError();
 
+        CandidateAddOnInfo memory operatorInfo_ = operatorInfo[info.operatorManager];
+        _nonZeroAddress(operatorInfo_.candidateAddOn);
+
         rollupConfigInfo[rollupConfig].status = 1;
         emit UnpausedCandidateAddOn(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
+
+        (bool success, ) = seigManager.call(
+            abi.encodeWithSignature("includeL2Seigniorage(address,address)",
+                operatorInfo_.rollupConfig,
+                operatorInfo_.candidateAddOn
+            )
+        );
+        if (!success) revert IncludeError();
     }
 
     /* ========== onlySeigManger  ========== */

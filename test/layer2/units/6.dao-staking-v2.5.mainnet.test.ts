@@ -599,17 +599,19 @@ describe('Layer2Manager', () => {
             const selector13 = encodeFunctionSignature("l2RewardPerUint()");
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
             const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-            const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+            const selector16 = encodeFunctionSignature("excludeFromL2Seigniorage(address)");
              const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
             const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+            const selector21 = encodeFunctionSignature("includeL2Seigniorage(address,address)");
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
                 selector11, selector12, selector13, selector14, selector15,
-                selector16,selector17, selector18, selector19, selector20
+                selector16,selector17, selector18, selector19, selector20,
+                selector21
             ];
 
             callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
@@ -2187,7 +2189,7 @@ describe('Layer2Manager', () => {
             expect(deployedEvent1.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent1.args.candidateAddOn).to.be.eq(titanLayerAddress)
 
-            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromSeigniorage');
+            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromL2Seigniorage');
             const log2 = receipt.logs.find(x => x.topics.indexOf(topic2) >= 0);
             const deployedEvent2 = seigManagerV1_3.interface.parseLog(log2);
 
@@ -2577,14 +2579,22 @@ describe('Layer2Manager', () => {
         })
 
         it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            let layerAddress = titanLayerAddress
+            let operatorContractAddress = titanOperatorContractAddress
 
             expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
             expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
 
-            let l2Info = await seigManager.layer2RewardInfo(titanLayerAddress)
+            let l2Info = await seigManager.layer2RewardInfo(layerAddress)
+            expect(l2Info.layer2Tvl).to.be.eq(ethers.constants.Zero)
+            expect(l2Info.initialDebt).to.be.eq(ethers.constants.Zero)
+
             let totalLayer2TVL = await seigManager.totalLayer2TVL()
-            let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
+            let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(layerAddress)
             expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(false)
+
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
 
             const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
                 legacySystemConfig.address,
@@ -2597,14 +2607,15 @@ describe('Layer2Manager', () => {
             expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
 
             expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(false)
-            let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
+            let l2InfoAfter = await seigManager.layer2RewardInfo(layerAddress)
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
+            let l2RewardPerUint = await seigManager.l2RewardPerUint()
 
-            expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
-            expect(l2InfoAfter.initialDebt).to.be.eq(ethers.constants.Zero)
-            expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.sub(l2Info.layer2Tvl))
+            expect(l2InfoAfter.layer2Tvl).to.be.eq(curLayer2Tvl)
+            expect(l2InfoAfter.initialDebt).to.be.eq(l2RewardPerUint.mul(curLayer2Tvl).div(ethers.utils.parseEther("1")))
+            expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.add(l2InfoAfter.layer2Tvl))
 
-            let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
+            let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(layerAddress)
             expect(allowIssuanceLayer2SeigsAfter.allowed).to.be.eq(true)
 
         })
