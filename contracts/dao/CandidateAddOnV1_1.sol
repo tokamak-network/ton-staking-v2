@@ -46,6 +46,7 @@ contract CandidateAddOnV1_1 is
         address _ton,
         address _wton
     ) external onlyOwner  {
+        require(ton == address(0), "already initialized");
         require(
             _operateContract != address(0)
             || _committee != address(0)
