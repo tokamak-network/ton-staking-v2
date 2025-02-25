@@ -209,6 +209,7 @@ contract SeigManagerV1_3 is
             totalLayer2TVL -= reward.layer2Tvl;
             reward.layer2Tvl = 0;
             reward.initialDebt = 0;
+            reward.startBlock = 0;
         }
 
         return true;
@@ -403,8 +404,12 @@ contract SeigManagerV1_3 is
      */
     function unSettledReward(address layer2) public view returns (uint256 amount) {
         Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
-        if (layer2Info.layer2Tvl != 0)
-            amount = l2RewardPerUint * (layer2Info.layer2Tvl / 1e18) - layer2Info.initialDebt;
+
+        if (layer2Info.layer2Tvl != 0) {
+            uint256 rewardAll = l2RewardPerUint * (layer2Info.layer2Tvl / 1e18);
+            if (rewardAll < layer2Info.initialDebt) return 0;
+            else amount = rewardAll - layer2Info.initialDebt;
+        }
     }
 
     function unallocatedSeigniorage() external view returns (uint256 amount) {
@@ -680,20 +685,21 @@ contract SeigManagerV1_3 is
             accRelativeSeig += relativeSeig;
         }
 
+        if (l2TotalSeigs != 0 && totalLayer2TVL != 0) l2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+
         // L2 seigs settlement
         if (layer2Allowed) {
-            if (l2TotalSeigs != 0) l2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
-
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
             if (l2RewardPerUint != 0) {
-
-                if (_lastCommitBlock[msg.sender] == 0) {
-                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / 1e18;
+                if (newLayer2Info.startBlock == 0) {
+                    if (curLayer2Tvl != 0) {
+                        newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / 1e18;
+                        newLayer2Info.startBlock = block.number;
+                    }
 
                 } else if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
                     layer2Seigs = unSettledReward(msg.sender);
-
                     if (layer2Seigs != 0) {
                         ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, layer2Seigs);
                         newLayer2Info.initialDebt += layer2Seigs;
