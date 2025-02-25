@@ -2620,6 +2620,11 @@ describe('TON Staking V2.5', () => {
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
 
             let block2 = await ethers.provider.getBlock('latest');
+            const l2RewardPerUint = await seigManager.l2RewardPerUint()
+            // console.log('l2RewardPerUint', l2RewardPerUint)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
 
             // console.log('\nblock number :', block2.number);
             let totalSupplyOfTon_after = await seigManager["totalSupplyOfTon()"]()
@@ -2656,12 +2661,13 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
 
+            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
+            // console.log('layer2RewardInfo', layer2RewardInfo)
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
             // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
 
-            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
-            // console.log('layer2RewardInfo', layer2RewardInfo)
+
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
         })
 
@@ -2764,13 +2770,19 @@ describe('TON Staking V2.5', () => {
             const afterTotalTvl = await seigManager.totalLayer2TVL()
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
+            // console.log('l2RewardPerUint', l2RewardPerUint)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
+
+            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
+            // console.log('layer2RewardInfo', layer2RewardInfo)
+
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
             // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
 
 
-            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
-            // console.log('layer2RewardInfo', layer2RewardInfo)
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
             expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
             expect(afterWtonBalanceOfLayer2Manager).to.be.gt(ethers.constants.Zero)
@@ -2894,9 +2906,13 @@ describe('TON Staking V2.5', () => {
             const afterTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
             const afterTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
 
-
+            const l2RewardPerUintAfter = await seigManager.l2RewardPerUint()
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
+            // console.log('l2RewardPerUint', l2RewardPerUintAfter)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
 
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)

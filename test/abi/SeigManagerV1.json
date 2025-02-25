@@ -183,6 +183,11 @@
           "internalType": "uint256",
           "name": "initialDebt",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startBlock",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",

@@ -8,6 +8,7 @@ contract SeigManagerV1_3Storage  {
     struct Layer2Reward {
         uint256 layer2Tvl;
         uint256 initialDebt;
+        uint256 startBlock;
     }
 
     /// L1BridgeRegistry address
