@@ -148,13 +148,11 @@ contract SeigManagerV1_3 is
      */
     event ExcludedFromL2Seigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
 
-    /**
-     * @notice Event that occurs when calling includeL2Seigniorage function
-     * @param layer2        the layer2 address
-     * @param layer2Tvl     the layer2 TON TVL
-     * @param initialDebt   the layer2 initial debt for calculating a reward
-     */
-    event IncludedL2Seigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+    // /**
+    //  * @notice Event that occurs when calling includeL2Seigniorage function
+    //  * @param layer2        the layer2 address
+    //  */
+    event IncludedL2Seigniorage(address layer2);
 
     //////////////////////////////
     // onlyOwner
@@ -228,10 +226,7 @@ contract SeigManagerV1_3 is
 
         if (!ICandidate(_layer2).updateSeigniorage()) revert UpdateSeigniorageError();
 
-        Layer2Reward storage reward = layer2RewardInfo[_layer2];
-        reward.initialDebt = (l2RewardPerUint * reward.layer2Tvl) / 1e18;
-
-        emit IncludedL2Seigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
+        emit IncludedL2Seigniorage(_layer2);
 
         return true;
     }
