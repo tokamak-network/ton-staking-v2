@@ -91,7 +91,7 @@ We will check Layer 2 by receiving information from RollupConfig, RollupType, an
 
 There are two efforts required from a third-party dependency perspective:
 
-## Our efforts to avoid dependencies due to registering RollupConfig (Third-Party)
+## Our efforts to verify third-party contracts on registering RollupConfig (Third-Party)
 
 When registering RollupConfig, code verification of the Third-Party L1 contract is performed.
 
