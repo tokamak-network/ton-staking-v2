@@ -167,10 +167,10 @@ contract DAOCommittee_V1 is
             address(seigManager)
         );
 
-        require(
-            candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
+        // require(
+        //     candidateContract != address(0),
+        //     "DAOCommittee: deployed candidateContract is zero"
+        // );
         require(
             _candidateInfos[_operator].candidateContract == address(0),
             "DAOCommittee: The candidate already has contract"
@@ -210,10 +210,10 @@ contract DAOCommittee_V1 is
             address(seigManager)
         );
 
-        require(
-            candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
+        // require(
+        //     candidateContract != address(0),
+        //     "DAOCommittee: deployed candidateContract is zero"
+        // );
 
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
 
@@ -264,7 +264,7 @@ contract DAOCommittee_V1 is
             address(this),
             address(seigManager)
         );
-        if (candidateContract == address(0)) revert CreateCandiateError(1);
+        // if (candidateContract == address(0)) revert CreateCandiateError(1);
         if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
 
         _candidateInfos[_operatorManagerAddress] = CandidateInfo({
@@ -640,10 +640,10 @@ contract DAOCommittee_V1 is
             address(seigManager)
         );
 
-        require(
-            candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
+        // require(
+        //     candidateContract != address(0),
+        //     "DAOCommittee: deployed candidateContract is zero"
+        // );
 
         _candidateInfos[_layer2] = CandidateInfo({
             candidateContract: candidateContract,
