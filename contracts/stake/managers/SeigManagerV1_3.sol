@@ -568,12 +568,9 @@ contract SeigManagerV1_3 is
     function _increaseTot(bool _isSenderOperator) internal returns (bool result) {
         // short circuit if already seigniorage is given.
 
-        uint256 prevTotalSupply;
-        uint256 nextTotalSupply;
-
         // 1. increase total supply of {tot} by maximum seigniorages * staked rate
         //    staked rate = total staked amount / total supply of (W)TON
-        prevTotalSupply = _tot.totalSupply();
+        uint256 prevTotalSupply = _tot.totalSupply();
 
         uint256 span = block.number - _lastSeigBlock;
         if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
@@ -619,7 +616,7 @@ contract SeigManagerV1_3 is
         // pseig
         // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
         uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+        uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         _lastSeigBlock = block.number;
 
         _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
