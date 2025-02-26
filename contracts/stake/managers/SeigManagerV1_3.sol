@@ -417,6 +417,11 @@ contract SeigManagerV1_3 is
             return true;
         }
 
+        if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
+            _lastSeigBlock = block.number;
+            return false;
+        }
+
         RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
         _checkCoinage(address(coinage));
 
@@ -562,11 +567,6 @@ contract SeigManagerV1_3 is
 
     function _increaseTot(bool _isSenderOperator) internal returns (bool result) {
         // short circuit if already seigniorage is given.
-
-        if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
-            _lastSeigBlock = block.number;
-            return false;
-        }
 
         uint256 prevTotalSupply;
         uint256 nextTotalSupply;
