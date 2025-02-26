@@ -286,13 +286,12 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     }
 
     function _claim(address token, address to, uint256 amount) internal {
-        address thisAccount = address(this);
         if(token == address(0)) {
-            if(thisAccount.balance < amount) revert InsufficientBalanceError();
+            if(address(this).balance < amount) revert InsufficientBalanceError();
             (bool success, ) = to.call{value: amount}("");
             if (!success) revert TransferEthError();
         } else {
-            if (IERC20(token).balanceOf(thisAccount) < amount) revert InsufficientBalanceError();
+            if (IERC20(token).balanceOf(address(this)) < amount) revert InsufficientBalanceError();
             IERC20(token).safeTransfer(to, amount);
         }
         emit Claimed(token, msg.sender, to, amount);
