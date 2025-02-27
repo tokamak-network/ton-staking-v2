@@ -203,35 +203,29 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
 
     /**
      * @notice Deposit wton amount to DepositManager as named manager(EOA)
-     * @param amount    the deposit wton amount (ray)
      */
-    function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
-        _depositTo(msg.sender, manager, amount);
-    }
-
-    function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn {
-        claimByCandidateAddOn(amount, true);
+    function depositByCandidateAddOn() external onlyCandidateAddOn {
+        _depositTo(msg.sender, manager);
     }
 
     /**
      * @notice Claim WTON to a manager
-     * @param amount    the deposit wton amount (ray)
-     * @param falgTon   If it is true, claim with ton, otherwise claim with wton
+     * @param flagTon   If it is true, claim with ton, otherwise claim with wton
      */
-    function claimByCandidateAddOn(uint256 amount, bool falgTon) public onlyCandidateAddOn {
+    function claimByCandidateAddOn(bool flagTon) public onlyCandidateAddOn {
+        address _wton = wton;
+        uint256 amount = IERC20(_wton).balanceOf(address(this));
 
-        if (falgTon) {
-            uint256 balanceTON = IERC20(ton).balanceOf(address(this));
-            uint256 tonAmount = amount/1e9;
-            if (balanceTON < tonAmount) {
-                uint256 swapWtonToTonAmount = amount - (balanceTON * 1e9);
+        if (flagTon) {
+            address _ton = ton;
+            if(amount != 0) IWTON(_wton).swapToTON(amount);
+            amount = IERC20(_ton).balanceOf(address(this));
+            if(amount == 0) revert InsufficientBalanceError();
+            _claim(_ton, manager, amount);
 
-                if (IERC20(wton).balanceOf(address(this))  < swapWtonToTonAmount) revert InsufficientBalanceError();
-                else IWTON(wton).swapToTON(swapWtonToTonAmount);
-            }
-            _claim(ton, manager, tonAmount);
         } else {
-            _claim(wton, manager, amount);
+            if(amount == 0) revert InsufficientBalanceError();
+            _claim(_wton, manager, amount);
         }
     }
 
@@ -297,23 +291,20 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         emit Claimed(token, msg.sender, to, amount);
     }
 
-    function _deposit(address layer2, uint256 amount) internal {
+    function _depositTo(address layer2, address to) internal {
         address _depositManager = depositManager;
-        address _wton = wton;
-
-        uint256 allowance = IERC20(_wton).allowance(address(this), _depositManager);
-        if(allowance < amount) IERC20(_wton).approve(_depositManager, type(uint256).max);
-
-        IDepositManager(_depositManager).deposit(layer2, amount);
+        uint256 amount = _onAapproveHoldingAmount(_depositManager);
+        IDepositManager(_depositManager).deposit(layer2, to, amount);
     }
 
-    function _depositTo(address layer2, address to, uint256 amount) internal {
-        address _depositManager = depositManager;
+    function _onAapproveHoldingAmount(address to) internal returns (uint256) {
         address _wton = wton;
+        uint256 amount = IERC20(_wton).balanceOf(address(this));
+        if(amount == 0) revert InsufficientBalanceError();
 
-        uint256 allowance = IERC20(_wton).allowance(address(this), _depositManager);
-        if (allowance < amount) IERC20(_wton).approve(_depositManager, type(uint256).max);
+        uint256 allowance = IERC20(_wton).allowance(address(this), to);
+        if (allowance < amount) IERC20(_wton).approve(to, type(uint256).max);
 
-        IDepositManager(_depositManager).deposit(layer2, to, amount);
+        return amount;
     }
 }
