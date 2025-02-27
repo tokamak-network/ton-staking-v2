@@ -112,11 +112,6 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         _;
     }
 
-    modifier nonRejected(address rollupConfig) {
-        require(!rollupInfo[rollupConfig].rejectedSeigs, "rejected");
-        _;
-    }
-
     /* ========== CONSTRUCTOR ========== */
     constructor() {}
 
