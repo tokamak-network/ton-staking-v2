@@ -337,7 +337,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice View the liquidity of Layer2 TON for a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
-    function layer2TVL(address rollupConfig) public view returns (uint256 amount){
+    function layer2TVL(address rollupConfig) external view returns (uint256 amount){
 
         uint _type = rollupInfo[rollupConfig].rollupType;
 
@@ -356,7 +356,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid){
+    function availableForRegistration(address rollupConfig, uint8 _type) external view returns (bool valid){
         return _availableForRegistration(rollupConfig, _type);
     }
 

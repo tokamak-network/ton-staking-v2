@@ -541,7 +541,7 @@ contract DAOCommittee_V1 is
     /// @notice Call updateSeigniorage on SeigManager
     /// @param _candidate Candidate address to be updated
     /// @return Whether or not the execution succeeded
-    function updateSeigniorage(address _candidate) public returns (bool) {
+    function updateSeigniorage(address _candidate) external returns (bool) {
         address candidateContract = _candidateInfos[_candidate].candidateContract;
         return ICandidate(candidateContract).updateSeigniorage();
     }
@@ -793,7 +793,7 @@ contract DAOCommittee_V1 is
         return period * activityRewardPerSecond;
     }
 
-    function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
+    function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
     }
 

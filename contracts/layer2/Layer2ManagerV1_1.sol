@@ -354,7 +354,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      * @return result       whether layer 2 TON liquidity can be checked
      * @return amount       the layer 2's TON amount (total value liquidity)
      */
-    function checkLayer2TVL(address _rollupConfig) public view returns (bool result, uint256 amount) {
+    function checkLayer2TVL(address _rollupConfig) external view returns (bool result, uint256 amount) {
          return _checkLayer2TVL(_rollupConfig);
     }
 
@@ -366,7 +366,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      * @return portal           the optimism portal address
      * @return l2Ton            the L2 TON address
      */
-    function checkL1Bridge(address _rollupConfig) public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
+    function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton) {
          (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 

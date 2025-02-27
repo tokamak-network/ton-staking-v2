@@ -252,7 +252,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      * @notice Returns true if the the addr is a manager.
      * @param addr the address to check
      */
-    function isOperator(address addr) public view returns (bool) {
+    function isOperator(address addr) external view returns (bool) {
         return (addr != address(0) && addr == manager);
     }
 
@@ -269,7 +269,7 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
      * @return rejectedSeigs     If it is true, Seigniorage issuance has been stopped for this layer2.
      * @return rejectedL2Deposit If it is true, stop depositing at this layer.
      */
-    function checkL1Bridge() public view returns (
+    function checkL1Bridge() external view returns (
         bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit
     ) {
         return ILayer2Manager(layer2Manager).checkL1BridgeDetail(rollupConfig);
