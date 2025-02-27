@@ -338,12 +338,12 @@ contract SeigManagerV1_3 is
             }
         }
 
+        unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         // pseig
         // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-        uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
+        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
 
         nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
-        unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
 
         if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
         if (dao != address(0)) daoSeig = rmul(unstakedSeig, daoSeigRate);
@@ -645,9 +645,10 @@ contract SeigManagerV1_3 is
             if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
         }
 
+        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+
         // pseig
-        // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-        uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
+        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
         nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         _lastSeigBlock = block.number;
 
@@ -655,7 +656,6 @@ contract SeigManagerV1_3 is
 
         emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, nextTotalSupply);
 
-        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 powertonSeig;
         uint256 daoSeig;
         uint256 relativeSeig;
