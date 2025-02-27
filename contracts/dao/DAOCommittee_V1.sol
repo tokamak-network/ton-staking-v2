@@ -515,7 +515,6 @@ contract DAOCommittee_V1 is
          (address[] memory target,
              bytes[] memory functionBytecode,
              bool atomicExecute,
-             uint256 executeStartFrom
          ) = agendaManager.getExecutionInfo(_agendaID);
 
         if (atomicExecute) {
