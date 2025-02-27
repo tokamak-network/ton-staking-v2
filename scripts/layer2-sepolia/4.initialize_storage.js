@@ -132,7 +132,7 @@ async function initialze() {
     await (await seigManager.connect(deployer).setL1BridgeRegistry(ethers.constants.AddressZero)).wait()
     await (await seigManager.connect(deployer).setLayer2Manager(ethers.constants.AddressZero)).wait()
     await (await seigManager.connect(deployer).setLayer2StartBlock(ethers.constants.Zero)).wait()
-    await (await seigManager.connect(deployer).resetL2RewardPerUint()).wait()
+    // await (await seigManager.connect(deployer).resetL2RewardPerUint()).wait()
 
     console.log("layer2Manager", await seigManager.layer2Manager())
     console.log("l1BridgeRegistry", await seigManager.l1BridgeRegistry())

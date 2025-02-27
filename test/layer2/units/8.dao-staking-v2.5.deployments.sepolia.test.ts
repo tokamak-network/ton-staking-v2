@@ -391,12 +391,12 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             await (await seigManager.connect(daoOwner).setL1BridgeRegistry(ethers.constants.AddressZero)).wait()
             await (await seigManager.connect(daoOwner).setLayer2Manager(ethers.constants.AddressZero)).wait()
             await (await seigManager.connect(daoOwner).setLayer2StartBlock(ethers.constants.Zero)).wait()
-            await (await seigManager.connect(daoOwner).resetL2RewardPerUint()).wait()
+            // await (await seigManager.connect(daoOwner).resetL2RewardPerUint()).wait()
 
             expect(await seigManager.layer2Manager()).to.be.eq(ethers.constants.AddressZero)
             expect(await seigManager.l1BridgeRegistry()).to.be.eq(ethers.constants.AddressZero)
             expect(await seigManager.layer2StartBlock()).to.be.eq(ethers.constants.Zero)
-            expect(await seigManager.l2RewardPerUint()).to.be.eq(ethers.constants.Zero)
+            // expect(await seigManager.l2RewardPerUint()).to.be.eq(ethers.constants.Zero)
 
             expect(await seigManager.totalLayer2TVL()).to.be.eq(ethers.constants.Zero)
 

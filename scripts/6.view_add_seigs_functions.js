@@ -23,14 +23,14 @@ async function func1() {
   const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
   const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
   const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
-  const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
+  // const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
 
     let functionBytecodes = [
         selector1, selector2, selector3, selector4, selector5,
         selector6, selector7, selector8, selector9, selector10,
         selector11, selector12, selector13, selector14, selector15,
         selector16,
-        selector17, selector18, selector19, selector20, selector21
+        selector17, selector18, selector19, selector20
       ];
 
         console.log('SeigManagerV1_3 add functions : ', functionBytecodes)

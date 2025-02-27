@@ -148,6 +148,29 @@ contract SeigManagerV1_3 is
      */
     event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
 
+    /**
+     * @notice Event that occurs when calling setLayer2Manager function
+     * @param layer2Manager_    the layer2Manager address
+     */
+    event SetLayer2Manager(address layer2Manager_);
+
+    /**
+     * @notice Event that occurs when calling setLayer2StartBlock function
+     * @param startBlock_    the start block number
+     */
+    event SetLayer2StartBlock(uint256 startBlock_);
+
+    /**
+     * @notice Event that occurs when calling setL1BridgeRegistry function
+      * @param l1BridgeRegistry_    the l1BridgeRegistry address
+     */
+    event SetL1BridgeRegistry(address l1BridgeRegistry_);
+
+    /**
+     * @notice Event that occurs when calling resetL2RewardPerUint function
+     */
+    event ResetL2RewardPerUint();
+
     //////////////////////////////
     // onlyOwner
     //////////////////////////////
@@ -158,6 +181,7 @@ contract SeigManagerV1_3 is
      */
     function setLayer2Manager(address layer2Manager_) external onlyOwner {
         layer2Manager = layer2Manager_;
+        emit SetLayer2Manager(layer2Manager_);
     }
 
     /**
@@ -166,6 +190,7 @@ contract SeigManagerV1_3 is
      */
     function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
         layer2StartBlock = startBlock_;
+        emit SetLayer2StartBlock(startBlock_);
     }
 
     /**
@@ -174,11 +199,14 @@ contract SeigManagerV1_3 is
      */
     function setL1BridgeRegistry(address l1BridgeRegistry_) external onlyOwner {
         l1BridgeRegistry = l1BridgeRegistry_;
+        emit SetL1BridgeRegistry(l1BridgeRegistry_);
     }
 
+    /// @dev
     function resetL2RewardPerUint() external onlyOwner {
         require(layer2StartBlock == 0, 'Only possible when layer2StartBlock is 0');
         l2RewardPerUint = 0;
+        emit ResetL2RewardPerUint();
     }
 
     //////////////////////////////
