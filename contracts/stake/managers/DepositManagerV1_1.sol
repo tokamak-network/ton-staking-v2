@@ -74,8 +74,6 @@ contract DepositManagerV1_1 is
     address internal constant LEGACY_ERC20_NATIVE_TOKEN =
         0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
     bytes4 internal constant SELECTOR_CHECK_L1_BRIDGE = 0x632b03ad; //checkL1Bridge()
-    bytes4 internal constant SELECTOR_ON_WITHDRAW = 0xf850ffaa; //onWithdraw(address,address,uint256)
-    bytes4 internal constant SELECTOR_SWAP_TOON_AND_TRANSFER = 0xe3b99e85; //swapToTONAndTransfer(address,uint256)
 
     ////////////////////
     // Events
