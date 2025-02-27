@@ -107,11 +107,6 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      */
     event SetBlockingL2Deposit(address rollupConfig, bool rejectedL2Deposit);
 
-    modifier onlySeigniorageCommittee() {
-        require(seigniorageCommittee == msg.sender, "PermissionError");
-        _;
-    }
-
     /* ========== CONSTRUCTOR ========== */
     constructor() {}
 
@@ -180,7 +175,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      */
     function rejectCandidateAddOn(
         address rollupConfig
-    )  external onlySeigniorageCommittee() {
+    )  external {
+        _onlySeigniorageCommittee();
         _nonRejected(rollupConfig);
 
         require (rollupInfo[rollupConfig].rollupType != 0, "NonRegistered");
@@ -200,7 +196,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function restoreCandidateAddOn(
         address rollupConfig,
         bool rejectedL2Deposit
-    )  external onlySeigniorageCommittee{
+    )  external {
+        _onlySeigniorageCommittee();
         _onlyRejectedRollupConfig(rollupConfig);
 
         rollupInfo[rollupConfig].rejectedSeigs = false;
@@ -367,6 +364,9 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     function _onlyRejectedRollupConfig(address rollupConfig) internal view {
         if(!rollupInfo[rollupConfig].rejectedSeigs) revert OnlyRejectedError();
+    }
+    function _onlySeigniorageCommittee() internal view {
+        if(seigniorageCommittee != msg.sender) revert OnlySeigniorageCommitteeError();
     }
 
     function _registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string memory _name) internal {
