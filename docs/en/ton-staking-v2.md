@@ -43,11 +43,11 @@ TThe withdrawAndDepositL2 function is a function that withdraw the staking amoun
 
 ## Stop providing seigniorage to the L2 sequencer in CandidateAddOn
 
-The Seigniorage Committee can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. This function exists just in case.
+The Seigniorage Committee (DAO) can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. Unsettled seigniorage to the layer 2 sequencer can no longer be settled. This function exists just in case.
 
 ## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee.
+Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee(DAO). Layer2Candidate's seigniorage that has not been settled before cannot be received. Layer2Candidate's seigniorage can be received again from this point.
 
 # TON Stake Contracts
 

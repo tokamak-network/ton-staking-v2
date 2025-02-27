@@ -181,6 +181,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     /**
      * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     *         Unsettled seigniorage to the layer 2 sequencer can no longer be settled.
      * @param rollupConfig the rollupConfig address
      */
     function rejectCandidateAddOn(
@@ -198,7 +199,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     }
 
     /**
-     * Restore cancel stopping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     * Start to issue seigniorage to the layer 2 sequencer of a specific rollupConfig from now on.
      * @param rollupConfig          the rollupConfig address
      * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
      */

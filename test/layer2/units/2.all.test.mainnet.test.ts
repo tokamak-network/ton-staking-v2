@@ -533,6 +533,7 @@ describe('TON Staking V2.5', () => {
         it('SeigManager register function ', async () => {
             daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi, deployer);
 
+
             const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
             const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
             const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
@@ -548,20 +549,20 @@ describe('TON Staking V2.5', () => {
             const selector13 = encodeFunctionSignature("l2RewardPerUint()");
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
             const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-
-            const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+            const selector16 = encodeFunctionSignature("excludeFromL2Seigniorage(address)");
             const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
             const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
             const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
+            const selector22 = encodeFunctionSignature("includeL2Seigniorage(address,address)");
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
-                selector11, selector12, selector13, selector14, selector15
-                , selector16,
-                selector17, selector18, selector19, selector20, selector21
+                selector11, selector12, selector13, selector14, selector15,
+                selector16, selector17, selector18, selector19, selector20,
+                selector21, selector22
             ];
             const index = 1;
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
@@ -2014,7 +2015,7 @@ describe('TON Staking V2.5', () => {
             expect(deployedEvent1.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent1.args.candidateAddOn).to.be.eq(titanLayerAddress)
 
-            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromSeigniorage');
+            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromL2Seigniorage');
             const log2 = receipt.logs.find(x => x.topics.indexOf(topic2) >= 0);
             const deployedEvent2 = seigManagerV1_3.interface.parseLog(log2);
 
@@ -2406,14 +2407,23 @@ describe('TON Staking V2.5', () => {
         })
 
         it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            let layerAddress = titanLayerAddress
+            let operatorContractAddress = titanOperatorContractAddress
+            // let layerContract = titanLayerContract
 
             expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
             expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
 
-            let l2Info = await seigManager.layer2RewardInfo(titanLayerAddress)
+            let l2Info = await seigManager.layer2RewardInfo(layerAddress)
+            expect(l2Info.layer2Tvl).to.be.eq(ethers.constants.Zero)
+            expect(l2Info.initialDebt).to.be.eq(ethers.constants.Zero)
+
             let totalLayer2TVL = await seigManager.totalLayer2TVL()
-            let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
+            let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(layerAddress)
             expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(false)
+
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
 
             const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).restoreCandidateAddOn(
                 legacySystemConfig.address,
@@ -2426,14 +2436,15 @@ describe('TON Staking V2.5', () => {
             expect(deployedEvent.args.rollupConfig).to.be.eq(legacySystemConfig.address)
 
             expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(false)
-            let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
+            let l2InfoAfter = await seigManager.layer2RewardInfo(layerAddress)
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
+            let l2RewardPerUint = await seigManager.l2RewardPerUint()
 
-            expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
-            expect(l2InfoAfter.initialDebt).to.be.eq(ethers.constants.Zero)
-            expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.sub(l2Info.layer2Tvl))
+            expect(l2InfoAfter.layer2Tvl).to.be.eq(curLayer2Tvl)
+            expect(l2InfoAfter.initialDebt).to.be.eq(l2RewardPerUint.mul(curLayer2Tvl).div(ethers.utils.parseEther("1")))
+            expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.add(l2InfoAfter.layer2Tvl))
 
-            let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
+            let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(layerAddress)
             expect(allowIssuanceLayer2SeigsAfter.allowed).to.be.eq(true)
 
         })
@@ -2620,6 +2631,11 @@ describe('TON Staking V2.5', () => {
             expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
 
             let block2 = await ethers.provider.getBlock('latest');
+            const l2RewardPerUint = await seigManager.l2RewardPerUint()
+            // console.log('l2RewardPerUint', l2RewardPerUint)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
 
             // console.log('\nblock number :', block2.number);
             let totalSupplyOfTon_after = await seigManager["totalSupplyOfTon()"]()
@@ -2656,12 +2672,13 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
 
+            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
+            // console.log('layer2RewardInfo', layer2RewardInfo)
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
             // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
 
-            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
-            // console.log('layer2RewardInfo', layer2RewardInfo)
+
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
         })
 
@@ -2764,13 +2781,19 @@ describe('TON Staking V2.5', () => {
             const afterTotalTvl = await seigManager.totalLayer2TVL()
             const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
+            // console.log('l2RewardPerUint', l2RewardPerUint)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
+
+            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
+            // console.log('layer2RewardInfo', layer2RewardInfo)
+
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
             // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
 
 
-            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
-            // console.log('layer2RewardInfo', layer2RewardInfo)
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
             expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
             expect(afterWtonBalanceOfLayer2Manager).to.be.gt(ethers.constants.Zero)
@@ -2894,9 +2917,13 @@ describe('TON Staking V2.5', () => {
             const afterTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
             const afterTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
 
-
+            const l2RewardPerUintAfter = await seigManager.l2RewardPerUint()
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
+            // console.log('l2RewardPerUint', l2RewardPerUintAfter)
+
+            const unSettledReward = await seigManager.unSettledReward(layerAddress)
+            // console.log('unSettledReward', unSettledReward)
 
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
