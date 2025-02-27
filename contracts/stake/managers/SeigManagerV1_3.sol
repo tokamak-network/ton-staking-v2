@@ -351,17 +351,16 @@ contract SeigManagerV1_3 is
         // L2 seigs settlement
         uint256 tempL2RewardPerUint = l2RewardPerUint;
         if (layer2Allowed) {
-            if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+            if (l2TotalSeigs != 0 && totalLayer2TVL != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
 
             if (
                 tempL2RewardPerUint != 0 &&
                 (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) &&
                 (oldLayer2Info.layer2Tvl != 0)
             ) {
-                layer2Seigs =
-                    tempL2RewardPerUint *
-                    (oldLayer2Info.layer2Tvl / 1e18) -
-                    oldLayer2Info.initialDebt;
+                uint256 rewardAll = tempL2RewardPerUint * (oldLayer2Info.layer2Tvl / 1e18);
+                if (rewardAll < oldLayer2Info.initialDebt) layer2Seigs = 0;
+                else layer2Seigs = rewardAll - oldLayer2Info.initialDebt;
             }
         }
     }
