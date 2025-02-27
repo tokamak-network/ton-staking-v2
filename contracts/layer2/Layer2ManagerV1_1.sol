@@ -168,6 +168,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _seigManager,
         address _swapProxy
     )  external  onlyOwner {
+
+        require(
+            _ton != address(0) && _wton != address(0) && _dao != address(0) &&
+            _depositManager != address(0) && _seigManager != address(0) &&
+            _l1BridgeRegistry != address(0) && _operatorManagerFactory != address(0),
+            "zero address"
+        );
+
         l1BridgeRegistry = _l1BridgeRegistry;
         operatorManagerFactory = _operatorManagerFactory;
         ton = _ton;
@@ -183,6 +191,10 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     function setOperatorManagerFactory(
         address _operatorManagerFactory
     )  external  onlyOwner {
+
+        require(_operatorManagerFactory != address(0) &&
+            operatorManagerFactory != _operatorManagerFactory, "wrong input");
+
         operatorManagerFactory = _operatorManagerFactory;
         emit SetOperatorManagerFactory( _operatorManagerFactory);
     }
