@@ -2569,7 +2569,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
                 l1BridgeRegistry.connect(addr1).rejectCandidateAddOn(
                     legacySystemConfig.address
                 )
-            ).to.be.revertedWith("PermissionError")
+            ).to.be.revertedWith("OnlySeigniorageCommitteeError")
         })
 
         it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
@@ -3210,7 +3210,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
                     legacySystemConfig.address,
                     false
                 )
-            ).to.be.revertedWith("PermissionError")
+            ).to.be.revertedWith("OnlySeigniorageCommitteeError")
         })
 
         it('restore CandidateAddOn (titanCandidateAddOn) : Only rejected layers can be restored.', async () => {

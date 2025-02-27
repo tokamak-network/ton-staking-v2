@@ -2157,7 +2157,7 @@ describe('TON Staking V2.5', () => {
                 l1BridgeRegistry.connect(addr1).rejectCandidateAddOn(
                     legacySystemConfig.address
                 )
-            ).to.be.revertedWith("PermissionError")
+            ).to.be.revertedWith("OnlySeigniorageCommitteeError")
         })
 
         it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
@@ -3505,7 +3505,7 @@ describe('TON Staking V2.5', () => {
                 l1BridgeRegistry.connect(addr1).restoreCandidateAddOn(
                     legacySystemConfig.address, false
                 )
-            ).to.be.revertedWith("PermissionError")
+            ).to.be.revertedWith("OnlySeigniorageCommitteeError")
         })
 
         it('restore CandidateAddOn (titanCandidateAddOn) : Only rejected layers can be restored.', async () => {
