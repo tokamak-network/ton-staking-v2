@@ -47,10 +47,9 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
 
     /**
      * @notice Event occurs when the transfer manager
-     * @param previousManager   the previous manager address
      * @param newManager        the new manager address
      */
-    event TransferredManager(address previousManager, address newManager);
+    event TransferredManager(address newManager);
 
     /**
      * @notice Event occurs when adding the operator
@@ -151,8 +150,8 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     function transferManager(address newManager) external nonZeroAddress(newManager) onlyOwnerOrManager {
         if (manager == newManager) revert SameAddressError();
 
-        emit TransferredManager(manager, newManager);
         manager = newManager;
+        emit TransferredManager(newManager);
     }
 
     /**
@@ -243,9 +242,9 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     function acquireManager() external {
         require (msg.sender != manager, "already manager");
         require (msg.sender == IRollupConfig(rollupConfig).unsafeBlockSigner(), "not config's seigniorageReceiver");
-
-        emit TransferredManager(manager, msg.sender);
         manager = msg.sender;
+
+        emit TransferredManager(msg.sender);
     }
 
     /**
