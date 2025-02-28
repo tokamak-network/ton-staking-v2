@@ -191,7 +191,8 @@ contract ProxyCoinage is ProxyStorage, AuthControlCoinage, IProxyEvent, IProxyAc
     function _setAliveImplementation2(address newImplementation, bool _alive)
         internal
     {
-        aliveImplementation[newImplementation] = _alive;
+        if(_alive) aliveImplementation[newImplementation] = _alive;
+        else delete aliveImplementation[newImplementation];
         emit SetAliveImplementation(newImplementation, _alive);
     }
 
