@@ -357,9 +357,13 @@ contract DAOCommittee_V1 is
 
     /// @notice Retires member
     /// @return Whether or not the execution succeeded
-    function retireMember() onlyMemberContract external returns (bool) {
+    function retireMember() external returns (bool) {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
+        require(
+            candidateInfo.memberJoinedTime > 0,
+            "DAOCommittee: not a member"
+        );
         require(
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
