@@ -703,9 +703,10 @@ describe('TON Staking V2.5', () => {
             const selector2 = encodeFunctionSignature("minDepositGasLimit()");
             const selector3 = encodeFunctionSignature("setMinDepositGasLimit(uint32)");
             const selector4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+            const selector8 = encodeFunctionSignature("requestWithdrawal(address,uint256)");
 
             let functionBytecodes = [
-                selector1, selector2, selector3, selector4 ];
+                selector1, selector2, selector3, selector4, selector8 ];
 
             const index = 1;
             expect(await depositManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
@@ -733,6 +734,7 @@ describe('TON Staking V2.5', () => {
             expect(await depositManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(depositManagerV1_1.address)
             expect(await depositManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(depositManagerV1_1.address)
             expect(await depositManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(depositManagerV1_1.address)
+            expect(await depositManagerProxy.getSelectorImplementation2(selector8)).to.be.eq(depositManagerV1_1.address)
 
         })
 

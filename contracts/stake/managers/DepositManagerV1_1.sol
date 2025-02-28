@@ -24,6 +24,10 @@ error WithdrawError();
 error SwapTonTransferError();
 error ZeroValueError();
 
+interface ILayer2Registry {
+  function layer2s(address layer2) external view returns (bool);
+}
+
 interface ILayer2 {
     function operator() external view returns (address);
 }
@@ -77,9 +81,17 @@ contract DepositManagerV1_1 is
     bytes4 internal constant SELECTOR_ON_WITHDRAW = 0xf850ffaa; //onWithdraw(address,address,uint256)
     bytes4 internal constant SELECTOR_SWAP_TOON_AND_TRANSFER = 0xe3b99e85; //swapToTONAndTransfer(address,uint256)
 
+
+    modifier onlyLayer2(address layer2) {
+        require(ILayer2Registry(_registry).layer2s(layer2));
+        _;
+    }
+
     ////////////////////
     // Events
     ////////////////////
+
+    event WithdrawalRequested(address indexed layer2, address depositor, uint256 amount);
 
     /**
      * @notice Event that occurs when calling the withdrawAndDepositL2 function
@@ -204,5 +216,36 @@ contract DepositManagerV1_1 is
         emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
         emit WithdrawalAndDeposited(layer2, msg.sender, amount);
         return true;
+    }
+
+
+    function requestWithdrawal(address layer2, uint256 amount) external returns (bool) {
+        return _requestWithdrawal(layer2, amount, _getDelayBlocks(layer2));
+    }
+
+    function _requestWithdrawal(address layer2, uint256 amount, uint256 delay) internal onlyLayer2(layer2) returns (bool) {
+        require(amount > 0, "DepositManager: amount must not be zero");
+        require(amount < type(uint128).max, "Out of range");
+
+        // uint256 delay = globalWithdrawalDelay > withdrawalDelay[layer2] ? globalWithdrawalDelay : withdrawalDelay[layer2];
+        _withdrawalRequests[layer2][msg.sender].push(WithdrawalReqeust({
+        withdrawableBlockNumber: uint128(block.number + delay),
+        amount: uint128(amount),
+        processed: false
+        }));
+
+        _pendingUnstaked[layer2][msg.sender] = _pendingUnstaked[layer2][msg.sender] + amount;
+        _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] + amount;
+        _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] + amount;
+
+        emit WithdrawalRequested(layer2, msg.sender, amount);
+
+        require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount));
+
+        return true;
+    }
+
+    function _getDelayBlocks(address layer2) internal view returns (uint256){
+        return  globalWithdrawalDelay > withdrawalDelay[layer2] ? globalWithdrawalDelay : withdrawalDelay[layer2];
     }
 }

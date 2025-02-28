@@ -629,8 +629,9 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             const selector_5 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector_6 = encodeFunctionSignature("layer2Manager()");
             const selector_7 = encodeFunctionSignature("setAddresses(address,address)");
+            const selector_8 = encodeFunctionSignature("requestWithdrawal(address,uint256)");
 
-            let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7];
+            let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7, selector_8];
 
             callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
                 [

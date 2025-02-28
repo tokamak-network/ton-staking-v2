@@ -610,9 +610,10 @@ describe('TON Staking V2.5', () => {
             const selector5 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector6 = encodeFunctionSignature("layer2Manager()");
             const selector7 = encodeFunctionSignature("setAddresses(address,address)");
+            const selector8 = encodeFunctionSignature("requestWithdrawal(address,uint256)");
 
             let functionBytecodes = [
-                selector1, selector2, selector3, selector4, selector5, selector6, selector7 ];
+                selector1, selector2, selector3, selector4, selector5, selector6, selector7, selector8 ];
 
             const index = 2;  //mainnet
             expect(await depositManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
@@ -635,6 +636,7 @@ describe('TON Staking V2.5', () => {
             expect(await depositManagerProxy.getSelectorImplementation2(selector5)).to.be.eq(depositManagerV1_1.address)
             expect(await depositManagerProxy.getSelectorImplementation2(selector6)).to.be.eq(depositManagerV1_1.address)
             expect(await depositManagerProxy.getSelectorImplementation2(selector7)).to.be.eq(depositManagerV1_1.address)
+            expect(await depositManagerProxy.getSelectorImplementation2(selector8)).to.be.eq(depositManagerV1_1.address)
 
         })
 
