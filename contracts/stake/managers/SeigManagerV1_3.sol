@@ -81,6 +81,12 @@ contract SeigManagerV1_3 is
     DSMath,
     SeigManagerV1_3Storage
 {
+
+    modifier whenNotPaused() {
+        require(!paused, "Pausable: paused");
+        _;
+    }
+
     //////////////////////////////
     // Events
     //////////////////////////////
@@ -148,6 +154,8 @@ contract SeigManagerV1_3 is
      */
     event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
 
+    event Paused(address account);
+
     //////////////////////////////
     // onlyOwner
     //////////////////////////////
@@ -180,6 +188,15 @@ contract SeigManagerV1_3 is
         require(layer2StartBlock == 0, 'Only possible when layer2StartBlock is 0');
         l2RewardPerUint = 0;
     }
+
+    function pause() public onlyPauser whenNotPaused {
+        require (_pausedBlock < _lastSeigBlock, "updateSeigniorage required");
+
+        _pausedBlock = block.number;
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
 
     //////////////////////////////
     // onlyLayer2Manager

@@ -593,12 +593,15 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+            const selector22 = encodeFunctionSignature("pause()");
+
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
                 selector11, selector12, selector13, selector14, selector15,
-                selector16,selector17, selector18, selector19, selector20
+                selector16,selector17, selector18, selector19, selector20,
+                selector22
             ];
 
             callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
