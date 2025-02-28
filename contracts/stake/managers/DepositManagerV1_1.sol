@@ -190,7 +190,7 @@ contract DepositManagerV1_1 is
                 msg.sender,
                 tonAmount,
                 _minDepositGasLimit,
-                '0x'
+                ''
             );
 
             bal = IERC20(_ton).balanceOf(portal) - bal;
@@ -205,7 +205,7 @@ contract DepositManagerV1_1 is
                 msg.sender,
                 tonAmount,
                 _minDepositGasLimit,
-                '0x'
+                ''
             );
 
             bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
