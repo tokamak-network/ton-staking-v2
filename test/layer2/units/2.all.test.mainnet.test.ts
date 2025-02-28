@@ -555,16 +555,13 @@ describe('TON Staking V2.5', () => {
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
             const selector21 = encodeFunctionSignature("resetL2RewardPerUint()");
-            const selector22 = encodeFunctionSignature("pause()");
-
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
                 selector11, selector12, selector13, selector14, selector15
                 , selector16,
-                selector17, selector18, selector19, selector20, selector21,
-                selector22
+                selector17, selector18, selector19, selector20, selector21
             ];
             const index = 1;
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
@@ -602,8 +599,6 @@ describe('TON Staking V2.5', () => {
             expect(await seigManagerProxy.getSelectorImplementation2(selector19)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector20)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector21)).to.be.eq(seigManagerV1_3.address)
-            expect(await seigManagerProxy.getSelectorImplementation2(selector22)).to.be.eq(seigManagerV1_3.address)
-
         })
 
         it('DepositManager register function ', async () => {
