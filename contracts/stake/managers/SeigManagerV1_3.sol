@@ -340,9 +340,8 @@ contract SeigManagerV1_3 is
 
         // L2 seigs settlement
         uint256 tempL2RewardPerUint = l2RewardPerUint;
+        if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
         if (layer2Allowed) {
-            if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
-
             if (
                 tempL2RewardPerUint != 0 &&
                 (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) &&
