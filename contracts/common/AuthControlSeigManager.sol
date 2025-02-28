@@ -36,6 +36,11 @@ contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessCon
         _;
     }
 
+    modifier onlyChallengerOrAdmin() {
+        require(isAdmin(msg.sender) || hasRole(CHALLENGER_ROLE, msg.sender), "not onlyChallengerOrAdmin");
+        _;
+    }
+
     /// @dev add admin
     /// @param account  address to add
     function addAdmin(address account) public virtual onlyOwner {
@@ -50,7 +55,7 @@ contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessCon
         grantRole(OPERATOR_ROLE, account);
     }
 
-    function addChallenger(address account) public virtual onlyMinterOrAdmin {
+    function addChallenger(address account) public virtual onlyChallengerOrAdmin {
         grantRole(CHALLENGER_ROLE, account);
     }
 
