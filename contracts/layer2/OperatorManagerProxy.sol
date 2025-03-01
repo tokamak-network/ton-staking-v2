@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @title
 /// @notice
 contract OperatorManagerProxy is Proxy, ERC1967Upgrade, Ownable {
-    address public immutable rollupConfig;
+    address public rollupConfig;
 
     constructor(address _rollupConfig) {
         rollupConfig = _rollupConfig;
