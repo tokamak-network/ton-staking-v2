@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IWTON } from "../stake/interfaces/IWTON.sol";
+import { IRollupConfig } from "../layer2/interfaces/IRollupConfig.sol";
+import { ILayer2Manager } from "../layer2/interfaces/ILayer2Manager.sol";
+import { IDepositManager } from "../stake/interfaces/IDepositManager.sol";
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./OperatorManagerStorage.sol";
 
@@ -15,30 +20,6 @@ error TransferEthError();
 error ParameterError();
 error SameAddressError();
 error SameError();
-
-interface IWTON {
-     function swapToTON(uint256 wtonAmount) external returns (bool);
-}
-
-interface IRollupConfig {
-    function unsafeBlockSigner() external view returns (address);
-}
-
-interface ILayer2Manager {
-    function candidateAddOnOfOperator(address operator) external view returns (address);
-    function checkL1Bridge(address _rollupConfig) external view returns (bool result, address l1Bridge, address portal, address l2Ton);
-    function checkL1BridgeDetail(address _rollupConfig) external view returns
-        (bool result, address l1Bridge, address portal, address l2Ton,
-        uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit);
-}
-
-interface IDepositManager {
-    function deposit(address layer2, uint256 amount) external returns (bool);
-    function deposit(address layer2, address to, uint256 amount) external returns (bool);
-    function requestWithdrawal(address layer2, uint256 amount) external returns (bool);
-    function processRequest(address layer2, bool receiveTON) external returns (bool);
-    function processRequests(address layer2, uint256 n, bool receiveTON) external returns (bool);
-}
 
 /// @title
 /// @notice
