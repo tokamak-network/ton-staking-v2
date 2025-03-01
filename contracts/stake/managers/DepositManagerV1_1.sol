@@ -62,6 +62,9 @@ interface IIERC20 {
     function ton() external view returns (address);
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
 }
+interface IOperator {
+    function checkL1Bridge() external view returns (bool,address,address,address,uint8,uint8,bool,bool);
+}
 
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
@@ -75,12 +78,7 @@ contract DepositManagerV1_1 is
 {
     using SafeERC20 for IERC20;
 
-    address internal constant LEGACY_ERC20_NATIVE_TOKEN =
-        0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
-    bytes4 internal constant SELECTOR_CHECK_L1_BRIDGE = 0x632b03ad; //checkL1Bridge()
-    bytes4 internal constant SELECTOR_ON_WITHDRAW = 0xf850ffaa; //onWithdraw(address,address,uint256)
-    bytes4 internal constant SELECTOR_SWAP_TOON_AND_TRANSFER = 0xe3b99e85; //swapToTONAndTransfer(address,uint256)
-
+    address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
 
     modifier onlyLayer2(address layer2) {
         require(ILayer2Registry(_registry).layer2s(layer2));
@@ -143,9 +141,8 @@ contract DepositManagerV1_1 is
             l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
 
         // require(operator.code.length != 0, 'not operator contract');
-        // (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
+        (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
 
-        (bool success, bytes memory data) = operator.call(abi.encode(SELECTOR_CHECK_L1_BRIDGE));
         if (!success) revert CheckL1BridgeError(1);
 
         // require(success, 'false checkL1Bridge');
