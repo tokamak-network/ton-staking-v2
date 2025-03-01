@@ -60,10 +60,6 @@ contract AuthControlL1BridgeRegistry is AuthRoleL1BridgeRegistry, ERC165Storage,
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function transferOwnership(address newAdmin) public virtual onlyOwner {
-        transferAdmin(newAdmin);
-    }
-
     function renounceOwnership() public {
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
