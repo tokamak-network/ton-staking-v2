@@ -86,10 +86,6 @@ contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessCon
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function transferOwnership(address newAdmin) public virtual onlyOwner {
-        transferAdmin(newAdmin);
-    }
-
     function renounceOwnership() public onlyOwner {
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
