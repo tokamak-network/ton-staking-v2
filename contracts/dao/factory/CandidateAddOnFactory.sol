@@ -1,25 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { ICandidateAddOn } from "../interfaces/ICandidateAddOn.sol";
 import { CandidateAddOnProxy } from "../CandidateAddOnProxy.sol";
-
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./CandidateAddOnFactoryStorage.sol";
-interface ICandidateAddOn {
-    function initialize(
-        address _candidate,
-        string memory _memo,
-        address _committee,
-        address _seigManager,
-        address _ton,
-        address _wton
-    ) external;
-}
-
-interface IOnDemandL1BridgeRegistry {
-    function exists(address _rollupConfig) external view returns (bool);
-}
 
 contract CandidateAddOnFactory is ProxyStorage, AccessibleCommon, CandidateAddOnFactoryStorage {
 
