@@ -82,6 +82,8 @@ contract SeigManagerV1_3 is
     SeigManagerV1_3Storage
 {
 
+    uint256 internal constant WEI_UNIT = 1e18;
+
     modifier whenNotPaused() {
         require(!paused, "Pausable: paused");
         _;
@@ -340,7 +342,7 @@ contract SeigManagerV1_3 is
 
         // L2 seigs settlement
         uint256 tempL2RewardPerUint = l2RewardPerUint;
-        if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+        if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * WEI_UNIT) / totalLayer2TVL);
         if (layer2Allowed) {
             if (
                 tempL2RewardPerUint != 0 &&
@@ -349,7 +351,7 @@ contract SeigManagerV1_3 is
             ) {
                 layer2Seigs =
                     tempL2RewardPerUint *
-                    (oldLayer2Info.layer2Tvl / 1e18) -
+                    (oldLayer2Info.layer2Tvl / WEI_UNIT) -
                     oldLayer2Info.initialDebt;
             }
         }
@@ -389,7 +391,7 @@ contract SeigManagerV1_3 is
     function unSettledReward(address layer2) public view returns (uint256 amount) {
         Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
         if (layer2Info.layer2Tvl != 0)
-            amount = l2RewardPerUint * (layer2Info.layer2Tvl / 1e18) - layer2Info.initialDebt;
+            amount = l2RewardPerUint * (layer2Info.layer2Tvl / WEI_UNIT) - layer2Info.initialDebt;
     }
 
     function unallocatedSeigniorage() external view returns (uint256 amount) {
@@ -667,7 +669,7 @@ contract SeigManagerV1_3 is
 
         // L2 seigs settlement
         if (layer2Allowed) {
-            if (l2TotalSeigs != 0) l2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+            if (l2TotalSeigs != 0) l2RewardPerUint += ((l2TotalSeigs * WEI_UNIT) / totalLayer2TVL);
 
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
@@ -680,7 +682,7 @@ contract SeigManagerV1_3 is
                         newLayer2Info.initialDebt += layer2Seigs;
                     }
                 } else if (_lastCommitBlock[msg.sender] == 0) {
-                    newLayer2Info.initialDebt = (l2RewardPerUint * oldLayer2Info.layer2Tvl) / 1e18;
+                    newLayer2Info.initialDebt = (l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UNIT;
                 }
             }
 
