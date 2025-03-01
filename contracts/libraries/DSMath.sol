@@ -3,13 +3,19 @@ pragma solidity ^0.8.4;
 
 contract DSMath {
   function add(uint x, uint y) internal pure returns (uint z) {
-    require((z = x + y) >= x, "ds-math-add-overflow");
+    unchecked {
+      require((z = x + y) >= x, "ds-math-add-overflow");
+    }
   }
   function sub(uint x, uint y) internal pure returns (uint z) {
-    require((z = x - y) <= x, "ds-math-sub-underflow");
+    unchecked {
+      require((z = x - y) <= x, "ds-math-sub-underflow");
+    }
   }
   function mul(uint x, uint y) internal pure returns (uint z) {
-    require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    unchecked {
+      require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    }
   }
 
   function min(uint x, uint y) internal pure returns (uint z) {
