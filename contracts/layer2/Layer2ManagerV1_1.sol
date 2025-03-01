@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+
+import { IIDAOCommittee } from "../dao/interfaces/IIDAOCommittee.sol";
+import { IOperatorManagerFactory } from "../layer2/interfaces/IOperatorManagerFactory.sol";
+import { IL1BridgeRegistry } from "../layer2/interfaces/IL1BridgeRegistry.sol";
+
+import { IOptimismSystemConfig } from "../layer2/interfaces/IOptimismSystemConfig.sol";
+import { IOptimismPortal } from "../layer2/interfaces/IOptimismPortal.sol";
+import { IStandardBridge } from "../layer2/interfaces/IStandardBridge.sol";
+import { IOperator } from "../layer2/interfaces/IOperator.sol";
+
+import { IIDepositManager } from "../stake/interfaces/IIDepositManager.sol";
+import { ISeigManager } from "../stake/interfaces/ISeigManager.sol";
+import { ITON } from "../stake/interfaces/ITON.sol";
+import { IWTON } from "../stake/interfaces/IWTON.sol";
+
 import "./Layer2ManagerStorage.sol";
 import "../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
@@ -33,64 +48,9 @@ error ExcludeError();
  */
 error OnApproveError(uint x);
 
-interface IL1BridgeRegistry {
-    function getRollupInfo(address rollupConfig) external view returns (
-        uint8   rollupType,
-        address l2TON,
-        bool    rejectedSeigs,
-        bool    rejectedL2Deposit,
-        string  memory name
-    );
-    function registeredNames(bytes32 byteName) external view returns (bool);
-    function l2TON(address rollupConfig) external view returns (address);
-    function rollupType(address rollupConfig) external view returns (uint8);
-    function checkLayer2TVL(address _rollupConfig) external view returns (bool result, uint256 amount);
-}
-
-interface OnApprove {
-    function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
-}
-
-interface IOptimismSystemConfig {
-    function optimismPortal() external view returns (address addr_);
-    function l1StandardBridge() external view returns (address addr_);
-}
-
-interface IStandardBridge {
-    function deposits(address, address) external view returns (uint256);
-}
-
-interface IOptimismPortal {
-    function depositedAmount() external view returns (uint256);
-}
-
-interface IIDAOCommittee {
-     function createCandidateAddOn(string calldata _memo, address _rollupConfig) external returns (address);
-}
-
-interface IIDepositManager {
-    function deposit(address layer2, address account, uint256 amount) external returns (bool);
-}
-
-interface IOperatorManagerFactory {
-    function createOperatorManager(address _rollupConfig) external returns (address);
-}
-
-interface ITON {
-    function approveAndCall(address spender, uint256 amount, bytes memory data) external returns (bool);
-}
-
-interface IWTON {
-     function swapFromTON(uint256 tonAmount) external returns (bool);
-}
-
-interface IOperator {
-    function isOperator(address addr) external view returns (bool);
-}
-
-interface ISeigManager {
-    function excludeFromSeigniorage(address _layer2) external returns (bool);
-}
+// interface OnApprove {
+//     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
+// }
 
 contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
