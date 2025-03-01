@@ -11,7 +11,7 @@ import "../interfaces/IProxyAction.sol";
 contract ProxyLayer2Manager is ProxyStorage, AuthControlLayer2Manager, IProxyEvent, IProxyAction
 {
 
-    /* ========== DEPENDENCIES ========== */
+    event SetProxyPause(bool _pause);
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -27,6 +27,8 @@ contract ProxyLayer2Manager is ProxyStorage, AuthControlLayer2Manager, IProxyEve
     /// @inheritdoc IProxyAction
     function setProxyPause(bool _pause) external override onlyOwner {
         pauseProxy = _pause;
+
+        emit SetProxyPause(_pause);
     }
 
     /// @notice Set implementation contract
