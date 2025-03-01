@@ -60,10 +60,6 @@ contract AuthControlLayer2Manager is AuthRoleLayer2Manager, ERC165Storage, Acces
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function transferOwnership(address newAdmin) public virtual onlyOwner {
-        transferAdmin(newAdmin);
-    }
-
     function renounceOwnership() public onlyOwner {
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
