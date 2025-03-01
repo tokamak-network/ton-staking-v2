@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IERC20 } from "../stake/interfaces/IERC20.sol";
+import { IOptimismSystemConfig } from "../layer2/interfaces/IOptimismSystemConfig.sol";
+import { ILayer2Manager } from "../layer2/interfaces/ILayer2Manager.sol";
+
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
 import "./L1BridgeRegistryStorage.sol";
@@ -28,20 +32,6 @@ error OnlyRejectedError();
 error NonRegisterdError();
 error BridgeError();
 error PortalError();
-
-interface IERC20 {
-    function balanceOf(address addr) external view returns (uint256);
-}
-
-interface IOptimismSystemConfig {
-    function l1StandardBridge() external view returns (address addr_);
-    function optimismPortal() external view returns (address addr_) ;
-}
-
-interface ILayer2Manager {
-    function pauseCandidateAddOn(address rollupConfig) external;
-    function unpauseCandidateAddOn(address rollupConfig) external;
-}
 
 contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage {
 
