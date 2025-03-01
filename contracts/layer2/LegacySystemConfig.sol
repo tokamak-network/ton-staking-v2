@@ -8,10 +8,6 @@ import "./LegacySystemConfigStorage.sol";
 
 contract LegacySystemConfig is Ownable, LegacySystemConfigStorage {
 
-    /* ========== CONSTRUCTOR ========== */
-    constructor() {
-    }
-
     modifier nonZero(uint256 value) {
         require(value != 0, "zero");
         _;
