@@ -11,7 +11,7 @@ import "../interfaces/IProxyAction.sol";
 contract Proxy is ProxyStorage, AccessibleCommon, IProxyEvent, IProxyAction
 {
 
-    /* ========== DEPENDENCIES ========== */
+   event SetProxyPause(bool _pause);
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -25,6 +25,8 @@ contract Proxy is ProxyStorage, AccessibleCommon, IProxyEvent, IProxyAction
     /// @inheritdoc IProxyAction
     function setProxyPause(bool _pause) external override onlyOwner {
         pauseProxy = _pause;
+
+        emit SetProxyPause(_pause);
     }
 
     /// @notice Set implementation contract
