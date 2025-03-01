@@ -11,7 +11,7 @@ import "../interfaces/IProxyAction.sol";
 contract ProxyL1BridgeRegistry is ProxyStorage, AuthControlL1BridgeRegistry, IProxyEvent, IProxyAction
 {
 
-    /* ========== DEPENDENCIES ========== */
+    event SetProxyPause(bool _pause);
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -27,6 +27,8 @@ contract ProxyL1BridgeRegistry is ProxyStorage, AuthControlL1BridgeRegistry, IPr
     /// @inheritdoc IProxyAction
     function setProxyPause(bool _pause) external override onlyOwner {
         pauseProxy = _pause;
+
+        emit SetProxyPause(_pause);
     }
 
     /// @notice Set implementation contract
