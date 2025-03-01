@@ -12,6 +12,7 @@ contract OperatorManagerProxy is Proxy, ERC1967Upgrade, Ownable {
     address public rollupConfig;
 
     constructor(address _rollupConfig) {
+        require (_rollupConfig != address(0), "zero rollupConfig");
         rollupConfig = _rollupConfig;
     }
 
