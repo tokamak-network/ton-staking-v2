@@ -62,6 +62,7 @@ contract OperatorManagerFactory is Ownable {
     event CreatedOperatorManager(address rollupConfig, address owner, address manager, address operatorManager);
 
     constructor(address _operatorManagerImplementation) {
+        require (_operatorManagerImplementation != address(0), "zero operatorManagerImp");
         operatorManagerImp = _operatorManagerImplementation;
     }
 
