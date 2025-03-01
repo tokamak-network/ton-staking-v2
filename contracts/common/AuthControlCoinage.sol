@@ -52,7 +52,7 @@ contract AuthControlCoinage is AuthRoleCoinage, ERC165Storage, AccessControl {
 
     /// @dev transfer admin
     /// @param newAdmin new admin address
-    function transferAdmin(address newAdmin) public virtual onlyOwner {
+    function transferAdmin(address newAdmin) public virtual {
         require(newAdmin != address(0), "Accessible: zero address");
         require(msg.sender != newAdmin, "Accessible: same admin");
 
