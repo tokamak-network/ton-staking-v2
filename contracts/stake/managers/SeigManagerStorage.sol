@@ -10,11 +10,11 @@ contract SeigManagerStorage   {
     // Constants
     //////////////////////////////
 
-    uint256 constant public RAY = 10 ** 27; // 1 RAY
+    uint256 constant public RAY = 1e27; // 1 RAY
     uint256 constant internal _DEFAULT_FACTOR = RAY;
 
     uint256 constant public MAX_VALID_COMMISSION = RAY; // 1 RAY
-    uint256 constant public MIN_VALID_COMMISSION = 10 ** 25; // 0.01 RAY
+    uint256 constant public MIN_VALID_COMMISSION = 0.01e27; // 0.01 RAY
 
     //////////////////////////////
     // Common contracts
