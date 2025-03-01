@@ -88,6 +88,10 @@ interface IOperator {
     function isOperator(address addr) external view returns (bool);
 }
 
+interface ISeigManager {
+    function excludeFromSeigniorage(address _layer2) external returns (bool);
+}
+
 contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
     /* ========== DEPENDENCIES ========== */
@@ -213,9 +217,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
 
-        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
-        if (!success) revert ExcludeError();
-
+        if (!ISeigManager(seigManager).excludeFromSeigniorage(_layer2)) revert ExcludeError();
     }
 
     /**
