@@ -78,6 +78,7 @@ contract DepositManagerV1_1 is
 {
     using SafeERC20 for IERC20;
 
+    uint256 internal constant GWEI_UNIT = 1e9;
     address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
 
     modifier onlyLayer2(address layer2) {
@@ -164,7 +165,7 @@ contract DepositManagerV1_1 is
         if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
 
         uint32 _minDepositGasLimit = 0;
-        if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210000; // minDepositGasLimit check
+        if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210_000; // minDepositGasLimit check
 
         if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
 
@@ -174,7 +175,7 @@ contract DepositManagerV1_1 is
 
         if (ton == address(0)) ton = IIERC20(_wton).ton();
         address _ton = ton;
-        uint256 tonAmount = amount / 1e9;
+        uint256 tonAmount = amount / GWEI_UNIT;
         uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
 
         if (allowance < tonAmount) {
