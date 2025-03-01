@@ -8,4 +8,8 @@ interface ILayer2Manager {
     function checkL1BridgeDetail(address _rollupConfig) external view returns
         (bool result, address l1Bridge, address portal, address l2Ton,
         uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit);
+
+    function updateSeigniorage(address rollupConfig, uint256 amount) external;
+    function rollupConfigOfOperator(address operator) external view returns (address);
+    function statusLayer2(address rollupConfig) external view returns (uint8);
 }

@@ -2,9 +2,15 @@
 pragma solidity ^0.8.4;
 
 import {DSMath} from '../../libraries/DSMath.sol';
+
 import {RefactorCoinageSnapshotI} from '../interfaces/RefactorCoinageSnapshotI.sol';
 import {IWTON} from '../../dao/interfaces/IWTON.sol';
 import {Layer2I} from '../../dao/interfaces/Layer2I.sol';
+import {ICandidate} from '../../dao/interfaces/ICandidate.sol';
+import {ILayer2Registry} from '../../dao/interfaces/ILayer2Registry.sol';
+import {ITON} from '../interfaces/ITON.sol';
+import {IL1BridgeRegistry} from '../../layer2/interfaces/IL1BridgeRegistry.sol';
+import {ILayer2Manager} from '../../layer2/interfaces/ILayer2Manager.sol';
 
 import '../../proxy/ProxyStorage.sol';
 import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
@@ -20,30 +26,6 @@ error InvalidCoinageError();
 error OnlyLayer2ManagerError();
 error Layer2TvlError();
 
-interface ITON {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-}
-
-interface ICandidate {
-    function updateSeigniorage() external returns (bool);
-}
-
-interface IL1BridgeRegistry {
-    function layer2TVL(address _rollupConfig) external view returns (uint256 amount);
-}
-
-interface ILayer2Manager {
-    function updateSeigniorage(address rollupConfig, uint256 amount) external;
-    function rollupConfigOfOperator(address operator) external view returns (address);
-    function statusLayer2(address rollupConfig) external view returns (uint8);
-}
-
-interface IILayer2Registry {
-    function layer2s(address layer2) external view returns (bool);
-    function numLayer2s() external view returns (uint256);
-    function layer2ByIndex(uint256 index) external view returns (address);
-}
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
  * For each commit by operator, operator (or user) will get seigniorage
@@ -403,18 +385,18 @@ contract SeigManagerV1_3 is
     }
 
     function stakeOfAllLayers() public view returns (uint256 amount) {
-        uint256 num = IILayer2Registry(_registry).numLayer2s();
+        uint256 num = ILayer2Registry(_registry).numLayer2s();
         for (uint256 i = 0; i < num; i++) {
-            address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+            address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
             address coin = address(_coinages[layer2]);
             if (coin != address(0)) amount += _coinages[layer2].totalSupply();
         }
     }
 
     function stakeOfAllLayersAt(uint256 snapshotId) public view returns (uint256 amount) {
-        uint256 num = IILayer2Registry(_registry).numLayer2s();
+        uint256 num = ILayer2Registry(_registry).numLayer2s();
         for (uint256 i = 0; i < num; i++) {
-            address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+            address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
             address coin = address(_coinages[layer2]);
             if (coin != address(0)) amount += _coinages[layer2].totalSupplyAt(snapshotId);
         }
