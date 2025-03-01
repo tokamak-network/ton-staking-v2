@@ -152,10 +152,6 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _;
     }
 
-    /* ========== CONSTRUCTOR ========== */
-    constructor() {
-    }
-
     /* ========== onlyOwner ========== */
 
     function setAddresses(
