@@ -75,6 +75,20 @@ contract DAOCommitteeProxy2 is
         }
     }
 
+    /// @inheritdoc IProxyAction2
+    function unsetSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) public override onlyOwner2 {
+        require(_selectors.length > 0, "Proxy: _selectors's size is zero");
+        require(aliveImplementation[_imp], 'Proxy: _imp is not alive');
+        for (uint256 i = 0; i < _selectors.length; i++) {
+            require(selectorImplementation[_selectors[i]] == _imp, 'Proxy: same imp');
+            selectorImplementation[_selectors[i]] = address(0);
+            emit SetSelectorImplementation(_selectors[i], address(0));
+        }
+    }
+
     /* ========== Anyone can   ========== */
 
     /* ========== VIEW ========== */

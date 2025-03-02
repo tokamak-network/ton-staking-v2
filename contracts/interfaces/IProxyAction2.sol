@@ -31,6 +31,13 @@ interface IProxyAction2 {
         address _imp
     ) external  ;
 
+    /// @dev unset selectors of Implementation
+    /// @param _selectors being added selectors
+    /// @param _imp delete implementation address
+    function unsetSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) external ;
 
     /// anybody
 
