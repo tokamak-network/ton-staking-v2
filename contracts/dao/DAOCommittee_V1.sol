@@ -14,7 +14,6 @@ import {AccessControl} from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
-import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
@@ -53,7 +52,6 @@ contract DAOCommittee_V1 is
     StorageStateCommittee,
     AccessControl,
     ERC165A,
-    ProxyStorage2,
     StorageStateCommitteeV2
 {
     using BytesLib for bytes;
