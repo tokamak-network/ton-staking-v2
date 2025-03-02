@@ -107,9 +107,10 @@ contract DAOCommitteeProxy2 is
     function getSelectorImplementation2(
         bytes4 _selector
     ) public view override returns (address impl) {
-        if (selectorImplementation[_selector] == address(0)) return proxyImplementation[0];
-        else if (aliveImplementation[selectorImplementation[_selector]]) {
-            return selectorImplementation[_selector];
+        address selectorImp = selectorImplementation[_selector]; 
+        if (selectorImp == address(0)) return proxyImplementation[0];
+        else if (aliveImplementation[selectorImp]) {
+            return selectorImp;
         } else return proxyImplementation[0];
     }
 
