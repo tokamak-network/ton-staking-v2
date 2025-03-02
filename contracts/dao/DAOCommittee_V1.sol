@@ -588,17 +588,6 @@ contract DAOCommittee_V1 is
         return abi.encodePacked(a);
     }
 
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
-    }
-
     function payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
@@ -691,16 +680,6 @@ contract DAOCommittee_V1 is
         );
 
         return agendaID;
-    }
-
-    function _call(address target, uint256 paramLength, bytes memory param) internal returns (bool) {
-        bool result;
-        assembly {
-            let data := add(param, 32)
-            result := call(sub(gas(), 40000), target, 0, data, paramLength, 0, 0)
-        }
-
-        return result;
     }
 
     function isCandidate(address _candidate) external view returns (bool) {
