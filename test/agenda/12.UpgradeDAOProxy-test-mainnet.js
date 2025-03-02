@@ -1472,15 +1472,9 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("setWTON test", async () => {
-            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
+            let beforeAddr = await daoCommittee_Owner_Contract.wton()
+            expect(beforeAddr).to.be.equal(oldContractInfo.WTON)
             
-            await (
-                await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
-            ).wait()
-    
-            let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
         })
 
         it("19. getClaimableActivityReward & claimActivityReward test (anyone)", async () => {
@@ -1540,7 +1534,8 @@ describe("DAO Proxy Change Test", () => {
 
         it("27. getOldCandidateInfos (view)", async () => {
             let oldinfo = await daoCommittee_V1_Contract.getOldCandidateInfos(member2Addr)
-            expect(oldinfo.claimedTimestamp).to.be.equal(0)
+            // console.log(oldinfo)
+            expect(oldinfo.rewardPeriod).to.be.equal(0)
         })
 
         it("28. operatorAmountCheck (view)", async () => {

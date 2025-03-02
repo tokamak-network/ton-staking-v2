@@ -5,7 +5,7 @@
   "abi": [
     {
       "inputs": [],
-      "name": "owner",
+      "name": "unsafeBlockSigner",
       "outputs": [
         {
           "internalType": "address",
