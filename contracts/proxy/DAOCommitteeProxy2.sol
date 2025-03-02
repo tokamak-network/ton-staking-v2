@@ -137,7 +137,7 @@ contract DAOCommitteeProxy2 is
     function _fallback() internal {
         address _impl = getSelectorImplementation2(msg.sig);
 
-        require(_impl != address(0) && !pauseProxy, 'Proxy: impl OR proxy is false');
+        require(_impl != address(0), 'Proxy: impl OR proxy is false');
 
         assembly {
             // Copy msg.data. We take full control of memory in this inline assembly
