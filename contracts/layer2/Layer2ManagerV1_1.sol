@@ -143,6 +143,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      */
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
+    event TransferWTON(address rollupConfig, address to, uint256 amount);
+
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
@@ -256,7 +258,11 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      */
     function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
 
-        IERC20(wton).safeTransfer(rollupConfigInfo[rollupConfig].operatorManager, amount);
+        address to = rollupConfigInfo[rollupConfig].operatorManager;
+
+        IERC20(wton).safeTransfer(to, amount);
+
+        emit TransferWTON(rollupConfig, to, amount);
     }
 
     /* ========== Anybody can execute ========== */
