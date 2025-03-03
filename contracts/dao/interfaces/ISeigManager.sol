@@ -29,4 +29,8 @@ interface ISeigManager {
     function updateSeigniorage() external returns (bool);
     function onDeposit(address layer2, address account, uint256 amount) external returns (bool);
     function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
+
+    function getOperatorAmount(address layer2) external view returns (uint256);
+    function minimumAmount() external view returns (uint256);
+
 }

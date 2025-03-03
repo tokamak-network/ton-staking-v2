@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import { ICandidate } from "./interfaces/ICandidate.sol";
 import { ITarget } from "./interfaces/ITarget.sol";
+import { IPauser } from "./interfaces/IPauser.sol";
 
 import { AccessControl } from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
@@ -10,11 +11,6 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
-
-interface IPauser {
-    function pause() external ;
-    function unpause() external;
-}
 
 contract DAOCommitteeOwner is
     StorageStateCommittee,

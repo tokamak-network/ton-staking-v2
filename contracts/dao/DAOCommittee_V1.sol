@@ -7,6 +7,9 @@ import { ICandidateFactory } from "./interfaces/ICandidateFactory.sol";
 import { ICandidate } from "./interfaces/ICandidate.sol";
 import { ILayer2 } from "./interfaces/ILayer2.sol";
 import { IDAOAgendaManager } from "./interfaces/IDAOAgendaManager.sol";
+import { ISeigManager } from "./interfaces/ISeigManager.sol";
+import { ICoinage } from "./interfaces/ICoinage.sol";
+import { ICandidateAddOnFactory } from "./interfaces/ICandidateAddOnFactory.sol";
 import { LibAgenda } from "./lib/Agenda.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
@@ -17,27 +20,6 @@ import "./StorageStateCommittee.sol";
 import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
-
-interface IISeigManager {
-    function coinages(address layer2) external view returns (address);
-    function getOperatorAmount(address layer2) external view returns (uint256);
-    function minimumAmount() external view returns (uint256);
-}
-
-interface IICoinage {
-    function balanceOf(address account) external view returns (uint256);
-}
-
-interface ICandidateAddOnFactory {
-   function deploy(
-        address _sender,
-        string memory _name,
-        address _committee,
-        address _seigManager
-    )
-        external
-        returns (address);
-}
 
 /**
  * @notice Error that occurs when creating Candidate
@@ -306,7 +288,7 @@ contract DAOCommittee_V1 is
     {
         address newMember = ICandidate(msg.sender).candidate();
         uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
-        uint256 minimumAmount = IISeigManager(address(seigManager)).minimumAmount();
+        uint256 minimumAmount = ISeigManager(address(seigManager)).minimumAmount();
         require(operatorAmount >= minimumAmount, "need more operatorDeposit");
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
@@ -798,7 +780,7 @@ contract DAOCommittee_V1 is
     }
 
     function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
-        address coinage = IISeigManager(address(seigManager)).coinages(layer2);
-        operatorAmount = IICoinage(coinage).balanceOf(operator);
+        address coinage = ISeigManager(address(seigManager)).coinages(layer2);
+        operatorAmount = ICoinage(coinage).balanceOf(operator);
     }
 }
