@@ -104,11 +104,6 @@
           "internalType": "address",
           "name": "layer2",
           "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "_isSenderOperator",
-          "type": "bool"
         }
       ],
       "name": "estimatedDistribute",

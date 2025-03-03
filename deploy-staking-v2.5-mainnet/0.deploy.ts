@@ -17,6 +17,7 @@ import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/
 import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { SeigManagerV1_4 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_4"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
@@ -256,6 +257,13 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     //==== SeigManagerV1_3 =================================
     const SeigManagerV1_3 = await deploy("SeigManagerV1_3", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    //==== SeigManagerV1_4 =================================
+    const SeigManagerV1_4 = await deploy("SeigManagerV1_4", {
         from: deployer,
         args: [],
         log: true

@@ -197,9 +197,8 @@ describe('L1BridgeRegistry', () => {
             const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector11 = encodeFunctionSignature("layer2Manager()");
             const selector12 = encodeFunctionSignature("layer2StartBlock()");
-            const selector13 = encodeFunctionSignature("l2RewardPerUint()");
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
-            const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+            const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address)");
 
             const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
             const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
@@ -210,7 +209,7 @@ describe('L1BridgeRegistry', () => {
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
-                selector11, selector12, selector13, selector14, selector15
+                selector11, selector12, selector14, selector15
                 , selector16,
                 selector17, selector18, selector19, selector20
             ];
