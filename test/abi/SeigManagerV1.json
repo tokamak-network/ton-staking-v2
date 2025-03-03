@@ -4,6 +4,57 @@
   "sourceName": "contracts/stake/managers/SeigManagerV1_1.sol",
   "abi": [
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "l2RewardAtBlock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "l2UpdateBlock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2UpdateBlockLength",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "l1BridgeRegistry",
       "outputs": [
@@ -53,11 +104,6 @@
           "internalType": "address",
           "name": "layer2",
           "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "_isSenderOperator",
-          "type": "bool"
         }
       ],
       "name": "estimatedDistribute",
@@ -181,7 +227,22 @@
         },
         {
           "internalType": "uint256",
-          "name": "initialDebt",
+          "name": "reward",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastBlock",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastIndex",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startBlock",
           "type": "uint256"
         }
       ],

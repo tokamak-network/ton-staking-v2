@@ -20,7 +20,6 @@ async function setSeigManagerV1_3() {
   const l1BridgeRegistryAddress ="0xC8479A9F10a1E6275e0bFC4F9e058631fe63b8dC";
   const layer2ManagerAddress ="0xffb690feeFb2225394ad84594C4a270c04be0b55";
   // const layer2StartBlock
-  // const l2RewardPerUint
   // const totalLayer2TVL
 
   const CandidateAddOnFactoryProxyAddress ="0x63c95fbA722613Cb4385687E609840Ed10262434";
@@ -68,9 +67,6 @@ async function setSeigManagerV1_3() {
 
   let layer2StartBlock = await seigManagerV1_3.layer2StartBlock()
   console.log('layer2StartBlock', layer2StartBlock)
-
-  let l2RewardPerUint = await seigManagerV1_3.l2RewardPerUint()
-  console.log('l2RewardPerUint', l2RewardPerUint)
 
   let totalLayer2TVL = await seigManagerV1_3.totalLayer2TVL()
   console.log('totalLayer2TVL', totalLayer2TVL)

@@ -43,11 +43,11 @@ TThe withdrawAndDepositL2 function is a function that withdraw the staking amoun
 
 ## Stop providing seigniorage to the L2 sequencer in CandidateAddOn
 
-The Seigniorage Committee can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. This function exists just in case.
+The Seigniorage Committee (DAO) can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. Unsettled seigniorage to the layer 2 sequencer can no longer be settled. This function exists just in case.
 
 ## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee.
+Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee(DAO). Layer2Candidate's seigniorage that has not been settled before cannot be received. Layer2Candidate's seigniorage can be received again from this point.
 
 # TON Stake Contracts
 
@@ -546,24 +546,23 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+    - function depositByCandidateAddOn() external onlyCandidateAddOn
 
         ```jsx
         /**
         * @notice Deposit wton amount to DepositManager as named Layer2
-        * @param amount    the deposit wton amount (ray)
         */
-        function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+        function depositByCandidateAddOn() external onlyCandidateAddOn
         ```
 
-    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+    - function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
 
         ```jsx
         /**
-         * @notice Claim WTON to a manager
-        * @param amount    the deposit wton amount (ray)
+        * @notice Claim WTON to a manager
+        * @param flagTon   If it is true, claim with ton, otherwise claim with wton
         */
-        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
+        function claimByCandidateAddOn(bool flagTon) external onlyCandidateAddOn
         ```
 
 - View Functions
