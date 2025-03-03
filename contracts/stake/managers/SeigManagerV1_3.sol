@@ -631,10 +631,6 @@ contract SeigManagerV1_3 is
         }
 
         uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
-
-        // pseig
-        // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
 
         // uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
