@@ -58,9 +58,9 @@ contract DAOCommittee_V1 is
 {
     using BytesLib for bytes;
 
-    bytes constant claimTONBytes = hex"ef0d5594";
-    bytes constant claimERC20Bytes = hex"f848091a";
-    bytes constant claimWTONBytes = hex"f52bba70";
+    bytes private constant claimTONBytes = hex"ef0d5594";
+    bytes private constant claimERC20Bytes = hex"f848091a";
+    bytes private constant claimWTONBytes = hex"f52bba70";
 
     enum ApplyResult { NONE, SUCCESS, NOT_ELECTION, ALREADY_COMMITTEE, SLOT_INVALID, ADD_MEMBER_FAIL, LOW_BALANCE }
 
