@@ -423,7 +423,7 @@ contract DAOCommittee_V1 is
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
-        require(agendaData.atomicExecute == true, "atomicExecute need true");
+        require(agendaData.atomicExecute, "atomicExecute need true");
 
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
@@ -715,7 +715,7 @@ contract DAOCommittee_V1 is
             ICandidate(info.candidateContract).isCandidateContract.selector
         );
 
-        if (supportIsCandidateContract == false) {
+        if (!supportIsCandidateContract) {
             return false;
         }
 
