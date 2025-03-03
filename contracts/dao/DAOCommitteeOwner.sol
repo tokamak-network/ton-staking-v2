@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import { ICandidate } from "./interfaces/ICandidate.sol";
-import { ITarget } from "./interfaces/ITarget.sol";
 
 import { AccessControl } from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
@@ -10,6 +9,25 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
+
+interface ITarget {
+    function hasRole(bytes32 role, address account) external view returns (bool);
+    function setSeigManager(address _seigManager) external;
+    function setGlobalWithdrawalDelay(uint256 globalWithdrawalDelay_) external;
+    function addMinter(address account) external;
+    function upgradeTo(address logic) external;
+    function setTON(address tonAddr) external;
+    function setWTON(address wtonAddr) external;
+    function setBurntAmountAtDAO(uint256 _burntAmountAtDAO) external;
+    function setLayer2Manager(address layer2Manager_) external;
+    function setL1BridgeRegistry(address l1BridgeRegistry_) external;
+    function setLayer2StartBlock(uint256 startBlock_) external;
+    function setImplementation2(address newImplementation, uint256 index, bool alive) external;
+    function setSelectorImplementations2(
+        bytes4[] calldata _selectors,
+        address _imp
+    ) external;
+}
 
 interface IPauser {
     function pause() external ;
