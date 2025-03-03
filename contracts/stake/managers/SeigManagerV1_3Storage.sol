@@ -29,7 +29,7 @@ contract SeigManagerV1_3Storage  {
 
 
     // ===============================
-    // L2 update seigniorage commit block:
+    // L2 update seigniorage commit block
     uint256[] public l2UpdateBlock;
 
     // Calculate seigniorage per liquidity for L2 update seigniorage commit block.

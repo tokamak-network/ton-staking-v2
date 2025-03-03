@@ -83,7 +83,7 @@ contract SeigManagerV1_3 is
 {
 
     uint256 internal constant WEI_UINT = 1e18;
-    uint256 internal constant MAX_LOOP_COUNT = 150;
+    uint256 internal constant MAX_LOOP_COUNT = 100;
 
     //////////////////////////////
     // Events
