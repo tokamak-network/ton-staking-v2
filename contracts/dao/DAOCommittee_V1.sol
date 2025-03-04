@@ -539,10 +539,11 @@ contract DAOCommittee_V1 is
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
-        uint256 wtonAmount = _toRAY(amount);
-        daoVault.claimERC20(wton,_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
+        
+        uint256 wtonAmount = _toRAY(amount);
+        daoVault.claimERC20(wton,_receiver, wtonAmount);
 
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
