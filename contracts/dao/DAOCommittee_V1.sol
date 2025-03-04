@@ -541,7 +541,7 @@ contract DAOCommittee_V1 is
 
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
-        
+
         uint256 wtonAmount = _toRAY(amount);
         daoVault.claimERC20(wton,_receiver, wtonAmount);
 
@@ -569,17 +569,6 @@ contract DAOCommittee_V1 is
 
     function toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
-    }
-
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
     }
 
     function payCreatingAgendaFee(address _creator) internal {
