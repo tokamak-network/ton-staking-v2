@@ -136,6 +136,9 @@ contract DAOCommittee_V1 is
     // Managing members
     function createCandidate(string calldata _memo)
         external
+        validSeigManager
+        validLayer2Registry
+        validCommitteeL2Factory
     {
         address _operator = msg.sender;
         require(!isExistCandidate(_operator), "DAOCommittee: candidate already registerd");
