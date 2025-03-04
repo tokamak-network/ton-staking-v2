@@ -403,7 +403,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     }
 
     function _checkL1BridgeDetail(address _rollupConfig)
-        public
+        internal
         view
         returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status,
         bool rejectedSeigs, bool rejectedL2Deposit)
