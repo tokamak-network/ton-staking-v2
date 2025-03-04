@@ -213,13 +213,16 @@ contract DAOCommitteeOwner is
             tailCandidate.indexMembers = _reducingMemberIndex;
             members[_reducingMemberIndex] = tailMember;
         }
-        reducingCandidate.indexMembers = 0;
-        if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
-            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
-        } else {
-            reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
+        
+        if(reducingMember != address(0)){
+            reducingCandidate.indexMembers = 0;
+            if (reducingCandidate.memberJoinedTime > reducingCandidate.claimedTimestamp) {
+                reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.memberJoinedTime);
+            } else {
+                reducingCandidate.rewardPeriod += (uint128(block.timestamp) - reducingCandidate.claimedTimestamp);
+            }
+            reducingCandidate.memberJoinedTime = 0;
         }
-        reducingCandidate.memberJoinedTime = 0;
 
         members.pop();
         maxMember = maxMember - 1;
