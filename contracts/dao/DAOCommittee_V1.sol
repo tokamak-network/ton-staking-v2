@@ -145,11 +145,6 @@ contract DAOCommittee_V1 is
         return super.supportsInterface(interfaceId);
     }
 
-    modifier onlyLayer2Manager() {
-        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
-        _;
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Managing members
     function createCandidate(string calldata _memo)
