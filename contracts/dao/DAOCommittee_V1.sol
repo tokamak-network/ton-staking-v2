@@ -159,10 +159,7 @@ contract DAOCommittee_V1 is
             candidateContract != address(0),
             "DAOCommittee: deployed candidateContract is zero"
         );
-        require(
-            _candidateInfos[_operator].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
-        );
+
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
             "DAOCommittee: failed to registerAndDeployCoinage"
@@ -594,10 +591,7 @@ contract DAOCommittee_V1 is
             _layer2 != address(0),
             "DAOCommittee: deployed candidateContract is zero"
         );
-        require(
-            _candidateInfos[_layer2].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
-        );
+
         ILayer2 layer2 = ILayer2(_layer2);
         require(
             layer2.isLayer2(),
