@@ -202,20 +202,18 @@ contract DAOCommittee_V1 is
         );
 
         if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
+            CandidateInfo storage candidateInfo = _candidateInfos[_operatorAddress];
+            CandidateInfo2 storage oldCandidateInfo = _oldCandidateInfos[_operatorAddress];
 
-            require(_oldCandidateInfos[_operatorAddress].candidateContract == address(0), "already migrated");
-
-            _oldCandidateInfos[_operatorAddress] = CandidateInfo2({
-                candidateContract: _candidateInfos[_operatorAddress].candidateContract,
-                newCandidate: candidateContract,
-                memberJoinedTime: _candidateInfos[_operatorAddress].memberJoinedTime,
-                indexMembers: _candidateInfos[_operatorAddress].indexMembers,
-                rewardPeriod: _candidateInfos[_operatorAddress].rewardPeriod,
-                claimedTimestamp: _candidateInfos[_operatorAddress].claimedTimestamp
-            });
-
-            _candidateInfos[_operatorAddress].candidateContract = candidateContract;
-
+            require(oldCandidateInfo.candidateContract == address(0), "already migrated");
+            oldCandidateInfo.candidateContract = candidateInfo.candidateContract;
+            oldCandidateInfo.newCandidate = candidateContract;
+            oldCandidateInfo.memberJoinedTime = candidateInfo.memberJoinedTime;
+            oldCandidateInfo.indexMembers = candidateInfo.indexMembers;
+            oldCandidateInfo.rewardPeriod = candidateInfo.rewardPeriod;
+            oldCandidateInfo.claimedTimestamp = candidateInfo.claimedTimestamp;
+            
+            candidateInfo.candidateContract = candidateContract;
         } else {
 
             _candidateInfos[_operatorAddress] = CandidateInfo({
