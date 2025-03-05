@@ -13,8 +13,8 @@ interface IOperateContract {
     function isOperator(address addr) external view returns (bool) ;
     function rollupConfig() external view returns (address) ;
     function manager() external view returns (address) ;
-    function claimByCandidateAddOn(uint256 amount, bool falgTon) external;
-    function depositByCandidateAddOn(uint256 amount) external ;
+    // function claimByCandidateAddOn(uint256 amount, bool falgTon) external;
+    // function depositByCandidateAddOn(uint256 amount) external ;
 }
 
 interface IISeigManager {
@@ -123,39 +123,36 @@ contract CandidateAddOnV1_1 is
     /* ========== Anybody ========== */
 
     /// @notice Call updateSeigniorage on SeigManager
-    /// @return Whether or not the execution succeeded
-    function updateSeigniorage() external returns (bool) {
-        return updateSeigniorage(2);
-    }
+    // /// @return Whether or not the execution succeeded
+    // function updateSeigniorage() external returns (bool) {
+    //     return updateSeigniorage(2);
+    // }
 
-    function updateSeigniorage(uint256 afterCall) public returns (bool) {
-        return updateSeigniorage(afterCall, true);
-    }
+    // function updateSeigniorage(uint256 afterCall) public returns (bool) {
+    //     return updateSeigniorage(afterCall, true);
+    // }
 
     /// @notice Call updateSeigniorage on SeigManager
-    /// @param afterCall    After running the update seigniorage, the option to run additional functions
-    ///                     0: none, 1: claim, 2: staking
-    /// @param flagTON      If it is true, claim with ton, otherwise claim with wton
     /// @return             Whether or not the execution succeeded
-    function updateSeigniorage(uint256 afterCall, bool flagTON) public returns (bool) {
+    function updateSeigniorage() public returns (bool) {
 
-        if (IOperateContract(candidate).isOperator(msg.sender)) {
-            require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");
-            if (afterCall != 0) {
-                uint256 amount = IERC20(wton).balanceOf(candidate);
-                if (amount!= 0) {
-                    if (afterCall == 2) {
-                        IOperateContract(candidate).depositByCandidateAddOn(amount);
-                    } else if (afterCall == 1) {
-                        IOperateContract(candidate).claimByCandidateAddOn(amount, flagTON);
-                    }
-                }
-            }
-        } else {
-            require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
-        }
+        // if (IOperateContract(candidate).isOperator(msg.sender)) {
+        //     require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");
+        //     if (afterCall != 0) {
+        //         uint256 amount = IERC20(wton).balanceOf(candidate);
+        //         if (amount!= 0) {
+        //             if (afterCall == 2) {
+        //                 IOperateContract(candidate).depositByCandidateAddOn(amount);
+        //             } else if (afterCall == 1) {
+        //                 IOperateContract(candidate).claimByCandidateAddOn(amount, flagTON);
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        // }
 
-
+        require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
         return true;
     }
 
