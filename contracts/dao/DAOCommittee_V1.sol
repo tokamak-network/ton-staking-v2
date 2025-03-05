@@ -30,6 +30,8 @@ import "./lib/BytesLib.sol";
 error CreateCandiateError(uint x);
 error PermissionError();
 error ZeroAddressError();
+error ClaimTONError();
+error ClaimWTONError();
 
 contract DAOCommittee_V1 is
     StorageStateCommittee,
@@ -414,14 +416,14 @@ contract DAOCommittee_V1 is
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
 
-                if (selector1.equal(claimTONBytes)) revert('claimTON dont use');
+                if (selector1.equal(claimTONBytes)) revert ClaimTONError();
                 else if (selector1.equal(claimERC20Bytes)) {
                     bytes memory tonaddr = toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
                 } else if (selector1.equal(claimWTONBytes)) {
-                    revert('claimWTON dont use');
+                    revert ClaimWTONError();
                 }
             }
         }
