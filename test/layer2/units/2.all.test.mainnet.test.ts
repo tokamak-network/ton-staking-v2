@@ -1705,6 +1705,33 @@ describe('TON Staking V2.5', () => {
             // console.log( ' stakeOfTotal.sub(stakeOfAllLayers)     ', ethers.utils.formatUnits(stakeOfTotal.sub(stakeOfAllLayers),27) , 'WTON')
         });
 
+        it('claim amount check: titanLayerAddress', async () => {
+
+            const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
+            const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
+
+            let claimableL2SeigniorageTitan = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2SeigniorageTitan)
+
+            // if (claimableL2SeigniorageTitan.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+
+            // expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            // titanLayerSeigs.length = 0
+
+            // expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
+            //     afterWtonBalanceOfLayer2Manager.sub(claimableL2SeigniorageTitan)
+            // )
+
+            // expect(await wtonContract.balanceOf(titanOperatorContractAddress)).to.be.eq(
+            //     afterWtonBalanceOfLayer2Operator.add(claimableL2SeigniorageTitan)
+            // )
+
+            // console.log('claimableL2SeigniorageTitan', claimableL2SeigniorageTitan)
+            // let layer2RewardInfoTitan = await seigManager.layer2RewardInfo(titanLayerAddress)
+            // console.log('layer2RewardInfoTitan', layer2RewardInfoTitan)
+
+        });
+
         it('updateSeigniorage to layer1', async () => {
             // await deployed.WTON.connect(daoAdmin).addMinter(deployed.seigManagerV2.address)
             let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -1715,8 +1742,8 @@ describe('TON Staking V2.5', () => {
             // console.log( ' totalSupplyOfTon (before)   ', ethers.utils.formatUnits(totalSupplyOfTon,27) , 'WTON')
 
             let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, pastDepositor.address)
-
-
+            let layer2RewardInfoTitanPrev = await seigManager.layer2RewardInfo(titanLayerAddress)
+            const totalTvl = await seigManager.totalLayer2TVL()
             const receipt = await (await seigManager.connect(pastDepositor).updateSeigniorageLayer(layer2Info_1.layer2)).wait()
 
             const topic = seigManager.interface.getEventTopic('CommitLog1');
@@ -1748,10 +1775,21 @@ describe('TON Staking V2.5', () => {
             // console.log( ' totalSupplyOfTon_2    ', ethers.utils.formatUnits(totalSupplyOfTon_2,27) , 'WTON')
             expect(totalSupplyOfTon_2).to.be.gt(ethers.constants.Zero)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //=============================
+            const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
+            const log1 = receipt.logs.find(x => x.topics.indexOf(topic1) >= 0);
+            const deployedEvent1 = seigManager.interface.parseLog(log1);
+            // deployedEvent1.args.l2TotalSeigs
+            {
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+                // titan의 시뇨리지도 할당
+                let l2TotalSeigs = deployedEvent1.args.l2TotalSeigs
+                let allocate_titan = l2TotalSeigs.mul(ethers.utils.parseEther("1")).div(totalTvl).mul(layer2RewardInfoTitanPrev.layer2Tvl).div(ethers.utils.parseEther("1"))
 
+                titanLayerSeigs.push(allocate_titan)
+                expect(l2TotalSeigs).to.be.gte(allocate_titan)
+
+            }
         })
 
         it('requestWithdrawal to layer1', async () => {
@@ -2641,6 +2679,7 @@ describe('TON Staking V2.5', () => {
             )
             titanLayerSeigs.length = 0
             expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+
         })
 
         it('evm_mine', async () => {

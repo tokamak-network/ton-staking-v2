@@ -48,13 +48,13 @@ contract SeigManagerV1_3Storage  {
     // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
     mapping (uint256 => uint256) public l2RewardAtBlock;
 
-    // layer2 - Index array of l2UpdateBlock
+    // layer2 - the array of l2UpdateBlockIndex
     mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
 
     // layer2 - commit block number - commitLayer2Tvl
     mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
 
-    // layer2 - pause block index
+    // layer2 - the array of pause block index
     mapping (address => uint256[]) public layer2PauseBlockIndex;
 
 
