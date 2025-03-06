@@ -59,18 +59,6 @@ contract SeigManagerV1_3Storage {
     //layer2 - layer2PauseBlockIndex - l2UpdateBlock's index when unpausing
     mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlockIndex;
 
-
-    // ===============================
-    // L2 update seigniorage commit block
-    uint256[] public l2UpdateBlock;
-
-    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
-    mapping (uint256 => uint256) public l2RewardAtBlock;
-
-    uint256 public maxLoopCount;
-    // ===============================
-
-
     bool internal _lock;
 
     modifier ifFree() {

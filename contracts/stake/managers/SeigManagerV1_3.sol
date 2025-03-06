@@ -165,24 +165,15 @@ contract SeigManagerV1_3 is
     //////////////////////////////
 
     /**
-     * @notice Event that occurs when calling includeL2Seigniorage function
-     * @param layer2        the layer2 address
+     * @notice Set the layer2Manager address
+     * @param layer2Manager_    the layer2Manager address
      */
-    event IncludedL2Seigniorage(address layer2);
-
+    function setLayer2Manager(address layer2Manager_) external onlyOwner {
+        layer2Manager = layer2Manager_;
+    }
     /**
-     * @notice  Occurs when the number of unsettled commits exceeds the maximum.
-     *          Considering gas costs, only MAX_LOOP_COUNT commits will be settled.
-     *          Anything that is not settled will be locked on Layer2Manager.
-     *
-     *          Amount that is locked without being settled,
-     *          for i that satisfies the condition calculatedLastIndex < i <= lateIndex,
-     *          sum(l2RewardAtBlock[i's block] * liquidity / WEI_UINT)
-     *
-     * @param layer2                the layer2 address
-     * @param liquidity             the layer2 TON TVL
-     * @param calculatedLastIndex   Up to which index is the reward calculation reflected
-     * @param lateIndex             the real last Index
+     * @notice Set the layer2StartBlock
+     * @param startBlock_    the start block
      */
     function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
         layer2StartBlock = startBlock_;
@@ -321,9 +312,6 @@ contract SeigManagerV1_3 is
 
         nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
 
-        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
-
         if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
         if (dao != address(0)) daoSeig = rmul(unstakedSeig, daoSeigRate);
 
@@ -336,7 +324,6 @@ contract SeigManagerV1_3 is
                     WEI_UINT;
             }
         }
-        unsettlementReward = oldLayer2Info.reward;
     }
 
     /**
@@ -408,8 +395,7 @@ contract SeigManagerV1_3 is
      * @return amount           Amount that can be claimed
      * @return uptoIndex        l2 The last index number settled in the l2UpdateBlock
      */
-    function claimableL2Seigniorage(
-        address layer2
+    function claimableL2Seigniorage(address layer2
     ) public view returns (uint256 amount, uint256 uptoIndex) {
 
         uint256[] memory layer2BlockIndexes = layer2L2UpdateBlockIndexes[layer2];
@@ -492,7 +478,7 @@ contract SeigManagerV1_3 is
         rewardInfo.claimedReward += amount;
         layer2RewardInfo[layer2] = rewardInfo;
         ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, amount);
-        // emit ClaimedL2Seigniorage(layer2, amount)
+        emit ClaimedL2Seigniorage(layer2, amount);
     }
 
     function layer2PauseBlockIndexLength(address layer2) public view returns (uint256 len) {
@@ -678,9 +664,6 @@ contract SeigManagerV1_3 is
             return false;
         }
 
-        uint256 prevTotalSupply;
-        uint256 nextTotalSupply;
-
         // 1. increase total supply of {tot} by maximum seigniorages * staked rate
         //    staked rate = total staked amount / total supply of (W)TON
         uint256 prevTotalSupply = _tot.totalSupply();
@@ -729,7 +712,7 @@ contract SeigManagerV1_3 is
 
         uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+        uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         _lastSeigBlock = block.number;
 
         _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
@@ -902,22 +885,6 @@ contract SeigManagerV1_3 is
     }
 
     //=====
-
-    // // https://github.com/tokamak-network/TON-total-supply
-    // // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
-    // function totalSupplyOfTon() public view returns (uint256 tos) {
-    //     uint256 startBlock = (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock);
-    //     uint256 initial = (
-    //         initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply
-    //     );
-    //     uint256 burntAmount = (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
-
-    //     tos =
-    //         initial +
-    //         (_seigPerBlock * (block.number - startBlock)) -
-    //         (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
-    //         burntAmount;
-    // }
 
     function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
         uint256 startBlock = (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock);
