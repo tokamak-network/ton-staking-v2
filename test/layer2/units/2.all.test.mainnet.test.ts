@@ -69,6 +69,8 @@ let tonMinter: Signer
 let seigniorageCommitteeAddress = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26"
 let seigniorageCommittee: Signer
 
+let claimMaxCount = ethers.BigNumber.from("100")
+
 function roundDown(val:BigNumber, decimals:number) {
     return ethers.utils.formatUnits(val, decimals).split(".")[0]
 }
@@ -564,8 +566,8 @@ describe('TON Staking V2.5', () => {
             const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
-            const selector21 = encodeFunctionSignature("claimableL2Seigniorage(address)");
-            const selector22 = encodeFunctionSignature("claimL2Seigniorage(address)");
+            const selector21 = encodeFunctionSignature("claimableL2Seigniorage(address,uint256)");
+            const selector22 = encodeFunctionSignature("claimL2Seigniorage(address,uint256)");
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4,
@@ -1046,11 +1048,11 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             let sumL2Seigs = sum(titanLayerSeigs);
-            expect(sumL2Seigs).to.be.eq(claimableL2Seigniorage)
+            expect(sumL2Seigs).to.be.eq(claimableL2Seigniorage.amount)
 
-            if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            if (claimableL2Seigniorage.amount.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
         })
 
@@ -1157,17 +1159,17 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
-            if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            if (claimableL2Seigniorage.amount.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
-                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
+                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage.amount)
             )
             titanLayerSeigs.length = 0
-            expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            expect((await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).amount).to.be.eq(ethers.constants.Zero)
 
         })
 
@@ -1282,9 +1284,9 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
         })
 
         it('evm_mine', async () => {
@@ -1404,11 +1406,11 @@ describe('TON Staking V2.5', () => {
 
             // for(let i=0; i< titanLayerSeigs.length; i++) {
             //     let titanLayerSeigsTemp = titanLayerSeigs[i]
-            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             //     // expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
             //     expect(titanLayerSeigsTemp).to.be.eq(claimableL2Seigniorage)
 
-            //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             //     expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
             //         afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
@@ -1416,17 +1418,17 @@ describe('TON Staking V2.5', () => {
             //     afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             // }
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
-            // if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            // if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             // expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
             //     afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
             // )
             // titanLayerSeigs.length = 0
-            // expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            // expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).to.be.eq(ethers.constants.Zero)
 
         })
 
@@ -1710,12 +1712,12 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
 
-            let claimableL2SeigniorageTitan = await seigManager.claimableL2Seigniorage(titanLayerAddress);
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2SeigniorageTitan)
+            let claimableL2SeigniorageTitan = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2SeigniorageTitan.amount)
 
             // if (claimableL2SeigniorageTitan.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
 
-            // expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            // expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).to.be.eq(ethers.constants.Zero)
             // titanLayerSeigs.length = 0
 
             // expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
@@ -2111,7 +2113,7 @@ describe('TON Staking V2.5', () => {
             // reject하고 나서도 클래임 가능한가?
             // {
             //     let afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
-            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             //     expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
             //     console.log('reject후에도 클래임 가능 claimableL2Seigniorage ', claimableL2Seigniorage)
             //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
@@ -2120,7 +2122,7 @@ describe('TON Staking V2.5', () => {
             //         afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
             //     )
             //     titanLayerSeigs.length = 0
-            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).to.be.eq(ethers.constants.Zero)
             // }
 
         })
@@ -2231,7 +2233,7 @@ describe('TON Staking V2.5', () => {
             // reject하고 나서도 클래임 가능한가?
             // {
             //     let afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
-            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             //     expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
             //     console.log('reject후에도 클래임 가능 claimableL2Seigniorage ', claimableL2Seigniorage)
             //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
@@ -2240,7 +2242,7 @@ describe('TON Staking V2.5', () => {
             //         afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
             //     )
             //     titanLayerSeigs.length = 0
-            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount).to.be.eq(ethers.constants.Zero)
             // }
 
         })
@@ -2349,7 +2351,7 @@ describe('TON Staking V2.5', () => {
 
             // {
             //     let afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
-            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             //     expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
             //     console.log('reject후에도 클래임 가능 claimableL2Seigniorage ', claimableL2Seigniorage)
             //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
@@ -2358,7 +2360,7 @@ describe('TON Staking V2.5', () => {
             //         afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
             //     )
             //     titanLayerSeigs.length = 0
-            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).to.be.eq(ethers.constants.Zero)
             // }
 
         })
@@ -2472,7 +2474,7 @@ describe('TON Staking V2.5', () => {
 
             // {
             //     let afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
-            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            //     let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
             //     expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
             //     console.log('reject후에도 클래임 가능 claimableL2Seigniorage ', claimableL2Seigniorage)
             //     if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
@@ -2481,7 +2483,7 @@ describe('TON Staking V2.5', () => {
             //         afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
             //     )
             //     titanLayerSeigs.length = 0
-            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            //     expect(await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).to.be.eq(ethers.constants.Zero)
             // }
 
         })
@@ -2668,17 +2670,17 @@ describe('TON Staking V2.5', () => {
 
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
-            if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            if (claimableL2Seigniorage.amount.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
-                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
+                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage.amount)
             )
             titanLayerSeigs.length = 0
-            expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            expect((await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).amount).to.be.eq(ethers.constants.Zero)
 
         })
 
@@ -2796,9 +2798,9 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
         })
 
         it('evm_mine', async () => {
@@ -2912,18 +2914,18 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
 
-            if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            if (claimableL2Seigniorage.amount.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
-                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
+                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage.amount)
             )
             titanLayerSeigs.length = 0
-            expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            expect((await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).amount).to.be.eq(ethers.constants.Zero)
 
         })
 
@@ -3049,9 +3051,9 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
         })
 
@@ -3177,17 +3179,17 @@ describe('TON Staking V2.5', () => {
 
             titanLayerSeigs.push(deployedEvent1.args.layer2Seigs)
 
-            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress);
+            let claimableL2Seigniorage = await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount);
 
-            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage)
+            expect(sum(titanLayerSeigs)).to.be.eq(claimableL2Seigniorage.amount)
 
-            if (claimableL2Seigniorage.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress);
+            if (claimableL2Seigniorage.amount.gt(ethers.constants.Zero))  await seigManager.claimL2Seigniorage(titanLayerAddress, claimMaxCount);
 
             expect(await wtonContract.balanceOf(layer2Manager.address)).to.be.eq(
-                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage)
+                afterWtonBalanceOfLayer2Manager.sub(claimableL2Seigniorage.amount)
             )
             titanLayerSeigs.length = 0
-            expect(await seigManager.claimableL2Seigniorage(titanLayerAddress)).to.be.eq(ethers.constants.Zero)
+            expect((await seigManager.claimableL2Seigniorage(titanLayerAddress, claimMaxCount)).amount).to.be.eq(ethers.constants.Zero)
 
         })
 
