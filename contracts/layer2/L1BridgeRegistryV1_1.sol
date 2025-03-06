@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../proxy/ProxyStorage.sol";
-import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
-import "./L1BridgeRegistryStorage.sol";
+import '../proxy/ProxyStorage.sol';
+import {AuthControlL1BridgeRegistry} from '../common/AuthControlL1BridgeRegistry.sol';
+import './L1BridgeRegistryStorage.sol';
 /**
  * @notice  Error occurred when executing changeType function
  * @param x 1: sender is not ton nor wton
@@ -35,7 +35,7 @@ interface IERC20 {
 
 interface IOptimismSystemConfig {
     function l1StandardBridge() external view returns (address addr_);
-    function optimismPortal() external view returns (address addr_) ;
+    function optimismPortal() external view returns (address addr_);
 }
 
 interface ILayer2Manager {
@@ -43,8 +43,11 @@ interface ILayer2Manager {
     function unpauseCandidateAddOn(address rollupConfig) external;
 }
 
-contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1BridgeRegistryStorage {
-
+contract L1BridgeRegistryV1_1 is
+    ProxyStorage,
+    AuthControlL1BridgeRegistry,
+    L1BridgeRegistryStorage
+{
     enum TYPE_ROLLUPCONFIG {
         NONE,
         LEGARCY,
@@ -108,12 +111,12 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     event SetBlockingL2Deposit(address rollupConfig, bool rejectedL2Deposit);
 
     modifier onlySeigniorageCommittee() {
-        require(seigniorageCommittee == msg.sender, "PermissionError");
+        require(seigniorageCommittee == msg.sender, 'PermissionError');
         _;
     }
 
     modifier nonRejected(address rollupConfig) {
-        require(!rollupInfo[rollupConfig].rejectedSeigs, "rejected");
+        require(!rollupInfo[rollupConfig].rejectedSeigs, 'rejected');
         _;
     }
 
@@ -132,8 +135,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         address _layer2Manager,
         address _seigManager,
         address _ton
-    )  external onlyOwner {
-        _nonZeroAddress(_layer2Manager, _seigManager,_ton );
+    ) external onlyOwner {
+        _nonZeroAddress(_layer2Manager, _seigManager, _ton);
         layer2Manager = _layer2Manager;
         seigManager = _seigManager;
         ton = _ton;
@@ -145,11 +148,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice  Set the seigniorageCommittee address.
      * @param _seigniorageCommittee the seigniorageCommittee address
      */
-    function setSeigniorageCommittee(
-        address _seigniorageCommittee
-    )  external
-       onlyOwner
-    {
+    function setSeigniorageCommittee(address _seigniorageCommittee) external onlyOwner {
         seigniorageCommittee = _seigniorageCommittee;
 
         emit SetSeigniorageCommittee(_seigniorageCommittee);
@@ -184,12 +183,10 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      *         Unsettled seigniorage to the layer 2 sequencer can no longer be settled.
      * @param rollupConfig the rollupConfig address
      */
-    function rejectCandidateAddOn(
-        address rollupConfig
-    )  external onlySeigniorageCommittee() {
+    function rejectCandidateAddOn(address rollupConfig) external onlySeigniorageCommittee {
         _nonRejected(rollupConfig);
 
-        require (rollupInfo[rollupConfig].rollupType != 0, "NonRegistered");
+        require(rollupInfo[rollupConfig].rollupType != 0, 'NonRegistered');
 
         rollupInfo[rollupConfig].rejectedSeigs = true;
         rollupInfo[rollupConfig].rejectedL2Deposit = true;
@@ -206,7 +203,7 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function restoreCandidateAddOn(
         address rollupConfig,
         bool rejectedL2Deposit
-    )  external onlySeigniorageCommittee{
+    ) external onlySeigniorageCommittee {
         _onlyRejectedRollupConfig(rollupConfig);
 
         rollupInfo[rollupConfig].rejectedSeigs = false;
@@ -223,12 +220,21 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyManager {
+    function registerRollupConfigByManager(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON,
+        string calldata _name
+    ) external onlyManager {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
-    function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON)  external  onlyManager {
+    function registerRollupConfigByManager(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON
+    ) external onlyManager {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, '');
     }
@@ -240,12 +246,21 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig       the rollupConfig address
      * @param _type          1: legacy, 2: bedrock with nativeTON
      */
-    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external onlyRegistrant {
+    function registerRollupConfig(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON,
+        string calldata _name
+    ) external onlyRegistrant {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
-    function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external onlyRegistrant {
+    function registerRollupConfig(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON
+    ) external onlyRegistrant {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, '');
     }
@@ -256,15 +271,19 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param _type          1: legacy, 2: bedrock with nativeTON
      * @param _name          the candidate name
      */
-    function changeType(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyRegistrant {
-
+    function changeType(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON,
+        string calldata _name
+    ) external onlyRegistrant {
         ROLLUP_INFO memory info = rollupInfo[rollupConfig];
         if (info.rollupType == 0) revert ChangeError(1);
         if (info.rollupType == _type) revert ChangeError(2);
         if (_l2TON == address(0)) revert ChangeError(3);
         if (bytes(_name).length == 0) revert ChangeError(4);
 
-        _resetRollupConfig(rollupConfig) ;
+        _resetRollupConfig(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
 
         emit ChangedType(rollupConfig, _type, _l2TON, _name);
@@ -277,8 +296,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollup address
      * @return rollupType_  the rollupType 0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
      */
-    function rollupType(address rollupConfig) external view returns(uint8 rollupType_) {
-        return  rollupInfo[rollupConfig].rollupType;
+    function rollupType(address rollupConfig) external view returns (uint8 rollupType_) {
+        return rollupInfo[rollupConfig].rollupType;
     }
 
     /**
@@ -286,8 +305,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollup address
      * @return rejectedSeigs  If it is true, Seigniorage issuance has been stopped for this layer2.
      */
-    function rejectRollupConfig(address rollupConfig) external view returns(bool rejectedSeigs) {
-        return  rollupInfo[rollupConfig].rejectedSeigs;
+    function rejectRollupConfig(address rollupConfig) external view returns (bool rejectedSeigs) {
+        return rollupInfo[rollupConfig].rejectedSeigs;
     }
 
     /**
@@ -295,8 +314,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollup address
      * @return rejectedSeigs  If it is true, Seigniorage issuance has been stopped for this layer2.
      */
-    function isRejectedSeigs(address rollupConfig) external view returns(bool rejectedSeigs) {
-        return  rollupInfo[rollupConfig].rejectedSeigs;
+    function isRejectedSeigs(address rollupConfig) external view returns (bool rejectedSeigs) {
+        return rollupInfo[rollupConfig].rejectedSeigs;
     }
 
     /**
@@ -304,8 +323,10 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollup address
      * @return rejectedL2Deposit  If it is true, stop depositing at this layer.
      */
-    function isRejectedL2Deposit(address rollupConfig) external view returns(bool rejectedL2Deposit) {
-        return  rollupInfo[rollupConfig].rejectedL2Deposit;
+    function isRejectedL2Deposit(
+        address rollupConfig
+    ) external view returns (bool rejectedL2Deposit) {
+        return rollupInfo[rollupConfig].rejectedL2Deposit;
     }
 
     /**
@@ -313,8 +334,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig the rollup address
      * @return l2TonAddress  the l2 ton address
      */
-    function l2TON(address rollupConfig) external view returns(address l2TonAddress) {
-        return  rollupInfo[rollupConfig].l2TON;
+    function l2TON(address rollupConfig) external view returns (address l2TonAddress) {
+        return rollupInfo[rollupConfig].l2TON;
     }
 
     /**
@@ -326,9 +347,18 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @return rejectedL2Deposit_    If it is true, stop depositing at this layer.
      * @return name_                the candidate name
      */
-    function getRollupInfo(address rollupConfig)
-        external view
-        returns (uint8 type_, address l2TON_, bool rejectedSeigs_, bool rejectedL2Deposit_, string  memory name_)
+    function getRollupInfo(
+        address rollupConfig
+    )
+        external
+        view
+        returns (
+            uint8 type_,
+            address l2TON_,
+            bool rejectedSeigs_,
+            bool rejectedL2Deposit_,
+            string memory name_
+        )
     {
         ROLLUP_INFO memory info = rollupInfo[rollupConfig];
         return (info.rollupType, info.l2TON, info.rejectedSeigs, info.rejectedL2Deposit, info.name);
@@ -338,16 +368,14 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @notice View the liquidity of Layer2 TON for a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
-    function layer2TVL(address rollupConfig) public view returns (uint256 amount){
-
+    function layer2TVL(address rollupConfig) public view returns (uint256 amount) {
         uint _type = rollupInfo[rollupConfig].rollupType;
 
         if (_type == 1) {
             address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
             if (l1Bridge[l1Bridge_]) amount = IERC20(ton).balanceOf(l1Bridge_);
-
         } else if (_type == 2) {
-             address optimismPortal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
+            address optimismPortal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (portal[optimismPortal_]) amount = IERC20(ton).balanceOf(optimismPortal_);
         }
     }
@@ -357,25 +385,34 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
      * @param rollupConfig      the rollupConfig address
      * @param _type         1: legacy, 2: bedrock with nativeTON
      */
-    function availableForRegistration(address rollupConfig, uint8 _type) public view returns (bool valid){
+    function availableForRegistration(
+        address rollupConfig,
+        uint8 _type
+    ) public view returns (bool valid) {
         return _availableForRegistration(rollupConfig, _type);
     }
 
     /* ========== internal ========== */
 
     function _nonZeroAddress(address _addr1, address _addr2, address _addr3) internal pure {
-        if(_addr1 == address(0) || _addr2 == address(0) || _addr3 == address(0) ) revert ZeroAddressError();
+        if (_addr1 == address(0) || _addr2 == address(0) || _addr3 == address(0))
+            revert ZeroAddressError();
     }
 
     function _nonRejected(address rollupConfig) internal view {
-        if(rollupInfo[rollupConfig].rejectedSeigs) revert NonRejectedError();
+        if (rollupInfo[rollupConfig].rejectedSeigs) revert NonRejectedError();
     }
 
     function _onlyRejectedRollupConfig(address rollupConfig) internal view {
-        if(!rollupInfo[rollupConfig].rejectedSeigs) revert OnlyRejectedError();
+        if (!rollupInfo[rollupConfig].rejectedSeigs) revert OnlyRejectedError();
     }
 
-    function _registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON, string memory _name) internal {
+    function _registerRollupConfig(
+        address rollupConfig,
+        uint8 _type,
+        address _l2TON,
+        string memory _name
+    ) internal {
         if (_l2TON == address(0)) revert RegisterError(4);
         if (_type == 0 || _type > uint8(type(TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
 
@@ -406,41 +443,42 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         emit RegisteredRollupConfig(rollupConfig, _type, _l2TON, _name);
     }
 
-    function _availableForRegistration(address rollupConfig, uint8 _type) internal view returns (bool valid){
-
+    function _availableForRegistration(
+        address rollupConfig,
+        uint8 _type
+    ) internal view returns (bool valid) {
         // if (registeredNames[bytes32(bytes(_name))] == true) {
         //     valid = false;
         // } else {
-            ROLLUP_INFO memory info = rollupInfo[rollupConfig];
+        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
 
-            if (!info.rejectedSeigs) {
+        if (!info.rejectedSeigs) {
+            address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
 
-                address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
-
-                if(l1Bridge_ != address(0)) {
-                    if (_type == 1) {
-                        if(info.rollupType == 0 && !l1Bridge[l1Bridge_]) valid = true;
-
-                    } else if (_type == 2) {
-                        address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
-                        if (portal_ != address(0)) {
-                            if (info.rollupType == 0 && !portal[portal_]) valid = true;
-                        }
+            if (l1Bridge_ != address(0)) {
+                if (_type == 1) {
+                    if (info.rollupType == 0 && !l1Bridge[l1Bridge_]) valid = true;
+                } else if (_type == 2) {
+                    address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
+                    if (portal_ != address(0)) {
+                        if (info.rollupType == 0 && !portal[portal_]) valid = true;
                     }
                 }
             }
+        }
         // }
     }
 
     function _resetRollupConfig(address rollupConfig) internal {
         ROLLUP_INFO storage info = rollupInfo[rollupConfig];
-        if(info.rejectedSeigs) revert NonRejectedError();
+        if (info.rejectedSeigs) revert NonRejectedError();
 
         address l1Bridge_ = IOptimismSystemConfig(rollupConfig).l1StandardBridge();
         address optimismPortal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
 
         if (l1Bridge_ != address(0) && l1Bridge[l1Bridge_]) l1Bridge[l1Bridge_] = false;
-        if (optimismPortal_ != address(0) && portal[optimismPortal_]) portal[optimismPortal_] = false;
+        if (optimismPortal_ != address(0) && portal[optimismPortal_])
+            portal[optimismPortal_] = false;
 
         // registeredNames[bytes32(bytes(info.name))] = false;
 

@@ -199,32 +199,6 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         emit ProcessRequests(candidate, n);
     }
 
-    /* ========== onlyCandidateAddOn ========== */
-
-    /**
-     * @notice Deposit wton amount to DepositManager as named manager(EOA)
-     */
-    function depositByCandidateAddOn() external onlyCandidateAddOn {
-        _depositTo(msg.sender, manager);
-    }
-
-    /**
-     * @notice Claim WTON to a manager
-     * @param flagTon   If it is true, claim with ton, otherwise claim with wton
-     */
-    function claimByCandidateAddOn(bool flagTon) public onlyCandidateAddOn {
-        address _wton = wton;
-        uint256 amount = IERC20(_wton).balanceOf(address(this));
-        if (flagTon) {
-            address _ton = ton;
-            if(amount != 0) IWTON(_wton).swapToTON(amount);
-            amount = IERC20(_ton).balanceOf(address(this));
-            if(amount != 0) _claim(_ton, manager, amount);
-        } else {
-            if(amount != 0) _claim(_wton, manager, amount);
-        }
-    }
-
     /* ========== public ========== */
 
     /**
