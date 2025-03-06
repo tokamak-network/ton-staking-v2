@@ -480,8 +480,13 @@ contract SeigManagerV1_3 is
     function layer2PauseBlockIndexLength(address layer2) public view returns (uint256 len) {
         return layer2PauseBlockIndex[layer2].length;
     }
-    function getlayer2PauseBlockIndex(address layer2) public view returns (uint256[] memory) {
+
+    function getLayer2PauseBlockIndex(address layer2) public view returns (uint256[] memory) {
         return layer2PauseBlockIndex[layer2];
+    }
+
+    function getLayer2L2UpdateBlockIndexes(address layer2) public view returns (uint256[] memory) {
+        return layer2L2UpdateBlockIndexes[layer2];
     }
 
     //////////////////////////////
@@ -833,7 +838,6 @@ contract SeigManagerV1_3 is
         (address rollupConfig, bool layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
         require(layer2Allowed, 'reject layer2Allowed');
 
-        // 다음 커밋할때 반영이 된다. 따라서 unpause는 이번 커밋까지만 중지된다.
         uint256 len = l2UpdateBlock.length;
         uint256 pauseIndex = _pauseBlockIndexLast(layer2);
 

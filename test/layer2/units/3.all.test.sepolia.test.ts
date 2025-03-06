@@ -84,7 +84,7 @@ function sum(amounts: Array<string>)  {
 }
 
 async function logPause(seigManager:Contract, layerAddress: string){
-    let layer2PauseBlockIndex =  await seigManager.getlayer2PauseBlockIndex(layerAddress)
+    let layer2PauseBlockIndex =  await seigManager.getLayer2PauseBlockIndex(layerAddress)
 
     if(layer2PauseBlockIndex.length != 0 ) {
         for (let i=0; i < layer2PauseBlockIndex.length; i++){
@@ -695,7 +695,7 @@ describe('TON Staking V2.5', () => {
             const selector23 = encodeFunctionSignature("l2UpdateBlock(uint256)");
             const selector24 = encodeFunctionSignature("l2RewardAtBlock(uint256)");
             const selector25 = encodeFunctionSignature("layer2PauseBlockIndexLength(address)");
-            const selector26 = encodeFunctionSignature("getlayer2PauseBlockIndex(address)");
+            const selector26 = encodeFunctionSignature("getLayer2PauseBlockIndex(address)");
             const selector27 = encodeFunctionSignature("layer2UnpauseBlockIndex(address,uint256)");
 
             let functionBytecodes = [
@@ -4388,7 +4388,7 @@ describe('TON Staking V2.5', () => {
 
             let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
 
-            // let layer2PauseBlockIndex =  await seigManager.getlayer2PauseBlockIndex(titanLayerAddress)
+            // let layer2PauseBlockIndex =  await seigManager.getLayer2PauseBlockIndex(titanLayerAddress)
             // console.log('layer2PauseBlockIndex', layer2PauseBlockIndex)
 
             // if(layer2PauseBlockIndex.length != 0 ) {

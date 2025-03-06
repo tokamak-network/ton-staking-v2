@@ -35,7 +35,7 @@
           "type": "address"
         }
       ],
-      "name": "getlayer2PauseBlockIndex",
+      "name": "getLayer2PauseBlockIndex",
       "outputs": [
         {
           "internalType": "uint256[]",
