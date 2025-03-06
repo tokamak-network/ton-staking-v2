@@ -384,6 +384,106 @@ contract SeigManagerV1_3 is
         else return false;
     }
 
+    /**
+     * @notice  Amount payable to a specific L2 operator
+     * @param  layer2           The layer2 address
+     * @return amount           Amount that can be claimed
+     * @return uptoIndex        l2 The last index number settled in the l2UpdateBlock
+     */
+    function claimableL2Seigniorage(
+        address layer2
+    ) public view returns (uint256 amount, uint256 uptoIndex) {
+
+        uint256[] memory layer2BlockIndexes = layer2L2UpdateBlockIndexes[layer2];
+        uint256 len = layer2BlockIndexes.length;
+        if (len == 0) return (0, 0);
+
+        Layer2Reward memory rewardInfo = layer2RewardInfo[layer2];
+        uint256 globalLen = l2UpdateBlock.length;
+
+        if (rewardInfo.claimedLastIndex < globalLen) {
+            uint256[] memory globalIndexes = l2UpdateBlock;
+
+            // Index after the last claim
+            uint i = rewardInfo.claimedLastIndex + 1;
+            uint256 sCurIndex;
+            uint256 sNextIndex;
+
+            uint256 fIndex = layer2BlockIndexes.findIndexMemory(i);
+            sCurIndex = fIndex;
+
+            if (fIndex == len - 1) sNextIndex = fIndex;
+            else sNextIndex = fIndex + 1;
+
+            // Find pauseBlock Index.
+            (uint256 pauseStartIndex, uint256 pauseEndIndex) = _nearbyPauseBlockIndex(layer2, i);
+
+            uint256 maxCount = maxCommitCountForClaim;
+            if (maxCount == 0) maxCount = MAX_COMMIT_CLAIM;
+
+            uint256 count = 0;
+            uint256 blockForLiquidity;
+            uint256 gCurIndex;
+            uint256 gNextIndex;
+
+            for (i; i < globalLen; i++) {
+                if (pauseStartIndex != 0 && pauseStartIndex <= i) {
+                    if (i <= pauseEndIndex || pauseEndIndex == 0) {
+                        continue;
+                    }
+                }
+
+                gCurIndex = layer2BlockIndexes[sCurIndex];
+                gNextIndex = layer2BlockIndexes[sNextIndex];
+
+                if (i < gNextIndex) {
+                    blockForLiquidity = globalIndexes[gCurIndex];
+                } else {
+                    blockForLiquidity = globalIndexes[gNextIndex];
+                    gCurIndex = gNextIndex;
+                    if (sNextIndex < layer2BlockIndexes.length - 1) {
+                        sNextIndex++;
+                        gNextIndex = layer2BlockIndexes[sNextIndex];
+                    }
+                }
+
+                amount += (l2RewardAtBlock[globalIndexes[i]] * commitLayer2Tvl[layer2][blockForLiquidity]) / WEI_UINT;
+
+                uptoIndex = i;
+                count++;
+                if (count >= maxCount) break;
+                if (pauseEndIndex != 0 && i > pauseEndIndex) {
+                    (pauseStartIndex, pauseEndIndex) = _nearbyPauseBlockIndex(layer2, i);
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice Seigniorage claims for specific L2 operators
+     * @param  layer2           The layer2 address
+     */
+    function claimL2Seigniorage(address layer2) external {
+        (uint256 amount, uint256 lastIndex) = claimableL2Seigniorage(layer2);
+        require(amount != 0, 'zero amount');
+        (address rollupConfig, ) = allowIssuanceLayer2Seigs(layer2);
+
+        Layer2Reward memory rewardInfo = layer2RewardInfo[layer2];
+        rewardInfo.claimedLastIndex = lastIndex;
+        rewardInfo.claimedBlockNumber = block.number;
+        rewardInfo.claimedReward += amount;
+        layer2RewardInfo[layer2] = rewardInfo;
+        ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, amount);
+        // emit ClaimedL2Seigniorage(layer2, amount)
+    }
+
+    function layer2PauseBlockIndexLength(address layer2) public view returns (uint256 len) {
+        return layer2PauseBlockIndex[layer2].length;
+    }
+    function getlayer2PauseBlockIndex(address layer2) public view returns (uint256[] memory) {
+        return layer2PauseBlockIndex[layer2];
+    }
+
     //////////////////////////////
     // Internal functions
     //////////////////////////////
@@ -638,19 +738,23 @@ contract SeigManagerV1_3 is
 
         if (layer2Allowed) {
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+
             if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
                 _insertCommitLayer2Tvl(msg.sender, oldLayer2Info.layer2Tvl);
+
                 layer2Seigs =
                     (((l2TotalSeigs * WEI_UINT) / totalLayer2TVL) * oldLayer2Info.layer2Tvl) /
                     WEI_UINT;
+
                 newLayer2Info.layer2Tvl = curLayer2Tvl;
+
             } else if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
                 newLayer2Info.startBlock = block.number;
                 newLayer2Info.layer2Tvl = curLayer2Tvl;
-                if (l2UpdateBlock.length != 0)
-                    newLayer2Info.claimedLastIndex = l2UpdateBlock.length - 1;
 
-                commitLayer2Tvl[msg.sender][block.number] = curLayer2Tvl;
+                if (l2UpdateBlock.length != 0) newLayer2Info.claimedLastIndex = l2UpdateBlock.length - 1;
+
+                commitLayer2Tvl[msg.sender][block.number] = oldLayer2Info.layer2Tvl;
             }
 
             totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
@@ -699,14 +803,15 @@ contract SeigManagerV1_3 is
      * @param layer2Tvl_     Layer2 TON TVL
      */
     function _insertCommitLayer2Tvl(address layer2, uint256 layer2Tvl_) internal {
-        uint256 lastIndex = l2UpdateBlock.length;
-        if (lastIndex > 1 && !isPauseL2Seigniorage(layer2)) {
-            layer2L2UpdateBlockIndexes[layer2].push(lastIndex - 1);
+        uint256 len = l2UpdateBlock.length;
+        if (len > 1 && !isPauseL2Seigniorage(layer2)) {
+            layer2L2UpdateBlockIndexes[layer2].push(len - 1);
             commitLayer2Tvl[layer2][block.number] = layer2Tvl_;
         }
     }
 
     function _pauseLayer2Tvl(address layer2) internal {
+        require(!isPauseL2Seigniorage(layer2), 'already paused');
         uint256 len = l2UpdateBlock.length;
         require(len != 0, 'not starting');
 
@@ -720,7 +825,7 @@ contract SeigManagerV1_3 is
     }
 
     function _unpauseLayer2Tvl(address layer2) internal {
-        require(isPauseL2Seigniorage(layer2), 'not puased');
+        require(isPauseL2Seigniorage(layer2), 'not paused');
 
         Layer2Reward memory info = layer2RewardInfo[layer2];
         require(info.layer2Tvl == 0, 'wrong layer2Tvl');
@@ -740,12 +845,6 @@ contract SeigManagerV1_3 is
         layer2RewardInfo[layer2] = info;
     }
 
-    function _layer2L2UpdateBlockLastIndexe(address layer2) internal view returns (uint256) {
-        uint256 len = layer2L2UpdateBlockIndexes[layer2].length;
-        if (len == 0) return 0;
-        return layer2L2UpdateBlockIndexes[layer2][len - 1];
-    }
-
     function _unpauseBlockIndex(
         address layer2,
         uint256 pauseIndex
@@ -759,92 +858,7 @@ contract SeigManagerV1_3 is
         if (len != 0) index = pauseBlockIndexes[len - 1];
     }
 
-    function _prevCommitLayer2TvlIndex(
-        address layer2,
-        uint256 blockIndex
-    ) internal view returns (uint256 curIndex, uint256 nextIndex) {
-        uint256[] memory blockIndexes = layer2L2UpdateBlockIndexes[layer2];
-        uint256 len = blockIndexes.length;
-        if (len == 0) return (0, 0);
-
-        uint256 fIndex = blockIndexes.findIndexMemory(blockIndex);
-        if (fIndex == len - 1) return (fIndex, fIndex);
-        else return (fIndex, fIndex + 1);
-    }
-
-    /**
-     * @notice  Amount payable to a specific L2 operator
-     * @param  layer2           The layer2 address
-     * @return amount           Amount that can be claimed
-     * @return uptoIndex        l2 The last index number settled in the l2UpdateBlock
-     */
-    function claimableL2Seigniorage(
-        address layer2
-    ) public view returns (uint256 amount, uint256 uptoIndex) {
-        Layer2Reward memory reardInfo = layer2RewardInfo[layer2];
-
-        uint256[] memory layer2BlockIndexes = layer2L2UpdateBlockIndexes[layer2];
-        uint256 len = layer2BlockIndexes.length;
-        if (len == 0) return (amount, 0);
-
-        uint256[] memory globalIndexes = l2UpdateBlock;
-        uint256 globalLen = globalIndexes.length;
-
-        if (reardInfo.claimedLastIndex < globalLen) {
-            // Index after the last claim
-            uint i = reardInfo.claimedLastIndex + 1;
-            (uint256 sCurIndex, uint256 sNextIndex) = _prevCommitLayer2TvlIndex(layer2, i);
-
-            // Find pauseBlock Index.
-            (uint256 pauseStartIndex, uint256 pauseEndIndex) = _prevPauseBlockIndex(layer2, i);
-
-            uint256 reward;
-            uint256 commitLayer2Tvl_;
-
-            uint256 maxCount = maxCommitCountForClaim;
-            if (maxCount == 0) maxCount = MAX_COMMIT_CLAIM;
-
-            uint256 count = 0;
-            uint256 blockForLiquidity;
-            uint256 gCurIndex;
-            uint256 gNextIndex;
-
-            // 가장 최근 커밋까지 검색
-            for (i; i < globalLen; i++) {
-                if (pauseStartIndex != 0 && pauseStartIndex <= i) {
-                    if (i <= pauseEndIndex || pauseEndIndex == 0) {
-                        continue;
-                    }
-                }
-
-                reward = l2RewardAtBlock[globalIndexes[i]];
-                gCurIndex = layer2BlockIndexes[sCurIndex];
-                gNextIndex = layer2BlockIndexes[sNextIndex];
-
-                if (i < gNextIndex) {
-                    blockForLiquidity = globalIndexes[gCurIndex];
-                } else {
-                    blockForLiquidity = globalIndexes[gNextIndex];
-                    gCurIndex = gNextIndex;
-                    if (sNextIndex < layer2BlockIndexes.length - 1) {
-                        sNextIndex++;
-                        gNextIndex = layer2L2UpdateBlockIndexes[layer2][sNextIndex];
-                    }
-                }
-                commitLayer2Tvl_ = commitLayer2Tvl[layer2][blockForLiquidity];
-                amount += (reward * commitLayer2Tvl_) / WEI_UINT;
-
-                uptoIndex = i;
-                count++;
-                if (count >= maxCount) break;
-                if (pauseEndIndex != 0 && i > pauseEndIndex) {
-                    (pauseStartIndex, pauseEndIndex) = _prevPauseBlockIndex(layer2, i);
-                }
-            }
-        }
-    }
-
-    function _prevPauseBlockIndex(
+    function _nearbyPauseBlockIndex(
         address layer2,
         uint256 blockIndex
     ) internal view returns (uint256 pauseStartIndex, uint256 pauseEndIndex) {
@@ -860,31 +874,6 @@ contract SeigManagerV1_3 is
                 pauseEndIndex = layer2UnpauseBlockIndex[layer2][pauseStartIndex];
             }
         }
-    }
-
-    /**
-     * @notice Seigniorage claims for specific L2 operators
-     * @param  layer2           The layer2 address
-     */
-    function claimL2Seigniorage(address layer2) external {
-        (uint256 amount, uint256 lastIndex) = claimableL2Seigniorage(layer2);
-        require(amount != 0, 'zero amount');
-        (address rollupConfig, ) = allowIssuanceLayer2Seigs(layer2);
-
-        Layer2Reward memory rewardInfo = layer2RewardInfo[layer2];
-        rewardInfo.claimedLastIndex = lastIndex;
-        rewardInfo.claimedBlockNumber = block.number;
-        rewardInfo.claimedReward += amount;
-        layer2RewardInfo[layer2] = rewardInfo;
-        ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, amount);
-        // emit ClaimedL2Seigniorage(layer2, amount)
-    }
-
-    function layer2PauseBlockIndexLength(address layer2) public view returns (uint256 len) {
-        return layer2PauseBlockIndex[layer2].length;
-    }
-    function getlayer2PauseBlockIndex(address layer2) public view returns (uint256[] memory) {
-        return layer2PauseBlockIndex[layer2];
     }
 
     //=====

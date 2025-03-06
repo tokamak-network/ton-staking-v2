@@ -121,18 +121,19 @@ Total staked amount (based on seigniorage distribution)
 
 ---
 
-# L2 Sequencer Sequencer Distribution
+# L2 Sequencer Seigniorage
 
 ## Related Storage
-
-- maxCommitCountForClaim : The number of commits that can be settled at once for the L2 operator to receive the seigniorage of unsettled commit seigniorage
-- l2UpdateBlock : L2 Seigniorage distributed block array , The first index of the array is not used, storage starts from index 1
+- layer2StartBlock : L2 sequencer seigniorage issuance start block number
+- totalLayer2TVL : L2 Total TVL
+- maxCommitCountForClaim : The number of commits that can be claimed at once for the L2 operator to receive the seigniorage of unsettled commit seigniorage
+- l2UpdateBlock : The update seigniorage committed block array for L2, The first index of the array is not used, storage starts from index 1
 - layer2RewardInfo : Layer2 claim-related information is stored in the form of Layer2Reward
-- l2RewardAtBlock  : Amount of seigniorage granted per L2 liquidity per commit block
-- layer2L2UpdateBlockIndexes : An array that stores the largest index number of l2UpdateBlock whenever L2 is committed.
-- commitLayer2Tvl  : When L2 is committed, the L2 TVL of the previous commit (signature calculation is calculated based on the previous commit TVL)
-- layer2PauseBlockIndex : Block number when L2 seigniorage issue is stopped
-- layer2UnpauseBlockIndex : Block number when L2 seigniorage issue is resume
+- l2RewardAtBlock  : Amount of seigniorage granted per L2 liquidity at a commit block
+- layer2L2UpdateBlockIndexes : An array that stores the l2UpdateBlock's index whenever L2 is committed.
+- commitLayer2Tvl  : When L2 is committed, the L2 TVL of the previous commit (seigniorage calculation is calculated based on the previous commit TVL)
+- layer2PauseBlockIndex :  l2UpdateBlock's index when L2 seigniorage issue is stopped, Not issued from the included index
+- layer2UnpauseBlockIndex : l2UpdateBlock's index when L2 seigniorage issue is resume, Not issued until the included index
 
 ```
 
@@ -150,9 +151,15 @@ Total staked amount (based on seigniorage distribution)
     }
 
     struct Layer2PauseBlock {
-        uint256 pauseIndex; // pause l2UpdateBlock index, 포함 인덱스부터 발급안함
-        uint256 unpauseIndex; // unpause l2UpdateBlock index, 포함 인덱스까지 발급안함
+        uint256 pauseIndex; // pause l2UpdateBlock index
+        uint256 unpauseIndex; // unpause l2UpdateBlock index
     }
+
+    /// layer2 seigs start block
+    uint256 public layer2StartBlock;
+
+    /// total layer2 TON TVL
+    uint256 public totalLayer2TVL;
 
     /// When claiming L2 seigniorage, only maxCommitCountForClaim can be claimed at a time.
     uint256 public maxCommitCountForClaim;
@@ -195,7 +202,6 @@ Total staked amount (based on seigniorage distribution)
 - Reflect the current L2 TVL to the total L2 TVL and save it.
 
 
-
 # When running 'claimL2Seigniorage' function
 - Anyone can claim seigniorage allocated L2 to an L2 operator.  The seigniorage is transferred to the Operator Manager contract for that L2.
   - Related functions
@@ -206,10 +212,10 @@ Total staked amount (based on seigniorage distribution)
 # To stop issuing seigniorage to a specific L2 operator,
 - The onlySeigniorageCommittee can stop issuing seigniorage to specific L2 operators.
   - Related functions
-    - rejectCandidateAddOn(address rollupConfig)
+    - Layer2Manager.rejectCandidateAddOn(address rollupConfig)
 
 
 # To resume issuing seigniorage to a specific L2 operator,
 - The onlySeigniorageCommittee can resume issuing seigniorage to specific L2 operators.
   - Related functions
-    - restoreCandidateAddOn(address rollupConfig, bool rejectedL2Deposit)
+    - Layer2Manager.restoreCandidateAddOn(address rollupConfig, bool rejectedL2Deposit)

@@ -3,8 +3,7 @@ pragma solidity ^0.8.4;
 
 /// @title
 /// @notice
-contract SeigManagerV1_3Storage  {
-
+contract SeigManagerV1_3Storage {
     struct Layer2Tvl {
         uint256 l2UpdateBlockIndexes; // l2UpdateBlock's index
         uint256 layer2Tvl;
@@ -25,13 +24,12 @@ contract SeigManagerV1_3Storage  {
 
     /// L1BridgeRegistry address
     address public l1BridgeRegistry;
+
     /// Layer2Manager address
     address public layer2Manager;
 
     /// layer2 seigs start block
     uint256 public layer2StartBlock;
-
-    uint256 public l2RewardPerUint;  // ray unit .1e27
 
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
@@ -43,29 +41,28 @@ contract SeigManagerV1_3Storage  {
     uint256[] public l2UpdateBlock; // index 0 - unused, it's a dummy
 
     /// layer2 reward information for each layer2(candidate).
-    mapping (address => Layer2Reward) public layer2RewardInfo;
+    mapping(address => Layer2Reward) public layer2RewardInfo;
 
-    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
-    mapping (uint256 => uint256) public l2RewardAtBlock;
+    // a seigniorage per liquidity at L2 update seigniorage commit block.
+    // commit block number - reward per liquidity
+    mapping(uint256 => uint256) public l2RewardAtBlock;
 
-    // layer2 - the array of l2UpdateBlockIndex
-    mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
+    // layer2 - l2UpdateBlock's index at committing
+    mapping(address => uint256[]) public layer2L2UpdateBlockIndexes;
 
-    // layer2 - commit block number - commitLayer2Tvl
-    mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
+    // layer2 - commit block number - Layer2Tvl for seigs
+    mapping(address => mapping(uint256 => uint256)) public commitLayer2Tvl;
 
-    // layer2 - the array of pause block index
-    mapping (address => uint256[]) public layer2PauseBlockIndex;
+    // layer2 - l2UpdateBlock's index index when pausing
+    mapping(address => uint256[]) public layer2PauseBlockIndex;
 
-
-    //layer2 - pause block index - unpause block index
-    mapping (address => mapping (uint256 => uint256)) public layer2UnpauseBlockIndex;
-
+    //layer2 - layer2PauseBlockIndex - l2UpdateBlock's index when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlockIndex;
 
     bool internal _lock;
 
-    modifier ifFree {
-        require(!_lock, "lock");
+    modifier ifFree() {
+        require(!_lock, 'lock');
         _lock = true;
         _;
         _lock = false;
