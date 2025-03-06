@@ -85,7 +85,6 @@ contract SeigManagerV1_3 is
     using SArrays for uint256[];
 
     uint256 internal constant WEI_UINT = 1e18;
-    uint256 public constant MAX_COMMIT_CLAIM = 200;
 
     //////////////////////////////
     // Events
@@ -392,12 +391,12 @@ contract SeigManagerV1_3 is
     /**
      * @notice  Amount payable to a specific L2 operator
      * @param  layer2           The layer2 address
+     * @param  maxCount         Number of commits to claim seigniorage
      * @return amount           Amount that can be claimed
      * @return uptoIndex        l2 The last index number settled in the l2UpdateBlock
      */
-    function claimableL2Seigniorage(address layer2
-    ) public view returns (uint256 amount, uint256 uptoIndex) {
-
+    function claimableL2Seigniorage(address layer2, uint256 maxCount) public view returns (uint256 amount, uint256 uptoIndex) {
+        require(maxCount!=0, "zero maxCount");
         uint256[] memory layer2BlockIndexes = layer2L2UpdateBlockIndexes[layer2];
         uint256 len = layer2BlockIndexes.length;
         if (len == 0) return (0, 0);
@@ -421,9 +420,6 @@ contract SeigManagerV1_3 is
 
             // Find pauseBlock Index.
             (uint256 pauseStartIndex, uint256 pauseEndIndex) = _nearbyPauseBlockIndex(layer2, i);
-
-            uint256 maxCount = maxCommitCountForClaim;
-            if (maxCount == 0) maxCount = MAX_COMMIT_CLAIM;
 
             uint256 count = 0;
             uint256 blockForLiquidity;
@@ -466,9 +462,10 @@ contract SeigManagerV1_3 is
     /**
      * @notice Seigniorage claims for specific L2 operators
      * @param  layer2           The layer2 address
+     * @param  maxCount         Number of commits to claim seigniorage
      */
-    function claimL2Seigniorage(address layer2) external {
-        (uint256 amount, uint256 lastIndex) = claimableL2Seigniorage(layer2);
+    function claimL2Seigniorage(address layer2, uint256 maxCount) external {
+        (uint256 amount, uint256 lastIndex) = claimableL2Seigniorage(layer2, maxCount);
         require(amount != 0, 'zero amount');
         (address rollupConfig, ) = allowIssuanceLayer2Seigs(layer2);
 
