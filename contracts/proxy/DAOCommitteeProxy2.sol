@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import '../dao/StorageStateCommittee.sol';
+import '../dao/StorageStateCommitteeV2.sol';
 import {AccessControl} from '../accessControl/AccessControl.sol';
 import {ERC165A} from '../accessControl/ERC165A.sol';
 import './ProxyStorage2.sol';
@@ -14,13 +15,10 @@ contract DAOCommitteeProxy2 is
     StorageStateCommittee,
     AccessControl,
     ERC165A,
-    ProxyStorage2,
+    StorageStateCommitteeV2,
     IProxyEvent,
     IProxyAction2
 {
-    address internal _implementation;
-    bool public pauseProxy;
-
     modifier onlyOwner2() {
         // console.log("msg.sedner :", msg.sender);
         // console.logBytes32(DEFAULT_ADMIN_ROLE);
