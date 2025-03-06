@@ -450,7 +450,7 @@ contract SeigManagerV1_3 is
                 amount += (l2RewardAtBlock[globalIndexes[i]] * commitLayer2Tvl[layer2][blockForLiquidity]) / WEI_UINT;
 
                 uptoIndex = i;
-                count++;
+                ++count;
                 if (count >= maxCount) break;
                 if (pauseEndIndex != 0 && i > pauseEndIndex) {
                     (pauseStartIndex, pauseEndIndex) = _nearbyPauseBlockIndex(layer2, i);
