@@ -743,7 +743,8 @@ contract SeigManagerV1_3 is
         }
         uint256 layer2Seigs;
 
-        if (layer2Allowed) {
+        if (layer2Allowed && (curLayer2Tvl !=0 || (curLayer2Tvl == 0 && oldLayer2Info.layer2Tvl !=0)) ) {
+
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
             if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
