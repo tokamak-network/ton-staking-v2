@@ -153,16 +153,11 @@ contract DAOCommittee_V1 is
         _;
     }
 
-    modifier validBlacklist(address _address) {
-        require(!blacklist[_address], "DAOCommittee: blacklisted member"]);
-        _;
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Managing members
-    function removeFromBlacklist(address _member) external onlyOwner {
-        require(blacklist[_member], "Not blacklisted");
-        blacklist[_member] = false;
+    function removeFromBlacklist(address _candidate) external onlyOwner {
+        require(blacklist[_candidate], "Not blacklisted");
+        blacklist[_candidate] = false;
     }
 
     function createCandidate(string calldata _memo)
@@ -335,7 +330,7 @@ contract DAOCommittee_V1 is
             candidateInfo.memberJoinedTime == 0,
             "DAOCommittee: already member"
         );
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member"]);
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
@@ -388,6 +383,7 @@ contract DAOCommittee_V1 is
 
         uint256 prevIndex = candidateInfo.indexMembers;
         candidateInfo.indexMembers = 0;
+        claimActivityReward(candidate);
 
         blacklist[candidateInfo.candidateContract] = true;
         emit MemberBlacklisted(candidate, block.timestamp);
@@ -490,7 +486,7 @@ contract DAOCommittee_V1 is
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member"]);
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
 
         agendaManager.castVote(
             _agendaID,
@@ -565,13 +561,14 @@ contract DAOCommittee_V1 is
     }
 
     /// @notice Claims the activity reward for member
-    function claimActivityReward(address _receiver) external {
+    function claimActivityReward(address _receiver) public {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
         require(
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
