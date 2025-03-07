@@ -124,6 +124,11 @@ contract DAOCommittee_V1 is
         string newMemo
     );
 
+    event MemberBlacklisted(
+        address indexed member,
+        uint256 timestamp
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
         _;
@@ -148,8 +153,18 @@ contract DAOCommittee_V1 is
         _;
     }
 
+    modifier validBlacklist(address _address) {
+        require(!blacklist[_address], "DAOCommittee: blacklisted member"]);
+        _;
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Managing members
+    function removeFromBlacklist(address _member) external onlyOwner {
+        require(blacklist[_member], "Not blacklisted");
+        blacklist[_member] = false;
+    }
+
     function createCandidate(string calldata _memo)
         external
     {
@@ -320,6 +335,7 @@ contract DAOCommittee_V1 is
             candidateInfo.memberJoinedTime == 0,
             "DAOCommittee: already member"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member"]);
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
@@ -372,6 +388,10 @@ contract DAOCommittee_V1 is
 
         uint256 prevIndex = candidateInfo.indexMembers;
         candidateInfo.indexMembers = 0;
+
+        blacklist[candidateInfo.candidateContract] = true;
+        emit MemberBlacklisted(candidate, block.timestamp);
+
         emit ChangedMember(prevIndex, candidate, address(0));
 
         return true;
@@ -430,7 +450,7 @@ contract DAOCommittee_V1 is
 
                 if (selector1.equal(claimTONBytes)) revert('claimTON dont use');
                 else if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = toBytes(ton);
+                    bytes memory tonaddr = _toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
@@ -470,6 +490,7 @@ contract DAOCommittee_V1 is
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member"]);
 
         agendaManager.castVote(
             _agendaID,
@@ -566,12 +587,6 @@ contract DAOCommittee_V1 is
         return v * 10 ** 9;
     }
 
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
-    }
-
     function _decodeAgendaData(bytes calldata input)
         internal
         pure
@@ -581,19 +596,8 @@ contract DAOCommittee_V1 is
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
+    function _toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
-    }
-
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
     }
 
     function payCreatingAgendaFee(address _creator) internal {
