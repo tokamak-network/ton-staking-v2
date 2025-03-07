@@ -1540,7 +1540,8 @@ describe("DAO Proxy Change Test", () => {
 
         it("27. getOldCandidateInfos (view)", async () => {
             let oldinfo = await daoCommittee_V1_Contract.getOldCandidateInfos(member2Addr)
-            expect(oldinfo.claimedTimestamp).to.be.equal(0)
+            // console.log(oldinfo);
+            expect(oldinfo.rewardPeriod).to.be.equal(0)
         })
 
         it("28. operatorAmountCheck (view)", async () => {
