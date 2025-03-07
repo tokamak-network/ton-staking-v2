@@ -404,14 +404,18 @@ contract SeigManagerV1_3 is
         Layer2Reward memory rewardInfo = layer2RewardInfo[layer2];
         uint256 globalLen = l2UpdateBlock.length;
 
+        /// Search among the committed blocks.
         if (rewardInfo.claimedLastIndex < globalLen) {
             uint256[] memory globalIndexes = l2UpdateBlock;
 
-            // Index after the last claim
+            /// Start counting from the index after the last claim.
             uint i = rewardInfo.claimedLastIndex + 1;
             uint256 sCurIndex;
             uint256 sNextIndex;
 
+            /// Since the layer2 index(layer2BlockIndexes) has the l2UpdateBlock index as its value,
+            /// we find an array position (sCurIndex) that is less than or equal to the l2UpdateBlock index value.
+            /// that is, an array position (sCurIndex, sNextIndex) that has the l2UpdateBlock index value as a value between them.
             uint256 fIndex = layer2BlockIndexes.findIndexMemory(i);
             sCurIndex = fIndex;
 
@@ -436,6 +440,8 @@ contract SeigManagerV1_3 is
                 gCurIndex = layer2BlockIndexes[sCurIndex];
                 gNextIndex = layer2BlockIndexes[sNextIndex];
 
+                /// The Layer2TVL for the block corresponding to sCurIndex is applied to the seigniorage calculation
+                /// until the l2UpdateBlock index becomes the value of the sNextIndex index.
                 if (i < gNextIndex) {
                     blockForLiquidity = globalIndexes[gCurIndex];
                 } else {
@@ -447,6 +453,8 @@ contract SeigManagerV1_3 is
                     }
                 }
 
+                /// Seigniorage is calculated by multiplying the reward allocated to the unit liquidity at the time of commit
+                /// by the Layer2TVL (or more precisely, the TVL at the time of the previous commit).
                 amount += (l2RewardAtBlock[globalIndexes[i]] * commitLayer2Tvl[layer2][blockForLiquidity]) / WEI_UINT;
 
                 uptoIndex = i;
@@ -474,6 +482,7 @@ contract SeigManagerV1_3 is
         rewardInfo.claimedBlockNumber = block.number;
         rewardInfo.claimedReward += amount;
         layer2RewardInfo[layer2] = rewardInfo;
+
         ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, amount);
         emit ClaimedL2Seigniorage(layer2, amount);
     }
@@ -739,6 +748,7 @@ contract SeigManagerV1_3 is
         }
 
         if (l2TotalSeigs != 0 && totalLayer2TVL != 0) {
+            /// Stores the block number and the seigniorage amount assigned to one Layer2 liquidity.
             _insertL2UpdateBlock_Reward(l2TotalSeigs, totalLayer2TVL);
         }
         uint256 layer2Seigs;
@@ -748,6 +758,10 @@ contract SeigManagerV1_3 is
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
             if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
+                // Layer2 stores committed block information and Layer2TVL.
+                /// For committed block information, it stores the index of the array (l2UpdateBlock) that stores all committed blocks.
+                /// The reason for storing block information as an index(l2UpdateBlock's index) is that when calculating seigniorage later,
+                /// it is searched based on the entire commit block(l2UpdateBlock).
                 _insertCommitLayer2Tvl(msg.sender, oldLayer2Info.layer2Tvl);
 
                 layer2Seigs =
@@ -757,14 +771,24 @@ contract SeigManagerV1_3 is
                 newLayer2Info.layer2Tvl = curLayer2Tvl;
 
             } else if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
+                /// If it is Layer2 that executed the first update seigniorage,
+                /// Save the starting block and save the current Layer2 TVL.
+                /// Based on this, we can calculate the seigniorage at the next commit.
                 newLayer2Info.startBlock = block.number;
                 newLayer2Info.layer2Tvl = curLayer2Tvl;
 
+                /// Since this layer2 can receive seigniorage from the next block,
+                /// it sets the claimedLastIndex to the current index so that the seigniorage can be calculated
+                /// from the next index when claiming.
                 if (l2UpdateBlock.length != 0) newLayer2Info.claimedLastIndex = l2UpdateBlock.length - 1;
 
+                /// Since the Layer2 TVL used for seigniorage calculation is the Layer2 TVL of the previous commit,
+                /// the Layer2 TVL of the previous commit is stored.
                 commitLayer2Tvl[msg.sender][block.number] = oldLayer2Info.layer2Tvl;
             }
 
+            /// The changed amount of Layer2 TVL is stored in totalLayer2TVL
+            /// to receive seigniorage at the next update seigniorage.
             totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
         }
 
