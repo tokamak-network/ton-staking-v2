@@ -127,11 +127,6 @@
           "internalType": "address",
           "name": "layer2",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "maxCount",
-          "type": "uint256"
         }
       ],
       "name": "claimableL2Seigniorage",
@@ -139,11 +134,6 @@
         {
           "internalType": "uint256",
           "name": "amount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "uptoIndex",
           "type": "uint256"
         }
       ],

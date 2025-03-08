@@ -217,12 +217,12 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
         _nonZeroAddress(_layer2);
 
-        rollupConfigInfo[rollupConfig].status = 2;
-        emit PausedCandidateAddOn(rollupConfig, _layer2);
 
         (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromL2Seigniorage(address)",_layer2));
         if (!success) revert ExcludeError();
 
+        rollupConfigInfo[rollupConfig].status = 2;
+        emit PausedCandidateAddOn(rollupConfig, _layer2);
     }
 
     /**

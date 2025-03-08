@@ -20,7 +20,7 @@ contract SeigManagerV1_3Storage {
     /// layer2 seigs start block
     uint256 public layer2StartBlock;
 
-     uint256 public l2RewardPerUint;  // ray unit .1e27
+     uint256 public l2RewardPerUint;
 
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
@@ -28,11 +28,11 @@ contract SeigManagerV1_3Storage {
     /// layer2 reward information for each layer2(candidate).
     mapping(address => Layer2Reward) public layer2RewardInfo;
 
-    // layer2 - l2UpdateBlock's index index when pausing
-    mapping(address => uint256[]) public layer2PauseBlockIndex;
+    // layer2 - block number when pausing
+    mapping(address => uint256[]) public layer2PauseBlocks;
 
-    //layer2 - layer2PauseBlockIndex - l2UpdateBlock's index when unpausing
-    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlockIndex;
+    //layer2 - block number when pausing - block number when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
 
     bool internal _lock;
 
