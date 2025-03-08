@@ -567,15 +567,48 @@ contract SeigManagerV1_3 is
             tos
         );
 
-
+        // If layer2StartBlock is not set, set it to the previous block so that the signiorge will be accumulated to layer2 immediately.
         if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
+        address wton_ = _wton;
         uint256 l2TotalSeigs;
-        address _layer2Manager = layer2Manager;
+        uint256 layer2Seigs;
+        if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
+            l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+            l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+            IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
+        }
 
-        /// layer2StartBlock == 1 이면, l2TotalSeigs 발급을 안한다.
-        if (_layer2Manager != address(0) && layer2StartBlock != 1 ) {
-            if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+        (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
+        if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+            uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+            Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+            Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+
+            // update layer2 tvl if it has changed
+            // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
+            if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
+                newLayer2Info.layer2Tvl = curLayer2Tvl;
+                totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+            }
+
+            // If this the first commit, set up an initial debt
+            if (oldLayer2Info.startBlock == 0) {
+                newLayer2Info.startBlock = block.number;
+                newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+            } else {
+                newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+
+                // distribute seigniorage to layer2 based on previous layer2 tvl
+                // layer2Tvl would be 0 when layer2 has been paused
+                if (oldLayer2Info.layer2Tvl > 0) {
+                    layer2Seigs =
+                        ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
+                        oldLayer2Info.initialDebt;
+                    // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
+                    ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
+                }
+            }
         }
 
         uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
@@ -591,9 +624,6 @@ contract SeigManagerV1_3 is
         uint256 daoSeig;
         uint256 relativeSeig;
 
-        address wton_ = _wton;
-        if (l2TotalSeigs != 0) IWTON(wton_).mint(_layer2Manager, l2TotalSeigs);
-
         if (_powerton != address(0)) {
             powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
             IWTON(wton_).mint(_powerton, powertonSeig);
@@ -608,53 +638,6 @@ contract SeigManagerV1_3 is
             relativeSeig = totalPseig;
             accRelativeSeig += relativeSeig;
         }
-
-        uint256 layer2Seigs;
-        uint256 curLayer2Tvl;
-        Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
-
-        (address rollupConfig, bool layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-
-        if (layer2Allowed && !isPauseL2Seigniorage(msg.sender))
-            curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-
-        if (l2TotalSeigs != 0) {
-            l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
-
-            if (layer2Allowed && !isPauseL2Seigniorage(msg.sender)) {
-
-                Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
-
-                if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
-                    newLayer2Info.startBlock = block.number;
-                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
-
-
-                // distribute seigniorage to layer2 based on previous layer2 tvl
-                // layer2Tvl would be 0 when layer2 has been paused
-                } else if (oldLayer2Info.layer2Tvl > 0) {
-
-                    // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
-                    layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
-
-                    ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
-
-                    // update layer2Debt based on current layer2Tvl
-                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
-                }
-
-                // update layer2 tvl if it has changed
-                if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
-                    newLayer2Info.layer2Tvl = curLayer2Tvl;
-                }
-            }
-
-        } else if (curLayer2Tvl != 0){
-                Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
-                newLayer2Info.layer2Tvl = curLayer2Tvl;
-        }
-
-        totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
 
         // on v1_3. changed event
         // emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
