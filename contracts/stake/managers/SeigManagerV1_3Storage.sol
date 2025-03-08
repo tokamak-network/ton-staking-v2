@@ -8,6 +8,7 @@ contract SeigManagerV1_3Storage  {
     struct Layer2Reward {
         uint256 layer2Tvl;
         uint256 initialDebt;
+        uint256 startBlock;
     }
 
     /// L1BridgeRegistry address
@@ -25,6 +26,12 @@ contract SeigManagerV1_3Storage  {
 
     /// layer2 reward information for each layer2(candidate).
     mapping (address => Layer2Reward) public layer2RewardInfo;
+
+    // layer2 - block number when pausing
+    mapping(address => uint256[]) public layer2PauseBlocks;
+
+    //layer2 - block number when pausing - block number when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
 
     bool internal _lock;
 

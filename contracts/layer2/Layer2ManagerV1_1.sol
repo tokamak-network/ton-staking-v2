@@ -25,6 +25,7 @@ error ZeroBytesError();  // memo check
 error SameValueError();
 error StatusError();
 error ExcludeError();
+error IncludeError();
 /**
  * @notice  Error in onApprove function
  * @param x 1: sender is not ton nor wton
@@ -214,12 +215,12 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
         _nonZeroAddress(_layer2);
 
-        rollupConfigInfo[rollupConfig].status = 2;
-        emit PausedCandidateAddOn(rollupConfig, _layer2);
 
-        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromSeigniorage(address)",_layer2));
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromL2Seigniorage(address)",_layer2));
         if (!success) revert ExcludeError();
 
+        rollupConfigInfo[rollupConfig].status = 2;
+        emit PausedCandidateAddOn(rollupConfig, _layer2);
     }
 
     /**
@@ -231,21 +232,27 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         // require(info.stateIssue == 2, "not in pause status");
         if (info.status != 2) revert StatusError();
 
+         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
+        _nonZeroAddress(_layer2);
+
         rollupConfigInfo[rollupConfig].status = 1;
         emit UnpausedCandidateAddOn(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
+
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("includeFromL2Seigniorage(address)",_layer2));
+        if (!success) revert IncludeError();
     }
 
-    /* ========== onlySeigManger  ========== */
+     /* ========== onlySeigManger  ========== */
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
      * @param rollupConfig the rollupConfig address
      * @param amount the amount to give a seigniorage
      */
-    function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
-
+    function transferL2Seigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
         IERC20(wton).safeTransfer(rollupConfigInfo[rollupConfig].operatorManager, amount);
     }
+
 
     /* ========== Anybody can execute ========== */
 

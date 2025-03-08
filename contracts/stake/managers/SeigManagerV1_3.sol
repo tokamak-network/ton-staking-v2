@@ -34,7 +34,7 @@ interface IL1BridgeRegistry {
 }
 
 interface ILayer2Manager {
-    function updateSeigniorage(address rollupConfig, uint256 amount) external;
+    function transferL2Seigniorage(address rollupConfig, uint256 amount) external;
     function rollupConfigOfOperator(address operator) external view returns (address);
     function statusLayer2(address rollupConfig) external view returns (uint8);
 }
@@ -81,6 +81,8 @@ contract SeigManagerV1_3 is
     DSMath,
     SeigManagerV1_3Storage
 {
+    uint256 internal constant WEI_UINT = 1e18;
+
     //////////////////////////////
     // Events
     //////////////////////////////
@@ -141,12 +143,16 @@ contract SeigManagerV1_3 is
     );
 
     /**
-     * @notice Event that occurs when calling excludeFromSeigniorage function
+     * @notice Event that occurs when calling excludeFromL2Seigniorage function
      * @param layer2        the layer2 address
-     * @param layer2Tvl     the layer2 TON TVL
-     * @param initialDebt   the layer2 initial debt for calculating a reward
      */
-    event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+    event ExcludedFromL2Seigniorage(address layer2);
+
+    /**
+     * @notice Event that occurs when calling includeFromL2Seigniorage function
+     * @param layer2        the layer2 address
+     */
+    event IncludedFromL2Seigniorage(address layer2);
 
     //////////////////////////////
     // onlyOwner
@@ -176,33 +182,28 @@ contract SeigManagerV1_3 is
         l1BridgeRegistry = l1BridgeRegistry_;
     }
 
-    function resetL2RewardPerUint() external onlyOwner {
-        require(layer2StartBlock == 0, 'Only possible when layer2StartBlock is 0');
-        l2RewardPerUint = 0;
-    }
-
     //////////////////////////////
     // onlyLayer2Manager
     //////////////////////////////
 
     /**
      * @notice Exclude the layer2 in distributing a seigniorage
-     * @param _layer2     the layer2(candidate) address
+     * @param layer2     the layer2(candidate) address
      */
-    function excludeFromSeigniorage(address _layer2) external returns (bool) {
+    function excludeFromL2Seigniorage(address layer2) external returns (bool) {
         _onlyLayer2Manager();
-        Layer2Reward storage reward = layer2RewardInfo[_layer2];
-        // require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
-        if (totalLayer2TVL < reward.layer2Tvl) revert Layer2TvlError();
+        _pauseLayer2Tvl(layer2);
+        emit ExcludedFromL2Seigniorage(layer2);
+        return true;
+    }
 
-        emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
+    function includeFromL2Seigniorage(address layer2) external returns (bool) {
+        _onlyLayer2Manager();
+        _unpauseLayer2Tvl(layer2);
 
-        if (reward.layer2Tvl != 0) {
-            totalLayer2TVL -= reward.layer2Tvl;
-            reward.layer2Tvl = 0;
-            reward.initialDebt = 0;
-        }
+        require(!isPauseL2Seigniorage(layer2), "error includeFromL2Seigniorage");
 
+        emit IncludedFromL2Seigniorage(layer2);
         return true;
     }
 
@@ -245,7 +246,6 @@ contract SeigManagerV1_3 is
      * @notice Estimate the seigniorage to be distributed
      * @param blockNumber         The block number
      * @param layer2              The layer2 address
-     * @param _isSenderOperator   Whether sender is operator of layer2
      * @return maxSeig            Total amount of seigniorage occurring in that block
      * @return stakedSeig         the amount equals to the staking ratio in TON total supply
      *                            in total issuing seigniorage
@@ -258,10 +258,9 @@ contract SeigManagerV1_3 is
      */
     function estimatedDistribute(
         uint256 blockNumber,
-        address layer2,
-        bool _isSenderOperator
+        address layer2
     )
-        external
+        public
         view
         returns (
             uint256 maxSeig,
@@ -283,14 +282,10 @@ contract SeigManagerV1_3 is
         if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
 
         uint256 prevTotalSupply = _tot.totalSupply();
-        uint256 nextTotalSupply;
         maxSeig = span * _seigPerBlock;
         uint256 tos = _totalSupplyOfTon(blockNumber);
         stakedSeig = rdiv(rmul(maxSeig, prevTotalSupply), tos);
 
-        // L2 sequencers
-        uint256 curLayer2Tvl = 0;
-        address rollupConfig;
         bool layer2Allowed;
         uint256 tempLayer2StartBlock = layer2StartBlock;
         Layer2Reward memory oldLayer2Info = layer2RewardInfo[layer2];
@@ -301,41 +296,25 @@ contract SeigManagerV1_3 is
             tempLayer2StartBlock != 1 &&
             tempLayer2StartBlock < blockNumber
         ) {
-            (rollupConfig, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
-
-            if (layer2Allowed) {
-                curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-                if (totalLayer2TVL != 0)
-                    l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
-            }
+            (, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
+            if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
         }
 
-        // pseig
-        // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-        uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
-
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
 
         if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
         if (dao != address(0)) daoSeig = rmul(unstakedSeig, daoSeigRate);
 
         if (relativeSeigRate != 0) relativeSeig = totalPseig;
 
-        // L2 seigs settlement
-        uint256 tempL2RewardPerUint = l2RewardPerUint;
-        if (layer2Allowed) {
-            if (l2TotalSeigs != 0) tempL2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+        if (layer2Allowed && totalLayer2TVL != 0) {
+            if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
 
-            if (
-                tempL2RewardPerUint != 0 &&
-                (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) &&
-                (oldLayer2Info.layer2Tvl != 0)
-            ) {
-                layer2Seigs =
-                    tempL2RewardPerUint *
-                    (oldLayer2Info.layer2Tvl / 1e18) -
-                    oldLayer2Info.initialDebt;
+                if (oldLayer2Info.layer2Tvl != 0) {
+                    uint256 templ2RewardPerUint = l2RewardPerUint + (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+                    layer2Seigs = ((templ2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
+                }
             }
         }
     }
@@ -366,17 +345,6 @@ contract SeigManagerV1_3 is
         else if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
 
-    /**
-     * @notice Query the unsettled amount of layer2
-     * @param layer2   The layer2 address
-     * @return amount  The unsettled amount of layer2
-     */
-    function unSettledReward(address layer2) public view returns (uint256 amount) {
-        Layer2Reward memory layer2Info = layer2RewardInfo[layer2];
-        if (layer2Info.layer2Tvl != 0)
-            amount = l2RewardPerUint * (layer2Info.layer2Tvl / 1e18) - layer2Info.initialDebt;
-    }
-
     function unallocatedSeigniorage() external view returns (uint256 amount) {
         amount = _tot.totalSupply() - stakeOfAllLayers();
     }
@@ -402,6 +370,18 @@ contract SeigManagerV1_3 is
             if (coin != address(0)) amount += _coinages[layer2].totalSupplyAt(snapshotId);
         }
     }
+
+    function isPauseL2Seigniorage(address layer2) public view returns (bool) {
+        uint256[] memory pauseBlocks = layer2PauseBlocks[layer2];
+        uint256 len = pauseBlocks.length;
+        if (len == 0) return false;
+
+        uint256 pauseBlock = pauseBlocks[len - 1];
+
+        if (pauseBlock != 0 && layer2UnpauseBlocks[layer2][pauseBlock] == 0) return true;
+        else return false;
+    }
+
 
     //////////////////////////////
     // Internal functions
@@ -569,12 +549,10 @@ contract SeigManagerV1_3 is
             return false;
         }
 
-        uint256 prevTotalSupply;
-        uint256 nextTotalSupply;
 
         // 1. increase total supply of {tot} by maximum seigniorages * staked rate
         //    staked rate = total staked amount / total supply of (W)TON
-        prevTotalSupply = _tot.totalSupply();
+        uint256 prevTotalSupply = _tot.totalSupply();
 
         uint256 span = block.number - _lastSeigBlock;
         if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
@@ -583,7 +561,7 @@ contract SeigManagerV1_3 is
         uint256 maxSeig = span * _seigPerBlock;
 
         // total supply of (W)TON , https://github.com/tokamak-network/TON-total-supply
-        uint256 tos = totalSupplyOfTon();
+        uint256 tos = _totalSupplyOfTon(block.number);
 
         // maximum seigniorages * staked rate
         uint256 stakedSeig = rdiv(
@@ -595,39 +573,26 @@ contract SeigManagerV1_3 is
             tos
         );
 
-        // L2 sequencers
-        uint256 l2TotalSeigs;
-        uint256 curLayer2Tvl;
-        address rollupConfig;
-        bool layer2Allowed;
 
-        // L2 seigs settlement
-        uint256 layer2Seigs;
-        address _layer2Manager = layer2Manager;
-
-        Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
         if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
 
-        if (
-            _layer2Manager != address(0) && layer2StartBlock != 1 && layer2StartBlock < block.number
-        ) {
-            (rollupConfig, layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
-            if (layer2Allowed)
-                curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+        uint256 l2TotalSeigs;
+        address _layer2Manager = layer2Manager;
+
+        /// layer2StartBlock == 1 이면, l2TotalSeigs 발급을 안한다.
+        if (_layer2Manager != address(0) && layer2StartBlock != 1 ) {
             if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
         }
 
-        // pseig
-        // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
-        uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         _lastSeigBlock = block.number;
 
         _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
 
         emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, nextTotalSupply);
 
-        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 powertonSeig;
         uint256 daoSeig;
         uint256 relativeSeig;
@@ -650,28 +615,52 @@ contract SeigManagerV1_3 is
             accRelativeSeig += relativeSeig;
         }
 
-        // L2 seigs settlement
-        if (layer2Allowed) {
-            if (l2TotalSeigs != 0) l2RewardPerUint += ((l2TotalSeigs * 1e18) / totalLayer2TVL);
+        uint256 layer2Seigs;
+        uint256 curLayer2Tvl;
+        Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
 
-            Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+        (address rollupConfig, bool layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
 
-            if (l2RewardPerUint != 0) {
-                if (_isSenderOperator || oldLayer2Info.layer2Tvl > curLayer2Tvl) {
-                    layer2Seigs = unSettledReward(msg.sender);
+        if (layer2Allowed && !isPauseL2Seigniorage(msg.sender))
+            curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
 
-                    if (layer2Seigs != 0) {
-                        ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, layer2Seigs);
-                        newLayer2Info.initialDebt += layer2Seigs;
-                    }
-                } else if (_lastCommitBlock[msg.sender] == 0) {
-                    newLayer2Info.initialDebt = (l2RewardPerUint * oldLayer2Info.layer2Tvl) / 1e18;
+        if (l2TotalSeigs != 0) {
+            l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+
+            if (layer2Allowed && !isPauseL2Seigniorage(msg.sender)) {
+
+                Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+
+                if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
+                    newLayer2Info.startBlock = block.number;
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+
+
+                // distribute seigniorage to layer2 based on previous layer2 tvl
+                // layer2Tvl would be 0 when layer2 has been paused
+                } else if (oldLayer2Info.layer2Tvl > 0) {
+
+                    // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
+                    layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
+
+                    ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
+
+                    // update layer2Debt based on current layer2Tvl
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+                }
+
+                // update layer2 tvl if it has changed
+                if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
+                    newLayer2Info.layer2Tvl = curLayer2Tvl;
                 }
             }
 
-            newLayer2Info.layer2Tvl = curLayer2Tvl;
-            totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+        } else if (curLayer2Tvl != 0){
+                Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+                newLayer2Info.layer2Tvl = curLayer2Tvl;
         }
+
+        totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
 
         // on v1_3. changed event
         // emit SeigGiven(msg.sender, maxSeig, stakedSeig, unstakedSeig, powertonSeig, daoSeig, relativeSeig);
@@ -688,6 +677,46 @@ contract SeigManagerV1_3 is
         );
 
         result = true;
+    }
+
+    function _pauseLayer2Tvl(address layer2) internal {
+        require(!isPauseL2Seigniorage(layer2), 'already paused');
+
+        if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
+
+        Layer2Reward memory info = layer2RewardInfo[layer2];
+        totalLayer2TVL -= info.layer2Tvl;
+        info.layer2Tvl = 0;
+        layer2RewardInfo[layer2] = info;
+
+        layer2PauseBlocks[layer2].push(block.number);
+    }
+
+    function _unpauseLayer2Tvl(address layer2) internal {
+        (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(layer2);
+        require(allowed, "not allowed");
+        require(isPauseL2Seigniorage(layer2), 'not paused');
+
+        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+
+        uint256 lastIndex = layer2PauseBlocks[layer2].length-1;
+        layer2UnpauseBlocks[layer2][layer2PauseBlocks[layer2][lastIndex]] = block.number;
+
+        Layer2Reward memory info = layer2RewardInfo[layer2];
+        info.layer2Tvl = curLayer2Tvl;
+        info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+        layer2RewardInfo[layer2] = info;
+
+        totalLayer2TVL += curLayer2Tvl;
+    }
+
+    /**
+     * @notice  Amount payable to a specific L2 operator
+     * @param  layer2           The layer2 addressa
+     * @return amount           Amount that can be claimed
+     */
+    function claimableL2Seigniorage(address layer2) public view returns (uint256 amount) {
+        (  , , , , , , , amount ) = estimatedDistribute(block.number+1, layer2);
     }
 
     //=====
