@@ -342,22 +342,12 @@
         },
         {
           "internalType": "uint256",
+          "name": "initialDebt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
           "name": "startBlock",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "claimedLastIndex",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "claimedBlockNumber",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "claimedReward",
           "type": "uint256"
         }
       ],
