@@ -546,9 +546,6 @@ contract SeigManagerV1_3 is
     }
 
     function _increaseTot() internal returns (bool result) {
-        // short circuit if already seigniorage is given.
-        if (block.number <= _lastSeigBlock) return false;
-
         if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
             _lastSeigBlock = block.number;
             return false;
