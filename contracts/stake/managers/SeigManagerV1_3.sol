@@ -683,21 +683,14 @@ contract SeigManagerV1_3 is
     }
 
     function _unpauseLayer2Tvl(address layer2) internal {
-        (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(layer2);
-        require(allowed, "not allowed");
+
+         (, bool allowed) = allowIssuanceLayer2Seigs(layer2);
+        require(allowed, 'not allowed');
         require(isPauseL2Seigniorage(layer2), 'not paused');
 
-        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-
-        uint256 lastIndex = layer2PauseBlocks[layer2].length-1;
+        uint256 lastIndex = layer2PauseBlocks[layer2].length - 1;
         layer2UnpauseBlocks[layer2][layer2PauseBlocks[layer2][lastIndex]] = block.number;
-
-        Layer2Reward memory info = layer2RewardInfo[layer2];
-        info.layer2Tvl = curLayer2Tvl;
-        info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
-        layer2RewardInfo[layer2] = info;
-
-        totalLayer2TVL += curLayer2Tvl;
+        layer2RewardInfo[layer2].startBlock = 0;
     }
 
     /**

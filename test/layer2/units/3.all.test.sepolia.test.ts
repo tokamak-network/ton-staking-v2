@@ -1121,7 +1121,7 @@ describe('TON Staking V2.5', () => {
 
         let l2Info = await seigManager.layer2RewardInfo(titanLayerAddress)
         let totalLayer2TVL = await seigManager.totalLayer2TVL()
-        console.log('totalLayer2TVL', totalLayer2TVL)
+        // console.log('totalLayer2TVL', totalLayer2TVL)
 
         let allowIssuanceLayer2Seigs = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
         expect(allowIssuanceLayer2Seigs.allowed).to.be.eq(true)
@@ -1186,14 +1186,15 @@ describe('TON Staking V2.5', () => {
         let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
         let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
-        expect(l2InfoAfter.layer2Tvl).to.be.eq(curLayer2Tvl)
-        expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.add(curLayer2Tvl))
+        expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
+        expect(l2InfoAfter.startBlock).to.be.eq(ethers.constants.Zero)
+
+        expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL)
 
         let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
         expect(allowIssuanceLayer2SeigsAfter.allowed).to.be.eq(true)
         expect(await seigManager.isPauseL2Seigniorage(titanLayerAddress)).to.be.eq(false)
 
-        // let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
     }
 
 
