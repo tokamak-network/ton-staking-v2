@@ -314,9 +314,11 @@ contract SeigManagerV1_3 is
         if (relativeSeigRate != 0) relativeSeig = totalPseig;
 
         if (layer2Allowed && totalLayer2TVL != 0) {
-             uint256 templ2RewardPerUint = l2RewardPerUint + (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
-            if ( oldLayer2Info.layer2Tvl != 0) {
-                layer2Seigs = ((templ2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
+            if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
+                uint256 templ2RewardPerUint = l2RewardPerUint + (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+                if ( oldLayer2Info.layer2Tvl != 0) {
+                    layer2Seigs = ((templ2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
+                }
             }
         }
     }
@@ -652,11 +654,17 @@ contract SeigManagerV1_3 is
             //  (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
             if (layer2Allowed && !isPauseL2Seigniorage(msg.sender)) {
 
+
                 Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+
+                if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
+                    newLayer2Info.startBlock = block.number;
+                    newLayer2Info.layer2Tvl = curLayer2Tvl;
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
 
                 // distribute seigniorage to layer2 based on previous layer2 tvl
                 // layer2Tvl would be 0 when layer2 has been paused
-                if (oldLayer2Info.layer2Tvl > 0) {
+                } else if (oldLayer2Info.layer2Tvl > 0) {
                     // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
                     layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) - oldLayer2Info.initialDebt;
 
