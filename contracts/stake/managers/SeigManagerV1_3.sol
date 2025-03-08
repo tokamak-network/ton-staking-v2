@@ -691,6 +691,8 @@ contract SeigManagerV1_3 is
         uint256 lastIndex = layer2PauseBlocks[layer2].length - 1;
         layer2UnpauseBlocks[layer2][layer2PauseBlocks[layer2][lastIndex]] = block.number;
         layer2RewardInfo[layer2].startBlock = 0;
+
+        if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
     }
 
     /**

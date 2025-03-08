@@ -1186,10 +1186,10 @@ describe('TON Staking V2.5', () => {
         let l2InfoAfter = await seigManager.layer2RewardInfo(titanLayerAddress)
         let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
-        expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
-        expect(l2InfoAfter.startBlock).to.be.eq(ethers.constants.Zero)
+        expect(l2InfoAfter.layer2Tvl).to.be.eq(curLayer2Tvl)
+        expect(l2InfoAfter.startBlock).to.be.gt(ethers.constants.Zero)
 
-        expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL)
+        expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.add(curLayer2Tvl))
 
         let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
         expect(allowIssuanceLayer2SeigsAfter.allowed).to.be.eq(true)
