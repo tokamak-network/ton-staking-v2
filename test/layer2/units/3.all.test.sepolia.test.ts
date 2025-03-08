@@ -138,6 +138,7 @@ describe('TON Staking V2.5', () => {
     let titanLayerSeigs: Array<string>;
     let thanosLayerSeigs: Array<string>;
 
+    /// layer1 에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     async function updateSeigniorageLayer1() {
 
         let claimableL2SeigniorageTitan = await seigManager.claimableL2Seigniorage(titanLayerAddress);
@@ -243,6 +244,7 @@ describe('TON Staking V2.5', () => {
 
     }
 
+    /// Titan 에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     async function updateSeigniorageTitan() {
 
         let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -354,6 +356,9 @@ describe('TON Staking V2.5', () => {
 
     }
 
+
+    /// Titan을 reject 한후에 Titan에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
+    /// 이경우 titan은 l2 시뇨리지를 이벤트에 layer2Seigs 값이 0이어야 합니다. 즉, 이번 커밋으로 이 레이어에 추가된 시뇨리지는 없다는 의미입니다
     async function updateSeigniorageTitan_reject() {
 
         let lastSeigBlock =  await seigManager.lastSeigBlock();
@@ -466,6 +471,7 @@ describe('TON Staking V2.5', () => {
 
     }
 
+    /// Thanos 에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     async function updateSeigniorageThanos() {
         let layerAddress = thanosLayerAddress
         let operatorContractAddress = thanosOperatorContractAddress
@@ -572,7 +578,8 @@ describe('TON Staking V2.5', () => {
 
     }
 
-    async function depositApproveAndCal(layerAddress: string, account: Signer, amount:BigNumber ) {
+    /// 스테이킹을 approve and call 함수를 이용하여 합니다.
+    async function depositApproveAndCall(layerAddress: string, account: Signer, amount:BigNumber ) {
         // let layerAddress = thanosLayerAddress
         // let account = addr1
         // let amount = ethers.utils.parseEther("200000")
@@ -610,6 +617,7 @@ describe('TON Staking V2.5', () => {
     }
 
 
+    /// 스테이킹을 approve and call 함수를 wton을 이용하여 합니다.
     async function depositApproveAndCallWithWton(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
 
         // let layerAddress = thanosLayerAddress
@@ -643,6 +651,7 @@ describe('TON Staking V2.5', () => {
         )
     }
 
+    /// 타이탄에서 wton으로 스테이킹합니다.
     async function depositWithWton_Titan(  account: Signer, wtonAmount:BigNumber ) {
 
 
@@ -676,6 +685,7 @@ describe('TON Staking V2.5', () => {
     }
 
 
+    /// 타이탄에서 wton으로 스테이킹을 다른 사람에게 합니다.
     async function depositWithWton2_Titan(  account: Signer, wtonAmount:BigNumber ) {
 
         await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
@@ -704,6 +714,7 @@ describe('TON Staking V2.5', () => {
         )
     }
 
+    /// 출금요청합니다.
     async function requestWithdrawal (layer2: string, account: Signer, wtonAmount:BigNumber ) {
 
         const beforeBalance = await wtonContract.balanceOf(account.address)
@@ -740,6 +751,7 @@ describe('TON Staking V2.5', () => {
         ).to.be.eq(pendingUnstakedAccountA.add(wtonAmount))
     }
 
+    /// 출금합니다.
     async function processRequest (layer2: string, account: Signer ) {
         const beforeBalance = await tonContract.balanceOf(account.address)
         let pendingUnstakedA = await depositManager.pendingUnstaked(layer2, account.address)
@@ -787,6 +799,7 @@ describe('TON Staking V2.5', () => {
         ).to.be.eq(accUnstakedAccountA.add(pendingUnstakedA))
     }
 
+    // 타이탄을 l2 시뇨리지 부여하지 않도록 합니다.
     async function rejectCandidateTitan() {
 
         expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
@@ -832,6 +845,7 @@ describe('TON Staking V2.5', () => {
         expect(await seigManager.isPauseL2Seigniorage(titanLayerAddress)).to.be.eq(true)
     }
 
+    // 타이탄을 l2 시뇨리지 부여를 재개합니다.
     async function restoreCandidateTitan() {
         expect(await l1BridgeRegistry.seigniorageCommittee()).to.be.eq(seigniorageCommitteeAddress)
         expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
@@ -865,7 +879,7 @@ describe('TON Staking V2.5', () => {
         expect(allowIssuanceLayer2SeigsAfter.allowed).to.be.eq(true)
         expect(await seigManager.isPauseL2Seigniorage(titanLayerAddress)).to.be.eq(false)
 
-        let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
+        // let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
     }
 
 
@@ -1773,7 +1787,7 @@ describe('TON Staking V2.5', () => {
             let account = addr1
             let amount = ethers.utils.parseEther("200000")
 
-            await depositApproveAndCal(
+            await depositApproveAndCall(
                 layerAddress,
                 account,
                 amount
@@ -1887,7 +1901,7 @@ describe('TON Staking V2.5', () => {
             let account = addr1
             let amount = ethers.utils.parseEther("200000")
 
-            await depositApproveAndCal(
+            await depositApproveAndCall(
                 layerAddress,
                 account,
                 amount
