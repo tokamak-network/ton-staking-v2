@@ -157,6 +157,10 @@ contract SeigManagerV1_3 is
      */
     event IncludedFromL2Seigniorage(address layer2);
 
+    event SetLayer2Manager(address layer2Manager_);
+    event SetLayer2StartBlock(uint256 startBlock_);
+    event SetL1BridgeRegistry(address l1BridgeRegistry_);
+
     //////////////////////////////
     // onlyOwner
     //////////////////////////////
@@ -166,14 +170,18 @@ contract SeigManagerV1_3 is
      * @param layer2Manager_    the layer2Manager address
      */
     function setLayer2Manager(address layer2Manager_) external onlyOwner {
+        require(layer2Manager != layer2Manager_,"same");
         layer2Manager = layer2Manager_;
+        emit SetLayer2Manager(layer2Manager_);
     }
     /**
      * @notice Set the layer2StartBlock
      * @param startBlock_    the start block
      */
     function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
+        require(layer2StartBlock != startBlock_,"same");
         layer2StartBlock = startBlock_;
+         emit SetLayer2StartBlock(startBlock_);
     }
 
     /**
@@ -181,7 +189,9 @@ contract SeigManagerV1_3 is
      * @param l1BridgeRegistry_    the l1BridgeRegistry address
      */
     function setL1BridgeRegistry(address l1BridgeRegistry_) external onlyOwner {
+        require(l1BridgeRegistry != l1BridgeRegistry_,"same");
         l1BridgeRegistry = l1BridgeRegistry_;
+         emit SetL1BridgeRegistry(l1BridgeRegistry_);
     }
 
     //////////////////////////////
@@ -573,40 +583,43 @@ contract SeigManagerV1_3 is
         address wton_ = _wton;
         uint256 l2TotalSeigs;
         uint256 layer2Seigs;
-        if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-            l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
-            l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
-            IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
-        }
 
-        (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
-        if (allowed && !isPauseL2Seigniorage(msg.sender)) {
-            uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-            Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
-            Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
-
-            // update layer2 tvl if it has changed
-            // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
-            if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
-                newLayer2Info.layer2Tvl = curLayer2Tvl;
-                totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+        if (layer2Manager != address(0) && layer2StartBlock != 1) {
+            if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
+                l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+                l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+                IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
             }
 
-            // If this the first commit, set up an initial debt
-            if (oldLayer2Info.startBlock == 0) {
-                newLayer2Info.startBlock = block.number;
-                newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
-            } else {
-                newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+            (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
+            if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+                uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+                Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+                Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
 
-                // distribute seigniorage to layer2 based on previous layer2 tvl
-                // layer2Tvl would be 0 when layer2 has been paused
-                if (oldLayer2Info.layer2Tvl > 0) {
-                    layer2Seigs =
-                        ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
-                        oldLayer2Info.initialDebt;
-                    // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
-                    ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
+                // update layer2 tvl if it has changed
+                // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
+                if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
+                    newLayer2Info.layer2Tvl = curLayer2Tvl;
+                    totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+                }
+
+                // If this the first commit, set up an initial debt
+                if (oldLayer2Info.startBlock == 0) {
+                    newLayer2Info.startBlock = block.number;
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+                } else {
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
+
+                    // distribute seigniorage to layer2 based on previous layer2 tvl
+                    // layer2Tvl would be 0 when layer2 has been paused
+                    if (oldLayer2Info.layer2Tvl > 0) {
+                        layer2Seigs =
+                            ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
+                            oldLayer2Info.initialDebt;
+                        // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
+                        ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
+                    }
                 }
             }
         }
@@ -652,6 +665,7 @@ contract SeigManagerV1_3 is
             l2TotalSeigs,
             layer2Seigs
         );
+
         result = true;
     }
 

@@ -282,8 +282,13 @@ describe('TON Staking V2.5', () => {
 
 
         let totalSupplyOfTon_after = await seigManager["totalSupplyOfTon()"]()
+        console.log('totalSupplyOfTon_after', totalSupplyOfTon_after)
 
         let seigPerBlock =  await seigManager.seigPerBlock();
+        console.log('seigPerBlock', seigPerBlock)
+
+        console.log('delta', totalSupplyOfTon_after.sub(totalSupplyOfTon))
+
 
         expect(
             totalSupplyOfTon_after.sub(totalSupplyOfTon)
@@ -357,7 +362,7 @@ describe('TON Staking V2.5', () => {
         let lastSeigBlock =  await seigManager.lastSeigBlock();
         // console.log('\nlastSeigBlock', lastSeigBlock)
         let block1 = await ethers.provider.getBlock('latest');
-        // console.log('\nblock number :', block1.number);
+        console.log('\nblock number 1 :', block1.number);
         let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
         let claimableL2SeigniorageTitan = await seigManager.claimableL2Seigniorage(titanLayerAddress);
@@ -399,15 +404,16 @@ describe('TON Staking V2.5', () => {
         expect(stakedAddr2After).to.be.gt(stakedAddr2Prev)
         expect(await wtonContract.balanceOf(powerTon)).to.be.gt(powerTonBalancePrev)
 
-
-        // console.log('\nblock number :', block2.number);
+        let block2 =  await ethers.provider.getBlock('latest');
+        console.log('\nblock number 2 :', block2.number);
         let totalSupplyOfTon_after = await seigManager["totalSupplyOfTon()"]()
         let seigPerBlock =  await seigManager.seigPerBlock();
         // console.log('\nseigPerBlock ', ethers.utils.formatUnits(seigPerBlock,27) , 'WTON')
 
+
         expect(
             totalSupplyOfTon_after.sub(totalSupplyOfTon)
-        ).to.be.eq(seigPerBlock)
+        ).to.be.eq(seigPerBlock )
 
         //=============================
         const topic1 = seigManager.interface.getEventTopic('SeigGiven2');
@@ -455,7 +461,6 @@ describe('TON Staking V2.5', () => {
         expect(prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs)).to.be.gte(
             claimableL2SeigniorageTitan.add(claimableL2SeigniorageThanos))
     }
-
 
     /// layer1 에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     async function updateSeigniorageLayer1() {
@@ -965,68 +970,40 @@ describe('TON Staking V2.5', () => {
         )
     }
 
-     /// 타이탄에서 wton으로 스테이킹합니다.
-     async function depositWithWton( layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
 
+    /// 타이탄에서 wton으로 스테이킹합니다.
+    async function depositWithWton(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
 
-         // let account = addr2
+    }
 
-         // let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-         await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
+    /// 레이어에서 wton으로 스테이킹을 다른 사람에게 합니다.
+    async function depositWithWton2(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
 
-         const beforeBalance = await wtonContract.balanceOf(account.address);
-         expect(beforeBalance).to.be.gte(wtonAmount)
+        await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
 
-         await execAllowance(wtonContract, account, depositManager.address, wtonAmount);
+        const beforeSenderBalance = await wtonContract.balanceOf(account.address);
+        // console.log("beforeSenderBalance :", beforeSenderBalance);
+        expect(beforeSenderBalance).to.be.gte(wtonAmount)
 
-         let stakedA = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
-         // console.log(stakedA)
+        await execAllowance(wtonContract, account, depositManager.address, wtonAmount);
 
-         await (await depositManager.connect(account)["deposit(address,uint256)"](
-             layerAddress,
-             wtonAmount
-         )).wait()
+        let stakedA = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
 
-         const afterBalance = await wtonContract.balanceOf(account.address);
-         expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
+        await (await depositManager.connect(account)["deposit(address,address,uint256)"](
+            layerAddress,
+            addr2.address,
+            wtonAmount
+        )).wait()
 
-         let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
-         // console.log(stakedB)
+        const afterSenderBalance = await wtonContract.balanceOf(account.address);
+        expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
 
-         expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
-             roundDown(stakedA.add(wtonAmount), 3)
-         )
-     }
+        let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
 
-
-     /// 레이어에서 wton으로 스테이킹을 다른 사람에게 합니다.
-     async function depositWithWton2(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
-
-         await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
-
-         const beforeSenderBalance = await wtonContract.balanceOf(account.address);
-         // console.log("beforeSenderBalance :", beforeSenderBalance);
-         expect(beforeSenderBalance).to.be.gte(wtonAmount)
-
-         await execAllowance(wtonContract, account, depositManager.address, wtonAmount);
-
-         let stakedA = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
-
-         await (await depositManager.connect(account)["deposit(address,address,uint256)"](
-             layerAddress,
-             addr2.address,
-             wtonAmount
-         )).wait()
-
-         const afterSenderBalance = await wtonContract.balanceOf(account.address);
-         expect(afterSenderBalance).to.be.eq(beforeSenderBalance.sub(wtonAmount))
-
-         let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
-
-         expect(roundDown(stakedB.add(ethers.BigNumber.from("3")),3)).to.be.eq(
-             roundDown(stakedA.add(wtonAmount), 3)
-         )
-     }
+        expect(roundDown(stakedB.add(ethers.BigNumber.from("3")),3)).to.be.eq(
+            roundDown(stakedA.add(wtonAmount), 3)
+        )
+    }
 
     /// 출금요청합니다.
     async function requestWithdrawal (layer2: string, account: Signer, wtonAmount:BigNumber ) {
@@ -2094,7 +2071,6 @@ describe('TON Staking V2.5', () => {
 
     //===================================================
 
-
     describe('# DepositManager : CandidateAddOn titanLayerAddress ', () => {
 
         it('deposit to titanLayerAddress using approveAndCall', async () => {
@@ -2164,33 +2140,6 @@ describe('TON Staking V2.5', () => {
         })
     })
 
-    describe('# Layer2Manager ZeroAddress Test (1) deposit ', () => {
-
-        it('deposit to titanLayerAddress using approveAndCall', async () => {
-
-            if ((await seigManager.layer2Manager()) == layer2Manager.address) {
-                await (await seigManager.connect(daoOwner).setLayer2Manager(ethers.constants.AddressZero)).wait()
-            }
-
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-
-            await depositApproveAndCall(layer2Info_1.layer2, addr1, ethers.utils.parseEther("100"))
-
-            if ((await seigManager.layer2Manager()) == ethers.constants.AddressZero) {
-                await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
-            }
-
-        })
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
-
-    });
-
-
     describe('# register CandidateAddOn : thanosCandidateAddOn ', () => {
         it('register CandidateAddOn : thanosCandidateAddOn', async () => {
 
@@ -2235,7 +2184,6 @@ describe('TON Staking V2.5', () => {
         })
     })
 
-
     describe('# DepositManager : CandidateAddOn : thanosCandidateAddOn ', () => {
 
         it('deposit to thanosLayerAddress using approveAndCall', async () => {
@@ -2256,11 +2204,36 @@ describe('TON Staking V2.5', () => {
             let account = addr2
 
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
+            await depositApproveAndCallWithWton(
+                layerAddress,
+                account,
+                wtonAmount
+            );
 
+            await (await wtonContract.connect(tonMinter).mint(account.address, wtonAmount))
 
-            await depositWithWton(layerAddress, account, wtonAmount );
+            const beforeBalance = await wtonContract.balanceOf(account.address);
+            expect(beforeBalance).to.be.gte(wtonAmount)
 
+            await execAllowance(wtonContract, account, depositManager.address, wtonAmount);
 
+            let stakedA = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+            // console.log(stakedA)
+
+            await (await depositManager.connect(account)["deposit(address,uint256)"](
+                layerAddress,
+                wtonAmount
+            )).wait()
+
+            const afterBalance = await wtonContract.balanceOf(account.address);
+            expect(afterBalance).to.be.eq(beforeBalance.sub(wtonAmount))
+
+            let stakedB = await seigManager["stakeOf(address,address)"](layerAddress, account.address)
+            // console.log(stakedB)
+
+            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
+                roundDown(stakedA.add(wtonAmount), 3)
+            )
         })
 
         it('seigManager: updateSeigniorageLayer : (1) updateSeigniorage to thanosLayer ', async () => {
@@ -2318,29 +2291,6 @@ describe('TON Staking V2.5', () => {
             await updateSeigniorageThanos();
         })
 
-
-        // it('evm_mine', async () => {
-        //     ethers.provider.send("evm_increaseTime", [60*60*24*7])
-        //     ethers.provider.send("evm_mine");
-        // });
-
-        // it('Layer2Contract: updateSeigniorage : (4) updateSeigniorage to thanosLayerAddress   ', async () => {
-        //     await updateSeigniorageThanos();
-
-
-        // })
-
-        // it('evm_mine', async () => {
-        //     ethers.provider.send("evm_increaseTime", [60*60*24*7])
-        //     ethers.provider.send("evm_mine");
-        // });
-
-        // it('Layer2Contract: updateSeigniorage : (5) updateSeigniorage to thanosLayerAddress : operator ', async () => {
-        //     await updateSeigniorageThanos();
-
-        // })
-
-
         it('requestWithdrawal to titanLayerAddress', async () => {
 
             let layer2 = thanosLayerAddress
@@ -2370,6 +2320,106 @@ describe('TON Staking V2.5', () => {
 
             await processRequest(layer2, account);
         });
+
+    })
+
+    describe('# DepositManager : CandidateAddOn : titanCandidateAddOn ', () => {
+
+        it('seigManager: updateSeigniorageLayer : (3) updateSeigniorage to titanLayerAddress ', async () => {
+            await updateSeigniorageTitan();
+
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('Layer2Contract: updateSeigniorage : (4) updateSeigniorage to titanLayerAddress ', async () => {
+            await updateSeigniorageTitan();
+
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        // it('Layer2Contract: updateSeigniorage : (5) updateSeigniorage to titanLayerAddress ', async () => {
+
+        //     await updateSeigniorageTitan();
+
+        // })
+
+    })
+
+    describe('# Layer2Manager ZeroAddress Test ', () => {
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('deposit to layer1 using approveAndCall', async () => {
+
+            if (await seigManager.layer2Manager() == layer2Manager.address) {
+                await (await seigManager.connect(daoOwner).setLayer2Manager(ethers.constants.AddressZero)).wait()
+            }
+
+            await depositApproveAndCall(layer2Info_1.layer2, addr1, ethers.utils.parseEther("100"))
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('updateSeigniorage to layer1 ', async () => {
+            await updateSeigniorageLayer_Layer2Manager_ZeroAddress()
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('updateSeigniorage to thanosLayerAddress ', async () => {
+            await updateSeigniorageThanos_Layer2Manager_ZeroAddress()
+
+        })
+        // updateSeigniorageTitan_Layer2Manager_ZeroAddress()
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+
+        it('re-set layer2Manager ', async () => {
+
+            if (await seigManager.layer2Manager() == ethers.constants.AddressZero) {
+                await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
+            }
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+    });
+
+    describe('# Layer2Manager address check ', () => {
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('check layer2Manager', async () => {
+
+            expect(await seigManager.layer2Manager()).to.be.eq(layer2Manager.address)
+        });
+
 
     })
 
@@ -2404,21 +2454,42 @@ describe('TON Staking V2.5', () => {
 
     })
 
+    describe('# DepositManager : CandidateAddOn : thanosCandidateAddOn ', () => {
 
-    describe('# Layer2Manager ZeroAddress Test (2)  ', () => {
+        it('deposit to thanosLayerAddress using approveAndCall', async () => {
+            let layerAddress = thanosLayerAddress
+            let account = addr1
+            let amount = ethers.utils.parseEther("200000")
 
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
+            await depositApproveAndCall(
+                layerAddress,
+                account,
+                amount
+            );
+        })
 
-        it('deposit to layer1 using approveAndCall', async () => {
+        it('deposit to thanosLayerAddress using deposit(address,uint256)', async () => {
+            // console.log(deployed.seigManagerV2)
+            let layerAddress = thanosLayerAddress
+            let account = addr2
 
-            if ((await seigManager.layer2Manager()) == layer2Manager.address) {
-                await (await seigManager.connect(daoOwner).setLayer2Manager(ethers.constants.AddressZero)).wait()
-            }
+            let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
 
-            await depositApproveAndCall(layer2Info_1.layer2, addr1, ethers.utils.parseEther("100"))
+            await depositWithWton(layerAddress, account, wtonAmount );
+        })
+
+        it('seigManager: updateSeigniorageLayer : (1) updateSeigniorage to thanosLayer ', async () => {
+
+            await updateSeigniorageThanos();
+
+        })
+
+        it('deposit to thanosLayerAddress using deposit(address,address,uint256) ', async () => {
+            let layerAddress = thanosLayerAddress
+            let account = addr1
+            let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
+
+            await depositWithWton2(layerAddress, account, wtonAmount);
         })
 
         it('evm_mine', async () => {
@@ -2426,8 +2497,9 @@ describe('TON Staking V2.5', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('updateSeigniorage to layer1 ', async () => {
-            await updateSeigniorageLayer_Layer2Manager_ZeroAddress()
+        it('seigManager: updateSeigniorageLayer : (2) updateSeigniorage to thanosLayerAddress ', async () => {
+
+            await updateSeigniorageThanos();
         })
 
         it('evm_mine', async () => {
@@ -2435,96 +2507,43 @@ describe('TON Staking V2.5', () => {
             ethers.provider.send("evm_mine");
         });
 
-        // it('updateSeigniorage to thanosLayerAddress ', async () => {
-        //     updateSeigniorageThanos_Layer2Manager_ZeroAddress()
-        // })
-
-        // it('evm_mine', async () => {
-        //     ethers.provider.send("evm_increaseTime", [60*60*24*7])
-        //     ethers.provider.send("evm_mine");
-        // });
-
-
-        it('updateSeigniorage to titanLayerAddress ', async () => {
-            await  updateSeigniorageTitan_Layer2Manager_ZeroAddress()
-
-            if (await seigManager.layer2Manager() == ethers.constants.AddressZero) {
-                await (await seigManager.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
-            }
+        it('seigManager: updateSeigniorageLayer : (3) updateSeigniorage to thanosLayerAddress   ', async () => {
+            await updateSeigniorageThanos();
         })
 
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
+        it('requestWithdrawal to titanLayerAddress', async () => {
+
+            let layer2 = thanosLayerAddress
+            let account = addr1
+            let wtonAmount = ethers.utils.parseEther("5"+"0".repeat(9))
+
+            await requestWithdrawal (layer2, account, wtonAmount);
+
+        })
+
+        it('processRequest to titanLayerAddress will be fail when delay time didn\'t pass.', async () => {
+            let layer2 = thanosLayerAddress
+            let account = addr1
+
+            await expect(
+                    depositManager.connect(account)["processRequest(address,bool)"](
+                    layer2,
+                    true
+                )
+            ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
+
         });
 
+        it('processRequest to titanLayerAddress.', async () => {
+            let layer2 = thanosLayerAddress
+            let account = addr1
 
-    });
-
-    describe('# Reject titanCandidateAddOn test ', () => {
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
+            await processRequest(layer2, account);
         });
 
-        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-            await rejectCandidateTitan();
-        })
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        })
+    })
 
-        it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
-            await updateSeigniorageTitan_reject();
-
-
-        })
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
-
-        it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
-                await updateSeigniorageThanos()
-        })
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
-
-        it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-            await restoreCandidateTitan();
-        })
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
-
-        it('updateSeigniorage to layer1', async () => {
-            await updateSeigniorageLayer1()
-        })
-
-        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-
-            await rejectCandidateTitan();
-
-        })
-
-        it('evm_mine', async () => {
-            ethers.provider.send("evm_increaseTime", [60*60*24*7])
-            ethers.provider.send("evm_mine");
-        });
-
-        it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
-
-            await updateSeigniorageThanos()
-
-        })
+    describe('# DepositManager : CandidateAddOn : layer1 ', () => {
 
 
         it('evm_mine', async () => {
@@ -2542,12 +2561,46 @@ describe('TON Staking V2.5', () => {
             ethers.provider.send("evm_mine");
         });
 
-        it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
+        it('Layer2Contract: updateSeigniorage : updateSeigniorage to layer1 ', async () => {
 
-            await updateSeigniorageTitan_reject()
-
+            await updateSeigniorageTitan();
 
         })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('requestWithdrawal to titanLayerAddress', async () => {
+
+            let layer2 = thanosLayerAddress
+            let account = addr1
+            let wtonAmount = ethers.utils.parseEther("5"+"0".repeat(9))
+
+            await requestWithdrawal (layer2, account, wtonAmount);
+
+        })
+
+        it('processRequest to titanLayerAddress will be fail when delay time didn\'t pass.', async () => {
+            let layer2 = thanosLayerAddress
+            let account = addr1
+
+            await expect(
+                    depositManager.connect(account)["processRequest(address,bool)"](
+                    layer2,
+                    true
+                )
+            ).to.be.rejectedWith("DepositManager: wait for withdrawal delay")
+
+        });
+
+        it('processRequest to titanLayerAddress.', async () => {
+            let layer2 = thanosLayerAddress
+            let account = addr1
+
+            await processRequest(layer2, account);
+        });
 
     })
 
