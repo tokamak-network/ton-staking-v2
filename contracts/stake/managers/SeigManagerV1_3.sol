@@ -38,6 +38,8 @@ interface ILayer2Manager {
     function transferL2Seigniorage(address rollupConfig, uint256 amount) external;
     function rollupConfigOfOperator(address operator) external view returns (address);
     function statusLayer2(address rollupConfig) external view returns (uint8);
+    function verifyOperator(address layer2, address _rollupConfig, address _operator) external view returns (bool);
+
 }
 
 interface IILayer2Registry {
@@ -338,11 +340,16 @@ contract SeigManagerV1_3 is
     function allowIssuanceLayer2Seigs(
         address layer2
     ) public view returns (address rollupConfig, bool allowed) {
+        address operatorManager = Layer2I(layer2).operator();
         rollupConfig = ILayer2Manager(layer2Manager).rollupConfigOfOperator(
-            Layer2I(layer2).operator()
+            operatorManager
         );
+
         if (rollupConfig == address(0)) allowed = false;
-        else if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
+        else if (
+            ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1
+            &&  ILayer2Manager(layer2Manager).verifyOperator(layer2, rollupConfig, operatorManager)
+        ) allowed = true;
     }
 
     function unallocatedSeigniorage() external view returns (uint256 amount) {

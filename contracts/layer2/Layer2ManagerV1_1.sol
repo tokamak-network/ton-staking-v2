@@ -145,6 +145,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     event TransferWTON(address rollupConfig, address to, uint256 amount);
 
+
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
@@ -244,7 +245,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         if (!success) revert IncludeError();
     }
 
-    /* ========== onlySeigManger  ========== */
+     /* ========== onlySeigManger  ========== */
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
@@ -252,8 +253,13 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      * @param amount the amount to give a seigniorage
      */
     function transferL2Seigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
-        IERC20(wton).safeTransfer(rollupConfigInfo[rollupConfig].operatorManager, amount);
+
+        address to = rollupConfigInfo[rollupConfig].operatorManager;
+        IERC20(wton).safeTransfer(to, amount);
+
+        emit TransferWTON(rollupConfig, to, amount);
     }
+
 
     /* ========== Anybody can execute ========== */
 
@@ -382,6 +388,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         return _availableRegister(_rollupConfig) ;
     }
 
+
+    function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
+
+       if ( operatorInfo[_operator].candidateAddOn == layer2 &&
+            operatorInfo[_operator].rollupConfig == _rollupConfig &&
+            rollupConfigInfo[_rollupConfig].operatorManager == _operator) verified = true;
+
+    }
 
     /**
      * @notice Layer 2 related information search

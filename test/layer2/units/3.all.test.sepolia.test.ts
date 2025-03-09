@@ -26,6 +26,9 @@ import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/man
 
 import { MockSystemConfigFactory } from "../../../typechain-types/contracts/mocks/MockSystemConfigFactory.sol"
 import { MockSystemConfig } from "../../../typechain-types/contracts/mocks/MockSystemConfig.sol"
+import { InvalidCandidateAddOn } from "../../../typechain-types/contracts/mocks/InvalidCandidateAddOn"
+
+
 
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
@@ -2552,6 +2555,60 @@ describe('TON Staking V2.5', () => {
 
     })
 
+    describe("# Reject updating seigniorage from unknown sender", () => {
+		it("updateSeigniorage", async () => {
+			const accounts = await ethers.getSigners();
+			const { L2Registry, DepositManager } = await getNamedAccounts();
 
+			const invalidCandidateAddOnFactory = await ethers.getContractFactory(
+				"InvalidCandidateAddOn",
+			);
+			console.log(`thanos : ${thanosOperatorContractAddress}`);
+			console.log(`layer2Registry : ${L2Registry}`);
+			const invalidCandidateAddOn = await invalidCandidateAddOnFactory.deploy(
+				thanosOperatorContractAddress,
+				L2Registry,
+				seigManager.address
+			);
+			await invalidCandidateAddOn.deployed();
+			console.log(`invalidCandidateAddOn : ${invalidCandidateAddOn.address}`);
+
+			const layer2Registry = await ethers.getContractAt(
+				"Layer2Registry",
+				L2Registry,
+			);
+
+			layer2Registry.deployCoinage(
+				invalidCandidateAddOn.address,
+				seigManager.address,
+			);
+
+			await layer2Registry.register(invalidCandidateAddOn.address);
+
+			await wtonContract
+				.connect(tonMinter)
+				.mint(accounts[0].address, ethers.utils.parseUnits("1014", 27));
+
+			await wtonContract
+				.connect(accounts[0])
+				.approve(depositManager.address, ethers.utils.parseUnits("1014", 27));
+			await (
+				await depositManager
+					.connect(accounts[0])
+					["deposit(address,address,uint256)"](
+						invalidCandidateAddOn.address,
+						thanosOperatorContractAddress,
+						ethers.utils.parseUnits("1014", 27),
+					)
+			).wait();
+
+            const prevTotalLayer2TVL = await seigManager.totalLayer2TVL();
+			console.log(`before ${await seigManager.totalLayer2TVL()}`);
+			await invalidCandidateAddOn.updateSeigniorage();
+			console.log(`after ${await seigManager.totalLayer2TVL()}`);
+
+            expect(await seigManager.totalLayer2TVL()).to.be.eq(prevTotalLayer2TVL);
+		});
+	});
 });
 
