@@ -393,7 +393,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
 
-       if ( operatorInfo[_operator].candidateAddOn == layer2 &&
+       if ( operatorOfLayer[layer2] == _operator &&
             operatorInfo[_operator].rollupConfig == _rollupConfig &&
             rollupConfigInfo[_rollupConfig].operatorManager == _operator) verified = true;
 
