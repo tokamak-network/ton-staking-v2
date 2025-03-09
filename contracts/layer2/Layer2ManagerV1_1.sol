@@ -143,7 +143,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      */
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
-    event TransferWTON(address rollupConfig, address to, uint256 amount);
+    event TransferWTON(address layer2, address operator, uint256 amount);
 
 
     modifier onlySeigManger() {
@@ -249,15 +249,17 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
-     * @param rollupConfig the rollupConfig address
+     * @param layer2 the layer2 address
      * @param amount the amount to give a seigniorage
      */
-    function transferL2Seigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
+    function transferL2Seigniorage(address layer2, uint256 amount) external onlySeigManger {
 
-        address to = rollupConfigInfo[rollupConfig].operatorManager;
-        IERC20(wton).safeTransfer(to, amount);
+        address operator = operatorOfLayer[layer2];
+        require(operator != address(0), "wrong operator");
 
-        emit TransferWTON(rollupConfig, to, amount);
+        IERC20(wton).safeTransfer(operator, amount);
+
+        emit TransferWTON(layer2, operator, amount);
     }
 
 
@@ -456,6 +458,10 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         }
     }
 
+    function layerInfo(address layer2) external view returns (address rollupConfig, address operator) {
+        operator = operatorOfLayer[layer2];
+        rollupConfig = operatorInfo[operator].rollupConfig;
+    }
 
     /* ========== internal ========== */
 
@@ -472,7 +478,9 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].rollupConfig != address(0)) revert RegisterError(2);
+
         address candidateAddOn = IIDAOCommittee(dao).createCandidateAddOn(_memo, operator);
+        operatorOfLayer[candidateAddOn] = operator;
         operatorInfo[operator] = CandidateAddOnInfo({
             rollupConfig: _rollupConfig,
             candidateAddOn : candidateAddOn

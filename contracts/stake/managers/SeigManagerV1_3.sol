@@ -35,10 +35,10 @@ interface IL1BridgeRegistry {
 }
 
 interface ILayer2Manager {
-    function transferL2Seigniorage(address rollupConfig, uint256 amount) external;
-    function rollupConfigOfOperator(address operator) external view returns (address);
+    function transferL2Seigniorage(address layer2, uint256 amount) external;
     function statusLayer2(address rollupConfig) external view returns (uint8);
     function verifyOperator(address layer2, address _rollupConfig, address _operator) external view returns (bool);
+    function layerInfo(address layer2) external view returns (address rollupConfig, address operator);
 
 }
 
@@ -341,11 +341,10 @@ contract SeigManagerV1_3 is
         address layer2
     ) public view returns (address rollupConfig, bool allowed) {
         address operatorManager = Layer2I(layer2).operator();
-        rollupConfig = ILayer2Manager(layer2Manager).rollupConfigOfOperator(
-            operatorManager
-        );
+        address operator;
+        (rollupConfig, operator) = ILayer2Manager(layer2Manager).layerInfo(layer2);
 
-        if (rollupConfig == address(0)) allowed = false;
+        if (rollupConfig == address(0) || operatorManager != operator) allowed = false;
         else if (
             ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1
             &&  ILayer2Manager(layer2Manager).verifyOperator(layer2, rollupConfig, operatorManager)
@@ -625,7 +624,7 @@ contract SeigManagerV1_3 is
                             ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
                             oldLayer2Info.initialDebt;
                         // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
-                        ILayer2Manager(layer2Manager).transferL2Seigniorage(rollupConfig, layer2Seigs);
+                        if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
                     }
                 }
             }

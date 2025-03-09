@@ -2563,15 +2563,15 @@ describe('TON Staking V2.5', () => {
 			const invalidCandidateAddOnFactory = await ethers.getContractFactory(
 				"InvalidCandidateAddOn",
 			);
-			console.log(`thanos : ${thanosOperatorContractAddress}`);
-			console.log(`layer2Registry : ${L2Registry}`);
+			// console.log(`thanos : ${thanosOperatorContractAddress}`);
+			// console.log(`layer2Registry : ${L2Registry}`);
 			const invalidCandidateAddOn = await invalidCandidateAddOnFactory.deploy(
 				thanosOperatorContractAddress,
 				L2Registry,
 				seigManager.address
 			);
 			await invalidCandidateAddOn.deployed();
-			console.log(`invalidCandidateAddOn : ${invalidCandidateAddOn.address}`);
+			// console.log(`invalidCandidateAddOn : ${invalidCandidateAddOn.address}`);
 
 			const layer2Registry = await ethers.getContractAt(
 				"Layer2Registry",
@@ -2603,9 +2603,9 @@ describe('TON Staking V2.5', () => {
 			).wait();
 
             const prevTotalLayer2TVL = await seigManager.totalLayer2TVL();
-			console.log(`before ${await seigManager.totalLayer2TVL()}`);
+			// console.log(`before ${await seigManager.totalLayer2TVL()}`);
 			await invalidCandidateAddOn.updateSeigniorage();
-			console.log(`after ${await seigManager.totalLayer2TVL()}`);
+			// console.log(`after ${await seigManager.totalLayer2TVL()}`);
 
             expect(await seigManager.totalLayer2TVL()).to.be.eq(prevTotalLayer2TVL);
 		});
