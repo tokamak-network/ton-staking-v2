@@ -133,6 +133,8 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
         address _seigManager,
         address _ton
     )  external onlyOwner {
+        require(ton == address(0), "already initialized");
+
         _nonZeroAddress(_layer2Manager, _seigManager,_ton );
         layer2Manager = _layer2Manager;
         seigManager = _seigManager;
@@ -150,32 +152,11 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     )  external
        onlyOwner
     {
+        require(seigniorageCommittee != _seigniorageCommittee, "same");
         seigniorageCommittee = _seigniorageCommittee;
 
         emit SetSeigniorageCommittee(_seigniorageCommittee);
     }
-
-    // /**
-    //  * Sets whether to allow the withdrawDepositL2 function.
-    //  * @param rollupConfig          the rollupConfig address
-    //  * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
-    //  */
-    // function setBlockingL2Deposit(
-    //     address rollupConfig,
-    //     bool rejectedL2Deposit
-    // )  external onlySeigniorageCommittee {
-
-    //     require (rollupInfo[rollupConfig].rollupType != 0, "NonRegistered");
-
-    //     rollupInfo[rollupConfig].rejectedL2Deposit = rejectedL2Deposit;
-
-    //     emit SetBlockingL2Deposit(rollupConfig, rejectedL2Deposit);
-    // }
-
-    /// @dev
-    // function resetRollupConfig(address rollupConfig)  external  onlyOwner {
-    // _resetRollupConfig(rollupConfig);
-    // }
 
     /* ========== onlySeigniorageCommittee ========== */
 
@@ -247,26 +228,6 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
     function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external onlyRegistrant {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, '');
-    }
-
-    /**
-     * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
-     * @param rollupConfig the rollupConfig address
-     * @param _type          1: legacy, 2: bedrock with nativeTON
-     * @param _name          the candidate name
-     */
-    function changeType(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyRegistrant {
-
-        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
-        if (info.rollupType == 0) revert ChangeError(1);
-        if (info.rollupType == _type) revert ChangeError(2);
-        if (_l2TON == address(0)) revert ChangeError(3);
-        if (bytes(_name).length == 0) revert ChangeError(4);
-
-        _resetRollupConfig(rollupConfig) ;
-        _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
-
-        emit ChangedType(rollupConfig, _type, _l2TON, _name);
     }
 
     /* ========== public ========== */
