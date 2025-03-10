@@ -145,12 +145,17 @@ contract SeigManagerV1_3 is
     );
 
     /**
-     * @notice Event that occurs when calling excludeFromSeigniorage function
+     * @notice Event that occurs when calling excludeFromL2Seigniorage function
      * @param layer2        the layer2 address
-     * @param layer2Tvl     the layer2 TON TVL
-     * @param initialDebt   the layer2 initial debt for calculating a reward
      */
-    event ExcludedFromSeigniorage(address layer2, uint256 layer2Tvl, uint256 initialDebt);
+    event ExcludedFromL2Seigniorage(address layer2);
+
+
+    /**
+     * @notice Event that occurs when calling includeFromL2Seigniorage function
+     * @param layer2        the layer2 address
+     */
+    event IncludedFromL2Seigniorage(address layer2);
 
     //////////////////////////////
     // onlyOwner
@@ -180,10 +185,6 @@ contract SeigManagerV1_3 is
         l1BridgeRegistry = l1BridgeRegistry_;
     }
 
-    function resetL2RewardPerUint() external onlyOwner {
-        require(layer2StartBlock == 0, 'Only possible when layer2StartBlock is 0');
-        l2RewardPerUint = 0;
-    }
 
     //////////////////////////////
     // onlyLayer2Manager
@@ -191,24 +192,29 @@ contract SeigManagerV1_3 is
 
     /**
      * @notice Exclude the layer2 in distributing a seigniorage
-     * @param _layer2     the layer2(candidate) address
+     * @param layer2     the layer2(candidate) address
      */
-    function excludeFromSeigniorage(address _layer2) external returns (bool) {
+    function excludeFromL2Seigniorage(address layer2) external returns (bool) {
         _onlyLayer2Manager();
-        Layer2Reward storage reward = layer2RewardInfo[_layer2];
-        // require (totalLayer2TVL >= reward.layer2Tvl, "check layer2Tvl");
-        if (totalLayer2TVL < reward.layer2Tvl) revert Layer2TvlError();
-
-        emit ExcludedFromSeigniorage(_layer2, reward.layer2Tvl, reward.initialDebt);
-
-        if (reward.layer2Tvl != 0) {
-            totalLayer2TVL -= reward.layer2Tvl;
-            reward.layer2Tvl = 0;
-            reward.initialDebt = 0;
-        }
-
+        _pauseLayer2Tvl(layer2);
+        emit ExcludedFromL2Seigniorage(layer2);
         return true;
     }
+
+    /**
+     * @notice Include the layer2 in distributing a seigniorage
+     * @param layer2     the layer2(candidate) address
+     */
+    function includeFromL2Seigniorage(address layer2) external returns (bool) {
+        _onlyLayer2Manager();
+        _unpauseLayer2Tvl(layer2);
+
+        require(!isPauseL2Seigniorage(layer2), "error includeFromL2Seigniorage");
+
+        emit IncludedFromL2Seigniorage(layer2);
+        return true;
+    }
+
 
     //////////////////////////////
     // checkCoinage
@@ -670,6 +676,32 @@ contract SeigManagerV1_3 is
         );
 
         result = true;
+    }
+
+    function _pauseLayer2Tvl(address layer2) internal {
+        require(!isPauseL2Seigniorage(layer2), 'already paused');
+
+        if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
+
+        Layer2Reward memory info = layer2RewardInfo[layer2];
+        totalLayer2TVL -= info.layer2Tvl;
+        info.layer2Tvl = 0;
+        layer2RewardInfo[layer2] = info;
+
+        layer2PauseBlocks[layer2].push(block.number);
+    }
+
+    function _unpauseLayer2Tvl(address layer2) internal {
+
+         (, bool allowed) = allowIssuanceLayer2Seigs(layer2);
+        require(allowed, 'not allowed');
+        require(isPauseL2Seigniorage(layer2), 'not paused');
+
+        uint256 lastIndex = layer2PauseBlocks[layer2].length - 1;
+        layer2UnpauseBlocks[layer2][layer2PauseBlocks[layer2][lastIndex]] = block.number;
+        layer2RewardInfo[layer2].startBlock = 0;
+
+        if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
     }
 
     /**

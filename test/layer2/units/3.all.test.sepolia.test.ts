@@ -2440,95 +2440,95 @@ describe('TON Staking V2.5', () => {
 
     });
 
-    // describe('# Reject titanCandidateAddOn test ', () => {
+    describe('# Reject titanCandidateAddOn test ', () => {
 
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
 
-    //     it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-    //         await rejectCandidateTitan();
-    //     })
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     })
+        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            await rejectCandidateTitan();
+        })
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        })
 
-    //     it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
-    //         await updateSeigniorageTitan_reject();
-
-
-    //     })
-
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
-
-    //     it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
-    //             await updateSeigniorageThanos()
-    //     })
-
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
-
-    //     it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-    //         await restoreCandidateTitan();
-    //     })
-
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
-
-    //     it('updateSeigniorage to layer1', async () => {
-    //         await updateSeigniorageLayer1()
-    //     })
-
-    //     it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
-
-    //         await rejectCandidateTitan();
-
-    //     })
-
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
-
-    //     it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
-
-    //         await updateSeigniorageThanos()
-
-    //     })
+        it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
+            await updateSeigniorageTitan_reject();
 
 
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
+        })
 
-    //     it('updateSeigniorage to layer1', async () => {
-    //         await updateSeigniorageLayer1()
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
 
-    //     })
+        it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
+                await updateSeigniorageThanos()
+        })
 
-    //     it('evm_mine', async () => {
-    //         ethers.provider.send("evm_increaseTime", [60*60*24*7])
-    //         ethers.provider.send("evm_mine");
-    //     });
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
 
-    //     it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
+        it('restore CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+            await restoreCandidateTitan();
+        })
 
-    //         await updateSeigniorageTitan_reject()
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('updateSeigniorage to layer1', async () => {
+            await updateSeigniorageLayer1()
+        })
+
+        it('reject CandidateAddOn (titanCandidateAddOn) can be executed by seigniorageCommittee ', async () => {
+
+            await rejectCandidateTitan();
+
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('Layer2Contract: updateSeigniorage : updateSeigniorage to thanosLayerAddress ', async () => {
+
+            await updateSeigniorageThanos()
+
+        })
 
 
-    //     })
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
 
-    // })
+        it('updateSeigniorage to layer1', async () => {
+            await updateSeigniorageLayer1()
+
+        })
+
+        it('evm_mine', async () => {
+            ethers.provider.send("evm_increaseTime", [60*60*24*7])
+            ethers.provider.send("evm_mine");
+        });
+
+        it('Layer2Contract: updateSeigniorage : updateSeigniorage to titanLayerAddress ', async () => {
+
+            await updateSeigniorageTitan_reject()
+
+
+        })
+
+    })
 
     describe("# Reject updating seigniorage from unknown sender", () => {
 		it("updateSeigniorage", async () => {
