@@ -142,6 +142,15 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      */
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
+    /**
+     * @notice Event occurs when pausisetting the operatorManagerFactory
+     * @param layer2        the layer2 address
+     * @param to            The address that receives the seigniorage. This will be the operator address.
+     * @param amount        Amount of transmission seigniorage
+     */
+    event TransferWTON(address layer2, address to, uint256 amount);
+
+
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
         _;
@@ -239,12 +248,17 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
-     * @param rollupConfig the rollupConfig address
+     * @param layer2 the layer2 address
      * @param amount the amount to give a seigniorage
      */
-    function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
+    function transferL2Seigniorage(address layer2, uint256 amount) external onlySeigManger {
 
-        IERC20(wton).safeTransfer(rollupConfigInfo[rollupConfig].operatorManager, amount);
+        address operator = operatorOfLayer[layer2];
+        require(operator != address(0), "wrong operator");
+
+        IERC20(wton).safeTransfer(operator, amount);
+
+        emit TransferWTON(layer2, operator, amount);
     }
 
     /* ========== Anybody can execute ========== */
@@ -374,6 +388,13 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         return _availableRegister(_rollupConfig) ;
     }
 
+    function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
+
+       if ( operatorOfLayer[layer2] == _operator &&
+            operatorInfo[_operator].rollupConfig == _rollupConfig &&
+            rollupConfigInfo[_rollupConfig].operatorManager == _operator) verified = true;
+
+    }
 
     /**
      * @notice Layer 2 related information search
@@ -434,6 +455,12 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         }
     }
 
+    function layerInfo(address layer2) external view returns (address rollupConfig, address operator) {
+        operator = operatorOfLayer[layer2];
+        rollupConfig = operatorInfo[operator].rollupConfig;
+    }
+
+
 
     /* ========== internal ========== */
 
@@ -450,7 +477,9 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].rollupConfig != address(0)) revert RegisterError(2);
+
         address candidateAddOn = IIDAOCommittee(dao).createCandidateAddOn(_memo, operator);
+        operatorOfLayer[candidateAddOn] = operator;
         operatorInfo[operator] = CandidateAddOnInfo({
             rollupConfig: _rollupConfig,
             candidateAddOn : candidateAddOn
