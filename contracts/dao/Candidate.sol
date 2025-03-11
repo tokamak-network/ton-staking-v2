@@ -95,7 +95,7 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
             "Candidate: you should update seigniorage from layer2 contract"
         );
 
-        require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        require(ISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
         return true;
     }
 
@@ -197,7 +197,7 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
 
         require(c != address(0), "Candidate: coinage is zero");
 
-        return IERC20(IISeigManager(seigManager).coinages(c));
+        return IERC20(ISeigManager(seigManager).coinages(c));
     }
 
 }
