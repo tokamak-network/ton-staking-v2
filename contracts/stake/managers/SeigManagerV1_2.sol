@@ -691,9 +691,13 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       : rdiv(operatorSeigs, RAY - operatorRate);
 
     // 𝜸:
-    operatorSeigs = operatorRate == RAY
-      ? operatorSeigs
-      : operatorSeigs + rmul(delegatorSeigs, operatorRate);
+    // operatorSeigs = operatorRate == RAY
+    //   ? operatorSeigs
+    //   : operatorSeigs + rmul(delegatorSeigs, operatorRate);
+
+    // Since delegatorSeigs and operatorSeigs always return the same value,
+    // the calculation to be simplified by ensuring that operatorSeigs are assigned to the delegatorSeigs evaluation.
+    operatorSeigs = delegatorSeigs;
 
     nextTotalSupply = nextTotalSupply + delegatorSeigs;
 
