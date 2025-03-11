@@ -81,6 +81,23 @@ contract ProxyLayer2Manager is ProxyStorage, AuthControlLayer2Manager, IProxyEve
         }
     }
 
+
+    function unsetSelectorImplementations2(
+        bytes4[] calldata _selectors
+    ) public override onlyOwner {
+        require(
+            _selectors.length > 0,
+            "Proxy: _selectors's size is zero"
+        );
+
+        for (uint256 i = 0; i < _selectors.length; i++) {
+            selectorImplementation[_selectors[i]] = address(0);
+        }
+
+        emit UnsetSelectorImplementations(_selectors);
+    }
+
+
     /* ========== Anyone can   ========== */
 
 
