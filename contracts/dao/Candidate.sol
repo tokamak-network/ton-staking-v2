@@ -160,7 +160,9 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
     function isLayer2() external pure override returns (bool) { return true; }
     function currentFork() external pure override returns (uint256) { return 1; }
     function lastEpoch(uint256 forkNumber) external pure override returns (uint256) { return 1; }
-    function changeOperator(address _operator) external override { }
+    function changeOperator(address _operator) external pure override { 
+        revert("changeOperator not implemented yet");
+    }
 
     /// @notice Retrieves the total staked balance on this candidate
     /// @return totalsupply Total staked amount on this candidate
