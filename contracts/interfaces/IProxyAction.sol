@@ -16,6 +16,13 @@ interface IProxyAction {
     ) external;
 
 
+    /// @dev unset selectors of Implementation
+    /// @param _selectors being added selectors
+    function unsetSelectorImplementations2(
+        bytes4[] calldata _selectors
+    ) external ;
+
+
     /// @dev set alive status of implementation
     /// @param newImplementation Address of the new implementation.
     /// @param _alive alive status
