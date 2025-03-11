@@ -213,6 +213,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   }
 
   function setWithdrawalDelay(address l2chain, uint256 withdrawalDelay_) external {
+    revert("Moved to DepositManager_setWithdrawalDelay");
     require(_isOperator(l2chain, msg.sender));
     withdrawalDelay[l2chain] = withdrawalDelay_;
   }
