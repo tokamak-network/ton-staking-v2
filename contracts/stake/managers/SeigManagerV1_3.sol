@@ -431,16 +431,13 @@ contract SeigManagerV1_3 is
 
         uint256 seigs = nextTotalSupply - prevTotalSupply;
         uint256 operatorSeigs;
+        bool isCommissionRateNegative_;
 
-        // calculate commission amount
-        bool isCommissionRateNegative_ = _isCommissionRateNegative[msg.sender];
-
-        (nextTotalSupply, operatorSeigs) = _calcSeigsDistribution(
+        (nextTotalSupply, operatorSeigs, isCommissionRateNegative_) = _calcSeigsDistribution(
             msg.sender,
             coinage,
             prevTotalSupply,
             seigs,
-            isCommissionRateNegative_,
             operator
         );
 
@@ -482,9 +479,8 @@ contract SeigManagerV1_3 is
         RefactorCoinageSnapshotI coinage,
         uint256 prevTotalSupply,
         uint256 seigs,
-        bool isCommissionRateNegative_,
         address operator
-    ) internal returns (uint256 nextTotalSupply, uint256 operatorSeigs) {
+    ) internal returns (uint256 nextTotalSupply, uint256 operatorSeigs, bool isCommissionRateNegative_) {
         uint256 _delayedCommissionBlock = delayedCommissionBlock[layer2];
 
         if (_delayedCommissionBlock != 0 && block.number >= _delayedCommissionBlock) {
@@ -492,29 +488,29 @@ contract SeigManagerV1_3 is
             _isCommissionRateNegative[layer2] = delayedCommissionRateNegative[layer2];
             delayedCommissionBlock[layer2] = 0;
         }
-
+        isCommissionRateNegative_ = _isCommissionRateNegative[layer2];
         uint256 commissionRate = _commissionRates[layer2];
 
         nextTotalSupply = prevTotalSupply + seigs;
 
         // short circuit if there is no commission rate
-        if (commissionRate == 0) return (nextTotalSupply, operatorSeigs);
+        if (commissionRate == 0) return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
         // if commission rate is possitive
         if (!isCommissionRateNegative_) {
             operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
             nextTotalSupply -= operatorSeigs;
-            return (nextTotalSupply, operatorSeigs);
+            return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
         }
 
         // short circuit if there is no previous total deposit (meanning, there is no deposit)
-        if (prevTotalSupply == 0) return (nextTotalSupply, operatorSeigs);
+        if (prevTotalSupply == 0) return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
         // See negative commission distribution formular here: TBD
         uint256 operatorBalance = coinage.balanceOf(operator);
 
         // short circuit if there is no operator deposit
-        if (operatorBalance == 0) return (nextTotalSupply, operatorSeigs);
+        if (operatorBalance == 0) return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
         uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
 
@@ -541,7 +537,7 @@ contract SeigManagerV1_3 is
         // nextTotalSupply = nextTotalSupply + delegatorSeigs;
         nextTotalSupply += delegatorSeigs;
 
-        return (nextTotalSupply, operatorSeigs);
+        return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
     }
 
     function _calcNewFactor(
