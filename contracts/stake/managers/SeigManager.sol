@@ -640,8 +640,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     nextTotalSupply = nextTotalSupply + delegatorSeigs;
 
-    // return (nextTotalSupply, operatorSeigs);
-    return (nextTotalSupply, delegatorSeigs);
+    return (nextTotalSupply, operatorSeigs);
   }
 
   function _calcNewFactor(uint256 source, uint256 target, uint256 oldFactor) internal pure returns (uint256) {
