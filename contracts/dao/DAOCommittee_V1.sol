@@ -17,7 +17,6 @@ import {AccessControl} from "../accessControl/AccessControl.sol";
 import {ERC165A}  from "../accessControl/ERC165A.sol";
 
 import "./StorageStateCommittee.sol";
-import "../proxy/ProxyStorage2.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 
@@ -37,7 +36,6 @@ contract DAOCommittee_V1 is
     StorageStateCommittee,
     AccessControl,
     ERC165A,
-    ProxyStorage2,
     StorageStateCommitteeV2
 {
     using BytesLib for bytes;
@@ -110,6 +108,11 @@ contract DAOCommittee_V1 is
         string newMemo
     );
 
+    event MemberBlacklisted(
+        address indexed member,
+        uint256 timestamp
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
         _;
@@ -137,6 +140,11 @@ contract DAOCommittee_V1 is
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
+    function removeFromBlacklist(address _candidate) external onlyOwner {
+        require(blacklist[_candidate], "Not blacklisted");
+        blacklist[_candidate] = false;
+    }
+
     function createCandidate(string calldata _memo)
         external
         validSeigManager
@@ -305,6 +313,7 @@ contract DAOCommittee_V1 is
             candidateInfo.memberJoinedTime == 0,
             "DAOCommittee: already member"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
@@ -357,6 +366,11 @@ contract DAOCommittee_V1 is
 
         uint256 prevIndex = candidateInfo.indexMembers;
         candidateInfo.indexMembers = 0;
+        claimActivityReward(candidate);
+
+        blacklist[candidateInfo.candidateContract] = true;
+        emit MemberBlacklisted(candidate, block.timestamp);
+
         emit ChangedMember(prevIndex, candidate, address(0));
 
         return true;
@@ -530,13 +544,14 @@ contract DAOCommittee_V1 is
     }
 
     /// @notice Claims the activity reward for member
-    function claimActivityReward(address _receiver) external {
+    function claimActivityReward(address _receiver) public {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
         require(
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
