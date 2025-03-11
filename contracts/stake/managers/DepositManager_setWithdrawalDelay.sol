@@ -47,6 +47,7 @@ contract DepositManager_setWithdrawalDelay is ProxyStorage, AccessibleCommon, De
      * @param withdrawalDelay_      The number of withdrawal delay blocks
     */
     function setWithdrawalDelayByOwner(address layer2, uint256 withdrawalDelay_) external onlyOwner {
+        require(globalWithdrawalDelay < withdrawalDelay_, "wrong withdrawalDelay");
         withdrawalDelay[layer2] = withdrawalDelay_;
         emit SetWithdrawalDelayByOwner(layer2, withdrawalDelay_);
     }
