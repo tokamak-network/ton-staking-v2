@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IDepositManager } from "../interfaces/IDepositManager.sol";
+import { ICandidate } from "../../dao/interfaces/ICandidate.sol";
+import { ILayer2Registry } from "../../dao/interfaces/ILayer2Registry.sol";
+import { ITON } from "../interfaces/ITON.sol";
+import { IPowerTON } from "../../dao/interfaces/IPowerTON.sol";
+import { MinterRoleRenounceTarget } from "../interfaces/MinterRoleRenounceTarget.sol";
+import { PauserRoleRenounceTarget } from "../interfaces/PauserRoleRenounceTarget.sol";
+import { OwnableTarget } from "../interfaces/OwnableTarget.sol";
+
 import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
@@ -13,49 +22,6 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
 import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
-
-interface MinterRoleRenounceTarget {
-  function renounceMinter() external;
-}
-
-interface PauserRoleRenounceTarget {
-  function renouncePauser() external;
-}
-
-interface OwnableTarget {
-  function renounceOwnership() external;
-  function transferOwnership(address newOwner) external;
-}
-
-interface IILayer2Registry {
-  function layer2s(address layer2) external view returns (bool);
-  function numLayer2s() external view  returns (uint256);
-  function layer2ByIndex(uint256 index) external view returns (address);
-}
-
-interface IPowerTON {
-  function updateSeigniorage(uint256 amount) external;
-  function onDeposit(address layer2, address account, uint256 amount) external;
-  function onWithdraw(address layer2, address account, uint256 amount) external;
-}
-
-interface ITON {
-  function totalSupply() external view returns (uint256);
-  function balanceOf(address account) external view returns (uint256);
-}
-
-interface IRefactorCoinageSnapshot {
-  function snapshot() external returns (uint256 id);
-}
-
-interface ICandidate {
-  function updateSeigniorage() external returns (bool);
-}
-
-
-interface IDepositManager {
-  function updateSeigniorage() external returns (bool);
-}
 
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
@@ -108,7 +74,7 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   modifier onlyLayer2(address layer2) {
-    require(IILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
+    require(ILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
     _;
   }
 
@@ -551,9 +517,9 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
   function uncommittedStakeOf(address account) external view returns (uint256 amount) {
 
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += uncommittedStakeOf(layer2, account);
     }
   }
@@ -575,19 +541,19 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function stakeOf(address account) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     // amount = 0;
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].balanceOf(account);
     }
   }
 
   function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     // amount = 0;
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].balanceOfAt(account, snapshotId);
     }
   }
@@ -601,17 +567,17 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function stakeOfAllLayers() public view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].totalSupply();
     }
   }
 
   function stakeOfAllLayersAt(uint256 snapshotId) public view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].totalSupplyAt(snapshotId);
     }
   }
