@@ -30,25 +30,25 @@ contract DepositManager_setWithdrawalDelay is ProxyStorage, AccessibleCommon, De
 
     /**
      * @dev The operator of that layer can set the withdrawal delay block to be greater than the global delay block or less than one month.
-     * @param l2chain               The layer2 address
+     * @param layer2               The layer2 address
      * @param withdrawalDelay_      The number of withdrawal delay blocks
     */
-    function setWithdrawalDelay(address l2chain, uint256 withdrawalDelay_) external {
-        require(_isOperator(l2chain, msg.sender));
+    function setWithdrawalDelay(address layer2, uint256 withdrawalDelay_) external {
+        require(_isOperator(layer2, msg.sender));
         require(withdrawalDelay_ > globalWithdrawalDelay && withdrawalDelay_ <= MAX_DELAY_BLOCKS, "Not acceptable");
 
-        withdrawalDelay[l2chain] = withdrawalDelay_;
-        emit SetWithdrawalDelay(l2chain, withdrawalDelay_);
+        withdrawalDelay[layer2] = withdrawalDelay_;
+        emit SetWithdrawalDelay(layer2, withdrawalDelay_);
     }
 
     /**
      * @dev The administrator can set a withdrawal delay block.
-     * @param l2chain               The layer2 address
+     * @param layer2               The layer2 address
      * @param withdrawalDelay_      The number of withdrawal delay blocks
     */
-    function setWithdrawalDelayByOwner(address l2chain, uint256 withdrawalDelay_) external onlyOwner {
-        withdrawalDelay[l2chain] = withdrawalDelay_;
-        emit SetWithdrawalDelayByOwner(l2chain, withdrawalDelay_);
+    function setWithdrawalDelayByOwner(address layer2, uint256 withdrawalDelay_) external onlyOwner {
+        withdrawalDelay[layer2] = withdrawalDelay_;
+        emit SetWithdrawalDelayByOwner(layer2, withdrawalDelay_);
     }
 
     function _isOperator(address layer2, address operator) internal view returns (bool) {
