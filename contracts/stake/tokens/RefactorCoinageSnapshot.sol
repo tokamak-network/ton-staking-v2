@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+
+import { IIISeigManager } from "../interfaces/IIISeigManager.sol";
 import { IRefactor } from "../interfaces/IRefactor.sol";
 import { AutoRefactorCoinageI } from "../interfaces/AutoRefactorCoinageI.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
@@ -11,9 +13,6 @@ import { AuthControlCoinage } from "../../common/AuthControlCoinage.sol";
 import { RefactorCoinageSnapshotStorage } from "./RefactorCoinageSnapshotStorage.sol";
 
 
-interface IIISeigManager {
-  function progressSnapshotId() external view returns (uint256);
-}
 /**
  * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
  *
