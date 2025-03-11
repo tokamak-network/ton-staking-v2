@@ -215,6 +215,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   ////////////////////
 
   function requestWithdrawal(address layer2, uint256 amount) external returns (bool) {
+    revert("Moved to DepositManagerV1_1");
     return _requestWithdrawal(layer2, amount, getDelayBlocks(layer2));
   }
 
