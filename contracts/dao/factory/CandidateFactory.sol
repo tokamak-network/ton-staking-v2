@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { ICandidate } from "../interfaces/ICandidate.sol";
 import { CandidateProxy } from "../CandidateProxy.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import "./CandidateFactoryStorage.sol";
 
-interface ICandidate {
-    function initialize(
-        address _candidate,
-        bool _isLayer2Candidate,
-        string memory _memo,
-        address _committee,
-        address _seigManager
-    ) external;
-}
 
 contract CandidateFactory is ProxyStorage, AccessibleCommon, CandidateFactoryStorage {
 

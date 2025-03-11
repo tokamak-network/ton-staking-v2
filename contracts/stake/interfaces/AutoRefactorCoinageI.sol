@@ -12,4 +12,10 @@ interface AutoRefactorCoinageI {
   function addMinter(address account) external;
   function renounceMinter() external;
   function transferOwnership(address newOwner) external;
+  function initialize (
+      string memory name_,
+      string memory symbol_,
+      uint256 factor_,
+      address seigManager_
+    ) external;
 }

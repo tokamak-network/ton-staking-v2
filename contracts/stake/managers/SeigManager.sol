@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IDepositManager } from "../interfaces/IDepositManager.sol";
+import { ICandidate } from "../../dao/interfaces/ICandidate.sol";
+import { ILayer2Registry } from "../../dao/interfaces/ILayer2Registry.sol";
+import { ITON } from "../interfaces/ITON.sol";
+import { IPowerTON } from "../../dao/interfaces/IPowerTON.sol";
+import { MinterRoleRenounceTarget } from "../interfaces/MinterRoleRenounceTarget.sol";
+import { PauserRoleRenounceTarget } from "../interfaces/PauserRoleRenounceTarget.sol";
+import { OwnableTarget } from "../interfaces/OwnableTarget.sol";
+
 import { IRefactor } from "../interfaces/IRefactor.sol";
 import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
@@ -12,47 +21,6 @@ import { SeigManagerI } from "../interfaces/SeigManagerI.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AuthControlSeigManager } from "../../common/AuthControlSeigManager.sol";
 import { SeigManagerStorage } from "./SeigManagerStorage.sol";
-
-interface MinterRoleRenounceTarget {
-  function renounceMinter() external;
-}
-
-interface PauserRoleRenounceTarget {
-  function renouncePauser() external;
-}
-
-interface OwnableTarget {
-  function renounceOwnership() external;
-  function transferOwnership(address newOwner) external;
-}
-
-interface IILayer2Registry {
-  function layer2s(address layer2) external view returns (bool);
-  function numLayer2s() external view  returns (uint256);
-  function layer2ByIndex(uint256 index) external view returns (address);
-}
-
-interface IPowerTON {
-  function updateSeigniorage(uint256 amount) external;
-}
-
-interface ITON {
-  function totalSupply() external view returns (uint256);
-  function balanceOf(address account) external view returns (uint256);
-}
-
-interface IRefactorCoinageSnapshot {
-  function snapshot() external returns (uint256 id);
-}
-
-interface ICandidate {
-  function updateSeigniorage() external returns (bool);
-}
-
-
-interface IDepositManager {
-  function updateSeigniorage() external returns (bool);
-}
 
 /**
  * @dev SeigManager gives seigniorage to operator and WTON holders.
@@ -105,7 +73,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   modifier onlyLayer2(address layer2) {
-    require(IILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
+    require(ILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
     _;
   }
 
@@ -181,6 +149,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   //////////////////////////////
 
   function pause() public onlyPauser whenNotPaused {
+    revert("Moved to SeigManagerV1_3.");
     _pausedBlock = block.number;
     paused = true;
     emit Paused(msg.sender);
@@ -306,6 +275,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     onlyRegistryOrOperator(layer2)
     returns (bool)
   {
+    require(address(_coinages[layer2]) != address(0), "invalid layer2");
     // check commission range
     require(
       (commissionRate == 0) ||
@@ -431,16 +401,13 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     uint256 seigs = nextTotalSupply - prevTotalSupply;
     address operator = Layer2I(msg.sender).operator();
     uint256 operatorSeigs;
+    bool isCommissionRateNegative_;
 
-    // calculate commission amount
-    bool isCommissionRateNegative_ = _isCommissionRateNegative[msg.sender];
-
-    (nextTotalSupply, operatorSeigs) = _calcSeigsDistribution(
+    (nextTotalSupply, operatorSeigs, isCommissionRateNegative_) = _calcSeigsDistribution(
       msg.sender,
       coinage,
       prevTotalSupply,
       seigs,
-      isCommissionRateNegative_,
       operator
     );
 
@@ -531,19 +498,19 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   }
 
   function stakeOf(address account) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     // amount = 0;
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].balanceOf(account);
     }
   }
 
   function stakeOfAt(address account, uint256 snapshotId) external view returns (uint256 amount) {
-    uint256 num = IILayer2Registry(_registry).numLayer2s();
+    uint256 num = ILayer2Registry(_registry).numLayer2s();
     // amount = 0;
     for (uint256 i = 0 ; i < num; i++){
-      address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
+      address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
       amount += _coinages[layer2].balanceOfAt(account, snapshotId);
     }
   }
@@ -606,11 +573,11 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     RefactorCoinageSnapshotI coinage,
     uint256 prevTotalSupply,
     uint256 seigs,
-    bool isCommissionRateNegative_,
     address operator
   ) internal returns (
     uint256 nextTotalSupply,
-    uint256 operatorSeigs
+    uint256 operatorSeigs,
+    bool isCommissionRateNegative_
   ) {
     if (block.number >= delayedCommissionBlock[layer2] && delayedCommissionBlock[layer2] != 0) {
       _commissionRates[layer2] = delayedCommissionRate[layer2];
@@ -618,25 +585,26 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       delayedCommissionBlock[layer2] = 0;
     }
 
-    uint256 commissionRate = _commissionRates[msg.sender];
+    isCommissionRateNegative_ = _isCommissionRateNegative[layer2];
+    uint256 commissionRate = _commissionRates[layer2];
 
     nextTotalSupply = prevTotalSupply + seigs;
 
     // short circuit if there is no commission rate
     if (commissionRate == 0) {
-      return (nextTotalSupply, operatorSeigs);
+      return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
     }
 
     // if commission rate is possitive
     if (!isCommissionRateNegative_) {
       operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
       nextTotalSupply = nextTotalSupply - operatorSeigs;
-      return (nextTotalSupply, operatorSeigs);
+      return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
     }
 
     // short circuit if there is no previous total deposit (meanning, there is no deposit)
     if (prevTotalSupply == 0) {
-      return (nextTotalSupply, operatorSeigs);
+      return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
     }
 
     // See negative commission distribution formular here: TBD
@@ -644,7 +612,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
     // short circuit if there is no operator deposit
     if (operatorBalance == 0) {
-      return (nextTotalSupply, operatorSeigs);
+      return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
     }
 
     uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
@@ -661,13 +629,17 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
       : rdiv(operatorSeigs, RAY - operatorRate);
 
     // 𝜸:
-    operatorSeigs = operatorRate == RAY
-      ? operatorSeigs
-      : operatorSeigs + rmul(delegatorSeigs, operatorRate);
+    // operatorSeigs = operatorRate == RAY
+    //   ? operatorSeigs
+    //   : operatorSeigs + rmul(delegatorSeigs, operatorRate);
+
+    // Since delegatorSeigs and operatorSeigs always return the same value,
+    // the calculation to be simplified by ensuring that operatorSeigs are assigned to the delegatorSeigs evaluation.
+    operatorSeigs = delegatorSeigs;
 
     nextTotalSupply = nextTotalSupply + delegatorSeigs;
 
-    return (nextTotalSupply, operatorSeigs);
+    return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
   }
 
   function _calcNewFactor(uint256 source, uint256 target, uint256 oldFactor) internal pure returns (uint256) {
@@ -676,6 +648,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
 
   function _calcNumSeigBlocks() internal view returns (uint256) {
+    revert("Moved to SeigManagerV1_3.");
     require(!paused);
 
     uint256 span = block.number - _lastSeigBlock;
@@ -813,8 +786,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
   function totalSupplyOfTon() public view returns (uint256 tos) {
 
-    tos = 50000000000000000000000000000000000 + (_seigPerBlock * (block.number - 10837698))
-      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
+    tos = 50_000_000_000_000_000_000_000_000_000_000_000 + (_seigPerBlock * (block.number - 10_837_698))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178_111_666_909_855_730_000_000_000_000_000 ;
   }
 
   // 실제 wton 과 ton 발행량
