@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { ILayer2 } from "../../dao/interfaces/ILayer2.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
-interface ILayer2 {
-  function operator() external view returns (address);
-}
 
 /**
  * @dev DepositManager_setWithdrawalDelay Modify setWithdrawalDelay function
