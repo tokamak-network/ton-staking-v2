@@ -6,24 +6,13 @@ import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
 import { IERC20 } from  "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ICandidate } from "./interfaces/ICandidate.sol";
 import { ILayer2 } from "./interfaces/ILayer2.sol";
+import { ISeigManager } from "./interfaces/ISeigManager.sol";
 import { ILayer2Registry } from "./interfaces/ILayer2Registry.sol";
 
 import "../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import "./CandidateStorage.sol";
 
-interface ICoinage {
-  function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-}
-
-interface IOperator {
-  function setWithdrawalDelay(uint256 withdrawalDelay_) external;
-}
-
-interface IISeigManager {
-  function updateSeigniorage() external returns (bool);
-  function coinages(address layer2) external view returns (address);
-}
 
 /// @title Managing a candidate
 /// @notice Either a user or layer2 contract can be a candidate
