@@ -813,8 +813,8 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
   function totalSupplyOfTon() public view returns (uint256 tos) {
 
-    tos = 50000000000000000000000000000000000 + (_seigPerBlock * (block.number - 10837698))
-      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178111666909855730000000000000000 ;
+    tos = 50_000_000_000_000_000_000_000_000_000_000_000 + (_seigPerBlock * (block.number - 10_837_698))
+      - (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) - 178_111_666_909_855_730_000_000_000_000_000 ;
   }
 
   // 실제 wton 과 ton 발행량
