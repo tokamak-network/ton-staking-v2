@@ -124,99 +124,98 @@ Total staked amount (based on seigniorage distribution)
 
 # L2 Sequencer Seigniorage
 
+Added the ability to give seigniorage to L2 sequencers separately.
+You can find more details in [this document](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2.5/docs/en/ton-staking-v2.md#seigniorage-distribution-of-v25).
+
 ## Related Storage
-- layer2StartBlock : L2 sequencer seigniorage issuance start block number
-- totalLayer2TVL : L2 Total TVL
-- maxCommitCountForClaim : The number of commits that can be claimed at once for the L2 operator to receive the seigniorage of unsettled commit seigniorage
-- l2UpdateBlock : The update seigniorage committed block array for L2, The first index of the array is not used, storage starts from index 1
-- layer2RewardInfo : Layer2 claim-related information is stored in the form of Layer2Reward
-- l2RewardAtBlock  : Amount of seigniorage granted per L2 liquidity at a commit block
-- layer2L2UpdateBlockIndexes : An array that stores the l2UpdateBlock's index whenever L2 is committed.
-- commitLayer2Tvl  : When L2 is committed, the L2 TVL of the previous commit (seigniorage calculation is calculated based on the previous commit TVL)
-- layer2PauseBlockIndex :  l2UpdateBlock's index when L2 seigniorage issue is stopped, Not issued from the included index
-- layer2UnpauseBlockIndex : l2UpdateBlock's index when L2 seigniorage issue is resume, Not issued until the included index
 
-```
+- layer2StartBlock : Block that starts giving seigniorage to the L2 sequencer
+- l2RewardPerUint
+  - The amount of seigniorage provided per one L2 liquidity
+  - Seigniorage calculations are applied from layer2StartBlock block(!=0).
 
-    struct Layer2Tvl {
-        uint256 l2UpdateBlockIndexes; // l2UpdateBlock's index
-        uint256 layer2Tvl;
+- totalLayer2TVL : The total amount of TVL of all L2s
+- layer2RewardInfo : Layer2Reward Information of L2
+  - layer2Tvl : The amount of TVL in L2
+  - initialDebt : Amount to be deducted when calculating seigniorage
+  - startBlock : Block that started issuing the L2 sequencer seigniorage
+
+- layer2PauseBlockIndex : block number when stopping issuing L2 seigniorage
+- layer2UnpauseBlockIndex :  block number when resuming issuing L2 seigniorage
+
+  ```
+  struct Layer2Reward {
+      uint256 layer2Tvl;
+      uint256 initialDebt;
+      uint256 startBlock;
+  }
+
+  /// layer2 seigs start block
+  uint256 public layer2StartBlock;
+
+  uint256 public l2RewardPerUint;
+
+  /// total layer2 TON TVL
+  uint256 public totalLayer2TVL;
+
+  /// layer2 reward information for each layer2(candidate).
+  mapping (address => Layer2Reward) public layer2RewardInfo;
+
+  // layer2 - block number when pausing
+  mapping(address => uint256[]) public layer2PauseBlocks;
+
+  //layer2 - block number when pausing - block number when unpausing
+  mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
+  ```
+
+#  When running update seigniorage, L2 sequencer seigniorage is issued.
+
+Calculate the seigniorage granted to the L2 sequencer,
+Calculate the seigniorage per L2 liquidity.
+Send the seigniorage granted to the L2 sequencer to Layer2Manager.
+
+  ```
+  if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
+      l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+      l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
+      IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
+  }
+  ```
+
+If the Layer2 is a Layer2 that allows L2 sequencer seigniorage issuance,
+Calculate the seigniorage that the Layer2 should receive and send the seigniorage to the operator of Layer2.
+
+  ```
+   (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
+    if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+        Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+        Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+
+        // update layer2 tvl if it has changed
+        // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
+        if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
+            newLayer2Info.layer2Tvl = curLayer2Tvl;
+            totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+        }
+
+        // If this the first commit, set up an initial debt
+        if (oldLayer2Info.startBlock == 0) {
+            newLayer2Info.startBlock = block.number;
+
+        } else {
+
+            // distribute seigniorage to layer2 based on previous layer2 tvl
+            // layer2Tvl would be 0 when layer2 has been paused
+            if (oldLayer2Info.layer2Tvl > 0) {
+                layer2Seigs =
+                    ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
+                    oldLayer2Info.initialDebt;
+                // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
+                if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
+            }
+        }
+        newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
     }
 
-    struct Layer2Reward {
-        uint256 layer2Tvl;            // L2 TVL at most recent commit
-        uint256 startBlock;           // Update Signoria Start Block
-        uint256 claimedLastIndex;     // The last index number of l2UpdateBlock at the time of the most recent claim.
-        uint256 claimedBlockNumber;   // The block number at the time of the most recent claim
-        uint256 claimedReward;        // Cumulative amount claimed so far
-    }
-
-    struct Layer2PauseBlock {
-        uint256 pauseIndex; // pause l2UpdateBlock index
-        uint256 unpauseIndex; // unpause l2UpdateBlock index
-    }
-
-    /// layer2 seigs start block
-    uint256 public layer2StartBlock;
-
-    /// total layer2 TON TVL
-    uint256 public totalLayer2TVL;
-
-    /// When claiming L2 seigniorage, only maxCommitCountForClaim can be claimed at a time.
-    uint256 public maxCommitCountForClaim;
-
-    // L2 update seigniorage commit block
-    uint256[] public l2UpdateBlock; // index 0 - unused, it's a dummy
-
-    /// layer2 reward information for each layer2(candidate).
-    mapping (address => Layer2Reward) public layer2RewardInfo;
-
-    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
-    mapping (uint256 => uint256) public l2RewardAtBlock;
-
-    // layer2 - the array of l2UpdateBlockIndex
-    mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
-
-    // layer2 - commit block number - commitLayer2Tvl
-    mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
-
-    // layer2 - the array of pause block index
-    mapping (address => uint256[]) public layer2PauseBlockIndex;
-
-
-    //layer2 - pause block index - unpause block index
-    mapping (address => mapping (uint256 => uint256)) public layer2UnpauseBlockIndex;
-
-
-```
-
-
-# When running 'Update Seigniorage' function
-- Stores the commit block number and the amount of seigniorage granted per L2 liquidity in storage.
-  - Related functions
-    - _insertL2UpdateBlock_Reward(uint256 l2TotalSeigs_, uint256 totalLayer2TVL_)
-
-- Stores the TVL of the previous commit to be used in calculating seigniorage per commit block in layer2.
-  - Related functions
-    - _insertCommitLayer2Tvl(address layer2, uint256 layer2Tvl_)
-
-- Reflect the current L2 TVL to the total L2 TVL and save it.
-
-
-# When running 'claimL2Seigniorage' function
-- Anyone can claim seigniorage allocated L2 to an L2 operator.  The seigniorage is transferred to the Operator Manager contract for that L2.
-  - Related functions
-    - _claimL2Seigniorage(address layer2)
-    - claimableL2Seigniorage(address layer2) public view returns (uint256 amount, uint256 uptoIndex)
-
-
-# To stop issuing seigniorage to a specific L2 operator,
-- The onlySeigniorageCommittee can stop issuing seigniorage to specific L2 operators.
-  - Related functions
-    - Layer2Manager.rejectCandidateAddOn(address rollupConfig)
-
-
-# To resume issuing seigniorage to a specific L2 operator,
-- The onlySeigniorageCommittee can resume issuing seigniorage to specific L2 operators.
-  - Related functions
-    - Layer2Manager.restoreCandidateAddOn(address rollupConfig, bool rejectedL2Deposit)
+  ```
