@@ -9,6 +9,6 @@ interface IProxyEvent {
 
     event SetAliveImplementation(address indexed impl, bool alive);
     event SetSelectorImplementation(bytes4 indexed selector, address indexed impl);
-    event UnsetSelectorImplementations(bytes4[] _selectors);
+
 
 }

@@ -33,9 +33,6 @@ contract Layer2ManagerStorage  {
     /// operator - CandidateAddOnInfo
     mapping (address => CandidateAddOnInfo) public operatorInfo;
 
-    /// layer2 - operator
-    mapping (address => address) public operatorOfLayer;
-
     bool internal _lock;
 
     modifier ifFree {

@@ -31,8 +31,8 @@ contract DSMath {
     return x >= y ? x : y;
   }
 
-  uint constant WAD_ = 1e18;
-  uint constant RAY_ = 1e27;
+  uint constant WAD_ = 10 ** 18;
+  uint constant RAY_ = 10 ** 27;
 
   function wmul(uint x, uint y) internal pure returns (uint z) {
     z = add(mul(x, y), WAD_ / 2) / WAD_;

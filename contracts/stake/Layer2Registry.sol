@@ -1,20 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { ILayer2 } from "../dao/interfaces/ILayer2.sol";
 import { Layer2RegistryI } from "../dao/interfaces/Layer2RegistryI.sol";
-import { ISeigManager } from "./interfaces/ISeigManager.sol";
 
 import "../proxy/ProxyStorage.sol";
 import { AuthControlCoinage } from "../common/AuthControlCoinage.sol";
 import { Layer2RegistryStorage } from "./Layer2RegistryStorage.sol";
 
+interface IISeigManager {
+  function deployCoinage(address layer2) external returns (bool);
+  function setCommissionRate(address layer2, uint256 commission, bool isCommissionRateNegative) external returns (bool);
+}
+
+interface IILayer2 {
+  function operator() external view returns (address);
+  function isLayer2() external view returns (bool);
+}
 
 // TODO: transfer coinages ownership to seig manager
 contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStorage, Layer2RegistryI {
 
   modifier onlyMinterOrOperator(address layer2) {
-    require(hasRole(MINTER_ROLE, msg.sender) || ILayer2(layer2).operator() == msg.sender, "sender is neither admin nor operator");
+    require(hasRole(MINTER_ROLE, msg.sender) || IILayer2(layer2).operator() == msg.sender, "sender is neither admin nor operator");
     _;
   }
 
@@ -94,7 +101,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
 
   function _register(address layer2) internal returns (bool) {
     require(!_layer2s[layer2]);
-    require(ILayer2(layer2).isLayer2());
+    require(IILayer2(layer2).isLayer2());
 
     _layer2s[layer2] = true;
     _layer2ByIndex[_numLayer2s] = layer2;
@@ -110,7 +117,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
    internal
    returns (bool)
   {
-    return ISeigManager(seigManager).deployCoinage(layer2);
+    return IISeigManager(seigManager).deployCoinage(layer2);
   }
 
   function _setCommissionRate(
@@ -122,7 +129,7 @@ contract Layer2Registry is  ProxyStorage, AuthControlCoinage, Layer2RegistryStor
     internal
     returns (bool)
   {
-    return ISeigManager(seigManager).setCommissionRate(layer2, commissionRate, isCommissionRateNegative);
+    return IISeigManager(seigManager).setCommissionRate(layer2, commissionRate, isCommissionRateNegative);
   }
 
 }

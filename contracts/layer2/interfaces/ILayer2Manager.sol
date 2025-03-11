@@ -12,7 +12,4 @@ interface ILayer2Manager {
     function updateSeigniorage(address rollupConfig, uint256 amount) external;
     function rollupConfigOfOperator(address operator) external view returns (address);
     function statusLayer2(address rollupConfig) external view returns (uint8);
-
-    function transferL2Seigniorage(address layer2, uint256 amount) external;
-    function layerInfo(address layer2) external view returns (address rollupConfig, address operator);
 }

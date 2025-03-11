@@ -1,0 +1,89 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "CandidateAddOnFactoryStorage",
+  "sourceName": "contracts/dao/factory/CandidateAddOnFactoryStorage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "candidateAddOnImp",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "daoCommittee",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "depositManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "onDemandL1BridgeRegistry",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "wton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080806040523461001657610160908161001c8239f35b600080fdfe60806040818152600436101561001457600080fd5b600091823560e01c908163168d90841461012e575080636c7ac9d8146101075780637debebc3146100df5780638d62d949146100b7578063cc48b9471461008f5763eeac94311461006457600080fd5b3461008b578160031936011261008b5760015490516001600160a01b039091168152602090f35b5080fd5b503461008b578160031936011261008b5760035490516001600160a01b039091168152602090f35b503461008b578160031936011261008b5760045490516001600160a01b039091168152602090f35b503461008b578160031936011261008b5760025490516001600160a01b039091168152602090f35b503461008b578160031936011261008b57905490516001600160a01b039091168152602090f35b83903461008b578160031936011261008b576005546001600160a01b03168152602090f3fea164736f6c6343000813000a",
+  "deployedBytecode": "0x60806040818152600436101561001457600080fd5b600091823560e01c908163168d90841461012e575080636c7ac9d8146101075780637debebc3146100df5780638d62d949146100b7578063cc48b9471461008f5763eeac94311461006457600080fd5b3461008b578160031936011261008b5760015490516001600160a01b039091168152602090f35b5080fd5b503461008b578160031936011261008b5760035490516001600160a01b039091168152602090f35b503461008b578160031936011261008b5760045490516001600160a01b039091168152602090f35b503461008b578160031936011261008b5760025490516001600160a01b039091168152602090f35b503461008b578160031936011261008b57905490516001600160a01b039091168152602090f35b83903461008b578160031936011261008b576005546001600160a01b03168152602090f3fea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

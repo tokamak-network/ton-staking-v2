@@ -1,0 +1,37 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "CandidateAddOnStorage",
+  "sourceName": "contracts/dao/CandidateAddOnStorage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "wton",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080806040523461001557608f908161001b8239f35b600080fdfe6080806040526004361015601257600080fd5b600090813560e01c9081638d62d94914605b575063cc48b94714603457600080fd5b3460585780600319360112605857546040516001600160a01b039091168152602090f35b80fd5b905034607e5781600319360112607e576001546001600160a01b03168152602090f35b5080fdfea164736f6c6343000813000a",
+  "deployedBytecode": "0x6080806040526004361015601257600080fd5b600090813560e01c9081638d62d94914605b575063cc48b94714603457600080fd5b3460585780600319360112605857546040516001600160a01b039091168152602090f35b80fd5b905034607e5781600319360112607e576001546001600160a01b03168152602090f35b5080fdfea164736f6c6343000813000a",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -20,12 +20,4 @@ interface ICandidate {
     function memo() external view returns (string memory);
     function committee() external view returns (address);
     function seigManager() external view returns (address);
-
-    function initialize(
-        address _candidate,
-        bool _isLayer2Candidate,
-        string memory _memo,
-        address _committee,
-        address _seigManager
-    ) external;
 }

@@ -1,0 +1,131 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IL1BridgeRegistry",
+  "sourceName": "contracts/layer2/Layer2ManagerV1_1.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "checkLayer2TVL",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "result",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "getRollupInfo",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "rollupType",
+          "type": "uint8"
+        },
+        {
+          "internalType": "address",
+          "name": "l2TON",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "rejectedSeigs",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "rejectedL2Deposit",
+          "type": "bool"
+        },
+        {
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "l2TON",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "byteName",
+          "type": "bytes32"
+        }
+      ],
+      "name": "registeredNames",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "rollupConfig",
+          "type": "address"
+        }
+      ],
+      "name": "rollupType",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

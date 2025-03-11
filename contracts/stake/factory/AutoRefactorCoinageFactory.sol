@@ -4,7 +4,15 @@ pragma solidity ^0.8.4;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { CoinageFactoryI } from "../interfaces/CoinageFactoryI.sol";
 import { AutoRefactorCoinageProxy } from "../tokens/AutoRefactorCoinageProxy.sol";
-import { AutoRefactorCoinageI } from "../interfaces/AutoRefactorCoinageI.sol";
+
+interface IIAutoRefactorCoinage {
+  function initialize (
+      string memory name_,
+      string memory symbol_,
+      uint256 factor_,
+      address seigManager_
+    ) external;
+}
 
 
 contract AutoRefactorCoinageFactory is CoinageFactoryI, Ownable {
@@ -23,7 +31,7 @@ contract AutoRefactorCoinageFactory is CoinageFactoryI, Ownable {
     c.upgradeTo(autoCoinageLogic);
     c.addMinter(msg.sender);
 
-    AutoRefactorCoinageI(address(c)).initialize(
+    IIAutoRefactorCoinage(address(c)).initialize(
       "StakedWTON",
       "sWTON",
       _DEFAULT_FACTOR,
