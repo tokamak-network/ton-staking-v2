@@ -149,6 +149,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
   //////////////////////////////
 
   function pause() public onlyPauser whenNotPaused {
+    revert("Moved to SeigManagerV1_3.");
     _pausedBlock = block.number;
     paused = true;
     emit Paused(msg.sender);
@@ -647,6 +648,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
 
 
   function _calcNumSeigBlocks() internal view returns (uint256) {
+    revert("Moved to SeigManagerV1_3.");
     require(!paused);
 
     uint256 span = block.number - _lastSeigBlock;
