@@ -340,15 +340,8 @@ contract SeigManagerV1_3 is
     function allowIssuanceLayer2Seigs(
         address layer2
     ) public view returns (address rollupConfig, bool allowed) {
-        address operatorManager = Layer2I(layer2).operator();
-        address operator;
-        (rollupConfig, operator) = ILayer2Manager(layer2Manager).layerInfo(layer2);
-
-        if (rollupConfig == address(0) || operatorManager != operator) allowed = false;
-        else if (
-            ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1
-            &&  ILayer2Manager(layer2Manager).verifyOperator(layer2, rollupConfig, operatorManager)
-        ) allowed = true;
+        (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+        if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
 
     function unallocatedSeigniorage() external view returns (uint256 amount) {
