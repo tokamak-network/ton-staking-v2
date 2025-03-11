@@ -274,6 +274,7 @@ contract SeigManager is ProxyStorage, AuthControlSeigManager, SeigManagerStorage
     onlyRegistryOrOperator(layer2)
     returns (bool)
   {
+    require(address(_coinages[layer2]) != address(0), "invalid layer2");
     // check commission range
     require(
       (commissionRate == 0) ||
