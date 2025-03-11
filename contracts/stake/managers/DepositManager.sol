@@ -197,14 +197,6 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   }
 
   ////////////////////
-  // Slash functions
-  ////////////////////
-
-  function slash(address layer2, address recipient, uint256 amount) external onlySeigManager returns (bool) {
-    //return _wton.transferFrom(owner, recipient, amount);
-  }
-
-  ////////////////////
   // Setter
   ////////////////////
 
