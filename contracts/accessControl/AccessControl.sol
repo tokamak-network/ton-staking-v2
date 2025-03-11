@@ -198,8 +198,9 @@ abstract contract AccessControl is Context {
      * Emits a {RoleAdminChanged} event.
      */
     function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal virtual {
-        emit RoleAdminChanged(role, _roles[role].adminRole, adminRole);
-        _roles[role].adminRole = adminRole;
+        RoleData storage roleData = _roles[role];
+        emit RoleAdminChanged(role, roleData.adminRole, adminRole);
+        roleData.adminRole = adminRole;
     }
 
     function _grantRole(bytes32 role, address account) private {
