@@ -7,4 +7,6 @@ interface ISeigManager {
     function l1BridgeRegistry() external view returns (address);
     function layer2Manager() external view returns (address);
     function excludeFromSeigniorage(address _layer2) external returns (bool);
+    function onDeposit(address layer2, address account, uint256 amount) external returns (bool);
+
 }

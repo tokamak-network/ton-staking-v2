@@ -1,30 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { IOnApprove } from "../interfaces/IOnApprove.sol";
+import { ILayer2 } from "../../dao/interfaces/ILayer2.sol";
+import { ILayer2Registry } from "../../dao/interfaces/ILayer2Registry.sol";
+import { ISeigManager } from "../interfaces/ISeigManager.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IWTON } from "../../dao/interfaces/IWTON.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../../common/AccessibleCommon.sol";
 import { DepositManagerStorage } from "./DepositManagerStorage.sol";
-
-interface IOnApprove {
-  function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
-}
-
-interface ILayer2Registry {
-  function layer2s(address layer2) external view returns (bool);
-}
-
-interface ILayer2 {
-  function operator() external view returns (address);
-}
-
-interface ISeigManager {
-  function stakeOf(address layer2, address account) external view returns (uint256);
-  function onDeposit(address layer2, address account, uint256 amount) external returns (bool);
-  function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
-}
 
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
