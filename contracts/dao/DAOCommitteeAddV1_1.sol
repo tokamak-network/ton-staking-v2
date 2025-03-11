@@ -62,6 +62,14 @@ contract DAOCommitteeAddV1_1 is
         string memo
     );
 
+    event SetCandidateAddOnFactory(
+        address candidateAddOnFactory
+    );
+
+    event SetLayer2Manager(
+        address layer2Manager
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "sender is not an admin");
         _;
@@ -72,11 +80,15 @@ contract DAOCommitteeAddV1_1 is
     function setCandidateAddOnFactory(address _candidateAddOnFactory) external onlyOwner {
         _nonZeroAddress(_candidateAddOnFactory);
         candidateAddOnFactory = _candidateAddOnFactory;
+
+        emit SetCandidateAddOnFactory(_candidateAddOnFactory);
     }
 
     function setLayer2Manager(address _layer2Manager) external onlyOwner {
         _nonZeroAddress(_layer2Manager);
         layer2Manager = _layer2Manager;
+        
+        emit SetLayer2Manager(_layer2Manager);
     }
 
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
