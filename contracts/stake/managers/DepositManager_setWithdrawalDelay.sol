@@ -14,7 +14,7 @@ interface ILayer2 {
  */
 contract DepositManager_setWithdrawalDelay is ProxyStorage, AccessibleCommon, DepositManagerStorage {
 
-    uint256 public constant MAX_DELAY_BLOCKS =  216000; // 60*60*24*30/12 = 216000 (1 block = 12 sec)
+    uint256 public constant MAX_DELAY_BLOCKS =  216_000; // 60*60*24*30/12 = 216000 (1 block = 12 sec)
 
     /**
      * @notice Event that occurs when calling the setWithdrawalDelay function
