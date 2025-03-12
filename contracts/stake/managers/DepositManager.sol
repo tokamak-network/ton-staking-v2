@@ -125,9 +125,18 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function _deposit(address layer2, address account, uint256 amount, address payer) internal onlyLayer2(layer2) returns (bool) {
     require(account != address(0) && amount != 0, "zero amount or zero address");
-    _accStaked[layer2][account] = _accStaked[layer2][account] + amount;
-    _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + amount;
-    _accStakedAccount[account] = _accStakedAccount[account] + amount;
+
+    uint256 amountOfLayerAccount =  _accStaked[layer2][account];
+    uint256 amountOfLayer =  _accStakedLayer2[layer2];
+    uint256 amountOfAccount =  _accStakedAccount[account];
+
+    amountOfLayerAccount += amount;
+    amountOfLayer += amount;
+    amountOfAccount += amount;
+
+    _accStaked[layer2][account] = amountOfLayerAccount;
+    _accStakedLayer2[layer2] = amountOfLayer;
+    _accStakedAccount[account] = amountOfAccount;
 
     IERC20(_wton).safeTransferFrom(payer, address(this), amount);
 
@@ -161,12 +170,16 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   function _redeposit(address layer2, uint256 i, uint256 n) internal onlyLayer2(layer2) returns (bool) {
     uint256 accAmount;
 
-    require(_withdrawalRequests[layer2][msg.sender].length > 0, "DepositManager: no request");
-    require(_withdrawalRequests[layer2][msg.sender].length - i >= n, "DepositManager: n exceeds num of pending requests");
+    WithdrawalReqeust[] memory requsts = _withdrawalRequests[layer2][msg.sender];
+
+    require(requsts.length > 0, "DepositManager: no request");
+    require(requsts.length - i >= n, "DepositManager: n exceeds num of pending requests");
 
     uint256 e = i + n;
     for (; i < e; i++) {
-      WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
+      // WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
+      WithdrawalReqeust memory r = requsts[i];
+
       uint256 amount = r.amount;
 
       require(!r.processed, "DepositManager: pending request already processed");
@@ -174,18 +187,36 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
       accAmount = accAmount + amount;
       r.processed = true;
+      _withdrawalRequests[layer2][msg.sender][i] = r;
     }
 
 
     // deposit-related storages
-    _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
-    _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + accAmount;
-    _accStakedAccount[msg.sender] = _accStakedAccount[msg.sender] + accAmount;
+
+    uint256 amountOfLayerAccount =  _accStaked[layer2][msg.sender];
+    uint256 amountOfLayer =  _accStakedLayer2[layer2];
+    uint256 amountOfAccount =  _accStakedAccount[msg.sender];
+
+    amountOfLayerAccount += accAmount;
+    amountOfLayer += accAmount;
+    amountOfAccount += accAmount;
+
+    _accStaked[layer2][msg.sender] = amountOfLayerAccount;
+    _accStakedLayer2[layer2] = amountOfLayer;
+    _accStakedAccount[msg.sender] = amountOfAccount;
 
     // withdrawal-related storages
-    _pendingUnstaked[layer2][msg.sender] = _pendingUnstaked[layer2][msg.sender] - accAmount;
-    _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] - accAmount;
-    _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] - accAmount;
+    uint256 pendingOfLayerAccount =  _pendingUnstaked[layer2][msg.sender];
+    uint256 pendingOfLayer =  _pendingUnstakedLayer2[layer2];
+    uint256 pendingOfAccount =  _pendingUnstakedAccount[msg.sender];
+
+    pendingOfLayerAccount -= accAmount;
+    pendingOfLayer -= accAmount;
+    pendingOfAccount -= accAmount;
+
+    _pendingUnstaked[layer2][msg.sender] = pendingOfLayerAccount;
+    _pendingUnstakedLayer2[layer2] = pendingOfLayer;
+    _pendingUnstakedAccount[msg.sender] = pendingOfAccount;
 
     _withdrawalRequestIndex[layer2][msg.sender] += n;
 
@@ -330,9 +361,11 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function withdrawalRequestIndex(address layer2, address account) external view returns (uint256 index) { return _withdrawalRequestIndex[layer2][account]; }
   function withdrawalRequest(address layer2, address account, uint256 index) external view returns (uint128 withdrawableBlockNumber, uint128 amount, bool processed ) {
-    withdrawableBlockNumber = _withdrawalRequests[layer2][account][index].withdrawableBlockNumber;
-    amount = _withdrawalRequests[layer2][account][index].amount;
-    processed = _withdrawalRequests[layer2][account][index].processed;
+
+    WithdrawalReqeust memory wrequests = _withdrawalRequests[layer2][account][index];
+    withdrawableBlockNumber = wrequests.withdrawableBlockNumber;
+    amount = wrequests.amount;
+    processed = wrequests.processed;
   }
 
   // solium-enable
