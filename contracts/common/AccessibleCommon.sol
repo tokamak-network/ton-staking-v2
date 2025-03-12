@@ -13,13 +13,15 @@ contract AccessibleCommon is  ERC165Storage, AccessControl {
     /// @dev add admin
     /// @param account  address to add
     function addAdmin(address account) public virtual onlyOwner {
-        grantRole(DEFAULT_ADMIN_ROLE, account);
+        require(!hasRole(DEFAULT_ADMIN_ROLE, account), "already granted");
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, account);
+        require(hasRole(DEFAULT_ADMIN_ROLE, account), "already not granted");
+        _revokeRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     /// @dev transfer admin
@@ -27,9 +29,10 @@ contract AccessibleCommon is  ERC165Storage, AccessControl {
     function transferAdmin(address newAdmin) public virtual onlyOwner {
         require(newAdmin != address(0), "Accessible: zero address");
         require(msg.sender != newAdmin, "Accessible: same admin");
+        require(!hasRole(DEFAULT_ADMIN_ROLE, newAdmin), "already granted");
 
-        grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function transferOwnership(address newAdmin) public virtual {
@@ -37,7 +40,7 @@ contract AccessibleCommon is  ERC165Storage, AccessControl {
     }
 
     function renounceOwnership() public onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// @dev whether admin
