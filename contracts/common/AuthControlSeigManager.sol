@@ -44,74 +44,75 @@ contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessCon
     /// @dev add admin
     /// @param account  address to add
     function addAdmin(address account) public virtual onlyOwner {
-        grantRole(DEFAULT_ADMIN_ROLE, account);
+        require(!hasRole(DEFAULT_ADMIN_ROLE, account), "already granted");
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function addMinter(address account) public virtual onlyOwner {
-        grantRole(MINTER_ROLE, account);
+        require(!hasRole(MINTER_ROLE, account), "already granted");
+        _grantRole(MINTER_ROLE, account);
     }
 
     function addOperator(address account) public virtual onlyOwner {
-        grantRole(OPERATOR_ROLE, account);
+        require(!hasRole(OPERATOR_ROLE, account), "already granted");
+        _grantRole(OPERATOR_ROLE, account);
     }
 
     function addChallenger(address account) public virtual onlyChallengerOrAdmin {
-        grantRole(CHALLENGER_ROLE, account);
+        require(!hasRole(CHALLENGER_ROLE, account), "already granted");
+        _grantRole(CHALLENGER_ROLE, account);
     }
 
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
+        require(hasRole(DEFAULT_ADMIN_ROLE, account), "already not granted");
         _revokeRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function removeMinter(address account) public virtual onlyOwner {
+        require(hasRole(MINTER_ROLE, account), "already not granted");
         _revokeRole(MINTER_ROLE, account);
     }
 
     function removeChallenger(address account) public virtual onlyOwner {
+        require(hasRole(CHALLENGER_ROLE, account), "already not granted");
         _revokeRole(CHALLENGER_ROLE, account);
     }
 
     function removeOperator(address account) public virtual onlyOwner {
+        require(hasRole(OPERATOR_ROLE, account), "already not granted");
         _revokeRole(OPERATOR_ROLE, account);
     }
+
     /// @dev transfer admin
     /// @param newAdmin new admin address
     function transferAdmin(address newAdmin) public virtual onlyOwner {
         require(newAdmin != address(0), "Accessible: zero address");
         require(msg.sender != newAdmin, "Accessible: same admin");
+        require(!hasRole(DEFAULT_ADMIN_ROLE, newAdmin), "already granted");
 
-        grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function renounceOwnership() public onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function renounceMinter() public {
-        renounceRole(MINTER_ROLE, msg.sender);
+        require(hasRole(MINTER_ROLE, msg.sender), "already not granted");
+        _revokeRole(MINTER_ROLE, msg.sender);
     }
 
     function renounceOperator() public {
-        renounceRole(OPERATOR_ROLE, msg.sender);
+        require(hasRole(OPERATOR_ROLE, msg.sender), "already not granted");
+        _revokeRole(OPERATOR_ROLE, msg.sender);
     }
 
     function renounceChallenger() public {
-        renounceRole(CHALLENGER_ROLE, msg.sender);
-    }
-
-    function revokeMinter(address account) public onlyOwner {
-        revokeRole(MINTER_ROLE, account);
-    }
-
-    function revokeOperator(address account) public onlyOwner {
-        revokeRole(OPERATOR_ROLE, account);
-    }
-
-    function revokeChallenger(address account) public onlyOwner {
-        revokeRole(CHALLENGER_ROLE, account);
+        require(hasRole(CHALLENGER_ROLE, msg.sender), "already not granted");
+        _revokeRole(CHALLENGER_ROLE, msg.sender);
     }
 
     /// @dev whether admin
