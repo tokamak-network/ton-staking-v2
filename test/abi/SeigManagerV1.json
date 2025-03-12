@@ -1,8 +1,113 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "SeigManagerV1_1",
-  "sourceName": "contracts/stake/managers/SeigManagerV1_1.sol",
+  "contractName": "SeigManagerV1",
+  "sourceName": "contracts/stake/managers/SeigManagerV1.sol",
   "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "layer2UnpauseBlocks",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "layer2PauseBlocks",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "layer2",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "claimL2Seigniorage",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "layer2",
+          "type": "address"
+        }
+      ],
+      "name": "claimableL2Seigniorage",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "layer2",
+          "type": "address"
+        }
+      ],
+      "name": "isPauseL2Seigniorage",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
     {
       "inputs": [],
       "name": "l1BridgeRegistry",
@@ -53,11 +158,6 @@
           "internalType": "address",
           "name": "layer2",
           "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "_isSenderOperator",
-          "type": "bool"
         }
       ],
       "name": "estimatedDistribute",
@@ -183,6 +283,11 @@
           "internalType": "uint256",
           "name": "initialDebt",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startBlock",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -299,19 +404,7 @@
       "stateMutability": "view",
       "type": "function"
     },
-    {
-      "inputs": [],
-      "name": "updateSeigniorageOperator",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
+
     {
       "inputs": [
         {
