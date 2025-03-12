@@ -34,7 +34,7 @@ contract DepositManager_setWithdrawalDelay is ProxyStorage, AccessibleCommon, De
      * @param withdrawalDelay_      The number of withdrawal delay blocks
     */
     function setWithdrawalDelay(address layer2, uint256 withdrawalDelay_) external {
-        require(_isOperator(layer2, msg.sender));
+        require(_isOperator(layer2, msg.sender), "Caller is not an operator");
         require(withdrawalDelay_ > globalWithdrawalDelay && withdrawalDelay_ <= MAX_DELAY_BLOCKS, "Not acceptable");
 
         withdrawalDelay[layer2] = withdrawalDelay_;
