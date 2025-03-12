@@ -24,12 +24,12 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   ////////////////////
 
   modifier onlyLayer2(address layer2) {
-    require(ILayer2Registry(_registry).layer2s(layer2));
+    require(ILayer2Registry(_registry).layer2s(layer2), "Caller is not a Layer2");
     _;
   }
 
   modifier onlySeigManager() {
-    require(msg.sender == _seigManager);
+    require(msg.sender == _seigManager, "Caller is not a SeigManager");
     _;
   }
 
@@ -79,7 +79,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     require(msg.sender == _wton, "DepositManager: only accept WTON approve callback");
 
     address layer2 = _decodeDepositManagerOnApproveData(data);
-    require(_deposit(layer2, owner, amount, owner));
+    require(_deposit(layer2, owner, amount, owner), "fail deposit");
 
     return true;
   }
@@ -87,7 +87,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   function _decodeDepositManagerOnApproveData(
     bytes memory data
   ) internal pure returns (address layer2) {
-    require(data.length == 0x20);
+    require(data.length == 0x20, "data length error");
 
     assembly {
       layer2 := mload(add(data, 0x20))
@@ -103,12 +103,12 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
    */
 
   function deposit(address layer2, uint256 amount) external returns (bool) {
-    require(_deposit(layer2, msg.sender, amount, msg.sender));
+    require(_deposit(layer2, msg.sender, amount, msg.sender), "fail deposit");
     return true;
   }
 
   function deposit(address layer2, address account, uint256 amount) external returns (bool) {
-    require(_deposit(layer2, account, amount, msg.sender));
+    require(_deposit(layer2, account, amount, msg.sender), "fail deposit");
     return true;
   }
 
@@ -117,7 +117,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     require(accounts.length == amounts.length, 'wrong lenth');
 
     for (uint256 i = 0; i < accounts.length; i++){
-      require(_deposit(layer2, accounts[i], amounts[i], msg.sender));
+      require(_deposit(layer2, accounts[i], amounts[i], msg.sender), "fail deposit");
     }
 
     return true;
@@ -142,7 +142,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
     emit Deposited(layer2, account, amount);
 
-    require(ISeigManager(_seigManager).onDeposit(layer2, account, amount));
+    require(ISeigManager(_seigManager).onDeposit(layer2, account, amount), "fail SeigManager.onDeposit");
 
     return true;
   }
@@ -157,13 +157,13 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function redeposit(address layer2) external returns (bool) {
     uint256 i = _withdrawalRequestIndex[layer2][msg.sender];
-    require(_redeposit(layer2, i, 1));
+    require(_redeposit(layer2, i, 1), "fail redeposit");
     return true;
   }
 
   function redepositMulti(address layer2, uint256 n) external returns (bool) {
     uint256 i = _withdrawalRequestIndex[layer2][msg.sender];
-    require(_redeposit(layer2, i, n));
+    require(_redeposit(layer2, i, n), "fail redeposit");
     return true;
   }
 
@@ -222,7 +222,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
     emit Deposited(layer2, msg.sender, accAmount);
 
-    require(ISeigManager(_seigManager).onDeposit(layer2, msg.sender, accAmount));
+    require(ISeigManager(_seigManager).onDeposit(layer2, msg.sender, accAmount), "fail SeigManager.onDeposit");
 
     return true;
   }
@@ -237,7 +237,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function setWithdrawalDelay(address layer2, uint256 withdrawalDelay_) external {
     revert("Moved to DepositManager_setWithdrawalDelay");
-    require(_isOperator(layer2, msg.sender));
+    require(_isOperator(layer2, msg.sender), "Caller is not an operator");
     withdrawalDelay[layer2] = withdrawalDelay_;
   }
 
@@ -265,7 +265,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
     emit WithdrawalRequested(layer2, msg.sender, amount);
 
-    require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount));
+    require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount), "fail SeigManager.onWithdraw");
 
     return true;
   }
@@ -296,7 +296,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
     _accUnstakedAccount[msg.sender] = _accUnstakedAccount[msg.sender] + amount;
 
     if (receiveTON) {
-      require(IWTON(_wton).swapToTONAndTransfer(msg.sender, amount));
+      require(IWTON(_wton).swapToTONAndTransfer(msg.sender, amount), "fail swapToTONAndTransfer");
     } else {
       IERC20(_wton).safeTransfer(msg.sender, amount);
     }
@@ -312,7 +312,7 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
   function processRequests(address layer2, uint256 n, bool receiveTON) external returns (bool) {
     for (uint256 i = 0; i < n; i++) {
-      require(_processRequest(layer2, receiveTON));
+      require(_processRequest(layer2, receiveTON), "fail processRequests");
     }
     return true;
   }
