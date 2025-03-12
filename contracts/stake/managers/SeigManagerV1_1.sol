@@ -5,7 +5,7 @@ import { IDepositManager } from "../interfaces/IDepositManager.sol";
 import { ICandidate } from "../../dao/interfaces/ICandidate.sol";
 import { ILayer2Registry } from "../../dao/interfaces/ILayer2Registry.sol";
 import { ITON } from "../interfaces/ITON.sol";
-import { IPowerTON } from "../../dao/interfaces/IPowerTON.sol";
+// import { IPowerTON } from "../../dao/interfaces/IPowerTON.sol";
 import { MinterRoleRenounceTarget } from "../interfaces/MinterRoleRenounceTarget.sol";
 import { PauserRoleRenounceTarget } from "../interfaces/PauserRoleRenounceTarget.sol";
 import { OwnableTarget } from "../interfaces/OwnableTarget.sol";
@@ -352,7 +352,6 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     _tot.mint(layer2, amount);
     _coinages[layer2].mint(account, amount);
 
-    // if (_powerton != address(0)) IPowerTON(_powerton).onDeposit(layer2, account, amount);
     return true;
   }
 
@@ -376,7 +375,6 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     // burn {v} {coinages[layer2]} tokens to the account
     _coinages[layer2].burnFrom(account, amount);
 
-    // if (_powerton != address(0)) IPowerTON(_powerton).onWithdraw(layer2, account, amount);
     emit UnstakeLog(amount, totAmount);
 
     return true;
@@ -780,7 +778,7 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     if (address(_powerton) != address(0)) {
       powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
       IWTON(_wton).mint(address(_powerton), powertonSeig);
-      IPowerTON(_powerton).updateSeigniorage(powertonSeig);
+      // IPowerTON(_powerton).updateSeigniorage(powertonSeig);
     }
 
     if (dao != address(0)) {

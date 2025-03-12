@@ -294,6 +294,7 @@ contract SeigManagerV1_3 is
             tempLayer2StartBlock < blockNumber
         ) {
             (, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
+
             if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
         }
 
@@ -325,7 +326,7 @@ contract SeigManagerV1_3 is
         return _coinages[layer2].balanceOf(operator);
     }
 
-    /**
+     /**
      * @notice Check layer2 information managed in Layer2Manager
      * @param layer2            The layer2 address
      * @return rollupConfig     The rollupConfig address of layer2
@@ -335,11 +336,8 @@ contract SeigManagerV1_3 is
     function allowIssuanceLayer2Seigs(
         address layer2
     ) public view returns (address rollupConfig, bool allowed) {
-        rollupConfig = ILayer2Manager(layer2Manager).rollupConfigOfOperator(
-            Layer2I(layer2).operator()
-        );
-        if (rollupConfig == address(0)) allowed = false;
-        else if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
+        (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+        if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
 
     /**
@@ -607,10 +605,7 @@ contract SeigManagerV1_3 is
                 // If this the first commit, set up an initial debt
                 if (oldLayer2Info.startBlock == 0) {
                     newLayer2Info.startBlock = block.number;
-                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UNIT;
                 } else {
-                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UNIT;
-
                     // distribute seigniorage to layer2 based on previous layer2 tvl
                     // layer2Tvl would be 0 when layer2 has been paused
                     if (oldLayer2Info.layer2Tvl > 0) {
@@ -621,6 +616,7 @@ contract SeigManagerV1_3 is
                         if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
                     }
                 }
+                newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UNIT;
             }
         }
 
@@ -702,7 +698,9 @@ contract SeigManagerV1_3 is
      * @return amount           Amount that can be claimed
      */
     function claimableL2Seigniorage(address layer2) public view returns (uint256 amount) {
+
         (  , , , , , , , amount ) = estimatedDistribute(block.number+1, layer2);
+
     }
 
     //=====

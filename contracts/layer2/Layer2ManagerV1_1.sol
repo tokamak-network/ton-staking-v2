@@ -171,7 +171,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     /* ========== onlyL2Register ========== */
 
-    /**
+     /**
      * @notice Pause the CandidateAddOn
      * @param rollupConfig the rollupConfig address
      */
@@ -183,10 +183,11 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
         _nonZeroAddress(_layer2);
 
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromL2Seigniorage(address)",_layer2));
+        if (!success) revert ExcludeError();
+
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
-
-        if (!ISeigManager(seigManager).excludeFromSeigniorage(_layer2)) revert ExcludeError();
     }
 
     /**
@@ -198,8 +199,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         // require(info.stateIssue == 2, "not in pause status");
         if (info.status != 2) revert StatusError();
 
+         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
+        _nonZeroAddress(_layer2);
+
         rollupConfigInfo[rollupConfig].status = 1;
         emit UnpausedCandidateAddOn(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
+
+        (bool success, ) = seigManager.call(abi.encodeWithSignature("includeFromL2Seigniorage(address)",_layer2));
+        if (!success) revert IncludeError();
     }
 
     /* ========== onlySeigManger  ========== */
@@ -407,13 +414,18 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     }
 
 
+    function layerInfo(address layer2) external view returns (address rollupConfig, address operator) {
+        operator = operatorOfLayer[layer2];
+        rollupConfig = operatorInfo[operator].rollupConfig;
+    }
+
     /* ========== internal ========== */
 
     function _nonZeroAddress(address _addr) internal pure {
         if(_addr == address(0)) revert ZeroAddressError();
     }
 
-    function _registerCandidateAddOn(
+     function _registerCandidateAddOn(
         address _rollupConfig,
         uint256 _wtonAmount,
         string calldata _memo
@@ -422,7 +434,9 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         if (operator == address(0)) revert RegisterError(1);
         if (operatorInfo[operator].rollupConfig != address(0)) revert RegisterError(2);
+
         address candidateAddOn = IIDAOCommittee(dao).createCandidateAddOn(_memo, operator);
+        operatorOfLayer[candidateAddOn] = operator;
         operatorInfo[operator] = CandidateAddOnInfo({
             rollupConfig: _rollupConfig,
             candidateAddOn : candidateAddOn

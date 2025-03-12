@@ -8,6 +8,7 @@ import { ILayer2Manager } from "../layer2/interfaces/ILayer2Manager.sol";
 import "../proxy/ProxyStorage.sol";
 import { AuthControlL1BridgeRegistry } from "../common/AuthControlL1BridgeRegistry.sol";
 import "./L1BridgeRegistryStorage.sol";
+
 /**
  * @notice  Error occurred when executing changeType function
  * @param x 1: sender is not ton nor wton
@@ -168,45 +169,39 @@ contract L1BridgeRegistryV1_1 is ProxyStorage, AuthControlL1BridgeRegistry, L1Br
 
     /**
      * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     *         Unsettled seigniorage to the layer 2 sequencer can no longer be settled.
      * @param rollupConfig the rollupConfig address
      */
-    function rejectCandidateAddOn(
-        address rollupConfig
-    )  external onlySeigniorageCommittee() {
+    function rejectCandidateAddOn(address rollupConfig) external onlySeigniorageCommittee {
         _nonRejected(rollupConfig);
 
-        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
+        require(rollupInfo[rollupConfig].rollupType != 0, 'NonRegistered');
 
-        require (info.rollupType != 0, "NonRegistered");
-
-        info.rejectedSeigs = true;
-        info.rejectedL2Deposit = true;
-
-        rollupInfo[rollupConfig] = info;
+        rollupInfo[rollupConfig].rejectedSeigs = true;
+        rollupInfo[rollupConfig].rejectedL2Deposit = true;
 
         ILayer2Manager(layer2Manager).pauseCandidateAddOn(rollupConfig);
         emit RejectedCandidateAddOn(rollupConfig);
     }
 
     /**
-     * Restore cancel stopping seigniorage to the layer 2 sequencer of a specific rollupConfig.
+     * Start to issue seigniorage to the layer 2 sequencer of a specific rollupConfig from now on.
      * @param rollupConfig          the rollupConfig address
      * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
      */
     function restoreCandidateAddOn(
         address rollupConfig,
         bool rejectedL2Deposit
-    )  external onlySeigniorageCommittee{
+    ) external onlySeigniorageCommittee {
         _onlyRejectedRollupConfig(rollupConfig);
 
-        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
-        info.rejectedSeigs = false;
-        info.rejectedL2Deposit = rejectedL2Deposit;
-        rollupInfo[rollupConfig] = info;
+        rollupInfo[rollupConfig].rejectedSeigs = false;
+        rollupInfo[rollupConfig].rejectedL2Deposit = rejectedL2Deposit;
 
         ILayer2Manager(layer2Manager).unpauseCandidateAddOn(rollupConfig);
         emit RestoredCandidateAddOn(rollupConfig);
     }
+
 
     /* ========== onlyManager ========== */
 
