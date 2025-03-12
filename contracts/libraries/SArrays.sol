@@ -37,11 +37,14 @@ library SArrays {
         }
 
         // At this point `low` is the exclusive upper bound. We will return the inclusive upper bound.
-        if (low > 0 && array[low - 1] == element) {
-            return low - 1;
-        } else {
-            return low;
+        unchecked {
+            if (low > 0 && array[low - 1] == element) {
+                return low - 1;
+            } else {
+                return low;
+            }
         }
+
     }
 
     function findIndex(uint256[] storage array, uint256 element
@@ -49,13 +52,19 @@ library SArrays {
         if (array.length == 0) return 0;
 
         // Shortcut for the actual value
-        if (element >= array[array.length-1])
-            return (array.length-1);
+        unchecked {
+            if (element >= array[array.length-1])
+                return (array.length-1);
+        }
         if (element < array[0]) return 0;
 
         // Binary search of the value in the array
         uint min = 0;
-        uint max = array.length-1;
+        uint max ;
+        unchecked {
+            max = array.length-1;
+        }
+
         while (max > min) {
             uint mid = (max + min + 1)/ 2;
 
@@ -74,13 +83,19 @@ library SArrays {
         if (array.length == 0) return 0;
 
         // Shortcut for the actual value
-        if (element >= array[array.length-1])
-            return (array[array.length-1]);
+        unchecked {
+            if (element >= array[array.length-1])
+                return (array[array.length-1]);
+        }
+
         if (element < array[0]) return 0;
 
         // Binary search of the value in the array
         uint min = 0;
-        uint max = array.length-1;
+        uint max;
+        unchecked {
+            max = array.length-1;
+        }
         while (max > min) {
             uint mid = (max + min + 1)/ 2;
 
