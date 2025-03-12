@@ -45,7 +45,7 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
 
       name = name_;
       symbol = symbol_;
-      factorSnapshots[0] = IRefactor.Factor(factor_, 0);
+      factorSnapshots[0] = IRefactor.Factor({factor: factor_, refactorCount: 0});
       seigManager = seigManager_;
     }
 
@@ -122,8 +122,8 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       uint256 rbAmountAccount = _toRAYBased(currentAccountBalance + amount);
       uint256 rbAmountTotal = _toRAYBased(currentTotalBalance + amount);
 
-      IRefactor.Balance memory newAccountBalance = IRefactor.Balance(rbAmountAccount, f.refactorCount);
-      IRefactor.Balance memory newTotalBalance = IRefactor.Balance(rbAmountTotal, f.refactorCount);
+      IRefactor.Balance memory newAccountBalance = IRefactor.Balance({balance: rbAmountAccount, refactoredCount: f.refactorCount});
+      IRefactor.Balance memory newTotalBalance = IRefactor.Balance({balance: rbAmountTotal, refactoredCount: f.refactorCount});
 
       _update(newAccountBalance, newTotalBalance, account, true, true);
 
