@@ -25,29 +25,35 @@ contract AuthControlLayer2Manager is AuthRoleLayer2Manager, ERC165Storage, Acces
     /// @dev add admin
     /// @param account  address to add
     function addAdmin(address account) public virtual onlyOwner {
-        grantRole(DEFAULT_ADMIN_ROLE, account);
+        require(!hasRole(DEFAULT_ADMIN_ROLE, account), "already granted");
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function addManager(address account) public virtual onlyOwner {
-        grantRole(MANAGER_ROLE, account);
+        require(!hasRole(MANAGER_ROLE, account), "already granted");
+        _grantRole(MANAGER_ROLE, account);
     }
 
     function addOperator(address account) public virtual onlyOwner {
-        grantRole(OPERATOR_ROLE, account);
+        require(!hasRole(OPERATOR_ROLE, account), "already granted");
+        _grantRole(OPERATOR_ROLE, account);
     }
 
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
-        revokeRole(DEFAULT_ADMIN_ROLE, account);
+        require(hasRole(DEFAULT_ADMIN_ROLE, account), "already not granted");
+        _revokeRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function removeManager(address account) public virtual onlyOwner {
-        revokeRole(MANAGER_ROLE, account);
+        require(hasRole(MANAGER_ROLE, account), "already not granted");
+        _revokeRole(MANAGER_ROLE, account);
     }
 
     function removeOperator(address account) public virtual onlyOwner {
-        revokeRole(OPERATOR_ROLE, account);
+        require(hasRole(OPERATOR_ROLE, account), "already not granted");
+        _revokeRole(OPERATOR_ROLE, account);
     }
 
     /// @dev transfer admin
@@ -55,29 +61,34 @@ contract AuthControlLayer2Manager is AuthRoleLayer2Manager, ERC165Storage, Acces
     function transferAdmin(address newAdmin) public virtual onlyOwner {
         require(newAdmin != address(0), "Accessible: zero address");
         require(msg.sender != newAdmin, "Accessible: same admin");
+        require(!hasRole(DEFAULT_ADMIN_ROLE, newAdmin), "already granted");
 
-        grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function renounceOwnership() public onlyOwner {
-        renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function renounceManager() public {
-        renounceRole(MANAGER_ROLE, msg.sender);
+        require(hasRole(MANAGER_ROLE, msg.sender), "already not granted");
+        _revokeRole(MANAGER_ROLE, msg.sender);
     }
 
     function renounceOperator() public {
-        renounceRole(OPERATOR_ROLE, msg.sender);
+        require(hasRole(OPERATOR_ROLE, msg.sender), "already not granted");
+        _revokeRole(OPERATOR_ROLE, msg.sender);
     }
 
     function revokeManager(address account) public onlyOwner {
-        revokeRole(MANAGER_ROLE, account);
+        require(hasRole(MANAGER_ROLE, account), "already not granted");
+        _revokeRole(MANAGER_ROLE, account);
     }
 
     function revokeOperator(address account) public onlyOwner {
-        revokeRole(OPERATOR_ROLE, account);
+        require(hasRole(OPERATOR_ROLE, account), "already not granted");
+        _revokeRole(OPERATOR_ROLE, account);
     }
 
     /// @dev whether admin
