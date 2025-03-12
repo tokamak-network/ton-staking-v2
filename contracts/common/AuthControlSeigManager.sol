@@ -3,9 +3,9 @@ pragma solidity ^0.8.4;
 
 import { ERC165Storage } from "@openzeppelin/contracts/utils/introspection/ERC165Storage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./AuthRoleSeigManager.sol";
+import "./AuthRole.sol";
 
-contract AuthControlSeigManager is AuthRoleSeigManager, ERC165Storage, AccessControl {
+contract AuthControlSeigManager is AuthRole, ERC165Storage, AccessControl {
     modifier onlyOwner() {
         require(isAdmin(msg.sender), "AuthControl: Caller is not an admin");
         _;
