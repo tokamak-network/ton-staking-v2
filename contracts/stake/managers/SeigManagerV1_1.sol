@@ -705,7 +705,7 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
 
   function _calcNumSeigBlocks() internal view returns (uint256) {
-    require(!paused);
+    require(!paused, "paused");
 
     uint256 span = block.number - _lastSeigBlock;
     if (_unpausedBlock < _lastSeigBlock) {
