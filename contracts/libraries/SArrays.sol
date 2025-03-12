@@ -49,6 +49,7 @@ library SArrays {
 
     function findIndex(uint256[] storage array, uint256 element
     ) internal view returns (uint256) {
+
         if (array.length == 0) return 0;
 
         // Shortcut for the actual value
@@ -80,33 +81,8 @@ library SArrays {
 
     function findValue(uint256[] storage array, uint256 element
     ) internal view returns (uint256) {
-        if (array.length == 0) return 0;
 
-        // Shortcut for the actual value
-        unchecked {
-            if (element >= array[array.length-1])
-                return (array[array.length-1]);
-        }
-
-        if (element < array[0]) return 0;
-
-        // Binary search of the value in the array
-        uint min = 0;
-        uint max;
-        unchecked {
-            max = array.length-1;
-        }
-        while (max > min) {
-            uint mid = (max + min + 1)/ 2;
-
-            if (array[mid] <= element) {
-                min = mid;
-            } else {
-                max = mid-1;
-            }
-        }
-
-        return array[min];
+        return array[findIndex(array, element)];
     }
 
 
