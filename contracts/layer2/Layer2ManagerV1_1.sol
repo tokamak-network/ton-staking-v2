@@ -40,6 +40,7 @@ error ZeroBytesError();  // memo check
 error SameValueError();
 error StatusError();
 error ExcludeError();
+error IncludeError();
 /**
  * @notice  Error in onApprove function
  * @param x 1: sender is not ton nor wton
@@ -105,6 +106,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      * @param _operatorManagerFactory   the operatorManagerFactory address
      */
     event SetOperatorManagerFactory(address _operatorManagerFactory);
+
+    /**
+     * @notice Event that occurs when sending seigniorage to operator of layer2
+     * @param layer2        the layer2 address
+     * @param operator      Address for receiving seigniorage
+     * @param amount        Transfer amount
+     */
+    event TransferWTON(address layer2, address operator, uint256 amount);
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -197,12 +206,17 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
-     * @param rollupConfig the rollupConfig address
+     * @param layer2 the layer2 address
      * @param amount the amount to give a seigniorage
      */
-    function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger {
+    function transferL2Seigniorage(address layer2, uint256 amount) external onlySeigManger {
 
-        IERC20(wton).safeTransfer(rollupConfigInfo[rollupConfig].operatorManager, amount);
+        address operator = operatorOfLayer[layer2];
+        require(operator != address(0), "wrong operator");
+
+        IERC20(wton).safeTransfer(operator, amount);
+
+        emit TransferWTON(layer2, operator, amount);
     }
 
     /* ========== Anybody can execute ========== */

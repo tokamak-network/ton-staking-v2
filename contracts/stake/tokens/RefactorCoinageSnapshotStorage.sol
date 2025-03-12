@@ -6,7 +6,7 @@ import { IRefactor } from "../interfaces/IRefactor.sol";
 /// @notice
 contract RefactorCoinageSnapshotStorage   {
 
-    uint256 public constant REFACTOR_BOUNDARY = 10 ** 28;
+    uint256 public constant REFACTOR_BOUNDARY = 1e28;
     uint256 public constant REFACTOR_DIVIDER = 2;
 
     address public seigManager;
