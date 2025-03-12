@@ -32,7 +32,7 @@ contract AccessibleCommon is  ERC165Storage, AccessControl {
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function transferOwnership(address newAdmin) public virtual onlyOwner {
+    function transferOwnership(address newAdmin) public virtual {
         transferAdmin(newAdmin);
     }
 
