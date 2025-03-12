@@ -6,7 +6,8 @@ interface ISeigManager {
     function onWithdraw(address layer2, address account, uint256 amount) external returns (bool);
     function l1BridgeRegistry() external view returns (address);
     function layer2Manager() external view returns (address);
-    function excludeFromSeigniorage(address _layer2) external returns (bool);
+    function excludeFromL2Seigniorage(address _layer2) external returns (bool);
+    function includeFromL2Seigniorage(address _layer2) external returns (bool);
     function onDeposit(address layer2, address account, uint256 amount) external returns (bool);
     function deployCoinage(address layer2) external returns (bool);
     function setCommissionRate(address layer2, uint256 commission, bool isCommissionRateNegative) external returns (bool);

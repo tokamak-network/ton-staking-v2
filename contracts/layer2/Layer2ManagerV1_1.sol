@@ -183,8 +183,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _layer2 = operatorInfo[info.operatorManager].candidateAddOn;
         _nonZeroAddress(_layer2);
 
-        (bool success, ) = seigManager.call(abi.encodeWithSignature("excludeFromL2Seigniorage(address)",_layer2));
-        if (!success) revert ExcludeError();
+        if (!ISeigManager(seigManager).excludeFromL2Seigniorage(_layer2)) revert ExcludeError();
 
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
@@ -205,8 +204,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         rollupConfigInfo[rollupConfig].status = 1;
         emit UnpausedCandidateAddOn(rollupConfig, operatorInfo[info.operatorManager].candidateAddOn);
 
-        (bool success, ) = seigManager.call(abi.encodeWithSignature("includeFromL2Seigniorage(address)",_layer2));
-        if (!success) revert IncludeError();
+        if (!ISeigManager(seigManager).includeFromL2Seigniorage(_layer2)) revert IncludeError();
     }
 
     /* ========== onlySeigManger  ========== */
