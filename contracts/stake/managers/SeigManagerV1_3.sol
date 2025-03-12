@@ -239,7 +239,7 @@ contract SeigManagerV1_3 is
     // View functions
     //////////////////////////////
 
-     /**
+    /**
      * @notice Estimate the seigniorage to be distributed
      * @param blockNumber         The block number
      * @param layer2              The layer2 address
@@ -257,7 +257,27 @@ contract SeigManagerV1_3 is
         uint256 blockNumber,
         address layer2
     )
-        public
+        external
+        view
+        returns (
+            uint256 maxSeig,
+            uint256 stakedSeig,
+            uint256 unstakedSeig,
+            uint256 powertonSeig,
+            uint256 daoSeig,
+            uint256 relativeSeig,
+            uint256 l2TotalSeigs,
+            uint256 layer2Seigs
+        )
+    {
+        return _estimatedDistribute(blockNumber, layer2);
+    }
+
+    function _estimatedDistribute(
+        uint256 blockNumber,
+        address layer2
+    )
+        internal
         view
         returns (
             uint256 maxSeig,
@@ -697,9 +717,9 @@ contract SeigManagerV1_3 is
      * @param  layer2           The layer2 addressa
      * @return amount           Amount that can be claimed
      */
-    function claimableL2Seigniorage(address layer2) public view returns (uint256 amount) {
+    function claimableL2Seigniorage(address layer2) external view returns (uint256 amount) {
 
-        (  , , , , , , , amount ) = estimatedDistribute(block.number+1, layer2);
+        (  , , , , , , , amount ) = _estimatedDistribute(block.number+1, layer2);
 
     }
 
