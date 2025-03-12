@@ -256,6 +256,8 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         return ILayer2Manager(layer2Manager).checkL1BridgeDetail(rollupConfig);
     }
 
+    function operator() external view returns (address) { return manager; }
+
     /* ========== internal ========== */
 
     function _nonZeroAddress(address _addr) internal pure {
