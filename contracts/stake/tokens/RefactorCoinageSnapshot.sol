@@ -12,7 +12,6 @@ import "../../proxy/ProxyStorage.sol";
 import { AuthControlCoinage } from "../../common/AuthControlCoinage.sol";
 import { RefactorCoinageSnapshotStorage } from "./RefactorCoinageSnapshotStorage.sol";
 
-
 /**
  * @dev Implementation of coin age token based on ERC20 of openzeppelin/-solidity
  *
@@ -224,9 +223,12 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       bool totalBool
     ) internal  {
 
+      uint256[] memory ids = accountBalanceIds[account];
+      uint256[] memory totalIds = totalSupplySnapshotIds;
+
       uint256 currentId = progressSnapshotId();
-      uint256 balanceIndex = _lastSnapshotId(accountBalanceIds[account]);
-      uint256 totalIndex = _lastSnapshotId(totalSupplySnapshotIds);
+      uint256 balanceIndex = (ids.length == 0? 0: ids[ids.length - 1]);
+      uint256 totalIndex = (totalIds.length == 0? 0: totalIds[totalIds.length - 1]);
 
       if (accountBool) {
         require(account != address(0), "zero account");
@@ -238,7 +240,6 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
         if (totalIndex < currentId) totalSupplySnapshotIds.push(currentId);
         totalSupplySnapshots[currentId] = _totalBalance;
       }
-
     }
 
     function progressSnapshotId() public view returns (uint256) {
@@ -315,8 +316,10 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       returns (IRefactor.Balance memory)
     {
       uint256 index = 0;
-      uint256 length = accountBalanceIds[account].length;
-      if(length != 0) index = accountBalanceIds[account][length - 1];
+      uint256[] memory ids = accountBalanceIds[account];
+
+      uint256 length = ids.length;
+      if(length != 0) index = ids[length - 1];
       return accountBalanceSnapshots[account][index];
     }
 
