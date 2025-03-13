@@ -612,14 +612,14 @@ contract SeigManagerV1_3 is
 
         (address rollupConfig, bool layer2Allowed) = allowIssuanceLayer2Seigs(msg.sender);
 
-        if (layer2Allowed && !isPauseL2Seigniorage(msg.sender))
-            curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+        bool checkLayer2 = (layer2Allowed && !isPauseL2Seigniorage(msg.sender))?true:false;
+
+        if (checkLayer2)  curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
 
         if (l2TotalSeigs != 0) {
             l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
 
-            if (layer2Allowed && !isPauseL2Seigniorage(msg.sender)) {
-
+            if (checkLayer2) {
                 Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
 
                 if (oldLayer2Info.startBlock == 0 && curLayer2Tvl != 0) {
