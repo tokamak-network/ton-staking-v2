@@ -431,6 +431,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     checkCoinage(msg.sender)
     returns (bool)
   {
+    revert("implemented in SeigManagerV1_3");
     // short circuit if paused
     if (paused) {
       return true;
@@ -508,6 +509,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   function getOperatorAmount(address layer2) public view returns (uint256) {
+    revert("implemented in SeigManagerV1_3");
     address operator = Layer2I(layer2).operator();
     return _coinages[layer2].balanceOf(operator);
   }
@@ -562,10 +564,12 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function unallocatedSeigniorage() external view returns (uint256 amount) {
+    revert("implemented in SeigManagerV1_3");
     amount = stakeOfTotal() - stakeOfAllLayers();
   }
 
   function unallocatedSeigniorageAt(uint256 snapshotId) external view returns (uint256 amount) {
+    revert("implemented in SeigManagerV1_3");
     amount = stakeOfTotalAt(snapshotId) - stakeOfAllLayersAt(snapshotId);
   }
 
@@ -604,6 +608,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function stakeOfAllLayers() public view returns (uint256 amount) {
+    revert("implemented in SeigManagerV1_3");
     uint256 num = IILayer2Registry(_registry).numLayer2s();
     for (uint256 i = 0 ; i < num; i++){
       address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
@@ -612,6 +617,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function stakeOfAllLayersAt(uint256 snapshotId) public view returns (uint256 amount) {
+    revert("implemented in SeigManagerV1_3");
     uint256 num = IILayer2Registry(_registry).numLayer2s();
     for (uint256 i = 0 ; i < num; i++){
       address layer2 = IILayer2Registry(_registry).layer2ByIndex(i);
@@ -626,6 +632,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function updateSeigniorageLayer(address layer2) external returns (bool){
+    revert("implemented in SeigManagerV1_3");
     require(ICandidate(layer2).updateSeigniorage(), "fail updateSeigniorage");
     return true;
   }
