@@ -213,17 +213,9 @@ contract SeigManagerV1_3 is
 
     /**
      * @notice Distribute the issuing seigniorage.
-     *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 OperatorManager.
-     */
-    function updateSeigniorageOperator() external returns (bool) {
-        return _updateSeigniorage(true);
-    }
-
-    /**
-     * @notice Distribute the issuing seigniorage.
      */
     function updateSeigniorage() external returns (bool) {
-        return _updateSeigniorage(false);
+        return _updateSeigniorage();
     }
 
     //////////////////////////////
@@ -390,7 +382,7 @@ contract SeigManagerV1_3 is
      * @dev Callback for a new commit
      */
     /// on v1_3, it is changed with reflecting L2 sequencer.
-    function _updateSeigniorage(bool _isSenderOperator) internal ifFree returns (bool) {
+    function _updateSeigniorage() internal ifFree returns (bool) {
         // short circuit if paused
         if (paused) {
             return true;
@@ -406,7 +398,7 @@ contract SeigManagerV1_3 is
         uint256 operatorAmount = coinage.balanceOf(operator);
 
         if (operatorAmount < minimumAmount) revert MinimumAmountError();
-        if (!_increaseTot(_isSenderOperator)) revert IncreaseTotError();
+        if (!_increaseTot()) revert IncreaseTotError();
 
         _lastCommitBlock[msg.sender] = block.number;
 
@@ -539,7 +531,7 @@ contract SeigManagerV1_3 is
         return rdiv(rmul(target, oldFactor), source);
     }
 
-    function _increaseTot(bool _isSenderOperator) internal returns (bool result) {
+    function _increaseTot() internal returns (bool result) {
         // short circuit if already seigniorage is given.
         if (block.number <= _lastSeigBlock) return false;
 
