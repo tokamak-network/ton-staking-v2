@@ -143,8 +143,6 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      */
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
-    event TransferWTON(address rollupConfig, address to, uint256 amount);
-
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
         _;

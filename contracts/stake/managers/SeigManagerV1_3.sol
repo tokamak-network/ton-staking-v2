@@ -159,24 +159,16 @@ contract SeigManagerV1_3 is
     //////////////////////////////
 
     /**
-     * @notice Event that occurs when calling includeL2Seigniorage function
-     * @param layer2        the layer2 address
+     * @notice Set the layer2Manager address
+     * @param layer2Manager_    the layer2Manager address
      */
-    event IncludedL2Seigniorage(address layer2);
+    function setLayer2Manager(address layer2Manager_) external onlyOwner {
+        layer2Manager = layer2Manager_;
+    }
 
     /**
-     * @notice  Occurs when the number of unsettled commits exceeds the maximum.
-     *          Considering gas costs, only MAX_LOOP_COUNT commits will be settled.
-     *          Anything that is not settled will be locked on Layer2Manager.
-     *
-     *          Amount that is locked without being settled,
-     *          for i that satisfies the condition calculatedLastIndex < i <= lateIndex,
-     *          sum(l2RewardAtBlock[i's block] * liquidity / WEI_UINT)
-     *
-     * @param layer2                the layer2 address
-     * @param liquidity             the layer2 TON TVL
-     * @param calculatedLastIndex   Up to which index is the reward calculation reflected
-     * @param lateIndex             the real last Index
+     * @notice Set the start block number of issuing a l2 seigniorage
+     * @param startBlock_    the start block number
      */
     function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
         layer2StartBlock = startBlock_;
@@ -215,25 +207,6 @@ contract SeigManagerV1_3 is
         return true;
     }
 
-    /**
-     * @notice Include the layer2 in distributing a seigniorage
-     * @param _rollupConfig     the rollupConfig address
-     * @param _layer2           the layer2(candidate) address
-     */
-    function includeL2Seigniorage(address _rollupConfig, address _layer2) external returns (bool) {
-        _onlyLayer2Manager();
-
-        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(_rollupConfig);
-        if (curLayer2Tvl == 0 || layer2RewardInfo[_layer2].layer2Tvl != 0) revert Layer2TvlError();
-
-        // if (!ICandidate(_layer2).updateSeigniorage()) revert UpdateSeigniorageError();
-
-        emit IncludedL2Seigniorage(_layer2);
-
-        return true;
-    }
-
-
     //////////////////////////////
     // checkCoinage
     //////////////////////////////
@@ -261,10 +234,6 @@ contract SeigManagerV1_3 is
     // View functions
     //////////////////////////////
 
-    function l2UpdateBlockLength() external view returns (uint256) {
-        return l2UpdateBlock.length;
-    }
-
     /**
      * @notice Estimate the seigniorage to be distributed
      * @param blockNumber         The block number
@@ -278,7 +247,6 @@ contract SeigManagerV1_3 is
      * @return relativeSeig       the amount equal to relativeSeigRate ratio from unstakedSeig amount
      * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
      * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operatorManager contract
-     * @return unsettlementReward the unsettlementReward amount of L2 sequencer
      */
     function estimatedDistribute(
         uint256 blockNumber,
@@ -294,13 +262,12 @@ contract SeigManagerV1_3 is
             uint256 daoSeig,
             uint256 relativeSeig,
             uint256 l2TotalSeigs,
-            uint256 layer2Seigs,
-            uint256 unsettlementReward
+            uint256 layer2Seigs
         )
     {
         // short circuit if already seigniorage is given.
         if (blockNumber <= _lastSeigBlock || RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
-            return (0, 0, 0, 0, 0, 0, 0, 0, 0);
+            return (0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         uint256 span = blockNumber - _lastSeigBlock;
@@ -328,9 +295,6 @@ contract SeigManagerV1_3 is
         unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
 
-        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
-        nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
-
         if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
         if (dao != address(0)) daoSeig = rmul(unstakedSeig, daoSeigRate);
 
@@ -345,7 +309,6 @@ contract SeigManagerV1_3 is
                 }
             }
         }
-        unsettlementReward = oldLayer2Info.reward;
     }
 
     /**
@@ -423,11 +386,6 @@ contract SeigManagerV1_3 is
         // short circuit if paused
         if (paused) {
             return true;
-        }
-
-        if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
-            _lastSeigBlock = block.number;
-            return false;
         }
 
         RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
@@ -686,25 +644,6 @@ contract SeigManagerV1_3 is
                 if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
                     newLayer2Info.layer2Tvl = curLayer2Tvl;
                 }
-
-                if (_isSenderOperator && reward != 0) {
-                    ILayer2Manager(_layer2Manager).updateSeigniorage(rollupConfig, reward);
-                    newLayer2Info.reward = 0;
-                } else {
-                    newLayer2Info.reward = reward;
-                }
-
-            } else if (newLayer2Info.startBlock == 0 &&  curLayer2Tvl != 0) {
-
-                    newLayer2Info.startBlock = block.number;
-
-                    uint256 lastIndex = l2UpdateBlock.length;
-
-                    if (lastIndex != 0) lastIndex--;
-                    newLayer2Info.lastIndex = lastIndex;
-
-
-                    if(l2UpdateBlock.length !=0 ) newLayer2Info.lastBlock = l2UpdateBlock[lastIndex];
             }
 
         } else if (curLayer2Tvl != 0){
@@ -727,6 +666,7 @@ contract SeigManagerV1_3 is
             l2TotalSeigs,
             layer2Seigs
         );
+
         result = true;
     }
 
@@ -801,6 +741,4 @@ contract SeigManagerV1_3 is
             (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
             burntAmount;
     }
-
-
 }
