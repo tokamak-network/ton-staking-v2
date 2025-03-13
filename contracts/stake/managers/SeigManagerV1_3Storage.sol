@@ -7,9 +7,7 @@ contract SeigManagerV1_3Storage  {
 
     struct Layer2Reward {
         uint256 layer2Tvl;
-        uint256 reward;
-        uint256 lastBlock;
-        uint256 lastIndex;
+        uint256 initialDebt;
         uint256 startBlock;
     }
 
@@ -27,17 +25,11 @@ contract SeigManagerV1_3Storage  {
     /// layer2 reward information for each layer2(candidate).
     mapping (address => Layer2Reward) public layer2RewardInfo;
 
+    // layer2 - block number when pausing
+    mapping(address => uint256[]) public layer2PauseBlocks;
 
-    // ===============================
-    // L2 update seigniorage commit block
-    uint256[] public l2UpdateBlock;
-
-    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
-    mapping (uint256 => uint256) public l2RewardAtBlock;
-
-    uint256 public maxLoopCount;
-    // ===============================
-
+    //layer2 - block number when pausing - block number when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
 
     bool internal _lock;
 
