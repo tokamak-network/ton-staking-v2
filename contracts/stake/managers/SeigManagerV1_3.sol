@@ -372,11 +372,10 @@ contract SeigManagerV1_3 is
     }
 
     function isPauseL2Seigniorage(address layer2) public view returns (bool) {
-        uint256[] memory pauseBlocks = layer2PauseBlocks[layer2];
-        uint256 len = pauseBlocks.length;
+        uint256 len = layer2PauseBlocks[layer2].length;
         if (len == 0) return false;
 
-        uint256 pauseBlock = pauseBlocks[len - 1];
+        uint256 pauseBlock = layer2PauseBlocks[layer2][len - 1];
 
         if (pauseBlock != 0 && layer2UnpauseBlocks[layer2][pauseBlock] == 0) return true;
         else return false;
