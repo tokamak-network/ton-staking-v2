@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {DSMath} from '../../libraries/DSMath.sol';
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {RefactorCoinageSnapshotI} from '../interfaces/RefactorCoinageSnapshotI.sol';
 import {IWTON} from '../../dao/interfaces/IWTON.sol';
@@ -315,7 +316,10 @@ contract SeigManagerV1_3 is
         ) {
             (, layer2Allowed) = allowIssuanceLayer2Seigs(layer2);
 
-            if (totalLayer2TVL != 0) l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+            if (totalLayer2TVL != 0) {
+                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+                l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
+            }
         }
 
         unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
@@ -604,7 +608,8 @@ contract SeigManagerV1_3 is
 
         if (layer2Manager != address(0) && layer2StartBlock != 1) {
             if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-                l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
+                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+                l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
                 l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
                 IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
             }
