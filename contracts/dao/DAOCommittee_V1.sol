@@ -19,6 +19,7 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @notice Error that occurs when creating Candidate
@@ -39,6 +40,7 @@ contract DAOCommittee_V1 is
     StorageStateCommitteeV2
 {
     using BytesLib for bytes;
+    using SafeERC20 for IERC20;
 
     bytes private constant claimTONBytes = hex"ef0d5594";
     bytes private constant claimERC20Bytes = hex"f848091a";
@@ -590,8 +592,8 @@ contract DAOCommittee_V1 is
     function payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
-        require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
-        require(IERC20(ton).transfer(address(1), fee), "DAOCommittee: failed to burn");
+        IERC20(ton).safeTransferFrom(_creator, address(this), fee);
+        IERC20(ton).safeTransfer(address(1), fee);
     }
 
     function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
