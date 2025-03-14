@@ -167,8 +167,8 @@ contract DepositManagerV1_1 is
         uint256 tonAmount = amount / GWEI_UNIT;
         uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
 
-        if (allowance < tonAmount) {
-            unchecked {
+        unchecked {
+            if (allowance < tonAmount) {
                 IIERC20(_ton).increaseAllowance(l1Bridge, tonAmount - allowance);
             }
         }
