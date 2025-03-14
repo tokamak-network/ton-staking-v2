@@ -121,18 +121,13 @@ contract ProxyCoinage is ProxyStorage, AuthControlCoinage, IProxyEvent, IProxyAc
     {
         address _impl = selectorImplementation[_selector];
 
-        if (aliveImplementation[_impl]){
-            return _impl;
-        } else {
+        if (_impl == address(0))
             return proxyImplementation[0];
+        else if (aliveImplementation[_impl]){
+            return _impl;
         }
+        else return proxyImplementation[0];
 
-        // if (_impl == address(0))
-        //     return proxyImplementation[0];
-        // else if (aliveImplementation[_impl]){
-        //     return _impl;
-        // }
-        // return proxyImplementation[0];
     }
 
 
