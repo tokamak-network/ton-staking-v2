@@ -58,6 +58,12 @@ contract DAOCommitteeOwner is
         uint256 newReward
     );
 
+    event DAOExecuteTransaction(
+        address to,
+        bytes data,
+        bool success
+    );
+
     modifier onlyOwner() {
         require(
             ITarget(address(this)).hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
@@ -91,62 +97,8 @@ contract DAOCommitteeOwner is
         layer2Manager = _layer2Manager;
     }
 
-    function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
-        ITarget(target).setLayer2Manager(layer2Manager_);
-    }
-
-    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
-        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
-    }
-
-    function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
-        ITarget(target).setLayer2StartBlock(startBlock_);
-    }
-
-    function setTargetSetImplementation2(
-        address target, address newImplementation, uint256 index, bool alive) external onlyOwner {
-        ITarget(target).setImplementation2(newImplementation, index, alive);
-    }
-
-    function setTargetSetSelectorImplementations2(
-        address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
-        ITarget(target).setSelectorImplementations2(_selectors, _imp);
-    }
-
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
         seigManager = ISeigManager(_seigManager);
-    }
-
-    function setTargetSeigManager(address target, address _seigManager) external onlyOwner {
-        ITarget(target).setSeigManager(_seigManager);
-    }
-
-    function setSeigPause() external onlyOwner {
-       IPauser(address(seigManager)).pause();
-    }
-
-    function setSeigUnpause() external onlyOwner {
-       IPauser(address(seigManager)).unpause();
-    }
-
-    function setTargetGlobalWithdrawalDelay(address target, uint256 globalWithdrawalDelay_) external onlyOwner {
-        ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
-    }
-
-    function setTargetAddMinter(address token, address account) external onlyOwner {
-        ITarget(token).addMinter(account);
-    }
-
-    function setTargetUpgradeTo(address target, address logic) external onlyOwner {
-        ITarget(target).upgradeTo(logic);
-    }
-
-    function setTargetSetTON(address target, address tonAddr) external onlyOwner {
-        ITarget(target).setTON(tonAddr);
-    }
-
-    function setTargetSetWTON(address target, address wtonAddr) external onlyOwner {
-        ITarget(target).setWTON(wtonAddr);
     }
 
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
@@ -192,7 +144,7 @@ contract DAOCommitteeOwner is
         require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
         uint256 prevMaxMember = maxMember;
         maxMember = _newMaxMember;
-        fillMemberSlot();
+        _fillMemberSlot();
         setQuorum(_quorum);
         emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
     }
@@ -345,8 +297,26 @@ contract DAOCommitteeOwner is
         ITarget(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
     }
 
+    function executeTransaction(
+        address _to,
+        uint _value,
+        bytes memory _data
+    )
+        external
+        onlyOwner
+        nonZero(_to)
+    {
+        require(_data.length != 0 || _value != 0, "invalid data");
 
-    function fillMemberSlot() internal {
+        (bool success, ) = address(_to).call{value: _value}(
+            _data
+        );
+
+        emit DAOExecuteTransaction(_to,_data,success);
+    }   
+
+
+    function _fillMemberSlot() internal {
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
         }

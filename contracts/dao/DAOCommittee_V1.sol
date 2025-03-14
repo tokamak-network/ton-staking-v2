@@ -143,11 +143,6 @@ contract DAOCommittee_V1 is
         return super.supportsInterface(interfaceId);
     }
 
-    modifier onlyLayer2Manager() {
-        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
-        _;
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Managing members
     function createCandidate(string calldata _memo)
@@ -169,10 +164,7 @@ contract DAOCommittee_V1 is
             candidateContract != address(0),
             "DAOCommittee: deployed candidateContract is zero"
         );
-        require(
-            _candidateInfos[_operator].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
-        );
+
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
             "DAOCommittee: failed to registerAndDeployCoinage"
@@ -355,9 +347,13 @@ contract DAOCommittee_V1 is
 
     /// @notice Retires member
     /// @return Whether or not the execution succeeded
-    function retireMember() onlyMemberContract external returns (bool) {
+    function retireMember() external returns (bool) {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
+        require(
+            candidateInfo.memberJoinedTime > 0,
+            "DAOCommittee: not a member"
+        );
         require(
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
@@ -430,7 +426,7 @@ contract DAOCommittee_V1 is
 
                 if (selector1.equal(claimTONBytes)) revert('claimTON dont use');
                 else if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = toBytes(ton);
+                    bytes memory tonaddr = _toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
@@ -555,22 +551,17 @@ contract DAOCommittee_V1 is
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
-        uint256 wtonAmount = _toRAY(amount);
-        daoVault.claimERC20(wton,_receiver, wtonAmount);
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
+        
+        uint256 wtonAmount = _toRAY(amount);
+        daoVault.claimERC20(wton,_receiver, wtonAmount);
 
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
 
-    function _toRAY(uint256 v) public pure returns (uint256) {
+    function _toRAY(uint256 v) internal pure returns (uint256) {
         return v * 10 ** 9;
-    }
-
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
     }
 
     function _decodeAgendaData(bytes calldata input)
@@ -582,22 +573,11 @@ contract DAOCommittee_V1 is
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
+    function _toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
     }
 
-    function byteToUnit256(bytes memory reason) internal pure returns (uint256) {
-        if (reason.length != 32) {
-            if (reason.length < 68) revert('Unexpected error');
-            assembly {
-                reason := add(reason, 0x04)
-            }
-            revert(abi.decode(reason, (string)));
-        }
-        return abi.decode(reason, (uint256));
-    }
-
-    function payCreatingAgendaFee(address _creator) internal {
+    function _payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
         require(IERC20(ton).transferFrom(_creator, address(this), fee), "DAOCommittee: failed to transfer ton from creator");
@@ -615,10 +595,6 @@ contract DAOCommittee_V1 is
         require(
             _layer2 != address(0),
             "DAOCommittee: deployed candidateContract is zero"
-        );
-        require(
-            _candidateInfos[_layer2].candidateContract == address(0),
-            "DAOCommittee: The candidate already has contract"
         );
         ILayer2 layer2 = ILayer2(_layer2);
         require(
@@ -669,7 +645,7 @@ contract DAOCommittee_V1 is
         returns (uint256)
     {
         // pay to create agenda, burn ton.
-        payCreatingAgendaFee(_creator);
+        _payCreatingAgendaFee(_creator);
 
         uint256 agendaID = agendaManager.newAgenda(
             _targets,
@@ -689,16 +665,6 @@ contract DAOCommittee_V1 is
         );
 
         return agendaID;
-    }
-
-    function _call(address target, uint256 paramLength, bytes memory param) internal returns (bool) {
-        bool result;
-        assembly {
-            let data := add(param, 32)
-            result := call(sub(gas(), 40000), target, 0, data, paramLength, 0, 0)
-        }
-
-        return result;
     }
 
     function isCandidate(address _candidate) external view returns (bool) {
