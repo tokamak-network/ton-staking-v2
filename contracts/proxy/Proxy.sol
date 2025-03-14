@@ -24,6 +24,7 @@ contract Proxy is ProxyStorage, AccessibleCommon, IProxyEvent, IProxyAction
 
     /// @inheritdoc IProxyAction
     function setProxyPause(bool _pause) external override onlyOwner {
+        require(pauseProxy != _pause, "same");
         pauseProxy = _pause;
 
         emit SetProxyPause(_pause);
