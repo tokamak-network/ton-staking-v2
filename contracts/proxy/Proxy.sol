@@ -117,20 +117,15 @@ contract Proxy is ProxyStorage, AccessibleCommon, IProxyEvent, IProxyAction
         view
         returns (address impl)
     {
+
         address _impl = selectorImplementation[_selector];
-
-        if (aliveImplementation[_impl]){
-            return _impl;
-        } else {
+        if (_impl == address(0))
             return proxyImplementation[0];
+        else if (aliveImplementation[_impl]){
+            return _impl;
         }
+        else return proxyImplementation[0];
 
-        // if (_impl == address(0))
-        //     return proxyImplementation[0];
-        // else if (aliveImplementation[_impl]){
-        //     return _impl;
-        // }
-        // else return proxyImplementation[0];
     }
 
 
