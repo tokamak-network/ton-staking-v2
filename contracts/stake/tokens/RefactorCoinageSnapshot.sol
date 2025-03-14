@@ -223,16 +223,15 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       bool totalBool
     ) internal  {
 
-      uint256[] memory ids = accountBalanceIds[account];
-      uint256[] memory totalIds = totalSupplySnapshotIds;
+      uint256[] storage accountIds = accountBalanceIds[account];
 
       uint256 currentId = progressSnapshotId();
-      uint256 balanceIndex = (ids.length == 0? 0: ids[ids.length - 1]);
-      uint256 totalIndex = (totalIds.length == 0? 0: totalIds[totalIds.length - 1]);
+      uint256 balanceIndex = (accountIds.length == 0? 0: accountIds[accountIds.length - 1]);
+      uint256 totalIndex = _lastSnapshotId(totalSupplySnapshotIds);
 
       if (accountBool) {
         require(account != address(0), "zero account");
-        if (balanceIndex < currentId) accountBalanceIds[account].push(currentId);
+        if (balanceIndex < currentId) accountIds.push(currentId);
         accountBalanceSnapshots[account][currentId] = _accountBalance;
       }
 
@@ -316,10 +315,10 @@ contract RefactorCoinageSnapshot is ProxyStorage, AuthControlCoinage, RefactorCo
       returns (IRefactor.Balance memory)
     {
       uint256 index = 0;
-      uint256[] memory ids = accountBalanceIds[account];
+      uint256[] storage accountIds = accountBalanceIds[account];
 
-      uint256 length = ids.length;
-      if(length != 0) index = ids[length - 1];
+      uint256 length = accountIds.length;
+      if(length != 0) index = accountIds[length - 1];
       return accountBalanceSnapshots[account][index];
     }
 
