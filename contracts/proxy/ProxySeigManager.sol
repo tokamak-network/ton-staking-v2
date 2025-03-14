@@ -26,6 +26,7 @@ contract ProxySeigManager is ProxyStorage, AuthControlSeigManager, IProxyEvent, 
 
     /// @inheritdoc IProxyAction
     function setProxyPause(bool _pause) external override onlyOwner {
+        require(pauseProxy != _pause, "same");
         pauseProxy = _pause;
 
         emit SetProxyPause(_pause);
