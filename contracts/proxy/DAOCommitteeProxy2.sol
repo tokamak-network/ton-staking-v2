@@ -165,18 +165,21 @@ contract DAOCommitteeProxy2 is
     /// @param _index index of proxy
     /// @param _alive alive status
     function _setImplementation2(address newImplementation, uint256 _index, bool _alive) internal {
-        if (_alive) {
+        if (_alive)
             require(Address.isContract(newImplementation), 'Proxy: not contract address');
-            proxyImplementation[_index] = newImplementation;
-            _setAliveImplementation2(newImplementation, _alive);
-        }
+
+        proxyImplementation[_index] = newImplementation;
+        _setAliveImplementation2(newImplementation, _alive);
     }
 
     /// @dev set alive status of implementation
     /// @param newImplementation Address of the new implementation.
     /// @param _alive alive status
     function _setAliveImplementation2(address newImplementation, bool _alive) internal {
-        aliveImplementation[newImplementation] = _alive;
+
+        if(_alive) aliveImplementation[newImplementation] = _alive;
+        else delete aliveImplementation[newImplementation];
+
         emit SetAliveImplementation(newImplementation, _alive);
     }
 }
