@@ -22,9 +22,9 @@ contract StorageStateCommitteeV2 {
     address public candidateAddOnFactory;
 
     mapping(uint256 => address) public proxyImplementation;
-     mapping(address => bool) public aliveImplementation;
-     mapping(bytes4 => address) public selectorImplementation;
+    mapping(address => bool) public aliveImplementation;
+    mapping(bytes4 => address) public selectorImplementation;
 
     mapping(address => bool) public blacklist;
-    
+    mapping(address => address) public privateLayer2;
 }

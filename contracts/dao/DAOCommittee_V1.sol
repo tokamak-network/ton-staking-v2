@@ -298,7 +298,7 @@ contract DAOCommittee_V1 is
         returns (bool)
     {
         address newMember = ICandidate(msg.sender).candidate();
-        uint256 operatorAmount = operatorAmountCheck(msg.sender,newMember);
+        uint256 operatorAmount = operatorCheck(newMember);
         uint256 minimumAmount = ISeigManager(address(seigManager)).minimumAmount();
         require(operatorAmount >= minimumAmount, "need more operatorDeposit");
 
@@ -519,7 +519,6 @@ contract DAOCommittee_V1 is
          (address[] memory target,
              bytes[] memory functionBytecode,
              bool atomicExecute,
-             uint256 executeStartFrom
          ) = agendaManager.getExecutionInfo(_agendaID);
 
         if (atomicExecute) {
@@ -646,6 +645,7 @@ contract DAOCommittee_V1 is
         });
 
         candidates.push(_layer2);
+        privateLayer2[_layer2] = _operator;
 
         emit Layer2Registered(_layer2, candidateContract, _memo);
     }
@@ -792,5 +792,28 @@ contract DAOCommittee_V1 is
     function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
         address coinage = ISeigManager(address(seigManager)).coinages(layer2);
         operatorAmount = ICoinage(coinage).balanceOf(operator);
+    }
+
+    // function operatorCheck() public view returns (uint256 operatorAmount) {
+    //     address candidate = ICandidate(msg.sender).candidate();
+    //     CandidateInfo memory info = _candidateInfos[candidate];
+    //     address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
+    //     if (privateLayer2[candidate] != address(0)) {
+    //         address layer2operator = privateLayer2[candidate];
+    //         return operatorAmount = ICoinage(coinage).balanceOf(layer2operator);
+    //     } else {
+    //         return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
+    //     }
+    // }
+
+    function operatorCheck(address candidate) public view returns (uint256 operatorAmount) {
+        CandidateInfo memory info = _candidateInfos[candidate];
+        address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
+        if (privateLayer2[candidate] != address(0)) {
+            address layer2operator = privateLayer2[candidate];
+            return operatorAmount = ICoinage(coinage).balanceOf(layer2operator);
+        } else {
+            return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
+        }
     }
 }
