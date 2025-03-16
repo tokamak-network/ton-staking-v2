@@ -423,6 +423,8 @@ contract DAOCommittee_V1 is
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
         require(agendaData.atomicExecute, "atomicExecute need true");
+        require(agendaData.target.length == agendaData.functionBytecode.length, "need same length");
+        require(agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(), "need over minimumVotingPeriodSeconds");
 
         for (uint256 i = 0; i < agendaData.target.length; i++) {
             if(agendaData.target[i] == address(daoVault)) {
