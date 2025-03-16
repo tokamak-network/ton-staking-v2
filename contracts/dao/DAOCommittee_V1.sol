@@ -488,10 +488,15 @@ contract DAOCommittee_V1 is
             // no
             agendaManager.setResult(_agendaID, LibAgenda.AgendaResult.REJECT);
             agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus.ENDED);
-        } else if (quorum <= abstain + no) {
-            // dismiss
-            agendaManager.setResult(_agendaID, LibAgenda.AgendaResult.DISMISS);
-            agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus.ENDED);
+        } else {
+            uint256 totalvotes = yes + no + abstain;
+            uint256 remainingVotes = maxMember - totalvotes;
+
+            if((yes + remainingVotes < quorum) && (no + remainingVotes < quorum)) {
+                // dismiss
+                agendaManager.setResult(_agendaID, LibAgenda.AgendaResult.DISMISS);
+                agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus.ENDED);    
+            }
         }
 
         emit AgendaVoteCasted(msg.sender, _agendaID, _vote, _comment);
