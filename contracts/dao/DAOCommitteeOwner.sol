@@ -171,7 +171,7 @@ contract DAOCommitteeOwner is
         uint256 prevMaxMember = maxMember;
         maxMember = _newMaxMember;
         fillMemberSlot();
-        setQuorum(_quorum);
+        _setQuorum(_quorum);
         emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
     }
 
@@ -184,10 +184,7 @@ contract DAOCommitteeOwner is
         onlyOwner
         validAgendaManager
     {
-        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
-        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
-        quorum = _quorum;
-        emit QuorumChanged(quorum);
+        _setQuorum(_quorum);
     }
 
     /// @notice Decreases the number of member slot
@@ -224,7 +221,7 @@ contract DAOCommitteeOwner is
 
         members.pop();
         maxMember = maxMember - 1;
-        setQuorum(_quorum);
+        _setQuorum(_quorum);
 
         emit ChangedMember(_reducingMemberIndex, reducingMember, tailMember);
         emit ChangedSlotMaximum(maxMember + 1, maxMember);
@@ -331,5 +328,16 @@ contract DAOCommitteeOwner is
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
         }
+    }
+
+    function _setQuorum(
+        uint256 _quorum
+    )
+        internal
+    {
+        require(_quorum > maxMember / 2, "DAOCommittee: invalid quorum");
+        require(_quorum <= maxMember, "DAOCommittee: quorum exceed max member");
+        quorum = _quorum;
+        emit QuorumChanged(quorum);
     }
 }
