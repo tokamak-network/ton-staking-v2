@@ -130,11 +130,6 @@ contract DAOCommittee_V1 is
         _;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override (ERC165A) returns (bool) {
-        bytes4 onApproveInterfaceId = bytes4(keccak256("onApprove(address,address,uint256,bytes)"));
-        return interfaceId == onApproveInterfaceId || super.supportsInterface(interfaceId);
-    }
-
     modifier onlyLayer2Manager() {
         require(msg.sender == layer2Manager, "sender is not a layer2Manager");
         _;
@@ -210,31 +205,17 @@ contract DAOCommittee_V1 is
             "DAOCommittee: deployed candidateContract is zero"
         );
 
-        if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
-            CandidateInfo storage candidateInfo = _candidateInfos[_operatorAddress];
-            CandidateInfo2 storage oldCandidateInfo = _oldCandidateInfos[_operatorAddress];
 
-            require(oldCandidateInfo.candidateContract == address(0), "already migrated");
-            oldCandidateInfo.candidateContract = candidateInfo.candidateContract;
-            oldCandidateInfo.newCandidate = candidateContract;
-            oldCandidateInfo.memberJoinedTime = candidateInfo.memberJoinedTime;
-            oldCandidateInfo.indexMembers = candidateInfo.indexMembers;
-            oldCandidateInfo.rewardPeriod = candidateInfo.rewardPeriod;
-            oldCandidateInfo.claimedTimestamp = candidateInfo.claimedTimestamp;
-            
-            candidateInfo.candidateContract = candidateContract;
-        } else {
+        _candidateInfos[_operatorAddress] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
 
-            _candidateInfos[_operatorAddress] = CandidateInfo({
-                candidateContract: candidateContract,
-                memberJoinedTime: 0,
-                indexMembers: 0,
-                rewardPeriod: 0,
-                claimedTimestamp: 0
-            });
-
-            candidates.push(_operatorAddress);
-        }
+        candidates.push(_operatorAddress);
+    
 
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
@@ -316,13 +297,15 @@ contract DAOCommittee_V1 is
             "DAOCommittee: already member"
         );
         require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
+        require(cooldown[candidateInfo.candidateContract] > block.timestamp, "DAOCommittee: need cooldown");
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
 
         candidateInfo.memberJoinedTime = uint128(block.timestamp);
         candidateInfo.indexMembers = _memberIndex;
-
+        
+        cooldown[candidateInfo.candidateContract] = block.timestamp + cooldownTime;
         members[_memberIndex] = newMember;
 
         if (prevMember == address(0)) {
@@ -422,6 +405,7 @@ contract DAOCommittee_V1 is
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
+        require(agendaData.target.length != 0, "need target");
         require(agendaData.atomicExecute, "atomicExecute need true");
         require(agendaData.target.length == agendaData.functionBytecode.length, "need same length");
         require(agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(), "need over minimumVotingPeriodSeconds");
@@ -504,35 +488,52 @@ contract DAOCommittee_V1 is
         emit AgendaVoteCasted(msg.sender, _agendaID, _vote, _comment);
     }
 
-    /// @notice Set the agenda status as ended(denied or dismissed)
-    /// @param _agendaID Agenda ID
-    function endAgendaVoting(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
+    // /// @notice Set the agenda status as ended(denied or dismissed)
+    // /// @param _agendaID Agenda ID
+    // function endAgendaVoting(uint256 _agendaID) external {
+    //     agendaManager.endAgendaVoting(_agendaID);
+    // }
+
+    function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
         // agendaManager.endAgendaVoting(_agendaID);
-        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS
-        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED
-        uint256 voingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        require(block.timestamp > voingEndTime, "need over vote");
-        (uint256 yes, uint256 no,) = agendaManager.getVotingCount(_agendaID);
-        if (quorum <= yes) {
-            // yes
-            (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
-            agendaResult = result;
-            if (executed) {
-                agendaStatus = 4;
+        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
+        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
+        uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
+        uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
+        if(votingEndTime == 0) {
+            // No Agenda
+            return (5, 6);
+        } else if (block.timestamp < noticeEndTime) {
+            //Notice Time
+            return (0, 1);
+        } else if (noticeEndTime < block.timestamp) {
+            (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
+            if (quorum <= yes) {
+                // yes
+                (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
+                agendaResult = result;
+                if (executed) {
+                    agendaStatus = 4;
+                } else {
+                    agendaStatus = 3;
+                }
+                return (agendaResult, agendaStatus);
+            } else if (quorum <= no) {
+                // no (REJECT, ENDED)
+                agendaResult = 2;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
+            } else if (quorum <= abstain) {
+                // (DISMISS, ENDED)
+                agendaResult = 3;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
             } else {
-                agendaStatus = 3;
+                // (NO CONSENSUS, ENDED)
+                agendaResult = 4;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
             }
-            return (agendaResult, agendaStatus);
-        } else if (quorum <= no) {
-            // no (REJECT, ENDED)
-            agendaResult = 2;
-            agendaStatus = 5;
-            return (agendaResult, agendaStatus);
-        } else {
-            // (DISMISS, ENDED)
-            agendaResult = 3;
-            agendaStatus = 5;
-            return (agendaResult, agendaStatus);
         }
 
     }
@@ -674,7 +675,7 @@ contract DAOCommittee_V1 is
         });
 
         candidates.push(_layer2);
-        privateLayer2[_layer2] = _operator;
+        privateLayer2[_layer2] = true;
 
         emit Layer2Registered(_layer2, candidateContract, _memo);
     }
@@ -838,9 +839,8 @@ contract DAOCommittee_V1 is
     function operatorCheck(address candidate) public view returns (uint256 operatorAmount) {
         CandidateInfo memory info = _candidateInfos[candidate];
         address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
-        if (privateLayer2[candidate] != address(0)) {
-            address layer2operator = privateLayer2[candidate];
-            return operatorAmount = ICoinage(coinage).balanceOf(layer2operator);
+        if (privateLayer2[candidate]) {
+            return operatorAmount = ICoinage(coinage).balanceOf(ILayer2(candidate).operator());
         } else {
             return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
         }

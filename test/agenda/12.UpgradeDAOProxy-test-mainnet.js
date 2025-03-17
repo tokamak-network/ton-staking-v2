@@ -28,7 +28,6 @@ const TonABI = require("../../abi/TON.json").abi;
 const WtonABI = require("../../abi/WTON.json").abi;
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 const DAOCommitteeOwnerABI = require("../../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
-const DAOCommitteeDAOVaultABI = require("../../artifacts/contracts/dao/DAOCommitteeDAOVault.sol/DAOCommitteeDAOVault.json").abi;
 const DAOCommittee_V1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
@@ -48,7 +47,6 @@ describe("DAO Proxy Change Test", () => {
     let daoCommitteeAdmin;
     let daoCommitteeAdminContract;
     let daoCommitteeProxy;
-    // let daoCommitteeDAOVaultLogic;
     let daoCommitteeOwnerLogic;
     let ton;
     let wton;
@@ -76,6 +74,7 @@ describe("DAO Proxy Change Test", () => {
     let newMember1;
 
     let talken;
+    let staked;
 
     let member1Contract;
     let member2Contract;
@@ -109,6 +108,11 @@ describe("DAO Proxy Change Test", () => {
     let talkenAddr = "0xcc2f386adca481a00d614d5aa77a30984f264a07"
     let talkenUpperAddr = "0xCC2f386adcA481a00d614d5AA77A30984F264A07"
     let talkenContractAddr = "0x36101b31e74c5E8f9a9cec378407Bbb776287761"
+
+    let stakedAddr = "0x247a0829c63c5b40dc6b21cf412f80227dc7fb76"
+    let stakedContractAddr = "0x2c25a6be0e6f9017b5bf77879c487eed466f2194"
+    let stakedContract;
+    let stakedContractLogic;
 
     let beforeclaimAmount;
     let afterclaimAmount;
@@ -154,8 +158,6 @@ describe("DAO Proxy Change Test", () => {
     let SeigManagerUpper = "0x0b55a0f463b6DEFb81c6063973763951712D0E5F"
 
     let minimumAmount = ethers.utils.parseUnits("1000", 18);
-
-    let daoCommitteeDAOVaultLogic = "0xba5634e0c432af80060cf19e0940b59b2dc31173"
 
     let daoCommitteeLogic;
 
@@ -231,6 +233,16 @@ describe("DAO Proxy Change Test", () => {
         talken = await hre.ethers.getSigner(talkenAddr);
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
+            talkenAddr,
+        ]);
+        talken = await hre.ethers.getSigner(talkenAddr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            stakedAddr,
+        ]);
+        staked = await hre.ethers.getSigner(stakedAddr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
             member1ContractAddr,
         ]);
         member1Contract = await hre.ethers.getSigner(member1ContractAddr);
@@ -254,6 +266,11 @@ describe("DAO Proxy Change Test", () => {
             talkenContractAddr,
         ]);
         talkenContract = await hre.ethers.getSigner(talkenContractAddr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            stakedContractAddr,
+        ]);
+        stakedContract = await hre.ethers.getSigner(stakedContractAddr);
 
         await hre.network.provider.send("hardhat_impersonateAccount", [
             user1Addr,
@@ -282,6 +299,11 @@ describe("DAO Proxy Change Test", () => {
 
         await hre.network.provider.send("hardhat_setBalance", [
             newMember1ContractAddr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            stakedContractAddr,
             sendether
         ]);
 
@@ -433,11 +455,6 @@ describe("DAO Proxy Change Test", () => {
             await daoCommitteeOwner.deployed();
         })
 
-        // it("DAO upgradeTo newLogic", async () => {
-        //     await (await daoCommitteeProxy.connect(daoCommitteeAdmin).upgradeTo(
-        //         daoCommitteeLogic.address)).wait()
-        // })
-
         it("Set DAOProxy2 upgradeTo2 DAOCommittee_V1", async () => {
             await (await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).upgradeTo2(
                 daoCommitteeLogic.address)).wait()
@@ -452,13 +469,6 @@ describe("DAO Proxy Change Test", () => {
             ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
         })
 
-        // it("DAOProxy2 setAliveImplementation2 DAOv2CommitteeV1", async () => {
-        //     await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setAliveImplementation2(
-        //         daoCommitteeLogic.address, 
-        //         true
-        //     )
-        // })
-
         it("DAOProxy2 not Owner don't setImplementation2", async () => {
             await expect(
                 daoCommitteeProxy2Contract.connect(member2).setImplementation2(
@@ -468,14 +478,6 @@ describe("DAO Proxy Change Test", () => {
                 )
             ).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
         })
-
-        // it("DAOProxy2 setImplementation2 DAOv2CommitteeV1", async () => {
-        //     await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).setImplementation2(
-        //         daoCommitteeLogic.address, 
-        //         0, 
-        //         true
-        //     )
-        // })
 
         it("DAOProxy2 not owner(deployer) don't setAliveImplementation2 DAOv2CommitteeV2", async () => {
             await expect(
@@ -850,6 +852,14 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
+        it("Set TalkenCandidateContract", async () => {
+            stakedContractLogic = new ethers.Contract(
+                stakedContractAddr,
+                CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
         it("Set SeigManager", async () => {
             seigManagerContract = new ethers.Contract(
                 nowContractInfo.SeigManager,
@@ -993,9 +1003,12 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        it("3. retireMember (onlyMember)", async () => {
+        it("3. retireMember (get TON) (add blackList) (onlyMember)", async () => {
             let memberCheck = await daoCommittee_V1_Contract.members(1)
             expect(memberCheck).to.be.equal(member2AddrUpper)
+            let beforeWTONAmount = await wton.balanceOf(member2.address)
+            let blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
+            expect(blacklistCheck).to.be.equal(false)
 
             await (
                 await member2ContractLogic.connect(member2).retireMember()
@@ -1003,6 +1016,24 @@ describe("DAO Proxy Change Test", () => {
 
             memberCheck = await daoCommittee_V1_Contract.members(1)
             expect(memberCheck).to.be.equal(zeroAddr)
+            let afterWTONAmount = await wton.balanceOf(member2.address)
+            expect(afterWTONAmount).to.be.gt(beforeWTONAmount)
+            blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
+            expect(blacklistCheck).to.be.equal(true)
+        })
+
+        it("blacklist can't changeMember", async () => {
+            await expect(
+                member2ContractLogic.connect(member2).changeMember(
+                    1
+                )
+            ).to.be.revertedWith("DAOCommittee: blacklisted member");
+        })
+
+        it("blacklist can't claimActivityReward", async () => {
+            await expect(
+                member2ContractLogic.connect(member2).claimActivityReward()
+            ).to.be.revertedWith("DAOCommittee: blacklisted member");
         })
 
         it("4. changeMemeber (anyone)", async () => {
@@ -1010,11 +1041,13 @@ describe("DAO Proxy Change Test", () => {
             expect(memberCheck).to.be.equal(zeroAddr)
 
             await (
-                await member2ContractLogic.connect(member2).changeMember(1)
+                await stakedContractLogic.connect(staked).changeMember(1)
             ).wait();
 
             memberCheck = await daoCommittee_V1_Contract.members(1)
-            expect(memberCheck).to.be.equal(member2AddrUpper)
+            console.log(memberCheck.toUpperCase())
+            console.log(stakedAddr.toUpperCase())
+            expect(memberCheck.toUpperCase()).to.be.equal(stakedAddr.toUpperCase())
         })
 
         it("5. setMemoOnCandidate (anyone)", async () => {
@@ -1263,6 +1296,20 @@ describe("DAO Proxy Change Test", () => {
             expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
         });
 
+        
+        it("blacklist can't castVote", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            const vote = 1
+            await expect(
+                daoCommittee_V1_Contract.connect(member2).castVote(
+                    agendaID,
+                    vote,
+                    "member2 vote"
+                )
+            ).to.be.reverted;
+        })
+
+
         it("11. cast vote (member2)", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);  
             // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
@@ -1273,17 +1320,17 @@ describe("DAO Proxy Change Test", () => {
             const vote = 1
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member2Addr)
+            let checkMember = await daoCommittee_V1_Contract.isMember(stakedAddr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(member2Contract).castVote(
+            await daoCommittee_V1_Contract.connect(stakedContract).castVote(
                 agendaID,
                 vote,
                 "member2 vote"
             )
 
-            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member2Addr);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, stakedAddr);
             // expect(voterInfo2[VOTER_INFO_ISVOTER]).to.be.equal(true);
             expect(voterInfo2[0]).to.be.equal(true);
             // expect(voterInfo2[VOTER_INFO_HAS_VOTED]).to.be.equal(true);
@@ -1296,7 +1343,7 @@ describe("DAO Proxy Change Test", () => {
             expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
             expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-            const result = await daoagendaManager.getVoteStatus(agendaID, member2Addr);
+            const result = await daoagendaManager.getVoteStatus(agendaID, stakedAddr);
             expect(result[0]).to.be.equal(true);
             expect(result[1]).to.be.equal(vote);
         })
@@ -1320,7 +1367,7 @@ describe("DAO Proxy Change Test", () => {
             const vote = 1
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member2Addr)
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
@@ -1445,21 +1492,21 @@ describe("DAO Proxy Change Test", () => {
             expect(await daoagendaManager.getAgendaStatus(agendaID)).to.be.equal(2);
         })        
 
-        it("17. endAgendaVoting test (anyone)", async () => {
-            const agenda = await daoagendaManager.agendas(agendaID);
-            if (agenda[10] == 3) {
-                const votingEndTimestamp = agenda[4];
-                const currentTime = await time.latest();
-                if (currentTime < votingEndTimestamp) {
-                    await time.increaseTo(Number(votingEndTimestamp));
-                }
-                expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
-            }
+        // it("17. endAgendaVoting test (anyone)", async () => {
+        //     const agenda = await daoagendaManager.agendas(agendaID);
+        //     if (agenda[10] == 3) {
+        //         const votingEndTimestamp = agenda[4];
+        //         const currentTime = await time.latest();
+        //         if (currentTime < votingEndTimestamp) {
+        //             await time.increaseTo(Number(votingEndTimestamp));
+        //         }
+        //         expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
+        //     }
 
-            await daoCommittee_V1_Contract.connect(user1).endAgendaVoting(agendaID);
+        //     await daoCommittee_V1_Contract.connect(user1).endAgendaVoting(agendaID);
 
-            expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(false);
-        })      
+        //     expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(false);
+        // })      
 
         it("18. updateSeigniorage test (anyone)", async () => {
             const beforeSeigBlock = await seigManagerContract.lastCommitBlock(member2ContractAddr)
@@ -1484,14 +1531,14 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("19. getClaimableActivityReward & claimActivityReward test (anyone)", async () => {
-            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(stakedAddr)
             expect(amount).to.be.gt(0);
 
             await (
-                await member2ContractLogic.connect(member2).claimActivityReward()
+                await stakedContractLogic.connect(staked).claimActivityReward()
             ).wait()
             
-            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(member2Addr)
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(stakedAddr)
             expect(amount).to.be.gt(amount2);
         })
 
@@ -1540,7 +1587,8 @@ describe("DAO Proxy Change Test", () => {
 
         it("27. getOldCandidateInfos (view)", async () => {
             let oldinfo = await daoCommittee_V1_Contract.getOldCandidateInfos(member2Addr)
-            expect(oldinfo.claimedTimestamp).to.be.equal(0)
+            // console.log(oldinfo);
+            expect(oldinfo.rewardPeriod).to.be.equal(0)
         })
 
         it("28. operatorAmountCheck (view)", async () => {
