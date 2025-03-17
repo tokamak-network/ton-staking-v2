@@ -15,7 +15,10 @@ import { Layer2ManagerProxy } from "../../../typechain-types/contracts/layer2/La
 import { Layer2ManagerV1_1 } from "../../../typechain-types/contracts/layer2/Layer2ManagerV1_1"
 import { OperatorManagerFactory } from "../../../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
 import { OperatorManagerV1_1 } from "../../../typechain-types/contracts/layer2/OperatorManagerV1_1"
-import { DAOCommitteeAddV1_1 } from "../../../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
+import { DAOCommittee_V1 } from "../../../typechain-types/contracts/dao/DAOCommittee_V1"
+import { DAOCommitteeOwner } from "../../../typechain-types/contracts/dao/DAOCommitteeOwner"
+import { DAOCommitteeProxy2 } from "../../../typechain-types/contracts/proxy/DAOCommitteeProxy2"
+
 import { CandidateAddOnFactoryProxy } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
 import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/factory/CandidateAddOnFactory"
 
@@ -33,7 +36,8 @@ import { InvalidCandidateAddOn } from "../../../typechain-types/contracts/mocks/
 import Ton_Json from '../../abi/TON.json'
 import Wton_Json from '../../abi/WTON.json'
 import DAOCommitteeProxy_Json from '../../abi/DAOCommitteeProxy.json'
-import DAOCommitteeAddV1_1_Json from '../../abi/DAOCommitteeAddV1_1.json'
+import DAOCommitteeProxy2_Json from '../../abi/DAOCommitteeProxy2.json'
+import DAOCommittee_V1_Json from '../../abi/DAOCommittee_V1.json'
 import SeigManager_Json from '../../abi/SeigManagerV1.json'
 import SeigManagerProxy_Json from '../../abi/SeigManagerProxy.json'
 import DepositManagerProxy_Json from '../../abi/DepositManagerProxy.json'
@@ -104,11 +108,15 @@ describe('TON Staking V2.5', () => {
     let legacySystemConfig: LegacySystemConfig
     let legacySystemConfigTest2: LegacySystemConfig
     let layer2ManagerProxy: Layer2ManagerProxy, layer2ManagerV1_1: Layer2ManagerV1_1, layer2Manager: Layer2ManagerV1_1
-    let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory, daoCommitteeAddV1_1: DAOCommitteeAddV1_1
+    let operatorManagerV1_1:OperatorManagerV1_1 , operatorManagerFactory: OperatorManagerFactory
+    let daoCommitteeAddV1_1: DAOCommittee_V1, daoCommitteeOwner: DAOCommitteeOwner
 
     let candidateAddOnV1_1Imp: CandidateAddOnV1_1
     let candidateAddOnFactoryImp:CandidateAddOnFactory , candidateAddOnFactoryProxy: CandidateAddOnFactoryProxy, candidateAddOnFactory: CandidateAddOnFactory
-    let tonContract: Contract, wtonContract: Contract, daoContract: Contract, daoV2Contract: Contract
+    let tonContract: Contract, wtonContract: Contract ;
+    let daoContract: Contract, daoV2Contract: Contract, daoCommitteeProxy2: DAOCommitteeProxy2
+    let daoV2ContractOwner: Contract, daoV2ContractCommittee: Contract;
+
     let depositManager: Contract,  depositManagerProxy: Contract, seigManager: Contract, seigManagerProxy: Contract;
     let seigManagerV1_3: SeigManagerV1_3;
     let depositManagerV1_1: DepositManagerV1_1;
@@ -1713,10 +1721,19 @@ describe('TON Staking V2.5', () => {
         })
     })
 
-    describe('# DAO.upgradeTo(DAOCommitteeAddV1_1) , SeigManagerV1_3 ', () => {
+    describe('# DAO.upgradeTo(DAOCommittee_V1) , SeigManagerV1_3 ', () => {
         it('deploy DAOCommitteeAddV1_1', async () => {
-            daoCommitteeAddV1_1 = (await (await ethers.getContractFactory("DAOCommitteeAddV1_1")).connect(deployer).deploy()) as DAOCommitteeAddV1_1;
+            daoCommitteeAddV1_1 = (await (await ethers.getContractFactory("DAOCommittee_V1")).connect(deployer).deploy()) as DAOCommittee_V1;
         })
+
+        it('deploy DAOCommitteeOwner', async () => {
+            daoCommitteeOwner = (await (await ethers.getContractFactory("DAOCommitteeOwner")).connect(deployer).deploy()) as DAOCommitteeOwner;
+        })
+
+        it('deploy DAOCommitteeOwner', async () => {
+            daoCommitteeProxy2 = (await (await ethers.getContractFactory("DAOCommitteeProxy2")).connect(deployer).deploy()) as DAOCommitteeProxy2;
+        })
+
 
         it('deploy SeigManagerV1_3', async () => {
             seigManagerV1_3 = (await (await ethers.getContractFactory("SeigManagerV1_3")).connect(deployer).deploy()) as SeigManagerV1_3;
@@ -1736,12 +1753,69 @@ describe('TON Staking V2.5', () => {
         //     await (await daoContract.connect(daoOwner).upgradeTo(DAOCommitteeOwner)).wait()
         // })
 
-        it('upgradeTo', async () => {
-            await (await daoContract.connect(daoOwner).upgradeTo(daoCommitteeAddV1_1.address)).wait()
+        it('upgradeTo DAO ', async () => {
+            await (await daoContract.connect(daoOwner).upgradeTo(daoCommitteeProxy2.address)).wait()
+
+            daoV2Contract = new ethers.Contract(daoContract.address,  DAOCommitteeProxy2_Json.abi, deployer)
+        })
+
+        it('DAO register function 2', async () => {
+            const selector1 = encodeFunctionSignature("setCandidateAddOnFactory(address)");
+            const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
+
+            let functionBytecodes = [
+                selector1, selector2,
+            ];
+
+            const index = 10;
+            expect(await daoV2Contract.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
+
+            await (await daoV2Contract.connect(daoOwner).setImplementation2(
+                daoCommitteeOwner.address,
+                index, true)).wait();
+
+            await (await daoV2Contract.connect(daoOwner).setSelectorImplementations2(
+                functionBytecodes,
+                daoCommitteeOwner.address)).wait()
+
+            expect(await daoV2Contract.implementation2(index)).to.be.eq(daoCommitteeOwner.address)
+            expect(await daoV2Contract.getSelectorImplementation2(selector1)).to.be.eq(daoCommitteeOwner.address)
+            expect(await daoV2Contract.getSelectorImplementation2(selector2)).to.be.eq(daoCommitteeOwner.address)
+
+        })
+
+
+        it('DAO register function 3', async () => {
+            const selector1 = encodeFunctionSignature("createCandidateAddOn(string,address)");
+
+            let functionBytecodes = [
+                selector1,
+            ];
+
+            const index = 11;
+            expect(await daoV2Contract.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
+
+            await (await daoV2Contract.connect(daoOwner).setImplementation2(
+                daoCommitteeAddV1_1.address,
+                index, true)).wait();
+
+            await (await daoV2Contract.connect(daoOwner).setSelectorImplementations2(
+                functionBytecodes,
+                daoCommitteeAddV1_1.address)).wait()
+
+            expect(await daoV2Contract.implementation2(index)).to.be.eq(daoCommitteeAddV1_1.address)
+            expect(await daoV2Contract.getSelectorImplementation2(selector1)).to.be.eq(daoCommitteeAddV1_1.address)
+
+        })
+
+        it('DAO register function 3', async () => {
+            daoV2ContractOwner = new ethers.Contract(daoContract.address,  DAOCommitteeOwner_Json.abi, deployer)
+            daoV2ContractCommittee = new ethers.Contract(daoContract.address,  DAOCommittee_V1_Json.abi, deployer)
+
         })
 
         it('SeigManager register function ', async () => {
-            daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi, deployer);
+            // daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeOwner_Json.abi, deployer);
 
             const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
             const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
@@ -1864,11 +1938,11 @@ describe('TON Staking V2.5', () => {
         })
 
         it('setCandidateFactory to candidateAddOnFactory', async () => {
-            await (await daoV2Contract.connect(daoOwner).setCandidateAddOnFactory(candidateAddOnFactory.address)).wait()
+            await (await daoV2ContractOwner.connect(daoOwner).setCandidateAddOnFactory(candidateAddOnFactory.address)).wait()
         })
 
         it('setLayer2Manager to layer2Manager', async () => {
-            await (await daoV2Contract.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
+            await (await daoV2ContractOwner.connect(daoOwner).setLayer2Manager(layer2Manager.address)).wait()
         })
 
         it('setTargetSetLayer2Manager to layer2Manager', async () => {
