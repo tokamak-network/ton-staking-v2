@@ -505,35 +505,52 @@ contract DAOCommittee_V1 is
         emit AgendaVoteCasted(msg.sender, _agendaID, _vote, _comment);
     }
 
-    /// @notice Set the agenda status as ended(denied or dismissed)
-    /// @param _agendaID Agenda ID
-    function endAgendaVoting(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
+    // /// @notice Set the agenda status as ended(denied or dismissed)
+    // /// @param _agendaID Agenda ID
+    // function endAgendaVoting(uint256 _agendaID) external {
+    //     agendaManager.endAgendaVoting(_agendaID);
+    // }
+
+    function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
         // agendaManager.endAgendaVoting(_agendaID);
-        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS
-        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED
-        uint256 voingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        require(block.timestamp > voingEndTime, "need over vote");
-        (uint256 yes, uint256 no,) = agendaManager.getVotingCount(_agendaID);
-        if (quorum <= yes) {
-            // yes
-            (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
-            agendaResult = result;
-            if (executed) {
-                agendaStatus = 4;
+        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
+        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
+        uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
+        uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
+        if(votingEndTime == 0) {
+            // No Agenda
+            return (5, 6);
+        } else if (block.timestamp < noticeEndTime) {
+            //Notice Time
+            return (0, 1);
+        } else if (noticeEndTime < block.timestamp) {
+            (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
+            if (quorum <= yes) {
+                // yes
+                (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
+                agendaResult = result;
+                if (executed) {
+                    agendaStatus = 4;
+                } else {
+                    agendaStatus = 3;
+                }
+                return (agendaResult, agendaStatus);
+            } else if (quorum <= no) {
+                // no (REJECT, ENDED)
+                agendaResult = 2;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
+            } else if (quorum <= abstain) {
+                // (DISMISS, ENDED)
+                agendaResult = 3;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
             } else {
-                agendaStatus = 3;
+                // (NO CONSENSUS, ENDED)
+                agendaResult = 4;
+                agendaStatus = 5;
+                return (agendaResult, agendaStatus);
             }
-            return (agendaResult, agendaStatus);
-        } else if (quorum <= no) {
-            // no (REJECT, ENDED)
-            agendaResult = 2;
-            agendaStatus = 5;
-            return (agendaResult, agendaStatus);
-        } else {
-            // (DISMISS, ENDED)
-            agendaResult = 3;
-            agendaStatus = 5;
-            return (agendaResult, agendaStatus);
         }
 
     }
