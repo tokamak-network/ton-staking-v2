@@ -205,31 +205,17 @@ contract DAOCommittee_V1 is
             "DAOCommittee: deployed candidateContract is zero"
         );
 
-        if(_candidateInfos[_operatorAddress].candidateContract != address(0) ) {
-            CandidateInfo storage candidateInfo = _candidateInfos[_operatorAddress];
-            CandidateInfo2 storage oldCandidateInfo = _oldCandidateInfos[_operatorAddress];
 
-            require(oldCandidateInfo.candidateContract == address(0), "already migrated");
-            oldCandidateInfo.candidateContract = candidateInfo.candidateContract;
-            oldCandidateInfo.newCandidate = candidateContract;
-            oldCandidateInfo.memberJoinedTime = candidateInfo.memberJoinedTime;
-            oldCandidateInfo.indexMembers = candidateInfo.indexMembers;
-            oldCandidateInfo.rewardPeriod = candidateInfo.rewardPeriod;
-            oldCandidateInfo.claimedTimestamp = candidateInfo.claimedTimestamp;
-            
-            candidateInfo.candidateContract = candidateContract;
-        } else {
+        _candidateInfos[_operatorAddress] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
 
-            _candidateInfos[_operatorAddress] = CandidateInfo({
-                candidateContract: candidateContract,
-                memberJoinedTime: 0,
-                indexMembers: 0,
-                rewardPeriod: 0,
-                claimedTimestamp: 0
-            });
-
-            candidates.push(_operatorAddress);
-        }
+        candidates.push(_operatorAddress);
+    
 
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
