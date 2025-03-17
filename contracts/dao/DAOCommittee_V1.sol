@@ -130,11 +130,6 @@ contract DAOCommittee_V1 is
         _;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override (ERC165A) returns (bool) {
-        bytes4 onApproveInterfaceId = bytes4(keccak256("onApprove(address,address,uint256,bytes)"));
-        return interfaceId == onApproveInterfaceId || super.supportsInterface(interfaceId);
-    }
-
     modifier onlyLayer2Manager() {
         require(msg.sender == layer2Manager, "sender is not a layer2Manager");
         _;
