@@ -161,7 +161,7 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   function pause() public onlyPauser whenNotPaused {
-    revert("Moved to SeigManagerV1_3.");
+    revert("Moved to SeigManagerV1_2.");
     _pausedBlock = block.number;
     paused = true;
     emit Paused(msg.sender);
