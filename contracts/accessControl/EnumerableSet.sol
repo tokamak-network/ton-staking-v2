@@ -76,21 +76,20 @@ library EnumerableSet {
             // To delete an element from the _values array in O(1), we swap the element to delete with the last one in
             // the array, and then remove the last element (sometimes called as 'swap and pop').
             // This modifies the order of the array, as noted in {at}.
+            unchecked {
+                uint256 toDeleteIndex = valueIndex - 1;
+                uint256 lastIndex = set._values.length - 1;
 
-            uint256 toDeleteIndex = valueIndex - 1;
-            uint256 lastIndex = set._values.length - 1;
+                // When the value to delete is the last one, the swap operation is unnecessary. However, since this occurs
+                // so rarely, we still do the swap anyway to avoid the gas cost of adding an 'if' statement.
 
-            // When the value to delete is the last one, the swap operation is unnecessary. However, since this occurs
-            // so rarely, we still do the swap anyway to avoid the gas cost of adding an 'if' statement.
-
-            if(toDeleteIndex != lastIndex) {
                 bytes32 lastvalue = set._values[lastIndex];
                 // Move the last value to the index where the value to delete is
                 set._values[toDeleteIndex] = lastvalue;
                 // Update the index for the moved value
                 set._indexes[lastvalue] = toDeleteIndex + 1; // All indexes are 1-based
             }
-
+            
             // Delete the slot where the moved value was stored
             set._values.pop();
 
