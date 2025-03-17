@@ -53,6 +53,15 @@ contract DAOCommitteeOwner is
         _;
     }
 
+    function setCooldown(
+        uint256 _cooltime
+    )
+        external
+        onlyOwner
+    {
+        cooldownTime = _cooltime;
+    }
+
     function setCandidateAddOnFactory(address _candidateAddOnFactory)
         external
         onlyOwner
