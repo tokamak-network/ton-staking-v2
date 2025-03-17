@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {DSMath} from '../../libraries/DSMath.sol';
+import {FullMath} from "../../libraries/FullMath.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {RefactorCoinageSnapshotI} from '../interfaces/RefactorCoinageSnapshotI.sol';
@@ -61,10 +61,9 @@ contract SeigManagerV1_3 is
     AuthControlSeigManager,
     SeigManagerStorage,
     SeigManagerV1_1Storage,
-    DSMath,
     SeigManagerV1_3Storage
 {
-
+    using FullMath for uint256;
     uint256 internal constant WEI_UNIT = 1e18;
 
     modifier whenNotPaused() {
@@ -302,7 +301,8 @@ contract SeigManagerV1_3 is
         uint256 prevTotalSupply = _tot.totalSupply();
         maxSeig = span * _seigPerBlock;
         uint256 tos = _totalSupplyOfTon(blockNumber);
-        stakedSeig = rdiv(rmul(maxSeig, prevTotalSupply), tos);
+        // stakedSeig = rdiv(rmul(maxSeig, prevTotalSupply), tos);
+        stakedSeig = maxSeig.mulDivRoundingUp(prevTotalSupply, RAY).mulDivRoundingUp(RAY,tos);
 
         bool layer2Allowed;
         uint256 tempLayer2StartBlock = layer2StartBlock;
@@ -318,15 +318,23 @@ contract SeigManagerV1_3 is
 
             if (totalLayer2TVL != 0) {
                 uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
-                l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
+                // l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
+                l2TotalSeigs = maxSeig.mulDivRoundingUp(tempTotalLayer2TVL, RAY).mulDivRoundingUp(RAY, tos);
             }
         }
 
         unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
-        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        // uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        uint256 totalPseig = unstakedSeig.mulDivRoundingUp(relativeSeigRate, RAY);
 
-        if (address(_powerton) != address(0)) powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
-        if (dao != address(0)) daoSeig = rmul(unstakedSeig, daoSeigRate);
+
+        if (address(_powerton) != address(0) && powerTONSeigRate !=0 ) {
+            // powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+            powertonSeig = unstakedSeig.mulDivRoundingUp(powerTONSeigRate, RAY);
+        }
+        if (dao != address(0) && daoSeigRate != 0) {
+            daoSeig = unstakedSeig.mulDivRoundingUp(daoSeigRate, RAY);
+        }
 
         if (relativeSeigRate != 0) relativeSeig = totalPseig;
 
@@ -520,7 +528,8 @@ contract SeigManagerV1_3 is
 
         // if commission rate is possitive
         if (!isCommissionRateNegative_) {
-            operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
+            // operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
+            operatorSeigs = seigs.mulDivRoundingUp(commissionRate, RAY);
             nextTotalSupply -= operatorSeigs;
             return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
         }
@@ -534,18 +543,23 @@ contract SeigManagerV1_3 is
         // short circuit if there is no operator deposit
         if (operatorBalance == 0) return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
-        uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
+        // uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
+        uint256 operatorRate = operatorBalance.mulDivRoundingUp(RAY, prevTotalSupply);
 
         // ɑ: insufficient seig for operator
-        operatorSeigs = rmul(
-            rmul(seigs, operatorRate), // seigs for operator
-            commissionRate
-        );
+        // operatorSeigs = rmul(
+        //     rmul(seigs, operatorRate), // seigs for operator
+        //     commissionRate
+        // );
+        operatorSeigs = seigs.mulDivRoundingUp(operatorRate, RAY).mulDivRoundingUp(commissionRate, RAY);
 
         // β:
+        // uint256 delegatorSeigs = operatorRate == RAY
+        //     ? operatorSeigs
+        //     : rdiv(operatorSeigs, RAY - operatorRate);
         uint256 delegatorSeigs = operatorRate == RAY
             ? operatorSeigs
-            : rdiv(operatorSeigs, RAY - operatorRate);
+            : operatorSeigs.mulDivRoundingUp(RAY, RAY - operatorRate);
 
         // 𝜸:
         // operatorSeigs = operatorRate == RAY
@@ -567,7 +581,8 @@ contract SeigManagerV1_3 is
         uint256 target,
         uint256 oldFactor
     ) internal pure returns (uint256) {
-        return rdiv(rmul(target, oldFactor), source);
+        // return rdiv(rmul(target, oldFactor), source);
+        return target.mulDivRoundingUp(oldFactor,RAY).mulDivRoundingUp(RAY, source);
     }
 
     function _increaseTot() internal returns (bool result) {
@@ -590,14 +605,15 @@ contract SeigManagerV1_3 is
         uint256 tos = _totalSupplyOfTon(block.number);
 
         // maximum seigniorages * staked rate
-        uint256 stakedSeig = rdiv(
-            rmul(
-                maxSeig,
-                // total staked amount
-                prevTotalSupply
-            ),
-            tos
-        );
+        // uint256 stakedSeig = rdiv(
+        //     rmul(
+        //         maxSeig,
+        //         // total staked amount
+        //         prevTotalSupply
+        //     ),
+        //     tos
+        // );
+        uint256 stakedSeig = maxSeig.mulDivRoundingUp(prevTotalSupply, RAY).mulDivRoundingUp(RAY, tos);
 
         // If layer2StartBlock is not set, set it to the previous block so that the signiorge will be accumulated to layer2 immediately.
         if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
@@ -609,7 +625,8 @@ contract SeigManagerV1_3 is
         if (layer2Manager != address(0) && layer2StartBlock != 1) {
             if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
                 uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
-                l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
+                // l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
+                l2TotalSeigs = maxSeig.mulDivRoundingUp(tempTotalLayer2TVL, RAY).mulDivRoundingUp(RAY, tos);
                 l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
                 IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
             }
@@ -646,7 +663,8 @@ contract SeigManagerV1_3 is
         }
 
         uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
-        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        // uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        uint256 totalPseig = unstakedSeig.mulDivRoundingUp(relativeSeigRate, RAY);
         uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
         _lastSeigBlock = block.number;
 
@@ -658,13 +676,15 @@ contract SeigManagerV1_3 is
         uint256 daoSeig;
         uint256 relativeSeig;
 
-        if (_powerton != address(0)) {
-            powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+        if (_powerton != address(0) && powerTONSeigRate != 0) {
+            // powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+            powertonSeig = unstakedSeig.mulDivRoundingUp(powerTONSeigRate, RAY);
             IWTON(wton_).mint(_powerton, powertonSeig);
         }
 
-        if (dao != address(0)) {
-            daoSeig = rmul(unstakedSeig, daoSeigRate);
+        if (dao != address(0) && daoSeigRate != 0) {
+            // daoSeig = rmul(unstakedSeig, daoSeigRate);
+            daoSeig = unstakedSeig.mulDivRoundingUp(daoSeigRate, RAY);
             IWTON(wton_).mint(dao, daoSeig);
         }
 
