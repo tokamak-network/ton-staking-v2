@@ -422,6 +422,7 @@ contract DAOCommittee_V1 is
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
+        require(agendaData.target.length != 0, "need target");
         require(agendaData.atomicExecute, "atomicExecute need true");
         require(agendaData.target.length == agendaData.functionBytecode.length, "need same length");
         require(agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(), "need over minimumVotingPeriodSeconds");
