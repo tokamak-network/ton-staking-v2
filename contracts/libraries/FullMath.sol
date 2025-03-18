@@ -115,7 +115,6 @@ library FullMath {
         }
     }
 
-    uint constant WAD_ = 1e18;
     uint constant RAY_ = 1e27;
 
     function rdiv(uint x, uint y) internal pure returns (uint z) {
