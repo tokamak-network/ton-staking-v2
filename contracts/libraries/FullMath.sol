@@ -114,4 +114,18 @@ library FullMath {
             }
         }
     }
+
+    uint constant WAD_ = 1e18;
+    uint constant RAY_ = 1e27;
+
+    function rdiv(uint x, uint y) internal pure returns (uint z) {
+        // z = add(mul(x, RAY_), y / 2) / y;
+        z = mulDivRoundingUp (x, RAY_, y);
+    }
+
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        // z = add(mul(x, y), RAY_ / 2) / RAY_;
+        z = mulDivRoundingUp(x,y,RAY_);
+    }
+
 }
