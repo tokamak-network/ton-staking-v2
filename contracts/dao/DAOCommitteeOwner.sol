@@ -127,6 +127,18 @@ contract DAOCommitteeOwner is
         address wtonAddr
     );
 
+    /**
+     * @notice Event that occurs when calling setWton function
+     * @param to        execute target address
+     * @param data      transaction data
+     * @param success   Check the Transaction success
+     */
+    event DAOExecuteTransaction(
+        address to,
+        bytes data,
+        bool success
+    );
+
     modifier onlyOwner() {
         require(
             ITarget(address(this)).hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
@@ -144,6 +156,8 @@ contract DAOCommitteeOwner is
         _;
     }
 
+    /// @notice Set the cooldownTime
+    /// @param _cooltime The period after which changeMember can be executed again
     function setCooldown(
         uint256 _cooltime
     )
@@ -153,6 +167,8 @@ contract DAOCommitteeOwner is
         cooldownTime = _cooltime;
     }
 
+    /// @notice Set the candidateAddOnFactory
+    /// @param _candidateAddOnFactory candidateAddOnFactory address
     function setCandidateAddOnFactory(address _candidateAddOnFactory)
         external
         onlyOwner
@@ -163,6 +179,8 @@ contract DAOCommitteeOwner is
         emit SetCandidateAddOnFactory(_candidateAddOnFactory);
     }
 
+    /// @notice Set the layer2Manager
+    /// @param _layer2Manager layer2Manager address
     function setLayer2Manager(address _layer2Manager)
         external
         onlyOwner
@@ -172,65 +190,15 @@ contract DAOCommitteeOwner is
         emit SetLayer2Manager(_layer2Manager);
     }
 
-    function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
-        ITarget(target).setLayer2Manager(layer2Manager_);
-    }
-
-    function setTargetSetL1BridgeRegistry(address target, address l1BridgeRegistry_) external onlyOwner {
-        ITarget(target).setL1BridgeRegistry(l1BridgeRegistry_);
-    }
-
-    function setTargetLayer2StartBlock(address target, uint256 startBlock_) external onlyOwner {
-        ITarget(target).setLayer2StartBlock(startBlock_);
-    }
-
-    function setTargetSetImplementation2(
-        address target, address newImplementation, uint256 index, bool alive) external onlyOwner {
-        ITarget(target).setImplementation2(newImplementation, index, alive);
-    }
-
-    function setTargetSetSelectorImplementations2(
-        address target, bytes4[] calldata _selectors, address _imp) external onlyOwner {
-        ITarget(target).setSelectorImplementations2(_selectors, _imp);
-    }
-
+    /// @notice Set the seigManager
+    /// @param _seigManager seigManager address
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
         seigManager = ISeigManager(_seigManager);
         emit SetSeigManager(_seigManager);
     }
 
-    function setTargetSeigManager(address target, address _seigManager) external onlyOwner {
-        ITarget(target).setSeigManager(_seigManager);
-    }
-
-    function setSeigPause() external onlyOwner {
-       IPauser(address(seigManager)).pause();
-    }
-
-    function setSeigUnpause() external onlyOwner {
-       IPauser(address(seigManager)).unpause();
-    }
-
-    function setTargetGlobalWithdrawalDelay(address target, uint256 globalWithdrawalDelay_) external onlyOwner {
-        ITarget(target).setGlobalWithdrawalDelay(globalWithdrawalDelay_);
-    }
-
-    function setTargetAddMinter(address token, address account) external onlyOwner {
-        ITarget(token).addMinter(account);
-    }
-
-    function setTargetUpgradeTo(address target, address logic) external onlyOwner {
-        ITarget(target).upgradeTo(logic);
-    }
-
-    function setTargetSetTON(address target, address tonAddr) external onlyOwner {
-        ITarget(target).setTON(tonAddr);
-    }
-
-    function setTargetSetWTON(address target, address wtonAddr) external onlyOwner {
-        ITarget(target).setWTON(wtonAddr);
-    }
-
+    /// @notice Set the daoVault
+    /// @param _daoVault daoVault address
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
         daoVault = IDAOVault(_daoVault);
         emit SetDaoVault(_daoVault);
@@ -257,11 +225,15 @@ contract DAOCommitteeOwner is
         emit SetCandidateFactory(_candidateFactory);
     }
 
+    /// @notice Set TON contract address
+    /// @param _ton ton address
     function setTon(address _ton) external onlyOwner nonZero(_ton) {
         ton = _ton;
         emit SetTON(_ton);
     }
 
+    /// @notice Set WTON contract address
+    /// @param _wton wton address
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
         wton = _wton;
         emit SetWTON(_wton);
@@ -280,7 +252,7 @@ contract DAOCommitteeOwner is
         require(maxMember < _newMaxMember, "DAOCommittee: You have to call decreaseMaxMember to decrease");
         uint256 prevMaxMember = maxMember;
         maxMember = _newMaxMember;
-        fillMemberSlot();
+        _fillMemberSlot();
         _setQuorum(_quorum);
         emit ChangedSlotMaximum(prevMaxMember, _newMaxMember);
     }
@@ -337,6 +309,8 @@ contract DAOCommitteeOwner is
         emit ChangedSlotMaximum(maxMember + 1, maxMember);
     }
 
+    /// @notice Set the activityReward value received as a reward for member activity
+    /// @param _value activityRewardPerSecond
     function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
         activityRewardPerSecond = _value;
         emit ActivityRewardChanged(_value);
@@ -423,6 +397,8 @@ contract DAOCommitteeOwner is
         agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
     }
 
+    /// @notice DAO burns seigManager's seigniorage.
+    /// @param _burnAmount burnAmount
     function setBurntAmountAtDAO(
         uint256 _burnAmount
     )
@@ -433,13 +409,37 @@ contract DAOCommitteeOwner is
         ITarget(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
     }
 
+    /// @notice This is a function executed by the DAO multisig wallet council.
+    /// @param _to Address to execute
+    /// @param _value ETH Value
+    /// @param _data The function to be executed.
+    function executeTransaction(
+        address _to,
+        uint _value,
+        bytes memory _data
+    )
+        external
+        onlyOwner
+        nonZero(_to)
+    {
+        require(_data.length != 0 || _value != 0, "invalid data");
+        
+        (bool success, ) = address(_to).call{value: _value}(
+            _data
+        );
 
-    function fillMemberSlot() internal {
+        emit DAOExecuteTransaction(_to,_data,success);
+    }   
+
+    /// @notice This function is used to increase member slots.
+    function _fillMemberSlot() internal {
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
         }
     }
 
+    /// @notice Set new quorum
+    /// @param _quorum New quorum
     function _setQuorum(
         uint256 _quorum
     )

@@ -723,7 +723,7 @@ describe("DAOAgenda Test", () => {
 
             let beforeDAOVault = await wton.balanceOf(oldContractInfo.DAOVault)
             let claimAmount = await daoCommittee.getClaimableActivityReward(member3.address);
-            let wtonClaimAmount = await daoCommittee._toRAY(claimAmount)
+            let wtonClaimAmount = await daovault._toRAY(claimAmount)
             console.log("beforeDAOVault :", beforeDAOVault);
             console.log("wtonClaimAmount :", wtonClaimAmount);
             expect(beforeDAOVault).to.be.gt(wtonClaimAmount)
