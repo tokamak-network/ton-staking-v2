@@ -852,7 +852,7 @@ describe("DAO Proxy Change Test", () => {
             )
         })
 
-        it("Set TalkenCandidateContract", async () => {
+        it("Set StakedCandidateContract", async () => {
             stakedContractLogic = new ethers.Contract(
                 stakedContractAddr,
                 CandidateABI,

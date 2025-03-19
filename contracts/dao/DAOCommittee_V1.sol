@@ -417,7 +417,7 @@ contract DAOCommittee_V1 is
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
                 else if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = toBytes(ton);
+                    bytes memory tonaddr = _toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
@@ -457,6 +457,7 @@ contract DAOCommittee_V1 is
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
 
         agendaManager.castVote(
             _agendaID,
@@ -619,7 +620,7 @@ contract DAOCommittee_V1 is
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
+    function _toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
     }
 
