@@ -132,11 +132,16 @@ contract DAOCommittee_V1 is
 
     //////////////////////////////////////////////////////////////////////
     // Managing members
+
+    /// @notice Removes candidates registered in the blacklist.
+    /// @param _candidate Candidate address to be updated
     function removeFromBlacklist(address _candidate) external onlyOwner {
         require(blacklist[_candidate], "Not blacklisted");
         blacklist[_candidate] = false;
     }
 
+    /// @notice Registers a new Candidate managed by msg.sender.
+    /// @param _memo Candidate Memo
     function createCandidate(string calldata _memo)
         external
         validSeigManager
@@ -179,6 +184,9 @@ contract DAOCommittee_V1 is
 
     }
 
+    /// @notice Registers a new Candidate managed by operator.
+    /// @param _memo Candidate Memo
+    /// @param _operatorAddress operatorAddress
     function createCandidateOwner(string calldata _memo, address _operatorAddress)
         public
         validSeigManager
@@ -220,6 +228,10 @@ contract DAOCommittee_V1 is
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
     }
 
+    /// @notice Registers a new Candidate managed by operatorManagerContract.
+    /// @param _memo Candidate Memo
+    /// @param _operatorManagerAddress operatorManagerContract Address
+    /// @return candidateContract Address
     function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
         public
         returns (address)
@@ -327,7 +339,10 @@ contract DAOCommittee_V1 is
         return true;
     }
 
-    /// @notice Retires member
+    /// @notice If you remove a Member's qualifications through retireMember, 
+    ///         they will be added to the blacklist and will not be able to use any functions 
+    ///         that a Candidate can perform in the future.
+    ///         Please check before executing the function.
     /// @return Whether or not the execution succeeded
     function retireMember() external returns (bool) {
         address candidate = ICandidate(msg.sender).candidate();
@@ -350,7 +365,6 @@ contract DAOCommittee_V1 is
 
         uint256 prevIndex = candidateInfo.indexMembers;
         candidateInfo.indexMembers = 0;
-        claimActivityReward(candidate);
 
         blacklist[candidateInfo.candidateContract] = true;
         emit MemberBlacklisted(candidate, block.timestamp);
@@ -360,6 +374,9 @@ contract DAOCommittee_V1 is
         return true;
     }
 
+    /// @notice Registers a new Candidate managed by operatorManagerContract.
+    /// @param _candidate Candidate Memo
+    /// @param _memo Candidate Memo
     function setMemoOnCandidate(
         address _candidate,
         string calldata _memo
@@ -396,6 +413,11 @@ contract DAOCommittee_V1 is
     //////////////////////////////////////////////////////////////////////
     // Managing agenda
 
+    /// @notice This is the ApproveAndCall function that runs in the TON Contract. 
+    ///         can create an Agenda through this function.
+    /// @param owner Owner who created the function.
+    /// @param data  Data containing the content to be executed in the corresponding function.
+    /// @return Whether or not the execution succeeded
     function onApprove(
         address owner,
         address ,
@@ -488,14 +510,11 @@ contract DAOCommittee_V1 is
         emit AgendaVoteCasted(msg.sender, _agendaID, _vote, _comment);
     }
 
-    // /// @notice Set the agenda status as ended(denied or dismissed)
-    // /// @param _agendaID Agenda ID
-    // function endAgendaVoting(uint256 _agendaID) external {
-    //     agendaManager.endAgendaVoting(_agendaID);
-    // }
-
+    /// @notice Returns the current status and results for agendaID.
+    /// @param _agendaID Owner who created the function.
+    /// @return agendaResult
+    /// @return agendaStatus
     function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
-        // agendaManager.endAgendaVoting(_agendaID);
         //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
         //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
@@ -600,16 +619,17 @@ contract DAOCommittee_V1 is
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
 
+
+    /// @notice Convert Wei units to Ray units.
+    /// @param v Value to change to Ray
+    /// @return Returns the reflected value of Ray
     function _toRAY(uint256 v) internal pure returns (uint256) {
         return v * 10 ** 9;
     }
 
-    function fillMemberSlot() internal {
-        for (uint256 i = members.length; i < maxMember; i++) {
-            members.push(address(0));
-        }
-    }
 
+    /// @notice decompose agendaData so that it can be used.
+    /// @param input input the bytes data
     function _decodeAgendaData(bytes calldata input)
         internal
         pure
@@ -619,10 +639,14 @@ contract DAOCommittee_V1 is
             abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
+    /// @notice Convert address to bytes.
+    /// @param a address
     function _toBytes(address a) internal pure returns (bytes memory) {
         return abi.encodePacked(a);
     }
 
+    /// @notice Pay the fee to create the agenda.
+    /// @param _creator Address of the person who created the agenda
     function _payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
@@ -630,6 +654,10 @@ contract DAOCommittee_V1 is
         IERC20(ton).safeTransfer(address(1), fee);
     }
 
+    /// @notice Registers the exist layer2 on DAO by owner
+    /// @param _operator Operator address of the layer2 contract
+    /// @param _layer2 Layer2 contract address to be registered
+    /// @param _memo A memo for the candidate
     function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
         internal
         validSeigManager
@@ -680,6 +708,14 @@ contract DAOCommittee_V1 is
         emit Layer2Registered(_layer2, candidateContract, _memo);
     }
 
+    /// @notice Create an agenda.
+    /// @param _creator Agenda creator address
+    /// @param _targets Target to execute through agenda
+    /// @param _noticePeriodSeconds Notice period of agenda
+    /// @param _votingPeriodSeconds Voting period of agenda
+    /// @param _atomicExecute Single agenda or multi-agenda
+    /// @param _functionBytecodes Functions to execute via agenda
+    /// @return agendaID
     function _createAgenda(
         address _creator,
         address[] memory _targets,
@@ -715,6 +751,9 @@ contract DAOCommittee_V1 is
         return agendaID;
     }
 
+    /// @notice Function to check if it is a candidate
+    /// @param _candidate Candidate Address
+    /// @return If true, Candidate, if false, not Candidate
     function isCandidate(address _candidate) external view returns (bool) {
         CandidateInfo storage info = _candidateInfos[_candidate];
 
@@ -734,6 +773,9 @@ contract DAOCommittee_V1 is
         return ICandidate(info.candidateContract).isCandidateContract();
     }
 
+    /// @notice Return totalSupply of Candidate
+    /// @param _candidate Candidate Address
+    /// @return totalsupply of Candidate
     function totalSupplyOnCandidate(
         address _candidate
     )
@@ -745,6 +787,10 @@ contract DAOCommittee_V1 is
         return totalSupplyOnCandidateContract(candidateContract);
     }
 
+    /// @notice Return Amount of account in Candidate
+    /// @param _candidate Candidate Address
+    /// @param _account   Account Address
+    /// @return amount of account in Candidate
     function balanceOfOnCandidate(
         address _candidate,
         address _account
@@ -757,6 +803,9 @@ contract DAOCommittee_V1 is
         return balanceOfOnCandidateContract(candidateContract, _account);
     }
 
+    /// @notice Return totalsupply of CandidateContract
+    /// @param _candidateContract CandidateContract Address
+    /// @return totalsupply of CandidateContract
     function totalSupplyOnCandidateContract(
         address _candidateContract
     )
@@ -769,6 +818,10 @@ contract DAOCommittee_V1 is
         return ICandidate(_candidateContract).totalStaked();
     }
 
+    /// @notice Return amount of account in CandidateContract
+    /// @param _candidateContract CandidateContract Address
+    /// @param _account account Address
+    /// @return amount of account in CandidateContract
     function balanceOfOnCandidateContract(
         address _candidateContract,
         address _account
@@ -782,14 +835,21 @@ contract DAOCommittee_V1 is
         return ICandidate(_candidateContract).stakedOf(_account);
     }
 
+    /// @notice Return candidateLength
+    /// @return candidateLength
     function candidatesLength() external view returns (uint256) {
         return candidates.length;
     }
 
+    /// @notice Whether there is a CandidateContract registered as a candidate
+    /// @return isExist If isExist is true, there is a CandidteContract, otherwise there is not.
     function isExistCandidate(address _candidate) public view returns (bool isExist) {
         return _candidateInfos[_candidate].candidateContract != address(0);
     }
 
+    /// @notice calculates how much reward candidate can receive.
+    /// @param  _candidate candidate Address
+    /// @return return reward amount 
     function getClaimableActivityReward(address _candidate) public view returns (uint256) {
         CandidateInfo storage info = _candidateInfos[_candidate];
         uint256 period = info.rewardPeriod;
@@ -805,15 +865,26 @@ contract DAOCommittee_V1 is
         return period * activityRewardPerSecond;
     }
 
+    /// @notice Returns information about oldCandidate.
+    /// @param  _oldCandidate oldcandidate Address
+    /// @return return CandidateInfo2
     function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
     }
 
+
+    /// @notice Return how much the operator in layer2 has staked.
+    /// @param  layer2  layer2 Address
+    /// @param  operator operator Address
+    /// @return operatorAmount
     function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
         address coinage = ISeigManager(address(seigManager)).coinages(layer2);
         operatorAmount = ICoinage(coinage).balanceOf(operator);
     }
 
+    /// @notice Operators can see how much their Contract have staked.
+    /// @param  candidate candidate Address
+    /// @return operatorAmount
     function operatorCheck(address candidate) public view returns (uint256 operatorAmount) {
         CandidateInfo memory info = _candidateInfos[candidate];
         address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);

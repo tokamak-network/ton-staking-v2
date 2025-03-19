@@ -156,6 +156,8 @@ contract DAOCommitteeOwner is
         _;
     }
 
+    /// @notice Set the cooldownTime
+    /// @param _cooltime The period after which changeMember can be executed again
     function setCooldown(
         uint256 _cooltime
     )
@@ -165,6 +167,8 @@ contract DAOCommitteeOwner is
         cooldownTime = _cooltime;
     }
 
+    /// @notice Set the candidateAddOnFactory
+    /// @param _candidateAddOnFactory candidateAddOnFactory address
     function setCandidateAddOnFactory(address _candidateAddOnFactory)
         external
         onlyOwner
@@ -175,6 +179,8 @@ contract DAOCommitteeOwner is
         emit SetCandidateAddOnFactory(_candidateAddOnFactory);
     }
 
+    /// @notice Set the layer2Manager
+    /// @param _layer2Manager layer2Manager address
     function setLayer2Manager(address _layer2Manager)
         external
         onlyOwner
@@ -184,11 +190,15 @@ contract DAOCommitteeOwner is
         emit SetLayer2Manager(_layer2Manager);
     }
 
+    /// @notice Set the seigManager
+    /// @param _seigManager seigManager address
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
         seigManager = ISeigManager(_seigManager);
         emit SetSeigManager(_seigManager);
     }
 
+    /// @notice Set the daoVault
+    /// @param _daoVault daoVault address
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
         daoVault = IDAOVault(_daoVault);
         emit SetDaoVault(_daoVault);
@@ -215,11 +225,15 @@ contract DAOCommitteeOwner is
         emit SetCandidateFactory(_candidateFactory);
     }
 
+    /// @notice Set TON contract address
+    /// @param _ton ton address
     function setTon(address _ton) external onlyOwner nonZero(_ton) {
         ton = _ton;
         emit SetTON(_ton);
     }
 
+    /// @notice Set WTON contract address
+    /// @param _wton wton address
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
         wton = _wton;
         emit SetWTON(_wton);
@@ -295,6 +309,8 @@ contract DAOCommitteeOwner is
         emit ChangedSlotMaximum(maxMember + 1, maxMember);
     }
 
+    /// @notice Set the activityReward value received as a reward for member activity
+    /// @param _value activityRewardPerSecond
     function setActivityRewardPerSecond(uint256 _value) external onlyOwner {
         activityRewardPerSecond = _value;
         emit ActivityRewardChanged(_value);
@@ -381,6 +397,8 @@ contract DAOCommitteeOwner is
         agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
     }
 
+    /// @notice DAO burns seigManager's seigniorage.
+    /// @param _burnAmount burnAmount
     function setBurntAmountAtDAO(
         uint256 _burnAmount
     )
@@ -391,6 +409,10 @@ contract DAOCommitteeOwner is
         ITarget(address(seigManager)).setBurntAmountAtDAO(_burnAmount);
     }
 
+    /// @notice This is a function executed by the DAO multisig wallet council.
+    /// @param _to Address to execute
+    /// @param _value ETH Value
+    /// @param _data The function to be executed.
     function executeTransaction(
         address _to,
         uint _value,
@@ -409,12 +431,15 @@ contract DAOCommitteeOwner is
         emit DAOExecuteTransaction(_to,_data,success);
     }   
 
+    /// @notice This function is used to increase member slots.
     function _fillMemberSlot() internal {
         for (uint256 i = members.length; i < maxMember; i++) {
             members.push(address(0));
         }
     }
 
+    /// @notice Set new quorum
+    /// @param _quorum New quorum
     function _setQuorum(
         uint256 _quorum
     )
