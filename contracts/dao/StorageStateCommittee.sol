@@ -10,8 +10,7 @@ import { IDAOVault } from "./interfaces/IDAOVault.sol";
 import { ICandidate } from "./interfaces/ICandidate.sol";
 
 contract StorageStateCommittee  {
-    enum AgendaStatus { NONE, NOTICE, VOTING, EXEC, ENDED, PENDING, RISK }
-    enum AgendaResult { UNDEFINED, ACCEPT, REJECT, DISMISS }
+    
     struct CandidateInfo {
         address candidateContract;
         uint256 indexMembers;

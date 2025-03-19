@@ -574,7 +574,7 @@ contract DAOCommittee_V1 is
     /// @notice Call updateSeigniorage on SeigManager
     /// @param _candidate Candidate address to be updated
     /// @return Whether or not the execution succeeded
-    function updateSeigniorage(address _candidate) public returns (bool) {
+    function updateSeigniorage(address _candidate) external returns (bool) {
         address candidateContract = _candidateInfos[_candidate].candidateContract;
         return ICandidate(candidateContract).updateSeigniorage();
     }
@@ -715,16 +715,6 @@ contract DAOCommittee_V1 is
         return agendaID;
     }
 
-    function _call(address target, uint256 paramLength, bytes memory param) internal returns (bool) {
-        bool result;
-        assembly {
-            let data := add(param, 32)
-            result := call(sub(gas(), 40000), target, 0, data, paramLength, 0, 0)
-        }
-
-        return result;
-    }
-
     function isCandidate(address _candidate) external view returns (bool) {
         CandidateInfo storage info = _candidateInfos[_candidate];
 
@@ -815,7 +805,7 @@ contract DAOCommittee_V1 is
         return period * activityRewardPerSecond;
     }
 
-    function getOldCandidateInfos(address _oldCandidate) public view returns (CandidateInfo2 memory) {
+    function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
     }
 
@@ -823,18 +813,6 @@ contract DAOCommittee_V1 is
         address coinage = ISeigManager(address(seigManager)).coinages(layer2);
         operatorAmount = ICoinage(coinage).balanceOf(operator);
     }
-
-    // function operatorCheck() public view returns (uint256 operatorAmount) {
-    //     address candidate = ICandidate(msg.sender).candidate();
-    //     CandidateInfo memory info = _candidateInfos[candidate];
-    //     address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
-    //     if (privateLayer2[candidate] != address(0)) {
-    //         address layer2operator = privateLayer2[candidate];
-    //         return operatorAmount = ICoinage(coinage).balanceOf(layer2operator);
-    //     } else {
-    //         return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
-    //     }
-    // }
 
     function operatorCheck(address candidate) public view returns (uint256 operatorAmount) {
         CandidateInfo memory info = _candidateInfos[candidate];

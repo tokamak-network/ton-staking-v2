@@ -17,23 +17,114 @@ contract DAOCommitteeOwner is
     ERC165A,
     StorageStateCommitteeV2
 {
+    /**
+     * @notice Event that occurs when calling increaseMaxMember & decreaseMaxMember function
+     * @param prevSlotMax    Before number of member slot
+     * @param slotMax    New number of member slot
+     */
     event ChangedSlotMaximum(
         uint256 indexed prevSlotMax,
         uint256 indexed slotMax
     );
 
+    /**
+     * @notice Event that occurs when calling setQuorum function
+     * @param newQuorum    New quorum
+     */
     event QuorumChanged(
         uint256 newQuorum
     );
 
+    /**
+     * @notice Event that occurs when calling decreaseMaxMember function
+     * @param slotIndex    Reducing Member slot index
+     * @param prevMember    Reducing Member Address
+     * @param newMember    Replaced Member Address
+     */
     event ChangedMember(
         uint256 indexed slotIndex,
         address prevMember,
         address indexed newMember
     );
 
+    /**
+     * @notice Event that occurs when calling setActivityRewardPerSecond function
+     * @param newReward    New value of RewardPerSecond
+     */
     event ActivityRewardChanged(
         uint256 newReward
+    );
+
+    /**
+     * @notice Event that occurs when calling setCandidateAddOnFactory function
+     * @param candidateAddOnFactoryAddr    CandidateAddOnFactory Address
+     */
+    event SetCandidateAddOnFactory(
+        address candidateAddOnFactoryAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setLayer2Manager function
+     * @param layer2ManagerAddr    Layer2Manager Address
+     */
+    event SetLayer2Manager(
+        address layer2ManagerAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setSeigManager function
+     * @param seigManagerAddr    SeigManager Address
+     */
+    event SetSeigManager(
+        address seigManagerAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setDaoVault function
+     * @param daoVaultAddr    DaoVault Address
+     */
+    event SetDaoVault(
+        address daoVaultAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setLayer2Registry function
+     * @param layer2RegistryAddr    Layer2Registry Address
+     */
+    event SetLayer2Registry(
+        address layer2RegistryAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setAgendaManager function
+     * @param agendaManagerAddr    AgendaManager Address
+     */
+    event SetAgendaManager(
+        address agendaManagerAddr
+    );
+    
+    /**
+     * @notice Event that occurs when calling setCandidateFactory function
+     * @param candidateFactoryAddr    candidateFactory Address
+     */
+    event SetCandidateFactory(
+        address candidateFactoryAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setTon function
+     * @param tonAddr    TON Address
+     */
+    event SetTON(
+        address tonAddr
+    );
+
+    /**
+     * @notice Event that occurs when calling setWton function
+     * @param wtonAddr    WTON Address
+     */
+    event SetWTON(
+        address wtonAddr
     );
 
     modifier onlyOwner() {
@@ -68,6 +159,8 @@ contract DAOCommitteeOwner is
         nonZero(_candidateAddOnFactory)
     {
         candidateAddOnFactory = _candidateAddOnFactory;
+
+        emit SetCandidateAddOnFactory(_candidateAddOnFactory);
     }
 
     function setLayer2Manager(address _layer2Manager)
@@ -76,6 +169,7 @@ contract DAOCommitteeOwner is
         nonZero(_layer2Manager)
     {
         layer2Manager = _layer2Manager;
+        emit SetLayer2Manager(_layer2Manager);
     }
 
     function setTargetSetLayer2Manager(address target, address layer2Manager_) external onlyOwner {
@@ -102,6 +196,7 @@ contract DAOCommitteeOwner is
 
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
         seigManager = ISeigManager(_seigManager);
+        emit SetSeigManager(_seigManager);
     }
 
     function setTargetSeigManager(address target, address _seigManager) external onlyOwner {
@@ -138,32 +233,38 @@ contract DAOCommitteeOwner is
 
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
         daoVault = IDAOVault(_daoVault);
+        emit SetDaoVault(_daoVault);
     }
 
     /// @notice Set Layer2Registry contract address
     /// @param _layer2Registry New Layer2Registry contract address
     function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
         layer2Registry = ILayer2Registry(_layer2Registry);
+        emit SetLayer2Registry(_layer2Registry);
     }
 
     /// @notice Set DAOAgendaManager contract address
     /// @param _agendaManager New DAOAgendaManager contract address
     function setAgendaManager(address _agendaManager) external onlyOwner nonZero(_agendaManager) {
         agendaManager = IDAOAgendaManager(_agendaManager);
+        emit SetAgendaManager(_agendaManager);
     }
 
     /// @notice Set CandidateFactory contract address
     /// @param _candidateFactory New CandidateFactory contract address
     function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
         candidateFactory = ICandidateFactory(_candidateFactory);
+        emit SetCandidateFactory(_candidateFactory);
     }
 
     function setTon(address _ton) external onlyOwner nonZero(_ton) {
         ton = _ton;
+        emit SetTON(_ton);
     }
 
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
         wton = _wton;
+        emit SetWTON(_wton);
     }
 
     /// @notice Increases the number of member slot
