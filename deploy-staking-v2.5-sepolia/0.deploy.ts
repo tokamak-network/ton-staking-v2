@@ -250,6 +250,13 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             )).wait()
     }
 
+    //==== SeigManagerV1_2 =================================
+    const SeigManagerV1_2 = await deploy("SeigManagerV1_2", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
     //==== SeigManagerV1_3 =================================
     const SeigManagerV1_3 = await deploy("SeigManagerV1_3", {
         from: deployer,
@@ -329,7 +336,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
     await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
-    await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await l1BridgeRegistryProxy.connect(deploySigner).transferAdmin(DAOCommitteeProxy)).wait()
     await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
 
     console.log("candidateAddOnFactoryProxy.isAdmin(deployer): ", await candidateAddOnFactoryProxy.isAdmin(deployer))

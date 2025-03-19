@@ -469,7 +469,6 @@ describe('TON Staking V2.5', () => {
             claimableL2SeigniorageTitan.add(claimableL2SeigniorageThanos))
     }
 
-
     /// layer1 에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     async function updateSeigniorageLayer1() {
 
@@ -686,7 +685,6 @@ describe('TON Staking V2.5', () => {
         }
 
     }
-
 
     /// Titan을 reject 한후에 Titan에서 업데이트 시뇨리지를 실행할때의 테스트입니다.
     /// 이경우 titan은 l2 시뇨리지를 이벤트에 layer2Seigs 값이 0이어야 합니다. 즉, 이번 커밋으로 이 레이어에 추가된 시뇨리지는 없다는 의미입니다
@@ -942,7 +940,6 @@ describe('TON Staking V2.5', () => {
         )
     }
 
-
     /// 스테이킹을 approve and call 함수를 wton을 이용하여 합니다.
     async function depositApproveAndCallWithWton(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
 
@@ -1009,7 +1006,6 @@ describe('TON Staking V2.5', () => {
              roundDown(stakedA.add(wtonAmount), 3)
          )
      }
-
 
      /// 레이어에서 wton으로 스테이킹을 다른 사람에게 합니다.
      async function depositWithWton2(layerAddress: string, account: Signer, wtonAmount:BigNumber ) {
@@ -2504,6 +2500,7 @@ describe('TON Staking V2.5', () => {
             }
 
             await depositApproveAndCall(layer2Info_1.layer2, addr1, ethers.utils.parseEther("100"))
+
         })
 
         it('evm_mine', async () => {

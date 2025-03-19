@@ -7,6 +7,42 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "layer2",
+          "type": "address"
+        }
+      ],
+      "name": "getLayer2RewardInfo",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "layer2Tvl",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "initialDebt",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "startBlock",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct SeigManagerV1_3Storage.Layer2Reward",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "",
           "type": "address"
         },

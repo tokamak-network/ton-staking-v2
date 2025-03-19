@@ -864,6 +864,15 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       else return false;
   }
 
+  function _layer2RewardInfo(address layer2) internal view returns (Layer2Reward memory) {
+    Layer2Reward memory info = layer2RewardInfo[layer2];
+    return info;
+  }
+
+
+  function getLayer2RewardInfo(address layer2) external view returns (Layer2Reward memory) {
+    return _layer2RewardInfo(layer2);
+  }
 
   //////////////////////////////
   // Storage getters

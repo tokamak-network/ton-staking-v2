@@ -448,7 +448,7 @@ const config: HardhatUserConfig = {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
-        blockNumber: 5859537,
+        // blockNumber: 5859537,
         // blockNumber: 6042730
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 6042730
@@ -467,11 +467,12 @@ const config: HardhatUserConfig = {
         // test registerCandidateAddOn
         // blockNumber: 6797943
         // blockNumber: 7551570,
+        blockNumber: 7933538
       },
-      // allowUnlimitedContractSize: false,
+      allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],
       // deploy: ['deploy-staking-v2.5-mainnet'],
-      // deploy: ['deploy-staking-v2.5-sepolia'],
+      deploy: ['deploy-staking-v2.5-sepolia'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -558,6 +559,9 @@ const config: HardhatUserConfig = {
     currency: 'USD',
     gasPrice: 21,
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
+  },
+  mocha: {
+    timeout: 100000000,
   },
   solidity: {
     version: '0.8.19',
