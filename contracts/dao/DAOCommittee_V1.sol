@@ -130,11 +130,6 @@ contract DAOCommittee_V1 is
         _;
     }
 
-    modifier onlyLayer2Manager() {
-        require(msg.sender == layer2Manager, "sender is not a layer2Manager");
-        _;
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Managing members
     function removeFromBlacklist(address _candidate) external onlyOwner {
@@ -334,9 +329,13 @@ contract DAOCommittee_V1 is
 
     /// @notice Retires member
     /// @return Whether or not the execution succeeded
-    function retireMember() onlyMemberContract external returns (bool) {
+    function retireMember() external returns (bool) {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
+        require(
+            candidateInfo.memberJoinedTime > 0,
+            "DAOCommittee: not a member"
+        );
         require(
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
@@ -601,7 +600,7 @@ contract DAOCommittee_V1 is
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
 
-    function _toRAY(uint256 v) public pure returns (uint256) {
+    function _toRAY(uint256 v) internal pure returns (uint256) {
         return v * 10 ** 9;
     }
 
@@ -624,7 +623,7 @@ contract DAOCommittee_V1 is
         return abi.encodePacked(a);
     }
 
-    function payCreatingAgendaFee(address _creator) internal {
+    function _payCreatingAgendaFee(address _creator) internal {
         uint256 fee = agendaManager.createAgendaFees();
 
         IERC20(ton).safeTransferFrom(_creator, address(this), fee);
@@ -694,7 +693,7 @@ contract DAOCommittee_V1 is
         returns (uint256)
     {
         // pay to create agenda, burn ton.
-        payCreatingAgendaFee(_creator);
+        _payCreatingAgendaFee(_creator);
 
         uint256 agendaID = agendaManager.newAgenda(
             _targets,
