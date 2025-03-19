@@ -945,8 +945,6 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
         depositManagerProxy = new ethers.Contract(DepositManager,  DepositManagerProxy_Json.abi, deployer)
 
         seigManager = new ethers.Contract(SeigManager,  SeigManager_Json.abi, deployer)
-
-
         seigManagerProxy = new ethers.Contract(SeigManager,  SeigManagerProxy_Json.abi, deployer)
 
         // await hre.network.provider.send("hardhat_impersonateAccount", [
@@ -2012,7 +2010,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
         */
 
         it('requestWithdrawal to thanosLayerAddress', async () => {
-             let layer2 = thanosLayerAddress
+            let layer2 = thanosLayerAddress
             let account = addr1
             let wtonAmount = ethers.utils.parseEther("5"+"0".repeat(9))
 
@@ -2081,8 +2079,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
         })
 
         it('deposit to tokamak using deposit(address,address,uint256) ', async () => {
-            // console.log(deployed.seigManagerV2)
-            // let account = deployer
+
             let account = addr1
             let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
             await wtonContract.connect(wtonHave).transfer(account.address, wtonAmount);
@@ -2160,135 +2157,6 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             await processRequest(layer2, account);
         });
     })
-
-    /* Titan is closed
-    describe('# withdrawAndDepositL2 : Titan LayerCandidate ', () => {
-
-        it('deposit to Titan using approveAndCall', async () => {
-
-            let account = tonHave
-            let tonAmount = ethers.utils.parseEther("100")
-
-            const beforeBalance = await tonContract.balanceOf(account.address);
-            expect(beforeBalance).to.be.gte(tonAmount)
-
-            let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-
-            const data = marshalString(
-                [depositManager.address, titanLayerAddress]
-                  .map(unmarshalString)
-                  .map(str => padLeft(str, 64))
-                  .join(''),
-            );
-
-            await (await tonContract.connect(account).approveAndCall(
-                wtonContract.address,
-                tonAmount,
-                data,
-                {from: account.address}
-            )).wait()
-
-            const afterBalance = await tonContract.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
-
-            let stakedB = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-
-            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
-                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
-            )
-        })
-
-
-        it('deposit to layer1 using approveAndCall', async () => {
-
-            let account = tonHave
-            let tonAmount = ethers.utils.parseEther("100")
-
-            const beforeBalance = await tonContract.balanceOf(account.address);
-
-            expect(beforeBalance).to.be.gte(tonAmount)
-
-            let stakedA = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
-
-            const data = marshalString(
-                [depositManager.address, layer2Info_1.layer2]
-                  .map(unmarshalString)
-                  .map(str => padLeft(str, 64))
-                  .join(''),
-            );
-
-            await (await tonContract.connect(account).approveAndCall(
-                wtonContract.address,
-                tonAmount,
-                data,
-                {from: account.address}
-            )).wait()
-
-            const afterBalance = await tonContract.balanceOf(account.address);
-            expect(afterBalance).to.be.eq(beforeBalance.sub(tonAmount))
-
-            let stakedB = await seigManager["stakeOf(address,address)"](layer2Info_1.layer2, account.address)
-
-            expect(roundDown(stakedB.add(ethers.constants.Two),3)).to.be.eq(
-                roundDown(stakedA.add(tonAmount.mul(ethers.BigNumber.from("1000000000"))), 3)
-            )
-        })
-
-        it('withdrawAndDepositL2 : Not supported in DAOCandidate layer.', async () => {
-            let layer2 = layer2Info_1.layer2
-            let account = tonHave
-            let wtonAmount = ethers.utils.parseEther("10"+"0".repeat(9))
-
-            await expect(depositManager.connect(account).withdrawAndDepositL2(
-                layer2,
-                wtonAmount
-            )).to.be.revertedWith("OperatorError")
-
-        })
-
-        it('withdrawAndDepositL2 : Failure if the staking amount is insufficient', async () => {
-
-            let account = tonHave
-            let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-
-            await expect(depositManager.connect(account).withdrawAndDepositL2(
-                titanLayerAddress,
-                stakedA.add(ethers.constants.One)
-            )).to.be.revertedWith("staked amount is insufficient")
-        })
-
-        it('When you run it, deposit money to L2 immediately without delay blocks.', async () => {
-            let account = tonHave
-
-            let rollupConfig = await titanOperatorContract.rollupConfig()
-            expect(rollupConfig).to.be.not.eq(ethers.constants.AddressZero)
-
-            let prevLayer2TVL = await l1BridgeRegistry.layer2TVL(rollupConfig)
-
-            let stakedA = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-
-            let receipt = await (await depositManager.connect(account).withdrawAndDepositL2(
-                titanLayerAddress,
-                stakedA
-            )).wait()
-
-            const topic = depositManager.interface.getEventTopic('WithdrawalAndDeposited');
-            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
-            const deployedEvent = depositManager.interface.parseLog(log);
-            expect(deployedEvent.args.layer2).to.be.eq(titanLayerAddress)
-            expect(deployedEvent.args.account).to.be.eq(account.address)
-            expect(deployedEvent.args.amount).to.be.eq(stakedA)
-
-            let stakedB = await seigManager["stakeOf(address,address)"](titanLayerAddress, account.address)
-            expect(stakedB).to.be.eq(ethers.constants.Zero)
-
-            const afterTonBalance = await tonContract.balanceOf(depositManager.address);
-            expect(await l1BridgeRegistry.layer2TVL(rollupConfig)).to.be.eq(
-                prevLayer2TVL.add(stakedA.div(BigNumber.from("1000000000"))))
-
-        })
-    })
-    */
 
     describe('# withdrawAndDepositL2 : Thanos LayerCandidate ', () => {
 

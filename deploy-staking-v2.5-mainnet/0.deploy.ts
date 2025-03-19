@@ -4,19 +4,18 @@ import { DeployFunction } from "hardhat-deploy/types";
 // import "@nomiclabs/hardhat-ethers";
 
 import { L1BridgeRegistryProxy } from "../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
-import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
+import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1"
 
 import { Layer2ManagerProxy } from "../typechain-types/contracts/layer2/Layer2ManagerProxy"
-import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
+import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1"
 import { OperatorManagerFactory } from "../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
-import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
+import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1"
 
-import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
 import { CandidateAddOnFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
-import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
-import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
+import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory"
+import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1"
 
-import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
@@ -55,9 +54,12 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
         }
     }
+
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
+    //----------------------------------------------------------
+    //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
     const name = 'Titan DAO'
     const addresses = {
         l1CrossDomainMessenger: l1MessengerAddress,
@@ -70,6 +72,8 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log("\n === Titan Candidate ===" )
     console.log("name: ", name)
     console.log("addresses: ", addresses)
+    //----------------------------------------------------------
+
 
     console.log("deployer", deployer)
 
@@ -254,6 +258,13 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
             )).wait()
     }
 
+    //==== SeigManagerV1_2 =================================
+    const SeigManagerV1_2 = await deploy("SeigManagerV1_2", {
+        from: deployer,
+        args: [],
+        log: true
+    });
+
     //==== SeigManagerV1_3 =================================
     const SeigManagerV1_3 = await deploy("SeigManagerV1_3", {
         from: deployer,
@@ -290,6 +301,8 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
+    //----------------------------------------------------------
+    //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
     //==== LegacySystemConfig =================================
     const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
         from: deployer,
@@ -331,12 +344,14 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
         ownerAddressInfo.Titan.manager
     )).wait()
+    //----------------------------------------------------------
+
 
     //======= TransferOwner to DAOCommittee ======================================
 
     await (await candidateAddOnFactoryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
     await (await operatorManagerFactory.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
-    await (await l1BridgeRegistryProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
+    await (await l1BridgeRegistryProxy.connect(deploySigner).transferAdmin(DAOCommitteeProxy)).wait()
     await (await layer2ManagerProxy.connect(deploySigner).transferOwnership(DAOCommitteeProxy)).wait()
 
     console.log("candidateAddOnFactoryProxy.isAdmin(deployer): ", await candidateAddOnFactoryProxy.isAdmin(deployer))
@@ -350,8 +365,12 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
     console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
     console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))
 
+    //----------------------------------------------------------
+    //------- 실제 상용에서 Candidate 등록은 하지 않음. ---------------
     console.log("[Titan RollupConfig] legacySystemConfig.proxyOwner(): ", await legacySystemConfig.proxyOwner())
     console.log("[Titan RollupConfig] legacySystemConfig.owner(): ", await legacySystemConfig.owner())
+    //----------------------------------------------------------
+
 
     //==== verify =================================
     if (hre.network.name != "hardhat" && hre.network.name != "local") {

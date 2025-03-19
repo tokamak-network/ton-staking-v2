@@ -466,9 +466,10 @@ const config: HardhatUserConfig = {
         // blockNumber:
         // test registerCandidateAddOn
         // blockNumber: 6797943
-        blockNumber: 7551570,
+        // blockNumber: 7551570,
+        blockNumber: 7933538
       },
-      // allowUnlimitedContractSize: false,
+      allowUnlimitedContractSize: false,
       // deploy: ['deploy-layer2'],
       // deploy: ['deploy-staking-v2.5-mainnet'],
       deploy: ['deploy-staking-v2.5-sepolia'],
@@ -558,6 +559,9 @@ const config: HardhatUserConfig = {
     currency: 'USD',
     gasPrice: 21,
     coinmarketcap: `${process.env.COINMARKETCAP_API_KEY}`
+  },
+  mocha: {
+    timeout: 100000000,
   },
   solidity: {
     version: '0.8.19',

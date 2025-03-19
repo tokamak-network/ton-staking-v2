@@ -4,19 +4,18 @@ import { DeployFunction } from "hardhat-deploy/types";
 // import "@nomiclabs/hardhat-ethers";
 
 import { L1BridgeRegistryProxy } from "../typechain-types/contracts/layer2/L1BridgeRegistryProxy"
-import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1.sol"
+import { L1BridgeRegistryV1_1 } from "../typechain-types/contracts/layer2/L1BridgeRegistryV1_1"
 
 import { Layer2ManagerProxy } from "../typechain-types/contracts/layer2/Layer2ManagerProxy"
-import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1.sol"
+import { Layer2ManagerV1_1 } from "../typechain-types/contracts/layer2/Layer2ManagerV1_1"
 import { OperatorManagerFactory } from "../typechain-types/contracts/layer2/factory/OperatorManagerFactory.sol"
-import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1.sol"
+import { OperatorManagerV1_1 } from "../typechain-types/contracts/layer2/OperatorManagerV1_1"
 
-import { DAOCommitteeAddV1_1 } from "../typechain-types/contracts/dao/DAOCommitteeAddV1_1.sol"
 import { CandidateAddOnFactoryProxy } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactoryProxy"
-import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory.sol"
-import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
+import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/CandidateAddOnFactory"
+import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1"
 
-import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3"
 import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
