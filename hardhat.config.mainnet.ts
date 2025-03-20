@@ -406,7 +406,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `${process.env.ETH_NODE_URI_MAINNET}`,
-        blockNumber: 21077756
+        // blockNumber: 21077756
         // url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 5859537,
@@ -427,6 +427,7 @@ const config: HardhatUserConfig = {
         // blockNumber:
         // test registerCandidateAddOn
         // blockNumber: 6797943
+        blockNumber: 22081265
       },
       // allowUnlimitedContractSize: false,
       deploy: ['deploy-staking-v2.5-mainnet'],
