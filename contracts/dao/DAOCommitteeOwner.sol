@@ -16,7 +16,15 @@ contract DAOCommitteeOwner is
     AccessControl,
     ERC165A,
     StorageStateCommitteeV2
-{
+{   
+    /**
+     * @notice Event that occurs when calling setCooldown function
+     * @param cooldownTime    This value is the period of time after changeMember is executed until the corresponding Candidate executes the next changeMember.
+     */
+    event SetCooldownTime(
+        uint256 cooldownTime
+    );
+
     /**
      * @notice Event that occurs when calling increaseMaxMember & decreaseMaxMember function
      * @param prevSlotMax    Before number of member slot
@@ -165,6 +173,7 @@ contract DAOCommitteeOwner is
         onlyOwner
     {
         cooldownTime = _cooltime;
+        emit SetCooldownTime(cooldownTime);
     }
 
     /// @notice Set the candidateAddOnFactory
@@ -413,14 +422,12 @@ contract DAOCommitteeOwner is
     /// @param _to Address to execute
     /// @param _value ETH Value
     /// @param _data The function to be executed.
-    function executeTransaction(
+    function daoExecuteTransaction(
         address _to,
-        uint _value,
+        uint256 _value,
         bytes memory _data
     )
         external
-        onlyOwner
-        nonZero(_to)
     {
         require(_data.length != 0 || _value != 0, "invalid data");
         
