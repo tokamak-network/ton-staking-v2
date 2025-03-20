@@ -134,14 +134,12 @@ describe('Check SeigManager, depositManager', () => {
             const l1BridgeRegistry = await seigManagerV1_3.l1BridgeRegistry()
             const layer2Manager = await seigManagerV1_3.layer2Manager()
             const layer2StartBlock = await seigManagerV1_3.layer2StartBlock()
-            const l2RewardPerUint = await seigManagerV1_3.l2RewardPerUint()
             const totalLayer2TVL = await seigManagerV1_3.totalLayer2TVL()
 
 
             console.log("l1BridgeRegistry", l1BridgeRegistry)
             console.log("layer2Manager", layer2Manager)
             console.log("layer2StartBlock", layer2StartBlock)
-            console.log("l2RewardPerUint", l2RewardPerUint)
             console.log("totalLayer2TVL", totalLayer2TVL)
 
             // test1
@@ -186,11 +184,6 @@ describe('Check SeigManager, depositManager', () => {
 
         // });
 
-        // it('resetL2RewardPerUint 스토리지 설정 ', async () => {
-        //     const receipt4 = await (await seigManagerV1_3.resetL2RewardPerUint()).wait()
-        //    console.log("resetL2RewardPerUint", receipt4.transactionHash)
-
-        // });
 
     })
 

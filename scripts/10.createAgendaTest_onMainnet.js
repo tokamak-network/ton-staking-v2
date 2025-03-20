@@ -41,7 +41,7 @@ async function CreateAgendaTest() {
     let l2TonAddress = "0x7c6b91D9Be155A6Db01f749217d76fF02A7227F2"
     let name = 'Titan DAO'
     // need the check setImplementation2 SeigManger & DepositManager number
-    
+
     const [deployer] = await ethers.getSigners();
     //==== Set DAOCommitteeProxy =================================
     let daoCommitteeProxy = new ethers.Contract(
@@ -68,39 +68,39 @@ async function CreateAgendaTest() {
 
     //==== Set SeigManagerProxy =================================
     let seigManagerProxy = new ethers.Contract(
-        mainnetContractInfo.SeigManagerProxy,  
-        SeigManagerProxy_Json.abi, 
-        ethers.provider    
-    ) 
+        mainnetContractInfo.SeigManagerProxy,
+        SeigManagerProxy_Json.abi,
+        ethers.provider
+    )
 
     //==== Set DepositManagerProxy =================================
     let depositManagerProxy = new ethers.Contract(
-        mainnetContractInfo.DepositManagerProxy,  
-        DepositManagerProxy_Json.abi, 
+        mainnetContractInfo.DepositManagerProxy,
+        DepositManagerProxy_Json.abi,
         ethers.provider
-    ) 
+    )
 
     //==== Set DaoCommitteeOwner =================================
     let daoCommitteeOwner = new ethers.Contract(
-        daoCommitteeOwnerAddr,  
-        DAOCommitteeOwnerABI, 
+        daoCommitteeOwnerAddr,
+        DAOCommitteeOwnerABI,
         ethers.provider
-    ) 
+    )
 
     //==== Set seigManagerV1_3 =================================
     let seigManagerV1_3 = new ethers.Contract(
-        seigManagerV1_3Addr,  
-        SeigManagerV3ABI, 
+        seigManagerV1_3Addr,
+        SeigManagerV3ABI,
         ethers.provider
     )
 
     //==== Set depositManagerV1_1 =================================
     let depositManagerV1_1 = new ethers.Contract(
-        depositManagerV1_1Addr,  
-        DepositManagerV1ABI, 
+        depositManagerV1_1Addr,
+        DepositManagerV1ABI,
         ethers.provider
-    ) 
-    
+    )
+
     //==== Set TON =================================
     let ton = new ethers.Contract(
         mainnetContractInfo.TON,
@@ -127,11 +127,11 @@ async function CreateAgendaTest() {
     //==== Create Agenda =================================
     const _setCandidateAddOnFactory = Web3EthAbi.encodeFunctionSignature(
         "setCandidateAddOnFactory(address)"
-    ) 
+    )
 
     const _setLayer2Manager = Web3EthAbi.encodeFunctionSignature(
         "setLayer2Manager(address)"
-    ) 
+    )
 
     const _setTargetSetLayer2Manager = Web3EthAbi.encodeFunctionSignature(
         "setTargetSetLayer2Manager(address,address)"
@@ -184,7 +184,7 @@ async function CreateAgendaTest() {
     const _setTargetSetTON = Web3EthAbi.encodeFunctionSignature(
         "setTargetSetTON(address,address)"
     )
-    
+
     const _setTargetSetWTON = Web3EthAbi.encodeFunctionSignature(
         "setTargetSetWTON(address,address)"
     )
@@ -275,7 +275,7 @@ async function CreateAgendaTest() {
 
     let targets = [];
     let functionBytecodes = [];
-    
+
     const functionBytecode0 = daoCommitteeProxy.interface.encodeFunctionData(
         "upgradeTo", [daoCommitteeProxy2]
     )
@@ -337,9 +337,8 @@ async function CreateAgendaTest() {
     const selector10 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
     const selector11 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
     const selector12 = Web3EthAbi.encodeFunctionSignature("layer2StartBlock()");
-    const selector13 = Web3EthAbi.encodeFunctionSignature("l2RewardPerUint()");
     const selector14 = Web3EthAbi.encodeFunctionSignature("unSettledReward(address)");
-    const selector15 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
+    const selector15 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address)");
     const selector16 = Web3EthAbi.encodeFunctionSignature("excludeFromSeigniorage(address)");
     const selector17 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorage()");
     const selector18 = Web3EthAbi.encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
@@ -349,7 +348,7 @@ async function CreateAgendaTest() {
     let setSelectorBytes2 = [
         selector1, selector2, selector3, selector4, selector5,
         selector6, selector7, selector8, selector9, selector10,
-        selector11, selector12, selector13, selector14, selector15,
+        selector11, selector12, selector14, selector15,
         selector16,selector17, selector18, selector19, selector20
     ];
 

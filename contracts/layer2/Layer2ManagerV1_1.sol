@@ -207,7 +207,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         if (!ISeigManager(seigManager).includeFromL2Seigniorage(_layer2)) revert IncludeError();
     }
 
-    /* ========== onlySeigManger  ========== */
+     /* ========== onlySeigManger  ========== */
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
@@ -223,6 +223,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         emit TransferWTON(layer2, operator, amount);
     }
+
 
     /* ========== Anybody can execute ========== */
 

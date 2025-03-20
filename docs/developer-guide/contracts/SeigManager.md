@@ -119,6 +119,7 @@ Total staked amount (based on seigniorage distribution)
 - Result
   - (uint256) : Staking amount, expressed in decimals RAY units (10^27).
 
+
 ---
 
 

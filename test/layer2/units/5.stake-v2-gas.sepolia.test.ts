@@ -23,6 +23,7 @@ import { CandidateAddOnFactory } from "../../../typechain-types/contracts/dao/fa
 import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/CandidateAddOnV1_1.sol"
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3.sol"
+import { SeigManagerV1_4 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_4"
 import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
 
 import { MockSystemConfigFactory } from "../../../typechain-types/contracts/mocks/MockSystemConfigFactory.sol"
@@ -77,6 +78,20 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
+async function logLayer2RewardInfo(contract: SeigManagerV1_3 | Contract,) {
+    var len= await contract.l2UpdateBlockLength()
+    console.log("--- ", len," ---------", len, len.toNumber())
+
+    for(let i=0; i < len.toNumber(); i++){
+        console.log("--- ", i ," ---------")
+
+        var block = await contract.l2UpdateBlock(i)
+        var info = await contract.l2RewardAtBlock(block)
+        console.log(" Block : ", block, ",  l2RewardAtBlock : ",  info)
+
+    }
+}
+
 describe('TON Staking V2.5', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
@@ -91,6 +106,7 @@ describe('TON Staking V2.5', () => {
     let tonContract: Contract, wtonContract: Contract, daoContract: Contract, daoV2Contract: Contract
     let depositManager: Contract,  depositManagerProxy: Contract, seigManager: Contract, seigManagerProxy: Contract;
     let seigManagerV1_3: SeigManagerV1_3;
+    let seigManagerV1_4: SeigManagerV1_4;
     let depositManagerV1_1: DepositManagerV1_1;
 
     let daoAdmin: Signer;
@@ -599,6 +615,10 @@ describe('TON Staking V2.5', () => {
             seigManagerV1_3 = (await (await ethers.getContractFactory("SeigManagerV1_3")).connect(deployer).deploy()) as SeigManagerV1_3;
         })
 
+        it('deploy SeigManagerV1_4', async () => {
+            seigManagerV1_4 = (await (await ethers.getContractFactory("SeigManagerV1_4")).connect(deployer).deploy()) as SeigManagerV1_4;
+        })
+
         it('deploy DepositManagerV1_1', async () => {
             depositManagerV1_1 = (await (await ethers.getContractFactory("DepositManagerV1_1")).connect(deployer).deploy()) as DepositManagerV1_1;
         })
@@ -620,9 +640,6 @@ describe('TON Staking V2.5', () => {
         it('SeigManager register function ', async () => {
             daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeAddV1_1_Json.abi, deployer);
 
-            const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
-            const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-            const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
             const selector4 = encodeFunctionSignature("updateSeigniorage()");
             const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
             const selector6 = encodeFunctionSignature("updateSeigniorageLayer(address)");
@@ -632,23 +649,27 @@ describe('TON Staking V2.5', () => {
             const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
             const selector11 = encodeFunctionSignature("layer2Manager()");
             const selector12 = encodeFunctionSignature("layer2StartBlock()");
-            const selector13 = encodeFunctionSignature("l2RewardPerUint()");
             const selector14 = encodeFunctionSignature("unSettledReward(address)");
-            const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address,bool)");
-            const selector16 = encodeFunctionSignature("excludeFromSeigniorage(address)");
+            const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address)");
+            const selector16 = encodeFunctionSignature("excludeFromL2Seigniorage(address)");
              const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
             const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
             const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
             const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
+            const selector22 = encodeFunctionSignature("includeL2Seigniorage(address,address)");
+            const selector23 = encodeFunctionSignature("l2UpdateBlockLength()");
+            const selector24 = encodeFunctionSignature("l2UpdateBlock(uint256)");
+            const selector25 = encodeFunctionSignature("l2RewardAtBlock(uint256)");
 
             let functionBytecodes = [
-                selector1, selector2, selector3, selector4, selector5,
+                selector4, selector5,
                 selector6, selector7, selector8, selector9, selector10,
-                selector11, selector12, selector13, selector14, selector15
+                selector11, selector12, selector14, selector15
                 , selector16,
-                selector17, selector18, selector19, selector20
+                selector17, selector18, selector19, selector20,selector22,
+                selector23, selector24, selector25
             ];
-            const index = 1;
+            const index = 3;
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
 
             // await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
@@ -670,9 +691,7 @@ describe('TON Staking V2.5', () => {
                 seigManagerV1_3.address)).wait()
 
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(seigManagerV1_3.address)
-            expect(await seigManagerProxy.getSelectorImplementation2(selector1)).to.be.eq(seigManagerV1_3.address)
-            expect(await seigManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(seigManagerV1_3.address)
-            expect(await seigManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(seigManagerV1_3.address)
+
             expect(await seigManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector5)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector6)).to.be.eq(seigManagerV1_3.address)
@@ -683,10 +702,51 @@ describe('TON Staking V2.5', () => {
             expect(await seigManagerProxy.getSelectorImplementation2(selector10)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector11)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector12)).to.be.eq(seigManagerV1_3.address)
-            expect(await seigManagerProxy.getSelectorImplementation2(selector13)).to.be.eq(seigManagerV1_3.address)
+
             expect(await seigManagerProxy.getSelectorImplementation2(selector14)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector15)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector16)).to.be.eq(seigManagerV1_3.address)
+
+        })
+
+        it('SeigManagerV1_4 register function ', async () => {
+
+            const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
+            const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
+            const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
+            const selector4 = encodeFunctionSignature("setMaxLoopCount(address)");
+
+
+            let functionBytecodes = [
+                selector1, selector2, selector3, selector4,
+            ];
+            const index = 4;
+            expect(await seigManagerProxy.implementation2(index)).to.be.eq(ethers.constants.AddressZero)
+
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetImplementation2(
+            //     seigManager.address,
+            //     seigManagerV1_4.address,
+            //     index, true)).wait();
+
+            // await (await daoV2Contract.connect(daoOwner).setTargetSetSelectorImplementations2(
+            //     seigManager.address,
+            //     functionBytecodes,
+            //     seigManagerV1_4.address)).wait()
+
+
+            await (await seigManagerProxy.connect(daoOwner).setImplementation2(
+                seigManagerV1_4.address,
+                index, true)).wait();
+
+            await (await seigManagerProxy.connect(daoOwner).setSelectorImplementations2(
+                functionBytecodes,
+                seigManagerV1_4.address)).wait()
+
+            expect(await seigManagerProxy.implementation2(index)).to.be.eq(seigManagerV1_4.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector1)).to.be.eq(seigManagerV1_4.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(seigManagerV1_4.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(seigManagerV1_4.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(seigManagerV1_4.address)
 
         })
 
@@ -1095,7 +1155,7 @@ describe('TON Staking V2.5', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(titanLayerAddress)).wait()
@@ -1201,7 +1261,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(titanLayerAddress)).wait()
@@ -1266,7 +1326,6 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(titanOperatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
@@ -1276,7 +1335,6 @@ describe('TON Staking V2.5', () => {
             let layer2RewardInfo = await seigManager.layer2RewardInfo(titanLayerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
             expect(afterWtonBalanceOfLayer2Manager).to.be.gt(ethers.constants.Zero)
 
         })
@@ -1305,22 +1363,20 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const rollupConfig = layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
-
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
+            let layer2RewardInfoPrev = await seigManager.layer2RewardInfo(titanLayerAddress)
+            console.log('layer2RewardInfoPrev', layer2RewardInfoPrev)
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -1397,17 +1453,21 @@ describe('TON Staking V2.5', () => {
 
             // let afterCall = 1; claim mode
             let totalBalanceOfLayer2Manager = prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs)
-            let sendAmountToOperator = deployedEvent1.args.layer2Seigs
 
+            let sendAmountToOperator = deployedEvent1.args.layer2Seigs.add(layer2RewardInfoPrev.reward)
+            // console.log('sendAmountToOperator', sendAmountToOperator)
             let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
+
             expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
 
             expect(afterWtonBalanceOfLayer2Manager).to.be.eq(
-                prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs)
+                prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs).sub(layer2RewardInfoPrev.reward)
             )
+
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
 
-            // expect(afterWtonBalanceOfManager).to.be.eq(prevWtonBalanceOfLayer2Operator.add(estimatedDistribute.layer2Seigs))
+            // expect(afterWtonBalanceOfManager).to.be.eq(
+            //     prevWtonBalanceOfLayer2Operator.add(estimatedDistribute.layer2Seigs).add(layer2RewardInfoPrev.reward))
 
         })
 
@@ -1437,14 +1497,11 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const rollupConfig = layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
@@ -1455,7 +1512,7 @@ describe('TON Staking V2.5', () => {
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -2175,9 +2232,6 @@ describe('TON Staking V2.5', () => {
             const receipt =  await (await l1BridgeRegistry.connect(seigniorageCommittee).rejectCandidateAddOn(
                 legacySystemConfig.address
             )).wait()
-
-            logUsedGas.push(gasUsedFunctions('L1BridgeRegistry', 'rejectCandidateAddOn', 'legacySystemConfig', receipt))
-
             const topic = l1BridgeRegistry.interface.getEventTopic('RejectedCandidateAddOn');
             const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
             const deployedEvent = l1BridgeRegistry.interface.parseLog(log);
@@ -2189,13 +2243,12 @@ describe('TON Staking V2.5', () => {
             expect(deployedEvent1.args.rollupConfig).to.be.eq(legacySystemConfig.address)
             expect(deployedEvent1.args.candidateAddOn).to.be.eq(titanLayerAddress)
 
-            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromSeigniorage');
+            const topic2 = seigManagerV1_3.interface.getEventTopic('ExcludedFromL2Seigniorage');
             const log2 = receipt.logs.find(x => x.topics.indexOf(topic2) >= 0);
             const deployedEvent2 = seigManagerV1_3.interface.parseLog(log2);
 
             expect(deployedEvent2.args.layer2).to.be.eq(titanLayerAddress)
             expect(deployedEvent2.args.layer2Tvl).to.be.eq(l2Info.layer2Tvl)
-            expect(deployedEvent2.args.initialDebt).to.be.eq(l2Info.initialDebt)
 
 
             expect(await l1BridgeRegistry.rejectRollupConfig(legacySystemConfig.address)).to.be.eq(true)
@@ -2203,7 +2256,6 @@ describe('TON Staking V2.5', () => {
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
             expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
-            expect(l2InfoAfter.initialDebt).to.be.eq(ethers.constants.Zero)
             expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.sub(l2Info.layer2Tvl))
 
             let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
@@ -2345,7 +2397,7 @@ describe('TON Staking V2.5', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr2.address)
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(titanLayerAddress)).wait()
@@ -2436,14 +2488,11 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
@@ -2451,7 +2500,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -2562,14 +2611,11 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(titanOperatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await titanLayerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](titanLayerAddress, addr1.address)
@@ -2579,7 +2625,7 @@ describe('TON Staking V2.5', () => {
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, titanLayerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -2774,7 +2820,7 @@ describe('TON Staking V2.5', () => {
             // console.log('stakedAddr1Prev', stakedAddr1Prev)
             // console.log('stakedAddr2Prev', stakedAddr2Prev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -2920,7 +2966,7 @@ describe('TON Staking V2.5', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -3034,7 +3080,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -3099,7 +3145,6 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
@@ -3109,7 +3154,6 @@ describe('TON Staking V2.5', () => {
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
             expect(afterWtonBalanceOfLayer2Manager).to.be.gt(ethers.constants.Zero)
 
         })
@@ -3143,14 +3187,11 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
@@ -3158,7 +3199,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -3278,14 +3319,10 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
-
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
@@ -3295,7 +3332,7 @@ describe('TON Staking V2.5', () => {
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -3548,7 +3585,6 @@ describe('TON Staking V2.5', () => {
             let totalLayer2TVLAfter = await seigManager.totalLayer2TVL()
 
             expect(l2InfoAfter.layer2Tvl).to.be.eq(ethers.constants.Zero)
-            expect(l2InfoAfter.initialDebt).to.be.eq(ethers.constants.Zero)
             expect(totalLayer2TVLAfter).to.be.eq(totalLayer2TVL.sub(l2Info.layer2Tvl))
 
             let allowIssuanceLayer2SeigsAfter = await seigManager.allowIssuanceLayer2Seigs(titanLayerAddress)
@@ -3592,7 +3628,7 @@ describe('TON Staking V2.5', () => {
             // console.log('stakedAddr1Prev', stakedAddr1Prev)
             // console.log('stakedAddr2Prev', stakedAddr2Prev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -3708,7 +3744,7 @@ describe('TON Staking V2.5', () => {
             let stakedAddr2Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr2.address)
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -3822,7 +3858,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress, false)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1,layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             const receipt = await (await seigManager.connect(deployer).updateSeigniorageLayer(layerAddress)).wait()
@@ -3887,7 +3923,6 @@ describe('TON Staking V2.5', () => {
             const afterWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const afterWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const afterTotalTvl = await seigManager.totalLayer2TVL()
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
 
             // console.log('afterTotalTvl', afterTotalTvl)
             // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
@@ -3897,7 +3932,6 @@ describe('TON Staking V2.5', () => {
             let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
             // console.log('layer2RewardInfo', layer2RewardInfo)
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
             expect(afterWtonBalanceOfLayer2Manager).to.be.gt(ethers.constants.Zero)
 
         })
@@ -3922,24 +3956,28 @@ describe('TON Staking V2.5', () => {
             let totalSupplyOfTon = await seigManager["totalSupplyOfTon()"]()
 
             // console.log('operatorContractAddress', operatorContractAddress)
+            const prevTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const prevTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const prevTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
+            // console.log('prevTonBalanceOfManager', prevTonBalanceOfManager)
+
             const prevWtonBalanceOfLayer2Manager = await wtonContract.balanceOf(layer2Manager.address)
             const prevWtonBalanceOfLayer2Operator = await wtonContract.balanceOf(operatorContractAddress)
             const prevWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
+            // console.log('prevWtonBalanceOfManager', prevWtonBalanceOfManager)
 
             const prevUnSettledReward = await seigManager.unSettledReward(layerAddress)
             expect(prevWtonBalanceOfLayer2Manager).to.be.gte(prevUnSettledReward)
 
             const totalTvl = await seigManager.totalLayer2TVL()
-            const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
-            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
-
+            const rollupConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
+            const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(rollupConfig)
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
+            let layer2RewardInfoPrev = await seigManager.layer2RewardInfo(layerAddress)
+            // console.log('layer2RewardInfoPrev', layer2RewardInfoPrev)
 
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
@@ -3947,7 +3985,7 @@ describe('TON Staking V2.5', () => {
 
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -4013,27 +4051,26 @@ describe('TON Staking V2.5', () => {
             const afterTotalTvl = await seigManager.totalLayer2TVL()
             const afterWtonBalanceOfManager = await wtonContract.balanceOf(operatorOwner.address)
 
-            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
-            // console.log('layer2RewardInfo', layer2RewardInfo)
+            const afterTonBalanceOfLayer2Manager = await tonContract.balanceOf(layer2Manager.address)
+            const afterTonBalanceOfLayer2Operator = await tonContract.balanceOf(operatorContractAddress)
+            const afterTonBalanceOfManager = await tonContract.balanceOf(operatorOwner.address)
 
-            // console.log('afterTotalTvl', afterTotalTvl)
-            // console.log('afterWtonBalanceOfLayer2Manager', afterWtonBalanceOfLayer2Manager)
-            // console.log('afterWtonBalanceOfLayer2Operator', afterWtonBalanceOfLayer2Operator)
+
+            let layer2RewardInfo = await seigManager.layer2RewardInfo(layerAddress)
 
             expect(layer2RewardInfo.layer2Tvl).to.be.eq(curLayer2Tvl);
 
-            // let afterCall = 1; claim mode
+            // let afterCall = 1; claim mode, flag = true , claim for TON
             let totalBalanceOfLayer2Manager = prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs)
-            let sendAmountToOperator = deployedEvent1.args.layer2Seigs
+            let sendAmountToOperator = deployedEvent1.args.layer2Seigs.add(layer2RewardInfoPrev.reward)
+            let claimAmount = prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator)
 
-            let managerBalance = prevWtonBalanceOfManager.add(prevWtonBalanceOfLayer2Operator.add(sendAmountToOperator))
-            expect(afterWtonBalanceOfManager).to.be.eq(managerBalance)
-
+            // clain with wton
+            expect(afterWtonBalanceOfManager).to.be.eq(prevWtonBalanceOfManager.add(claimAmount))
             expect(afterWtonBalanceOfLayer2Manager).to.be.eq(
-                prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs)
+                prevWtonBalanceOfLayer2Manager.add(deployedEvent1.args.l2TotalSeigs).sub(deployedEvent1.args.layer2Seigs).sub(layer2RewardInfoPrev.reward)
             )
             expect(afterWtonBalanceOfLayer2Operator).to.be.eq(ethers.constants.Zero)
-
         })
 
         it('evm_mine', async () => {
@@ -4066,14 +4103,10 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
-
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
@@ -4084,7 +4117,7 @@ describe('TON Staking V2.5', () => {
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.
@@ -4207,14 +4240,10 @@ describe('TON Staking V2.5', () => {
             const totalTvl = await seigManager.totalLayer2TVL()
             const systemConfig = await layer2Manager.rollupConfigOfOperator(operatorContractAddress)
             const curLayer2Tvl = await l1BridgeRegistry.layer2TVL(systemConfig)
-            const l2RewardPerUint = await seigManager.l2RewardPerUint()
-
             // console.log('prev totalTvl', totalTvl)
             // console.log('prevWtonBalanceOfLayer2Manager', prevWtonBalanceOfLayer2Manager)
             // console.log('prevWtonBalanceOfLayer2Operator', prevWtonBalanceOfLayer2Operator)
             // console.log('curLayer2Tvl', curLayer2Tvl)
-            // console.log('l2RewardPerUint', l2RewardPerUint)
-            expect(l2RewardPerUint).to.be.gt(ethers.constants.Zero)
 
             let stakedPrev = await layerContract.totalStaked()
             let stakedAddr1Prev = await seigManager["stakeOf(address,address)"](layerAddress, addr1.address)
@@ -4224,7 +4253,7 @@ describe('TON Staking V2.5', () => {
             let powerTonBalancePrev = await wtonContract.balanceOf(powerTon);
             // console.log('stakedOperatorPrev', stakedOperatorPrev)
 
-            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress, true)
+            let estimatedDistribute = await seigManager.estimatedDistribute(block1.number+1, layerAddress)
             // console.log('estimatedDistribute', estimatedDistribute)
 
             // operator 가 직접 정산을 하려면 반드시 CandidateAddOn를 통해 업데이트 시뇨리지를 실행해야 한다.

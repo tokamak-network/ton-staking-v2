@@ -131,13 +131,10 @@ contract CandidateAddOnV1_1 is
         if (IOperateContract(candidate).isOperator(msg.sender)) {
             require(IISeigManager(seigManager).updateSeigniorageOperator(), "fail updateSeigniorageOperator");
             if (afterCall != 0) {
-                uint256 amount = IERC20(wton).balanceOf(candidate);
-                if (amount!= 0) {
-                    if (afterCall == 2) {
-                        IOperateContract(candidate).depositByCandidateAddOn(amount);
-                    } else if (afterCall == 1) {
-                        IOperateContract(candidate).claimByCandidateAddOn(amount, flagTON);
-                    }
+                if (afterCall == 2) {
+                    IOperateContract(candidate).depositByCandidateAddOn();
+                } else if (afterCall == 1) {
+                    IOperateContract(candidate).claimByCandidateAddOn(flagTON);
                 }
             }
         } else {
