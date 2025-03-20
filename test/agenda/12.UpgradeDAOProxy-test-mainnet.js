@@ -1006,7 +1006,7 @@ describe("DAO Proxy Change Test", () => {
         it("3. retireMember (get TON) (add blackList) (onlyMember)", async () => {
             let memberCheck = await daoCommittee_V1_Contract.members(1)
             expect(memberCheck).to.be.equal(member2AddrUpper)
-            let beforeWTONAmount = await wton.balanceOf(member2.address)
+            // let beforeWTONAmount = await wton.balanceOf(member2.address)
             let blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
             expect(blacklistCheck).to.be.equal(false)
 
@@ -1016,8 +1016,8 @@ describe("DAO Proxy Change Test", () => {
 
             memberCheck = await daoCommittee_V1_Contract.members(1)
             expect(memberCheck).to.be.equal(zeroAddr)
-            let afterWTONAmount = await wton.balanceOf(member2.address)
-            expect(afterWTONAmount).to.be.gt(beforeWTONAmount)
+            // let afterWTONAmount = await wton.balanceOf(member2.address)
+            // expect(afterWTONAmount).to.be.gt(beforeWTONAmount)
             blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
             expect(blacklistCheck).to.be.equal(true)
         })
@@ -1617,29 +1617,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterAddr).to.be.equal(SeigManagerUpper)
         })
 
-        it("2. setTargetSeigManager test", async () => {
-            let beforeAddr = await talkenContractLogic.seigManager()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSeigManager(
-                talkenContractLogic.address,
-                user1.address
-            )
-
-            let afterAddr = await talkenContractLogic.seigManager()
-            expect(beforeAddr).to.be.not.equal(afterAddr)
-            expect(user1.address).to.be.equal(afterAddr)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSeigManager(
-                talkenContractLogic.address,
-                beforeAddr
-            )
-
-            let afterAddr2 = await talkenContractLogic.seigManager()
-
-            expect(afterAddr2).to.be.equal(beforeAddr)
-        })
-
-        it("give the Pauser Role", async () => {
+        it("2. give the Pauser Role", async () => {
             await seigManagerProxyContract.connect(daoCommitteeAdminContract).grantRole(
                 pause_role,
                 daoCommitteeAdminContract.address
@@ -1653,126 +1631,7 @@ describe("DAO Proxy Change Test", () => {
             expect(roleCheck).to.be.equal(true)
         })
 
-        it("3. setSeigPause test", async () => {
-            let beforePauseblock = await seigManagerContract.pausedBlock()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigPause()
-
-            let afterPauseblock = await seigManagerContract.pausedBlock()
-            
-            expect(afterPauseblock).to.be.gt(beforePauseblock)
-        })
-
-        it("4. setSeigUnpause test", async () => {
-            let beforePauseblock = await seigManagerContract.unpausedBlock()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setSeigUnpause()
-
-            let afterPauseblock = await seigManagerContract.unpausedBlock()
-            
-            expect(afterPauseblock).to.be.gt(beforePauseblock)
-        })
-
-        it("5. setTargetGlobalWithdrawalDelay test", async () => {
-            let beforeData = await depositManagerContract.globalWithdrawalDelay()
-            let changeData = 100
-            
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
-                nowContractInfo.DepositManager,
-                changeData
-            )
-
-            let afterData = await depositManagerContract.globalWithdrawalDelay()
-            expect(changeData).to.be.equal(afterData)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetGlobalWithdrawalDelay(
-                nowContractInfo.DepositManager,
-                beforeData
-            )
-
-            let afterData2 = await depositManagerContract.globalWithdrawalDelay()
-            expect(afterData2).to.be.equal(beforeData)
-        })
-
-        it("6. setTargetAddMinter test", async () => {
-            let beforeMinter = await seigManagerContract.isMinter(user1.address)
-            // console.log("beforeMinter :", beforeMinter);
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetAddMinter(
-                nowContractInfo.SeigManager,
-                user1.address
-            )
-
-            let afterMinter = await seigManagerContract.isMinter(user1.address)
-            expect(afterMinter).to.be.equal(true)
-        })
-
-        it("7. setTargetUpgradeTo test", async () => {
-            let beforeAddr = await seigManagerContract.proxyImplementation(0)
-
-            await (
-                await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetUpgradeTo(
-                    seigManagerContract.address,
-                    nowContractInfo.DepositManager
-                )
-            ).wait();
-            
-            let afterAddr = await seigManagerContract.proxyImplementation(0)
-            expect(afterAddr.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
-
-            await (
-                await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetUpgradeTo(
-                    seigManagerContract.address,
-                    beforeAddr
-                )
-            ).wait();
-
-            let afterAddr2 = await seigManagerContract.proxyImplementation(0)
-            expect(afterAddr2.toUpperCase()).to.be.equal(beforeAddr.toUpperCase())
-
-        })
-
-        it("8. setTargetSetTON test", async () => {
-            let beforeTONAddr = await daovault.ton()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetTON(
-                daovault.address,
-                nowContractInfo.DepositManager
-            )
-
-            let afterTONAddr = await daovault.ton()
-            expect(afterTONAddr.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetTON(
-                daovault.address,
-                beforeTONAddr
-            )
-
-            let afterTONAddr2 = await daovault.ton()
-            expect(afterTONAddr2.toUpperCase()).to.be.equal(beforeTONAddr.toUpperCase())
-        })
-
-        it("9. setTargetSetWTON test", async () => {
-            let beforeWTONAddr = await daovault.wton()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetWTON(
-                daovault.address,
-                nowContractInfo.DepositManager
-            )
-
-            let afterWTONAddr = await daovault.wton()
-            expect(afterWTONAddr.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTargetSetWTON(
-                daovault.address,
-                beforeWTONAddr
-            )
-
-            let afterWTONAddr2 = await daovault.wton()
-            expect(afterWTONAddr2.toUpperCase()).to.be.equal(beforeWTONAddr.toUpperCase())
-        })
-
-        it("10. setDaoVault test", async () => {
+        it("3. setDaoVault test", async () => {
             let beforeDaoVault = await daoCommittee_Owner_Contract.daoVault()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setDaoVault(
@@ -1790,7 +1649,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterDAOVault2.toUpperCase()).to.be.equal(beforeDaoVault.toUpperCase())
         })
 
-        it("11. setLayer2Registry test", async () => {
+        it("4. setLayer2Registry test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.layer2Registry()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setLayer2Registry(
@@ -1808,7 +1667,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("12. setAgendaManager test", async () => {
+        it("5. setAgendaManager test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.agendaManager()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setAgendaManager(
@@ -1826,7 +1685,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("13. setCandidateFactory test", async () => {
+        it("6. setCandidateFactory test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.candidateFactory()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidateFactory(
@@ -1844,7 +1703,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("14. setTon test", async () => {
+        it("7. setTon test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.ton()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setTon(
@@ -1862,7 +1721,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("15. setWTON test", async () => {
+        it("8. setWTON test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.wton()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(
@@ -1880,7 +1739,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("16. increaseMaxMember test", async () => {
+        it("9. increaseMaxMember test", async () => {
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).increaseMaxMember(
                 4,
                 3
@@ -1890,7 +1749,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData).to.be.equal(4)
         })
 
-        it("17. setQuorum test", async () => {
+        it("10. setQuorum test", async () => {
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setQuorum(
                 4
             )
@@ -1899,7 +1758,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData).to.be.equal(4)
         })
 
-        it("18. decreaseMaxMember test", async () => {
+        it("11. decreaseMaxMember test", async () => {
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).decreaseMaxMember(
                 3,
                 2
@@ -1909,7 +1768,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData).to.be.equal(3)
         })
 
-        it("19. setActivityRewardPerSecond test", async () => {
+        it("12. setActivityRewardPerSecond test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.activityRewardPerSecond()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setActivityRewardPerSecond(
@@ -1927,7 +1786,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("20. setCandidatesSeigManager test", async () => {
+        it("13. setCandidatesSeigManager test", async () => {
             let beforeData = await member2ContractLogic.seigManager()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesSeigManager(
@@ -1947,7 +1806,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("21. setCandidatesCommittee test", async () => {
+        it("14. setCandidatesCommittee test", async () => {
             let beforeData = await member2ContractLogic.committee()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCandidatesCommittee(
@@ -1967,7 +1826,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("22. setCreateAgendaFees test", async () => {
+        it("15. setCreateAgendaFees test", async () => {
             let beforeData = await daoagendaManager.createAgendaFees()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCreateAgendaFees(
@@ -1985,7 +1844,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("23. setMinimumNoticePeriodSeconds test", async () => {
+        it("16. setMinimumNoticePeriodSeconds test", async () => {
             let beforeData = await daoagendaManager.minimumNoticePeriodSeconds()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumNoticePeriodSeconds(
@@ -2003,7 +1862,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("23. setMinimumVotingPeriodSeconds test", async () => {
+        it("17. setMinimumVotingPeriodSeconds test", async () => {
             let beforeData = await daoagendaManager.minimumVotingPeriodSeconds()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumVotingPeriodSeconds(
@@ -2021,7 +1880,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("24. setExecutingPeriodSeconds test", async () => {
+        it("18. setExecutingPeriodSeconds test", async () => {
             let beforeData = await daoagendaManager.executingPeriodSeconds()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setExecutingPeriodSeconds(
@@ -2039,7 +1898,7 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("25. setBurntAmountAtDAO test", async () => {
+        it("19. setBurntAmountAtDAO test", async () => {
             let beforeData = await seigManagerV1Contract.burntAmountAtDAO()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(

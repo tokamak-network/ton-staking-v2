@@ -304,7 +304,7 @@ contract DAOCommittee_V1 is
             "DAOCommittee: already member"
         );
         require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
-        require(cooldown[candidateInfo.candidateContract] > block.timestamp, "DAOCommittee: need cooldown");
+        require(cooldown[candidateInfo.candidateContract] < block.timestamp, "DAOCommittee: need cooldown");
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
