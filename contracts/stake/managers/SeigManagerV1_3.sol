@@ -128,8 +128,23 @@ contract SeigManagerV1_3 is
      * @notice Event that occurs when calling includeFromL2Seigniorage function
      * @param layer2        the layer2 address
      */
-    event IncludedFromL2Seigniorage(address layer2);
+    event IncludedL2Seigniorage(address layer2);
 
+    /**
+     * @notice  Occurs when the number of unsettled commits exceeds the maximum.
+     *          Considering gas costs, only MAX_LOOP_COUNT commits will be settled.
+     *          Anything that is not settled will be locked on Layer2Manager.
+     *
+     *          Amount that is locked without being settled,
+     *          for i that satisfies the condition calculatedLastIndex < i <= lateIndex,
+     *          sum(l2RewardAtBlock[i's block] * liquidity / WEI_UINT)
+     *
+     * @param layer2                the layer2 address
+     * @param liquidity             the layer2 TON TVL
+     * @param calculatedLastIndex   Up to which index is the reward calculation reflected
+     * @param lateIndex             the real last Index
+     */
+    event ExceededMaimumxLoopCount(address layer2, uint256 liquidity, uint256 calculatedLastIndex, uint256 lateIndex);
 
     //////////////////////////////
     // onlyLayer2Manager
@@ -151,15 +166,15 @@ contract SeigManagerV1_3 is
         _onlyLayer2Manager();
         _unpauseLayer2Tvl(layer2);
 
-        require(!_isPauseL2Seigniorage(layer2), "error includeFromL2Seigniorage");
+        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(_rollupConfig);
+        if (curLayer2Tvl == 0 || layer2RewardInfo[_layer2].layer2Tvl != 0) revert Layer2TvlError();
 
         emit IncludedFromL2Seigniorage(layer2);
         return true;
     }
 
-
     //////////////////////////////
-    // checkCoinage
+    // External functions
     //////////////////////////////
 
     /**
@@ -169,9 +184,9 @@ contract SeigManagerV1_3 is
         return _updateSeigniorage();
     }
 
-    // //////////////////////////////
-    // // External functions
-    // //////////////////////////////
+    //////////////////////////////
+    // External functions
+    //////////////////////////////
 
     /**
      * @notice Distribute the issuing seigniorage on layer2(candidate).
@@ -214,7 +229,7 @@ contract SeigManagerV1_3 is
         uint256 blockNumber,
         address layer2
     )
-        external
+        public
         view
         returns (
             uint256 maxSeig,
@@ -224,12 +239,10 @@ contract SeigManagerV1_3 is
             uint256 daoSeig,
             uint256 relativeSeig,
             uint256 l2TotalSeigs,
-            uint256 layer2Seigs
-        )
+            uint256 layer2Seigs)
     {
         return _estimatedDistribute(blockNumber, layer2);
     }
-
 
     //////////////////////////////
     // Internal functions
@@ -277,7 +290,7 @@ contract SeigManagerV1_3 is
             tempLayer2StartBlock != 1 &&
             tempLayer2StartBlock < blockNumber
         ) {
-            (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+             (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
             if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) layer2Allowed = true;
 
             if (totalLayer2TVL != 0) {
@@ -285,6 +298,9 @@ contract SeigManagerV1_3 is
             }
         }
 
+
+        // pseig
+        // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
         unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
         uint256 totalPseig = FullMath.rmul(unstakedSeig, relativeSeigRate);
 
@@ -297,7 +313,7 @@ contract SeigManagerV1_3 is
 
         if (relativeSeigRate != 0) relativeSeig = totalPseig;
 
-        if (layer2Allowed && totalLayer2TVL != 0) {
+         if (layer2Allowed && totalLayer2TVL != 0) {
             if (oldLayer2Info.startBlock != 0 && oldLayer2Info.layer2Tvl != 0) {
 
                 if (oldLayer2Info.layer2Tvl != 0) {
@@ -317,7 +333,7 @@ contract SeigManagerV1_3 is
      */
     function _allowIssuanceLayer2Seigs(
         address layer2
-    ) internal view returns (address rollupConfig, bool allowed) {
+    ) public view returns (address rollupConfig, bool allowed) {
         (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
         if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
@@ -641,6 +657,19 @@ contract SeigManagerV1_3 is
 
     // https://github.com/tokamak-network/TON-total-supply
     // 50,000,000 + 3.92*(target block # - 10837698) - TON in 0x0..1 - 178111.66690985573
+    function totalSupplyOfTon() public view returns (uint256 tos) {
+        uint256 startBlock = (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock);
+        uint256 initial = (
+            initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply
+        );
+        uint256 burntAmount = (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
+
+        tos =
+            initial +
+            (_seigPerBlock * (block.number - startBlock)) -
+            (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
+            burntAmount;
+    }
 
     function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
         uint256 startBlock = (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock);

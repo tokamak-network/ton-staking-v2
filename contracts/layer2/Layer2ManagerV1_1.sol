@@ -49,9 +49,6 @@ error IncludeError();
  */
 error OnApproveError(uint x);
 
-// interface OnApprove {
-//     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
-// }
 
 contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
@@ -187,6 +184,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
+
     }
 
     /**
@@ -245,9 +243,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _nonZeroAddress(rollupConfig);
         if (bytes(memo).length == 0) revert ZeroBytesError();
         if (rollupConfigInfo[rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(rollupConfig);
 
-        if (!res) revert RegisterError(5);
+        if (!_availableRegister(rollupConfig)) revert RegisterError(5);
         _transferDepositAmount(msg.sender, rollupConfig, amount, flagTon, memo);
     }
 
@@ -275,8 +272,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _nonZeroAddress(_rollupConfig);
 
         if (rollupConfigInfo[_rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(_rollupConfig);
-        if (!res) revert RegisterError(5);
+
+        if (!_availableRegister(_rollupConfig)) revert RegisterError(5);
 
         // if (msg.sender == ton) _transferDepositAmount(owner, _rollupConfig, amount, true, string(bytes(data[20:])));
         // else _transferDepositAmount(owner, _rollupConfig, amount, false, string(bytes(data[20:])));
@@ -348,10 +345,18 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
          (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 
-    function availableRegister(address _rollupConfig) external view returns (bool result, uint256 amount) {
+    function availableRegister(address _rollupConfig) external view returns (bool result) {
         return _availableRegister(_rollupConfig) ;
     }
 
+
+    function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
+
+       if ( operatorOfLayer[layer2] == _operator &&
+            operatorInfo[_operator].rollupConfig == _rollupConfig &&
+            rollupConfigInfo[_rollupConfig].operatorManager == _operator) verified = true;
+
+    }
 
     /**
      * @notice Layer 2 related information search
@@ -453,28 +458,11 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     }
 
-    function _availableRegister(address _rollupConfig) internal view returns (bool result, uint256 amount) {
+    function _availableRegister(address _rollupConfig) internal view returns (bool result) {
 
         (uint8 _type,,,, ) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
-        // if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
+        return _type != 0 ? true : false;
 
-        if (_type == 1) { // optimism legacy : titan
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            if (l1Bridge != address(0)) {
-                amount = IERC20(ton).balanceOf(l1Bridge);
-                result = true;
-            }
-
-        } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
-            if (optimismPortal != address(0) && l1Bridge != address(0) ) {
-                amount = IERC20(ton).balanceOf(optimismPortal);
-                result = true;
-            }
-        }
     }
 
     function _checkLayer2TVL(address _rollupConfig) internal view returns (bool result, uint256 amount) {
