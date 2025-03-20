@@ -1150,14 +1150,13 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function getOperatorAmount(address layer2) external view returns (uint256)
         ```
 
-    - function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
+    - function estimatedDistribute(uint256 blockNumber, address layer2)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
 
         ```jsx
         /**
         * @notice Estimate the seigniorage to be distributed
         * @param blockNumber         The block number
         * @param layer2              The layer2 address
-        * @param _isSenderOperator   Whether sender is operator of layer2
         * @return maxSeig            Total amount of seigniorage occurring in that block
         * @return stakedSeig         the amount equals to the staking ratio in TON total supply
         *                            in total issuing seigniorage
@@ -1168,7 +1167,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
         * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operator contract
         */
-        function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
+        function estimatedDistribute(uint256 blockNumber, address layer2)
         external view
         returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
         ```

@@ -1127,7 +1127,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('daoCommitteeProxy2Contract', daoCommitteeProxy2Contract.address)
             // console.log('daoCommitteeOwner', daoCommitteeOwner.address)
             // console.log('daoCommittee_V1', daoCommittee_V1.address)
-        }).timeout(10000);
+        }).timeout(100000);
     })
 
     // describe('# TransferOwner to DAOCommittee ', () => {
