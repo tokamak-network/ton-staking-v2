@@ -105,12 +105,13 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
     /**
-     * @notice Event that occurs when sending seigniorage to operator of layer2
+     * @notice Event occurs when pausisetting the operatorManagerFactory
      * @param layer2        the layer2 address
-     * @param operator      Address for receiving seigniorage
-     * @param amount        Transfer amount
+     * @param to            The address that receives the seigniorage. This will be the operator address.
+     * @param amount        Amount of transmission seigniorage
      */
-    event TransferWTON(address layer2, address operator, uint256 amount);
+    event TransferWTON(address layer2, address to, uint256 amount);
+
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -134,6 +135,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _seigManager,
         address _swapProxy
     )  external  onlyOwner {
+        require(ton == address(0), "already initialized");
+
         l1BridgeRegistry = _l1BridgeRegistry;
         operatorManagerFactory = _operatorManagerFactory;
         ton = _ton;
@@ -149,6 +152,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     function setOperatorManagerFactory(
         address _operatorManagerFactory
     )  external  onlyOwner {
+        require(operatorManagerFactory != _operatorManagerFactory, "same");
         operatorManagerFactory = _operatorManagerFactory;
         emit SetOperatorManagerFactory( _operatorManagerFactory);
     }
@@ -349,7 +353,6 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         return _availableRegister(_rollupConfig) ;
     }
 
-
     function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
 
        if ( operatorOfLayer[layer2] == _operator &&
@@ -386,7 +389,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     }
 
     function _checkL1BridgeDetail(address _rollupConfig)
-        public
+        internal
         view
         returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status,
         bool rejectedSeigs, bool rejectedL2Deposit)
@@ -417,11 +420,12 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         }
     }
 
-
     function layerInfo(address layer2) external view returns (address rollupConfig, address operator) {
         operator = operatorOfLayer[layer2];
         rollupConfig = operatorInfo[operator].rollupConfig;
     }
+
+
 
     /* ========== internal ========== */
 

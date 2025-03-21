@@ -122,112 +122,67 @@ Total staked amount (based on seigniorage distribution)
 
 ---
 
+## Composition of seigniorage management
 
+If you look at the TON Staking service, the Candidates are listed. This Candidate was previously named layer2. In other words, the TON Staking service manages seigniorage by layer2. Users can also stake separately by layer2.
 
-# L2 Sequencer Seigniorage
+The TON Staking service manages seigniorage information in two ways.
+  - A. Total seigniorage issued to entire and seigniorage issued to each layer
+  - B. Total seigniorage issued to each layer and seigniorage of users who staked in each layer
 
-Added the ability to give seigniorage to L2 sequencers separately.
-You can find more details in [this document](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2.5/docs/en/ton-staking-v2.md#seigniorage-distribution-of-v25).
+### A. Total seigniorage issued to entire and seigniorage issued to each layer2
 
-## Related Storage
+#### Related Storages
+  - [tot](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f#readProxyContract#F63)
+    - A contract that manages the total staking amount and the amount staked in each layer2, reflecting the issued seigniorage.
+    - totalSupply of tot : Total staking amount including total issuance seigniorage
+    - balanceOf(address layer2) of tot : Total staking amount of layer2 including seigniorage issued on each layer2
 
-- layer2StartBlock : Block that starts giving seigniorage to the L2 sequencer
-- l2RewardPerUint
-  - The amount of seigniorage provided per one L2 liquidity
-  - Seigniorage calculations are applied from layer2StartBlock block(!=0).
+#### Distribute seigniorage to entire layer2 each time update seigniorage is run
+  - When running the update seigniorage, The seigniorage amount given to the staker from the amount of seigniorage issued will be added to the total staking amount of tot.
+  - If the factor is adjusted to reflect this added amount, the staking amount of the entire layer2 managed by tot will automatically increase according to the stake amount.
+  - You can check the related code in the _increaseTot function.
+    ```
+    uint256 totalPseig = rmul(maxSeig - stakedSeig - l2TotalSeigs, relativeSeigRate);
+    nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+    _lastSeigBlock = block.number;
 
-- totalLayer2TVL : The total amount of TVL of all L2s
-- layer2RewardInfo : Layer2Reward Information of L2
-  - layer2Tvl : The amount of TVL in L2
-  - initialDebt : Amount to be deducted when calculating seigniorage
-  - startBlock : Block that started issuing the L2 sequencer seigniorage
+    _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
 
-- layer2PauseBlockIndex : block number when stopping issuing L2 seigniorage
-- layer2UnpauseBlockIndex :  block number when resuming issuing L2 seigniorage
+    ```
+    The amount of seigniorage distributed to the staker is 'stakedSeig + totalPseig'.
+    The factor was changed by considering nextTotalSupply including the amount of seigniorage distributed.
 
-  ```
-  struct Layer2Reward {
-      uint256 layer2Tvl;
-      uint256 initialDebt;
-      uint256 startBlock;
-  }
+    With this, the seigniorage distribution to all layer2 is completed.
 
-  /// layer2 seigs start block
-  uint256 public layer2StartBlock;
+  - Through this, the staking amount of tot has distributed seigniorage, but Since the user checks his/her staking amount through the coinage(layer2).balanceOf(account) function, the user has not yet settled (reflected) the seigniorage amount. Please keep this in mind, because the time when the user receives the seigniorage is settled (reflected) when the update seigniorage is executed in the corresponding layer2. (This is explained in B.)
 
-  uint256 public l2RewardPerUint;
+### B. Total seigniorage issued to each layer and seigniorage of users who staked in each layer2
 
-  /// total layer2 TON TVL
-  uint256 public totalLayer2TVL;
+#### Related Storages
+  - [coinages(address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f#readProxyContract#F18)
+      - Separately store the contract that manages the staking amount that reflects the seigniorage of each layer2. So users can stake separately for each layer2.
+      - totalSupply of coinages(the layer2) : The total amount of staking that has settled seigniorage on the layer2 (When executing 'update seigniorage' on the layer2, the seigniorage that has not been settled until now is applied.)
+      - balanceOf(layer2 address) of coinages(the layer2) : The total amount of staking that has settled seigniorage by each user who staked on the layer2 (When executing 'update seigniorage' on the layer2, the seigniorage that has not been settled until now is applied.)
 
-  /// layer2 reward information for each layer2(candidate).
-  mapping (address => Layer2Reward) public layer2RewardInfo;
+#### Reflect seigniorage of specific layer2 when 'specific layer2's update seigniorage' is run
+  - When the update seigniorage of a specific layer2 is executed, only the seigniorage of that layer2 is settled, and the seigniorage is reflected in the staking amount.
+  - If the number of layers becomes very large, it will take a lot of gas to update all layers at once, so we can specify a layer2 to update only the coinage of that layer2. However, since the tot contract is always updated, when you update the coinage of a specific layer2 in the future, you can calculate the unreflected seigniorage with the difference amount of the tot.balanceOf(layer2) and coinage[layer2].totalSupply.
+    - You can check the code in the _updateSeigniorage function.
+    ```
+      // 2. increase total supply of {coinages[layer2]}
+      uint256 prevTotalSupply = coinage.totalSupply();
+      uint256 nextTotalSupply = _tot.balanceOf(msg.sender);
 
-  // layer2 - block number when pausing
-  mapping(address => uint256[]) public layer2PauseBlocks;
+      // short circuit if there is no seigs for the layer2
+      if (prevTotalSupply >= nextTotalSupply) {
+          emit Comitted(msg.sender);
+          return true;
+      }
 
-  //layer2 - block number when pausing - block number when unpausing
-  mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
-  ```
-
-#  When running update seigniorage, L2 sequencer seigniorage is issued.
-
-Calculate the seigniorage granted to the L2 sequencer,
-Calculate the seigniorage per L2 liquidity.
-Send the seigniorage granted to the L2 sequencer to Layer2Manager.
-
-  ```
-  if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-      l2TotalSeigs = rdiv(rmul(maxSeig, totalLayer2TVL * 1e9), tos);
-      l2RewardPerUint += (l2TotalSeigs * WEI_UINT) / totalLayer2TVL;
-      IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
-  }
-  ```
-
-If the Layer2 is a Layer2 that allows L2 sequencer seigniorage issuance,
-Calculate the seigniorage that the Layer2 should receive and send the seigniorage to the operator of Layer2.
-
-  ```
-   (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
-    if (allowed && !isPauseL2Seigniorage(msg.sender)) {
-        uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-        Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
-        Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
-
-        // update layer2 tvl if it has changed
-        // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
-        if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
-            newLayer2Info.layer2Tvl = curLayer2Tvl;
-            totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
-        }
-
-        // If this the first commit, set up an initial debt
-        if (oldLayer2Info.startBlock == 0) {
-            newLayer2Info.startBlock = block.number;
-
-        } else {
-
-            // distribute seigniorage to layer2 based on previous layer2 tvl
-            // layer2Tvl would be 0 when layer2 has been paused
-            if (oldLayer2Info.layer2Tvl > 0) {
-                layer2Seigs =
-                    ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UINT) -
-                    oldLayer2Info.initialDebt;
-                // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
-                if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
-            }
-        }
-        newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UINT;
-    }
-
-  ```
-
-
-
-
-
----
-
+      uint256 seigs = nextTotalSupply - prevTotalSupply;
+    ```
+    The seigniorage seigs reflected in layer2 is calculated as _tot.balanceOf(msg.sender) - coinage.totalSupply().
 
 
 ## Calculation of Operator Commission
@@ -393,6 +348,3 @@ Operators can set a commissionRate to receive a portion of the generated seignio
 
       - The operator should take 70 out of the 100 issued seigniorages(the operator's stake rate is 70%), but 7 of them, which corresponds to a commission rate of 10%, are distributed to the stakers(delegator), so about 63 seigniorages are added to the operator's staking amount. The original staking amount was 700, but after the update seigniorage was executed, it became 762.99999999998.
       - The staker takes 30 out of the 100 issued seigniorages (the staker's stake rate is 30%), and adds the 7 given by the operator, so about 37 seigniorages are added. The original staking amount was 300, but after the update seigniorage was executed, it became  336.999999999.
-
-
-

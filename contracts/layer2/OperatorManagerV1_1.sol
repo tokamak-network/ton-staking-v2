@@ -96,11 +96,6 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         _;
     }
 
-    modifier onlyCandidateAddOn() {
-        require(msg.sender == ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this)), "not onlyCandidateAddOn");
-        _;
-    }
-
     /**
      * @notice Set the addresses
      * @param _layer2Manager    the _layer2Manager address

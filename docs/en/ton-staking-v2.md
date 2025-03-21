@@ -87,6 +87,40 @@ We will check Layer 2 by receiving information from RollupConfig, RollupType, an
 - L2TON
   When registering CandidateAddOn, the address of the L2 TON used in layer 2 must be entered.
 
+# Third-Party Dependencies
+
+There are two efforts required from a third-party dependency perspective:
+
+## Our efforts to verify third-party contracts on registering RollupConfig (Third-Party)
+
+When registering RollupConfig, code verification of the Third-Party L1 contract is performed.
+
+When registering L2 RollupConfig information (L1BridgeRegistryV1_1.registerRollupConfig), Third-Party contract information is stored in the L2 RollupConfig contract.
+
+ This registration function can only be executed by the registrant.
+
+The registrant will go through the verification process below to register the L2 RollupConfig contract.
+
+- Code hash of the proxy of the Third-Party  L1 contracts,
+- Code hash of the logic of the Third-Party  L1 contracts,
+- Code hash of the proxy and logic of ProxyAdmin (of Third-Party  L1 contracts),
+- Code hash of the proxy and logic of the safe wallet contract which is ProxyAdmin’s owner.
+- And, verification of the accounts with the authority of the safe wallet contract . (These accounts will consist of DAO, Foundation, and L2 operator.)
+
+ This registration will be done according to the user's choice when deploying L2 (e.g. Thanos stack) using Tokamak Rollup Hub, and then distribution will be done after L2 verification of TRH (Tokamak Rollup Hub).
+
+Therefore We will target the RollupConfig of L2 published by TRH and ensure verification of this code by TRH(Tokamak Rollup Hub).
+
+## The user's effort to verify L2 is required before using the 'Withdrawal and Deposit (L2)' function
+
+When withdrawing staking and trying to deposit to a third-party service (DepositManager.withdrawAndDepositL2 function), the user is required to make efforts to review the safety of the third-party service.
+The user must move to the third-party service and take responsibility for any damages incurred from the third-party service. Therefore, the user must use the function after verifying and confirming the third-party service.
+
+The reason why this function is provided despite such efforts is because the 'withdrawal and deposit (to L2)' function is a very attractive function for L2 users.
+
+The withdrawal service requires a withdrawal waiting time of about 2 weeks after the withdrawal request. However, the function of depositing to the corresponding L2 at the same time as the withdrawal through the DepositManager.withdrawAndDepositL2 function is a very beneficial function for L2 users because it deposits to L2 at the same time as the withdrawal without a withdrawal waiting time.
+Therefore, if the effort to confirm the user's L2 is involved, this function will be very convenient and beneficial to the user.
+
 
 # Use case
 ## For registrant of L1BridgeRegistry

@@ -28,33 +28,6 @@ error WithdrawError();
 error SwapTonTransferError();
 error ZeroValueError();
 
-interface IL1Bridge {
-    function depositERC20To(
-        address _l1Token,
-        address _l2Token,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    ) external;
-
-    function bridgeNativeTokenTo(
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    ) external;
-
-}
-
-interface IIERC20 {
-    function ton() external view returns (address);
-    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
-}
-interface IOperator {
-    function checkL1Bridge() external view returns (bool,address,address,address,uint8,uint8,bool,bool);
-}
-
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
  */
@@ -153,8 +126,8 @@ contract DepositManagerV1_1 is
         require(l2Ton != address(0), 'l2Ton: zero address');
         if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
 
-        uint32 _minDepositGasLimit = 0;
-        if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210_000; // minDepositGasLimit check
+        uint32 _minDepositGasLimit = minDepositGasLimit;
+        if (_minDepositGasLimit == 0) _minDepositGasLimit = 210000;
 
         if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
 

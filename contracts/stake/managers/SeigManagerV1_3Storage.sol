@@ -34,6 +34,13 @@ contract SeigManagerV1_3Storage {
     //layer2 - block number when pausing - block number when unpausing
     mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
 
+    // layer2 - block number when pausing
+    mapping(address => uint256[]) public layer2PauseBlocks;
+
+    //layer2 - block number when pausing - block number when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
+
+
     bool internal _lock;
 
     modifier ifFree() {
