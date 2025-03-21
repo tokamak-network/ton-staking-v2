@@ -27,6 +27,32 @@ error OperatorError();
 error WithdrawError();
 error SwapTonTransferError();
 error ZeroValueError();
+interface IL1Bridge {
+    function depositERC20To(
+        address _l1Token,
+        address _l2Token,
+        address _to,
+        uint256 _amount,
+        uint32 _minGasLimit,
+        bytes calldata _extraData
+    ) external;
+
+    function bridgeNativeTokenTo(
+        address _to,
+        uint256 _amount,
+        uint32 _minGasLimit,
+        bytes calldata _extraData
+    ) external;
+
+}
+
+interface IIERC20 {
+    function ton() external view returns (address);
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
+}
+interface IOperator {
+    function checkL1Bridge() external view returns (bool,address,address,address,uint8,uint8,bool,bool);
+}
 
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
