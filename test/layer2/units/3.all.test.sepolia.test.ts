@@ -1821,40 +1821,20 @@ describe('TON Staking V2.5', () => {
         })
 
         it('SeigManager register function ', async () => {
-            // daoV2Contract = new ethers.Contract(daoContract.address, DAOCommitteeOwner_Json.abi, deployer);
 
-            // const selector1 = encodeFunctionSignature("setLayer2StartBlock(uint256)");
-            // const selector2 = encodeFunctionSignature("setLayer2Manager(address)");
-            // const selector3 = encodeFunctionSignature("setL1BridgeRegistry(address)");
             const selector4 = encodeFunctionSignature("updateSeigniorage()");
-            // const selector5 = encodeFunctionSignature("updateSeigniorageOperator()");
             const selector6 = encodeFunctionSignature("updateSeigniorageLayer(address)");
-            // const selector7 = encodeFunctionSignature("allowIssuanceLayer2Seigs(address)");
-            // const selector8 = encodeFunctionSignature("totalLayer2TVL()");
-            // const selector9 = encodeFunctionSignature("layer2RewardInfo(address)");
-            // const selector10 = encodeFunctionSignature("l1BridgeRegistry()");
-            // const selector11 = encodeFunctionSignature("layer2Manager()");
-            // const selector12 = encodeFunctionSignature("layer2StartBlock()");
-            // const selector13 = encodeFunctionSignature("isPauseL2Seigniorage(address)");
             const selector14 = encodeFunctionSignature("includeFromL2Seigniorage(address)");
             const selector15 = encodeFunctionSignature("estimatedDistribute(uint256,address)");
             const selector16 = encodeFunctionSignature("excludeFromL2Seigniorage(address)");
 
-            // const selector17 = encodeFunctionSignature("unallocatedSeigniorage()");
-            // const selector18 = encodeFunctionSignature("unallocatedSeigniorageAt(uint256)");
-            // const selector19 = encodeFunctionSignature("stakeOfAllLayers()");
-            // const selector20 = encodeFunctionSignature("stakeOfAllLayersAt(uint256)");
             const selector21 = encodeFunctionSignature("claimableL2Seigniorage(address)");
-            // const selector22 = encodeFunctionSignature("claimL2Seigniorage(address,uint256)");
+            const selector7 = encodeFunctionSignature("pause()");
+            const selector8 = encodeFunctionSignature("unpause()");
 
-            // const selector23 = encodeFunctionSignature("l2RewardPerUint()");
-            // const selector24 = encodeFunctionSignature("l2RewardAtBlock(uint256)");
-            // const selector25 = encodeFunctionSignature("layer2PauseBlockIndexLength(address)");
-            // const selector26 = encodeFunctionSignature("getLayer2PauseBlockIndex(address)");
-            // const selector27 = encodeFunctionSignature("layer2UnpauseBlockIndex(address,uint256)");
 
             let functionBytecodes = [
-                  selector4,
+                selector4, selector7, selector8,
                 selector6,  selector14, selector15, selector16, selector21,
             ];
 
@@ -1880,19 +1860,10 @@ describe('TON Staking V2.5', () => {
                 seigManagerV1_3.address)).wait()
 
             expect(await seigManagerProxy.implementation2(index)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector1)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector2)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector3)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector4)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector5)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector6)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector7)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector8)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector9)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector10)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector11)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector12)).to.be.eq(seigManagerV1_3.address)
-            // expect(await seigManagerProxy.getSelectorImplementation2(selector13)).to.be.eq(seigManagerV1_3.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector7)).to.be.eq(seigManagerV1_3.address)
+            expect(await seigManagerProxy.getSelectorImplementation2(selector8)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector14)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector15)).to.be.eq(seigManagerV1_3.address)
             expect(await seigManagerProxy.getSelectorImplementation2(selector16)).to.be.eq(seigManagerV1_3.address)

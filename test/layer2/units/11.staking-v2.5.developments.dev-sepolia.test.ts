@@ -54,13 +54,6 @@ import DAOCommitteeProxy2_Josn from '../../abi/DAOCommitteeProxy2.json'
 import Thanos_Json from '../../abi/SystemConfig.json'
 import Proxy_Json from '../../abi/Proxy.json'
 
-const layers = [
-    {"oldLayer":"","newLayer":"0xaeb0463a2fd96c68369c1347ce72997406ed6409","operator":"0xd4335a175c36c0922f6a368b83f9f6671bf07606","name":"candidate"},
-    {"oldLayer":"","newLayer":"0xabd15c021942ca54abd944c91705fe70fea13f0d","operator":"0x757de9c340c556b56f62efae859da5e08baae7a2","name":"member_DAO"},
-]
-
-let pastAddr = "0xD4335A175c36c0922F6A368b83f9F6671bf07606"
-let wtonhaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 let tonHaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 
 const daoOwnerAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
@@ -103,10 +96,9 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
+describe('DEV Staking V2.5 Test On Sepolia', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
-    let l1BridgeRegistryOld: L1BridgeRegistryV1_1
 
 
     let legacySystemConfig: LegacySystemConfig

@@ -1202,10 +1202,12 @@ describe('Layer2Manager', () => {
             const selector4 = encodeFunctionSignature("excludeFromL2Seigniorage(address)");
             const selector5 = encodeFunctionSignature("includeFromL2Seigniorage(address)");
             const selector6 = encodeFunctionSignature("claimableL2Seigniorage(address)");
+            const selector7 = encodeFunctionSignature("pause()");
+            const selector8 = encodeFunctionSignature("unpause()");
 
             let functionBytecodes = [
                 selector1, selector2, selector3, selector4, selector5,
-                selector6
+                selector6, selector7, selector8
             ];
 
             callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
