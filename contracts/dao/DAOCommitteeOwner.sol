@@ -428,6 +428,8 @@ contract DAOCommitteeOwner is
         bytes memory _data
     )
         external
+        onlyOwner
+        nonZero(_to)
     {
         require(_data.length != 0 || _value != 0, "invalid data");
         
