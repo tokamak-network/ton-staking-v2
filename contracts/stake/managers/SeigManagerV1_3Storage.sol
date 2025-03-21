@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 /// @title
 /// @notice
-contract SeigManagerV1_3Storage  {
+contract SeigManagerV1_3Storage {
 
     struct Layer2Reward {
         uint256 layer2Tvl;
@@ -26,7 +26,7 @@ contract SeigManagerV1_3Storage  {
     uint256 public totalLayer2TVL;
 
     /// layer2 reward information for each layer2(candidate).
-    mapping (address => Layer2Reward) public layer2RewardInfo;
+    mapping(address => Layer2Reward) public layer2RewardInfo;
 
     // layer2 - block number when pausing
     mapping(address => uint256[]) public layer2PauseBlocks;
@@ -36,8 +36,8 @@ contract SeigManagerV1_3Storage  {
 
     bool internal _lock;
 
-    modifier ifFree {
-        require(!_lock, "lock");
+    modifier ifFree() {
+        require(!_lock, 'lock');
         _lock = true;
         _;
         _lock = false;

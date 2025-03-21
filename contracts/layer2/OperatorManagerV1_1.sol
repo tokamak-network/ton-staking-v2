@@ -96,11 +96,6 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
         _;
     }
 
-    modifier onlyCandidateAddOn() {
-        require(msg.sender == ILayer2Manager(layer2Manager).candidateAddOnOfOperator(address(this)), "not onlyCandidateAddOn");
-        _;
-    }
-
     /**
      * @notice Set the addresses
      * @param _layer2Manager    the _layer2Manager address
@@ -233,35 +228,30 @@ contract OperatorManagerV1_1 is Ownable, OperatorManagerStorage {
     }
 
     function _claim(address token, address to, uint256 amount) internal {
-        address thisAccount = address(this);
         if(token == address(0)) {
-            if(thisAccount.balance < amount) revert InsufficientBalanceError();
+            if(address(this).balance < amount) revert InsufficientBalanceError();
             (bool success, ) = to.call{value: amount}("");
             if (!success) revert TransferEthError();
         } else {
-            if (IERC20(token).balanceOf(thisAccount) < amount) revert InsufficientBalanceError();
+            if (IERC20(token).balanceOf(address(this)) < amount) revert InsufficientBalanceError();
             IERC20(token).safeTransfer(to, amount);
         }
         emit Claimed(token, msg.sender, to, amount);
     }
 
-    function _deposit(address layer2, uint256 amount) internal {
+    function _depositTo(address layer2, address to) internal {
         address _depositManager = depositManager;
-        address _wton = wton;
-
-        uint256 allowance = IERC20(_wton).allowance(address(this), _depositManager);
-        if(allowance < amount) IERC20(_wton).approve(_depositManager, type(uint256).max);
-
-        IDepositManager(_depositManager).deposit(layer2, amount);
+        uint256 amount = _onAapproveHoldingAmount(_depositManager);
+        if (amount != 0) IDepositManager(_depositManager).deposit(layer2, to, amount);
     }
 
-    function _depositTo(address layer2, address to, uint256 amount) internal {
-        address _depositManager = depositManager;
+    function _onAapproveHoldingAmount(address to) internal returns (uint256) {
         address _wton = wton;
-
-        uint256 allowance = IERC20(_wton).allowance(address(this), _depositManager);
-        if (allowance < amount) IERC20(_wton).approve(_depositManager, type(uint256).max);
-
-        IDepositManager(_depositManager).deposit(layer2, to, amount);
+        uint256 amount = IERC20(_wton).balanceOf(address(this));
+        if(amount != 0) {
+            uint256 allowance = IERC20(_wton).allowance(address(this), to);
+            if (allowance < amount) IERC20(_wton).approve(to, type(uint256).max);
+        }
+        return amount;
     }
 }

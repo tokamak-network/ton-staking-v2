@@ -534,25 +534,6 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-
-        ```jsx
-        /**
-        * @notice Deposit wton amount to DepositManager as named Layer2
-        * @param amount    the deposit wton amount (ray)
-        */
-        function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-        ```
-
-    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-
-        ```jsx
-        /**
-         * @notice Claim WTON to a manager
-        * @param amount    the deposit wton amount (ray)
-        */
-        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-        ```
 
 - 주요 View 함수
     - function acquireManager() external
@@ -1022,14 +1003,26 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 - 추가된 스토리지
 
     ```jsx
+    struct Layer2Tvl {
+        uint256 l2UpdateBlockIndexes; // l2UpdateBlock's index
+        uint256 layer2Tvl;
+    }
+
     struct Layer2Reward {
         uint256 layer2Tvl;
-        uint256 initialDebt;
+        uint256 startBlock;
+        uint256 claimedLastIndex;
+        uint256 claimedBlockNumber;
+        uint256 claimedReward;
+    }
+
+    struct Layer2PauseBlock {
+        uint256 pauseIndex;
+        uint256 unpauseIndex;
     }
 
     /// L1BridgeRegistry address
-    address public L1BridgeRegistry;
-
+    address public l1BridgeRegistry;
     /// Layer2Manager address
     address public layer2Manager;
 
@@ -1041,8 +1034,30 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
 
-    /// layer2 reward information for each layer2.
+    /// When claiming L2 seigniorage, only maxCommitCountForClaim can be claimed at a time.
+    uint256 public maxCommitCountForClaim;
+
+    // L2 update seigniorage commit block
+    uint256[] public l2UpdateBlock; // index 0 - unused, it's a dummy
+
+    /// layer2 reward information for each layer2(candidate).
     mapping (address => Layer2Reward) public layer2RewardInfo;
+
+    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
+    mapping (uint256 => uint256) public l2RewardAtBlock;
+
+    // layer2 - Index array of l2UpdateBlock
+    mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
+
+    // layer2 - commit block number - commitLayer2Tvl
+    mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
+
+    // layer2 - pause block index
+    mapping (address => uint256[]) public layer2PauseBlockIndex;
+
+
+    //layer2 - pause block index - unpause block index
+    mapping (address => mapping (uint256 => uint256)) public layer2UnpauseBlockIndex;
 
     ```
 
@@ -1092,18 +1107,6 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         returns (bool)
         ```
 
-    - function updateSeigniorageOperator() external  returns (bool)  onlyCandidate
-
-        ```jsx
-        /**
-        * @notice Distribute the issuing seigniorage.
-        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 OperatorManager.
-        */
-        function updateSeigniorageOperator()
-        external
-        returns (bool)
-        ```
-
     - function updateSeigniorage() external  returns (bool)  onlyCandidate
 
         ```jsx
@@ -1134,14 +1137,13 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         function getOperatorAmount(address layer2) external view returns (uint256)
         ```
 
-    - function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
+    - function estimatedDistribute(uint256 blockNumber, address layer2)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
 
         ```jsx
         /**
         * @notice Estimate the seigniorage to be distributed
         * @param blockNumber         The block number
         * @param layer2              The layer2 address
-        * @param _isSenderOperator   Whether sender is operator of layer2
         * @return maxSeig            Total amount of seigniorage occurring in that block
         * @return stakedSeig         the amount equals to the staking ratio in TON total supply
         *                            in total issuing seigniorage
@@ -1152,7 +1154,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
         * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
         * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operator contract
         */
-        function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
+        function estimatedDistribute(uint256 blockNumber, address layer2)
         external view
         returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
         ```

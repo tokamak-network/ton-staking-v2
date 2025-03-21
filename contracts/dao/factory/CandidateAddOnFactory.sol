@@ -80,7 +80,6 @@ contract CandidateAddOnFactory is ProxyStorage, AccessibleCommon, CandidateAddOn
     {
         require(daoCommittee == _committee, "different daoCommittee");
         CandidateAddOnProxy c = new CandidateAddOnProxy();
-        require(address(c) != address(0), "zero CandidateAddOnProxy");
 
         c.upgradeTo(candidateAddOnImp);
         ICandidateAddOn(address(c)).initialize(

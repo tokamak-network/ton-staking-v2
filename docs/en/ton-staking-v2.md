@@ -43,11 +43,11 @@ TThe withdrawAndDepositL2 function is a function that withdraw the staking amoun
 
 ## Stop providing seigniorage to the L2 sequencer in CandidateAddOn
 
-The Seigniorage Committee can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. This function exists just in case.
+The Seigniorage Committee (DAO) can suspend seigniorage granted to a Layer 2 sequencer for a specific CandidateAddOn. Unsettled seigniorage to the layer 2 sequencer can no longer be settled. This function exists just in case.
 
 ## Cancel stopping distributing a seigniorage to the L2 sequencer
 
-Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee.
+Restoration of Layer2Candidate's seigniorage suspension can be canceled again by the seigniorage committee(DAO). Layer2Candidate's seigniorage that has not been settled before cannot be received. Layer2Candidate's seigniorage can be received again from this point.
 
 # TON Stake Contracts
 
@@ -86,6 +86,40 @@ We will check Layer 2 by receiving information from RollupConfig, RollupType, an
 
 - L2TON
   When registering CandidateAddOn, the address of the L2 TON used in layer 2 must be entered.
+
+# Third-Party Dependencies
+
+There are two efforts required from a third-party dependency perspective:
+
+## Our efforts to verify third-party contracts on registering RollupConfig (Third-Party)
+
+When registering RollupConfig, code verification of the Third-Party L1 contract is performed.
+
+When registering L2 RollupConfig information (L1BridgeRegistryV1_1.registerRollupConfig), Third-Party contract information is stored in the L2 RollupConfig contract.
+
+ This registration function can only be executed by the registrant.
+
+The registrant will go through the verification process below to register the L2 RollupConfig contract.
+
+- Code hash of the proxy of the Third-Party  L1 contracts,
+- Code hash of the logic of the Third-Party  L1 contracts,
+- Code hash of the proxy and logic of ProxyAdmin (of Third-Party  L1 contracts),
+- Code hash of the proxy and logic of the safe wallet contract which is ProxyAdmin’s owner.
+- And, verification of the accounts with the authority of the safe wallet contract . (These accounts will consist of DAO, Foundation, and L2 operator.)
+
+ This registration will be done according to the user's choice when deploying L2 (e.g. Thanos stack) using Tokamak Rollup Hub, and then distribution will be done after L2 verification of TRH (Tokamak Rollup Hub).
+
+Therefore We will target the RollupConfig of L2 published by TRH and ensure verification of this code by TRH(Tokamak Rollup Hub).
+
+## The user's effort to verify L2 is required before using the 'Withdrawal and Deposit (L2)' function
+
+When withdrawing staking and trying to deposit to a third-party service (DepositManager.withdrawAndDepositL2 function), the user is required to make efforts to review the safety of the third-party service.
+The user must move to the third-party service and take responsibility for any damages incurred from the third-party service. Therefore, the user must use the function after verifying and confirming the third-party service.
+
+The reason why this function is provided despite such efforts is because the 'withdrawal and deposit (to L2)' function is a very attractive function for L2 users.
+
+The withdrawal service requires a withdrawal waiting time of about 2 weeks after the withdrawal request. However, the function of depositing to the corresponding L2 at the same time as the withdrawal through the DepositManager.withdrawAndDepositL2 function is a very beneficial function for L2 users because it deposits to L2 at the same time as the withdrawal without a withdrawal waiting time.
+Therefore, if the effort to confirm the user's L2 is involved, this function will be very convenient and beneficial to the user.
 
 
 # Use case
@@ -546,25 +580,6 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function claimERC20(address token, uint256 amount) external onlyOwnerOrManager
         ```
 
-    - function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-
-        ```jsx
-        /**
-        * @notice Deposit wton amount to DepositManager as named Layer2
-        * @param amount    the deposit wton amount (ray)
-        */
-        function depositByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-        ```
-
-    - function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-
-        ```jsx
-        /**
-         * @notice Claim WTON to a manager
-        * @param amount    the deposit wton amount (ray)
-        */
-        function claimByCandidateAddOn(uint256 amount) external onlyCandidateAddOn
-        ```
 
 - View Functions
     - function acquireManager() external
@@ -1039,14 +1054,26 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Added Storage
 
     ```jsx
+    struct Layer2Tvl {
+        uint256 l2UpdateBlockIndexes; // l2UpdateBlock's index
+        uint256 layer2Tvl;
+    }
+
     struct Layer2Reward {
         uint256 layer2Tvl;
-        uint256 initialDebt;
+        uint256 startBlock;
+        uint256 claimedLastIndex;
+        uint256 claimedBlockNumber;
+        uint256 claimedReward;
+    }
+
+    struct Layer2PauseBlock {
+        uint256 pauseIndex; // pause l2UpdateBlock index, 포함 인덱스부터 발급안함
+        uint256 unpauseIndex; // unpause l2UpdateBlock index, 포함 인덱스까지 발급안함
     }
 
     /// L1BridgeRegistry address
-    address public L1BridgeRegistry;
-
+    address public l1BridgeRegistry;
     /// Layer2Manager address
     address public layer2Manager;
 
@@ -1058,8 +1085,31 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
 
-    /// layer2 reward information for each layer2.
+    /// When claiming L2 seigniorage, only maxCommitCountForClaim can be claimed at a time.
+    uint256 public maxCommitCountForClaim;
+
+    // L2 update seigniorage commit block
+    uint256[] public l2UpdateBlock; // index 0 - unused, it's a dummy
+
+    /// layer2 reward information for each layer2(candidate).
     mapping (address => Layer2Reward) public layer2RewardInfo;
+
+    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
+    mapping (uint256 => uint256) public l2RewardAtBlock;
+
+    // layer2 - Index array of l2UpdateBlock
+    mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
+
+    // layer2 - commit block number - commitLayer2Tvl
+    mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
+
+    // layer2 - pause block index
+    mapping (address => uint256[]) public layer2PauseBlockIndex;
+
+
+    //layer2 - pause block index - unpause block index
+    mapping (address => mapping (uint256 => uint256)) public layer2UnpauseBlockIndex;
+
 
     ```
 
@@ -1151,14 +1201,13 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function getOperatorAmount(address layer2) external view returns (uint256)
         ```
 
-    - function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
+    - function estimatedDistribute(uint256 blockNumber, address layer2)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
 
         ```jsx
         /**
         * @notice Estimate the seigniorage to be distributed
         * @param blockNumber         The block number
         * @param layer2              The layer2 address
-        * @param _isSenderOperator   Whether sender is operator of layer2
         * @return maxSeig            Total amount of seigniorage occurring in that block
         * @return stakedSeig         the amount equals to the staking ratio in TON total supply
         *                            in total issuing seigniorage
@@ -1169,7 +1218,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         * @return l2TotalSeigs       the amount calculated to be distributed to L2 sequencer
         * @return layer2Seigs        the amount currently to be settled (give)  to CandidateAddOn's operator contract
         */
-        function estimatedDistribute(uint256 blockNumber, address layer2, bool _isSenderOperator)
+        function estimatedDistribute(uint256 blockNumber, address layer2)
         external view
         returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
         ```
