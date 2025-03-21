@@ -68,10 +68,25 @@ contract SeigManagerV1_3 is
     uint256 internal constant GWEI_UNIT = 1e9;
 
 
+    modifier whenNotPaused() {
+        require(!paused, "Pausable: paused");
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     */
+    modifier whenPaused() {
+        require(paused, "Pausable: not paused");
+        _;
+    }
+
+
     //////////////////////////////
     // Events
     //////////////////////////////
-
+    event Paused(address account);
+    event Unpaused(address account);
     event Comitted(address indexed layer2);
 
     /** These were reflected from 18732908 block. */
@@ -190,6 +205,29 @@ contract SeigManagerV1_3 is
 
         (  , , , , , , , amount ) = _estimatedDistribute(block.number+1, layer2);
 
+    }
+
+
+    //////////////////////////////
+    // Pausable
+    //////////////////////////////
+
+    function pause() external onlyPauser whenNotPaused {
+        require (_pausedBlock < _lastSeigBlock, "updateSeigniorage required");
+
+        _pausedBlock = block.number;
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+
+    /**
+     * @dev Called by a pauser to unpause, returns to normal state.
+     */
+    function unpause() external onlyPauser whenPaused {
+        _unpausedBlock = block.number;
+        paused = false;
+        emit Unpaused(msg.sender);
     }
 
     //////////////////////////////

@@ -79,40 +79,19 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     _;
   }
 
-  // modifier onlyLayer2(address layer2) {
-  //   require(ILayer2Registry(_registry).layer2s(layer2), "not onlyLayer2");
-  //   _;
-  // }
-
   modifier checkCoinage(address layer2) {
     require(address(_coinages[layer2]) != address(0), "SeigManager: coinage has not been deployed yet");
     _;
-  }
-
-  modifier whenNotPaused() {
-      require(!paused, "Pausable: paused");
-      _;
-  }
-
-  /**
-   * @dev Modifier to make a function callable only when the contract is paused.
-   */
-  modifier whenPaused() {
-      require(paused, "Pausable: not paused");
-      _;
   }
 
 
   //////////////////////////////
   // Events
   //////////////////////////////
-
+  event Initialized(address ton_, address wton_, address registry_, address depositManager_, uint256 seigPerBlock_, address factory_, uint256 lastSeigBlock_);
   event CoinageCreated(address indexed layer2, address coinage);
-  // event SeigGiven(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig);
-  // event Comitted(address indexed layer2);
+
   event CommissionRateSet(address indexed layer2, uint256 previousRate, uint256 newRate);
-  event Paused(address account);
-  event Unpaused(address account);
   event UnstakeLog(uint coinageBurnAmount, uint totBurnAmount);
 
    /** These were reflected from 18732908 block. */
@@ -166,27 +145,38 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       uint256 layer2Seigs
   );
 
-  //////////////////////////////
-  // Pausable
-  //////////////////////////////
 
-  function pause() public onlyPauser whenNotPaused {
-    require (_pausedBlock < _lastSeigBlock, "updateSeigniorage required");
+  function initialize (
+    address ton_,
+    address wton_,
+    address registry_,
+    address depositManager_,
+    uint256 seigPerBlock_,
+    address factory_,
+    uint256 lastSeigBlock_
+  ) external {
+    require(_ton == address(0) && _lastSeigBlock == 0, "already initialized");
 
-    _pausedBlock = block.number;
-    paused = true;
-    emit Paused(msg.sender);
+    _ton = ton_;
+    _wton = wton_;
+    _registry = registry_;
+    _depositManager = depositManager_;
+    _seigPerBlock = seigPerBlock_;
+
+    factory = factory_;
+    address c = CoinageFactoryI(factory).deploy();
+    require(c != address(0), "zero tot");
+    _tot = RefactorCoinageSnapshotI(c);
+
+    _lastSeigBlock = lastSeigBlock_;
+
+    emit Initialized(
+        ton_, wton_, registry_, depositManager_,
+        seigPerBlock_, factory_,  lastSeigBlock_
+    );
+
   }
 
-
-  /**
-   * @dev Called by a pauser to unpause, returns to normal state.
-   */
-  function unpause() public onlyPauser whenPaused {
-    _unpausedBlock = block.number;
-    paused = false;
-    emit Unpaused(msg.sender);
-  }
 
 
   //////////////////////////////
