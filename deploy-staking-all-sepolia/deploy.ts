@@ -361,7 +361,6 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     const selector13 = encodeFunctionSignature("decreaseMaxMember(uint256,uint256)");
     const selector14 = encodeFunctionSignature("setActivityRewardPerSecond(uint256)");
     const selector15 = encodeFunctionSignature("daoExecuteTransaction(address,uint256,bytes)");
-    const selector16 = encodeFunctionSignature("wton()");
 
     let function01 = await daoCommitteeProxy2.getSelectorImplementation2(selector01)
     if (function01 == DAOCommittee_V1Deployment.address) {
@@ -369,7 +368,6 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             selector01, selector02, selector03, selector04, selector05,
             selector06, selector07, selector08, selector09, selector10,
             selector11, selector12, selector13, selector14, selector15,
-            selector16
         ];
 
         await (await daoCommitteeProxy2.connect(deploySigner).setImplementation2(
