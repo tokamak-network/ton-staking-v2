@@ -299,12 +299,12 @@ contract DAOCommittee_V1 is
             candidateInfo.candidateContract == msg.sender,
             "DAOCommittee: invalid candidate contract"
         );
+        require(cooldown[candidateInfo.candidateContract] < block.timestamp, "DAOCommittee: need cooldown");
+        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
         require(
             candidateInfo.memberJoinedTime == 0,
             "DAOCommittee: already member"
         );
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
-        require(cooldown[candidateInfo.candidateContract] < block.timestamp, "DAOCommittee: need cooldown");
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
