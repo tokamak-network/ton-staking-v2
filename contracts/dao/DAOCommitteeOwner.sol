@@ -11,6 +11,20 @@ import {ERC165A}  from "../accessControl/ERC165A.sol";
 import "./StorageStateCommittee.sol";
 import "./StorageStateCommitteeV2.sol";
 
+/**
+ * @notice Error that occurs when Set Address
+ * @param x 1: same candidateAddOnFactory address
+ *          2: same layer2Manager address
+ *          3: same seigManager address
+ *          4: same daoVault address
+ *          5: same layer2Registry address
+ *          6: same agendaManager address
+ *          7: same candidateFactory address
+ *          8: same ton address
+ *          9: same wton address
+ */
+error SameAddressError(uint x);
+
 contract DAOCommitteeOwner is
     StorageStateCommittee,
     AccessControl,
@@ -183,6 +197,7 @@ contract DAOCommitteeOwner is
         onlyOwner
         nonZero(_candidateAddOnFactory)
     {
+        if (candidateAddOnFactory == _candidateAddOnFactory) revert SameAddressError(1);
         candidateAddOnFactory = _candidateAddOnFactory;
 
         emit SetCandidateAddOnFactory(_candidateAddOnFactory);
@@ -195,6 +210,7 @@ contract DAOCommitteeOwner is
         onlyOwner
         nonZero(_layer2Manager)
     {
+        if (layer2Manager == _layer2Manager) revert SameAddressError(2);
         layer2Manager = _layer2Manager;
         emit SetLayer2Manager(_layer2Manager);
     }
@@ -202,6 +218,7 @@ contract DAOCommitteeOwner is
     /// @notice Set the seigManager
     /// @param _seigManager seigManager address
     function setSeigManager(address _seigManager) external onlyOwner nonZero(_seigManager) {
+        if (address(seigManager) == _seigManager) revert SameAddressError(3);
         seigManager = ISeigManager(_seigManager);
         emit SetSeigManager(_seigManager);
     }
@@ -209,6 +226,7 @@ contract DAOCommitteeOwner is
     /// @notice Set the daoVault
     /// @param _daoVault daoVault address
     function setDaoVault(address _daoVault) external onlyOwner nonZero(_daoVault) {
+        if (address(daoVault) == _daoVault) revert SameAddressError(4);
         daoVault = IDAOVault(_daoVault);
         emit SetDaoVault(_daoVault);
     }
@@ -216,6 +234,7 @@ contract DAOCommitteeOwner is
     /// @notice Set Layer2Registry contract address
     /// @param _layer2Registry New Layer2Registry contract address
     function setLayer2Registry(address _layer2Registry) external onlyOwner nonZero(_layer2Registry) {
+        if (address(layer2Registry) == _layer2Registry) revert SameAddressError(5);
         layer2Registry = ILayer2Registry(_layer2Registry);
         emit SetLayer2Registry(_layer2Registry);
     }
@@ -223,6 +242,7 @@ contract DAOCommitteeOwner is
     /// @notice Set DAOAgendaManager contract address
     /// @param _agendaManager New DAOAgendaManager contract address
     function setAgendaManager(address _agendaManager) external onlyOwner nonZero(_agendaManager) {
+        if (address(agendaManager) == _agendaManager) revert SameAddressError(6);
         agendaManager = IDAOAgendaManager(_agendaManager);
         emit SetAgendaManager(_agendaManager);
     }
@@ -230,6 +250,7 @@ contract DAOCommitteeOwner is
     /// @notice Set CandidateFactory contract address
     /// @param _candidateFactory New CandidateFactory contract address
     function setCandidateFactory(address _candidateFactory) external onlyOwner nonZero(_candidateFactory) {
+        if (address(candidateFactory) == _candidateFactory) revert SameAddressError(7);
         candidateFactory = ICandidateFactory(_candidateFactory);
         emit SetCandidateFactory(_candidateFactory);
     }
@@ -237,6 +258,7 @@ contract DAOCommitteeOwner is
     /// @notice Set TON contract address
     /// @param _ton ton address
     function setTon(address _ton) external onlyOwner nonZero(_ton) {
+        if (address(ton) == _ton) revert SameAddressError(8);
         ton = _ton;
         emit SetTON(_ton);
     }
@@ -244,6 +266,7 @@ contract DAOCommitteeOwner is
     /// @notice Set WTON contract address
     /// @param _wton wton address
     function setWton(address _wton) external onlyOwner nonZero(_wton) {
+        if (address(wton) == _wton) revert SameAddressError(9);
         wton = _wton;
         emit SetWTON(_wton);
     }
