@@ -443,22 +443,17 @@ contract DAOCommitteeOwner is
 
     /// @notice This is a function executed by the DAO multisig wallet council.
     /// @param _to Address to execute
-    /// @param _value ETH Value
     /// @param _data The function to be executed.
     function daoExecuteTransaction(
         address _to,
-        uint256 _value,
         bytes memory _data
     )
         external
         onlyOwner
         nonZero(_to)
     {
-        require(_data.length != 0 || _value != 0, "invalid data");
-        
-        (bool success, ) = address(_to).call{value: _value}(
-            _data
-        );
+        require(_data.length != 0, "invalid data");
+        (bool success, ) = address(_to).call(_data);
 
         emit DAOExecuteTransaction(_to,_data,success);
     }   

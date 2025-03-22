@@ -597,7 +597,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             const _setdaoExecuteTransaction = Web3EthAbi.encodeFunctionSignature(
-                "daoExecuteTransaction(address,uint,bytes)"
+                "daoExecuteTransaction(address,bytes)"
             )
 
 
@@ -705,10 +705,6 @@ describe("DAO Proxy Change Test", () => {
                     {
                         type: 'address',
                         name: '_to'
-                    },
-                    {
-                        type: 'uint256',
-                        name: '_value'
                     },
                     {
                         type: 'bytes',
@@ -1482,18 +1478,6 @@ describe("DAO Proxy Change Test", () => {
             expect(afterSeigBlock).to.be.gt(beforeSeigBlock)
         })
 
-        it("setWTON test", async () => {
-            // let beforeAddr = await daoCommittee_Owner_Contract.wton()
-            
-            await (
-                await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(oldContractInfo.WTON)
-            ).wait()
-    
-            let afterAddr = await daoCommittee_Owner_Contract.wton()
-            expect(afterAddr).to.be.equal(oldContractInfo.WTON)
-            // expect(beforeAddr).to.be.not.equal(afterAddr)
-        })
-
         it("19. getClaimableActivityReward & claimActivityReward test (anyone)", async () => {
             let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(stakedAddr)
             expect(amount).to.be.gt(0);
@@ -1693,6 +1677,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             let afterData = await daoCommittee_Owner_Contract.wton()
+            
             expect(afterData.toUpperCase()).to.be.equal(nowContractInfo.DepositManager.toUpperCase())
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setWton(
@@ -1893,7 +1878,38 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData).to.be.equal(10)
         })
 
+        it("21. daoExecuteTransaction can't execute anyone", async () => {
+            const dataSetDao = seigManagerContract.interface.encodeFunctionData(
+                "setDao",
+                [zeroAddr]
+            )
 
+            await expect(
+                daoCommittee_Owner_Contract.connect(user1).setCooldown(
+                    seigManagerContract.address,
+                    dataSetDao
+                )
+            ).to.be.reverted;
+        })
+
+        it("22. daoExecuteTransaction can execute onlyOwner", async () => {
+            let beforeGlobalDelay = await depositManagerContract.globalWithdrawalDelay()
+
+            const dataSetGlobalWithdrawalDelay = depositManagerContract.interface.encodeFunctionData(
+                "setGlobalWithdrawalDelay",
+                [10]
+            )
+
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).daoExecuteTransaction(
+                depositManagerContract.address,
+                dataSetGlobalWithdrawalDelay
+            )
+
+            let afterGlobalDelay = await depositManagerContract.globalWithdrawalDelay()
+            expect(afterGlobalDelay).to.be.equal(10)
+            expect(afterGlobalDelay).not.to.be.equal(beforeGlobalDelay)
+
+        })
     })
 
     describe("MultiSigWallet Setting", () => {
@@ -2060,11 +2076,6 @@ describe("DAO Proxy Change Test", () => {
             let beforeAddr = await seigManagerContract.dao()
             expect(beforeAddr).to.be.equal(oldContractInfo.DAOVault)
 
-            // let seigAdmin = await seigManagerContract.isAdmin(daoCommittee_Owner_Contract.address)
-            // console.log(seigAdmin)
-            // let seigAdmin2 = await seigManagerContract.isAdmin(multiSigWalletContract.address)
-            // console.log(seigAdmin2)
-
             const dataSetDao = seigManagerContract.interface.encodeFunctionData(
               "setDao",
               [zeroAddr]
@@ -2072,7 +2083,7 @@ describe("DAO Proxy Change Test", () => {
               
             const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
               "daoExecuteTransaction",
-              [seigManagerProxyContract.address, 0, dataSetDao]
+              [seigManagerProxyContract.address, dataSetDao]
             )
       
             await multiSigWalletContract.connect(member2).submitTransaction(
@@ -2088,6 +2099,7 @@ describe("DAO Proxy Change Test", () => {
             let afterAddr = await seigManagerContract.dao()
             expect(afterAddr).to.be.equal(zeroAddr)
         })
+
 
     })
 })
