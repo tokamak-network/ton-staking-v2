@@ -42,10 +42,14 @@ import DAOCommitteeProxy_JSON from '../test/abi/DAOCommitteeProxy.json'
 import MultiSigWallet_JSON from '../test/abi/MultiSigWallet.json'
 import DAOAgendaManager_JSON from '../test/abi/DAOAgendaManager.json'
 import DAOVault_JSON from '../test/abi/DAOVault.json'
+import TON_JSON from '../test/abi/TON.json'
+import WTON_JSON from '../test/abi/WTON.json'
+import Faucetv2_JSON from '../test/abi/Faucetv2.json'
 
-const tokenInfos = {
-    ton: '0xa30fe40285b8f5c0457dbc3b7c8a280373c40044',
-    wton: '0x79e0d92670106c85e9067b56b8f674340dca0bbd'
+
+let tokenInfos = {
+    ton: '',
+    wton: ''
 }
 
 const MultiSigWalletOwners = [
@@ -121,6 +125,88 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             proxyOwner: hre.ethers.constants.AddressZero,
             manager: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
         }
+    }
+
+    //==== TON =================================
+
+    const TONDeployment = await deploy("TON",{
+        contract:
+        {
+            abi: TON_JSON.abi,
+            bytecode: TON_JSON.bytecode,
+            // deployedBytecode: TON_JSON.deployedBytecode
+        },
+        from: deployer,
+        args: [],
+        log: true
+    });
+
+    tokenInfos.ton = TONDeployment.address
+
+    const tonContract = (await hre.ethers.getContractAt(
+        TONDeployment.abi,
+        TONDeployment.address
+    ));
+
+    //==== WTON =================================
+
+    const WTONDeployment = await deploy("WTON",{
+        contract:
+        {
+            abi: WTON_JSON.abi,
+            bytecode: WTON_JSON.bytecode,
+            // deployedBytecode: WTON_JSON.deployedBytecode
+        },
+        from: deployer,
+        args: [
+            tokenInfos.ton
+        ],
+        log: true
+    });
+
+    tokenInfos.wton = WTONDeployment.address
+
+    const wtonContract = (await hre.ethers.getContractAt(
+        WTONDeployment.abi,
+        WTONDeployment.address
+    ));
+
+    //==== Faucet =================================
+    const Faucetv2Deployment = await deploy("Faucetv2",{
+        contract:
+        {
+            abi: Faucetv2_JSON.abi,
+            bytecode: Faucetv2_JSON.bytecode,
+            // deployedBytecode: Faucetv2_JSON.deployedBytecode
+        },
+        from: deployer,
+        args: [
+            tokenInfos.ton,
+            tokenInfos.wton,
+            tokenInfos.ton,
+            tokenInfos.wton,
+            hre.ethers.utils.parseEther("1200"),
+            hre.ethers.utils.parseEther("200"),
+            hre.ethers.utils.parseEther("0"),
+            hre.ethers.utils.parseEther("0"),
+            hre.ethers.BigNumber.from("86400")
+        ],
+        log: true
+    });
+
+    const faucetContract = (await hre.ethers.getContractAt(
+        Faucetv2Deployment.abi,
+        Faucetv2Deployment.address
+    ));
+
+    //==== TON minter  =================================
+    let isMinter = await tonContract.connect(deploySigner).isMinter(deploySigner.address)
+    let balanceOfFaucet =  await tonContract.balanceOf(faucetContract.address)
+
+    if (isMinter && balanceOfFaucet == hre.ethers.constants.Zero) {
+        await (await tonContract.connect(deploySigner).mint(Faucetv2Deployment.address, hre.ethers.utils.parseEther("50000000"))).wait()
+        await (await tonContract.connect(deploySigner).addMinter(tokenInfos.wton)).wait()
+        await (await tonContract.connect(deploySigner)["renounceMinter()"]()).wait()
     }
 
     //==== SeigManager =================================
@@ -419,6 +505,20 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
         await (await daoCommitteeOwner.connect(deploySigner).setCooldown(
             daoInfos.cooldownTime
         )).wait();
+    }
+
+    //==== WTON minter  =================================
+
+    let seigInWton = await wtonContract.seigManager()
+    if (seigInWton != seigManagerProxy.address) {
+        await (await wtonContract.connect(deploySigner).setSeigManager(seigManagerProxy.address)).wait()
+    }
+
+    isMinter = await wtonContract.connect(deploySigner).isMinter(deploySigner.address)
+    if (isMinter) {
+        await (await wtonContract.connect(deploySigner).addMinter(seigManagerProxy.address)).wait()
+        await (await wtonContract.connect(deploySigner).addMinter(daoCommitteeProxy.address)).wait()
+        await (await wtonContract.connect(deploySigner)["renounceMinter()"]()).wait()
     }
 
     // //==== DAOAgendaManager =================================
@@ -910,6 +1010,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
         seigManagerProxy.address
     )) as SeigManagerV1_2;
 
+
     let tonInSeig = await seigManagerV2.ton()
     let block = await hre.ethers.provider.getBlock('latest')
     if (tonInSeig.toLowerCase() != tokenInfos.ton.toLowerCase()) {
@@ -922,6 +1023,16 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             coinageFactory.address,
             block.number
         )).wait()
+    }
+
+    let seigStartBlock = await seigManagerV2.seigStartBlock()
+    if (seigStartBlock == hre.ethers.constants.Zero) {
+        await (await seigManagerV2.setSeigStartBlock(block.number)).wait()
+    }
+
+    let burntAmountAtDAO = await seigManagerV2.burntAmountAtDAO()
+    if (burntAmountAtDAO == hre.ethers.constants.Zero) {
+        await (await seigManagerV2.setBurntAmountAtDAO(hre.ethers.constants.One)).wait()
     }
 
     let powerton_ = hre.ethers.constants.AddressZero
@@ -1012,6 +1123,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             )).wait()
     }
 
+
     // operatorManagerFactory.setAddresses
     let ton_operatorManagerFactory = await operatorManagerFactory.ton()
     if (tokenInfos.ton != ton_operatorManagerFactory) {
@@ -1066,9 +1178,17 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
           )).wait()
     }
 
-    //====== WTON  addMinter to seigManagerV2 ==================
-    // wtonContract.addMinter(seigManagerProxy.address)
+    //====== L1BridgeRegistryV1_1  addManager ==================
+    let isManager = await l1BridgeRegistryProxy.isManager(daoCommitteeProxy.address)
+    if (!isManager) {
+        await (await l1BridgeRegistryProxy.connect(deploySigner).addManager(daoCommitteeProxy.address)).wait();
+    }
 
+    //====== L1BridgeRegistryV1_1  setSeigniorageCommittee ==================
+    let seigniorageCommittee = await l1BridgeRegistryProxy.seigniorageCommittee()
+    if (seigniorageCommittee.toLowerCase() != daoCommitteeProxy.address.toLowerCase()) {
+        await (await l1BridgeRegistry.connect(deploySigner).setSeigniorageCommittee(daoCommitteeProxy.address)).wait();
+    }
 
 
     //======= TransferOwner to DAOCommittee ======================================
