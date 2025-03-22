@@ -36,6 +36,8 @@ import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
 import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/LegacySystemConfigProxy"
+import { Faucetv2 } from "../typechain-types/contracts/mocks/Faucetv2"
+import { WTON } from "../typechain-types/contracts/mocks/WTON.sol"
 
 
 import DAOCommitteeProxy_JSON from '../test/abi/DAOCommitteeProxy.json'
@@ -44,8 +46,12 @@ import DAOAgendaManager_JSON from '../test/abi/DAOAgendaManager.json'
 import DAOVault_JSON from '../test/abi/DAOVault.json'
 import TON_JSON from '../test/abi/TON.json'
 import WTON_JSON from '../test/abi/WTON.json'
-import Faucetv2_JSON from '../test/abi/Faucetv2.json'
 
+
+let faucetInitialSupply = {
+    ton: hre.ethers.utils.parseEther("500000000000000"),
+    wton: hre.ethers.utils.parseEther("10000000000000"+"0".repeat(9))
+}
 
 let tokenInfos = {
     ton: '',
@@ -151,12 +157,12 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     //==== WTON =================================
 
     const WTONDeployment = await deploy("WTON",{
-        contract:
-        {
-            abi: WTON_JSON.abi,
-            bytecode: WTON_JSON.bytecode,
-            // deployedBytecode: WTON_JSON.deployedBytecode
-        },
+        // contract:
+        // {
+        //     abi: WTON_JSON.abi,
+        //     bytecode: WTON_JSON.bytecode,
+        //     // deployedBytecode: WTON_JSON.deployedBytecode
+        // },
         from: deployer,
         args: [
             tokenInfos.ton
@@ -172,24 +178,22 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     ));
 
     //==== Faucet =================================
+
     const Faucetv2Deployment = await deploy("Faucetv2",{
-        contract:
-        {
-            abi: Faucetv2_JSON.abi,
-            bytecode: Faucetv2_JSON.bytecode,
-            // deployedBytecode: Faucetv2_JSON.deployedBytecode
-        },
         from: deployer,
+        // args: [
+        //     tokenInfos.ton,
+        //     tokenInfos.wton,
+        //     hre.ethers.utils.parseEther("1200"),
+        //     hre.ethers.utils.parseEther("200"),
+        //     hre.ethers.BigNumber.from("86400")
+        // ],
         args: [
             tokenInfos.ton,
             tokenInfos.wton,
-            tokenInfos.ton,
-            tokenInfos.wton,
-            hre.ethers.utils.parseEther("1200"),
-            hre.ethers.utils.parseEther("200"),
-            hre.ethers.utils.parseEther("0"),
-            hre.ethers.utils.parseEther("0"),
-            hre.ethers.BigNumber.from("86400")
+            hre.ethers.utils.parseEther("12000"),
+            hre.ethers.utils.parseEther("2000"),
+            hre.ethers.BigNumber.from("1")
         ],
         log: true
     });
@@ -201,12 +205,14 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
 
     //==== TON minter  =================================
     let isMinter = await tonContract.connect(deploySigner).isMinter(deploySigner.address)
-    let balanceOfFaucet =  await tonContract.balanceOf(faucetContract.address)
 
-    if (isMinter && balanceOfFaucet == hre.ethers.constants.Zero) {
-        await (await tonContract.connect(deploySigner).mint(Faucetv2Deployment.address, hre.ethers.utils.parseEther("50000000"))).wait()
+    let balanceOfFaucet =  await tonContract.balanceOf(faucetContract.address)
+    if (isMinter && balanceOfFaucet.eq(hre.ethers.constants.Zero) ) {
+        await (await tonContract.connect(deploySigner).mint(Faucetv2Deployment.address, faucetInitialSupply.ton)).wait()
         await (await tonContract.connect(deploySigner).addMinter(tokenInfos.wton)).wait()
         await (await tonContract.connect(deploySigner)["renounceMinter()"]()).wait()
+
+        await (await wtonContract.connect(deploySigner).mint(Faucetv2Deployment.address, faucetInitialSupply.ton)).wait()
     }
 
     //==== SeigManager =================================
@@ -1026,12 +1032,12 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     }
 
     let seigStartBlock = await seigManagerV2.seigStartBlock()
-    if (seigStartBlock == hre.ethers.constants.Zero) {
+    if (seigStartBlock.eq(hre.ethers.constants.Zero)) {
         await (await seigManagerV2.setSeigStartBlock(block.number)).wait()
     }
 
     let burntAmountAtDAO = await seigManagerV2.burntAmountAtDAO()
-    if (burntAmountAtDAO == hre.ethers.constants.Zero) {
+    if (burntAmountAtDAO.eq(hre.ethers.constants.Zero)) {
         await (await seigManagerV2.setBurntAmountAtDAO(hre.ethers.constants.One)).wait()
     }
 
