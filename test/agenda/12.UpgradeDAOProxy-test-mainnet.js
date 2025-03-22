@@ -576,21 +576,27 @@ describe("DAO Proxy Change Test", () => {
                 "setCandidatesCommittee(address[],address)"
             )
 
-            const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
-                "setCreateAgendaFees(uint256)"
+            // const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
+            //     "setCreateAgendaFees(uint256)"
+            // )
+
+            // const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setMinimumNoticePeriodSeconds(uint256)"
+            // )
+
+            // const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setMinimumVotingPeriodSeconds(uint256)"
+            // )
+
+            // const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setExecutingPeriodSeconds(uint256)"
+            // )
+
+
+            const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature(
+                "setBurntAmountAtDAO(uint256)"
             )
 
-            const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setMinimumNoticePeriodSeconds(uint256)"
-            )
-
-            const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setMinimumVotingPeriodSeconds(uint256)"
-            )
-
-            const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setExecutingPeriodSeconds(uint256)"
-            )
 
             const _setCooldown = Web3EthAbi.encodeFunctionSignature(
                 "setCooldownTime(uint256)"
@@ -604,10 +610,9 @@ describe("DAO Proxy Change Test", () => {
             await expect(
                 daoCommitteeProxy2Contract.connect(member2).setSelectorImplementations2(
                     [
-                        _setSeigManager,_setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds,
-                        _setCooldown,_setdaoExecuteTransaction
+                        _setSeigManager,_setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,
+                        _setTon,_setWton,_setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,
+                        _setBurntAmountAtDAO,_setCooldown,_setdaoExecuteTransaction
                     ],
                     daoCommitteeOwner.address
             )).to.be.revertedWith("DAOCommitteeProxy2: msg.sender is not an admin");
@@ -662,10 +667,6 @@ describe("DAO Proxy Change Test", () => {
                 "decreaseMaxMember(uint256,uint256)"
             )
 
-            const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature(
-                "setBurntAmountAtDAO(uint256)"
-            )
-
             const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature(
                 "setActivityRewardPerSecond(uint256)"
             )
@@ -678,21 +679,26 @@ describe("DAO Proxy Change Test", () => {
                 "setCandidatesCommittee(address[],address)"
             )
 
-            const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
-                "setCreateAgendaFees(uint256)"
+            // const _setCreateAgendaFees = Web3EthAbi.encodeFunctionSignature(
+            //     "setCreateAgendaFees(uint256)"
+            // )
+
+            // const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setMinimumNoticePeriodSeconds(uint256)"
+            // )
+
+            // const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setMinimumVotingPeriodSeconds(uint256)"
+            // )
+
+            // const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
+            //     "setExecutingPeriodSeconds(uint256)"
+            // )
+
+            const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature(
+                "setBurntAmountAtDAO(uint256)"
             )
 
-            const _setMinimumNoticePeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setMinimumNoticePeriodSeconds(uint256)"
-            )
-
-            const _setMinimumVotingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setMinimumVotingPeriodSeconds(uint256)"
-            )
-
-            const _setExecutingPeriodSeconds = Web3EthAbi.encodeFunctionSignature(
-                "setExecutingPeriodSeconds(uint256)"
-            )
 
             const _setCooldown = Web3EthAbi.encodeFunctionSignature(
                 "setCooldownTime(uint256)"
@@ -719,10 +725,9 @@ describe("DAO Proxy Change Test", () => {
                     [
                         _setLayer2CandidateFactory,_setLayer2Manager,_setSeigManager,
                         _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                        _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                        _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds,
-                        _setCooldown,_setdaoExecuteTransaction
+                        _increaseMaxMember,_setQuorum,_decreaseMaxMember,
+                        _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,
+                        _setBurntAmountAtDAO,_setCooldown,_setdaoExecuteTransaction
                     ],
                     daoCommitteeOwner.address
             )
@@ -731,8 +736,7 @@ describe("DAO Proxy Change Test", () => {
                 _setLayer2CandidateFactory,_setLayer2Manager,_setSeigManager,
                 _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
                 _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee
             ]
             // console.log("setSelectorBytes : ", setSelectorBytes)
         })
@@ -1775,94 +1779,28 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2.toUpperCase()).to.be.equal(beforeData.toUpperCase())
         })
 
-        it("15. setCreateAgendaFees test", async () => {
-            let beforeData = await daoagendaManager.createAgendaFees()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCreateAgendaFees(
-                1
-            )
-
-            let afterData = await daoagendaManager.createAgendaFees()
-            expect(afterData).to.be.equal(1)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCreateAgendaFees(
-                beforeData
-            )
-
-            let afterData2 = await daoagendaManager.createAgendaFees()
-            expect(afterData2).to.be.equal(beforeData)
-        })
-
-        it("16. setMinimumNoticePeriodSeconds test", async () => {
-            let beforeData = await daoagendaManager.minimumNoticePeriodSeconds()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumNoticePeriodSeconds(
-                1
-            )
-
-            let afterData = await daoagendaManager.minimumNoticePeriodSeconds()
-            expect(afterData).to.be.equal(1)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumNoticePeriodSeconds(
-                beforeData
-            )
-
-            let afterData2 = await daoagendaManager.minimumNoticePeriodSeconds()
-            expect(afterData2).to.be.equal(beforeData)
-        })
-
-        it("17. setMinimumVotingPeriodSeconds test", async () => {
-            let beforeData = await daoagendaManager.minimumVotingPeriodSeconds()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumVotingPeriodSeconds(
-                1
-            )
-
-            let afterData = await daoagendaManager.minimumVotingPeriodSeconds()
-            expect(afterData).to.be.equal(1)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setMinimumVotingPeriodSeconds(
-                beforeData
-            )
-
-            let afterData2 = await daoagendaManager.minimumVotingPeriodSeconds()
-            expect(afterData2).to.be.equal(beforeData)
-        })
-
-        it("18. setExecutingPeriodSeconds test", async () => {
-            let beforeData = await daoagendaManager.executingPeriodSeconds()
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setExecutingPeriodSeconds(
-                1
-            )
-
-            let afterData = await daoagendaManager.executingPeriodSeconds()
-            expect(afterData).to.be.equal(1)
-
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setExecutingPeriodSeconds(
-                beforeData
-            )
-
-            let afterData2 = await daoagendaManager.executingPeriodSeconds()
-            expect(afterData2).to.be.equal(beforeData)
-        })
-
         it("19. setBurntAmountAtDAO test", async () => {
+            // let check = await seigManagerV1Contract.isAdmin(daoCommitteeAdmin.address)
+            // let check2 = await seigManagerV1Contract.isAdmin(daoCommittee_Owner_Contract.address)
+            // console.log(check)
+            // console.log(check2)
+
             let beforeData = await seigManagerV1Contract.burntAmountAtDAO()
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
-                1
+                10
             )
 
             let afterData = await seigManagerV1Contract.burntAmountAtDAO()
-            expect(afterData).to.be.equal(1)
+            // console.log(afterData)
+            expect(afterData).to.be.equal(10)
 
             await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setBurntAmountAtDAO(
                 beforeData
             )
 
             let afterData2 = await seigManagerV1Contract.burntAmountAtDAO()
-          
+            // console.log(afterData2)
             expect(afterData2).to.be.equal(beforeData)
         })
 
@@ -2158,6 +2096,193 @@ describe("DAO Proxy Change Test", () => {
             expect(afterAddr).to.be.equal(zeroAddr)
         })
 
+        it("MultiSigWallet execute the agendaManager(setCreateAgendaFees)", async () => {
+            let beforeAgendaFee = await daoagendaManager.createAgendaFees()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setCreateAgendaFees",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+            let afterAgendaFee = await daoagendaManager.createAgendaFees()
+            expect(afterAgendaFee).to.be.equal(10)
+            expect(afterAgendaFee).not.to.be.equal(beforeAgendaFee)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setMinimumNoticePeriodSeconds)", async () => {
+            let beforeNotice = await daoagendaManager.minimumNoticePeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setMinimumNoticePeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+            let afterNotice = await daoagendaManager.createAgendaFees()
+            expect(afterNotice).to.be.equal(10)
+            expect(afterNotice).not.to.be.equal(beforeNotice)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setMinimumVotingPeriodSeconds)", async () => {
+            let beforeVoting = await daoagendaManager.minimumVotingPeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setMinimumVotingPeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+            let afterVoting = await daoagendaManager.minimumVotingPeriodSeconds()
+            expect(afterVoting).to.be.equal(10)
+            expect(afterVoting).not.to.be.equal(beforeVoting)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setExecutingPeriodSeconds)", async () => {
+            let beforeExecuting = await daoagendaManager.executingPeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setExecutingPeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+            let afterExecuting = await daoagendaManager.executingPeriodSeconds()
+            expect(afterExecuting).to.be.equal(10)
+            expect(afterExecuting).not.to.be.equal(beforeExecuting)
+        })
+
+        it("MultiSigWallet execute the seigManger(setBurntAmountAtDAO)", async () => {
+            // await seigManagerV1Contract.connect(daoCommitteeAdminContract).addAdmin(multiSigWalletContract.address)
+            // let check2 = await seigManagerV1Contract.isAdmin(daoCommitteeAdminContract.address)
+            // let check3 = await seigManagerV1Contract.isAdmin(multiSigWalletContract.address)
+            // console.log(check2)
+            // console.log(check3)
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdminContract).setBurntAmountAtDAO(
+                10
+            )
+
+            let beforeburnAmount = await seigManagerV1Contract.burntAmountAtDAO()
+
+            const dataSetBurn = seigManagerV1Contract.interface.encodeFunctionData(
+                "setBurntAmountAtDAO",
+                [1]
+            )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [seigManagerContract.address, dataSetBurn]
+            )
+    
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommitteeAdminContract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+            let afterburnAmount = await seigManagerV1Contract.burntAmountAtDAO()
+            // console.log(beforeburnAmount)
+            // console.log(afterburnAmount)
+            expect(beforeburnAmount).to.be.equal(10)
+            expect(afterburnAmount).to.be.equal(1)
+            expect(afterburnAmount).not.to.be.equal(beforeburnAmount)
+        })
+
+        // it("MultiSigWallet execute the seigManger(setBurntAmountAtDAO)", async () => {
+            
+        //     await daoCommittee_Owner_Contract.connect(daoCommitteeAdminContract).setBurntAmountAtDAO(
+        //         10
+        //     )
+
+        //     let beforeburnAmount = await seigManagerV1Contract.burntAmountAtDAO()
+            
+        //     const dataExecuteTransaction = seigManagerV1Contract.interface.encodeFunctionData(
+        //         "setBurntAmountAtDAO",
+        //         [1]
+        //     )
+    
+        //     await multiSigWalletContract.connect(member2).submitTransaction(
+        //         daoCommitteeAdminContract.address,
+        //         0,
+        //         dataExecuteTransaction
+        //     );
+    
+        //     let count = Number(await multiSigWalletContract.getTransactionCount())
+        //     await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+        //     await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+
+        //     let afterburnAmount = await seigManagerV1Contract.burntAmountAtDAO()
+        //     console.log(beforeburnAmount)
+        //     console.log(afterburnAmount)
+        //     expect(afterburnAmount).to.be.equal(1)
+        //     expect(afterburnAmount).not.to.be.equal(beforeburnAmount)
+        // })
 
     })
 })

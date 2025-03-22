@@ -381,54 +381,6 @@ contract DAOCommitteeOwner is
         }
     }
 
-     /// @notice Set fee amount of creating an agenda
-    /// @param _fees Fee amount on TON
-    function setCreateAgendaFees(
-        uint256 _fees
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setCreateAgendaFees(_fees);
-    }
-
-    /// @notice Set the minimum notice period
-    /// @param _minimumNoticePeriod New minimum notice period in second
-    function setMinimumNoticePeriodSeconds(
-        uint256 _minimumNoticePeriod
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setMinimumNoticePeriodSeconds(_minimumNoticePeriod);
-    }
-
-    /// @notice Set the minimum voting period
-    /// @param _minimumVotingPeriod New minimum voting period in second
-    function setMinimumVotingPeriodSeconds(
-        uint256 _minimumVotingPeriod
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setMinimumVotingPeriodSeconds(_minimumVotingPeriod);
-    }
-
-    /// @notice Set the executing period
-    /// @param _executingPeriodSeconds New executing period in second
-    function setExecutingPeriodSeconds(
-        uint256 _executingPeriodSeconds
-    )
-        external
-        onlyOwner
-        validAgendaManager
-    {
-        agendaManager.setExecutingPeriodSeconds(_executingPeriodSeconds);
-    }
-
     /// @notice DAO burns seigManager's seigniorage.
     /// @param _burnAmount burnAmount
     function setBurntAmountAtDAO(
