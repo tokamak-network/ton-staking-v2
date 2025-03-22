@@ -593,7 +593,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             const _setCooldown = Web3EthAbi.encodeFunctionSignature(
-                "setCooldown(uint256)"
+                "setCooldownTime(uint256)"
             )
 
             const _setdaoExecuteTransaction = Web3EthAbi.encodeFunctionSignature(
@@ -695,7 +695,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             const _setCooldown = Web3EthAbi.encodeFunctionSignature(
-                "setCooldown(uint256)"
+                "setCooldownTime(uint256)"
             )
 
             const _setdaoExecuteTransaction = Web3EthAbi.encodeFunctionSignature({
@@ -1270,7 +1270,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
 
-        it("11. cast vote (member2)", async () => {
+        it("11. cast vote (staked)", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);  
             // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
             const beforeCountingYes = agenda[7];
@@ -1866,11 +1866,11 @@ describe("DAO Proxy Change Test", () => {
             expect(afterData2).to.be.equal(beforeData)
         })
 
-        it("20. setCooldown test", async () => {
+        it("20. setCooldownTime test", async () => {
             let beforeData = await daoCommittee_Owner_Contract.cooldownTime()
             expect(beforeData).to.be.equal(0)
 
-            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCooldown(
+            await daoCommittee_Owner_Contract.connect(daoCommitteeAdmin).setCooldownTime(
                 10
             )
 
@@ -1885,7 +1885,7 @@ describe("DAO Proxy Change Test", () => {
             )
 
             await expect(
-                daoCommittee_Owner_Contract.connect(user1).setCooldown(
+                daoCommittee_Owner_Contract.connect(user1).setCooldownTime(
                     seigManagerContract.address,
                     dataSetDao
                 )
@@ -2054,8 +2054,8 @@ describe("DAO Proxy Change Test", () => {
             expect(beforeCooldown).to.be.equal(10)
       
             const dataSetCooldown = daoCommittee_Owner_Contract.interface.encodeFunctionData(
-              "setCooldown",
-              [20]
+              "setCooldownTime",
+              [100]
             )
       
             await multiSigWalletContract.connect(member2).submitTransaction(
@@ -2069,8 +2069,66 @@ describe("DAO Proxy Change Test", () => {
             await multiSigWalletContract.connect(member3).executeTransaction(count-1)
       
             let afterCooldown = await daoCommittee_Owner_Contract.cooldownTime()
-            expect(afterCooldown).to.be.equal(20)
+            expect(afterCooldown).to.be.equal(100)
         })
+
+        it("MultiSigWallet execute the DAOCommmitee_V1(removeFromBlacklist)", async () => {
+            let beforeBlackList = await daoCommittee_V1_Contract.blacklist(member2ContractAddr)
+            expect(beforeBlackList).to.be.equal(true)
+
+            const dataRemoveBlackList = daoCommittee_V1_Contract.interface.encodeFunctionData(
+                "removeFromBlacklist",
+                [member2ContractAddr]
+            )
+
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommittee_V1_Contract.address,
+                0,
+                dataRemoveBlackList
+            );
+      
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+            let afterBlackList = await daoCommittee_V1_Contract.blacklist(member2ContractAddr)
+            expect(afterBlackList).to.be.equal(false)
+        })
+
+        it("Now Member & Total Supply Check", async () => {
+            // console.log("newmember1 :", newMember1Addr) //index0
+            // console.log("staked :", stakedAddr)         //index1
+            // console.log("member3 :", member3Addr)       //index2
+            let index1TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(stakedAddr)
+            let index2TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member3Addr)
+            let TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member2Addr)
+
+            // console.log("index0TotalSupply :", index0TotalSupply)
+            // console.log("index1TotalSupply :", index1TotalSupply)
+            // console.log("index2TotalSupply :", index2TotalSupply)
+            expect(TotalSupply).to.be.gt(index1TotalSupply)
+            expect(TotalSupply).to.be.gt(index2TotalSupply)
+        })
+
+        it("changeMember cooldown Test", async () => {
+            let beforeAddr = await daoCommittee_V1_Contract.members(1)
+            expect(beforeAddr.toUpperCase()).to.be.equal(stakedAddr.toUpperCase())
+
+            await (
+                await member2ContractLogic.connect(member2).changeMember(1)
+            ).wait();
+
+            let afterAddr = await daoCommittee_V1_Contract.members(1)
+            expect(afterAddr.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
+
+            await expect(
+                member2ContractLogic.connect(member2).changeMember(
+                    2
+                )
+            ).to.be.revertedWith("DAOCommittee: need cooldown");
+        })
+
+
 
         it("MultiSigWallet execute the SeigManager(setDao)", async () => {
             let beforeAddr = await seigManagerContract.dao()

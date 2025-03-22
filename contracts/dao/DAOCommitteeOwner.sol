@@ -180,7 +180,7 @@ contract DAOCommitteeOwner is
 
     /// @notice Set the cooldownTime
     /// @param _cooltime The period after which changeMember can be executed again
-    function setCooldown(
+    function setCooldownTime(
         uint256 _cooltime
     )
         external
