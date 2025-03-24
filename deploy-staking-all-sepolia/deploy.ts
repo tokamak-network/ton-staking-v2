@@ -413,7 +413,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
         log: true
     });
 
-    //==== DAOCommitteeProxy upgradeTo DAOCommittee_V1 =======================================
+    //==== DAOCommitteeProxy upgradeTo DAOCommitteeProxy2 =======================================
 
     const daoCommitteeProxy = (await hre.ethers.getContractAt(
         DAOCommitteeProxyDeployment.abi,
@@ -452,7 +452,10 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     const selector12 = encodeFunctionSignature("setQuorum(uint256)");
     const selector13 = encodeFunctionSignature("decreaseMaxMember(uint256,uint256)");
     const selector14 = encodeFunctionSignature("setActivityRewardPerSecond(uint256)");
-    const selector15 = encodeFunctionSignature("daoExecuteTransaction(address,uint256,bytes)");
+    const selector15 = encodeFunctionSignature("daoExecuteTransaction(address,bytes)");
+    const selector16 = encodeFunctionSignature("setCandidatesSeigManager(address[],address)");
+    const selector17 = encodeFunctionSignature("setCandidatesCommittee(address[],address)");
+    const selector18 = encodeFunctionSignature("setBurntAmountAtDAO(uint256)");
 
     let function01 = await daoCommitteeProxy2.getSelectorImplementation2(selector01)
     if (function01 == DAOCommittee_V1Deployment.address) {
@@ -460,6 +463,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
             selector01, selector02, selector03, selector04, selector05,
             selector06, selector07, selector08, selector09, selector10,
             selector11, selector12, selector13, selector14, selector15,
+            selector16, selector17, selector18
         ];
 
         await (await daoCommitteeProxy2.connect(deploySigner).setImplementation2(
@@ -621,6 +625,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     if ( wton_.toLowerCase() != (tokenInfos.wton.toLowerCase()) ) {
         await (await daoVault.connect(deploySigner).setWTON(tokenInfos.wton)).wait();
     }
+
     //---- DAO.setDaoVault
 
     let daoVaultAddress = await daoCommitteeOwner.daoVault()
