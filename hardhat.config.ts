@@ -512,7 +512,8 @@ const config: HardhatUserConfig = {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy-layer2']
-      deploy: ['deploy-staking-v2.5-sepolia']
+      // deploy: ['deploy-staking-v2.5-sepolia']
+      deploy: ['deploy-staking-all-sepolia']
     },
   },
   deterministicDeployment: (network: string) => {
