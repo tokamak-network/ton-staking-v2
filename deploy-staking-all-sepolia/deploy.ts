@@ -438,7 +438,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
 
     //==== DAOCommitteeProxy setFunctions DAOCommitteeOwner =======================================
 
-    const selector01 = encodeFunctionSignature("setCooldown(uint256)");
+    const selector01 = encodeFunctionSignature("setCooldownTime(uint256)");
     const selector02 = encodeFunctionSignature("setCandidateAddOnFactory(address)");
     const selector03 = encodeFunctionSignature("setLayer2Manager(address)");
     const selector04 = encodeFunctionSignature("setSeigManager(address)");
@@ -508,7 +508,7 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     }
     let cooldownTime = await daoCommitteeOwner.cooldownTime()
     if ( cooldownTime != daoInfos.cooldownTime ) {
-        await (await daoCommitteeOwner.connect(deploySigner).setCooldown(
+        await (await daoCommitteeOwner.connect(deploySigner).setCooldownTime(
             daoInfos.cooldownTime
         )).wait();
     }
