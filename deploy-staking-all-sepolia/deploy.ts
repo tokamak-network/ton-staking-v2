@@ -136,12 +136,12 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
     //==== TON =================================
 
     const TONDeployment = await deploy("TON",{
-        contract:
-        {
-            abi: TON_JSON.abi,
-            bytecode: TON_JSON.bytecode,
-            // deployedBytecode: TON_JSON.deployedBytecode
-        },
+        // contract:
+        // {
+        //     abi: TON_JSON.abi,
+        //     bytecode: TON_JSON.bytecode,
+        //     // deployedBytecode: TON_JSON.deployedBytecode
+        // },
         from: deployer,
         args: [],
         log: true
