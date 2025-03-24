@@ -191,8 +191,8 @@ const deployTonStakingV2: DeployFunction = async function (hre: HardhatRuntimeEn
         args: [
             tokenInfos.ton,
             tokenInfos.wton,
-            hre.ethers.utils.parseEther("12000"),
-            hre.ethers.utils.parseEther("2000"),
+            hre.ethers.utils.parseEther("1200"),
+            hre.ethers.utils.parseEther("1000"+"0".repeat(9)),
             hre.ethers.BigNumber.from("1")
         ],
         log: true
