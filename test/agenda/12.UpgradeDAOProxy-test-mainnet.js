@@ -1157,18 +1157,18 @@ describe("DAO Proxy Change Test", () => {
             let functionBytecodes = [];
 
             const selector1 = Web3EthAbi.encodeFunctionSignature("claimERC20(address,address,uint256)");
-            // console.log("selector1 : ", selector1);
+            console.log("selector1 : ", selector1);
             // console.log("selector1.length : ", selector1.length);
             const claimAmount = 100000000000000000000
 
             const data1 = padLeft(wtonAddr.toString(), 64);
-            // console.log("data1 : ", data1);
+            console.log("data1 : ", data1);
             const data2 = padLeft(testAddr.toString(), 64);
-            // console.log("data2 : ", data2)
+            console.log("data2 : ", data2)
             const data3 = padLeft(claimAmount.toString(16), 64);
-            // console.log("data3 : ", data3);
+            console.log("data3 : ", data3);
             const data4 = data1 + data2 + data3
-            // console.log("data4 : ", data4);
+            console.log("data4 : ", data4);
 
             const functionBytecode1 = selector1.concat(data4)
             // console.log("functionBytecode1 :", functionBytecode1);
@@ -1187,6 +1187,8 @@ describe("DAO Proxy Change Test", () => {
                     functionBytecodes
                 ]
             )
+
+            console.log(functionBytecodes)
 
             const beforeBalance = await ton.balanceOf(daoCommitteeAdmin.address);
             if (agendaFee.gt(beforeBalance))
