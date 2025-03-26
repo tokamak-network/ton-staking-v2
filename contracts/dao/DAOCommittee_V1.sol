@@ -887,10 +887,12 @@ contract DAOCommittee_V1 is
     /// @return operatorAmount
     function operatorCheck(address candidate) public view returns (uint256 operatorAmount) {
         CandidateInfo memory info = _candidateInfos[candidate];
-        address coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
+        address coinage;
         if (privateLayer2[candidate]) {
+            coinage = ISeigManager(address(seigManager)).coinages(candidate);
             return operatorAmount = ICoinage(coinage).balanceOf(ILayer2(candidate).operator());
         } else {
+            coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
             return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
         }
     }

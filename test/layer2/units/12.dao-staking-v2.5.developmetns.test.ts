@@ -64,6 +64,8 @@ import DAOAgendaManager_JSON from '../../abi/DAOAgendaManager.json'
 import DAOVault_JSON from '../../abi/DAOVault.json'
 import { CompilationJobCreationErrorReason } from 'hardhat/types'
 
+const Web3EthAbi = require('web3-eth-abi');
+
 let tonHaveAddr = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
 
 const daoOwnerAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
@@ -110,7 +112,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
 }
 
 describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
-    let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer, user1: Signer, user2: Signer
+    let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer, user1: Signer, user2: Signer, user3: Signer
 
     let daoOwner: Signer;
     let wtonHave:Signer, tonHave:Signer
@@ -126,6 +128,8 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
     let depositManager: Contract,  depositManagerProxy: Contract;
     let depositManagerV1_1: DepositManagerV1_1;    
 
+    let layer2Registry: Layer2Registry;
+
     let daoAgendaManagerContract: Contract
     let daoCommitteeProxy2Contract: DAOCommitteeProxy2
     let daoCommittee_V1: DAOCommittee_V1
@@ -134,6 +138,9 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
 
     let user1CandidateContract: Contract
     let user2CandidateContract: Contract
+    let layer2privateCandidateContract: Contract
+
+    let layer2Operator: Signer;
 
     interface CandidateType {
         address: string,
@@ -144,6 +151,9 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
     let candidate2 : CandidateType
     let candidateAddOn1 : CandidateType
     let layer2Candidate1 : CandidateType
+
+    let mockLayer2: MockLayer2
+    let privatelayer2: MockLayer2
 
     let deployed : any
 
@@ -203,6 +213,8 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
         addr2 = accounts[3]
         user1 = accounts[4]
         user2 = accounts[5]
+        user3 = accounts[6]
+        layer2Operator = addr2
 
         daoOwner = await ethers.getSigner(daoOwnerAddress);
 
@@ -243,6 +255,8 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
             daoCommitteeOwner = (await ethers.getContractAt("DAOCommitteeOwner", deployed.DAOCommitteeProxy.address, deployer)) as DAOCommitteeOwner;
             daoCommittee_V1 = (await ethers.getContractAt("DAOCommittee_V1", deployed.DAOCommitteeProxy.address, deployer)) as DAOCommittee_V1;
 
+            layer2Registry = (await ethers.getContractAt("Layer2Registry", deployed.Layer2RegistryProxy.address, deployer)) as Layer2Registry;
+
             seigManagerV1_2 = (await ethers.getContractAt("SeigManagerV1_2", deployed.SeigManagerProxy.address, deployer)) as SeigManagerV1_2;
             seigManagerV1_3 = (await ethers.getContractAt("SeigManagerV1_3", deployed.SeigManagerProxy.address, deployer)) as SeigManagerV1_3;
             seigManager = new ethers.Contract(deployed.SeigManagerProxy.address,  SeigManager_Json.abi, deployer)
@@ -258,6 +272,89 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
                 "0x10000000000000000000000000",
             ]);
             manager =  await hre.ethers.getSigner(daoCommitteeProxy.address);
+        })
+    })
+
+    describe("registerLayer2CandidateByOwner Test", ()=> {
+        it('MockLayer2 ', async () => {
+            mockLayer2 = (await (await ethers.getContractFactory("MockLayer2")).connect(layer2Operator).deploy(
+                seigManager.address
+            )) as MockLayer2;
+        });
+
+        it('registerAndDeployCoinage ', async () => {
+
+            await (await layer2Registry.connect(layer2Operator).registerAndDeployCoinage(
+                mockLayer2.address,
+                seigManager.address
+            )).wait()
+
+        });
+
+        it('Operators must stake at least 1000.1 TON', async () => {
+            let layer2 = mockLayer2.address
+            let account = layer2Operator
+            let tonAmount = ethers.utils.parseEther("1000.1")
+
+            await depositApproveAndCall(layer2, account, tonAmount)
+
+        })
+
+        it('registerLayer2CandidateByOwner ', async () => {
+            const memo = "MockLayer2"
+
+            const receipt = await (await daoCommitteeContract.connect(deployer).registerLayer2CandidateByOwner(
+                layer2Operator.address,
+                mockLayer2.address,
+                memo
+            )).wait()
+
+            const topic = daoCommitteeContract.interface.getEventTopic('Layer2Registered');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = daoCommitteeContract.interface.parseLog(log);
+
+            const candidateContract = new ethers.Contract(
+                deployedEvent.args.candidateContract, DAOCandidate_Json.abi, deployer) as Candidate
+
+            expect(deployedEvent.args.candidate).to.be.eq(mockLayer2.address)
+            expect(deployedEvent.args.candidateContract).to.be.eq(candidateContract.address)
+            expect(deployedEvent.args.memo).to.be.eq(memo)
+
+            layer2Candidate1 = {
+                address : deployedEvent.args.candidateContract,
+                contract: candidateContract
+            }
+            privatelayer2 = mockLayer2;
+        });
+
+
+        it("set layer2privateCandidateContract", async () => {
+            let candidateInfo = await daoCommittee_V1.candidateInfos(mockLayer2.address)
+            
+            layer2privateCandidateContract = (await ethers.getContractAt("Candidate", candidateInfo.candidateContract, deployer)) as Candidate;
+
+            layer2Candidate1 = {
+                address : candidateInfo.candidateContract,
+                contract: layer2privateCandidateContract
+            }
+        })
+
+        it("privateLayer2 Check", async () => {
+            let privateLayer2Check = await daoCommittee_V1.privateLayer2(mockLayer2.address);
+            // console.log("privateLayer2Check :", privateLayer2Check)
+            expect(privateLayer2Check).to.be.equal(true)
+        })
+
+        it("operatorAmountCheck", async () => {
+            let operatorAmountCheck = await daoCommittee_V1.operatorAmountCheck(mockLayer2.address, layer2Operator.address);
+            // console.log("operatorAmountCheck :", operatorAmountCheck)
+            expect(operatorAmountCheck).to.be.gt(0)
+        })
+
+        it("operatorCheck", async () => {
+            let operatorAmount = await daoCommittee_V1.operatorCheck(mockLayer2.address);
+            // console.log("operatorAmount :", operatorAmount)
+            expect(operatorAmount).to.be.gt(0)
         })
     })
 
@@ -385,6 +482,7 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
             }
         })
 
+
         it("3. changeMember (don't staking don't use)", async () => {
             await expect(
                 user1CandidateContract.connect(user1).changeMember(
@@ -440,6 +538,164 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
                 )
             ).to.be.revertedWith("not enough amount");
         })
+
+        it("7. changeMember (registerLayer2CandidateByOwner)", async () => {
+            let memberCheck = await daoCommittee_V1.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
+
+            await (
+                await layer2privateCandidateContract.connect(layer2Operator).changeMember(1)
+            ).wait();
+
+            memberCheck = await daoCommittee_V1.members(1)
+            expect(memberCheck.toUpperCase()).to.be.equal(mockLayer2.address.toUpperCase())
+        })
+
+        it("8. changeMember cooldown Test", async () => {
+            await expect(
+                layer2privateCandidateContract.connect(layer2Operator).changeMember(
+                    2
+                )
+            ).to.be.revertedWith("DAOCommittee: need cooldown");
+        })
+
+
+        it("9. retireMember can't execute no Member", async () => {
+            await expect(
+                user2CandidateContract.connect(user2).retireMember()
+            ).to.be.revertedWith("DAOCommittee: not a member");
+        })
+
+        it("10. changeMember (createCanidateByOwner)", async () => {
+            let memberCheck = await daoCommittee_V1.members(2)
+            expect(memberCheck).to.be.equal(zeroAddr)
+
+            await (
+                await user2CandidateContract.connect(user2).changeMember(2)
+            ).wait();
+
+            memberCheck = await daoCommittee_V1.members(2)
+            expect(memberCheck.toUpperCase()).to.be.equal(user2.address.toUpperCase())
+        })
+        
+        it("11. retireMember (add blackList) (onlyMember)", async () => {
+            let memberCheck = await daoCommittee_V1.members(2)
+            expect(memberCheck.toUpperCase()).to.be.equal(user2.address.toUpperCase())
+            // let beforeWTONAmount = await wton.balanceOf(member2.address)
+            let blacklistCheck = await daoCommittee_V1.blacklist(user2CandidateContract.address)
+            expect(blacklistCheck).to.be.equal(false)
+
+            await (
+                await user2CandidateContract.connect(user2).retireMember()
+            ).wait();
+
+            memberCheck = await daoCommittee_V1.members(2)
+            expect(memberCheck).to.be.equal(zeroAddr)
+
+            blacklistCheck = await daoCommittee_V1.blacklist(user2CandidateContract.address)
+            expect(blacklistCheck).to.be.equal(true)
+        })
+
+        it('increase block time and check votable', async function () {
+            const cooldownTime = 86400;
+            const currentTime = await time.latest();
+            await time.increaseTo(Number(currentTime)+Number(cooldownTime));
+        });
+
+        it("12. blacklist can't changeMember", async () => {
+            await expect(
+                user2CandidateContract.connect(user2).changeMember(
+                    2
+                )
+            ).to.be.revertedWith("DAOCommittee: blacklisted member");
+        })
+
+        it("13. blacklist can't claimActivityReward", async () => {
+            await expect(
+                user2CandidateContract.connect(user2).claimActivityReward()
+            ).to.be.revertedWith("DAOCommittee: blacklisted member");
+        })
+
+        it("14. setMemoOnCandidate (anyone)", async () => {
+            let beforeMemo = await user1CandidateContract.memo();
+            let changeMemo = "Change"
+
+            await daoCommittee_V1.connect(user1).setMemoOnCandidate(
+                user1.address,
+                "Change"
+            )
+
+            let afterMemo = await user1CandidateContract.memo();
+            expect(beforeMemo).to.be.not.equal(afterMemo)
+            expect(changeMemo).to.be.equal(afterMemo)
+        })
+
+        it("15. setMemoOnCandidateContract (anyone)", async () => {
+            let beforeMemo = await layer2privateCandidateContract.memo();
+            let changeMemo = "Change2"
+
+            await daoCommittee_V1.connect(layer2Operator).setMemoOnCandidateContract(
+                layer2privateCandidateContract.address,
+                "Change2"
+            )
+
+            let afterMemo = await layer2privateCandidateContract.memo();
+            expect(beforeMemo).to.be.not.equal(afterMemo)
+            expect(changeMemo).to.be.equal(afterMemo)
+        })
+
+        it("7. OnApprove reverted Test (claimTON)", async () => {
+            const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
+
+            const agendaFee = await daoAgendaManagerContract.createAgendaFees();
+
+            // let targets: any;
+            // let functionBytecodes: any;
+            let targets: string[] = [];
+            let functionBytecodes: string[] = [];
+
+
+            const selector1 = Web3EthAbi.encodeFunctionSignature("claimTON(address,uint256)");
+            const claimAmount = 100000000000000000000
+
+            const data1 = padLeft(addr1.address.toString(), 64);
+            console.log("data1 : ", data1);
+            const data2 = padLeft(claimAmount.toString(16), 64);
+            console.log("data2 : ", data2)
+            const data3 = data1 + data2
+            console.log("data3 : ", data3);
+            const functionBytecode1 = selector1.concat(data3)
+            // console.log("deployed.DAOVault.address :", deployed.DAOVault.address);
+
+            targets.push(deployed.DAOVault.address);
+            console.log("deployed.DAOVault.address :", deployed.DAOVault.address);
+            functionBytecodes.push(functionBytecode1)
+            console.log("deployed.DAOVault.address :", deployed.DAOVault.address);
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets, 
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    false,
+                    functionBytecodes
+                ]
+            )
+
+            console.log("deployed.DAOVault.address :", deployed.DAOVault.address);
+            await checkBalanceTon(user1.address, agendaFee);
+            console.log("deployed.DAOVault.address :", deployed.DAOVault.address);
+
+            await expect(
+                tonContract.connect(user1).approveAndCall(
+                    daoCommittee_V1.address,
+                    agendaFee,
+                    param
+            )).to.be.reverted;
+
+        })
+
     })
 
     describe("DAOCommitteeOwner Logic Test", () => {
