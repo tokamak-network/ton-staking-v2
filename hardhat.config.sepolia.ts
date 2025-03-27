@@ -473,6 +473,7 @@ const config: HardhatUserConfig = {
       // deploy: ['deploy-layer2'],
       // deploy: ['deploy-staking-v2.5-mainnet'],
       deploy: ['deploy-staking-v2.5-sepolia'],
+      // deploy: ['deploy-staking-all-sepolia'],
     },
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
@@ -564,24 +565,31 @@ const config: HardhatUserConfig = {
     timeout: 100000000,
   },
   solidity: {
-    version: '0.8.19',
-    settings: {
-      // evmVersion: "cancun",
-      viaIR: true,
-      optimizer: {
-        enabled: true,
-        runs: 200,
-        // details: {
-        //   yul: true,
-        // },
+    compilers: [
+      {
+        version: "0.5.12",
       },
-      metadata: {
-        // do not include the metadata hash, since this is machine dependent
-        // and we want all generated code to be deterministic
-        // https://docs.soliditylang.org/en/v0.8.12/metadata.html
-        bytecodeHash: 'none',
+      {
+        version: "0.8.19",
+        settings: {
+          // evmVersion: "cancun",
+          viaIR: true,
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            // details: {
+            //   yul: true,
+            // },
+          },
+          metadata: {
+            // do not include the metadata hash, since this is machine dependent
+            // and we want all generated code to be deterministic
+            // https://docs.soliditylang.org/en/v0.8.12/metadata.html
+            bytecodeHash: 'none',
+          },
+        },
       },
-    },
+    ],
   },
 };
 
