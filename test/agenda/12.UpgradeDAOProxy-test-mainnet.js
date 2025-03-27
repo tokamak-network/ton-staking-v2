@@ -1157,18 +1157,18 @@ describe("DAO Proxy Change Test", () => {
             let functionBytecodes = [];
 
             const selector1 = Web3EthAbi.encodeFunctionSignature("claimERC20(address,address,uint256)");
-            console.log("selector1 : ", selector1);
+            // console.log("selector1 : ", selector1);
             // console.log("selector1.length : ", selector1.length);
             const claimAmount = 100000000000000000000
 
             const data1 = padLeft(wtonAddr.toString(), 64);
-            console.log("data1 : ", data1);
+            // console.log("data1 : ", data1);
             const data2 = padLeft(testAddr.toString(), 64);
-            console.log("data2 : ", data2)
+            // console.log("data2 : ", data2)
             const data3 = padLeft(claimAmount.toString(16), 64);
-            console.log("data3 : ", data3);
+            // console.log("data3 : ", data3);
             const data4 = data1 + data2 + data3
-            console.log("data4 : ", data4);
+            // console.log("data4 : ", data4);
 
             const functionBytecode1 = selector1.concat(data4)
             // console.log("functionBytecode1 :", functionBytecode1);
@@ -1889,25 +1889,25 @@ describe("DAO Proxy Change Test", () => {
             expect(roleCheck).to.be.equal(true)
         })
 
-        it("revoke the Admin Role", async () => {
-            let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
-            let beforehasRole = await daoCommitteeProxy.hasRole(
-                adminRole,
-                daoCommitteeAdmin.address
-            )
-            expect(beforehasRole).to.be.equal(true);
+        // it("revoke the Admin Role", async () => {
+        //     let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
+        //     let beforehasRole = await daoCommitteeProxy.hasRole(
+        //         adminRole,
+        //         daoCommitteeAdmin.address
+        //     )
+        //     expect(beforehasRole).to.be.equal(true);
 
-            await daoCommitteeProxy.connect(daoCommitteeAdmin).revokeRole(
-                adminRole,
-                daoCommitteeAdmin.address
-            )
+        //     await daoCommitteeProxy.connect(daoCommitteeAdmin).revokeRole(
+        //         adminRole,
+        //         daoCommitteeAdmin.address
+        //     )
 
-            let afterhasRole = await daoCommitteeProxy.hasRole(
-                adminRole,
-                daoCommitteeAdmin.address
-            )
-            expect(afterhasRole).to.be.equal(false);
-        })
+        //     let afterhasRole = await daoCommitteeProxy.hasRole(
+        //         adminRole,
+        //         daoCommitteeAdmin.address
+        //     )
+        //     expect(afterhasRole).to.be.equal(false);
+        // })
     })
 
     describe("MultiSigWallet Test", () => {
@@ -2285,6 +2285,36 @@ describe("DAO Proxy Change Test", () => {
         //     expect(afterburnAmount).to.be.equal(1)
         //     expect(afterburnAmount).not.to.be.equal(beforeburnAmount)
         // })
+
+        it("Owner can revoke another account", async () => {
+            let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
+            let beforehasRole = await daoCommitteeProxy.hasRole(
+                adminRole,
+                daoCommitteeAdmin.address
+            )
+            expect(beforehasRole).to.be.equal(true);
+
+            const dataRevokeAccount = daoCommitteeProxy.interface.encodeFunctionData(
+                "revokeRole",
+                [adminRole,daoCommitteeAdmin.address]
+            )
+
+            await multiSigWalletContract.connect(member2).submitTransaction(
+                daoCommitteeProxy.address,
+                0,
+                dataRevokeAccount
+            );
+
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(member3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(member3).executeTransaction(count-1)
+
+            let afterhasRole = await daoCommitteeProxy.hasRole(
+                adminRole,
+                daoCommitteeAdmin.address
+            )
+            expect(afterhasRole).to.be.equal(false);
+        })
 
     })
 })
