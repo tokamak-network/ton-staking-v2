@@ -59,7 +59,7 @@ contract OperatorManagerStorage {
 
     function rollupConfig() public view returns (address addr) {
         assembly {
-            addr := sload(_LAYER2_MANAGER_ADDRESS_SLOT)
+            addr := sload(_ROLLUP_CONFIG_SLOT)
         }
     }
 
