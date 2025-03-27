@@ -161,6 +161,8 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
 
     let deployed : any
 
+    let agendaID : any
+
     async function checkBalanceTon(account: Signer, amount: BigNumber) {
         const tonBalance = await tonContract.balanceOf(account.address)
         if (tonBalance.lt(amount)) {
@@ -457,6 +459,28 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
             }
         })
 
+        it("privateLayer2 Check", async () => {
+            let privateLayer2Check = await daoCommittee_V1.privateLayer2(user1.address);
+            // console.log("privateLayer2Check :", privateLayer2Check)
+            expect(privateLayer2Check).to.be.equal(false)
+
+            privateLayer2Check = await daoCommittee_V1.privateLayer2(candidate1.address);
+            // console.log("privateLayer2Check :", privateLayer2Check)
+            expect(privateLayer2Check).to.be.equal(false)
+        })
+
+        it("createCandidate operatorAmountCheck", async () => {
+            let operatorAmountCheck = await daoCommittee_V1.operatorAmountCheck(candidate1.address, user1.address);
+            // console.log("operatorAmountCheck :", operatorAmountCheck)
+            expect(operatorAmountCheck).to.be.equal(0)
+        })
+
+        it("createCandidate operatorCheck", async () => {
+            let operatorAmount = await daoCommittee_V1.operatorCheck(user1.address);
+            // console.log("operatorAmount :", operatorAmount)
+            expect(operatorAmount).to.be.equal(0)
+        })
+
         it("2. createCandidateOwner (Owner)", async () => {
             // console.log(daoCommittee_V1_Contract)
             let beforeCandidateLength = await daoCommittee_V1.candidatesLength()
@@ -516,6 +540,18 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
             )
         })
 
+        it("createCandidate operatorAmountCheck", async () => {
+            let operatorAmountCheck = await daoCommittee_V1.operatorAmountCheck(candidate1.address, user1.address);
+            // console.log("operatorAmountCheck :", operatorAmountCheck)
+            expect(operatorAmountCheck).to.be.gt(0)
+        })
+
+        it("createCandidate operatorCheck", async () => {
+            let operatorAmount = await daoCommittee_V1.operatorCheck(user1.address);
+            // console.log("operatorAmount :", operatorAmount)
+            expect(operatorAmount).to.be.gt(0)
+        })
+
         it("4. chagneMember (after staking)", async () => {
             let memberCheck = await daoCommittee_V1.members(0)
             expect(memberCheck).to.be.equal(zeroAddr)
@@ -536,6 +572,18 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
                 user2,
                 amount
             )
+        })
+
+        it("createCandidateOwner operatorAmountCheck", async () => {
+            let operatorAmountCheck = await daoCommittee_V1.operatorAmountCheck(candidate2.address, user2.address);
+            // console.log("operatorAmountCheck :", operatorAmountCheck)
+            expect(operatorAmountCheck).to.be.gt(0)
+        })
+
+        it("createCandidateOwner operatorCheck", async () => {
+            let operatorAmount = await daoCommittee_V1.operatorCheck(user2.address);
+            // console.log("operatorAmount :", operatorAmount)
+            expect(operatorAmount).to.be.gt(0)
         })
 
         it("5. changeMember (If you are not the owner of the CandidateContract, revert)", async () => {
@@ -865,7 +913,51 @@ describe("DEV DAO Test on Sepolia (About Upgraded StakingV2.5)", () => {
         })
 
         it("19. Create new Agenda", async () => {
+            const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
             
+            const selector = encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            const newMinimumNoticePeriod = 30;
+            const amountHex = BigNumber.from(newMinimumNoticePeriod).toHexString().replace("0x","");
+            const data = padLeft(amountHex,64);
+            // const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector+data;
+
+            const param = encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoAgendaManagerContract.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
+    
+            const agendaFee = await daoAgendaManagerContract.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
+
+            await checkBalanceTon(user1, agendaFee);
+
+            const beforeBalance = await tonContract.balanceOf(user1.address);
+
+            // create agenda
+            await tonContract.connect(user1).approveAndCall(
+                daoCommittee_V1.address,
+                agendaFee,
+                param
+            );
+
+            const afterBalance = await tonContract.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+
+            agendaID = (await daoAgendaManagerContract.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoAgendaManagerContract.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoAgendaManagerContract.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
         })
 
     })

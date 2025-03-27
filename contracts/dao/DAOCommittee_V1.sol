@@ -890,10 +890,10 @@ contract DAOCommittee_V1 is
         address coinage;
         if (privateLayer2[candidate]) {
             coinage = ISeigManager(address(seigManager)).coinages(candidate);
-            return operatorAmount = ICoinage(coinage).balanceOf(ILayer2(candidate).operator());
+            operatorAmount = ICoinage(coinage).balanceOf(ILayer2(candidate).operator());
         } else {
             coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
-            return operatorAmount = ICoinage(coinage).balanceOf(candidate);    
+            operatorAmount = ICoinage(coinage).balanceOf(candidate);    
         }
     }
 }
