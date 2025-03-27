@@ -9,11 +9,19 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @title
 /// @notice
 contract OperatorManagerProxy is Proxy, ERC1967Upgrade, Ownable {
-    address public rollupConfig;
+    // uint256(keccak256("ROLLUP_CONFIG")) - 1
+    uint256 private constant _ROLLUP_CONFIG_SLOT =
+        0xd8bedf058aa85a36377d4cf75d156448984f1301b93d1653448986b1166437d6;
 
     constructor(address _rollupConfig) {
         require (_rollupConfig != address(0), "zero rollupConfig");
-        rollupConfig = _rollupConfig;
+        _setStorageAddress(_ROLLUP_CONFIG_SLOT, _rollupConfig);
+    }
+
+    function _setStorageAddress(uint256 slot, address newAddress) private  {
+        assembly {
+            sstore(slot, newAddress)
+        }
     }
 
     function upgradeTo(address newImplementation) external onlyOwner {
