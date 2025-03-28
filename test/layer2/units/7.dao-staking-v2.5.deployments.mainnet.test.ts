@@ -1052,6 +1052,25 @@ describe('Layer2Manager', () => {
             // console.log('daoCommitteeProxy2Contract', daoCommitteeProxy2Contract.address)
             // console.log('daoCommitteeOwner', daoCommitteeOwner.address)
             // console.log('daoCommittee_V1', daoCommittee_V1.address)
+
+
+            let temp_seigniorageCommitteeAddress = await l1BridgeRegistry.seigniorageCommittee();
+
+            if (temp_seigniorageCommitteeAddress != ethers.constants.AddressZero &&
+                temp_seigniorageCommitteeAddress.toLowerCase() != seigniorageCommitteeAddress.toLowerCase())
+            {
+                seigniorageCommitteeAddress = temp_seigniorageCommitteeAddress;
+
+                await hre.network.provider.send("hardhat_impersonateAccount", [
+                    seigniorageCommitteeAddress,
+                ]);
+                await hre.network.provider.send("hardhat_setBalance", [
+                    seigniorageCommitteeAddress,
+                    "0x10000000000000000000000000",
+                ]);
+                seigniorageCommittee = await hre.ethers.getSigner(seigniorageCommitteeAddress);
+            }
+
         })
     })
 
