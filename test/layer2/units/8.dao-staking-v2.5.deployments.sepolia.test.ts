@@ -1378,13 +1378,13 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             params.push(callDtata)
 
 
-            // =========================================
-            //  l1BridgeRegistry  seigniorageCommittee
-            targets.push(l1BridgeRegistry.address)
-            callDtata = l1BridgeRegistry.interface.encodeFunctionData(
-                "setSeigniorageCommittee(address)",
-                [ seigniorageCommitteeAddress])
-            params.push(callDtata)
+            // // =========================================
+            // //  l1BridgeRegistry  seigniorageCommittee
+            // targets.push(l1BridgeRegistry.address)
+            // callDtata = l1BridgeRegistry.interface.encodeFunctionData(
+            //     "setSeigniorageCommittee(address)",
+            //     [ seigniorageCommitteeAddress])
+            // params.push(callDtata)
 
 
             // =========================================
