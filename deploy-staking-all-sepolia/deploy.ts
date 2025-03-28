@@ -58,11 +58,19 @@ let tokenInfos = {
     wton: ''
 }
 
+//local Test
 const MultiSigWalletOwners = [
-    '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea',
-    '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
-    '0xc1eba383D94c6021160042491A5dfaF1d82694E6'
+    '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+    '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+    '0x976EA74026E726554dB657fA54763abd0C3a0aa9'
 ]
+
+//sepolia
+// const MultiSigWalletOwners = [
+//     '0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea',
+//     '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2',
+//     '0xc1eba383D94c6021160042491A5dfaF1d82694E6'
+// ]
 
 const swapProxy = "0x690f994b82f001059e24d79292c3c476854b767a";
 

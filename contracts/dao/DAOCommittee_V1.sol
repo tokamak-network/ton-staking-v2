@@ -21,6 +21,7 @@ import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -517,15 +518,22 @@ contract DAOCommittee_V1 is
     function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
         //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
         //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
+        uint256 agendaLength = agendaManager.totalAgendas();
+        if(_agendaID >= agendaLength) {
+            return (5, 6);
+        }
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
         uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        if(votingEndTime == 0) {
-            // No Agenda
-            return (5, 6);
-        } else if (block.timestamp < noticeEndTime) {
+        if (block.timestamp < noticeEndTime) {
             //Notice Time
             return (0, 1);
         } else if (noticeEndTime < block.timestamp) {
+            if(votingEndTime == 0) {
+                // (pending, VOTING)
+                agendaResult = 0;
+                agendaStatus = 2;
+                return (agendaResult, agendaStatus);
+            }
             (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             if (quorum <= yes) {
                 // yes
@@ -546,6 +554,11 @@ contract DAOCommittee_V1 is
                 // (DISMISS, ENDED)
                 agendaResult = 3;
                 agendaStatus = 5;
+                return (agendaResult, agendaStatus);
+            } else if (block.timestamp < votingEndTime) {
+                // (NO CONSENSUS, VOTING)
+                agendaResult = 4;
+                agendaStatus = 2;
                 return (agendaResult, agendaStatus);
             } else {
                 // (NO CONSENSUS, ENDED)
