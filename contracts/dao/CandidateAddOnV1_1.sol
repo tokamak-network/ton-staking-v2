@@ -6,7 +6,8 @@ import { IISeigManager } from "./interfaces/IISeigManager.sol";
 
 import "../proxy/ProxyStorage.sol";
 import { AccessibleCommon } from "../common/AccessibleCommon.sol";
-import "./CandidateStorage.sol";
+// import "./CandidateStorage.sol";
+import "./CandidateAddOnStorage1.sol";
 import "./CandidateAddOnStorage.sol";
 import { ICandidate } from "./interfaces/ICandidate.sol";
 import { IERC20 } from  "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,10 +15,10 @@ import { IDAOCommittee } from "./interfaces/IDAOCommittee.sol";
 
 /// @title Managing a CandidateAddOn
 contract CandidateAddOnV1_1 is
-    ProxyStorage, AccessibleCommon, CandidateStorage, CandidateAddOnStorage
+    ProxyStorage, AccessibleCommon, CandidateAddOnStorage1, CandidateAddOnStorage
 {
     modifier onlyCandidate() {
-        require(IOperateContract(candidate).isOperator(msg.sender),
+        require(IOperateContract(candidate()).isOperator(msg.sender),
         "sender is not an operator");
         _;
     }
@@ -34,7 +35,7 @@ contract CandidateAddOnV1_1 is
         address _ton,
         address _wton
     ) external onlyOwner  {
-        require(ton == address(0) && wton == address(0) && seigManager == address(0), "Already initialized");
+        require(ton() == address(0) && wton() == address(0) && seigManager() == address(0), "Already initialized");
         require(
             _operateContract != address(0)
             || _committee != address(0)
@@ -44,13 +45,14 @@ contract CandidateAddOnV1_1 is
 
         require(IOperateContract(_operateContract).rollupConfig() != address(0), 'zero rollupConfig');
 
-        candidate = _operateContract;
         isLayer2Candidate = true;
-        committee = _committee;
-        seigManager = _seigManager;
         memo = _memo;
-        ton = _ton;
-        wton = _wton;
+
+        _setStorageAddress(_CANDIDATE_SLOT, _operateContract);
+        _setStorageAddress(_COMMITTEE_SLOT, _committee);
+        _setStorageAddress(_SEIGMANAGER_SLOT, _seigManager);
+        _setStorageAddress(_TON_ADDRESS_SLOT, _ton);
+        _setStorageAddress(_WTON_ADDRESS_SLOT, _wton);
 
         _registerInterface(ICandidate(address(this)).isCandidateContract.selector);
         emit Initialized(_operateContract, _memo, _committee, _seigManager);
@@ -74,13 +76,13 @@ contract CandidateAddOnV1_1 is
         onlyCandidate
         returns (bool)
     {
-        return IDAOCommittee(committee).changeMember(_memberIndex);
+        return IDAOCommittee(committee()).changeMember(_memberIndex);
     }
 
     /// @notice Retire a member
     /// @return Whether or not the execution succeeded
     function retireMember() external onlyCandidate returns (bool) {
-        return IDAOCommittee(committee).retireMember();
+        return IDAOCommittee(committee()).retireMember();
     }
 
     /// @notice Vote on an agenda
@@ -95,7 +97,7 @@ contract CandidateAddOnV1_1 is
         external
         onlyCandidate
     {
-        IDAOCommittee(committee).castVote(_agendaID, _vote, _comment);
+        IDAOCommittee(committee()).castVote(_agendaID, _vote, _comment);
     }
 
     /**
@@ -105,7 +107,7 @@ contract CandidateAddOnV1_1 is
         external
         onlyCandidate
     {
-        IDAOCommittee(committee).claimActivityReward(candidate);
+        IDAOCommittee(committee()).claimActivityReward(candidate());
     }
 
 
@@ -115,7 +117,7 @@ contract CandidateAddOnV1_1 is
     /// @return             Whether or not the execution succeeded
     function updateSeigniorage() public returns (bool) {
 
-        require(IISeigManager(seigManager).updateSeigniorage(), "fail updateSeigniorage");
+        require(IISeigManager(seigManager()).updateSeigniorage(), "fail updateSeigniorage");
         return true;
     }
 
@@ -164,7 +166,7 @@ contract CandidateAddOnV1_1 is
     }
 
     /// operateContract
-    function operator() external view returns (address) { return candidate; }
+    function operator() external view returns (address) { return candidate(); }
     function isLayer2() external pure returns (bool) { return true; }
     function currentFork() external pure returns (uint256) { return 1; }
     function lastEpoch(uint256 forkNumber) external pure returns (uint256) { return 1; }
@@ -172,6 +174,6 @@ contract CandidateAddOnV1_1 is
     /* ========== internal ========== */
 
     function _getCoinageToken() internal view returns (IERC20) {
-        return IERC20(IISeigManager(seigManager).coinages(address(this)));
+        return IERC20(IISeigManager(seigManager()).coinages(address(this)));
     }
 }

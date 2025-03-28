@@ -67,7 +67,7 @@ contract DepositManagerV1_1 is
     using SafeERC20 for IERC20;
 
     uint256 internal constant GWEI_UNIT = 1e9;
-    address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
+    // address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
 
     modifier onlyLayer2(address layer2) {
         require(ILayer2Registry(_registry).layer2s(layer2));
@@ -153,7 +153,7 @@ contract DepositManagerV1_1 is
         if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
 
         uint32 _minDepositGasLimit = minDepositGasLimit;
-        if (_minDepositGasLimit == 0) _minDepositGasLimit = 210000;
+        if (_minDepositGasLimit == 0) _minDepositGasLimit = 210_000;
 
         if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
 
