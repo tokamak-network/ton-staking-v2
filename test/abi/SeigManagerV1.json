@@ -4,6 +4,13 @@
   "sourceName": "contracts/stake/managers/SeigManagerV1.sol",
   "abi": [
     {
+      "inputs": [],
+      "name": "test_SetNumber",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
