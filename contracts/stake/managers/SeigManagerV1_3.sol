@@ -302,7 +302,7 @@ contract SeigManagerV1_3 is
 
         uint256 prevTotalSupply = _tot.totalSupply();
         uint256 tos = _totalSupplyOfTon(blockNumber);
-        uint256 _totalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+        uint256 _totalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos-prevTotalSupply);
         if (_totalLayer2TVL < RAY_UNIT) _totalLayer2TVL = 0;
 
         stakedSeig = FullMath.rdiv(FullMath.rmul(maxSeig, prevTotalSupply), tos);
@@ -565,7 +565,7 @@ contract SeigManagerV1_3 is
 
         if (layer2Manager != address(0) && layer2StartBlock != 1) {
             if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos-prevTotalSupply);
                 if (tempTotalLayer2TVL < RAY_UNIT) tempTotalLayer2TVL = 0;
                 l2TotalSeigs = FullMath.rdiv(FullMath.rmul(maxSeig, tempTotalLayer2TVL), tos);
                 l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
