@@ -5,9 +5,12 @@ import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ISeigManager} from '../interfaces/ISeigManager.sol';
 import {ILayer2Registry} from '../../dao/interfaces/ILayer2Registry.sol';
 import {ILayer2} from '../../dao/interfaces/ILayer2.sol';
+import {IOperator} from '../../layer2/interfaces/IOperator.sol';
+import {IL1Bridge} from '../../layer2/interfaces/IL1Bridge.sol';
 
 import {IWTON} from '../../dao/interfaces/IWTON.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {ITON} from '../../stake/interfaces/ITON.sol';
+
 import '../../proxy/ProxyStorage.sol';
 import {AccessibleCommon} from '../../common/AccessibleCommon.sol';
 import {DepositManagerStorage} from './DepositManagerStorage.sol';
@@ -27,32 +30,6 @@ error OperatorError();
 error WithdrawError();
 error SwapTonTransferError();
 error ZeroValueError();
-interface IL1Bridge {
-    function depositERC20To(
-        address _l1Token,
-        address _l2Token,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    ) external;
-
-    function bridgeNativeTokenTo(
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    ) external;
-
-}
-
-interface IIERC20 {
-    function ton() external view returns (address);
-    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
-}
-interface IOperator {
-    function checkL1Bridge() external view returns (bool,address,address,address,uint8,uint8,bool,bool);
-}
 
 /**
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
@@ -64,10 +41,9 @@ contract DepositManagerV1_1 is
     DepositManagerStorage,
     DepositManagerV1_1Storage
 {
-    using SafeERC20 for IERC20;
+    using SafeERC20 for ITON;
 
     uint256 internal constant GWEI_UNIT = 1e9;
-    // address internal constant LEGACY_ERC20_NATIVE_TOKEN = 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000;
 
     modifier onlyLayer2(address layer2) {
         require(ILayer2Registry(_registry).layer2s(layer2));
@@ -130,11 +106,6 @@ contract DepositManagerV1_1 is
             l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
 
         // require(operator.code.length != 0, 'not operator contract');
-        (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
-
-        if (!success) revert CheckL1BridgeError(1);
-
-        // require(success, 'false checkL1Bridge');
         (
             bool result,
             address l1Bridge,
@@ -144,8 +115,8 @@ contract DepositManagerV1_1 is
             uint8 status,
             bool rejectedSeigs,
             bool rejectedL2Deposit
-        ) = abi.decode(data, (bool, address, address, address, uint8, uint8, bool, bool));
-        if (!result) revert CheckL1BridgeError(2);
+        ) = IOperator(operator).checkL1Bridge();
+         if (!result) revert CheckL1BridgeError(2);
 
         if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
         if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
@@ -161,21 +132,21 @@ contract DepositManagerV1_1 is
         if (!IWTON(_wton).swapToTONAndTransfer(address(this), amount))
             revert SwapTonTransferError();
 
-        if (ton == address(0)) ton = IIERC20(_wton).ton();
+        if (ton == address(0)) ton = IWTON(_wton).ton();
         address _ton = ton;
         uint256 tonAmount = amount / GWEI_UNIT;
-        uint256 allowance = IERC20(_ton).allowance(address(this), l1Bridge);
+        uint256 allowance = ITON(_ton).allowance(address(this), l1Bridge);
 
         unchecked {
             if (allowance < tonAmount) {
-                IIERC20(_ton).increaseAllowance(l1Bridge, tonAmount - allowance);
+                ITON(_ton).increaseAllowance(l1Bridge, tonAmount - allowance);
             }
         }
 
         uint256 bal;
 
         if (l2Type == 2) {
-            bal = IERC20(_ton).balanceOf(portal);
+            bal = ITON(_ton).balanceOf(portal);
 
             IL1Bridge(l1Bridge).bridgeNativeTokenTo(
                 msg.sender,
@@ -184,11 +155,11 @@ contract DepositManagerV1_1 is
                 ''
             );
 
-            bal = IERC20(_ton).balanceOf(portal) - bal;
+            bal = ITON(_ton).balanceOf(portal) - bal;
 
         } else {
 
-            bal = IERC20(_ton).balanceOf(l1Bridge);
+            bal = ITON(_ton).balanceOf(l1Bridge);
 
             IL1Bridge(l1Bridge).depositERC20To(
                 _ton,
@@ -199,7 +170,7 @@ contract DepositManagerV1_1 is
                 ''
             );
 
-            bal = IERC20(_ton).balanceOf(l1Bridge) - bal;
+            bal = ITON(_ton).balanceOf(l1Bridge) - bal;
         }
 
         require(bal == tonAmount, 'fail depositERC20To');

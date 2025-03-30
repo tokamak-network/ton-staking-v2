@@ -158,14 +158,10 @@ contract L1BridgeRegistryV1_1 is
     function rejectCandidateAddOn(address rollupConfig) external onlySeigniorageCommittee {
         _nonRejected(rollupConfig);
 
-        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
-
+        ROLLUP_INFO storage info = rollupInfo[rollupConfig];
         require (info.rollupType != 0, "NonRegistered");
-
         info.rejectedSeigs = true;
         info.rejectedL2Deposit = true;
-
-        rollupInfo[rollupConfig] = info;
 
         ILayer2Manager(layer2Manager).pauseCandidateAddOn(rollupConfig);
         emit RejectedCandidateAddOn(rollupConfig);
@@ -182,10 +178,9 @@ contract L1BridgeRegistryV1_1 is
     ) external onlySeigniorageCommittee {
         _onlyRejectedRollupConfig(rollupConfig);
 
-        ROLLUP_INFO memory info = rollupInfo[rollupConfig];
+        ROLLUP_INFO storage info = rollupInfo[rollupConfig];
         info.rejectedSeigs = false;
         info.rejectedL2Deposit = rejectedL2Deposit;
-        rollupInfo[rollupConfig] = info;
 
         ILayer2Manager(layer2Manager).unpauseCandidateAddOn(rollupConfig);
         emit RestoredCandidateAddOn(rollupConfig);
