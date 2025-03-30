@@ -130,11 +130,6 @@ contract DepositManagerV1_1 is
             l1BridgeRegistry = ISeigManager(_seigManager).l1BridgeRegistry();
 
         // require(operator.code.length != 0, 'not operator contract');
-        (bool success, bytes memory data) = operator.call(abi.encodeWithSelector(IOperator.checkL1Bridge.selector));
-
-        if (!success) revert CheckL1BridgeError(1);
-
-        // require(success, 'false checkL1Bridge');
         (
             bool result,
             address l1Bridge,
@@ -144,8 +139,8 @@ contract DepositManagerV1_1 is
             uint8 status,
             bool rejectedSeigs,
             bool rejectedL2Deposit
-        ) = abi.decode(data, (bool, address, address, address, uint8, uint8, bool, bool));
-        if (!result) revert CheckL1BridgeError(2);
+        ) = IOperator(operator).checkL1Bridge();
+         if (!result) revert CheckL1BridgeError(2);
 
         if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
         if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
