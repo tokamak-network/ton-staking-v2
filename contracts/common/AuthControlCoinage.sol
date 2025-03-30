@@ -85,16 +85,6 @@ contract AuthControlCoinage is AuthRole, ERC165Storage, AccessControl {
         _revokeRole(OPERATOR_ROLE, msg.sender);
     }
 
-    function revokeMinter(address account) public onlyOwner {
-        require(hasRole(MINTER_ROLE, account), "already not granted");
-        _revokeRole(MINTER_ROLE, account);
-    }
-
-    function revokeOperator(address account) public onlyOwner {
-        require(hasRole(OPERATOR_ROLE, account), "already not granted");
-        _revokeRole(OPERATOR_ROLE, account);
-    }
-
     /// @dev whether admin
     /// @param account  address to check
     function isAdmin(address account) public view virtual returns (bool) {
