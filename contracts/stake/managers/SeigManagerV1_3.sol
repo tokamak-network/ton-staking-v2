@@ -18,7 +18,6 @@ import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
 import {SeigManagerStorage} from './SeigManagerStorage.sol';
 import {SeigManagerV1_1Storage} from './SeigManagerV1_1Storage.sol';
 import {SeigManagerV1_3Storage} from './SeigManagerV1_3Storage.sol';
-import "hardhat/console.sol";
 
 error LastSeigBlockError();
 error MinimumAmountError();
@@ -697,41 +696,6 @@ contract SeigManagerV1_3 is
             (_seigPerBlock * (blockNumber - startBlock)) -
             ( OneAddressBalance * GWEI_UNIT) -
             burntAmount;
-    }
-
-    function test_SetNumber() public {
-        uint256 span = 1;
-        uint256 tos = 1_000_000 * 1e27;
-        uint256 totalLayer2TVL = 1e27 - 1;
-        uint256 maxSeig = span * _seigPerBlock;
-        uint256 prevTotalSupply = tos - totalLayer2TVL;
-        console.log("maxSeig %s", maxSeig);
-
-        uint256 stakedSeig = FullMath.rdiv(
-            FullMath.rmul(maxSeig, prevTotalSupply),
-            tos
-        );
-        console.log("stakedSeig %s", stakedSeig);
-
-        uint256 _totalLayer2TVL = Math.min(
-            totalLayer2TVL,
-            tos - prevTotalSupply
-        );
-        if (_totalLayer2TVL < 1e27) _totalLayer2TVL = 0;
-
-        console.log("_totalLayer2TVL %s", _totalLayer2TVL);
-
-        uint256 l2TotalSeigs_1 =  FullMath.rmul(maxSeig, _totalLayer2TVL);
-        console.log("l2TotalSeigs_1 %s", l2TotalSeigs_1);
-
-        uint256 l2TotalSeigs = FullMath.rdiv(
-            l2TotalSeigs_1,
-            tos
-        );
-
-        console.log("l2TotalSeigs %s", l2TotalSeigs);
-        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
-        console.log("unstakedSeig %s", unstakedSeig);
     }
 
 }
