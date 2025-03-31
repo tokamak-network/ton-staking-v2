@@ -18,7 +18,6 @@ import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
 import {SeigManagerStorage} from './SeigManagerStorage.sol';
 import {SeigManagerV1_1Storage} from './SeigManagerV1_1Storage.sol';
 import {SeigManagerV1_3Storage} from './SeigManagerV1_3Storage.sol';
-import "hardhat/console.sol";
 
 error LastSeigBlockError();
 error MinimumAmountError();
@@ -698,6 +697,5 @@ contract SeigManagerV1_3 is
             ( OneAddressBalance * GWEI_UNIT) -
             burntAmount;
     }
-
 
 }
