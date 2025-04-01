@@ -1335,7 +1335,9 @@ describe('Layer2Manager', () => {
             const {l1MessengerAddress, l1BridgeAddress, l2TonAddress } = await getNamedAccounts();
             let name = ownerAddressInfo.Titan.name
             targets.push(l1BridgeRegistry.address)
-            callDtata = l1BridgeRegistry.interface.encodeFunctionData("registerRollupConfigByManager(address,uint8,address,string)", [ legacySystemConfig.address, 1,  l2TonAddress, name])
+            // callDtata = l1BridgeRegistry.interface.encodeFunctionData("registerRollupConfigByManager(address,uint8,address,string)", [ legacySystemConfig.address, 1,  l2TonAddress, name])
+            callDtata = l1BridgeRegistry.interface.encodeFunctionData("addRegistrant(address)", [addr2.address])
+
             params.push(callDtata)
 
             // =========================================
@@ -1489,21 +1491,38 @@ describe('Layer2Manager', () => {
 
         it('Check the storages', async () => {
 
-            //-- check titan rollupConfig
-            const {l2TonAddress } = await getNamedAccounts();
-            let titanInfo = await l1BridgeRegistry.rollupInfo(legacySystemConfig.address)
+            let isRegistrant = await l1BridgeRegistry.isRegistrant(addr2.address)
 
-            expect(titanInfo.rollupType).to.be.equal(1)
-            expect(titanInfo.l2TON).to.be.equal(l2TonAddress)
-            expect(titanInfo.rejectedSeigs).to.be.equal(false)
-            expect(titanInfo.rejectedL2Deposit).to.be.equal(false)
-            expect(titanInfo.name).to.be.equal(ownerAddressInfo.Titan.name)
+            expect(isRegistrant).to.be.equal(true)
 
         })
 
     })
 
     ///---- After executing an agenda --------------------------------
+
+    describe('# L1BridgeRegistry.registerRollupConfig(address,uint8,address,string)', () => {
+        it('onlyRegistrant can call the registerRollupConfig function. ', async () => {
+
+            const { l2TonAddress } = await getNamedAccounts();
+            let name = ownerAddressInfo.Titan.name
+
+            await expect(l1BridgeRegistry.connect(addr1)["registerRollupConfig(address,uint8,address,string)"](
+                legacySystemConfig.address, 1,  l2TonAddress, name
+            )).to.be.rejectedWith("AuthControl: Caller is not a registrant")
+
+        })
+
+        it('onlyRegistrant can call the registerRollupConfig function.', async () => {
+
+            const { l2TonAddress } = await getNamedAccounts();
+            let name = ownerAddressInfo.Titan.name
+
+            await (await l1BridgeRegistry.connect(addr2)["registerRollupConfig(address,uint8,address,string)"](
+                legacySystemConfig.address, 1,  l2TonAddress, name
+            )).wait()
+        })
+    })
 
     describe('# Titan checkLayer2TVL', () => {
         it('If the rollupConfig or L1Bridge address does not exist, the result is returned as false.', async () => {
