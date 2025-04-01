@@ -436,13 +436,13 @@ describe("DAO Proxy Change Test", () => {
     })
 
     describe("DAOCommitteeProxy", () => {
-        // it("check delete account Owner", async () => {
-        //     let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
-        //     let address = ""
-        //     let checkOwner = await daoCommitteeProxy.hasRole(adminRole,address)
-        //     // console.log(checkOwner)
-        //     expect(checkOwner).to.be.equal(false)
-        // })
+        it("check delete account Owner", async () => {
+            let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
+            let address = ""
+            let checkOwner = await daoCommitteeProxy.hasRole(adminRole,address)
+            // console.log(checkOwner)
+            expect(checkOwner).to.be.equal(false)
+        })
 
         it("check MultiSigWallet has DAOOwner", async () => {
             let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"

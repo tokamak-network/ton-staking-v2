@@ -1135,50 +1135,61 @@ describe('Layer2Manager', () => {
 
             // =========================================
             // 4. setSelectorImplementations2  daoCommitteeOwner
+
+            // const _setTargetSetLayer2Manager = encodeFunctionSignature("setTargetSetLayer2Manager(address,address)");
+            // const _setTargetSetL2Registry = encodeFunctionSignature("setTargetSetL1BridgeRegistry(address,address)");
+            // const _setTargetLayer2StartBlock = encodeFunctionSignature("setTargetLayer2StartBlock(address,uint256)");
+            // const _setTargetSetImplementation2 = encodeFunctionSignature("setTargetSetImplementation2(address,address,uint256,bool)");
+            // const _setTargetSetSelectorImplementations2 = encodeFunctionSignature("setTargetSetSelectorImplementations2(address,bytes4[],address)");
+            // const _setTargetSeigManager = encodeFunctionSignature("setTargetSeigManager(address,address)")
+            // const _setSeigPause = encodeFunctionSignature("setSeigPause()")
+            // const _setSeigUnpause = encodeFunctionSignature("setSeigUnpause()")
+            // const _setTargetGlobalWithdrawalDelay = encodeFunctionSignature("setTargetGlobalWithdrawalDelay(addres,uint256)")
+            // const _setTargetAddMinter = encodeFunctionSignature("setTargetAddMinter(address,address)")
+            // const _setTargetUpgradeTo = encodeFunctionSignature("setTargetUpgradeTo(address,address)")
+            // const _setTargetSetTON = encodeFunctionSignature("setTargetSetTON(address,address)")
+            // const _setTargetSetWTON = encodeFunctionSignature("setTargetSetWTON(address,address)")
+            // const _setCreateAgendaFees = encodeFunctionSignature("setCreateAgendaFees(uint256)")
+            // const _setMinimumNoticePeriodSeconds = encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)")
+            // const _setMinimumVotingPeriodSeconds = encodeFunctionSignature("setMinimumVotingPeriodSeconds(uint256)")
+            // const _setExecutingPeriodSeconds = encodeFunctionSignature("setExecutingPeriodSeconds(uint256)")
+            
+            const _setCooldownTime = encodeFunctionSignature("setCooldownTime(uint256)");
             const _setLayer2CandidateFactory = encodeFunctionSignature("setCandidateAddOnFactory(address)");
             const _setLayer2Manager = encodeFunctionSignature("setLayer2Manager(address)");
-            const _setTargetSetLayer2Manager = encodeFunctionSignature("setTargetSetLayer2Manager(address,address)");
-            const _setTargetSetL2Registry = encodeFunctionSignature("setTargetSetL1BridgeRegistry(address,address)");
-            const _setTargetLayer2StartBlock = encodeFunctionSignature("setTargetLayer2StartBlock(address,uint256)");
-            const _setTargetSetImplementation2 = encodeFunctionSignature("setTargetSetImplementation2(address,address,uint256,bool)");
-            const _setTargetSetSelectorImplementations2 = encodeFunctionSignature("setTargetSetSelectorImplementations2(address,bytes4[],address)");
-
             const _setSeigManager = encodeFunctionSignature("setSeigManager(address)");
-            const _setTargetSeigManager = encodeFunctionSignature("setTargetSeigManager(address,address)")
-            const _setSeigPause = encodeFunctionSignature("setSeigPause()")
-            const _setSeigUnpause = encodeFunctionSignature("setSeigUnpause()")
-            const _setTargetGlobalWithdrawalDelay = encodeFunctionSignature("setTargetGlobalWithdrawalDelay(addres,uint256)")
-            const _setTargetAddMinter = encodeFunctionSignature("setTargetAddMinter(address,address)")
-            const _setTargetUpgradeTo = encodeFunctionSignature("setTargetUpgradeTo(address,address)")
-            const _setTargetSetTON = encodeFunctionSignature("setTargetSetTON(address,address)")
-            const _setTargetSetWTON = encodeFunctionSignature("setTargetSetWTON(address,address)")
             const _setDaoVault = encodeFunctionSignature("setDaoVault(address)")
             const _setLayer2Registry = encodeFunctionSignature("setLayer2Registry(address)")
             const _setAgendaManager = encodeFunctionSignature("setAgendaManager(address)")
             const _setCandidateFactory = encodeFunctionSignature("setCandidateFactory(address)")
             const _setTon = encodeFunctionSignature("setTon(address)")
             const _setWton = encodeFunctionSignature("setWton(address)")
-            const _setActivityRewardPerSecond = encodeFunctionSignature("setActivityRewardPerSecond(uint256)")
-            const _setCandidatesSeigManager = encodeFunctionSignature("setCandidatesSeigManager(address[],address)")
-            const _setCandidatesCommittee = encodeFunctionSignature("setCandidatesCommittee(address[],address)")
-            const _setCreateAgendaFees = encodeFunctionSignature("setCreateAgendaFees(uint256)")
-            const _setMinimumNoticePeriodSeconds = encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)")
-            const _setMinimumVotingPeriodSeconds = encodeFunctionSignature("setMinimumVotingPeriodSeconds(uint256)")
-            const _setExecutingPeriodSeconds = encodeFunctionSignature("setExecutingPeriodSeconds(uint256)")
             const _increaseMaxMember = encodeFunctionSignature("increaseMaxMember(uint256,uint256)")
             const _setQuorum = encodeFunctionSignature("setQuorum(uint256)")
             const _decreaseMaxMember = encodeFunctionSignature("decreaseMaxMember(uint256,uint256)")
+            const _setActivityRewardPerSecond = encodeFunctionSignature("setActivityRewardPerSecond(uint256)")
+            const _setCandidatesSeigManager = encodeFunctionSignature("setCandidatesSeigManager(address[],address)")
+            const _setCandidatesCommittee = encodeFunctionSignature("setCandidatesCommittee(address[],address)")
             const _setBurntAmountAtDAO = encodeFunctionSignature("setBurntAmountAtDAO(uint256)")
+            const _setdaoExecuteTransaction = encodeFunctionSignature({
+                name: 'daoExecuteTransaction',
+                type: 'function',
+                inputs: [
+                    {
+                        type: 'address',
+                        name: '_to'
+                    },
+                    {
+                        type: 'bytes',
+                        name: '_data'
+                    }
+                ]
+            })
 
             const functions = [
-                _setLayer2CandidateFactory,_setLayer2Manager,_setTargetSetLayer2Manager,_setTargetSetL2Registry,
-                _setTargetLayer2StartBlock,_setTargetSetImplementation2,_setTargetSetSelectorImplementations2,
-                _setSeigManager,_setTargetSeigManager,_setSeigPause,_setSeigUnpause,
-                _setTargetGlobalWithdrawalDelay,_setTargetAddMinter,_setTargetUpgradeTo,_setTargetSetTON,_setTargetSetWTON,
-                _setDaoVault,_setLayer2Registry,_setAgendaManager,_setCandidateFactory,_setTon,_setWton,
-                _increaseMaxMember,_setQuorum,_decreaseMaxMember,_setBurntAmountAtDAO,
-                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setCreateAgendaFees,
-                _setMinimumNoticePeriodSeconds,_setMinimumVotingPeriodSeconds,_setExecutingPeriodSeconds
+                _setCooldownTime,_setLayer2CandidateFactory,_setLayer2Manager,_setSeigManager,_setDaoVault,_setLayer2Registry,
+                _setAgendaManager,_setCandidateFactory,_setTon,_setWton,_increaseMaxMember,_setQuorum,_decreaseMaxMember,
+                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setBurntAmountAtDAO,_setdaoExecuteTransaction
             ]
 
             targets.push(DAOCommitteeProxy)
