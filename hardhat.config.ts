@@ -427,7 +427,7 @@ const config: HardhatUserConfig = {
         // blockNumber:
         // test registerCandidateAddOn
         // blockNumber: 6797943
-        blockNumber: 22081265
+        blockNumber: 22172965
       },
       // allowUnlimitedContractSize: false,
       deploy: ['deploy-staking-v2.5-mainnet'],
