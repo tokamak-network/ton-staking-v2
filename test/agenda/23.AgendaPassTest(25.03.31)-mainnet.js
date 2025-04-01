@@ -763,6 +763,15 @@ describe("DAO Proxy Change Test", () => {
             params.push(callDtata)
 
             // =========================================
+            //  15. set daoCommitteeProxy setCooldownTime
+            targets.push(daoCommitteeProxy.address)
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCooldownTime", [
+                    604800
+                ]
+            )
+            params.push(callDtata)
+
+            // =========================================
             // . make an agenda
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
