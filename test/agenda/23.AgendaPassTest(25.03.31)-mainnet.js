@@ -66,6 +66,7 @@ describe("DAO Proxy Change Test", () => {
     let daoagendaManager;
     let daovault;
 
+    let seigManagerV1_2;
     let seigManagerV1_3;
     let depositManagerV1_1;
 
@@ -297,6 +298,11 @@ describe("DAO Proxy Change Test", () => {
         user2 = await hre.ethers.getSigner(user2Addr);
         
         await hre.network.provider.send("hardhat_setBalance", [
+            user1Addr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
             member1ContractAddr,
             sendether
         ]);
@@ -398,6 +404,14 @@ describe("DAO Proxy Change Test", () => {
             )
         })
         
+        it("set SeigManagerV1_3", async () => {
+            seigManagerV1_2 = await ethers.getContractAt(
+                "SeigManagerV1_2", 
+                SeigManagerV1_2_Addr, 
+                daoCommitteeAdmin
+            )
+        })
+
         it("set SeigManagerV1_3", async () => {
             seigManagerV1_3 = await ethers.getContractAt(
                 "SeigManagerV1_3", 
@@ -682,6 +696,103 @@ describe("DAO Proxy Change Test", () => {
                     seigManagerV1_3.address
                 ])
             params.push(callDtata)
+
+            // =========================================
+            //  8. upgrade DepositManager setTargetSetImplementation2
+            targets.push(depositManagerProxy.address)
+            callDtata = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
+                [
+                    depositManagerV1_1.address,
+                    2,
+                    true
+                ])
+            params.push(callDtata)
+
+            // =========================================
+            //  9. upgrade DepositManager setTargetSetSelectorImplementations2
+            targets.push(depositManagerProxy.address)
+            const selector_1 = encodeFunctionSignature("ton()");
+            const selector_2 = encodeFunctionSignature("minDepositGasLimit()");
+            const selector_3 = encodeFunctionSignature("setMinDepositGasLimit(uint32)");
+            const selector_4 = encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+            const selector_5 = encodeFunctionSignature("l1BridgeRegistry()");
+            const selector_6 = encodeFunctionSignature("layer2Manager()");
+            const selector_7 = encodeFunctionSignature("setAddresses(address,address)");
+            const selector_8 = encodeFunctionSignature("requestWithdrawal(address,uint256)");
+
+            let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7, selector_8];
+
+            callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                [
+                    functionBytecodes_1,
+                    depositManagerV1_1.address
+
+                ])
+            params.push(callDtata)
+
+            // =========================================
+            //  10. set DAOCommitteeProxy candidateAddOnFactory
+            targets.push(daoCommitteeProxy.address)
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  11. set DAOCommitteeProxy layer2Manager
+            targets.push(daoCommitteeProxy.address)
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  12. set seigManagerProxy setLayer2Manager
+            targets.push(seigManagerProxy.address)
+            callDtata = seigManagerV1_2.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+            params.push(callDtata)
+
+            // =========================================
+            //  13. set seigManagerProxy setLayer2Manager
+            targets.push(seigManagerProxy.address)
+            callDtata = seigManagerV1_2.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+            params.push(callDtata)
+
+
+             // =========================================
+            //  14. set DAOCommitteeProxy setAddresses
+            targets.push(depositManagerProxy.address)
+            callDtata = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
+                l1BridgeRegistryProxy.address,
+                layer2Manager.address ])
+            params.push(callDtata)
+
+            // =========================================
+            // . make an agenda
+            const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
+            const agendaFee = await daoAgendaManagerContract.createAgendaFees();
+            const param = encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    targets,
+                    noticePeriod.toString(),
+                    votingPeriod.toString(),
+                    true,
+                    params
+                ]
+            )
+
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
+
+             // =========================================
+            // Propose an agenda
+            let receipt = await (await ton.connect(user1).approveAndCall(
+                DAOCommitteeProxy.address,
+                agendaFee,
+                param
+            )).wait()
+
+            agendaID = (await daoAgendaManagerContract.numAgendas()).sub(1);
 
         })
 
