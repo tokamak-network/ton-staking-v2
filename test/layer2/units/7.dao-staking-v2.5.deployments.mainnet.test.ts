@@ -24,7 +24,7 @@ import { LegacySystemConfigProxy } from "../../../typechain-types/contracts/laye
 
 import { SeigManagerV1_2 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_2"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3"
-import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1"
 
 import { DAOCommitteeProxy2 } from "../../../typechain-types/contracts/proxy/DAOCommitteeProxy2"
 import { DAOCommittee_V1 } from "../../../typechain-types/contracts/dao/DAOCommittee_V1"
@@ -1153,7 +1153,7 @@ describe('Layer2Manager', () => {
             // const _setMinimumNoticePeriodSeconds = encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)")
             // const _setMinimumVotingPeriodSeconds = encodeFunctionSignature("setMinimumVotingPeriodSeconds(uint256)")
             // const _setExecutingPeriodSeconds = encodeFunctionSignature("setExecutingPeriodSeconds(uint256)")
-            
+
             const _setCooldownTime = encodeFunctionSignature("setCooldownTime(uint256)");
             const _setLayer2CandidateFactory = encodeFunctionSignature("setCandidateAddOnFactory(address)");
             const _setLayer2Manager = encodeFunctionSignature("setLayer2Manager(address)");
