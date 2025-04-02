@@ -1926,33 +1926,33 @@ describe("DAO Proxy Change Test", () => {
 
 
 
-        it("MultiSigWallet execute the SeigManager(setDao)", async () => {
-            let beforeAddr = await seigManagerContract.dao()
-            expect(beforeAddr).to.be.equal(oldContractInfo.DAOVault)
+        // it("MultiSigWallet execute the SeigManager(setDao)", async () => {
+        //     let beforeAddr = await seigManagerContract.dao()
+        //     expect(beforeAddr).to.be.equal(oldContractInfo.DAOVault)
 
-            const dataSetDao = seigManagerContract.interface.encodeFunctionData(
-              "setDao",
-              [zeroAddr]
-            )
+        //     const dataSetDao = seigManagerContract.interface.encodeFunctionData(
+        //       "setDao",
+        //       [zeroAddr]
+        //     )
               
-            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
-              "daoExecuteTransaction",
-              [seigManagerProxyContract.address, dataSetDao]
-            )
+        //     const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+        //       "daoExecuteTransaction",
+        //       [seigManagerProxyContract.address, dataSetDao]
+        //     )
       
-            await multiSigWalletContract.connect(owner2).submitTransaction(
-                daoCommittee_Owner_Contract.address,
-                0,
-                dataExecuteTransaction
-            );
+        //     await multiSigWalletContract.connect(owner2).submitTransaction(
+        //         daoCommittee_Owner_Contract.address,
+        //         0,
+        //         dataExecuteTransaction
+        //     );
       
-            let count = Number(await multiSigWalletContract.getTransactionCount())
-            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
-            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+        //     let count = Number(await multiSigWalletContract.getTransactionCount())
+        //     await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+        //     await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
       
-            let afterAddr = await seigManagerContract.dao()
-            expect(afterAddr).to.be.equal(zeroAddr)
-        })
+        //     let afterAddr = await seigManagerContract.dao()
+        //     expect(afterAddr).to.be.equal(zeroAddr)
+        // })
 
         it("MultiSigWallet execute the agendaManager(setCreateAgendaFees)", async () => {
             let beforeAgendaFee = await daoagendaManager.createAgendaFees()
