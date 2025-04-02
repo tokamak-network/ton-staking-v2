@@ -42,6 +42,7 @@ const DAOVaultABI = require("../../abi/DAOVault.json").abi;
 const CandidateABI = require("../../abi/Candidate.json").abi;
 const DepositManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
 const SeigManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
+const MultiSigwallet_Json = require('../abi/MultiSigWallet.json')
 
 
 describe("DAO Proxy Change Test", () => {
@@ -217,6 +218,24 @@ describe("DAO Proxy Change Test", () => {
     let DAOCommitteeOwner_Addr = "0xcb9859Dc0fBECa68eFFf2bce289150513fdF7D92"
     let DAOCommittee_V1_Addr = "0x9050Af1638f379A018737880aD946CdDA9101A25"
 
+    let multiSigWalletContractAddr = "0xE3F72E959834d0A72aFb2ea79F5ec2b4243d2d95"
+    let multiSigWalletContract;
+
+    let owner1Addr = "0x77b9D55e98126CD457D8F914647e634613D2A7fc"
+    let owner2Addr = "0x9de8cAc67B6514837c31F367aC18a457d8f34c3D"
+    let owner3Addr = "0xa4ABB4Bb512Fc1fecF5556ADDa9B8a4C96dc3790"
+
+    let owner1
+    let owner2
+    let owner3
+
+
+    let richTONAddr = "0x89E883c4FF815CFDE8D619856caa50EDf3bEE516"
+    let richTON;
+
+    let cooldownTime = 259200
+
+
     //changeMember before info
     // [
     //     '0x576C7a48fcEf1C70db632bb1504D9A5C0D0190D3',
@@ -311,7 +330,37 @@ describe("DAO Proxy Change Test", () => {
             user2Addr,
         ]);
         user2 = await hre.ethers.getSigner(user2Addr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            owner1Addr,
+        ]);
+        owner1 = await hre.ethers.getSigner(owner1Addr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            owner2Addr,
+        ]);
+        owner2 = await hre.ethers.getSigner(owner2Addr);
+
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            owner3Addr,
+        ]);
+        owner3 = await hre.ethers.getSigner(owner3Addr);
         
+        await hre.network.provider.send("hardhat_setBalance", [
+            owner1Addr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            owner2Addr,
+            sendether
+        ]);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            owner3Addr,
+            sendether
+        ]);
+
         await hre.network.provider.send("hardhat_setBalance", [
             user1Addr,
             sendether
@@ -357,6 +406,16 @@ describe("DAO Proxy Change Test", () => {
             sendether
         ]);
 
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            richTONAddr,
+        ]);
+        richTON = await hre.ethers.getSigner(richTONAddr);
+        
+        await hre.network.provider.send("hardhat_setBalance", [
+            richTONAddr,
+            sendether
+        ]);
+
     })
 
     describe("Setting TON-related Contract", () => {
@@ -383,6 +442,7 @@ describe("DAO Proxy Change Test", () => {
                 daoCommitteeAdmin
             )
         })
+
 
         it("TON Admin Test", async () => {
             let balanceOfZero = await ton.balanceOf(ethers.constants.AddressZero)
@@ -540,6 +600,14 @@ describe("DAO Proxy Change Test", () => {
             stakedContractLogic = new ethers.Contract(
                 stakedContractAddr,
                 CandidateABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Set MultiSigWalletContract", async () => {
+            multiSigWalletContract = new ethers.Contract(
+                multiSigWalletContractAddr,
+                MultiSigwallet_Json.abi,
                 daoCommitteeAdmin
             )
         })
@@ -828,7 +896,7 @@ describe("DAO Proxy Change Test", () => {
             //  15. set daoCommitteeProxy setCooldownTime
             targets.push(daoCommitteeProxy.address)
             callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCooldownTime", [
-                    604800
+                    cooldownTime
                 ]
             )
             params.push(callDtata)
@@ -1018,8 +1086,8 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("Check daoCommitteeOwner cooldownTime", async () => {
-            let cooldownTime = await daoCommittee_Owner_Contract.cooldownTime()
-            expect(cooldownTime).to.be.equal(604800)
+            let getCooldownTime = await daoCommittee_Owner_Contract.cooldownTime()
+            expect(getCooldownTime).to.be.equal(cooldownTime)
         })
 
         it("Check ton Addr", async () => {
@@ -1695,6 +1763,313 @@ describe("DAO Proxy Change Test", () => {
             )
             expect(amount).to.be.gt(0)
         })
+    })
+
+
+    describe("MultiSigWallet Test", () => {
+        it("send TON & ETH into MultiSigWallet Contract", async () => {
+            await ton.connect(richTON).transfer(
+                multiSigWalletContract.address,
+                ethers.utils.parseEther("1000")
+            )
+
+            await richTON.sendTransaction({
+                to: multiSigWalletContract.address,
+                value: ethers.utils.parseEther("0.5")
+            })
+        })
+
+        it("MultiSigWallet execute the Send ETH", async () => {
+            const recipient = user1.address;
+            const ethAmount = ethers.utils.parseEther("0.5");
+            
+            await multiSigWalletContract.connect(owner1).submitTransaction(
+                recipient,
+                ethAmount,
+                "0x"
+            );
+
+            // await MultiSigWalletContract.connect(owner1).confirmTransaction(0)
+            await multiSigWalletContract.connect(owner2).confirmTransaction(1)
+            const beforeBalance = Number(await ethers.provider.getBalance(recipient)); 
+
+            await multiSigWalletContract.connect(owner3).executeTransaction(1)
+            // const afterBalance = await ethers.provider.getBalance(recipient);
+
+            expect(Number(await ethers.provider.getBalance(recipient))).to.be.equal(beforeBalance+Number(ethAmount))
+        })
+
+        it("MultiSigWallet execute the Send ERC20 transfer", async () => {
+            const tokenAmount = ethers.utils.parseEther("100");
+            const dataTransfer = ton.interface.encodeFunctionData(
+              "transfer",
+              [user1.address, tokenAmount]
+            )
+      
+            await multiSigWalletContract.connect(owner1).submitTransaction(
+              ton.address,
+              0,
+              dataTransfer
+            );
+      
+            await multiSigWalletContract.connect(owner2).confirmTransaction(2)
+            // await MultiSigWalletContract.connect(owner3).confirmTransaction(1)
+      
+            await multiSigWalletContract.connect(owner3).executeTransaction(2)
+      
+            expect(await ton.balanceOf(user1.address)).to.be.equal(tokenAmount)
+        })
+
+        it("ConfirmTransaction cannot be executed for a Transaction that has already been executeTransactioned.", async () => {
+            await expect(
+                multiSigWalletContract.connect(owner3).confirmTransaction(
+                    1
+                )
+            ).to.be.revertedWith("tx already executed");
+        })
+    
+        it("executeTransaction cannot be executed for a Transaction that has already been executeTransactioned.", async () => {
+            await expect(
+                multiSigWalletContract.connect(owner3).executeTransaction(
+                    1
+                )
+            ).to.be.revertedWith("tx already executed");
+        })
+        
+        it("can't changeOwner by Owner", async () => {
+            await expect(
+                multiSigWalletContract.connect(owner1).changeOwner(
+                    0,
+                    user1.address
+                )
+            ).to.be.revertedWith("Only MultiSigContract can execute");
+        })
+
+        it("MultiSigWallet execute the DAOCommitteeOwner(setCooldown)", async () => {
+            let beforeCooldown = await daoCommittee_Owner_Contract.cooldownTime()
+            expect(beforeCooldown).to.be.equal(cooldownTime)
+      
+            const dataSetCooldown = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+              "setCooldownTime",
+              [100]
+            )
+      
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+              daoCommittee_Owner_Contract.address,
+              0,
+              dataSetCooldown
+            );
+      
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+      
+            let afterCooldown = await daoCommittee_Owner_Contract.cooldownTime()
+            expect(afterCooldown).to.be.equal(100)
+        })
+
+        it("MultiSigWallet execute the DAOCommmitee_V1(removeFromBlacklist)", async () => {
+            let beforeBlackList = await daoCommittee_V1_Contract.blacklist(member2ContractAddr)
+            expect(beforeBlackList).to.be.equal(true)
+
+            const dataRemoveBlackList = daoCommittee_V1_Contract.interface.encodeFunctionData(
+                "removeFromBlacklist",
+                [member2ContractAddr]
+            )
+
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_V1_Contract.address,
+                0,
+                dataRemoveBlackList
+            );
+      
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+
+            let afterBlackList = await daoCommittee_V1_Contract.blacklist(member2ContractAddr)
+            expect(afterBlackList).to.be.equal(false)
+        })
+
+        it("Now Member & Total Supply Check", async () => {
+            // console.log("newmember1 :", newMember1Addr) //index0
+            // console.log("staked :", stakedAddr)         //index1
+            // console.log("member3 :", member3Addr)       //index2
+            let index1TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(stakedAddr)
+            let index2TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member3Addr)
+            let TotalSupply = await daoCommittee_V1_Contract.totalSupplyOnCandidate(member2Addr)
+
+            // console.log("index0TotalSupply :", index0TotalSupply)
+            // console.log("index1TotalSupply :", index1TotalSupply)
+            // console.log("index2TotalSupply :", index2TotalSupply)
+            expect(TotalSupply).to.be.gt(index1TotalSupply)
+            expect(TotalSupply).to.be.gt(index2TotalSupply)
+        })
+
+        it("changeMember cooldown Test", async () => {
+            let beforeAddr = await daoCommittee_V1_Contract.members(1)
+            expect(beforeAddr.toUpperCase()).to.be.equal(stakedAddr.toUpperCase())
+
+            await (
+                await member2ContractLogic.connect(member2).changeMember(1)
+            ).wait();
+
+            let afterAddr = await daoCommittee_V1_Contract.members(1)
+            expect(afterAddr.toUpperCase()).to.be.equal(member2Addr.toUpperCase())
+
+            await expect(
+                member2ContractLogic.connect(member2).changeMember(
+                    2
+                )
+            ).to.be.revertedWith("DAOCommittee: need cooldown");
+        })
+
+
+
+        it("MultiSigWallet execute the SeigManager(setDao)", async () => {
+            let beforeAddr = await seigManagerContract.dao()
+            expect(beforeAddr).to.be.equal(oldContractInfo.DAOVault)
+
+            const dataSetDao = seigManagerContract.interface.encodeFunctionData(
+              "setDao",
+              [zeroAddr]
+            )
+              
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+              "daoExecuteTransaction",
+              [seigManagerProxyContract.address, dataSetDao]
+            )
+      
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+      
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+      
+            let afterAddr = await seigManagerContract.dao()
+            expect(afterAddr).to.be.equal(zeroAddr)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setCreateAgendaFees)", async () => {
+            let beforeAgendaFee = await daoagendaManager.createAgendaFees()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setCreateAgendaFees",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+
+
+            let afterAgendaFee = await daoagendaManager.createAgendaFees()
+            expect(afterAgendaFee).to.be.equal(10)
+            expect(afterAgendaFee).not.to.be.equal(beforeAgendaFee)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setMinimumNoticePeriodSeconds)", async () => {
+            let beforeNotice = await daoagendaManager.minimumNoticePeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setMinimumNoticePeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+
+
+            let afterNotice = await daoagendaManager.createAgendaFees()
+            expect(afterNotice).to.be.equal(10)
+            expect(afterNotice).not.to.be.equal(beforeNotice)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setMinimumVotingPeriodSeconds)", async () => {
+            let beforeVoting = await daoagendaManager.minimumVotingPeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setMinimumVotingPeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+
+
+            let afterVoting = await daoagendaManager.minimumVotingPeriodSeconds()
+            expect(afterVoting).to.be.equal(10)
+            expect(afterVoting).not.to.be.equal(beforeVoting)
+        })
+
+        it("MultiSigWallet execute the agendaManager(setExecutingPeriodSeconds)", async () => {
+            let beforeExecuting = await daoagendaManager.executingPeriodSeconds()
+
+            const dataSetDao = daoagendaManager.interface.encodeFunctionData(
+                "setExecutingPeriodSeconds",
+                [10]
+              )
+
+            const dataExecuteTransaction = daoCommittee_Owner_Contract.interface.encodeFunctionData(
+                "daoExecuteTransaction",
+                [daoagendaManager.address, dataSetDao]
+            )
+    
+            await multiSigWalletContract.connect(owner2).submitTransaction(
+                daoCommittee_Owner_Contract.address,
+                0,
+                dataExecuteTransaction
+            );
+    
+            let count = Number(await multiSigWalletContract.getTransactionCount())
+            await multiSigWalletContract.connect(owner3).confirmTransaction(count-1)
+            await multiSigWalletContract.connect(owner3).executeTransaction(count-1)
+
+
+            let afterExecuting = await daoagendaManager.executingPeriodSeconds()
+            expect(afterExecuting).to.be.equal(10)
+            expect(afterExecuting).not.to.be.equal(beforeExecuting)
+        })
+
     })
 
 })
