@@ -1,15 +1,15 @@
 
-> Simple Staking service integrates Layer 2 of TON Economy and is upgraded to ton staking v2.5. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.5.
+> Simple Staking service integrates Layer 2 of TON Economy and is upgraded to TON Staking V2. In this article, we will tell you how Simple Staking integrates layer 2 and evolves to version 2.5.
 
-TON Staking v2.5 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
+TON Staking V2 is developed to implement the contents of the V2 white paper, so [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md) must be read in advance.
 
 the V2 white paper introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
 
-# Changes in TON Staking V2.5
+# Changes in TON Staking V
 
 ## Changes in seigniorage distribution
 
-In V2.5, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
+In V2, the seigniorage from the issued TON is paid to the L2 sequencer in proportion to the total issuance of TON and the liquidity of TON in the L2 layer. (refer to [white paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2))
 
 $S:　TON　staking　amount$ <br/>
 $T :　Total　TON　supply$<br/>
@@ -22,7 +22,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
     <figcaption> </figcaption>
 </figure>
 
-- Seigniorage distribution of V2.5
+- Seigniorage distribution of V2
 <figure>
     <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
     <figcaption> </figcaption>
@@ -33,7 +33,7 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
 
 In V1, Candidate Layer2 existed. Candidate is Layer 2 that can become a DAO committee.
 
-CandidateAddOn added in V2.5 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer(seigniorageReceiver) can receive seigniorage.
+CandidateAddOn added in V2 inherits all the functions of Candidate and can become a committee of DAO, and at the same time, Layer2's sequencer(seigniorageReceiver) can receive seigniorage.
 
 ## Provides withdrawal and L2 deposit functions executed at once
 
@@ -62,9 +62,9 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 </figure>
 
 
-## TON Stake V2.5 Contracts
+## TON Stake V2 Contracts
 
-V2.5 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
+V2 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
@@ -156,7 +156,7 @@ Users who have staked on CandidateAddOn can perform the function of withdrawing 
 
 ## For seigniorageCommittee
 
-Simple Staking V2.5 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer(RollupConfig's seigniorageReceiver) can claim the seigniorage stored in the OperatorManager contract.
+Simple Staking V2 designed an economy that issues TON seigniorage to CandidateAddOn's OperatorManager. The layer 2 sequencer(RollupConfig's seigniorageReceiver) can claim the seigniorage stored in the OperatorManager contract.
 
 Just in case, we must have a function to stop issuing TON seigniorage to OperatorManager. A Seigniorage Committee account was created in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending issuance of seigniorage or canceling suspension of issuance for a sequencer in a specific CandidateAddOn.
 

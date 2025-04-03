@@ -1,15 +1,15 @@
 
-> Simple Staking 서비스는 TON Economy의 Layer2 를 통합하여, ton staking v2로 업그레이드 됩니다. 이 글에서는 Simple Staking 가 layer2를 어떻게 통합하여 version 2.5 로 진화되는지에 대해 알려줄 것입니다.
+> Simple Staking 서비스는 TON Economy의 Layer2 를 통합하여, ton staking v2로 업그레이드 됩니다. 이 글에서는 Simple Staking 가 layer2를 어떻게 통합하여 version 2 로 진화되는지에 대해 알려줄 것입니다.
 
-TON Staking v2.5 는  백서 V2 의 내용을 구체화하기 위한 개발이므로,  [백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md)를 사전에 숙지하시기 바랍니다.
+TON Staking V2 는  백서 V2 의 내용을 구체화하기 위한 개발이므로,  [백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md)를 사전에 숙지하시기 바랍니다.
 
 백서 V2에는 V1에는 존재하지 않는 L2 시퀀서라는 개념이 도입되었으며,  새로 발행되는 톤 시뇨리지의 일부를 L2 시퀀서에게 분배하는 내용이 추가된 내용입니다.  V2는 기존  V1 컨트랙에서 보강된 시스템이기 때문에, V1에 존재하는 컨트랙일 경우, 업그레이드하여 구현합니다.  따라서 본 글을 읽으시는 독자는 V1 시스템을 알고 있어야 합니다.  톤스테이킹 V1에 대해서 더 자세히 알고 싶은 분은 [미디움 글](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7)을 참고하시기 바랍니다.
 
-# Ton Staking V2.5 에서 변경되는 사항들
+# Ton Staking V2 에서 변경되는 사항들
 
 ## 시뇨리지 분배의 변화
 
-V2.5에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
+V2에서는  발행된 시뇨리지에서 톤의 총 발행량과  L2 레이어의 톤 유동성의 비율만큼의 시뇨리지를 L2 시퀀서에게 지급합니다.  ([백서](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-kr.md#222-%ED%86%A4-%EC%8A%A4%ED%85%8C%EC%9D%B4%ED%82%B9-v2ton-staking-v2) 참고)
 
 $S:　TON　스테이킹　금액$ <br/>
 $T :　TON　총　발행량$<br/>
@@ -31,7 +31,7 @@ $D :　Layer2 들의　총　TON 유동성$<br/>
 
 V1에서는 Candidate 가 존재하였습니다. Candidate 는 다오의 위원회가 될 수 있는 Layer2 입니다.
 
-V2.5에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서(seigniorageReceiver)가 시뇨리지를 받을 수 있습니다.
+V2에서 추가되는 CandidateAddOn은 Candidate의 모든 기능을 상속받아 다오의 위원회가 될 수 있음과 동시에 Layer2의 시퀀서(seigniorageReceiver)가 시뇨리지를 받을 수 있습니다.
 
 ## 스테이킹 금액을 즉시 Layer2 유동성으로 사용
 
@@ -59,9 +59,9 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCom
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
 
-## TON Stake V2.5 Contracts
+## TON Stake V2 Contracts
 
-V2.5는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
+V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
    <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
@@ -116,7 +116,7 @@ CandidateAddOn 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 �
 
 
 ## For seigniorageCommittee
-심플 스테이킹 V2.5는 CandidateAddOn의 OperatorManager 에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 해당 레이어2 시퀀서(RollupConfig의 seigniorageReceiver)는 OperatorManager 컨트랙에 보관된 시뇨리지를 클래임하여 가져갈 수 있습니다.
+심플 스테이킹 V2는 CandidateAddOn의 OperatorManager 에게 톤 시뇨리지를 발급하는 이코노미를 설계했습니다. 해당 레이어2 시퀀서(RollupConfig의 seigniorageReceiver)는 OperatorManager 컨트랙에 보관된 시뇨리지를 클래임하여 가져갈 수 있습니다.
 
 만일의 경우를 대비해서, 해당 OperatorManager에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다. L1BridgeRegistry 컨트랙에 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 특정 CandidateAddOn의 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
 
