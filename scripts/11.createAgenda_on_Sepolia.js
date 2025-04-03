@@ -24,20 +24,20 @@ async function CreateAgendaTest() {
     //prepare before execute
     //Need deployer token
     //Need Pre-setting
-    let daoAgendaManagerAddr = "";
-    let daoCommitteeProxyAddr = "";
-    let seigManagerProxyAddr = "";
-    let tonAddr = "";
+    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
+    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+    let seigManagerProxyAddr = "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7";
+    let tonAddr = "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044";
 
-    let daoCommitteeProxy2Addr = "";
-    let daoCommitteeV1Addr = "";
-    let daoCommitteeOwnerAddr = "";
-    let seigManagerV1_2Addr = "";
-    let seigManagerV1_3Addr = "";
-    let depositManagerV1_1Addr = "";
-    let l1BridgeRegistryProxyAddr = "";
-    let layer2ManagerProxyAddr = "";
-    let candidateAddOnFactoryProxyAddr = ""
+    let daoCommitteeProxy2Addr = "0xC74b529Ad06E70fA51CDDAD11857D53E6354523d";
+    let daoCommitteeV1Addr = "0x9Cb6e22A9a551c13159d818D540aE8bE299967fb";
+    let daoCommitteeOwnerAddr = "0xf26D736db6a259AfD93ffDa027b0d7DD9748e3FB";
+    let seigManagerV1_2Addr = "0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898";
+    let seigManagerV1_3Addr = "0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA";
+    let depositManagerV1_1Addr = "0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06";
+    let l1BridgeRegistryProxyAddr = "0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc";
+    let layer2ManagerProxyAddr = "0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc";
+    let candidateAddOnFactoryProxyAddr = "0xf37493caC8BF8df0bD96146211D93D548d506fb9"
     
     let legacySystemConfigAddr = ""
 
