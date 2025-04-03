@@ -929,6 +929,7 @@ describe("DAO Proxy Change Test", () => {
                 agendaFee,
                 param
             )).wait()
+            // console.log(receipt)
 
             agendaID = (await daoagendaManager.numAgendas()).sub(1);
 

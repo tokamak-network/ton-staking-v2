@@ -721,47 +721,47 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("Check proxyImplementation(0) = DAOCommittee_V1", async () => {
-            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
             if (execute) {
+                let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
                 expect(implementation).to.be.equal(DAOCommittee_V1_Addr)
             } else {
-                expect(implementation).not.to.be.equal(DAOCommittee_V1_Addr)
+                await expect(daoCommitteeProxy2Contract.proxyImplementation(0)).to.be.reverted;
             }
         })
 
         it("Check proxyImplementation(1) = DAOCommitteeOwner", async () => {
-            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(1)
             if (execute) {
+                let implementation = await daoCommitteeProxy2Contract.proxyImplementation(1)
                 expect(implementation).to.be.equal(DAOCommitteeOwner_Addr)
             } else {
-                expect(implementation).to.be.equal(DAOCommitteeOwner_Addr)
+                await expect(daoCommitteeProxy2Contract.proxyImplementation(1)).to.be.reverted;
             }
         })
 
         it("Check CandidateAddOnFactory Addr", async () => {
-            let address = await daoCommitteeProxy2Contract.candidateAddOnFactory()
             if (execute) {
+                let address = await daoCommitteeProxy2Contract.candidateAddOnFactory()
                 expect(address).to.be.equal(candidateAddOnFactoryProxy.address)
             } else {
-                expect(address).not.to.be.equal(candidateAddOnFactoryProxy.address)
+                await expect(daoCommitteeProxy2Contract.candidateAddOnFactory()).to.be.reverted;
             }
         })
 
         it("Check Layer2Manager Addr", async () => {
-            let address = await daoCommitteeProxy2Contract.layer2Manager()
             if (execute) {
+                let address = await daoCommitteeProxy2Contract.layer2Manager()
                 expect(address).to.be.equal(layer2ManagerProxy.address)
             } else {
-                expect(address).not.to.be.equal(layer2ManagerProxy.address)
+                await expect(daoCommitteeProxy2Contract.layer2Manager()).to.be.reverted;
             }
         })
 
         it("Check daoCommitteeOwner cooldownTime", async () => {
-            let getCooldownTime = await daoCommittee_Owner_Contract.cooldownTime()
             if (execute) {
+                let getCooldownTime = await daoCommittee_Owner_Contract.cooldownTime()
                 expect(getCooldownTime).to.be.equal(cooldownTime)
             } else {
-                expect(getCooldownTime).not.to.be.equal(cooldownTime)
+                await expect(daoCommittee_Owner_Contract.cooldownTime()).to.be.reverted;
             }
         })
 
