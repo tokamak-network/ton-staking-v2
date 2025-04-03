@@ -103,7 +103,7 @@ async function logPause(seigManager:Contract, layerAddress: string){
     }
 }
 
-describe('TON Staking V2.5', () => {
+describe('TON Staking V2', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 

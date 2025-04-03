@@ -45,9 +45,9 @@ The TON staking contract is a contract that distributes TON seigniorage by staki
         - The reason why the branch of the code is ton-staking-v2.0 is because [V1](https://github.com/tokamak-network/plasma-evm-contracts/blob/master/contracts/stake/managers/SeigManager.sol) version consists of a contract that cannot be upgraded, so V1 was modified to be upgradeable and named [V2](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2.0/contracts/stake/managers/SeigManagerV1_2.sol#L429-L503). V1 and V2 in the repo have the same logic.
 
 
-- Seigniorage Distribution Logic (V2.5)
+- Seigniorage Distribution Logic (V)
     - Reference 1: [White paper](https://github.com/tokamak-network/papers/blob/master/cryptoeconomics/tokamak-cryptoeconomics-en.md#222-ton-staking-v2)
-    - Reference 2: [V2.5 Changelog](https://github.com/tokamak-network/ton-staking-v2/blob/deploy-ton-staking-v2.5/docs/en/ton-staking-v2.md#changes-in-seigniorage-distribution)
+    - Reference 2: [V Changelog](https://github.com/tokamak-network/ton-staking-v2/blob/deploy-ton-staking-v2.5/docs/en/ton-staking-v2.md#changes-in-seigniorage-distribution)
     - Implementation Code: [SeigManagerV1_3.sol](https://github.com/tokamak-network/ton-staking-v2/blob/3897c0ede97a6f8229d835b9d60653217adb6132/contracts/stake/managers/SeigManagerV1_3.sol#L414-L482)
 
 

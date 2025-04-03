@@ -103,7 +103,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
+describe('Rehearsal of upgrading staking v2 on the sepola ', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
     let l1BridgeRegistryOld: L1BridgeRegistryV1_1
