@@ -27,6 +27,7 @@ async function CreateAgendaTest() {
     let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
     let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
     let seigManagerProxyAddr = "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7";
+    let depositManagerProxyAddr = "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F";
     let tonAddr = "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044";
 
     let daoCommitteeProxy2Addr = "0xC74b529Ad06E70fA51CDDAD11857D53E6354523d";
@@ -38,6 +39,8 @@ async function CreateAgendaTest() {
     let l1BridgeRegistryProxyAddr = "0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc";
     let layer2ManagerProxyAddr = "0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc";
     let candidateAddOnFactoryProxyAddr = "0xf37493caC8BF8df0bD96146211D93D548d506fb9"
+
+    let cooldownTime = 259200
     
     let legacySystemConfigAddr = ""
 
@@ -74,7 +77,7 @@ async function CreateAgendaTest() {
 
     //==== Set DepositManagerProxy =================================
     let depositManagerProxy = new ethers.Contract(
-        mainnetContractInfo.DepositManagerProxy,
+        depositManagerProxyAddr,
         DepositManagerProxy_Json.abi,
         ethers.provider
     )
@@ -309,7 +312,8 @@ async function CreateAgendaTest() {
     targets.push(depositManagerProxy.address)
     callDtata = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
         l1BridgeRegistryProxyAddr,
-        layer2ManagerProxyAddr ])
+        layer2ManagerProxyAddr 
+    ])
     params.push(callDtata)
 
     // =========================================
@@ -339,11 +343,14 @@ async function CreateAgendaTest() {
     
     // =========================================
     // Propose an agenda
-    await ton.connect(deployer).approveAndCall(
+    console.log("deployerAddr :", deployer.address)
+    let receipt = await ton.connect(deployer).approveAndCall(
         daoCommitteeProxy.address,
         agendaFee,
         param
-    );
+    )
+    console.log("tx Hash :", receipt.transactionHash)
+    console.log(receipt)
 }
 
 
