@@ -16,7 +16,7 @@ import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/
 import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1"
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3"
-import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
 import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/LegacySystemConfigProxy"
@@ -47,26 +47,26 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         OperatorManagerFactory: {
             owner: DAOCommitteeProxy
         },
-        Titan : {
-            proxyOwner: DAOCommitteeProxy,
-            manager: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
-        }
+        // Titan : {
+        //     proxyOwner: DAOCommitteeProxy,
+        //     manager: "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+        // }
     }
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
-    const name = 'Titan'
-    const addresses = {
-        l1CrossDomainMessenger: l1MessengerAddress,
-        l1ERC721Bridge: hre.ethers.constants.AddressZero,
-        l1StandardBridge: l1BridgeAddress,
-        l2OutputOracle: hre.ethers.constants.AddressZero,
-        optimismPortal: hre.ethers.constants.AddressZero,
-        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
-    }
-    console.log("\n === Titan Candidate ===" )
-    console.log("name: ", name)
-    console.log("addresses: ", addresses)
+    // const name = 'Titan'
+    // const addresses = {
+    //     l1CrossDomainMessenger: l1MessengerAddress,
+    //     l1ERC721Bridge: hre.ethers.constants.AddressZero,
+    //     l1StandardBridge: l1BridgeAddress,
+    //     l2OutputOracle: hre.ethers.constants.AddressZero,
+    //     optimismPortal: hre.ethers.constants.AddressZero,
+    //     optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    // }
+    // console.log("\n === Titan Candidate ===" )
+    // console.log("name: ", name)
+    // console.log("addresses: ", addresses)
 
     // return;
     const { deploy } = hre.deployments;
@@ -299,44 +299,45 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
-    //==== LegacySystemConfig =================================
-    const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
-        from: deployer,
-        args: [],
-        log: true
-    });
+    // // 테스트넷에 배포할 때는 생략
+    // //==== LegacySystemConfig =================================
+    // const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
 
-    const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
-        from: deployer,
-        args: [],
-        log: true
-    });
+    // const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
 
-    const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
-        LegacySystemConfigProxyDep.abi,
-        LegacySystemConfigProxyDep.address
-    )) as LegacySystemConfigProxy;
+    // const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
+    //     LegacySystemConfigProxyDep.abi,
+    //     LegacySystemConfigProxyDep.address
+    // )) as LegacySystemConfigProxy;
 
-    const legacySystemConfig = (await hre.ethers.getContractAt(
-        LegacySystemConfigDep.abi,
-        LegacySystemConfigProxyDep.address
-    )) as LegacySystemConfig;
+    // const legacySystemConfig = (await hre.ethers.getContractAt(
+    //     LegacySystemConfigDep.abi,
+    //     LegacySystemConfigProxyDep.address
+    // )) as LegacySystemConfig;
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
-        LegacySystemConfigDep.address
-    )).wait()
+    // await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
+    //     LegacySystemConfigDep.address
+    // )).wait()
 
-    await (await legacySystemConfig.connect(deploySigner).setAddresses(
-        name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
-    )).wait()
+    // await (await legacySystemConfig.connect(deploySigner).setAddresses(
+    //     name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
+    // )).wait()
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
-        ownerAddressInfo.Titan.proxyOwner
-    )).wait()
+    // await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
+    //     ownerAddressInfo.Titan.proxyOwner
+    // )).wait()
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
-        ownerAddressInfo.Titan.manager
-    )).wait()
+    // await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
+    //     ownerAddressInfo.Titan.manager
+    // )).wait()
 
     //======= TransferOwner to DAOCommittee ======================================
 

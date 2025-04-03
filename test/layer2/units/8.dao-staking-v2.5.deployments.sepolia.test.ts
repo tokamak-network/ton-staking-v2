@@ -1368,7 +1368,7 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             params.push(callDtata)
 
             // =========================================
-            //  set seigManagerProxy setLayer2Manager
+            //  set seigManagerProxy setL1BridgeRegistry
             targets.push(seigManagerProxy.address)
             callDtata = seigManagerV1_2.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
             params.push(callDtata)
