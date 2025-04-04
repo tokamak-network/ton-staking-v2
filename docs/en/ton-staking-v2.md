@@ -5,7 +5,7 @@ TON Staking V2 is developed to implement the contents of the V2 white paper, so 
 
 the V2 white paper introduces a concept called L2 sequencer, which was not present in V1, and new content has been added to distribute a portion of the newly issued TON seigniorage to the L2 sequencer. Since V2 is a reinforced system from the existing V1 contract, if there is a contract that exists in V1, it is implemented by upgrading. Therefore, readers of this article should be familiar with the V1 system. If you want to know more about TON staking V1, please refer to this [Medium article](https://medium.com/tokamak-network/looking-into-tokamak-networks-staking-contract-7d5f9fa057e7).
 
-# Changes in TON Staking V
+# Changes in TON Staking V2
 
 ## Changes in seigniorage distribution
 
