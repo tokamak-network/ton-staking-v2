@@ -231,12 +231,20 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Storage
 
     ```jsx
+    struct ROLLUP_INFO {
+        uint8   rollupType;  ///  type (0:empty, 1: optimism legacy, 2: Thanos stack of TRH(Tokamak Rollup Hub) )
+        address l2TON;
+        bool    rejectedSeigs;
+        bool    rejectedL2Deposit;
+        string  name;
+    }
+
     address public layer2Manager;
     address public seigManager;
     address public ton;
+    address public seigniorageCommittee;
 
-    /// rollupConfig - type (0:empty, 1: optimism legacy, 2: optimism bedrock native TON)
-    mapping (address => uint8) public rollupType;
+    mapping (address => ROLLUP_INFO) public rollupInfo;
 
     /// For registered bridges, set to true.
     mapping (address => bool) public l1Bridge;
@@ -244,68 +252,66 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     /// For registered portals, set to true.
     mapping (address => bool) public portal;
 
-    /// Set the layer where seigniorage issuance has been suspended to true.
-    mapping (address => bool) public rejectRollupConfig;
-
-    address public seigniorageCommittee;
-
-    /// rollupConfig - l2TON
-    mapping (address => address) public l2TON;
+    //  bytes32(bytes(name))
+    mapping (bytes32 => bool) public registeredNames;
     ```
 
 - Event
 
     ```jsx
+
     event SetAddresses(address _layer2Manager, address _seigManager, address _ton);
     event SetSeigniorageCommittee(address _seigniorageCommittee);
 
     /**
-    * @notice  Event occurs when registering rollupConfig
-    * @param   rollupConfig      the rollupConfig address
-    * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
-    */
-    event RegisteredRollupConfig(address rollupConfig, uint8 type_);
+     * @notice  Event occurs when registering rollupConfig
+     * @param   rollupConfig      the rollupConfig address
+     * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
+     * @param   l2TON        the L2 TON address
+     * @param   name         the candidate name
+     */
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2TON, string name);
 
     /**
-    * @notice  Event occurs when an account with registrant privileges changes the layer 2 type.
-    * @param   rollupConfig      the rollupConfig address
-    * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
-    */
-    event ChangedType(address rollupConfig, uint8 type_);
-
-    /**
-    * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
-    *          to the layer 2 sequencer of a specific rollupConfig.
-    * @param   rollupConfig  the rollupConfig address
-    */
+     * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   rollupConfig  the rollupConfig address
+     */
     event RejectedCandidateAddOn(address rollupConfig);
 
     /**
-    * @notice  Event occurs when onlySeigniorageCommittee cancels stopping issuing seigniorage
-    *          to the layer 2 sequencer of a specific rollupConfig.
-    * @param   rollupConfig  the rollupConfig address
-    */
+     * @notice  Event occurs when onlySeigniorageCommittee cancels stopping issuing seigniorage
+     *          to the layer 2 sequencer of a specific rollupConfig.
+     * @param   rollupConfig  the rollupConfig address
+     */
     event RestoredCandidateAddOn(address rollupConfig);
 
     /**
-    * @notice  Event occurs when a bridge address is registered during system configuration registration.
-    * @param   rollupConfig        the rollupConfig address
-    * @param   bridge          the bridge address
-    */
+     * @notice  Event occurs when a bridge address is registered during system configuration registration.
+     * @param   rollupConfig    the rollupConfig address
+     * @param   bridge          the bridge address
+     */
     event AddedBridge(address rollupConfig, address bridge);
 
     /**
-    * @notice  Event occurs when an optimismPortal address is registered during system configuration registration.
-    * @param rollupConfig          the rollupConfig address
-    * @param portal            the bridge address
-    */
+     * @notice  Event occurs when an optimismPortal address is registered during system configuration registration.
+     * @param rollupConfig          the rollupConfig address
+     * @param portal            the bridge address
+     */
     event AddedPortal(address rollupConfig, address portal);
+
+    /**
+     * @notice  Event occurs when an optimismPortal address is registered during system configuration registration.
+     * @param rollupConfig          the rollupConfig address
+     * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
+     */
+    event SetBlockingL2Deposit(address rollupConfig, bool rejectedL2Deposit);
 
 
     ```
 
 - Transaction Functions
-    - function rejectCandidateAddOn(address rollupConfig)  external onlySeigniorageCommittee()
+    - function rejectCandidateAddOn(address rollupConfig)  external onlySeigniorageCommittee
 
         ```solidity
         /**
@@ -314,22 +320,24 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         */
         function rejectCandidateAddOn(
         address rollupConfig
-        )  external onlySeigniorageCommittee()
+        )  external onlySeigniorageCommittee
         ```
 
-    - function restoreCandidateAddOn(address _systemConfig)  external onlySeigniorageCommittee()
+    - function restoreCandidateAddOn(address rollupConfig, bool rejectedL2Deposit)  external onlySeigniorageCommittee
 
         ```solidity
         /**
-        * Restore cancel stopping seigniorage to the layer 2 sequencer of a specific rollupConfig.
-        * @param rollupConfig the rollupConfig address
-        */
-        function restoreCandidateAddOn(
-            address rollupConfig
-        )  external onlySeigniorageCommittee()
+     * Start to issue seigniorage to the layer 2 sequencer of a specific rollupConfig from now on.
+     * @param rollupConfig          the rollupConfig address
+     * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
+     */
+    function restoreCandidateAddOn(
+        address rollupConfig,
+        bool rejectedL2Deposit
+    ) external onlySeigniorageCommittee
         ```
 
-    - function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON) external onlyManager
+    - function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON, string calldata _name) external onlyManager
 
         ```solidity
         /**
@@ -337,7 +345,7 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         * @param rollupConfig       the rollupConfig address
         * @param _type              1: legacy, 2: bedrock with nativeTON
         */
-        function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON)  external  onlyManager
+        function registerRollupConfigByManager(address rollupConfig, uint8 _type, address _l2TON, string calldata _name)  external  onlyManager
 
         ```
 
@@ -347,21 +355,10 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         /**
         * @notice Registers Layer2 for a specific rollupConfig by Registrant.
         * @param rollupConfig       the rollupConfig address
-        * @param _type          1: legacy, 2: bedrock with native TON
+        * @param _type          1: legacy, 2: Thanos of TRH
         */
         function registerRollupConfig(address rollupConfig, uint8 _type, address _l2TON)  external  onlyRegistrant
 
-        ```
-
-    - function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant
-
-        ```solidity
-        /**
-        * @notice Changes the Layer2 type for a specific rollupConfig by Registrant.
-        * @param rollupConfig the rollupConfig address
-        * @param _type          1: legacy, 2: bedrock with native TON
-        */
-        function changeType(address rollupConfig, uint8 _type)  external  onlyRegistrant
         ```
 
 - View Functions
@@ -501,14 +498,63 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Storage
 
     ```jsx
-    address public rollupConfig;
-    address public layer2Manager;
-    address public depositManager;
-    address public ton;
-    address public wton;
+    // uint256(keccak256("TON")) - 1
+    uint256 internal constant _TON_ADDRESS_SLOT =
+        0x88940a795d305b6429c31402afcae61ef7d829b8a9fe2a9861b8c30cd60e80ec;
+    // uint256(keccak256("WTON")) - 1
+    uint256 internal constant _WTON_ADDRESS_SLOT =
+        0x5fa7357c3468b094bc9c15b746af6189f046af1501ae9751f49e7b4dd5616e97;
+    // uint256(keccak256("DEPOSIT_MANAGER")) - 1
+    uint256 internal constant _DEPOSIT_MANAGER_ADDRESS_SLOT =
+        0x6ab12bb59b8ea07c1cc11427fce17c9e354c419041651472a04b9843d34380a9;
+    // uint256(keccak256("LAYER2_MANAGER")) - 1
+    uint256 internal constant _LAYER2_MANAGER_ADDRESS_SLOT =
+        0x1e5e236e704b4589753ab620fd23d3321a80f8eee20526988a54214ac5af8eed;
+    // uint256(keccak256("ROLLUP_CONFIG")) - 1
+    uint256 internal constant _ROLLUP_CONFIG_SLOT =
+        0xd8bedf058aa85a36377d4cf75d156448984f1301b93d1653448986b1166437d6;
+    // uint256(keccak256("MANAGER")) - 1
+    uint256 internal constant _MANAGER_SLOT =
+        0xaf290d8680820aad922855f39b306097b20e28774d6c1ad35a20325630c3a02b;
 
-    address public manager;
-    string public explorer;
+    function ton() public view returns (address addr) {
+        assembly {
+            addr := sload(_TON_ADDRESS_SLOT)
+        }
+    }
+
+    function wton() public view returns (address addr) {
+        assembly {
+            addr := sload(_WTON_ADDRESS_SLOT)
+        }
+    }
+
+
+    function depositManager() public view returns (address addr) {
+        assembly {
+            addr := sload(_DEPOSIT_MANAGER_ADDRESS_SLOT)
+        }
+    }
+
+
+    function layer2Manager() public view returns (address addr) {
+        assembly {
+            addr := sload(_LAYER2_MANAGER_ADDRESS_SLOT)
+        }
+    }
+
+    function rollupConfig() public view returns (address addr) {
+        assembly {
+            addr := sload(_ROLLUP_CONFIG_SLOT)
+        }
+    }
+
+    function manager() public view returns (address addr) {
+        assembly {
+            addr := sload(_MANAGER_SLOT)
+        }
+    }
+
     ```
 
 - Event
@@ -551,11 +597,6 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     */
     event Claimed(address token, address caller, address to, uint256 amount);
 
-    /**
-    * @notice Event occurs when setting the explorer url
-    * @param _explorer a explorer url
-    */
-    event SetExplorer(string _explorer);
 
     ```
 
@@ -601,19 +642,27 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function isOperator(address addr) public view returns (bool)
         ```
 
-    - function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton)
+    - function checkL1Bridge() public view returns (
+            bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit
+        )
 
         ```jsx
-        /**
+         /**
          * @notice Returns the availability status of Layer 2, L1 bridge address, portal address, and L2TON address.
-         * @return result   the availability status of Layer 2
-         * @return l1Bridge the L1 bridge address
-         * @return portal   the L1 portal address
-         * @return l2Ton    the L2 TON address
-         *                  L2TON address is 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000,
-         *                  In this case, the native token of Layer 2 is TON.
-         */
-        function checkL1Bridge() public view returns (bool result, address l1Bridge, address portal, address l2Ton) {
+        * @return result   the availability status of Layer 2
+        * @return l1Bridge the L1 bridge address
+        * @return portal   the L1 portal address
+        * @return l2Ton    the L2 TON address
+        *                  L2TON address is 0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000,
+        *                  In this case, the native token of Layer 2 is TON.
+        * @return _type    the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
+        * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+        * @return rejectedSeigs     If it is true, Seigniorage issuance has been stopped for this layer2.
+        * @return rejectedL2Deposit If it is true, stop depositing at this layer.
+        */
+        function checkL1Bridge() public view returns (
+            bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status, bool rejectedSeigs, bool rejectedL2Deposit
+        )
 
         ```
 
@@ -657,40 +706,58 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     /// operator - CandidateAddOnInfo
     mapping (address => CandidateAddOnInfo) public operatorInfo;
 
+    /// layer2 - operator
+    mapping (address => address) public operatorOfLayer;
     ```
 
 - Event
 
     ```jsx
+
     /**
-    * @notice Event occurs when setting the minimum initial deposit amount
-    * @param _minimumInitialDepositAmount the minimum initial deposit amount
-    */
+     * @notice Event occurs when setting the minimum initial deposit amount
+     * @param _minimumInitialDepositAmount the minimum initial deposit amount
+     */
     event SetMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount);
 
     /**
-    * @notice Event occurs when registering CandidateAddOn
-    * @param rollupConfig      the rollupConfig address
-    * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
-    * @param memo              the name of CandidateAddOn
-    * @param operator          an operatorManager contract address
-    * @param candidateAddOn    a candidateAddOn address
-    */
+     * @notice Event occurs when registering CandidateAddOn
+     * @param rollupConfig      the rollupConfig address
+     * @param wtonAmount        the wton amount depositing when registering CandidateAddOn
+     * @param memo              the name of CandidateAddOn
+     * @param operator          an operatorManager contract address
+     * @param candidateAddOn    a candidateAddOn address
+     */
     event RegisteredCandidateAddOn(address rollupConfig, uint256 wtonAmount, string memo, address operator, address candidateAddOn);
 
     /**
-    * @notice Event occurs when pausing the CandidateAddOn
-    * @param rollupConfig      the rollupConfig address
-    * @param candidateAddOn    the candidateAddOn address
-    */
+     * @notice Event occurs when pausing the CandidateAddOn
+     * @param rollupConfig      the rollupConfig address
+     * @param candidateAddOn    the candidateAddOn address
+     */
     event PausedCandidateAddOn(address rollupConfig, address candidateAddOn);
 
     /**
-    * @notice Event occurs when pausing the CandidateAddOn
-    * @param rollupConfig      the rollupConfig address
-    * @param candidateAddOn    the candidateAddOn address
-    */
+     * @notice Event occurs when pausing the CandidateAddOn
+     * @param rollupConfig      the rollupConfig address
+     * @param candidateAddOn    the candidateAddOn address
+     */
     event UnpausedCandidateAddOn(address rollupConfig, address candidateAddOn);
+
+    /**
+     * @notice Event occurs when pausisetting the operatorManagerFactory
+     * @param _operatorManagerFactory   the operatorManagerFactory address
+     */
+    event SetOperatorManagerFactory(address _operatorManagerFactory);
+
+    /**
+     * @notice Event occurs when pausisetting the operatorManagerFactory
+     * @param layer2        the layer2 address
+     * @param to            The address that receives the seigniorage. This will be the operator address.
+     * @param amount        Amount of transmission seigniorage
+     */
+    event TransferWTON(address layer2, address to, uint256 amount);
+
     ```
 
 - Transaction Functions
@@ -745,15 +812,24 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function unpauseCandidateAddOn(address rollupConfig) external onlyL1BridgeRegistry ifFree
         ```
 
-    - function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger
+    - function transferL2Seigniorage(address layer2, uint256 amount)  external onlySeigManger
 
         ```jsx
+
         /**
-         * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
-        * @param rollupConfig the rollupConfig address
+        * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
+        * @param layer2 the layer2 address
         * @param amount the amount to give a seigniorage
         */
-        function updateSeigniorage(address rollupConfig, uint256 amount) external onlySeigManger
+        function transferL2Seigniorage(address layer2, uint256 amount) external onlySeigManger {
+
+            address operator = operatorOfLayer[layer2];
+            require(operator != address(0), "wrong operator");
+
+            IERC20(wton).safeTransfer(operator, amount);
+
+            emit TransferWTON(layer2, operator, amount);
+        }
         ```
 
     - function setMinimumInitialDepositAmount(uint256 _minimumInitialDepositAmount)  external  onlyOwner
@@ -840,7 +916,65 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
         ```
 
+     - function availableRegister(address _rollupConfig) external view returns (bool result)
 
+        ```jsx
+        function availableRegister(address _rollupConfig) external view returns (bool result)
+
+        ```
+
+     - function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified)
+
+        ```jsx
+        function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified)
+
+        ```
+
+    - function checkL1BridgeDetail(address _rollupConfig) external view
+        returns (
+            bool result,
+            address l1Bridge,
+            address portal,
+            address l2Ton,
+            uint8 _type,
+            uint8 status,
+            bool rejectedSeigs,
+            bool rejectedL2Deposit
+        )
+
+        ```jsx
+        /**
+        * @notice Layer 2 related information search
+        * @param _rollupConfig     the rollupConfig address
+        * @return result           whether Layer2 information can be searched
+        * @return l1Bridge         the L1 bridge address
+        * @return portal           the optimism portal address
+        * @return l2Ton            the L2 TON address
+        * @return _type            the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token)
+        * @return status           status for giving seigniorage ( 0: none , 1: registered, 2: paused )
+        * @return rejectedSeigs     If it is true, Seigniorage issuance has been stopped for this layer2.
+        * @return rejectedL2Deposit If it is true, stop depositing at this layer.
+        */
+        function checkL1BridgeDetail(address _rollupConfig) external view
+            returns (
+                bool result,
+                address l1Bridge,
+                address portal,
+                    address l2Ton,
+                    uint8 _type,
+                    uint8 status,
+                    bool rejectedSeigs,
+                    bool rejectedL2Deposit
+                )
+
+        ```
+
+     - function layerInfo(address layer2) external view returns (address rollupConfig, address operator)
+
+        ```jsx
+            function layerInfo(address layer2) external view returns (address rollupConfig, address operator)
+
+        ```
 ## CandidateAddOnFactory
 
 - Basic understanding
@@ -933,13 +1067,26 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
     ```solidity
         mapping(bytes4 => bool) internal _supportedInterfaces;
         bool public isLayer2Candidate;
-        address public candidate;  /// operatorManager
         string public memo;
 
-        address public committee;
-        address public seigManager;
-        address public ton;
-        address public wton;
+        // uint256(keccak256("CANDIDATE")) - 1
+        uint256 internal constant _CANDIDATE_SLOT =
+            0xa62771101a79dd4b4d7b861524e85faa4569e99d6bb6b09233805dccb1ea480e;
+        // uint256(keccak256("COMMITTEE")) - 1
+        uint256 internal constant _COMMITTEE_SLOT =
+            0xed7ead75dab2b778f814bef3e24d121e608a2464b0363d0d34b193757e18edb7;
+        // uint256(keccak256("SEIGMANAGER")) - 1
+        uint256 internal constant _SEIGMANAGER_SLOT =
+            0x7088c9d198dd5a695a7839f4b2a2bf4569dc44d17d42047752072568a6f42416;
+
+        // uint256(keccak256("TON")) - 1
+        uint256 internal constant _TON_ADDRESS_SLOT =
+            0x88940a795d305b6429c31402afcae61ef7d829b8a9fe2a9861b8c30cd60e80ec;
+        // uint256(keccak256("WTON")) - 1
+        uint256 internal constant _WTON_ADDRESS_SLOT =
+            0x5fa7357c3468b094bc9c15b746af6189f046af1501ae9751f49e7b4dd5616e97;
+
+
     ```
 
 - Event
@@ -1005,15 +1152,6 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         function updateSeigniorage() external returns (bool)
         ```
 
-    - function updateSeigniorage(uint256 afterCall) public returns (bool)
-
-        ```jsx
-        /// @notice Call updateSeigniorage on SeigManager
-        /// @param afterCall    After running update seigniorage, option to run additional functions
-        ///                     0: none, 1: claim, 2: staking
-        /// @return             Whether or not the execution succeeded
-        function updateSeigniorage(uint256 afterCall) public returns (bool)
-        ```
 
 - View Functions
     - function totalStaked() external  view returns (uint256 totalsupply)
@@ -1054,62 +1192,34 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 - Added Storage
 
     ```jsx
-    struct Layer2Tvl {
-        uint256 l2UpdateBlockIndexes; // l2UpdateBlock's index
-        uint256 layer2Tvl;
-    }
-
     struct Layer2Reward {
         uint256 layer2Tvl;
+        uint256 initialDebt;
         uint256 startBlock;
-        uint256 claimedLastIndex;
-        uint256 claimedBlockNumber;
-        uint256 claimedReward;
-    }
-
-    struct Layer2PauseBlock {
-        uint256 pauseIndex; // pause l2UpdateBlock index, 포함 인덱스부터 발급안함
-        uint256 unpauseIndex; // unpause l2UpdateBlock index, 포함 인덱스까지 발급안함
     }
 
     /// L1BridgeRegistry address
     address public l1BridgeRegistry;
+
     /// Layer2Manager address
     address public layer2Manager;
 
     /// layer2 seigs start block
     uint256 public layer2StartBlock;
 
-    uint256 public l2RewardPerUint;  // ray unit .1e27
+    uint256 public l2RewardPerUint;
 
     /// total layer2 TON TVL
     uint256 public totalLayer2TVL;
 
-    /// When claiming L2 seigniorage, only maxCommitCountForClaim can be claimed at a time.
-    uint256 public maxCommitCountForClaim;
-
-    // L2 update seigniorage commit block
-    uint256[] public l2UpdateBlock; // index 0 - unused, it's a dummy
-
     /// layer2 reward information for each layer2(candidate).
-    mapping (address => Layer2Reward) public layer2RewardInfo;
+    mapping(address => Layer2Reward) public layer2RewardInfo;
 
-    // Calculate seigniorage per liquidity for L2 update seigniorage commit block.
-    mapping (uint256 => uint256) public l2RewardAtBlock;
+    // layer2 - block number when pausing
+    mapping(address => uint256[]) public layer2PauseBlocks;
 
-    // layer2 - Index array of l2UpdateBlock
-    mapping (address => uint256[]) public layer2L2UpdateBlockIndexes;
-
-    // layer2 - commit block number - commitLayer2Tvl
-    mapping (address => mapping (uint256 => uint256)) public commitLayer2Tvl;
-
-    // layer2 - pause block index
-    mapping (address => uint256[]) public layer2PauseBlockIndex;
-
-
-    //layer2 - pause block index - unpause block index
-    mapping (address => mapping (uint256 => uint256)) public layer2UnpauseBlockIndex;
-
+    //layer2 - block number when pausing - block number when unpausing
+    mapping(address => mapping(uint256 => uint256)) public layer2UnpauseBlocks;
 
     ```
 
@@ -1144,32 +1254,43 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
      */
     event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 
+
+     /**
+     * @notice Event that occurs when calling excludeFromL2Seigniorage function
+     * @param layer2        the layer2 address
+     */
+    event ExcludedFromL2Seigniorage(address layer2);
+
+    /**
+     * @notice Event that occurs when calling includeFromL2Seigniorage function
+     * @param layer2        the layer2 address
+     */
+    event IncludedFromL2Seigniorage(address layer2);
+
+
     ```
 
 - Transaction Functions
-    - function excludeFromSeigniorage (address _layer2) external returns (bool) onlyLayer2Manager
-
-        ```
-        /**
-        * @notice Exclude the layer2 in distributing a seigniorage
-        * @param _layer2     the layer2(candidate) address
-        */
-        function excludeFromSeigniorage (address _layer2)
-        external
-        returns (bool)
-        ```
-
-    - function updateSeigniorageOperator() external  returns (bool)  onlyCandidate
+    - function excludeFromL2Seigniorage(address layer2) external returns (bool) onlyLayer2Manager
 
         ```jsx
-        /**
-        * @notice Distribute the issuing seigniorage.
-        *         If caller is a CandidateAddOn, the seigniorage is settled to the L2 OperatorManager.
+         /**
+        * @notice Exclude the layer2 in distributing a seigniorage
+        * @param layer2     the layer2(candidate) address
         */
-        function updateSeigniorageOperator()
-        external
-        returns (bool)
+        function excludeFromL2Seigniorage(address layer2) external returns (bool)
         ```
+
+    - function includeFromL2Seigniorage(address layer2) external returns (bool) onlyLayer2Manager
+
+        ```jsx
+         /**
+        * @notice Include the layer2 in distributing a seigniorage
+        * @param layer2     the layer2(candidate) address
+        */
+        function includeFromL2Seigniorage(address layer2) external returns (bool)
+        ```
+
 
     - function updateSeigniorage() external  returns (bool)  onlyCandidate
 
@@ -1192,14 +1313,6 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
         ```
 
 - View Functions
-    - function getOperatorAmount(address layer2) external view returns (uint256)
-
-        ```jsx
-        /**
-        * @notice Query the staking amount held by the operator
-        */
-        function getOperatorAmount(address layer2) external view returns (uint256)
-        ```
 
     - function estimatedDistribute(uint256 blockNumber, address layer2)  external view returns (uint256 maxSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 relativeSeig, uint256 l2TotalSeigs, uint256 layer2Seigs)
 
@@ -1236,7 +1349,9 @@ The Seigniorage Committee can cancel the suspension of seigniorage issuance dist
 
     ```jsx
     address public ton;
-    uint32 public minDepositGasLimit; /// not used
+    uint32 public minDepositGasLimit;
+    address public l1BridgeRegistry;
+    address public layer2Manager;
     ```
 
 - Event
