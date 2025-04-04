@@ -23,25 +23,26 @@ function sleep(ms) {
     while (Date.now() < wakeUpTime) {}
 }
 
-async function CreateAgendaTest() {
+async function CreateAgenda() {
     //prepare before execute
     //Need deployer token
     //Need Pre-setting
-    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
-    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
-    let seigManagerProxyAddr = "0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7";
-    let depositManagerProxyAddr = "0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F";
-    let tonAddr = "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044";
+    let daoCommitteeProxyAddr = "0xDD9f0cCc044B0781289Ee318e5971b0139602C26";
+    let daoAgendaManagerAddr = "0xcD4421d082752f363E1687544a09d5112cD4f484";
+    let depositManagerProxyAddr = "0x0b58ca72b12f01fc05f8f252e226f3e2089bd00e";
+    let seigManagerProxyAddr = "0x0b55a0f463b6defb81c6063973763951712d0e5f";
+    
+    let tonAddr = "0x2be5e8c109e2197D077D13A82dAead6a9b3433C5";
 
-    let daoCommitteeProxy2Addr = "0xC74b529Ad06E70fA51CDDAD11857D53E6354523d";
-    let daoCommitteeV1Addr = "0x9Cb6e22A9a551c13159d818D540aE8bE299967fb";
-    let daoCommitteeOwnerAddr = "0xf26D736db6a259AfD93ffDa027b0d7DD9748e3FB";
-    let seigManagerV1_2Addr = "0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898";
-    let seigManagerV1_3Addr = "0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA";
-    let depositManagerV1_1Addr = "0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06";
-    let l1BridgeRegistryProxyAddr = "0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc";
-    let layer2ManagerProxyAddr = "0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc";
-    let candidateAddOnFactoryProxyAddr = "0xf37493caC8BF8df0bD96146211D93D548d506fb9"
+    let daoCommitteeProxy2Addr = "0x9e7f54efF4A4D35097e0Acb6994A723F1a28368c";
+    let daoCommitteeV1Addr = "0x9050Af1638f379A018737880aD946CdDA9101A25";
+    let daoCommitteeOwnerAddr = "0xcb9859Dc0fBECa68eFFf2bce289150513fdF7D92";
+    let seigManagerV1_2Addr = "0xb1958719b3Af9B4d85D93EFC5e317C97cCe9aBc4";
+    let seigManagerV1_3Addr = "0xce18C6F84F10881eA47A43AF7311A29bb116F628";
+    let depositManagerV1_1Addr = "0x74bC3031b9369e6b898e82784106257D4D37Eac5";
+    let l1BridgeRegistryProxyAddr = "0x39d43281A4A5e922AB0DCf89825D73273D8C5BA4";
+    let layer2ManagerProxyAddr = "0xD6Bf6B2b7553c8064Ba763AD6989829060FdFC1D";
+    let candidateAddOnFactoryProxyAddr = "0xFA8ce5caF456115E72B96E5074769b8f66AA5861"
 
     let cooldownTime = 259200
     
@@ -363,13 +364,13 @@ async function castVote() {
     
     console.log("voter : ", deployer.address);
     
-    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
-    let agendaID = 39
+    let daoAgendaManagerAddr = "";
+    let agendaID = 0
     
-    //Member address : 0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea
-    let MemberContractAddr = "0xbdbb2c17846027c75802464d4afdd23a9192e103"
-    //Member address : 0x757de9c340c556b56f62efae859da5e08baae7a2
-    // let MemberContractAddr = "0xabd15c021942ca54abd944c91705fe70fea13f0d"
+    //Member address : 
+    let MemberContractAddr = ""
+    //Member address : 
+    // let MemberContractAddr = ""
 
     //==== Set MemberContract =================================
     let memberContract = new ethers.Contract(
@@ -407,8 +408,8 @@ async function executeAgenda() {
     const [deployer] = await ethers.getSigners();
     let agendaID = 44
 
-    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
-    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+    let daoAgendaManagerAddr = "";
+    let daoCommitteeProxyAddr = "";
 
     //==== Set DAOLogicV1 =================================
     let daoLogicV1 = new ethers.Contract(
@@ -433,9 +434,9 @@ async function executeAgenda() {
 
 
 const main = async () => {
-//   await CreateAgendaTest()
+  await CreateAgenda()
 //   await castVote()
-  await executeAgenda()
+//   await executeAgenda()
 }
 
 
