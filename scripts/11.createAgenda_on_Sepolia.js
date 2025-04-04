@@ -12,6 +12,9 @@ const SeigManagerV2ABI = require("../artifacts/contracts/stake/managers/SeigMana
 const SeigManagerV3ABI = require("../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json").abi;
 const DepositManagerV1ABI = require("../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json").abi;
 const l1BridgeRegistryV1ABI = require("../artifacts/contracts/layer2/L1BridgeRegistryV1_1.sol/L1BridgeRegistryV1_1.json").abi;
+const CandidateABI = require("../abi/Candidate.json").abi;
+const DAOLogicABI = require("../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
+
 
 const Web3EthAbi = require('web3-eth-abi');
 
@@ -349,13 +352,90 @@ async function CreateAgendaTest() {
         agendaFee,
         param
     )
-    console.log("tx Hash :", receipt.transactionHash)
+    console.log("tx Hash :", receipt.hash)
     console.log(receipt)
+    console.log(receipt.nonce)
+}
+
+
+async function castVote() {
+    const [deployer] = await ethers.getSigners();
+    
+    console.log("voter : ", deployer.address);
+    
+    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
+    let agendaID = 39
+    
+    //Member address : 0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea
+    let MemberContractAddr = "0xbdbb2c17846027c75802464d4afdd23a9192e103"
+    //Member address : 0x757de9c340c556b56f62efae859da5e08baae7a2
+    // let MemberContractAddr = "0xabd15c021942ca54abd944c91705fe70fea13f0d"
+
+    //==== Set MemberContract =================================
+    let memberContract = new ethers.Contract(
+        MemberContractAddr,
+        CandidateABI,
+        ethers.provider
+    )
+
+    //==== Set DAOAgendaManager =================================
+    let daoagendaManager = new ethers.Contract(
+        daoAgendaManagerAddr,
+        DAOAgendaManagerABI,
+        ethers.provider
+    )
+    
+    const agenda = await daoagendaManager.agendas(agendaID);  
+
+    // const beforeCountingYes = agenda[7];
+    // const beforeCountingNo = agenda[8];
+    // const beforeCountingAbstain = agenda[9];
+    
+    const vote = 1
+
+    // counting 0:abstainVotes 1:yesVotes 2:noVotes
+    await memberContract.connect(deployer).castVote(
+        agendaID,
+        vote,
+        "vote"
+    )
+    console.log("vote done")
+
+}
+
+async function executeAgenda() {
+    const [deployer] = await ethers.getSigners();
+    let agendaID = 44
+
+    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
+    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+
+    //==== Set DAOLogicV1 =================================
+    let daoLogicV1 = new ethers.Contract(
+        daoCommitteeProxyAddr,
+        DAOLogicABI,
+        ethers.provider
+    )
+
+    //==== Set DAOAgendaManager =================================
+    let daoagendaManager = new ethers.Contract(
+        daoAgendaManagerAddr,
+        DAOAgendaManagerABI,
+        ethers.provider
+    )
+
+
+    const agenda = await daoagendaManager.agendas(agendaID);
+    
+    await daoLogicV1.connect(deployer).executeAgenda(agendaID);
+    console.log("executed agendaID :", agendaID)
 }
 
 
 const main = async () => {
-  await CreateAgendaTest()
+//   await CreateAgendaTest()
+//   await castVote()
+  await executeAgenda()
 }
 
 
