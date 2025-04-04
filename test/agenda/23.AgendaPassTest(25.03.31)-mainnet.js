@@ -708,235 +708,238 @@ describe("DAO Proxy Change Test", () => {
 
     })
 
-    describe("create Agenda", () => {
-        it("create Agenda", async () => {
-            let targets = []
-            let params = []
-            let callDtata
-
-            // =========================================
-            // 1. upgradeTo daoCommitteeProxy2Contract
-            targets.push(oldContractInfo.DAOCommitteeProxy)
-            callDtata = daoCommitteeProxy.interface.encodeFunctionData("upgradeTo", [DAOCommitteeProxy2_Addr])
-            params.push(callDtata)
-
-            // =========================================
-            // 2. upgradeTo2 daoCommittee_V1
-            targets.push(oldContractInfo.DAOCommitteeProxy)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [DAOCommittee_V1_Addr])
-            params.push(callDtata)
-
-            // =========================================
-            // 3. setImplementation2 1, true, daoCommitteeOwner
-            targets.push(oldContractInfo.DAOCommitteeProxy)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [DAOCommitteeOwner_Addr, 1, true])
-            params.push(callDtata)
-
-            // =========================================
-            // 4. setSelectorImplementations2  daoCommitteeOwner
-            const _setCooldownTime = Web3EthAbi.encodeFunctionSignature("setCooldownTime(uint256)");
-            const _setLayer2CandidateFactory = Web3EthAbi.encodeFunctionSignature("setCandidateAddOnFactory(address)");
-            const _setLayer2Manager = Web3EthAbi.encodeFunctionSignature("setLayer2Manager(address)");
-            const _setSeigManager = Web3EthAbi.encodeFunctionSignature("setSeigManager(address)");
-            const _setDaoVault = Web3EthAbi.encodeFunctionSignature("setDaoVault(address)")
-            const _setLayer2Registry = Web3EthAbi.encodeFunctionSignature("setLayer2Registry(address)")
-            const _setAgendaManager = Web3EthAbi.encodeFunctionSignature("setAgendaManager(address)")
-            const _setCandidateFactory = Web3EthAbi.encodeFunctionSignature("setCandidateFactory(address)")
-            const _setTon = Web3EthAbi.encodeFunctionSignature("setTon(address)")
-            const _setWton = Web3EthAbi.encodeFunctionSignature("setWton(address)")
-            const _increaseMaxMember = Web3EthAbi.encodeFunctionSignature("increaseMaxMember(uint256,uint256)")
-            const _setQuorum = Web3EthAbi.encodeFunctionSignature("setQuorum(uint256)")
-            const _decreaseMaxMember = Web3EthAbi.encodeFunctionSignature("decreaseMaxMember(uint256,uint256)")
-            const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature("setActivityRewardPerSecond(uint256)")
-            const _setCandidatesSeigManager = Web3EthAbi.encodeFunctionSignature("setCandidatesSeigManager(address[],address)")
-            const _setCandidatesCommittee = Web3EthAbi.encodeFunctionSignature("setCandidatesCommittee(address[],address)")
-            const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature("setBurntAmountAtDAO(uint256)")
-            const _setdaoExecuteTransaction = Web3EthAbi.encodeFunctionSignature({
-                name: 'daoExecuteTransaction',
-                type: 'function',
-                inputs: [
-                    {
-                        type: 'address',
-                        name: '_to'
-                    },
-                    {
-                        type: 'bytes',
-                        name: '_data'
-                    }
+    describe("Agenda Test", () => {
+        describe("Create Agedna", async () => {
+            it("create Agenda", async () => {
+                let targets = []
+                let params = []
+                let callDtata
+    
+                // =========================================
+                // 1. upgradeTo daoCommitteeProxy2Contract
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                callDtata = daoCommitteeProxy.interface.encodeFunctionData("upgradeTo", [DAOCommitteeProxy2_Addr])
+                params.push(callDtata)
+    
+                // =========================================
+                // 2. upgradeTo2 daoCommittee_V1
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [DAOCommittee_V1_Addr])
+                params.push(callDtata)
+    
+                // =========================================
+                // 3. setImplementation2 1, true, daoCommitteeOwner
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [DAOCommitteeOwner_Addr, 1, true])
+                params.push(callDtata)
+    
+                // =========================================
+                // 4. setSelectorImplementations2  daoCommitteeOwner
+                const _setCooldownTime = Web3EthAbi.encodeFunctionSignature("setCooldownTime(uint256)");
+                const _setLayer2CandidateFactory = Web3EthAbi.encodeFunctionSignature("setCandidateAddOnFactory(address)");
+                const _setLayer2Manager = Web3EthAbi.encodeFunctionSignature("setLayer2Manager(address)");
+                const _setSeigManager = Web3EthAbi.encodeFunctionSignature("setSeigManager(address)");
+                const _setDaoVault = Web3EthAbi.encodeFunctionSignature("setDaoVault(address)")
+                const _setLayer2Registry = Web3EthAbi.encodeFunctionSignature("setLayer2Registry(address)")
+                const _setAgendaManager = Web3EthAbi.encodeFunctionSignature("setAgendaManager(address)")
+                const _setCandidateFactory = Web3EthAbi.encodeFunctionSignature("setCandidateFactory(address)")
+                const _setTon = Web3EthAbi.encodeFunctionSignature("setTon(address)")
+                const _setWton = Web3EthAbi.encodeFunctionSignature("setWton(address)")
+                const _increaseMaxMember = Web3EthAbi.encodeFunctionSignature("increaseMaxMember(uint256,uint256)")
+                const _setQuorum = Web3EthAbi.encodeFunctionSignature("setQuorum(uint256)")
+                const _decreaseMaxMember = Web3EthAbi.encodeFunctionSignature("decreaseMaxMember(uint256,uint256)")
+                const _setActivityRewardPerSecond = Web3EthAbi.encodeFunctionSignature("setActivityRewardPerSecond(uint256)")
+                const _setCandidatesSeigManager = Web3EthAbi.encodeFunctionSignature("setCandidatesSeigManager(address[],address)")
+                const _setCandidatesCommittee = Web3EthAbi.encodeFunctionSignature("setCandidatesCommittee(address[],address)")
+                const _setBurntAmountAtDAO = Web3EthAbi.encodeFunctionSignature("setBurntAmountAtDAO(uint256)")
+                const _setdaoExecuteTransaction = Web3EthAbi.encodeFunctionSignature({
+                    name: 'daoExecuteTransaction',
+                    type: 'function',
+                    inputs: [
+                        {
+                            type: 'address',
+                            name: '_to'
+                        },
+                        {
+                            type: 'bytes',
+                            name: '_data'
+                        }
+                    ]
+                })
+    
+                const functions = [
+                    _setCooldownTime,_setLayer2CandidateFactory,_setLayer2Manager,_setSeigManager,_setDaoVault,_setLayer2Registry,
+                    _setAgendaManager,_setCandidateFactory,_setTon,_setWton,_increaseMaxMember,_setQuorum,_decreaseMaxMember,
+                    _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setBurntAmountAtDAO,_setdaoExecuteTransaction
                 ]
+    
+                targets.push(oldContractInfo.DAOCommitteeProxy)
+                callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+                    "setSelectorImplementations2", [
+                        functions,
+                        DAOCommitteeOwner_Addr
+                     ])
+                params.push(callDtata)
+    
+    
+                // =========================================
+                // 5. upgrade SeigManager SeigManagerV1_2
+                targets.push(seigManagerProxy.address)
+                callDtata = seigManagerProxy.interface.encodeFunctionData("upgradeTo",
+                    [
+                        SeigManagerV1_2_Addr,
+                    ])
+                params.push(callDtata)
+    
+                // =========================================
+                // 6. upgrade SeigManager setImplementation2
+                targets.push(seigManagerProxy.address)
+                callDtata = seigManagerProxy.interface.encodeFunctionData("setImplementation2",
+                    [
+                        SeigManagerV1_3_Addr,
+                        1,
+                        true
+                    ])
+                params.push(callDtata)
+    
+                // =========================================
+                //  7. upgrade SeigManager setSelectorImplementations2
+                targets.push(seigManagerProxy.address)
+    
+                const selector1 = Web3EthAbi.encodeFunctionSignature("updateSeigniorage()");
+                const selector2 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer(address)");
+                const selector3 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address)");
+                const selector4 = Web3EthAbi.encodeFunctionSignature("excludeFromL2Seigniorage(address)");
+                const selector5 = Web3EthAbi.encodeFunctionSignature("includeFromL2Seigniorage(address)");
+                const selector6 = Web3EthAbi.encodeFunctionSignature("claimableL2Seigniorage(address)");
+                const selector7 = Web3EthAbi.encodeFunctionSignature("pause()");
+                const selector8 = Web3EthAbi.encodeFunctionSignature("unpause()");
+    
+                let functionBytecodes = [
+                    selector1, selector2, selector3, selector4, selector5,
+                    selector6, selector7, selector8
+                ];
+    
+                callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                    [
+                        functionBytecodes,
+                        SeigManagerV1_3_Addr
+                    ])
+                params.push(callDtata)
+    
+                // =========================================
+                //  8. upgrade DepositManager setTargetSetImplementation2
+                targets.push(depositManagerProxy.address)
+                callDtata = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
+                    [
+                        DepositManagerV1_1_Addr,
+                        2,
+                        true
+                    ])
+                params.push(callDtata)
+    
+                // =========================================
+                //  9. upgrade DepositManager setSelectorImplementations2
+                targets.push(depositManagerProxy.address)
+                const selector_1 = Web3EthAbi.encodeFunctionSignature("ton()");
+                const selector_2 = Web3EthAbi.encodeFunctionSignature("minDepositGasLimit()");
+                const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint32)");
+                const selector_4 = Web3EthAbi.encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
+                const selector_5 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
+                const selector_6 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
+                const selector_7 = Web3EthAbi.encodeFunctionSignature("setAddresses(address,address)");
+                const selector_8 = Web3EthAbi.encodeFunctionSignature("requestWithdrawal(address,uint256)");
+    
+                let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7, selector_8];
+    
+                callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
+                    [
+                        functionBytecodes_1,
+                        DepositManagerV1_1_Addr
+    
+                    ])
+                params.push(callDtata)
+    
+                // =========================================
+                //  10. set DAOCommitteeProxy candidateAddOnFactory
+                targets.push(daoCommitteeProxy.address)
+                callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
+                params.push(callDtata)
+    
+                // =========================================
+                //  11. set DAOCommitteeProxy layer2Manager
+                targets.push(daoCommitteeProxy.address)
+                callDtata = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+                params.push(callDtata)
+    
+                // =========================================
+                //  12. set seigManagerProxy setLayer2Manager
+                targets.push(seigManagerProxy.address)
+                callDtata = seigManagerV1_2.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
+                params.push(callDtata)
+    
+                // =========================================
+                //  13. set seigManagerProxy setL1BridgeRegistry
+                targets.push(seigManagerProxy.address)
+                callDtata = seigManagerV1_2.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
+                params.push(callDtata)
+    
+    
+                // =========================================
+                //  14. set depositManagerProxy setAddresses
+                targets.push(depositManagerProxy.address)
+                callDtata = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
+                    l1BridgeRegistryProxy.address,
+                    layer2ManagerProxy.address ])
+                params.push(callDtata)
+    
+                // =========================================
+                //  15. set daoCommitteeProxy setCooldownTime
+                targets.push(daoCommitteeProxy.address)
+                callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCooldownTime", [
+                        cooldownTime
+                    ]
+                )
+                params.push(callDtata)
+    
+                // =========================================
+                // . make an agenda
+                const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+                const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+                const agendaFee = await daoagendaManager.createAgendaFees();
+                const param = Web3EthAbi.encodeParameters(
+                    ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                    [
+                        targets,
+                        noticePeriod.toString(),
+                        votingPeriod.toString(),
+                        true,
+                        params
+                    ]
+                )
+    
+                await (await ton.connect(daoCommitteeAdmin).transfer(
+                    user1.address,
+                    agendaFee
+                )).wait()
+    
+                 // =========================================
+                // Propose an agenda
+                let receipt = await (await ton.connect(user1).approveAndCall(
+                    daoCommitteeProxy.address,
+                    agendaFee,
+                    param
+                )).wait()
+                // console.log(receipt)
+    
+                // agendaID = (await daoagendaManager.numAgendas()).sub(1);
+    
             })
-
-            const functions = [
-                _setCooldownTime,_setLayer2CandidateFactory,_setLayer2Manager,_setSeigManager,_setDaoVault,_setLayer2Registry,
-                _setAgendaManager,_setCandidateFactory,_setTon,_setWton,_increaseMaxMember,_setQuorum,_decreaseMaxMember,
-                _setActivityRewardPerSecond,_setCandidatesSeigManager,_setCandidatesCommittee,_setBurntAmountAtDAO,_setdaoExecuteTransaction
-            ]
-
-            targets.push(oldContractInfo.DAOCommitteeProxy)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-                "setSelectorImplementations2", [
-                    functions,
-                    DAOCommitteeOwner_Addr
-                 ])
-            params.push(callDtata)
-
-
-            // =========================================
-            // 5. upgrade SeigManager SeigManagerV1_2
-            targets.push(seigManagerProxy.address)
-            callDtata = seigManagerProxy.interface.encodeFunctionData("upgradeTo",
-                [
-                    SeigManagerV1_2_Addr,
-                ])
-            params.push(callDtata)
-
-            // =========================================
-            // 6. upgrade SeigManager setImplementation2
-            targets.push(seigManagerProxy.address)
-            callDtata = seigManagerProxy.interface.encodeFunctionData("setImplementation2",
-                [
-                    SeigManagerV1_3_Addr,
-                    1,
-                    true
-                ])
-            params.push(callDtata)
-
-            // =========================================
-            //  7. upgrade SeigManager setSelectorImplementations2
-            targets.push(seigManagerProxy.address)
-
-            const selector1 = Web3EthAbi.encodeFunctionSignature("updateSeigniorage()");
-            const selector2 = Web3EthAbi.encodeFunctionSignature("updateSeigniorageLayer(address)");
-            const selector3 = Web3EthAbi.encodeFunctionSignature("estimatedDistribute(uint256,address)");
-            const selector4 = Web3EthAbi.encodeFunctionSignature("excludeFromL2Seigniorage(address)");
-            const selector5 = Web3EthAbi.encodeFunctionSignature("includeFromL2Seigniorage(address)");
-            const selector6 = Web3EthAbi.encodeFunctionSignature("claimableL2Seigniorage(address)");
-            const selector7 = Web3EthAbi.encodeFunctionSignature("pause()");
-            const selector8 = Web3EthAbi.encodeFunctionSignature("unpause()");
-
-            let functionBytecodes = [
-                selector1, selector2, selector3, selector4, selector5,
-                selector6, selector7, selector8
-            ];
-
-            callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
-                [
-                    functionBytecodes,
-                    SeigManagerV1_3_Addr
-                ])
-            params.push(callDtata)
-
-            // =========================================
-            //  8. upgrade DepositManager setTargetSetImplementation2
-            targets.push(depositManagerProxy.address)
-            callDtata = depositManagerProxy.interface.encodeFunctionData("setImplementation2",
-                [
-                    DepositManagerV1_1_Addr,
-                    2,
-                    true
-                ])
-            params.push(callDtata)
-
-            // =========================================
-            //  9. upgrade DepositManager setSelectorImplementations2
-            targets.push(depositManagerProxy.address)
-            const selector_1 = Web3EthAbi.encodeFunctionSignature("ton()");
-            const selector_2 = Web3EthAbi.encodeFunctionSignature("minDepositGasLimit()");
-            const selector_3 = Web3EthAbi.encodeFunctionSignature("setMinDepositGasLimit(uint32)");
-            const selector_4 = Web3EthAbi.encodeFunctionSignature("withdrawAndDepositL2(address,uint256)");
-            const selector_5 = Web3EthAbi.encodeFunctionSignature("l1BridgeRegistry()");
-            const selector_6 = Web3EthAbi.encodeFunctionSignature("layer2Manager()");
-            const selector_7 = Web3EthAbi.encodeFunctionSignature("setAddresses(address,address)");
-            const selector_8 = Web3EthAbi.encodeFunctionSignature("requestWithdrawal(address,uint256)");
-
-            let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7, selector_8];
-
-            callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
-                [
-                    functionBytecodes_1,
-                    DepositManagerV1_1_Addr
-
-                ])
-            params.push(callDtata)
-
-            // =========================================
-            //  10. set DAOCommitteeProxy candidateAddOnFactory
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
-            params.push(callDtata)
-
-            // =========================================
-            //  11. set DAOCommitteeProxy layer2Manager
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
-            params.push(callDtata)
-
-            // =========================================
-            //  12. set seigManagerProxy setLayer2Manager
-            targets.push(seigManagerProxy.address)
-            callDtata = seigManagerV1_2.interface.encodeFunctionData("setLayer2Manager", [layer2ManagerProxy.address])
-            params.push(callDtata)
-
-            // =========================================
-            //  13. set seigManagerProxy setL1BridgeRegistry
-            targets.push(seigManagerProxy.address)
-            callDtata = seigManagerV1_2.interface.encodeFunctionData("setL1BridgeRegistry", [l1BridgeRegistryProxy.address])
-            params.push(callDtata)
-
-
-            // =========================================
-            //  14. set depositManagerProxy setAddresses
-            targets.push(depositManagerProxy.address)
-            callDtata = depositManagerV1_1.interface.encodeFunctionData("setAddresses", [
-                l1BridgeRegistryProxy.address,
-                layer2ManagerProxy.address ])
-            params.push(callDtata)
-
-            // =========================================
-            //  15. set daoCommitteeProxy setCooldownTime
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCooldownTime", [
-                    cooldownTime
-                ]
-            )
-            params.push(callDtata)
-
-            // =========================================
-            // . make an agenda
-            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-            const agendaFee = await daoagendaManager.createAgendaFees();
-            const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-                [
-                    targets,
-                    noticePeriod.toString(),
-                    votingPeriod.toString(),
-                    true,
-                    params
-                ]
-            )
-
-            await (await ton.connect(daoCommitteeAdmin).transfer(
-                user1.address,
-                agendaFee
-            )).wait()
-
-             // =========================================
-            // Propose an agenda
-            let receipt = await (await ton.connect(user1).approveAndCall(
-                daoCommitteeProxy.address,
-                agendaFee,
-                param
-            )).wait()
-            // console.log(receipt)
-
-            agendaID = (await daoagendaManager.numAgendas()).sub(1);
-
         })
 
         describe("upgraded DAOContract Agenda", () => {
             it('increase block time and check votable', async function () {
+                agendaID = (await daoagendaManager.numAgendas()).sub(1);
                 const agenda = await daoagendaManager.agendas(agendaID);  
                 // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
                 const noticeEndTimestamp = agenda[1];
