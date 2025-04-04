@@ -126,6 +126,7 @@ async function executeAgenda(agendaId_) {
     console.log('receipt', receipt)
 
     agenda = await daoAgendaManagerContract.agendas(agendaId);
+
     // expect(agenda.executedTimestamp).to.be.gt(0);
     // expect(agenda.executed).to.be.equal(true);
 
@@ -195,8 +196,10 @@ async function view_dao_info() {
 
 const main = async () => {
 
-    await proposeAgenda_registerRollupConfigByManager()
-    // await executeAgenda( ?? )
+    // await proposeAgenda_registerRollupConfigByManager()
+
+    await executeAgenda("44")
+
     // await views()
 
     // await exec_registerCandidateAddOn()

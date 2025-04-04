@@ -1240,6 +1240,8 @@ describe('Layer2Manager', () => {
                 selector6, selector7, selector8
             ];
 
+            console.log('SeigManager setTargetSetSelectorImplementations2  ', functionBytecodes)
+
             callDtata = seigManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
                 [
                     functionBytecodes,
@@ -1272,6 +1274,7 @@ describe('Layer2Manager', () => {
             const selector_8 = encodeFunctionSignature("requestWithdrawal(address,uint256)");
 
             let functionBytecodes_1 = [ selector_1, selector_2, selector_3, selector_4, selector_5, selector_6, selector_7, selector_8];
+            console.log('DepositManager setTargetSetSelectorImplementations2  ', functionBytecodes_1)
 
             callDtata = depositManagerProxy.interface.encodeFunctionData("setSelectorImplementations2",
                 [
@@ -1282,9 +1285,9 @@ describe('Layer2Manager', () => {
             params.push(callDtata)
 
             // =========================================
-            //  set DAOCommitteeProxy candidateAddOnFactory
+            //  set DAOCommitteeProxy candidateAddOnFactoryProxy
             targets.push(DAOCommitteeProxy)
-            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactory.address])
+            callDtata = daoCommitteeOwner.interface.encodeFunctionData("setCandidateAddOnFactory", [candidateAddOnFactoryProxy.address])
             params.push(callDtata)
 
             // =========================================
@@ -1484,7 +1487,7 @@ describe('Layer2Manager', () => {
             //----- check logic
             const { DAOCommitteeProxy, daoMember1, daoMember2, daoMember3 } = await getNamedAccounts();
             const daoCommitteeContractV2 = new ethers.Contract(DAOCommitteeProxy, DAOCommitteeProxy2_Josn.abi,  deployer)
-            const _setTargetSetImplementation2 = encodeFunctionSignature("setTargetSetImplementation2(address,address,uint256,bool)");
+            const _setTargetSetImplementation2 = encodeFunctionSignature("setCooldownTime(uint256)");
             let logic = await daoCommitteeContractV2.getSelectorImplementation2(_setTargetSetImplementation2)
 
             expect(logic).to.be.equal(daoCommitteeOwner.address)
