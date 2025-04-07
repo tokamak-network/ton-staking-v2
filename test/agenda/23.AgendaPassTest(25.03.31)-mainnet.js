@@ -1160,6 +1160,11 @@ describe("DAO Proxy Change Test", () => {
             let wtonAddr= await daoCommitteeProxy2Contract.wton()
             expect(wtonAddr.toUpperCase()).to.be.equal((wton.address).toUpperCase())
         })
+
+        it("Check privateLayer2", async () => {
+            let privateLayer2Check = await daoCommitteeProxy2Contract.privateLayer2(user1.address);
+            expect(privateLayer2Check).to.be.equal(false)
+        })
     })
 
     describe("DAOCommittee_V1 Logic test", () => {
