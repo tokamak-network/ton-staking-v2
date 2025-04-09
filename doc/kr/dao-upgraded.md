@@ -93,8 +93,8 @@ updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하�
 ## For Member of DAOCommittee
 Member들은 retireMember와 castVote, claimActivityReward 함수들을 사용할 수 있습니다.
 
-retireMember 함수는 Member들이 Member의 역할을 은퇴하고 Candidate의 역할로 돌아갈 때 사용하는 함수입니다.
-castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다.
+- retireMember 함수는 Member들이 Member의 역할을 은퇴하고 Candidate의 역할로 돌아갈 때 사용하는 함수입니다.
+- castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다.
 해당 Agenda에 대해서 comment와 함께 찬성할지 반대할지 중립인지에 대해서 투표할 수 있습니다.
 claimActivityReward 함수는 member와 그리고 member였던 Candidate들이 호출할 수 있는 함수입니다.
 Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니다.
