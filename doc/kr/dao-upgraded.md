@@ -16,35 +16,32 @@
 
 ## 기존 DAOCommittee에서 변경점
 
-### 1. createLayer2Candidate 함수 추가
-TON StakingV2에서 기존 Candidate와 다른 Layer2Candidate가 추가되었습니다.
-그에 따라서 DAO에서 해당 Layer2Candidate를 추가할 수 있도록 하였습니다.
-자세한 내용은 [다음페이지](https://github.com/tokamak-network/ton-staking-v2/blob/codeReview/docs/en/ton-staking-v2.md#add-layer2candidate)에서 확인하실 수 있습니다.
+### 1. createCandidateAddOn 함수 추가
+TON StakingV2에서 기존 Candidate와 다른 Layer2Manaber에서 만드는 Layer2Candidate가 추가되었습니다.
+그에 따라서 Layer2Manager에서 해당 Candidate를 추가할 수 있도록 DAO에 createCandidateAddOn의 함수를 추가하였습니다.
+자세한 내용은 [다음페이지](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/kr/ton-staking-v2.md#candidateaddon-%EC%B6%94%EA%B0%80)에서 확인하실 수 있습니다.
 
 ### 2. setCandidateAddOnFactory 함수 추가
 TON StakingV2에서 CandidateAddOn 추가되면서 해당 함수에서 사용하는 candidateAddOnFactory를 설정하여야합니다.
 그에 따라서 해당 값을 설정할 수 있는 setCandidateAddOnFactory 함수가 추가 되었습니다.
 
 ### 3. setLayer2Manager 함수 추가
-createLayer2Candidate함수를 통해서 Layer2Candidate를 생성하고자할때 해당 함수를 호출할 수 있는 권한은 Layer2ManagerContract에서만 호출할 수 있도록 하였습니다.
+createCandidateAddOn함수를 통해서 Layer2Candidate를 생성하고자할때 해당 함수를 호출할 수 있는 권한은 Layer2ManagerContract에서만 호출할 수 있도록 하였습니다.
 Layer2Manager주소를 설정하여서 해당 호출이 Layer2ManagerContract에서 호출이 되었는지 체크합니다.
 
-### 4. setTargetSetLayer2Manager 함수 추가
-TONStakingV2로 업데이트 되면서 SeigManagerContract에서 Layer2ManagerContract와 상호작용하게 되었습니다.
-그래서 SeigManagerContract에서 Layer2ManagerContract의 함수를 호출하기 위해서 layer2Manager를 설정할 수 있도록 하였습니다.
+### 4. setCooldownTime 함수 추가
+Candidate들은 Staking이 다른 Candidate보다 많이 되어있으면 changeMember를 통해서 Member를 교체할 수 있습니다.
+Member가 된 이후부터는 ChangeMember를 호출하지 못하지만 ChangeMember를 한트랜잭션에 담아서 한번에 여러 Member들을 교체할 수 있는 것이 확인되었고
+그것을 막기 위해서 cooldownTime값이 세팅되었습니다.
+그래서 changeMember를 한 후 다시 changeMember를 호출하기 위해서는 cooldownTime의 시간이 걸려서 위와 같은 공격을 하지 못하게 하였습니다.
 
-### 5. setTargetSetL1BridgeRegistry 함수 추가
-TONStakingV2로 업데이트 되면서 SeigManagerContract에 L1BridgeRegistryContract와 상호작용하게 되었습니다.
-그래서 SeigManagerContract에 L1BridgeRegistryContract의 함수를 호출하기 위해서 l1BridgeRegistry를 설정할 수 있도록 하였습니다.
- 
-### 6. setTargetLayer2StartBlock 함수 추가
-TONStakingV2로 업데이트 되면서 
+### 5. setBurntAmountAtDAO 함수 추가
+SeigManagerContract의 burntAmountAtDAO값을 설정합니다.
+해당 값은 SeigManagerContract에서 TON의 totalSupply값을 계산할때 burnAmount로 계산되어서 사용됩니다.
 
-### 7. setTargetSetImplementation2 함수 추가
-DAO가 Owner 역할을 하는 Proxy Contract의 로직을 Agenda를 통해서 수정할 수 있게 함수를 추가하였습니다.
-
-### 8. setTargetSetSelectorImplementations2 함수 추가
-DAO가 Owner 역할을 하는 Proxy Contract의 로직 function을 Agenda를 통해서 관리할 수 있도록 함수를 추가하였습니다.
+### 6. daoExecuteTransaction 함수 추가
+해당 함수는 DAO의 Owner인 MultiSigWallet Contract에서 실행가능한 함수이며 위급한 상황에 MultiSigWallet에서 통과된 트랜잭션을 실행합니다.
+이 함수는 DAO가 실행할 수 있는 모든 함수를 실행할 수 있습니다.
 
 
 # Use Case
