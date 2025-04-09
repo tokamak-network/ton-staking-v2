@@ -69,7 +69,40 @@ describe('OperatorManagerFactory', () => {
                 layer2ManagerProxy.address
             )).wait()
 
+            const topic = operatorManagerFactory.interface.getEventTopic('SetAddresses');
+            const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+            const deployedEvent = operatorManagerFactory.interface.parseLog(log);
+
+            expect(deployedEvent.args.depositManager).to.be.eq(DepositManager)
+            expect(deployedEvent.args.ton).to.be.eq(TON)
+            expect(deployedEvent.args.wton).to.be.eq(WTON)
+            expect(deployedEvent.args.layer2Manager).to.be.eq(layer2ManagerProxy.address)
+
         })
+
+
+        // it('OperatorManagerFactory.setAddresses', async () => {
+        //     const {DepositManager, TON, WTON } = await getNamedAccounts();
+
+        //     const receipt = await (await operatorManagerFactory.connect(deployer).setAddresses(
+        //         DepositManager,
+        //         TON,
+        //         WTON,
+        //         addr1.address
+        //     )).wait()
+
+        //     const topic = operatorManagerFactory.interface.getEventTopic('SetAddresses');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = operatorManagerFactory.interface.parseLog(log);
+
+        //     expect(deployedEvent.args.depositManager).to.be.eq(DepositManager)
+        //     expect(deployedEvent.args.ton).to.be.eq(TON)
+        //     expect(deployedEvent.args.wton).to.be.eq(WTON)
+        //     expect(deployedEvent.args.layer2Manager).to.be.eq(addr1.address)
+
+        // })
+
+
 
     })
 
@@ -128,6 +161,44 @@ describe('OperatorManagerFactory', () => {
                 )
             ).to.be.revertedWith("CreateError")
 
+        })
+
+        // it('createOperatorManager can be executed by Layer2Manager', async () => {
+
+        //     expect(await legacySystemConfig.unsafeBlockSigner()).to.be.eq(manager.address)
+        //     const getAddress = await operatorManagerFactory.getAddress(legacySystemConfig.address)
+
+        //     console.log('getAddress', getAddress)
+
+        //     const receipt = await (await operatorManagerFactory.connect(addr1).createOperatorManager(
+        //         legacySystemConfig.address )).wait()
+
+        //     const topic = operatorManagerFactory.interface.getEventTopic('CreatedOperatorManager');
+        //     const log = receipt.logs.find(x => x.topics.indexOf(topic) >= 0);
+        //     const deployedEvent = operatorManagerFactory.interface.parseLog(log);
+        //     console.log('CreatedOperatorManager', deployedEvent.args)
+
+        // })
+
+        it("should match the result of the getAddress() method and the CreatedOperatorManager event's operatorManager(4th)", async () => {
+
+            await network.provider.send("hardhat_impersonateAccount", [
+                layer2ManagerProxy.address,
+            ]);
+
+            await network.provider.send("hardhat_setBalance", [
+                layer2ManagerProxy.address,
+                "0x10000000000000000000000000",
+            ]);
+
+            const layer2ManagerSigner = await ethers.getSigner(layer2ManagerProxy.address)
+            expect(await legacySystemConfig.unsafeBlockSigner()).to.be.eq(manager.address)
+
+            const operatorManagerAddress = await operatorManagerFactory.getAddress(legacySystemConfig.address)
+
+            await expect(await operatorManagerFactory.connect(layer2ManagerSigner).createOperatorManager(legacySystemConfig.address))
+                .to.emit(operatorManagerFactory, 'CreatedOperatorManager')
+                .withArgs(legacySystemConfig.address, deployer.address, manager.address, operatorManagerAddress)
         })
 
     })
