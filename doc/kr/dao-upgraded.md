@@ -43,6 +43,10 @@ SeigManagerContract의 burntAmountAtDAO값을 설정합니다.
 해당 함수는 DAO의 Owner인 MultiSigWallet Contract에서 실행가능한 함수이며 위급한 상황에 MultiSigWallet에서 통과된 트랜잭션을 실행합니다.
 이 함수는 DAO가 실행할 수 있는 모든 함수를 실행할 수 있습니다.
 
+### 7. currentAgendaStatus 함수 추가
+해당 함수는 agendaID에 대한 agendaResult와 agendaStatus를 나타냅니다.
+기존 endAgendaVoting함수를 삭제하고 currentAgendaStatus함수를 추가하였는데 투표가 종료되지 않고 기간이 끝난 agenda에 대해서 따로 종료상태로 변경하는 트랜잭션을 생성하여서 agenda상태를 변경하는 것 보다 view함수로 agenda상태를 보여줄 수 있는 것이 더 효과적이여서 해당 함수를 추가하였습니다.
+
 
 # Use Case
 
@@ -79,27 +83,22 @@ changeMember 함수는 자신이 다른 member들보다 Stake된 TON의 양이 �
 
 
 ## For everyone
-모든 유저들은 onApprove와 endAgendaVoting, executeAgenda, updateSeigniorage를 사용할 수 있습니다.
+모든 유저들은 onApprove와 currentAgendaStatus, executeAgenda, updateSeigniorage를 사용할 수 있습니다.
 
-onApprove함수는 Agenda를 생성할때 쓰는 함수입니다.
-유저들이 바로 직접적으로 onApprove함수를 콜하지않고 TONContract의 ApproveAndCall을 통해서 호출하여서 Agenda를 생성할 수 있습니다.
-endAgendaVoting 함수는 Agenda의 Voting시간이 끝났을 때 실행하는 함수로 해당 Agenda의 Status와 Result 상태를 변경합니다.
-executeAgenda 함수는 Agenda가 Voting이 끝나고 Status가 WAITING_EXEC이고 Result는 ACCEPT일때 실행가능하며 함수를 호출하게 되면 통과된 Agenda의 함수들을 실행하게 됩니다.
-updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하는 Candidate주소의 Seigniorage를 업데이트 하는 함수입니다.
+- onApprove함수는 Agenda를 생성할때 쓰는 함수입니다. 유저들이 바로 직접적으로 onApprove함수를 콜하지않고 TONContract의 ApproveAndCall을 통해서 호출하여서 Agenda를 생성할 수 있습니다.
+- currentAgendaStatus 함수는 Agenda의 Status와 Result 현재 상태를 보여주는 함수입니다.
+- executeAgenda 함수는 Agenda가 Voting이 끝나고 Status가 WAITING_EXEC이고 Result는 ACCEPT일때 실행가능하며 함수를 호출하게 되면 통과된 Agenda의 함수들을 실행하게 됩니다.
+- updateSeigniorage 함수는 updateSeigniorage 함수를 실행할때 입력하는 Candidate주소의 Seigniorage를 업데이트 하는 함수입니다.
 
-![ForEveryone](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForEveryone.jpg)
+![ForEveryone](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForEveryone1.jpg)
 
 
 ## For Member of DAOCommittee
 Member들은 retireMember와 castVote, claimActivityReward 함수들을 사용할 수 있습니다.
 
 - retireMember 함수는 Member들이 Member의 역할을 은퇴하고 Candidate의 역할로 돌아갈 때 사용하는 함수입니다.
-- castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다.
-해당 Agenda에 대해서 comment와 함께 찬성할지 반대할지 중립인지에 대해서 투표할 수 있습니다.
-claimActivityReward 함수는 member와 그리고 member였던 Candidate들이 호출할 수 있는 함수입니다.
-Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니다.
-이 reward는 Member를 한 시간과 activityRewardPerSecond값에 의해서 결정됩니다.
-해당 reward를 받을때 claimActivityReward 함수를 호출하여서 받을 수 있습니다.
+- castVote 함수는 Member들이 Agenda에 대해서 투표를 할 때 사용하는 함수 입니다. 해당 Agenda에 대해서 comment와 함께 찬성할지 반대할지 중립인지에 대해서 투표할 수 있습니다.
+- claimActivityReward 함수는 member와 그리고 member였던 Candidate들이 호출할 수 있는 함수입니다. Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니다. 이 reward는 Member를 한 시간과 activityRewardPerSecond값에 의해서 결정됩니다. 해당 reward를 받을때 claimActivityReward 함수를 호출하여서 받을 수 있습니다.
 
 ![ForMember](https://github.com/tokamak-network/ton-staking-v2/blob/NewDAOStructure/doc/img/ForMember.jpg)
 
@@ -163,6 +162,17 @@ Member들은 Member의 역할을 함으로써 받게되는 reward가 있습니�
     address public wton;
     address public layer2Manager;
     address public candidateAddOnFactory;
+
+    mapping(uint256 => address) public proxyImplementation;
+    mapping(address => bool) public aliveImplementation;
+    mapping(bytes4 => address) public selectorImplementation;
+
+    mapping(address => bool) public blacklist;
+    mapping(address => bool) public privateLayer2;
+
+    mapping(address => uint256) public cooldown;
+
+    uint256 public cooldownTime;
     ```
 
 
