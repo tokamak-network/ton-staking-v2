@@ -17,7 +17,7 @@ The existing Proxy structure had a problem in that it could only refer to one lo
 ### 1. Added createLayer2Candidate function
 In TON StakingV2, a Layer2Candidate different from the existing Candidate has been added.
 Accordingly, the Layer2Candidate can be added in the DAO.
-For more information,You can check it at the following [Link](https://github.com/tokamak-network/ton-staking-v2/blob/codeReview/docs/en/ton-staking-v2.md#add-layer2candidate).
+For more information,You can check it at the following [Link](https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/en/ton-staking-v2.md#add-candidateaddon).
 
 ### 2. Added setCandidateAddOnFactory function
 With the addition of CandidateAddOn in TON StakingV2, the candidateAddOnFactory used in the function must be set. Accordingly, a new function setCandidateAddOnFactory has been added to set the value.
@@ -25,25 +25,17 @@ With the addition of CandidateAddOn in TON StakingV2, the candidateAddOnFactory 
 ### 3. Added setLayer2Manager function
 When creating a Layer2Candidate via the createLayer2Candidate function, the permission to call the function is restricted to only Layer2ManagerContract. Set the Layer2Manager address to verify that the call was actually made from Layer2ManagerContract.
 
-### 4. Added setTargetSetLayer2Manager function
-With the update to TON StakingV2, SeigManagerContract now interacts with Layer2ManagerContract. 
-Accordingly, we have enabled layer2Manager to be set up so that SeigManagerContract can call functions of Layer2ManagerContract.
+### 4. Added setCooldownTime function
+Candidates can replace Members through changeMember if they have more Staking than other Candidates.
+After becoming a Member, ChangeMember cannot be called, but it was confirmed that ChangeMember can be put into a transaction and multiple Members can be replaced at once, and the cooldownTime value was set to prevent this.
+So, after changeMember, it takes the cooldownTime time to call changeMember again, preventing the above attack.
 
-### 5. Added setTargetSetL1BridgeRegistry function
-With the update to TON StakingV2, SeigManagerContract now interacts with L1BridgeRegistryContract. 
-Accordingly, we have enabled setting l1BridgeRegistry so that SeigManagerContract can call functions of L1BridgeRegistryContract.
- 
-### 6. Added setTargetLayer2StartBlock function
-With the update to TON StakingV2, it is now possible to designate a specific block in Layer2 as a reference point.
-From this reference point onwards, seigniorage can be calculated.
-For this function, a function that sets the value of the reference block has been added.
+### 5. Added setBurntAmountAtDAO function
+Sets the burntAmountAtDAO value of SeigManagerContract. 
+This value is used as burnAmount when calculating the totalSupply value of TON in SeigManagerContract.
 
-### 7. Added setTargetSetImplementation2 function
-Added a function to allow modifying the logic of a Proxy Contract where the DAO acts as the Owner via the Agenda.
-
-### 8. Added setTargetSetSelectorImplementations2 function
-We added a function to enable DAO to manage the logic function of the Proxy Contract, which acts as the Owner, through the Agenda.
-
+### 6. Added daoExecuteTransaction function
+This function is a function that can be executed by the MultiSigWallet Contract, which is the owner of the DAO, and executes the transaction passed by MultiSigWallet in an emergency. This function can execute any function that the DAO can execute.
 
 # Use Case
 
