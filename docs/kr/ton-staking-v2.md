@@ -17,12 +17,12 @@ $TON seigs :　발행되는　TON　시뇨리지　양$<br/>
 $D :　Layer2 들의　총　TON 유동성$<br/>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/1-1.png" alt="V1 의 시뇨리지 분배" width=500>
     <figcaption>V1 의 시뇨리지 분배</figcaption>
 </figure>
 
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/1-2.png" alt="V2의 시뇨리지 분배" width=500>
     <figcaption>V2의 시뇨리지 분배</figcaption>
 </figure>
 
@@ -54,7 +54,7 @@ Layer2Candidate의 시뇨리지 중지의 복구는 시뇨리지 위원회에 �
 V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCommittee를 통해 생성을 할 수 있으며, 생성된 Candidate는 Layer2Registry를 통해 등록되고, SeigManager에 등록되면서, Candidate와 매핑되는 AutoCoinage(RefactorCoinage)가 생성된다. AutoCoinage(RefactorCoinage)는 스테이킹 금액을 관리하면서, 시뇨리지(이자)를 지급하기 위한 로직을 보유한다. 때문에 각 레이어 (Candidate) 마다 별도의 AutoCoinage(RefactorCoinage) 가 생성된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/2-1.png"
          alt="TON Stake V1 Contracts Relationship" width=700></center>
     <figcaption>TON Stake V1 Contracts Relationship</figcaption>
 </figure>
@@ -64,7 +64,7 @@ V1 의 컨트랙트는 아래와 같이 구성되어 있다. Candidate는 DAOCom
 V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트랙트 구성은 아래 그림과 같다. V1에 비해 다소 복잡해보인다. 그러나 파란색 부분의 컨트랙이 추가되었고 기존 구성에는 전혀 변경사항이 없음을 알 수 있다.
 
 <figure>
-   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
+   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/2-2.png"
          alt="TON Stake V2 Contracts Relationship" width=700 ></center>
     <figcaption>TON Stake V2 Contracts Relationship</figcaption>
 </figure>
@@ -89,7 +89,7 @@ V2는 V1의 구성을 유지하면서 CandidateAddOn가 추가되었다. 컨트�
 L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 고유한 정보를 보유하고 있는 RollupConfig를 등록할 수 있다. RollupConfig를 등록한다는 것은 해당 레이어2가 문제가 없는 레이어2라는 것을 확인했다는 의미이다.  등록된 RollupConfig의 레이어2만 CandidateAddOn으로 등록될 수 있다. CandidateAddOn이 등록이 되고 나서야 해당 시퀀서가 시뇨리지를 받을 수 있게 된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-1.png"
          alt="Register SystemConfig" width=400 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -99,7 +99,7 @@ L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 �
 누구나 L1BridgeRegistry에 등록된 RollupConfig 값으로만 CandidateAddOn을 등록할 수 있다. CandidateAddOn 등록시에는 오퍼레이터 계정으로 최소 예치금 이상을 예치하여야 하므로, 최소예치금에 해당하는 톤을 같이 제공해야 한다. 현재 서비스 기준으로는 최소 1000.1 TON을 제공해야 한다.  ‘CandidateAddOn 등록’ 기능을 통해 OperatorManager, CandidateAddOn, Coinage 컨트랙이 생성된다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-2.png"
          alt="Register CandidateAddOn" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -109,7 +109,7 @@ L1BridgeRegistry 컨트랙에 registrant 권한을 가진 계정은 Layer2 의 �
 CandidateAddOn 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 통해 스테이킹을 금액 인출과 동시에 인출된 금액을 해당 Layer2 에 예치하는 기능을 수행할 수 있습니다. 이때 스테이킹 금액을 인출할 때 대기시간없이 바로 인출 및 L2 예치가 됩니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-3.png"
          alt="Withdraw and deposit to L2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -121,7 +121,7 @@ CandidateAddOn 에 스테이킹한 사용자는 WithdrawAndDepositL2 기능을 �
 만일의 경우를 대비해서, 해당 OperatorManager에게 톤 시뇨리지 발급을 중지할 수 있는 기능이 있어야 합니다. L1BridgeRegistry 컨트랙에 시뇨리지 위원회 계정을 만들었습니다. 시뇨리지 위원회는 특정 CandidateAddOn의 시퀀서에 대한 시뇨리지 발급 중지 또는 발급 중지 취소 기능을 수행할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -138,7 +138,7 @@ CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 또한 입력하는 RollupConfig(SystemConfig)는 등록전에 L1BridgeRegistry에 등록되어 있어야 합니다. ( L1BridgeRegistry에 등록하는 권한은 L1BridgeRegistry의 Registrant 권한을 보유한 계정만 등록이 가능합니다. )
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -148,7 +148,7 @@ CandidateAddOn를 등록시. Layer2의 환경설정 정보를 보유하고 있�
 CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시 출금하면서, Layer2에 예치할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-2.png"
          alt="Reject and Restore Layer2" width=800 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -158,7 +158,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 시뇨리지 위원회는  특정 레이어2가 시뇨리지를 받기에 불합리하다고 판단될때, 해당 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-3.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -168,7 +168,7 @@ CandidateAddOn 에 스테이킹한 사용자는 스테이킹한 금액을 즉시
 시뇨리지 위원회는  특정 레이어2의 시퀀서에게 배분하는 시뇨리지 발급을 중지했던 것을 취소하여, 다시 시뇨리지를 지급할 수 있습니다.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>

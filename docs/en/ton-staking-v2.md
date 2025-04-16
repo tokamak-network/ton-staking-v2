@@ -18,13 +18,13 @@ $D :　Total　TON　liquidity　of　Layer2$<br/>
 
 - Seigniorage distribution of V1
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/1-1.png" alt="Seigniorage distribution of V1" width=500>
     <figcaption> </figcaption>
 </figure>
 
 - Seigniorage distribution of V2
 <figure>
-    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
+    <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/1-2.png" alt="Seigniorage distribution of V2" width=500>
     <figcaption> </figcaption>
 </figure>
 
@@ -56,7 +56,7 @@ Restoration of Layer2Candidate's seigniorage suspension can be canceled again by
 V1’s contract is structured as follows. DAOCandidate can be created through DAOCommittee, and when the created daoCandiate is registered through Layer2Registry and registered in SeigManager, an AutoCoinage (RefactorCoinage) mapped to DAOCandidate is created. AutoCoinage(RefactorCoinage) manages the staking amount and has logic to pay seigniorages. Therefore, a separate AutoCoinage(RefactorCoinage) is created for each layer(DAOCandidate).
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/2-1.png"
          alt="TON Stake V1 Contracts Relationship" width=700></center>
     <figcaption> </figcaption>
 </figure>
@@ -67,7 +67,7 @@ V1’s contract is structured as follows. DAOCandidate can be created through DA
 V2 maintains the configuration of V1 and adds CandidateAddOn. The contract configuration is as shown below. It looks a bit more complicated than V1. However, you can see that the contract in the blue part has been added and there are no changes to the existing configuration.
 
 <figure>
-   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/2-2.png"
+   <center> <img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/2-2.png"
          alt="TON Stake V2 Contracts Relationship" width=700 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -127,7 +127,7 @@ Therefore, if the effort to confirm the user's L2 is involved, this function wil
 An account with registrant permission in the L1BridgeRegistry contract can register RollupConfig, which holds unique information about Layer2. Registering RollupConfig means ensuring that there are no issues in Layer 2. Only Layer 2 of the registered RollupConfig can be registered as CandidateAddOn. Only after being registered as CandidateAddOn can the sequencer(seigniorageReceiver) receive seigniorage.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-1.png"
          alt="Register SystemConfig" width=400 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -137,7 +137,7 @@ An account with registrant permission in the L1BridgeRegistry contract can regis
 Anyone can register CandidateAddOn for RollupConfig registered in L1BridgeRegistry. When registering CandidateAddOn, you must deposit more than the minimum deposit into the operator account, so you must also provide a ton equivalent to the minimum deposit. Based on the current service standard, at least 1000.1 TON must be provided. Operator, CandidateAddOn, and Coinage contracts are created through the ‘registerCandidateAddOn’ function.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-2.png"
          alt="Register CandidateAddOn" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -148,7 +148,7 @@ Anyone can register CandidateAddOn for RollupConfig registered in L1BridgeRegist
 Users who have staked on CandidateAddOn can perform the function of withdrawing the staking amount and simultaneously depositing the withdrawn amount into the corresponding Layer2 through the WithdrawAndDepositL2 function. At this time, when withdrawing the staking amount, withdrawal and L2 deposit are made immediately without waiting time.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-3.png"
          alt="Withdraw and deposit to L2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -161,7 +161,7 @@ Simple Staking V2 designed an economy that issues TON seigniorage to CandidateAd
 Just in case, we must have a function to stop issuing TON seigniorage to OperatorManager. A Seigniorage Committee account was created in the L1BridgeRegistry contract. The Seigniorage Committee can perform the function of suspending issuance of seigniorage or canceling suspension of issuance for a sequencer in a specific CandidateAddOn.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/3-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/3-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -178,7 +178,7 @@ When registering CandidateAddOn. You must present the RollupConfig contract addr
 Additionally, the RollupConfig you enter must be registered in L1BridgeRegistry before registration. (Only accounts with L1BridgeRegistry Registrant privileges can register with L1BridgeRegistry.)
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-1.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-1.png"
          alt="Reject and Restore Layer2" width=1000 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -188,7 +188,7 @@ Additionally, the RollupConfig you enter must be registered in L1BridgeRegistry 
 Users who stake on CandidateAddOn can withdraw the staked amount immediately and deposit it on Layer2 concurrently.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-2.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-2.png"
          alt="Reject and Restore Layer2" width=800 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -198,7 +198,7 @@ Users who stake on CandidateAddOn can withdraw the staked amount immediately and
 When the seigniorage committee determines that it is unreasonable for a specific layer 2 to receive seigniorage, it can stop issuing seigniorage to a layer2 sequencer.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-3.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-3.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
@@ -208,7 +208,7 @@ When the seigniorage committee determines that it is unreasonable for a specific
 The Seigniorage Committee can cancel the suspension of seigniorage issuance distributed to specific Layer 2 sequencers and issue seigniorage again.
 
 <figure>
-    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/staking-v2.5/docs/img/4-4.png"
+    <center><img src="https://github.com/tokamak-network/ton-staking-v2/blob/ton-staking-v2/docs/img/4-4.png"
          alt="Reject and Restore Layer2" width=500 ></center>
     <figcaption> </figcaption>
 </figure>
