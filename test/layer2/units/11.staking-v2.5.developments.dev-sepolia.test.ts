@@ -107,7 +107,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('DEV Staking V2.5 Test On Sepolia', () => {
+describe('DEV Staking V2 Test On Sepolia', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
 

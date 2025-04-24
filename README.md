@@ -22,7 +22,7 @@ The TON Staking Contract distributes seigniorage to staking accounts that stake 
 ## Documentation
 - Etherscan guide: Interact with TON Staking contracts using [Etherscan guide](./docs/etherscan-guide/README.md).
 - Contract Description: For detailed contract specifications, please refer to [the contract description document](./docs/developer-guide/README.md).
-- Changes in TON Staking V2.5: What's added or changed in V2.5 can be found in [this document](https://github.com/tokamak-network/ton-staking-v2/blob/deploy-ton-staking-v2.5/docs/en/ton-staking-v2.md).
+- Changes in TON Staking V2: What's added or changed in V2 can be found in [this document](https://github.com/tokamak-network/ton-staking-v2/blob/deploy-ton-staking-v2.5/docs/en/ton-staking-v2.md).
 
 ## Repository
 All repositories related to development for TON-Staking is provided here.
