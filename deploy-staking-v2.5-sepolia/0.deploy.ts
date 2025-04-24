@@ -39,6 +39,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         L1BridgeRegistry: {
             owner: DAOCommitteeProxy,
             manager: DAOCommitteeProxy,
+            seigniorageCommittee: DAOCommitteeProxy
         },
         Layer2Manager: {
             owner: DAOCommitteeProxy
@@ -110,6 +111,12 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         l1BridgeRegistryProxy.address
     )) as L1BridgeRegistryV1_1;
 
+
+    let seigniorageCommittee = await l1BridgeRegistry.seigniorageCommittee()
+    if (seigniorageCommittee.toLowerCase() != ownerAddressInfo.L1BridgeRegistry.seigniorageCommittee.toLowerCase()) {
+        await (await l1BridgeRegistry.connect(deploySigner).setSeigniorageCommittee(
+            ownerAddressInfo.L1BridgeRegistry.seigniorageCommittee)).wait()
+    }
 
     //==== OperatorManagerFactory =========================
     const OperatorManagerV1_1Deployment = await deploy("OperatorManagerV1_1", {
@@ -345,6 +352,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     console.log("l1BridgeRegistryProxy.isAdmin(deployer): ", await l1BridgeRegistryProxy.isAdmin(deployer))
     console.log("l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy): ", await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy))
+    console.log("l1BridgeRegistryProxy.seigniorageCommittee(): ", await l1BridgeRegistryProxy.seigniorageCommittee())
 
     console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
     console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))

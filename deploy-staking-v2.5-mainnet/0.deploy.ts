@@ -16,7 +16,7 @@ import { CandidateAddOnFactory } from "../typechain-types/contracts/dao/factory/
 import { CandidateAddOnV1_1 } from "../typechain-types/contracts/dao/CandidateAddOnV1_1"
 
 import { SeigManagerV1_3 } from "../typechain-types/contracts/stake/managers/SeigManagerV1_3"
-import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+import { DepositManagerV1_1 } from "../typechain-types/contracts/stake/managers/DepositManagerV1_1"
 
 import { LegacySystemConfig } from "../typechain-types/contracts/layer2/LegacySystemConfig"
 import { LegacySystemConfigProxy } from "../typechain-types/contracts/layer2/LegacySystemConfigProxy"
@@ -42,6 +42,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         L1BridgeRegistry: {
             owner: DAOCommitteeProxy,
             manager: DAOCommitteeProxy,
+            seigniorageCommittee: DAOCommitteeProxy
         },
         Layer2Manager: {
             owner: DAOCommitteeProxy
@@ -49,30 +50,30 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         OperatorManagerFactory: {
             owner: DAOCommitteeProxy
         },
-        Titan : {
-            proxyOwner: DAOCommitteeProxy,
-            manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
-        }
+        // Titan : {
+        //     proxyOwner: DAOCommitteeProxy,
+        //     manager: "0x340C44089bc45F86060922d2d89eFee9e0CDF5c7"
+        // }
     }
 
     console.log("\n=== ownerAddressInfo ===" )
     console.log(ownerAddressInfo)
 
-    //----------------------------------------------------------
-    //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
-    const name = 'Titan DAO'
-    const addresses = {
-        l1CrossDomainMessenger: l1MessengerAddress,
-        l1ERC721Bridge: hre.ethers.constants.AddressZero,
-        l1StandardBridge: l1BridgeAddress,
-        l2OutputOracle: hre.ethers.constants.AddressZero,
-        optimismPortal: hre.ethers.constants.AddressZero,
-        optimismMintableERC20Factory: hre.ethers.constants.AddressZero
-    }
-    console.log("\n === Titan Candidate ===" )
-    console.log("name: ", name)
-    console.log("addresses: ", addresses)
-    //----------------------------------------------------------
+    // //----------------------------------------------------------
+    // //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
+    // const name = 'Titan DAO'
+    // const addresses = {
+    //     l1CrossDomainMessenger: l1MessengerAddress,
+    //     l1ERC721Bridge: hre.ethers.constants.AddressZero,
+    //     l1StandardBridge: l1BridgeAddress,
+    //     l2OutputOracle: hre.ethers.constants.AddressZero,
+    //     optimismPortal: hre.ethers.constants.AddressZero,
+    //     optimismMintableERC20Factory: hre.ethers.constants.AddressZero
+    // }
+    // console.log("\n === Titan Candidate ===" )
+    // console.log("name: ", name)
+    // console.log("addresses: ", addresses)
+    // //----------------------------------------------------------
 
 
     console.log("deployer", deployer)
@@ -120,6 +121,11 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         l1BridgeRegistryProxy.address
     )) as L1BridgeRegistryV1_1;
 
+    let seigniorageCommittee = await l1BridgeRegistry.seigniorageCommittee()
+    if (seigniorageCommittee.toLowerCase() != ownerAddressInfo.L1BridgeRegistry.seigniorageCommittee.toLowerCase()) {
+        await (await l1BridgeRegistry.connect(deploySigner).setSeigniorageCommittee(
+            ownerAddressInfo.L1BridgeRegistry.seigniorageCommittee)).wait()
+    }
 
     //==== OperatorManagerFactory =========================
     const OperatorManagerV1_1Deployment = await deploy("OperatorManagerV1_1", {
@@ -169,7 +175,7 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         await (await candidateAddOnFactoryProxy.connect(deploySigner).upgradeTo(CandidateAddOnFactoryDeployment.address)).wait()
     }
 
-    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as Layer2CandidateFactory
+    const candidateAddOnFactory = (await hre.ethers.getContractAt("CandidateAddOnFactory", candidateAddOnFactoryProxy.address, deploySigner)) as CandidateAddOnFactory
 
     let layer2CandidateImp_layer2CandidateFactory = await candidateAddOnFactory.candidateAddOnImp()
 
@@ -301,50 +307,50 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
         log: true
     });
 
-    //----------------------------------------------------------
-    //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
-    //==== LegacySystemConfig =================================
-    const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
-        from: deployer,
-        args: [],
-        log: true
-    });
+    // //----------------------------------------------------------
+    // //------- 실제 상용에서 Candidate 등록은 하지 않음. ----------------
+    // //==== LegacySystemConfig =================================
+    // const LegacySystemConfigDep = await deploy("LegacySystemConfig", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
 
-    const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
-        from: deployer,
-        args: [],
-        log: true
-    });
+    // const LegacySystemConfigProxyDep = await deploy("LegacySystemConfigProxy", {
+    //     from: deployer,
+    //     args: [],
+    //     log: true
+    // });
 
-    const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
-        LegacySystemConfigProxyDep.abi,
-        LegacySystemConfigProxyDep.address
-    )) as LegacySystemConfigProxy;
+    // const LegacySystemConfigProxy = (await hre.ethers.getContractAt(
+    //     LegacySystemConfigProxyDep.abi,
+    //     LegacySystemConfigProxyDep.address
+    // )) as LegacySystemConfigProxy;
 
-    const legacySystemConfig = (await hre.ethers.getContractAt(
-        LegacySystemConfigDep.abi,
-        LegacySystemConfigProxyDep.address
-    )) as LegacySystemConfig;
+    // const legacySystemConfig = (await hre.ethers.getContractAt(
+    //     LegacySystemConfigDep.abi,
+    //     LegacySystemConfigProxyDep.address
+    // )) as LegacySystemConfig;
 
 
-    await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
-        LegacySystemConfigDep.address
-    )).wait()
+    // await (await LegacySystemConfigProxy.connect(deploySigner).upgradeTo(
+    //     LegacySystemConfigDep.address
+    // )).wait()
 
-    await (await legacySystemConfig.connect(deploySigner).setAddresses(
-        name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
-    )).wait()
+    // await (await legacySystemConfig.connect(deploySigner).setAddresses(
+    //     name, addresses, l1BridgeRegistryProxy.address, ownerAddressInfo.Titan.manager
+    // )).wait()
 
-    // console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
-        ownerAddressInfo.Titan.proxyOwner
-    )).wait()
+    // // console.log('ownerAddressInfo.Titan.proxyOwner', ownerAddressInfo.Titan.proxyOwner)
+    // await (await LegacySystemConfigProxy.connect(deploySigner).transferProxyOwnership(
+    //     ownerAddressInfo.Titan.proxyOwner
+    // )).wait()
 
-    // console.log('ownerAddressInfo.Titan.manager', ownerAddressInfo.Titan.manager)
-    await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
-        ownerAddressInfo.Titan.manager
-    )).wait()
-    //----------------------------------------------------------
+    // // console.log('ownerAddressInfo.Titan.manager', ownerAddressInfo.Titan.manager)
+    // await (await LegacySystemConfigProxy.connect(deploySigner).transferOwnership(
+    //     ownerAddressInfo.Titan.manager
+    // )).wait()
+    // //----------------------------------------------------------
 
 
     //======= TransferOwner to DAOCommittee ======================================
@@ -361,15 +367,16 @@ const deployV2Mainnet: DeployFunction = async function (hre: HardhatRuntimeEnvir
 
     console.log("l1BridgeRegistryProxy.isAdmin(deployer): ", await l1BridgeRegistryProxy.isAdmin(deployer))
     console.log("l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy): ", await l1BridgeRegistryProxy.isAdmin(DAOCommitteeProxy))
+    console.log("l1BridgeRegistryProxy.seigniorageCommittee(): ", await l1BridgeRegistryProxy.seigniorageCommittee())
 
     console.log("layer2ManagerProxy.isAdmin(deployer): ", await layer2ManagerProxy.isAdmin(deployer))
     console.log("layer2ManagerProxy.isAdmin(DAOCommitteeProxy): ", await layer2ManagerProxy.isAdmin(DAOCommitteeProxy))
 
-    //----------------------------------------------------------
-    //------- 실제 상용에서 Candidate 등록은 하지 않음. ---------------
-    console.log("[Titan RollupConfig] legacySystemConfig.proxyOwner(): ", await legacySystemConfig.proxyOwner())
-    console.log("[Titan RollupConfig] legacySystemConfig.owner(): ", await legacySystemConfig.owner())
-    //----------------------------------------------------------
+    // // ----------------------------------------------------------
+    // // ------- 실제 상용에서 Candidate 등록은 하지 않음. ---------------
+    // console.log("[Titan RollupConfig] legacySystemConfig.proxyOwner(): ", await legacySystemConfig.proxyOwner())
+    // console.log("[Titan RollupConfig] legacySystemConfig.owner(): ", await legacySystemConfig.owner())
+    // // ----------------------------------------------------------
 
 
     //==== verify =================================

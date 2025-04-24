@@ -64,6 +64,7 @@ contract SeigManagerV1_3 is
     SeigManagerV1_3Storage
 {
     // using FullMath for uint256;
+    uint256 internal constant RAY_UNIT = 1e27;
     uint256 internal constant WEI_UNIT = 1e18;
     uint256 internal constant GWEI_UNIT = 1e9;
 
@@ -301,7 +302,8 @@ contract SeigManagerV1_3 is
 
         uint256 prevTotalSupply = _tot.totalSupply();
         uint256 tos = _totalSupplyOfTon(blockNumber);
-        uint256 _totalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+        uint256 _totalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos-prevTotalSupply);
+        if (_totalLayer2TVL < RAY_UNIT) _totalLayer2TVL = 0;
 
         stakedSeig = FullMath.rdiv(FullMath.rmul(maxSeig, prevTotalSupply), tos);
 
@@ -318,7 +320,7 @@ contract SeigManagerV1_3 is
             (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
             if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) layer2Allowed = true;
 
-            if (totalLayer2TVL != 0) {
+            if (_totalLayer2TVL != 0) {
                 l2TotalSeigs = FullMath.rdiv(FullMath.rmul(maxSeig, _totalLayer2TVL), tos);
             }
         }
@@ -563,7 +565,8 @@ contract SeigManagerV1_3 is
 
         if (layer2Manager != address(0) && layer2StartBlock != 1) {
             if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * 1e9, tos-prevTotalSupply);
+                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos-prevTotalSupply);
+                if (tempTotalLayer2TVL < RAY_UNIT) tempTotalLayer2TVL = 0;
                 l2TotalSeigs = FullMath.rdiv(FullMath.rmul(maxSeig, tempTotalLayer2TVL), tos);
                 l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
                 if (l2TotalSeigs != 0) IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
@@ -694,4 +697,5 @@ contract SeigManagerV1_3 is
             ( OneAddressBalance * GWEI_UNIT) -
             burntAmount;
     }
+
 }

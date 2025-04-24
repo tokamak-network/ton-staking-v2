@@ -22,7 +22,7 @@ import { CandidateAddOnV1_1 } from "../../../typechain-types/contracts/dao/Candi
 import { LegacySystemConfig } from "../../../typechain-types/contracts/layer2/LegacySystemConfig"
 import { SeigManagerV1_2 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_2"
 import { SeigManagerV1_3 } from "../../../typechain-types/contracts/stake/managers/SeigManagerV1_3"
-import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1.sol"
+import { DepositManagerV1_1 } from "../../../typechain-types/contracts/stake/managers/DepositManagerV1_1"
 
 import { DAOCommitteeProxy2 } from "../../../typechain-types/contracts/proxy/DAOCommitteeProxy2"
 import { DAOCommittee_V1 } from "../../../typechain-types/contracts/dao/DAOCommittee_V1"
@@ -103,7 +103,7 @@ async function execAllowance(contract: any, fromSigner: Signer, toAddress: strin
     }
 }
 
-describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
+describe('Rehearsal of upgrading staking V2 on the sepola ', () => {
     let deployer: Signer, manager: Signer,  addr1: Signer,  addr2: Signer
     let l1BridgeRegistryProxy: L1BridgeRegistryProxy, l1BridgeRegistryV_1: L1BridgeRegistryV1_1, l1BridgeRegistry: L1BridgeRegistryV1_1
     let l1BridgeRegistryOld: L1BridgeRegistryV1_1
@@ -975,6 +975,8 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
 
         tonHave = await hre.ethers.getSigner(tonHaveAddr);
 
+
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             seigniorageCommitteeAddress,
         ]);
@@ -1127,6 +1129,26 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             // console.log('daoCommitteeProxy2Contract', daoCommitteeProxy2Contract.address)
             // console.log('daoCommitteeOwner', daoCommitteeOwner.address)
             // console.log('daoCommittee_V1', daoCommittee_V1.address)
+
+
+            let temp_seigniorageCommitteeAddress = await l1BridgeRegistry.seigniorageCommittee();
+
+            if (temp_seigniorageCommitteeAddress != ethers.constants.AddressZero &&
+                temp_seigniorageCommitteeAddress.toLowerCase() != seigniorageCommitteeAddress.toLowerCase())
+            {
+                seigniorageCommitteeAddress = temp_seigniorageCommitteeAddress;
+
+                await hre.network.provider.send("hardhat_impersonateAccount", [
+                    seigniorageCommitteeAddress,
+                ]);
+                await hre.network.provider.send("hardhat_setBalance", [
+                    seigniorageCommitteeAddress,
+                    "0x10000000000000000000000000",
+                ]);
+                seigniorageCommittee = await hre.ethers.getSigner(seigniorageCommitteeAddress);
+            }
+
+
         }).timeout(100000);
     })
 
@@ -1378,13 +1400,13 @@ describe('Rehearsal of upgrading staking v2.5 on the sepola ', () => {
             params.push(callDtata)
 
 
-            // =========================================
-            //  l1BridgeRegistry  seigniorageCommittee
-            targets.push(l1BridgeRegistry.address)
-            callDtata = l1BridgeRegistry.interface.encodeFunctionData(
-                "setSeigniorageCommittee(address)",
-                [ seigniorageCommitteeAddress])
-            params.push(callDtata)
+            // // =========================================
+            // //  l1BridgeRegistry  seigniorageCommittee
+            // targets.push(l1BridgeRegistry.address)
+            // callDtata = l1BridgeRegistry.interface.encodeFunctionData(
+            //     "setSeigniorageCommittee(address)",
+            //     [ seigniorageCommitteeAddress])
+            // params.push(callDtata)
 
 
             // =========================================

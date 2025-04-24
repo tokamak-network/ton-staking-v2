@@ -86,34 +86,7 @@ library SArrays {
     }
 
 
-    function findValueMemory(uint256[] memory array, uint256 element
-    ) internal pure returns (uint256) {
-        if (array.length == 0) return 0;
-
-        // Shortcut for the actual value
-        if (element >= array[array.length-1])
-            return (array[array.length-1]);
-        if (element < array[0]) return 0;
-
-        // Binary search of the value in the array
-        uint min = 0;
-        uint max = array.length-1;
-        while (max > min) {
-            uint mid = (max + min + 1)/ 2;
-
-            if (array[mid] <= element) {
-                min = mid;
-            } else {
-                max = mid-1;
-            }
-        }
-
-        return array[min];
-    }
-
-
-    function findIndexMemory(uint256[] memory array, uint256 element
-    ) internal pure returns (uint256) {
+    function findIndexMemory(uint256[] memory array, uint256 element) internal pure returns (uint256) {
         if (array.length == 0) return 0;
 
         // Shortcut for the actual value
@@ -136,5 +109,11 @@ library SArrays {
 
         return min;
     }
+
+    function findValueMemory(uint256[] memory array, uint256 element) internal pure returns (uint256) {
+        return array[findIndexMemory(array, element)];
+    }
+
+
 
 }
