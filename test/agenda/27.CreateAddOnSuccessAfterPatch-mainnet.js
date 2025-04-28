@@ -1518,6 +1518,11 @@ describe("DAO Proxy Change Test", () => {
             // console.log("beforeValue :", beforeValue)
             
             // let diffAgenda = agendaID - beforeAgendaID
+
+            // const check = await daoagendaManager.canExecuteAgenda(agendaID);
+            // console.log(check)
+            // const check2 = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log(check2)
             
             await daoCommittee_V1_Contract.executeAgenda(agendaID);
             const afterValue = await daoagendaManager.minimumNoticePeriodSeconds();
@@ -2209,12 +2214,12 @@ describe("DAO Proxy Change Test", () => {
         it("Create new Agenda", async () => {
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+            
             const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
             const newMinimumNoticePeriod = 40;
-            const amountHex = BigNumber.from(newMinimumNoticePeriod).toHexString().replace("0x","");
-            const data = padLeft(amountHex, 64);
-            const functionBytecode = selector+(data);
+            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector.concat(data);
 
             const param = Web3EthAbi.encodeParameters(
                 ["address[]", "uint128", "uint128", "bool", "bytes[]"],
@@ -2339,7 +2344,7 @@ describe("DAO Proxy Change Test", () => {
 
             if (agenda[10] == 3) {
                 const votingEndTimestamp = agenda[4];
-                await time.increaseTo(Number(votingEndTimestamp)+Number(10));
+                await time.increaseTo(Number(votingEndTimestamp));
 
                 expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
             }
@@ -2349,8 +2354,10 @@ describe("DAO Proxy Change Test", () => {
             const agenda = await daoagendaManager.agendas(agendaID);
             expect(agenda[6]).to.be.equal(0);
 
-            const check = await daoagendaManager.canExecuteAgenda(agendaID);
-            console.log(check)
+            // const check = await daoagendaManager.canExecuteAgenda(agendaID);
+            // console.log(check)
+            // const check2 = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log(check2)
 
             const beforeValue = await daoagendaManager.minimumNoticePeriodSeconds();
             
