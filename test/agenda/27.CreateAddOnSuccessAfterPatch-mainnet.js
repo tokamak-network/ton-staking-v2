@@ -40,6 +40,7 @@ const SeigManagerV1ABI = require("../../artifacts/contracts/stake/managers/SeigM
 const DepositManagerABI = require("../../artifacts/contracts/stake/managers/DepositManager.sol/DepositManager.json").abi;
 const OperatorManagerFactory_ABI = require("../../artifacts/contracts/layer2/factory/OperatorManagerFactory.sol/OperatorManagerFactory.json").abi;
 const OperatorManagerV1_1_ABI = require("../../artifacts/contracts/layer2/OperatorManagerV1_1.sol/OperatorManagerV1_1.json").abi;
+const CandidateFactory_ABI = require("../../artifacts/contracts/dao/factory/CandidateAddOnFactory.sol/CandidateAddOnFactory.json").abi;
 
 const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 const DAOVaultABI = require("../../abi/DAOVault.json").abi;
@@ -205,6 +206,8 @@ describe("DAO Proxy Change Test", () => {
     let layer2ManagerProxy;
     let candidateAddOnFactoryImp;
     let candidateAddOnFactoryProxy;
+    let candidateAddOnFactory;
+    let candidateAddOnV1_1;
     let legacySystemConfig;
 
     let L1BridgeRegistryV1_1_Addr = "0x259Ac335EB42d345A61bE48104eC0Ec20b283F14"
@@ -250,6 +253,8 @@ describe("DAO Proxy Change Test", () => {
 
     let cooldownTime = 259200
 
+    let deployer;
+
 
     //changeMember before info
     // [
@@ -266,6 +271,10 @@ describe("DAO Proxy Change Test", () => {
     //   ]
 
     before('create fixture loader', async () => {
+        const accounts = await ethers.getSigners();
+        deployer = accounts[0]
+
+
         await hre.network.provider.send("hardhat_impersonateAccount", [
             daoAdminAddress,
         ]);
@@ -571,6 +580,11 @@ describe("DAO Proxy Change Test", () => {
         //     )
         // })
 
+        it("Deploy the CandidateAddOnV1_1", async () => {
+            const candidateAddOnV1_1ImpContract = await ethers.getContractFactory("CandidateAddOnV1_1")
+            candidateAddOnV1_1 = await candidateAddOnV1_1ImpContract.deploy();
+        })
+
         it('Deploy the CandidateAddOnFactory', async () => {
             const candidateAddOnFactoryImpContract = await ethers.getContractFactory("CandidateAddOnFactory")
             candidateAddOnFactoryImp = await candidateAddOnFactoryImpContract.deploy();
@@ -585,6 +599,24 @@ describe("DAO Proxy Change Test", () => {
             await (await candidateAddOnFactoryProxy.upgradeTo(candidateAddOnFactoryImp.address)).wait()
         });
 
+        it("Set candidateAddOnFactory", async () => {
+            candidateAddOnFactory = new ethers.Contract(
+                candidateAddOnFactoryProxy.address,
+                CandidateFactory_ABI,
+                daoCommitteeAdmin
+            )
+        })
+
+        it("Setting the CandidateAddOnFactory", async () => {
+            await (await candidateAddOnFactory.connect(deployer).setAddress(
+                nowContractInfo.DepositManager,
+                oldContractInfo.DAOCommitteeProxy,
+                candidateAddOnV1_1.address,
+                nowContractInfo.TON,
+                nowContractInfo.WTON,
+                l1BridgeRegistryProxy.address
+            )).wait()
+        })
 
 
         // it("Deploy the LegacySystemConfig", async () => {
@@ -2076,247 +2108,263 @@ describe("DAO Proxy Change Test", () => {
             expect(operatorAmount).to.be.gt(0)
         })
 
+        it("retireMember number1", async () => {
+            let memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(member2AddrUpper)
+            // let beforeWTONAmount = await wton.balanceOf(member2.address)
+            let blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
+            expect(blacklistCheck).to.be.equal(false)
 
-        // it("changeMember (CandidateAddOn) is fail", async () => {
-        //     // let memberCheck = await daoCommittee_V1_Contract.members(2)
-        //     // expect(memberCheck).to.be.equal(zeroAddr)
-        //     // console.log("memberCheck", memberCheck)
+            await (
+                await member2ContractLogic.connect(member2).retireMember()
+            ).wait();
 
-        //     await expect(
-        //         titanLayerContract.connect(user1).changeMember(2)
-        //     ).to.be.reverted;
+            memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
+            // let afterWTONAmount = await wton.balanceOf(member2.address)
+            // expect(afterWTONAmount).to.be.gt(beforeWTONAmount)
+            blacklistCheck = await daoCommittee_V1_Contract.blacklist(member2ContractLogic.address)
+            expect(blacklistCheck).to.be.equal(true)
+        })
 
-        //     // memberCheck = await daoCommittee_V1_Contract.members(2)
-        //     // expect(memberCheck.toUpperCase()).to.be.equal(titanOperatorContract.address.toUpperCase())
-        // })
 
-        // it("setMemoOnCandidate (createCandidateAddon) is fail", async () => {
-        //     let beforeMemo = await titanLayerContract.memo();
+        it("changeMember (CandidateAddOn) is success", async () => {
+            let memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
 
-        //     await expect(daoCommittee_V1_Contract.connect(user1).setMemoOnCandidate(
-        //         titanOperatorContract.address,
-        //         "titanMemo"
-        //     )).to.be.reverted;
+            let check = await titanLayerContract.operator();
+            let check2 = await titanLayerContract.candidate();
+            let check3 = await titanLayerContract.committee();
+            expect(check).to.be.equal(check2)
+            expect(check).to.be.equal(titanOperatorContract.address)
+            expect(check3).to.be.equal(oldContractInfo.DAOCommitteeProxy)
+            // console.log(check)
+            // console.log(check2)
+            // console.log(check3)
+            // console.log(titanOperatorContract.address)
+            // console.log(user1.address)
 
-        //     // let afterMemo = await titanLayerContract.memo();
-        //     // expect(beforeMemo).to.be.not.equal(afterMemo)
-        // })
+            await (
+                await titanLayerContract.connect(daoCommitteeAdmin).changeMember(1)
+            ).wait();
 
-        // it("setMemoOnCandidateContract (createCandidateAddon)", async () => {
-        //     let beforeMemo = await titanLayerContract.memo();
-        //     let changeMemo = "Change2"
+            memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck.toUpperCase()).to.be.equal(titanOperatorContract.address.toUpperCase())
+        })
 
-        //     await expect(daoCommittee_V1_Contract.connect(user1).setMemoOnCandidateContract(
-        //         titanLayerContract.address,
-        //         "Change2"
-        //     )).to.be.reverted
+        it("setMemoOnCandidate (createCandidateAddon) is success", async () => {
+            let beforeMemo = await titanLayerContract.memo();
 
-        //     // let afterMemo = await titanLayerContract.memo();
-        //     // expect(beforeMemo).to.be.not.equal(afterMemo)
-        //     // expect(changeMemo).to.be.equal(afterMemo)
-        // })
+            await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).setMemoOnCandidate(
+                titanOperatorContract.address,
+                "titanMemo"
+            )
 
-        // it("getClaimableActivityReward & claimActivityReward test (createCandidateAddon)", async () => {
-        //     // let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(titanOperatorContract.address)
-        //     // expect(amount).to.be.gt(0);
+            let afterMemo = await titanLayerContract.memo();
+            expect(beforeMemo).to.be.not.equal(afterMemo)
+        })
 
-        //     // let candidate = await titanLayerContract.candidate()
-        //     // console.log("candidate", candidate)
+        it("setMemoOnCandidateContract (createCandidateAddon)", async () => {
+            let beforeMemo = await titanLayerContract.memo();
+            let changeMemo = "Change2"
 
-        //     await expect(titanLayerContract.connect(user1).claimActivityReward()
-        //     ).to.be.revertedWith("sender is not an operator");
+            await daoCommittee_V1_Contract.connect(daoCommitteeAdmin).setMemoOnCandidateContract(
+                titanLayerContract.address,
+                "Change2"
+            )
 
-        //     // let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(titanOperatorContract.address)
-        //     // expect(amount).to.be.gt(amount2);
-        // })
+            let afterMemo = await titanLayerContract.memo();
+            expect(beforeMemo).to.be.not.equal(afterMemo)
+            expect(changeMemo).to.be.equal(afterMemo)
+        })
 
-        // it("totalStaked & stakedOf test (createCandidateAddon)", async () => {
-        //     let totalStakedAmount = await titanLayerContract.totalStaked()
-        //     let stakedOfAmount = await titanLayerContract.stakedOf(titanOperatorContract.address)
+        it("getClaimableActivityReward & claimActivityReward test (createCandidateAddon)", async () => {
+            let amount = await daoCommittee_V1_Contract.getClaimableActivityReward(titanOperatorContract.address)
+            expect(amount).to.be.gt(0);
 
-        //     expect(totalStakedAmount).to.be.equal(stakedOfAmount)
-        //     expect(totalStakedAmount).to.be.gt(0)            
-        // })
+            await titanLayerContract.connect(daoCommitteeAdmin).claimActivityReward()
 
-        // it("updateSeigniorage test (createCandidateAddon)", async () => {
-        //     const beforeSeigBlock = await seigManagerV1_2.lastCommitBlock(titanLayerContract.address)
+            let amount2 = await daoCommittee_V1_Contract.getClaimableActivityReward(titanOperatorContract.address)
+            expect(amount).to.be.gt(amount2);
+        })
 
-        //     await titanLayerContract.connect(user1).updateSeigniorage()
+        it("totalStaked & stakedOf test (createCandidateAddon)", async () => {
+            let totalStakedAmount = await titanLayerContract.totalStaked()
+            let stakedOfAmount = await titanLayerContract.stakedOf(titanOperatorContract.address)
 
-        //     const afterSeigBlock = await seigManagerV1_2.lastCommitBlock(titanLayerContract.address)
+            expect(totalStakedAmount).to.be.equal(stakedOfAmount)
+            expect(totalStakedAmount).to.be.gt(0)            
+        })
 
-        //     expect(afterSeigBlock).to.be.gt(beforeSeigBlock)
-        // })
+        it("updateSeigniorage test (createCandidateAddon)", async () => {
+            const beforeSeigBlock = await seigManagerV1_2.lastCommitBlock(titanLayerContract.address)
 
-        // it("Create new Agenda", async () => {
-        //     const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-        //     const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-        //     const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            await titanLayerContract.connect(user1).updateSeigniorage()
+
+            const afterSeigBlock = await seigManagerV1_2.lastCommitBlock(titanLayerContract.address)
+
+            expect(afterSeigBlock).to.be.gt(beforeSeigBlock)
+        })
+
+        it("Create new Agenda", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
-        //     const newMinimumNoticePeriod = 40;
-        //     const amountHex = BigNumber.from(newMinimumNoticePeriod).toHexString().replace("0x","");
-        //     const data = padLeft(amountHex, 64);
-        //     const functionBytecode = selector+(data);
+            const newMinimumNoticePeriod = 40;
+            const amountHex = BigNumber.from(newMinimumNoticePeriod).toHexString().replace("0x","");
+            const data = padLeft(amountHex, 64);
+            const functionBytecode = selector+(data);
 
-        //     const param = Web3EthAbi.encodeParameters(
-        //         ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-        //         [
-        //             [daoagendaManager.address], 
-        //             noticePeriod.toString(), 
-        //             votingPeriod.toString(), 
-        //             true, 
-        //             [functionBytecode]
-        //         ]
-        //     );
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoagendaManager.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
     
-        //     const agendaFee = await daoagendaManager.createAgendaFees();
-        //     expect(agendaFee).to.be.gt(0);
+            const agendaFee = await daoagendaManager.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
 
-        //     await (await ton.connect(daoCommitteeAdmin).transfer(
-        //         user1.address,
-        //         agendaFee
-        //     )).wait()
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
 
-        //     const beforeBalance = await ton.balanceOf(user1.address);
+            const beforeBalance = await ton.balanceOf(user1.address);
 
-        //     // create agenda
-        //     await ton.connect(user1).approveAndCall(
-        //         daoCommitteeProxy.address,
-        //         agendaFee,
-        //         param
-        //     );
+            // create agenda
+            await ton.connect(user1).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
 
-        //     const afterBalance = await ton.balanceOf(user1.address);
-        //     expect(afterBalance).to.be.lt(beforeBalance);
-        //     expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+            const afterBalance = await ton.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
 
-        //     agendaID = (await daoagendaManager.numAgendas()).sub(1);
-        //     //const executionInfo = await agendaManager.executionInfos(agendaID);
-        //     const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
-        //     // console.log("executionInfo :", executionInfo);
-        //     expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
-        //     expect(executionInfo[1][0]).to.be.equal(functionBytecode);
-        // })
+            agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
 
-        // it('increase block time and check votable', async function () {
-        //     const agenda = await daoagendaManager.agendas(agendaID);  
-        //     // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-        //     const noticeEndTimestamp = agenda[1];
-        //     await time.increaseTo(Number(noticeEndTimestamp)+Number(10));
-        //     expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-        // });
+        it('increase block time and check votable', async function () {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
+            const noticeEndTimestamp = agenda[1];
+            await time.increaseTo(Number(noticeEndTimestamp)+Number(10));
+            expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
+        });
 
-        // it("cast vote (candidateAddOn)", async () => {
-        //     const agenda = await daoagendaManager.agendas(agendaID);  
-        //     // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-        //     const beforeCountingYes = agenda[7];
-        //     const beforeCountingNo = agenda[8];
-        //     const beforeCountingAbstain = agenda[9];
+        it("cast vote (candidateAddOn)", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-        //     const vote = 1
+            const vote = 1
             
-        //     // first cast not setting so check member
-        //     let checkMember = await daoCommittee_V1_Contract.isMember(titanOperatorContract.address)
-        //     expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(titanOperatorContract.address)
+            expect(checkMember).to.be.equal(true)
 
-        //     // counting 0:abstainVotes 1:yesVotes 2:noVotes
-        //     await titanLayerContract.connect(user1).castVote(
-        //         agendaID,
-        //         vote,
-        //         "member2 vote"
-        //     )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await titanLayerContract.connect(daoCommitteeAdmin).castVote(
+                agendaID,
+                vote,
+                "member1 vote"
+            )
 
-        //     const voterInfo2 = await daoagendaManager.voterInfos(agendaID, titanOperatorContract.address);
-        //     expect(voterInfo2[0]).to.be.equal(true);
-        //     expect(voterInfo2[1]).to.be.equal(true);
-        //     expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, titanOperatorContract.address);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-        //     const agenda2 = await daoagendaManager.agendas(agendaID);
-        //     expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-        //     expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-        //     expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-        //     const result = await daoagendaManager.getVoteStatus(agendaID, titanOperatorContract.address);
-        //     expect(result[0]).to.be.equal(true);
-        //     expect(result[1]).to.be.equal(vote);
-        // })
+            const result = await daoagendaManager.getVoteStatus(agendaID, titanOperatorContract.address);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-        
-        // it("currentAgendaStatus test", async () => {
-        //     let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-        //     expect(result.agendaResult).to.be.equal(4)
-        //     expect(result.agendaStatus).to.be.equal(2)
-        // })
-
-        // it("cast vote (createCandidate)", async () => {
-        //     const agenda = await daoagendaManager.agendas(agendaID);  
-        //     // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-        //     const beforeCountingYes = agenda[7];
-        //     const beforeCountingNo = agenda[8];
-        //     const beforeCountingAbstain = agenda[9];
+        it("cast vote (createCandidate)", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-        //     const vote = 1
+            const vote = 1
             
-        //     // first cast not setting so check member
-        //     let checkMember = await daoCommittee_V1_Contract.isMember(user1.address)
-        //     expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            expect(checkMember).to.be.equal(true)
 
-        //     // counting 0:abstainVotes 1:yesVotes 2:noVotes
-        //     await user1CandidateContract.connect(user1).castVote(
-        //         agendaID,
-        //         vote,
-        //         "member2 vote"
-        //     )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+                agendaID,
+                vote,
+                "member3 vote"
+            )
 
-        //     const voterInfo2 = await daoagendaManager.voterInfos(agendaID, user1.address);
-        //     expect(voterInfo2[0]).to.be.equal(true);
-        //     expect(voterInfo2[1]).to.be.equal(true);
-        //     expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-        //     const agenda2 = await daoagendaManager.agendas(agendaID);
-        //     expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-        //     expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-        //     expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-        //     const result = await daoagendaManager.getVoteStatus(agendaID, user1.address);
-        //     expect(result[0]).to.be.equal(true);
-        //     expect(result[1]).to.be.equal(vote);
-        // })
+            const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-        // it("currentAgendaStatus test", async () => {
-        //     let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-        //     expect(result.agendaResult).to.be.equal(1)
-        //     expect(result.agendaStatus).to.be.equal(3)
-        // })
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
 
-        // it("check vote result/status & increase can ExecuteTime", async () => {
-        //     const agenda = await daoagendaManager.agendas(agendaID);
+            if (agenda[10] == 3) {
+                const votingEndTimestamp = agenda[4];
+                await time.increaseTo(Number(votingEndTimestamp)+Number(10));
 
-        //     if (agenda[10] == 3) {
-        //         const votingEndTimestamp = agenda[4];
-        //         await time.increaseTo(Number(votingEndTimestamp)+Number(10));
+                expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
+            }
+        });
 
-        //         expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
-        //     }
-        // });
+        it("execute agenda", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            expect(agenda[6]).to.be.equal(0);
 
-        // it("execute agenda", async () => {
-        //     const agenda = await daoagendaManager.agendas(agendaID);
-        //     expect(agenda[6]).to.be.equal(0);
+            const check = await daoagendaManager.canExecuteAgenda(agendaID);
+            console.log(check)
 
-        //     const beforeValue = await daoagendaManager.minimumNoticePeriodSeconds();
+            const beforeValue = await daoagendaManager.minimumNoticePeriodSeconds();
             
-        //     await daoCommittee_V1_Contract.executeAgenda(agendaID);
+            await daoCommittee_V1_Contract.executeAgenda(agendaID);
 
-        //     const afterValue = await daoagendaManager.minimumNoticePeriodSeconds();
+            const afterValue = await daoagendaManager.minimumNoticePeriodSeconds();
 
-        //     expect(beforeValue).to.be.not.equal(afterValue);
-        //     expect(afterValue).to.be.equal(40);
+            expect(beforeValue).to.be.not.equal(afterValue);
+            expect(afterValue).to.be.equal(40);
 
-        //     const afterAgenda = await daoagendaManager.agendas(agendaID); 
-        //     expect(afterAgenda[13]).to.be.equal(true);
-        //     expect(afterAgenda[6]).to.be.gt(0); 
-        // })
+            const afterAgenda = await daoagendaManager.agendas(agendaID); 
+            expect(afterAgenda[13]).to.be.equal(true);
+            expect(afterAgenda[6]).to.be.gt(0); 
+        })
 
         // it("currentAgendaStatus test", async () => {
         //     let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
@@ -2324,23 +2372,23 @@ describe("DAO Proxy Change Test", () => {
         //     expect(result.agendaStatus).to.be.equal(4)
         // })
 
-        // it("retireMember (candidateAddOn) (add blackList) (onlyMember)", async () => {
-        //     let memberCheck = await daoCommittee_V1_Contract.members(2)
-        //     expect(memberCheck.toUpperCase()).to.be.equal(titanOperatorContract.address.toUpperCase())
-        //     // let beforeWTONAmount = await wton.balanceOf(member2.address)
-        //     let blacklistCheck = await daoCommittee_V1_Contract.blacklist(titanLayerContract.address)
-        //     expect(blacklistCheck).to.be.equal(false)
+        it("retireMember (candidateAddOn) (add blackList) (onlyMember)", async () => {
+            let memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck.toUpperCase()).to.be.equal(titanOperatorContract.address.toUpperCase())
+            // let beforeWTONAmount = await wton.balanceOf(member2.address)
+            let blacklistCheck = await daoCommittee_V1_Contract.blacklist(titanLayerContract.address)
+            expect(blacklistCheck).to.be.equal(false)
 
-        //     await (
-        //         await titanLayerContract.connect(user1).retireMember()
-        //     ).wait();
+            await (
+                await titanLayerContract.connect(daoCommitteeAdmin).retireMember()
+            ).wait();
 
-        //     memberCheck = await daoCommittee_V1_Contract.members(2)
-        //     expect(memberCheck).to.be.equal(zeroAddr)
+            memberCheck = await daoCommittee_V1_Contract.members(1)
+            expect(memberCheck).to.be.equal(zeroAddr)
 
-        //     blacklistCheck = await daoCommittee_V1_Contract.blacklist(titanLayerContract.address)
-        //     expect(blacklistCheck).to.be.equal(true)
-        // })
+            blacklistCheck = await daoCommittee_V1_Contract.blacklist(titanLayerContract.address)
+            expect(blacklistCheck).to.be.equal(true)
+        })
 
     })
 
