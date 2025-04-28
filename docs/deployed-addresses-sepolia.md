@@ -9,14 +9,11 @@
 |  WTON |  0x79e0d92670106c85e9067b56b8f674340dca0bbd     | [link](https://sepolia.etherscan.io/address/0x79e0d92670106c85e9067b56b8f674340dca0bbd)
 
 
-## Simple Staking Patch Contracts
+## Simple Staking V2 Contracts
 
 | Name     | Address | link |
 |----------|------|-------------------------------|
-|  DAOCommitteeExtend        | 0xB79DcFE624D0A69c5c2a206a99F240f1d2Ca1D80     | [link](https://sepolia.etherscan.io/address/0xB79DcFE624D0A69c5c2a206a99F240f1d2Ca1D80)
-|  PowerTONUpgrade        |  0x68808D5379763fA07FDb53c707100e1930900F5c    | [link](https://sepolia.etherscan.io/address/0x68808D5379763fA07FDb53c707100e1930900F5c)
 |  SeigManager        |  0xe05d62c21f4bba610F411A6F9BddF63cffb43B63    | [link](https://sepolia.etherscan.io/address/0xe05d62c21f4bba610F411A6F9BddF63cffb43B63)
-|  SeigManagerMigration        |  0xBa3FBF5980Ba60bEe096cecEcDA3f28AC60904cC    | [link](https://sepolia.etherscan.io/address/0xBa3FBF5980Ba60bEe096cecEcDA3f28AC60904cC)
 |  SeigManagerProxy        |   0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7 | [link](https://sepolia.etherscan.io/address/0x2320542ae933FbAdf8f5B97cA348c7CeDA90fAd7)
 |  DepositManager        | 0x2d361b25395907a897f62e87A57b362264F36d7a     | [link](https://sepolia.etherscan.io/address/0x2d361b25395907a897f62e87A57b362264F36d7a)
 |  DepositManagerProxy        |  0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F    | [link](https://sepolia.etherscan.io/address/0x90ffcc7F168DceDBEF1Cb6c6eB00cA73F922956F)
@@ -27,4 +24,16 @@
 |  CandidateFactoryProxy        | 0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f     | [link](https://sepolia.etherscan.io/address/0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f)
 |  RefactorCoinageSnapshot        |  0x510036C3dDc8D0AB10B8AbEC2ECdf0Aa1dD25FfA    | [link](https://sepolia.etherscan.io/address/0x510036C3dDc8D0AB10B8AbEC2ECdf0Aa1dD25FfA)
 |  CoinageFactory        | 0x93258413Ef2998572AB4B269b5DCb963dD35D440     | [link](https://sepolia.etherscan.io/address/0x93258413Ef2998572AB4B269b5DCb963dD35D440)
-| SwapProxy      | 0x690f994b82f001059e24d79292c3c476854b767a  | [link](https://sepolia.etherscan.io/address/0x690f994b82f001059e24d79292c3c476854b767a) |
+|  SwapProxy      | 0x690f994b82f001059e24d79292c3c476854b767a  | [link](https://sepolia.etherscan.io/address/0x690f994b82f001059e24d79292c3c476854b767a) |
+|  L1BridgeRegistryV1_1      |  0x16979Ee40B68Bb0e03a6Fa8cc6fb7f1FCC89ecc4 | [link](https://etherscan.io/address/0x16979Ee40B68Bb0e03a6Fa8cc6fb7f1FCC89ecc4) |
+|  L1BridgeRegistryProxy      |  0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc | [link](https://etherscan.io/address/0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc) |
+|  OperatorManagerV1_1      | 0x48f60aAf60D5E162b2DebFD4F70c88fE01b7c331  | [link](https://etherscan.io/address/0x48f60aAf60D5E162b2DebFD4F70c88fE01b7c331) |
+|  OperatorManagerFactory      | 0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e  | [link](https://etherscan.io/address/0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e) |
+|  CandidateAddOnV1_1      | 0xCB75860cFBe1c4668A1D90d8d6c80c1f2c9C93A4  | [link](https://etherscan.io/address/0xCB75860cFBe1c4668A1D90d8d6c80c1f2c9C93A4) |
+|  CandidateAddOnFactory      |  0x88F7Fe8eD56300Ec8a3D53d7b806B0223f8e276A | [link](https://etherscan.io/address/0x88F7Fe8eD56300Ec8a3D53d7b806B0223f8e276A) |
+|  CandidateAddOnFactoryProxy      |  0xf37493caC8BF8df0bD96146211D93D548d506fb9 | [link](https://etherscan.io/address/0xf37493caC8BF8df0bD96146211D93D548d506fb9) |
+|  Layer2ManagerV1_1      |  0xF9d75D5814e1C3D734342bD5Ed0637b9c49c3f69 | [link](https://etherscan.io/address/0xF9d75D5814e1C3D734342bD5Ed0637b9c49c3f69) |
+|  Layer2ManagerProxy      | 0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc  | [link](https://etherscan.io/address/0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc) |
+|  SeigManagerV1_2      |  0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898 | [link](https://etherscan.io/address/0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898) |
+|  SeigManagerV1_3  |  0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA   | [link](https://etherscan.io/address/0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA) |
+|  DepositManagerV1_1  |  0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06   | [link](https://etherscan.io/address/0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06) |
