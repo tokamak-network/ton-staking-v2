@@ -31,8 +31,8 @@ All repositories related to development for TON-Staking is provided here.
 | Type     | Name | Branch | Status                        |
 |----------|------|--------|-----------------------|
 |     Whitepaper    |   [papers](https://github.com/tokamak-network/papers) |  `master` |  :heavy_check_mark: Completed
-|     Contract    |   [ton-staking-v1.0](https://github.com/tokamak-network/plasma-evm-contracts) |  `ton-staking-v1.0` | :heavy_check_mark: Completed on Version 1
-|     Contract    |   [ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2/tree/ton-staking-v2) |  `ton-staking-v2.0` | :heavy_check_mark: Completed on Version 2
+|     Contract    |   [ton-staking-v1](https://github.com/tokamak-network/plasma-evm-contracts) |  `ton-staking-v1` | :heavy_check_mark: Completed on Version 1
+|     Contract    |   [ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2/tree/ton-staking-v2) |  `ton-staking-v2` | :heavy_check_mark: Completed on Version 2
 |     Audit    |   [audit-request-v2](https://github.com/tokamak-network/ton-staking-v2/tree/v2.5-audit-merge)  |  `v2.5-audit-merge`    | :monocle_face: External audit requesting on Version 2
 |     SDK    | [ton-staking-sdk](https://github.com/tokamak-network/ton-staking-sdk-monorepo) |  `main`  | Scheduled to proceed
 
