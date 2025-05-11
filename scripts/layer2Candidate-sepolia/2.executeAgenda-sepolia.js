@@ -48,7 +48,6 @@ let g2chain_rollup_config = "0xEe64aae7eCA36B2663cD43FAA6d05CDFDFf35ffE"
 
 let agendaId = 0
 
-
 let theol0425_name = "theol0425"
 let theol0425_rollup_config = "0x49A1D1B724De845b41212f5DAD7DB20F629903F1"
 
@@ -112,40 +111,21 @@ async function view() {
 
 }
 
-async function view_ThanosSepoliaV2_RollupConfig() {
+async function view_harvey0838383() {
 
-    console.log('\n==== view_ThanosSepoliaV2_RollupConfig ===== ')
+    console.log('\n==== harvey0838383 ===== ')
     const accounts = await ethers.getSigners()
     let deployer = accounts[0]
     let deployerAddress = await deployer.getAddress()
     let L1BridgeRegistryProxy = "0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc"
 
-    console.log('ThanosSepoliaV2_RollupConfig((up_config ', ThanosSepoliaV2_RollupConfig )
+    console.log('harvey_rollup_config', harvey_rollup_config )
 
-    console.log("\n======= L1BridgeRegistryProxy.rollupInfo (ThanosSepoliaV2_RollupConfig() ============")
+    console.log("\n======= L1BridgeRegistryProxy.rollupInfo (harvey_rollup_config() ============")
     const l1BridgeRegistry = new ethers.Contract(L1BridgeRegistryProxy,  L1BridgeRegistryV1_1_Json.abi, deployer)
 
-    let rollupInfo_ThanosSepoliaV2_RollupConfig = await l1BridgeRegistry.rollupInfo(ThanosSepoliaV2_RollupConfig)
-    console.log("rollupInfo_ThanosSepoliaV2_RollupConfig", rollupInfo_ThanosSepoliaV2_RollupConfig)
-
-}
-
-
-async function view_theol0425() {
-
-    console.log('\n==== view_theol0425 ===== ')
-    const accounts = await ethers.getSigners()
-    let deployer = accounts[0]
-    let deployerAddress = await deployer.getAddress()
-    let L1BridgeRegistryProxy = "0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc"
-
-    console.log('theol0425_rollup_config', theol0425_rollup_config )
-
-    console.log("\n======= L1BridgeRegistryProxy.rollupInfo (theol0425_rollup_config() ============")
-    const l1BridgeRegistry = new ethers.Contract(L1BridgeRegistryProxy,  L1BridgeRegistryV1_1_Json.abi, deployer)
-
-    let rollupInfo_theol0425_rollup_config = await l1BridgeRegistry.rollupInfo(theol0425_rollup_config)
-    console.log("rollupInfo_theol0425_rollup_config", rollupInfo_theol0425_rollup_config)
+    let rollupInfo_harvey_rollup_config = await l1BridgeRegistry.rollupInfo(harvey_rollup_config)
+    console.log("rollupInfo_harvey_rollup_config", rollupInfo_harvey_rollup_config)
 
 }
 
@@ -155,9 +135,7 @@ const main = async () => {
 
     // await view()
 
-    // await view_ThanosSepoliaV2_RollupConfig()
-
-    // await view_theol0425()
+    // await view_harvey0838383()
 }
 
 
