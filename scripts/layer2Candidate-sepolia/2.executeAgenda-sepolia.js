@@ -56,83 +56,36 @@ let harvey_name = "harvey0838383"
 let harvey_rollup_config = "0xc7d3d9acbf61fde1361e520a0552a7df2e07180d"
 
 
-async function proposeAgenda_registerRollupConfigByManager() {
-    console.log('\n==== proposeAgenda_registerRollupConfigByManager ===== ')
+async function executeAgenda(agendaId_) {
+
+    let agendaId = ethers.BigNumber.from(""+agendaId_)
+    console.log('\n==== executeAgenda ===== ', agendaId)
     const accounts = await ethers.getSigners()
     let deployer = accounts[0]
-    let deployerAddress = await deployer.getAddress()
 
-    console.log('proposer ', deployerAddress)
+    const block = await ethers.provider.getBlock('latest');
+    console.log('block.timestamp', block.timestamp)
 
-    const l1BridgeRegistry = new ethers.Contract(L1BridgeRegistryProxy,  L1BridgeRegistryV1_1_Json.abi, deployer)
-    const Layer2Manager = new ethers.Contract(Layer2ManagerProxy,  Layer2ManagerV1_1_Json.abi, deployer)
     const daoAgendaManagerContract = new ethers.Contract(DAOAgendaManager,  DAOAgendaManager_Json.abi, deployer)
-    const seigManager = new ethers.Contract(SeigManagerAddress,  SeigManager_Json.abi, deployer)
-    const tonContract = new ethers.Contract(TON, Ton_Json.abi,  deployer)
+    const daoCommitteeContract = new ethers.Contract(DAOCommitteeProxy, DAOCommittee_V1_Json.abi,  deployer)
+
+    let agenda = await daoAgendaManagerContract.agendas(agendaId);
+
+    // expect(agenda.executedTimestamp).to.be.equal(0);
+    // expect(agenda.executed).to.be.equal(false);
+    console.log('Agenda Before executeing ', agenda)
+
+    let receipt = await (await daoCommitteeContract.connect(deployer).executeAgenda(agendaId)).wait();
+
+    console.log('receipt', receipt)
+
+    agenda = await daoAgendaManagerContract.agendas(agendaId);
+    // // expect(agenda.executedTimestamp).to.be.gt(0);
+    // // expect(agenda.executed).to.be.equal(true);
+
+    console.log('Aagenda Aefore executeing ', agenda)
 
 
-    ///--- Agenda ---------------------------------
-    let targets = []
-    let params = []
-    let callDtata
-
-    // =========================================
-    // targets.push(L1BridgeRegistryProxy)
-    // callDtata = l1BridgeRegistry.interface.encodeFunctionData(
-    //     "registerRollupConfigByManager(address,uint8,address,string)", [
-    //         theol0425_rollup_config,
-    //         2,
-    //         l2TON,
-    //         theol0425_name
-    //     ])
-    // params.push(callDtata)
-
-    // =========================================
-
-    targets.push(L1BridgeRegistryProxy)
-    callDtata = l1BridgeRegistry.interface.encodeFunctionData(
-        "registerRollupConfigByManager(address,uint8,address,string)", [
-            harvey_rollup_config,
-            2,
-            l2TON,
-            harvey_name
-        ])
-    params.push(callDtata)
-
-
-    // =========================================
-    // . make an agenda
-    const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
-    const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
-    const agendaFee = await daoAgendaManagerContract.createAgendaFees();
-
-    const param = encodeParameters(
-        ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-        [
-            targets,
-            noticePeriod.toString(),
-            votingPeriod.toString(),
-            true,
-            params
-        ]
-    )
-
-    // =========================================
-    // Propose an agenda
-    let receipt = await (await tonContract.connect(deployer).approveAndCall(
-        DAOCommitteeProxy,
-        agendaFee,
-        param
-    )).wait()
-
-    console.log('receipt ', receipt)
-    agendaId = (await daoAgendaManagerContract.numAgendas()).sub(1);
-    console.log('agendaId',agendaId)
-
-    const executionInfo = await daoAgendaManagerContract.getExecutionInfo(agendaId);
-    console.log("executionInfo :", executionInfo);
-    // expect(executionInfo[0][0]).to.be.equal(DAOCommitteeProxy);
-    // expect(executionInfo[1][0]).to.be.equal(param);
 }
 
 
@@ -198,7 +151,7 @@ async function view_theol0425() {
 
 
 const main = async () => {
-    await proposeAgenda_registerRollupConfigByManager()
+    await executeAgenda("53")
 
     // await view()
 
