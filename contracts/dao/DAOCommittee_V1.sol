@@ -519,7 +519,7 @@ contract DAOCommittee_V1 is
         //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
         uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        if(votingEndTime == 0) {
+        if(noticeEndTime == 0) {
             // No Agenda
             return (5, 6);
         } else if (block.timestamp < noticeEndTime) {
