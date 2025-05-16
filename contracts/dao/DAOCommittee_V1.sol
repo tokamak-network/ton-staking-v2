@@ -21,8 +21,6 @@ import "./StorageStateCommitteeV2.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -522,13 +520,12 @@ contract DAOCommittee_V1 is
         uint256 numAgendas = agendaManager.numAgendas();
         if(numAgendas <=  _agendaID){
             // No Agenda
+            // (NO AGENDA, NO AGENDA)
             return (5, 6);
         }
 
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
         uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        // (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
-        // uint256 totalvotes = yes + no + abstain;
         
         if (block.timestamp < noticeEndTime) {
             //Notice Time
@@ -542,35 +539,11 @@ contract DAOCommittee_V1 is
             return (agendaResult, agendaStatus);
         } else if (noticeEndTime <= block.timestamp &&  block.timestamp <= votingEndTime) {
             //NoticeTime이 지나고 누군가 투표 하였고 투표가 종료되지 않았을때
-            console.log("1");
-            // (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
             agendaStatus = 2;
             return (result, agendaStatus);
-            // if (quorum <= yes) {
-            //     // yes (ACCPECT, VOTING)
-            //     agendaResult = 1;
-            //     agendaStatus = 2;
-            //     return (agendaResult, agendaStatus);
-            // } else if (quorum <= no) {
-            //     // no (REJECT, VOTING)
-            //     agendaResult = 2;
-            //     agendaStatus = 2;
-            //     return (agendaResult, agendaStatus);
-            // } else if (quorum <= abstain) {
-            //     // (DISMISS, VOTING)
-            //     agendaResult = 3;
-            //     agendaStatus = 2;
-            //     return (agendaResult, agendaStatus);
-            // } else {
-            //     // (NO CONSENSUS, VOTING)
-            //     agendaResult = 4;
-            //     agendaStatus = 2;
-            //     return (agendaResult, agendaStatus);
-            // }
         } else if (votingEndTime < block.timestamp && votingEndTime != 0) {
             //votingEndTime이 지난뒤 결과
-            console.log("2");
             (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             if (quorum <= yes) {
                 // yes
