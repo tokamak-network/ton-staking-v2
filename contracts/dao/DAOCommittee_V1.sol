@@ -54,6 +54,7 @@ contract DAOCommittee_V1 is
         uint128 votingPeriodSeconds;
         bool atomicExecute;
         bytes[] functionBytecode;
+        string memo;
     }
 
     //////////////////////////////
@@ -454,7 +455,8 @@ contract DAOCommittee_V1 is
             agendaData.noticePeriodSeconds,
             agendaData.votingPeriodSeconds,
             agendaData.atomicExecute,
-            agendaData.functionBytecode
+            agendaData.functionBytecode,
+            agendaData.memo
         );
 
         return true;
@@ -653,8 +655,8 @@ contract DAOCommittee_V1 is
         pure
         returns (AgendaCreatingData memory data)
     {
-        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode) =
-            abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
+        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode, data.memo) =
+            abi.decode(input, (address[], uint128, uint128, bool, bytes[], string));
     }
 
     /// @notice Convert address to bytes.
@@ -733,6 +735,7 @@ contract DAOCommittee_V1 is
     /// @param _votingPeriodSeconds Voting period of agenda
     /// @param _atomicExecute Single agenda or multi-agenda
     /// @param _functionBytecodes Functions to execute via agenda
+    /// @param _memo This is a memo field and was added for snapshot linking.
     /// @return agendaID
     function _createAgenda(
         address _creator,
@@ -740,7 +743,8 @@ contract DAOCommittee_V1 is
         uint128 _noticePeriodSeconds,
         uint128 _votingPeriodSeconds,
         bool _atomicExecute,
-        bytes[] memory _functionBytecodes
+        bytes[] memory _functionBytecodes,
+        string memory _memo
     )
         internal
         validAgendaManager
@@ -756,6 +760,8 @@ contract DAOCommittee_V1 is
             _atomicExecute,
             _functionBytecodes
         );
+
+        agendaMemo[agendaID] = _memo;
 
         emit AgendaCreated(
             _creator,
