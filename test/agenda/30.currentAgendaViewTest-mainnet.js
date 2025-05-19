@@ -987,682 +987,682 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    // describe("currentAgendaVeiw Test", () => {
-    //     it("1. Return for an Agenda that has not been created", async () => {
-    //         agendaID = await daoagendaManager.numAgendas()
+    describe("currentAgendaVeiw Test", () => {
+        it("1. Return for an Agenda that has not been created", async () => {
+            agendaID = await daoagendaManager.numAgendas()
 
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(5)
-    //         expect(result.agendaStatus).to.be.equal(6)
-    //     })
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(5)
+            expect(result.agendaStatus).to.be.equal(6)
+        })
 
-    //     it("Create new Agenda", async () => {
-    //         const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-    //         const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        it("Create new Agenda", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
             
-    //         const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
-    //         const newMinimumNoticePeriod = 40;
-    //         const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
-    //         const functionBytecode = selector.concat(data);
+            const newMinimumNoticePeriod = 40;
+            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector.concat(data);
 
-    //         const param = Web3EthAbi.encodeParameters(
-    //             ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-    //             [
-    //                 [daoagendaManager.address], 
-    //                 noticePeriod.toString(), 
-    //                 votingPeriod.toString(), 
-    //                 true, 
-    //                 [functionBytecode]
-    //             ]
-    //         );
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoagendaManager.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
     
-    //         const agendaFee = await daoagendaManager.createAgendaFees();
-    //         expect(agendaFee).to.be.gt(0);
+            const agendaFee = await daoagendaManager.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
 
-    //         await (await ton.connect(daoCommitteeAdmin).transfer(
-    //             user1.address,
-    //             agendaFee
-    //         )).wait()
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
 
-    //         const beforeBalance = await ton.balanceOf(user1.address);
+            const beforeBalance = await ton.balanceOf(user1.address);
 
-    //         // create agenda
-    //         await ton.connect(user1).approveAndCall(
-    //             daoCommitteeProxy.address,
-    //             agendaFee,
-    //             param
-    //         );
+            // create agenda
+            await ton.connect(user1).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
 
-    //         const afterBalance = await ton.balanceOf(user1.address);
-    //         expect(afterBalance).to.be.lt(beforeBalance);
-    //         expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+            const afterBalance = await ton.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
 
-    //         agendaID = (await daoagendaManager.numAgendas()).sub(1);
-    //         //const executionInfo = await agendaManager.executionInfos(agendaID);
-    //         const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
-    //         // console.log("executionInfo :", executionInfo);
-    //         expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
-    //         expect(executionInfo[1][0]).to.be.equal(functionBytecode);
-    //     })
+            agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
 
-    //     it("increase Time", async () => {
-    //         await time.increase(10);
-    //     });
+        it("increase Time", async () => {
+            await time.increase(10);
+        });
 
-    //     it("2. Returns a status called NoticeTime", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(0)
-    //         expect(result.agendaStatus).to.be.equal(1)
-    //     })
+        it("2. Returns a status called NoticeTime", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(0)
+            expect(result.agendaStatus).to.be.equal(1)
+        })
 
-    //     it('increase block time and check votable', async function () {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-    //         // const createTimestamp = agenda[0];
-    //         const noticeEndTimestamp = agenda[1];
-    //         // const votingEndTimestamp = agenda[4];
-    //         // const currentTime = await time.latest();
-    //         // console.log("currentTime", currentTime);
-    //         // console.log("createTimestamp", createTimestamp)
-    //         // console.log("noticeEndTimestamp", noticeEndTimestamp)
-    //         // console.log("votingEndTimestamp", votingEndTimestamp)
-    //         await time.increaseTo(Number(noticeEndTimestamp));
-    //         // const currentTime2 = await time.latest();
-    //         // console.log("currentTime2", currentTime2);
-    //         expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-    //     });
+        it('increase block time and check votable', async function () {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
+            // const createTimestamp = agenda[0];
+            const noticeEndTimestamp = agenda[1];
+            // const votingEndTimestamp = agenda[4];
+            // const currentTime = await time.latest();
+            // console.log("currentTime", currentTime);
+            // console.log("createTimestamp", createTimestamp)
+            // console.log("noticeEndTimestamp", noticeEndTimestamp)
+            // console.log("votingEndTimestamp", votingEndTimestamp)
+            await time.increaseTo(Number(noticeEndTimestamp));
+            // const currentTime2 = await time.latest();
+            // console.log("currentTime2", currentTime2);
+            expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
+        });
 
-    //     it("3. Returns (NO CONSENSUS, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(4)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("3. Returns (NO CONSENSUS, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(4)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("castVote member1", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member1", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 1
+            const vote = 1
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member1Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member1Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member1 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+                agendaID,
+                vote,
+                "member1 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member1Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, newMember1Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member1Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, newMember1Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("4. Returns (pending, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(0)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("4. Returns (pending, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(0)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("castVote member3", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member3", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 1
+            const vote = 1
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member3Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member3 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+                agendaID,
+                vote,
+                "member3 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("5. Returns (ACCEPT, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(1)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("5. Returns (ACCEPT, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(1)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("check vote result/status & increase can ExecuteTime", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
 
-    //         if (agenda[10] == 3) {
-    //             const votingEndTimestamp = agenda[4];
-    //             const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
-    //             await time.increaseTo(Number(restVotingEndTime));
+            if (agenda[10] == 3) {
+                const votingEndTimestamp = agenda[4];
+                const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
+                await time.increaseTo(Number(restVotingEndTime));
 
-    //             expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
-    //         }
-    //     });
+                expect(await daoagendaManager.canExecuteAgenda(agendaID)).to.be.equal(true);
+            }
+        });
 
-    //     it("6. Returns (ACCEPT, WAITING_EXEC)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(1)
-    //         expect(result.agendaStatus).to.be.equal(3)
-    //     })
+        it("6. Returns (ACCEPT, WAITING_EXEC)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(1)
+            expect(result.agendaStatus).to.be.equal(3)
+        })
 
 
-    //     it("execute agenda (anyone)", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda[6]).to.be.equal(0);
+        it("execute agenda (anyone)", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            expect(agenda[6]).to.be.equal(0);
 
-    //         await daoCommittee_V1_Contract.executeAgenda(agendaID);
+            await daoCommittee_V1_Contract.executeAgenda(agendaID);
 
-    //         const afterAgenda = await daoagendaManager.agendas(agendaID); 
-    //         expect(afterAgenda[13]).to.be.equal(true);
-    //         expect(afterAgenda[6]).to.be.gt(0); 
-    //     })
+            const afterAgenda = await daoagendaManager.agendas(agendaID); 
+            expect(afterAgenda[13]).to.be.equal(true);
+            expect(afterAgenda[6]).to.be.gt(0); 
+        })
 
-    //     it("7. Returns (ACCEPT, EXECUTED)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(1)
-    //         expect(result.agendaStatus).to.be.equal(4)
-    //     })
+        it("7. Returns (ACCEPT, EXECUTED)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(1)
+            expect(result.agendaStatus).to.be.equal(4)
+        })
 
-    //     it("Create new Agenda", async () => {
-    //         const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-    //         const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        it("Create new Agenda", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
             
-    //         const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
-    //         const newMinimumNoticePeriod = 40;
-    //         const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
-    //         const functionBytecode = selector.concat(data);
+            const newMinimumNoticePeriod = 40;
+            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector.concat(data);
 
-    //         const param = Web3EthAbi.encodeParameters(
-    //             ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-    //             [
-    //                 [daoagendaManager.address], 
-    //                 noticePeriod.toString(), 
-    //                 votingPeriod.toString(), 
-    //                 true, 
-    //                 [functionBytecode]
-    //             ]
-    //         );
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoagendaManager.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
     
-    //         const agendaFee = await daoagendaManager.createAgendaFees();
-    //         expect(agendaFee).to.be.gt(0);
+            const agendaFee = await daoagendaManager.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
 
-    //         await (await ton.connect(daoCommitteeAdmin).transfer(
-    //             user1.address,
-    //             agendaFee
-    //         )).wait()
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
 
-    //         const beforeBalance = await ton.balanceOf(user1.address);
+            const beforeBalance = await ton.balanceOf(user1.address);
 
-    //         // create agenda
-    //         await ton.connect(user1).approveAndCall(
-    //             daoCommitteeProxy.address,
-    //             agendaFee,
-    //             param
-    //         );
+            // create agenda
+            await ton.connect(user1).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
 
-    //         const afterBalance = await ton.balanceOf(user1.address);
-    //         expect(afterBalance).to.be.lt(beforeBalance);
-    //         expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+            const afterBalance = await ton.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
 
-    //         agendaID = (await daoagendaManager.numAgendas()).sub(1);
-    //         //const executionInfo = await agendaManager.executionInfos(agendaID);
-    //         const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
-    //         // console.log("executionInfo :", executionInfo);
-    //         expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
-    //         expect(executionInfo[1][0]).to.be.equal(functionBytecode);
-    //     })
+            agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
 
-    //     it('increase block time and check votable', async function () {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-    //         // const createTimestamp = agenda[0];
-    //         const noticeEndTimestamp = agenda[1];
-    //         // const votingEndTimestamp = agenda[4];
-    //         // const currentTime = await time.latest();
-    //         // console.log("currentTime", currentTime);
-    //         // console.log("createTimestamp", createTimestamp)
-    //         // console.log("noticeEndTimestamp", noticeEndTimestamp)
-    //         // console.log("votingEndTimestamp", votingEndTimestamp)
-    //         await time.increaseTo(Number(noticeEndTimestamp));
-    //         // const currentTime2 = await time.latest();
-    //         // console.log("currentTime2", currentTime2);
-    //         expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-    //     });
+        it('increase block time and check votable', async function () {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
+            // const createTimestamp = agenda[0];
+            const noticeEndTimestamp = agenda[1];
+            // const votingEndTimestamp = agenda[4];
+            // const currentTime = await time.latest();
+            // console.log("currentTime", currentTime);
+            // console.log("createTimestamp", createTimestamp)
+            // console.log("noticeEndTimestamp", noticeEndTimestamp)
+            // console.log("votingEndTimestamp", votingEndTimestamp)
+            await time.increaseTo(Number(noticeEndTimestamp));
+            // const currentTime2 = await time.latest();
+            // console.log("currentTime2", currentTime2);
+            expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
+        });
 
-    //     it("8. Returns (NO CONSENSUS, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(4)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("8. Returns (NO CONSENSUS, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(4)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("castVote member1", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member1", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 0
+            const vote = 0
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member1Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member1Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member1 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+                agendaID,
+                vote,
+                "member1 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member1Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, newMember1Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain+1));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain+1));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member1Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, newMember1Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("9. Returns (pending, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(0)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("9. Returns (pending, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(0)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("castVote member3", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member3", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 0
+            const vote = 0
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member3Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member3 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+                agendaID,
+                vote,
+                "member3 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain)+1);
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain)+1);
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("10. Returns (DISMISS, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(3)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("10. Returns (DISMISS, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(3)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("check vote result/status & increase can ExecuteTime", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);
-    //         const votingEndTimestamp = agenda[4];
-    //         const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
-    //         await time.increaseTo(Number(restVotingEndTime));
-    //     });
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            const votingEndTimestamp = agenda[4];
+            const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
+            await time.increaseTo(Number(restVotingEndTime));
+        });
 
-    //     it("11. Returns (DISMISS, ENDED)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(3)
-    //         expect(result.agendaStatus).to.be.equal(5)
-    //     })
+        it("11. Returns (DISMISS, ENDED)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(3)
+            expect(result.agendaStatus).to.be.equal(5)
+        })
 
-    //     it("Create new Agenda", async () => {
-    //         const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-    //         const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        it("Create new Agenda", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
             
-    //         const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
-    //         const newMinimumNoticePeriod = 40;
-    //         const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
-    //         const functionBytecode = selector.concat(data);
+            const newMinimumNoticePeriod = 40;
+            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector.concat(data);
 
-    //         const param = Web3EthAbi.encodeParameters(
-    //             ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-    //             [
-    //                 [daoagendaManager.address], 
-    //                 noticePeriod.toString(), 
-    //                 votingPeriod.toString(), 
-    //                 true, 
-    //                 [functionBytecode]
-    //             ]
-    //         );
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoagendaManager.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
     
-    //         const agendaFee = await daoagendaManager.createAgendaFees();
-    //         expect(agendaFee).to.be.gt(0);
+            const agendaFee = await daoagendaManager.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
 
-    //         await (await ton.connect(daoCommitteeAdmin).transfer(
-    //             user1.address,
-    //             agendaFee
-    //         )).wait()
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
 
-    //         const beforeBalance = await ton.balanceOf(user1.address);
+            const beforeBalance = await ton.balanceOf(user1.address);
 
-    //         // create agenda
-    //         await ton.connect(user1).approveAndCall(
-    //             daoCommitteeProxy.address,
-    //             agendaFee,
-    //             param
-    //         );
+            // create agenda
+            await ton.connect(user1).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
 
-    //         const afterBalance = await ton.balanceOf(user1.address);
-    //         expect(afterBalance).to.be.lt(beforeBalance);
-    //         expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+            const afterBalance = await ton.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
 
-    //         agendaID = (await daoagendaManager.numAgendas()).sub(1);
-    //         //const executionInfo = await agendaManager.executionInfos(agendaID);
-    //         const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
-    //         // console.log("executionInfo :", executionInfo);
-    //         expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
-    //         expect(executionInfo[1][0]).to.be.equal(functionBytecode);
-    //     })
+            agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
 
-    //     it('increase block time and check votable', async function () {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-    //         const noticeEndTimestamp = agenda[1];
-    //         await time.increaseTo(Number(noticeEndTimestamp));
+        it('increase block time and check votable', async function () {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
+            const noticeEndTimestamp = agenda[1];
+            await time.increaseTo(Number(noticeEndTimestamp));
 
-    //         expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-    //     });
+            expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
+        });
 
-    //     it("castVote member1", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member1", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 2
+            const vote = 2
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member1Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member1Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member1 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+                agendaID,
+                vote,
+                "member1 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member1Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, newMember1Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo+1));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo+1));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member1Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, newMember1Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("castVote member3", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member3", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 2
+            const vote = 2
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member3Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member3 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+                agendaID,
+                vote,
+                "member3 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo)+1);
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo)+1);
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("12. Returns (REJECT, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(2)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("12. Returns (REJECT, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(2)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("check vote result/status & increase can ExecuteTime", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);
-    //         const votingEndTimestamp = agenda[4];
-    //         const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
-    //         await time.increaseTo(Number(restVotingEndTime));
-    //     });
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            const votingEndTimestamp = agenda[4];
+            const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
+            await time.increaseTo(Number(restVotingEndTime));
+        });
 
-    //     it("13. Returns (REJECT, ENDED)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(2)
-    //         expect(result.agendaStatus).to.be.equal(5)
-    //     })
+        it("13. Returns (REJECT, ENDED)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(2)
+            expect(result.agendaStatus).to.be.equal(5)
+        })
 
 
-    //     it("Create new Agenda", async () => {
-    //         const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-    //         const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        it("Create new Agenda", async () => {
+            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
             
-    //         const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
+            const selector = Web3EthAbi.encodeFunctionSignature("setMinimumNoticePeriodSeconds(uint256)");
             
-    //         const newMinimumNoticePeriod = 40;
-    //         const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
-    //         const functionBytecode = selector.concat(data);
+            const newMinimumNoticePeriod = 40;
+            const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
+            const functionBytecode = selector.concat(data);
 
-    //         const param = Web3EthAbi.encodeParameters(
-    //             ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-    //             [
-    //                 [daoagendaManager.address], 
-    //                 noticePeriod.toString(), 
-    //                 votingPeriod.toString(), 
-    //                 true, 
-    //                 [functionBytecode]
-    //             ]
-    //         );
+            const param = Web3EthAbi.encodeParameters(
+                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                [
+                    [daoagendaManager.address], 
+                    noticePeriod.toString(), 
+                    votingPeriod.toString(), 
+                    true, 
+                    [functionBytecode]
+                ]
+            );
     
-    //         const agendaFee = await daoagendaManager.createAgendaFees();
-    //         expect(agendaFee).to.be.gt(0);
+            const agendaFee = await daoagendaManager.createAgendaFees();
+            expect(agendaFee).to.be.gt(0);
 
-    //         await (await ton.connect(daoCommitteeAdmin).transfer(
-    //             user1.address,
-    //             agendaFee
-    //         )).wait()
+            await (await ton.connect(daoCommitteeAdmin).transfer(
+                user1.address,
+                agendaFee
+            )).wait()
 
-    //         const beforeBalance = await ton.balanceOf(user1.address);
+            const beforeBalance = await ton.balanceOf(user1.address);
 
-    //         // create agenda
-    //         await ton.connect(user1).approveAndCall(
-    //             daoCommitteeProxy.address,
-    //             agendaFee,
-    //             param
-    //         );
+            // create agenda
+            await ton.connect(user1).approveAndCall(
+                daoCommitteeProxy.address,
+                agendaFee,
+                param
+            );
 
-    //         const afterBalance = await ton.balanceOf(user1.address);
-    //         expect(afterBalance).to.be.lt(beforeBalance);
-    //         expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
+            const afterBalance = await ton.balanceOf(user1.address);
+            expect(afterBalance).to.be.lt(beforeBalance);
+            expect(beforeBalance.sub(afterBalance)).to.be.equal(agendaFee)
 
-    //         agendaID = (await daoagendaManager.numAgendas()).sub(1);
-    //         //const executionInfo = await agendaManager.executionInfos(agendaID);
-    //         const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
-    //         // console.log("executionInfo :", executionInfo);
-    //         expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
-    //         expect(executionInfo[1][0]).to.be.equal(functionBytecode);
-    //     })
+            agendaID = (await daoagendaManager.numAgendas()).sub(1);
+            //const executionInfo = await agendaManager.executionInfos(agendaID);
+            const executionInfo = await daoagendaManager.getExecutionInfo(agendaID);
+            // console.log("executionInfo :", executionInfo);
+            expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
+            expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
 
-    //     it('increase block time and check votable', async function () {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
-    //         const noticeEndTimestamp = agenda[1];
-    //         await time.increaseTo(Number(noticeEndTimestamp));
+        it('increase block time and check votable', async function () {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const noticeEndTimestamp = agenda[AGENDA_INDEX_NOTICE_END_TIMESTAMP];
+            const noticeEndTimestamp = agenda[1];
+            await time.increaseTo(Number(noticeEndTimestamp));
 
-    //         expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
-    //     });
+            expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
+        });
 
-    //     it("castVote member1", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member1", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 1
+            const vote = 1
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member1Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member1Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member1 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+                agendaID,
+                vote,
+                "member1 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member1Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, newMember1Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes)+1);
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo));
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member1Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, newMember1Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("castVote member3", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);  
-    //         // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
-    //         const beforeCountingYes = agenda[7];
-    //         const beforeCountingNo = agenda[8];
-    //         const beforeCountingAbstain = agenda[9];
+        it("castVote member3", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);  
+            // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
+            const beforeCountingYes = agenda[7];
+            const beforeCountingNo = agenda[8];
+            const beforeCountingAbstain = agenda[9];
             
-    //         const vote = 2
+            const vote = 2
             
-    //         // first cast not setting so check member
-    //         let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
-    //         expect(checkMember).to.be.equal(true)
+            // first cast not setting so check member
+            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            expect(checkMember).to.be.equal(true)
 
-    //         // counting 0:abstainVotes 1:yesVotes 2:noVotes
-    //         await daoCommittee_V1_Contract.connect(member3Contract).castVote(
-    //             agendaID,
-    //             vote,
-    //             "member3 vote"
-    //         )
+            // counting 0:abstainVotes 1:yesVotes 2:noVotes
+            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+                agendaID,
+                vote,
+                "member3 vote"
+            )
 
-    //         const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
-    //         expect(voterInfo2[0]).to.be.equal(true);
-    //         expect(voterInfo2[1]).to.be.equal(true);
-    //         expect(voterInfo2[2]).to.be.equal(vote);
+            const voterInfo2 = await daoagendaManager.voterInfos(agendaID, member3Addr);
+            expect(voterInfo2[0]).to.be.equal(true);
+            expect(voterInfo2[1]).to.be.equal(true);
+            expect(voterInfo2[2]).to.be.equal(vote);
 
-    //         const agenda2 = await daoagendaManager.agendas(agendaID);
-    //         expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
-    //         expect(agenda2[8]).to.be.equal(Number(beforeCountingNo)+1);
-    //         expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
+            const agenda2 = await daoagendaManager.agendas(agendaID);
+            expect(agenda2[7]).to.be.equal(Number(beforeCountingYes));
+            expect(agenda2[8]).to.be.equal(Number(beforeCountingNo)+1);
+            expect(agenda2[9]).to.be.equal(Number(beforeCountingAbstain));
 
-    //         const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
-    //         expect(result[0]).to.be.equal(true);
-    //         expect(result[1]).to.be.equal(vote);
-    //     })
+            const result = await daoagendaManager.getVoteStatus(agendaID, member3Addr);
+            expect(result[0]).to.be.equal(true);
+            expect(result[1]).to.be.equal(vote);
+        })
 
-    //     it("14. Returns (PENDING, VOTING)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(0)
-    //         expect(result.agendaStatus).to.be.equal(2)
-    //     })
+        it("14. Returns (PENDING, VOTING)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(0)
+            expect(result.agendaStatus).to.be.equal(2)
+        })
 
-    //     it("check vote result/status & increase can ExecuteTime", async () => {
-    //         const agenda = await daoagendaManager.agendas(agendaID);
-    //         const votingEndTimestamp = agenda[4];
-    //         const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
-    //         await time.increaseTo(Number(restVotingEndTime));
-    //     });
+        it("check vote result/status & increase can ExecuteTime", async () => {
+            const agenda = await daoagendaManager.agendas(agendaID);
+            const votingEndTimestamp = agenda[4];
+            const restVotingEndTime = Number(votingEndTimestamp) + Number(10)
+            await time.increaseTo(Number(restVotingEndTime));
+        });
 
-    //     it("15. Returns (NO CONSENSUS, ENDED)", async () => {
-    //         let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
-    //         expect(result.agendaResult).to.be.equal(4)
-    //         expect(result.agendaStatus).to.be.equal(5)
-    //     })
+        it("15. Returns (NO CONSENSUS, ENDED)", async () => {
+            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            expect(result.agendaResult).to.be.equal(4)
+            expect(result.agendaStatus).to.be.equal(5)
+        })
 
-    // })
+    })
 
 
 })
