@@ -222,6 +222,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
     let newDAOCommittee_V1Contract
 
+    let memo
+
 
     //changeMember before info
     // [
@@ -881,14 +883,17 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -924,6 +929,13 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("increase Time", async () => {
             await time.increase(10);
         });
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
+        })
 
         it("2. Returns a status called NoticeTime", async () => {
             let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
@@ -1082,14 +1094,17 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore1"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1120,6 +1135,13 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             // console.log("executionInfo :", executionInfo);
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
         })
 
         it('increase block time and check votable', async function () {
@@ -1250,14 +1272,17 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore2"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1288,6 +1313,13 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             // console.log("executionInfo :", executionInfo);
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
+        
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
         })
 
         it('increase block time and check votable', async function () {
@@ -1399,14 +1431,17 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore3"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1437,6 +1472,13 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             // console.log("executionInfo :", executionInfo);
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
         })
 
         it('increase block time and check votable', async function () {

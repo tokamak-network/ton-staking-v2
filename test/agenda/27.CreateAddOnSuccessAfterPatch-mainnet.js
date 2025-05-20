@@ -1199,14 +1199,17 @@ describe("DAO Proxy Change Test", () => {
             targets.push(oldContractInfo.DAOVault);
             functionBytecodes.push(functionBytecode1)
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     targets, 
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
-                    functionBytecodes
+                    functionBytecodes,
+                    memo
                 ]
             )
 
@@ -1255,14 +1258,17 @@ describe("DAO Proxy Change Test", () => {
             functionBytecodes.push(functionBytecode1)
             // console.log("functionBytecode1.length :", functionBytecode1.length);
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     targets, 
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     false,
-                    functionBytecodes
+                    functionBytecodes,
+                    memo
                 ]
             )
 
@@ -1310,14 +1316,17 @@ describe("DAO Proxy Change Test", () => {
             functionBytecodes.push(functionBytecode1)
             // console.log("functionBytecode1.length :", functionBytecode1.length);
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     targets, 
                     noticePeriod.toString(),
                     votingPeriod.toString(),
                     true,
-                    functionBytecodes
+                    functionBytecodes,
+                    memo
                 ]
             )
 
@@ -1346,14 +1355,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1543,14 +1555,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -2221,14 +2236,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            let memo = "test"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     

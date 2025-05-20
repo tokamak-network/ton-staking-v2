@@ -237,6 +237,8 @@ describe("DAO Proxy Change Test", () => {
 
     let cooldownTime = 259200
 
+    let memo
+
 
     //changeMember before info
     // [
@@ -882,7 +884,6 @@ describe("DAO Proxy Change Test", () => {
             expect(await daoagendaManager.isVotableStatus(agendaID)).to.be.equal(true);
         });
 
-
         it("castVote member1", async () => {
             const agenda = await daoagendaManager.agendas(agendaID);  
             // const beforeCountingYes = agenda[AGENDA_INDEX_COUNTING_YES];
@@ -1006,14 +1007,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1049,6 +1053,13 @@ describe("DAO Proxy Change Test", () => {
         it("increase Time", async () => {
             await time.increase(10);
         });
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
+        })
 
         it("2. Returns a status called NoticeTime", async () => {
             let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
@@ -1207,14 +1218,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore1"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1246,6 +1260,14 @@ describe("DAO Proxy Change Test", () => {
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
         })
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
+        })
+
 
         it('increase block time and check votable', async function () {
             const agenda = await daoagendaManager.agendas(agendaID);  
@@ -1375,14 +1397,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore2"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1413,6 +1438,13 @@ describe("DAO Proxy Change Test", () => {
             // console.log("executionInfo :", executionInfo);
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
         })
 
         it('increase block time and check votable', async function () {
@@ -1524,14 +1556,17 @@ describe("DAO Proxy Change Test", () => {
             const data = padLeft(newMinimumNoticePeriod.toString(16), 64);
             const functionBytecode = selector.concat(data);
 
+            memo = "https://snapshot.box/#/explore3"
+
             const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+                ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
                 [
                     [daoagendaManager.address], 
                     noticePeriod.toString(), 
                     votingPeriod.toString(), 
                     true, 
-                    [functionBytecode]
+                    [functionBytecode],
+                    memo
                 ]
             );
     
@@ -1562,6 +1597,13 @@ describe("DAO Proxy Change Test", () => {
             // console.log("executionInfo :", executionInfo);
             expect(executionInfo[0][0]).to.be.equal(daoagendaManager.address);
             expect(executionInfo[1][0]).to.be.equal(functionBytecode);
+        })
+
+        it("check the agenda Memo", async () => {
+            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            // console.log(daoMemo)
+            // console.log(memo)
+            expect(daoMemo).to.be.equal(memo)
         })
 
         it('increase block time and check votable', async function () {
