@@ -54,7 +54,6 @@ contract DAOCommittee_V1 is
         uint128 votingPeriodSeconds;
         bool atomicExecute;
         bytes[] functionBytecode;
-        string memo;
     }
 
     //////////////////////////////
@@ -455,8 +454,7 @@ contract DAOCommittee_V1 is
             agendaData.noticePeriodSeconds,
             agendaData.votingPeriodSeconds,
             agendaData.atomicExecute,
-            agendaData.functionBytecode,
-            agendaData.memo
+            agendaData.functionBytecode
         );
 
         return true;
@@ -519,33 +517,15 @@ contract DAOCommittee_V1 is
     function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
         //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
         //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
-        uint256 numAgendas = agendaManager.numAgendas();
-        if(numAgendas <=  _agendaID){
-            // No Agenda
-            // (NO AGENDA, NO AGENDA)
-            return (5, 6);
-        }
-
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
         uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        
-        if (block.timestamp < noticeEndTime) {
+        if(votingEndTime == 0) {
+            // No Agenda
+            return (5, 6);
+        } else if (block.timestamp < noticeEndTime) {
             //Notice Time
-            //(PENDING, NOTICE)
             return (0, 1);
-        } else if (noticeEndTime <= block.timestamp && votingEndTime == 0) {
-            //NoticeTime은 지났지만 아무도 투표 안했을때
-            //(NO CONSENSUS, VOTING)
-            agendaResult = 4;
-            agendaStatus = 2;
-            return (agendaResult, agendaStatus);
-        } else if (noticeEndTime <= block.timestamp &&  block.timestamp <= votingEndTime) {
-            //NoticeTime이 지나고 누군가 투표 하였고 투표가 종료되지 않았을때
-            (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
-            agendaStatus = 2;
-            return (result, agendaStatus);
-        } else if (votingEndTime < block.timestamp && votingEndTime != 0) {
-            //votingEndTime이 지난뒤 결과
+        } else if (noticeEndTime < block.timestamp) {
             (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             if (quorum <= yes) {
                 // yes
@@ -655,8 +635,8 @@ contract DAOCommittee_V1 is
         pure
         returns (AgendaCreatingData memory data)
     {
-        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode, data.memo) =
-            abi.decode(input, (address[], uint128, uint128, bool, bytes[], string));
+        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode) =
+            abi.decode(input, (address[], uint128, uint128, bool, bytes[]));
     }
 
     /// @notice Convert address to bytes.
@@ -735,7 +715,6 @@ contract DAOCommittee_V1 is
     /// @param _votingPeriodSeconds Voting period of agenda
     /// @param _atomicExecute Single agenda or multi-agenda
     /// @param _functionBytecodes Functions to execute via agenda
-    /// @param _memo This is a memo field and was added for snapshot linking.
     /// @return agendaID
     function _createAgenda(
         address _creator,
@@ -743,8 +722,7 @@ contract DAOCommittee_V1 is
         uint128 _noticePeriodSeconds,
         uint128 _votingPeriodSeconds,
         bool _atomicExecute,
-        bytes[] memory _functionBytecodes,
-        string memory _memo
+        bytes[] memory _functionBytecodes
     )
         internal
         validAgendaManager
@@ -760,8 +738,6 @@ contract DAOCommittee_V1 is
             _atomicExecute,
             _functionBytecodes
         );
-
-        agendaMemo[agendaID] = _memo;
 
         emit AgendaCreated(
             _creator,

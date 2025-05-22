@@ -31,6 +31,4 @@ contract StorageStateCommitteeV2 {
     mapping(address => uint256) public cooldown;
 
     uint256 public cooldownTime;
-
-    mapping(uint256 => string) public agendaMemo;
 }
