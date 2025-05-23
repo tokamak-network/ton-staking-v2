@@ -171,10 +171,11 @@ async function view() {
     console.log("l2RewardPerUint", await seigManager.l2RewardPerUint())
     console.log("totalLayer2TVL", await seigManager.totalLayer2TVL())
 
+    let poseidon_RollupConfig = "0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9"
 
-    console.log("\n======= Layer2Manager.rollupConfigInfo (ThanosSepoliaV2_RollupConfig) ============")
+    console.log("\n======= Layer2Manager.rollupConfigInfo (poseidon_RollupConfig) ============")
     const Layer2Manager = new ethers.Contract(Layer2ManagerProxy,  Layer2ManagerV1_1_Json.abi, deployer)
-    let info = await Layer2Manager.rollupConfigInfo(ThanosSepoliaV2_RollupConfig)
+    let info = await Layer2Manager.rollupConfigInfo(poseidon_RollupConfig)
     console.log("info", info)
 }
 
