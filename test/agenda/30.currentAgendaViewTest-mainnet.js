@@ -29,6 +29,7 @@ const WtonABI = require("../../abi/WTON.json").abi;
 const DAOCommitteeExtendABI = require("../../abi/DAOCommitteeExtend.json").abi;
 const DAOCommitteeOwnerABI = require("../../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
 const DAOCommittee_V1ABI = require("../../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
+const DAOCommittee_V2ABI = require("../../artifacts/contracts/dao/DAOCommittee_V2.sol/DAOCommittee_V2.json").abi;
 const DAOCommitteeProxyABI = require("../../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const SeigManagerProxyABI = require("../../artifacts/contracts/stake/managers/SeigManagerProxy.sol/SeigManagerProxy.json").abi;
@@ -175,6 +176,7 @@ describe("DAO Proxy Change Test", () => {
     let daoCommitteeLogic;
 
     let daoCommittee_V1_Contract;
+    let daoCommittee_V2_Contract;
     let daoCommittee_Owner_Contract;
 
     let daoCommitteeProxy2;
@@ -238,6 +240,8 @@ describe("DAO Proxy Change Test", () => {
     let cooldownTime = 259200
 
     let memo
+
+    let newDAOCommittee_V2Contract
 
 
     //changeMember before info
@@ -830,20 +834,62 @@ describe("DAO Proxy Change Test", () => {
 
     describe("Deploy And UpgradeTo2 newDAOLogic", () => {
         it("Deploy the DAOCommittee_V1", async () => {
-            const newDAOCommitteeV1_1ImpContract = await ethers.getContractFactory("DAOCommittee_V1")
-            newDAOCommittee_V1Contract = await newDAOCommitteeV1_1ImpContract.deploy();
+            const newDAOCommitteeV2_ImpContract = await ethers.getContractFactory("DAOCommittee_V2")
+            newDAOCommittee_V2Contract = await newDAOCommitteeV2_ImpContract.deploy();
         })
 
-        it("upgradeTo2 Agenda", async () => {
+        it("setImplementation2 & setSelectorImplementations2 Agenda", async () => {
             let targets = []
             let params = []
             let callDtata
 
             // =========================================
-            //  1. set DAOCommitteeProxy upgradeTo2 to DAOCommittee_V1
+            // 1. setImplementation2 2, true, newDAOCommittee_V2Contract
             targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [newDAOCommittee_V1Contract.address])
+            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [newDAOCommittee_V2Contract.address, 2, true])
             params.push(callDtata)
+
+            // =========================================
+            // 2. setSelectorImplementations2  newDAOCommittee_V2Contract
+            const _setonApprove = Web3EthAbi.encodeFunctionSignature({
+                name: 'onApprove',
+                type: 'function',
+                inputs: [
+                    {
+                        type: 'address',
+                        name: 'owner'
+                    },
+                    {
+                        type: 'address',
+                        name: ''
+                    },
+                    {
+                        type: 'uint256',
+                        name: ''
+                    },
+                    {
+                        type: 'bytes',
+                        name: 'data'
+                    }
+                ]
+            })
+
+            const _setcurrentAgendaStatus = Web3EthAbi.encodeFunctionSignature("currentAgendaStatus(uint256)")
+            const _setAgendaMemo = Web3EthAbi.encodeFunctionSignature("agendaMemo(uint256)")
+
+            const functions = [
+                _setonApprove, _setcurrentAgendaStatus, _setAgendaMemo
+            ]
+
+            targets.push(daoCommitteeProxy.address)
+            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+                "setSelectorImplementations2", [
+                    functions,
+                    newDAOCommittee_V2Contract.address
+                 ])
+            params.push(callDtata)
+
+
 
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -980,11 +1026,19 @@ describe("DAO Proxy Change Test", () => {
             expect(afterAgenda[13]).to.be.equal(true);
             expect(afterAgenda[6]).to.be.gt(0); 
         })
+        
 
+        it("Ensure the agenda is properly executed proxyImplementation(2) = DAOCommittee_V2", async () => {
+            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(2)
+            expect(implementation).to.be.equal(newDAOCommittee_V2Contract.address)
+        })
 
-        it("Ensure the agenda is properly executed proxyImplementation(0) = DAOCommittee_V1", async () => {
-            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
-            expect(implementation).to.be.equal(newDAOCommittee_V1Contract.address)
+        it("set DAO NewLogic2", async () => {
+            daoCommittee_V2_Contract = new ethers.Contract(
+                daoCommitteeProxy.address,
+                DAOCommittee_V2ABI,
+                daoCommitteeAdmin
+            )
         })
     })
 
@@ -992,7 +1046,7 @@ describe("DAO Proxy Change Test", () => {
         it("1. Return for an Agenda that has not been created", async () => {
             agendaID = await daoagendaManager.numAgendas()
 
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(5)
             expect(result.agendaStatus).to.be.equal(6)
         })
@@ -1055,14 +1109,14 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("check the agenda Memo", async () => {
-            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            let daoMemo = await daoCommittee_V2_Contract.agendaMemo(agendaID)
             // console.log(daoMemo)
             // console.log(memo)
             expect(daoMemo).to.be.equal(memo)
         })
 
         it("2. Returns a status called NoticeTime", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(0)
             expect(result.agendaStatus).to.be.equal(1)
         })
@@ -1085,7 +1139,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("3. Returns (NO CONSENSUS, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(4)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1126,7 +1180,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("4. Returns (pending, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(0)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1167,7 +1221,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("5. Returns (ACCEPT, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(1)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1185,7 +1239,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("6. Returns (ACCEPT, WAITING_EXEC)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(1)
             expect(result.agendaStatus).to.be.equal(3)
         })
@@ -1203,7 +1257,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("7. Returns (ACCEPT, EXECUTED)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(1)
             expect(result.agendaStatus).to.be.equal(4)
         })
@@ -1262,7 +1316,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("check the agenda Memo", async () => {
-            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            let daoMemo = await daoCommittee_V2_Contract.agendaMemo(agendaID)
             // console.log(daoMemo)
             // console.log(memo)
             expect(daoMemo).to.be.equal(memo)
@@ -1287,7 +1341,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("8. Returns (NO CONSENSUS, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(4)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1328,7 +1382,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("9. Returns (pending, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(0)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1369,7 +1423,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("10. Returns (DISMISS, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(3)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1382,7 +1436,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("11. Returns (DISMISS, ENDED)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(3)
             expect(result.agendaStatus).to.be.equal(5)
         })
@@ -1441,7 +1495,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("check the agenda Memo", async () => {
-            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            let daoMemo = await daoCommittee_V2_Contract.agendaMemo(agendaID)
             // console.log(daoMemo)
             // console.log(memo)
             expect(daoMemo).to.be.equal(memo)
@@ -1527,7 +1581,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("12. Returns (REJECT, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(2)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1540,7 +1594,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("13. Returns (REJECT, ENDED)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(2)
             expect(result.agendaStatus).to.be.equal(5)
         })
@@ -1600,7 +1654,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("check the agenda Memo", async () => {
-            let daoMemo = await daoCommittee_V1_Contract.agendaMemo(agendaID)
+            let daoMemo = await daoCommittee_V2_Contract.agendaMemo(agendaID)
             // console.log(daoMemo)
             // console.log(memo)
             expect(daoMemo).to.be.equal(memo)
@@ -1686,7 +1740,7 @@ describe("DAO Proxy Change Test", () => {
         })
 
         it("14. Returns (PENDING, VOTING)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(0)
             expect(result.agendaStatus).to.be.equal(2)
         })
@@ -1699,7 +1753,7 @@ describe("DAO Proxy Change Test", () => {
         });
 
         it("15. Returns (NO CONSENSUS, ENDED)", async () => {
-            let result = await daoCommittee_V1_Contract.currentAgendaStatus(agendaID)
+            let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.agendaResult).to.be.equal(4)
             expect(result.agendaStatus).to.be.equal(5)
         })
