@@ -46,7 +46,7 @@ const SeigManagerProxy_Json = require('../../abi/DepositManagerProxy.json')
 const MultiSigwallet_Json = require('../abi/MultiSigWallet.json')
 
 
-describe("DAO Proxy Change Test", () => {
+describe("currentAgendaStatus Test on Mainnet", () => {
 
     let execute = true
 
@@ -832,8 +832,8 @@ describe("DAO Proxy Change Test", () => {
         })
     })
 
-    describe("Deploy And UpgradeTo2 newDAOLogic", () => {
-        it("Deploy the DAOCommittee_V1", async () => {
+    describe("Deploy And CreateAgenda newDAOLogic", () => {
+        it("Deploy the DAOCommittee_V2", async () => {
             const newDAOCommitteeV2_ImpContract = await ethers.getContractFactory("DAOCommittee_V2")
             newDAOCommittee_V2Contract = await newDAOCommitteeV2_ImpContract.deploy();
         })
