@@ -39,6 +39,9 @@ contract DAOCommittee_V2 is
     bytes private constant claimERC20Bytes = hex"f848091a";
     bytes private constant claimWTONBytes = hex"f52bba70";
 
+    enum CurrentAgendaResult { PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA }
+    enum CurrentAgendaStatus { NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA}
+
     struct AgendaCreatingData {
         address[] target;
         uint128 noticePeriodSeconds;
@@ -115,9 +118,7 @@ contract DAOCommittee_V2 is
     /// @param _agendaID Owner who created the function.
     /// @return agendaResult
     /// @return agendaStatus
-    function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 agendaResult, uint256 agendaStatus) {
-        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
-        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
+    function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 currentResult, uint256 cureentStatus) {
         uint256 numAgendas = agendaManager.numAgendas();
         if(numAgendas <=  _agendaID){
             // No Agenda
@@ -133,44 +134,44 @@ contract DAOCommittee_V2 is
             //(PENDING, NOTICE)
             return (0, 1);
         } else if (noticeEndTime <= block.timestamp && votingEndTime == 0) {
-            //NoticeTime은 지났지만 아무도 투표 안했을때
+            //When the NoticeTime has passed but no one has voted
             //(NO CONSENSUS, VOTING)
-            agendaResult = 4;
-            agendaStatus = 2;
-            return (agendaResult, agendaStatus);
+            currentResult = 4;
+            cureentStatus = 2;
+            return (currentResult, cureentStatus);
         } else if (noticeEndTime <= block.timestamp &&  block.timestamp <= votingEndTime) {
-            //NoticeTime이 지나고 누군가 투표 하였고 투표가 종료되지 않았을때
+            //When the NoticeTime has passed and someone has voted, but voting has not ended
             (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
-            agendaStatus = 2;
-            return (result, agendaStatus);
+            cureentStatus = 2;
+            return (result, cureentStatus);
         } else if (votingEndTime < block.timestamp && votingEndTime != 0) {
-            //votingEndTime이 지난뒤 결과
+            //Results after votingEndTime has passed
             (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             if (quorum <= yes) {
                 // yes
                 (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
-                agendaResult = result;
+                currentResult = result;
                 if (executed) {
-                    agendaStatus = 4;
+                    cureentStatus = 4;
                 } else {
-                    agendaStatus = 3;
+                    cureentStatus = 3;
                 }
-                return (agendaResult, agendaStatus);
+                return (currentResult, cureentStatus);
             } else if (quorum <= no) {
                 // no (REJECT, ENDED)
-                agendaResult = 2;
-                agendaStatus = 5;
-                return (agendaResult, agendaStatus);
+                currentResult = 2;
+                cureentStatus = 5;
+                return (currentResult, cureentStatus);
             } else if (quorum <= abstain) {
                 // (DISMISS, ENDED)
-                agendaResult = 3;
-                agendaStatus = 5;
-                return (agendaResult, agendaStatus);
+                currentResult = 3;
+                cureentStatus = 5;
+                return (currentResult, cureentStatus);
             } else {
                 // (NO CONSENSUS, ENDED)
-                agendaResult = 4;
-                agendaStatus = 5;
-                return (agendaResult, agendaStatus);
+                currentResult = 4;
+                cureentStatus = 5;
+                return (currentResult, cureentStatus);
             }
         }
 
