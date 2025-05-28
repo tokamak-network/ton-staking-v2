@@ -116,8 +116,8 @@ contract DAOCommittee_V2 is
 
      /// @notice Returns the current status and results for agendaID.
     /// @param _agendaID Owner who created the function.
-    /// @return agendaResult
-    /// @return agendaStatus
+    /// @return currentResult Current value of AgendaResult
+    /// @return cureentStatus Current value of AgendaStatus
     function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 currentResult, uint256 cureentStatus) {
         uint256 numAgendas = agendaManager.numAgendas();
         if(numAgendas <=  _agendaID){

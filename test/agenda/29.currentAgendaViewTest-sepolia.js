@@ -921,8 +921,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             agendaID = await daoagendaManager.numAgendas()
 
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(5)
-            expect(result.agendaStatus).to.be.equal(6)
+            expect(result.currentResult).to.be.equal(5)
+            expect(result.cureentStatus).to.be.equal(6)
         })
 
         it("Create new Agenda", async () => {
@@ -991,8 +991,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("2. Returns a status called NoticeTime", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(0)
-            expect(result.agendaStatus).to.be.equal(1)
+            expect(result.currentResult).to.be.equal(0)
+            expect(result.cureentStatus).to.be.equal(1)
         })
 
         it('increase block time and check votable', async function () {
@@ -1014,8 +1014,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("3. Returns (NO CONSENSUS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(4)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(4)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("castVote member1", async () => {
@@ -1055,8 +1055,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("4. Returns (pending, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(0)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(0)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("castVote member3", async () => {
@@ -1096,8 +1096,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("5. Returns (ACCEPT, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(1)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(1)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1114,8 +1114,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("6. Returns (ACCEPT, WAITING_EXEC)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(1)
-            expect(result.agendaStatus).to.be.equal(3)
+            expect(result.currentResult).to.be.equal(1)
+            expect(result.cureentStatus).to.be.equal(3)
         })
 
 
@@ -1132,8 +1132,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("7. Returns (ACCEPT, EXECUTED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(1)
-            expect(result.agendaStatus).to.be.equal(4)
+            expect(result.currentResult).to.be.equal(1)
+            expect(result.cureentStatus).to.be.equal(4)
         })
 
         it("Create new Agenda", async () => {
@@ -1215,8 +1215,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("8. Returns (NO CONSENSUS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(4)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(4)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("castVote member1", async () => {
@@ -1256,8 +1256,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("9. Returns (pending, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(0)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(0)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("castVote member3", async () => {
@@ -1297,8 +1297,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("10. Returns (DISMISS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(3)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(3)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1310,8 +1310,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("11. Returns (DISMISS, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(3)
-            expect(result.agendaStatus).to.be.equal(5)
+            expect(result.currentResult).to.be.equal(3)
+            expect(result.cureentStatus).to.be.equal(5)
         })
 
         it("Create new Agenda", async () => {
@@ -1455,8 +1455,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("12. Returns (REJECT, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(2)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(2)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1468,8 +1468,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("13. Returns (REJECT, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(2)
-            expect(result.agendaStatus).to.be.equal(5)
+            expect(result.currentResult).to.be.equal(2)
+            expect(result.cureentStatus).to.be.equal(5)
         })
 
 
@@ -1614,8 +1614,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("14. Returns (PENDING, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(0)
-            expect(result.agendaStatus).to.be.equal(2)
+            expect(result.currentResult).to.be.equal(0)
+            expect(result.cureentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1627,8 +1627,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
         it("15. Returns (NO CONSENSUS, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
-            expect(result.agendaResult).to.be.equal(4)
-            expect(result.agendaStatus).to.be.equal(5)
+            expect(result.currentResult).to.be.equal(4)
+            expect(result.cureentStatus).to.be.equal(5)
         })
 
     })
