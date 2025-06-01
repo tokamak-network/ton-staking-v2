@@ -901,4 +901,8 @@ contract DAOCommittee_V2 is
         }
     }
 
+    function version() public pure virtual returns (string memory) {
+        return "2.0.0";
+    }
+
 }
