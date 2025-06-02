@@ -838,58 +838,99 @@ describe("currentAgendaStatus Test on Mainnet", () => {
             newDAOCommittee_V2Contract = await newDAOCommitteeV2_ImpContract.deploy();
         })
 
-        it("setImplementation2 & setSelectorImplementations2 Agenda", async () => {
+        // it("setImplementation2 & setSelectorImplementations2 Agenda", async () => {
+        //     let targets = []
+        //     let params = []
+        //     let callDtata
+
+        //     // =========================================
+        //     // 1. setImplementation2 2, true, newDAOCommittee_V2Contract
+        //     targets.push(daoCommitteeProxy.address)
+        //     callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [newDAOCommittee_V2Contract.address, 2, true])
+        //     params.push(callDtata)
+
+        //     // =========================================
+        //     // 2. setSelectorImplementations2  newDAOCommittee_V2Contract
+        //     const _setonApprove = Web3EthAbi.encodeFunctionSignature({
+        //         name: 'onApprove',
+        //         type: 'function',
+        //         inputs: [
+        //             {
+        //                 type: 'address',
+        //                 name: 'owner'
+        //             },
+        //             {
+        //                 type: 'address',
+        //                 name: ''
+        //             },
+        //             {
+        //                 type: 'uint256',
+        //                 name: ''
+        //             },
+        //             {
+        //                 type: 'bytes',
+        //                 name: 'data'
+        //             }
+        //         ]
+        //     })
+
+        //     const _setcurrentAgendaStatus = Web3EthAbi.encodeFunctionSignature("currentAgendaStatus(uint256)")
+        //     const _setAgendaMemo = Web3EthAbi.encodeFunctionSignature("agendaMemo(uint256)")
+
+        //     const functions = [
+        //         _setonApprove, _setcurrentAgendaStatus, _setAgendaMemo
+        //     ]
+
+        //     targets.push(daoCommitteeProxy.address)
+        //     callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+        //         "setSelectorImplementations2", [
+        //             functions,
+        //             newDAOCommittee_V2Contract.address
+        //          ])
+        //     params.push(callDtata)
+
+
+
+        //     const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+        //     const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        //     const agendaFee = await daoagendaManager.createAgendaFees();
+        //     const param = Web3EthAbi.encodeParameters(
+        //         ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+        //         [
+        //             targets,
+        //             noticePeriod.toString(),
+        //             votingPeriod.toString(),
+        //             true,
+        //             params
+        //         ]
+        //     )
+
+        //     await (await ton.connect(daoCommitteeAdmin).transfer(
+        //         user1.address,
+        //         agendaFee
+        //     )).wait()
+
+        //      // =========================================
+        //     // Propose an agenda
+        //     let receipt = await (await ton.connect(user1).approveAndCall(
+        //         daoCommitteeProxy.address,
+        //         agendaFee,
+        //         param
+        //     )).wait()
+
+        //     agendaID = (await daoagendaManager.numAgendas()).sub(1);
+        // })
+
+        it("upgradeTo2 Agenda", async () => {
             let targets = []
             let params = []
             let callDtata
 
             // =========================================
-            // 1. setImplementation2 2, true, newDAOCommittee_V2Contract
+            // 1. upgradeTo2 -> newDAOCommittee_V2Contract
             targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [newDAOCommittee_V2Contract.address, 2, true])
+            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [newDAOCommittee_V2Contract.address])
             params.push(callDtata)
-
-            // =========================================
-            // 2. setSelectorImplementations2  newDAOCommittee_V2Contract
-            const _setonApprove = Web3EthAbi.encodeFunctionSignature({
-                name: 'onApprove',
-                type: 'function',
-                inputs: [
-                    {
-                        type: 'address',
-                        name: 'owner'
-                    },
-                    {
-                        type: 'address',
-                        name: ''
-                    },
-                    {
-                        type: 'uint256',
-                        name: ''
-                    },
-                    {
-                        type: 'bytes',
-                        name: 'data'
-                    }
-                ]
-            })
-
-            const _setcurrentAgendaStatus = Web3EthAbi.encodeFunctionSignature("currentAgendaStatus(uint256)")
-            const _setAgendaMemo = Web3EthAbi.encodeFunctionSignature("agendaMemo(uint256)")
-
-            const functions = [
-                _setonApprove, _setcurrentAgendaStatus, _setAgendaMemo
-            ]
-
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-                "setSelectorImplementations2", [
-                    functions,
-                    newDAOCommittee_V2Contract.address
-                 ])
-            params.push(callDtata)
-
-
 
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
             const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
@@ -1028,8 +1069,8 @@ describe("currentAgendaStatus Test on Mainnet", () => {
         })
         
 
-        it("Ensure the agenda is properly executed proxyImplementation(2) = DAOCommittee_V2", async () => {
-            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(2)
+        it("Ensure the agenda is properly executed proxyImplementation(0) = DAOCommittee_V2", async () => {
+            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
             expect(implementation).to.be.equal(newDAOCommittee_V2Contract.address)
         })
 
