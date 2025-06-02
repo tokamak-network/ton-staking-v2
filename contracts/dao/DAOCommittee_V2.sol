@@ -581,6 +581,30 @@ contract DAOCommittee_V2 is
 
     }
 
+    /// @notice Execute the accepted agenda
+    /// @param _agendaID Agenda ID
+    function executeAgenda(uint256 _agendaID) external validAgendaManager {
+        require(
+            agendaManager.canExecuteAgenda(_agendaID),
+            "DAOCommittee: can not execute the agenda"
+        );
+
+         (address[] memory target,
+             bytes[] memory functionBytecode,
+             bool atomicExecute,
+         ) = agendaManager.getExecutionInfo(_agendaID);
+
+        if (atomicExecute) {
+            agendaManager.setExecutedAgenda(_agendaID);
+            for (uint256 i = 0; i < target.length; i++) {
+                (bool success, ) = address(target[i]).call(functionBytecode[i]);
+                require(success, "DAOCommittee: Failed to execute the agenda");
+            }
+        }
+
+        emit AgendaExecuted(_agendaID, target);
+    }
+
     /// @notice Set status and result of specific agenda
     /// @param _agendaID Agenda ID
     /// @param _status New status
