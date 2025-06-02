@@ -713,55 +713,96 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             newDAOCommittee_V2Contract = await newDAOCommitteeV2_ImpContract.deploy();
         })
 
-        it("setImplementation2 & setSelectorImplementations2 Agenda", async () => {
+        // it("setImplementation2 & setSelectorImplementations2 Agenda", async () => {
+        //     let targets = []
+        //     let params = []
+        //     let callDtata
+
+        //     // =========================================
+        //     // 1. setImplementation2 2, true, newDAOCommittee_V2Contract
+        //     targets.push(daoCommitteeProxy.address)
+        //     callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [newDAOCommittee_V2Contract.address, 2, true])
+        //     params.push(callDtata)
+
+        //     // =========================================
+        //     // 2. setSelectorImplementations2  newDAOCommittee_V2Contract
+        //     const _setonApprove = Web3EthAbi.encodeFunctionSignature({
+        //         name: 'onApprove',
+        //         type: 'function',
+        //         inputs: [
+        //             {
+        //                 type: 'address',
+        //                 name: 'owner'
+        //             },
+        //             {
+        //                 type: 'address',
+        //                 name: ''
+        //             },
+        //             {
+        //                 type: 'uint256',
+        //                 name: ''
+        //             },
+        //             {
+        //                 type: 'bytes',
+        //                 name: 'data'
+        //             }
+        //         ]
+        //     })
+
+        //     const _setcurrentAgendaStatus = Web3EthAbi.encodeFunctionSignature("currentAgendaStatus(uint256)")
+        //     const _setAgendaMemo = Web3EthAbi.encodeFunctionSignature("agendaMemo(uint256)")
+
+        //     const functions = [
+        //         _setonApprove, _setcurrentAgendaStatus, _setAgendaMemo
+        //     ]
+
+        //     targets.push(daoCommitteeProxy.address)
+        //     callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
+        //         "setSelectorImplementations2", [
+        //             functions,
+        //             newDAOCommittee_V2Contract.address
+        //          ])
+        //     params.push(callDtata)
+
+        //     const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
+        //     const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
+        //     const agendaFee = await daoagendaManager.createAgendaFees();
+        //     const param = Web3EthAbi.encodeParameters(
+        //         ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+        //         [
+        //             targets,
+        //             noticePeriod.toString(),
+        //             votingPeriod.toString(),
+        //             true,
+        //             params
+        //         ]
+        //     )
+
+        //     await (await ton.connect(daoCommitteeAdmin).transfer(
+        //         user1.address,
+        //         agendaFee
+        //     )).wait()
+
+        //      // =========================================
+        //     // Propose an agenda
+        //     let receipt = await (await ton.connect(user1).approveAndCall(
+        //         daoCommitteeProxy.address,
+        //         agendaFee,
+        //         param
+        //     )).wait()
+
+        //     agendaID = (await daoagendaManager.numAgendas()).sub(1);
+        // })
+
+        it("upgradeTo2 Agenda", async () => {
             let targets = []
             let params = []
             let callDtata
 
             // =========================================
-            // 1. setImplementation2 2, true, newDAOCommittee_V2Contract
+            // 1. upgradeTo2 -> newDAOCommittee_V2Contract
             targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("setImplementation2", [newDAOCommittee_V2Contract.address, 2, true])
-            params.push(callDtata)
-
-            // =========================================
-            // 2. setSelectorImplementations2  newDAOCommittee_V2Contract
-            const _setonApprove = Web3EthAbi.encodeFunctionSignature({
-                name: 'onApprove',
-                type: 'function',
-                inputs: [
-                    {
-                        type: 'address',
-                        name: 'owner'
-                    },
-                    {
-                        type: 'address',
-                        name: ''
-                    },
-                    {
-                        type: 'uint256',
-                        name: ''
-                    },
-                    {
-                        type: 'bytes',
-                        name: 'data'
-                    }
-                ]
-            })
-
-            const _setcurrentAgendaStatus = Web3EthAbi.encodeFunctionSignature("currentAgendaStatus(uint256)")
-            const _setAgendaMemo = Web3EthAbi.encodeFunctionSignature("agendaMemo(uint256)")
-
-            const functions = [
-                _setonApprove, _setcurrentAgendaStatus, _setAgendaMemo
-            ]
-
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData(
-                "setSelectorImplementations2", [
-                    functions,
-                    newDAOCommittee_V2Contract.address
-                 ])
+            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [newDAOCommittee_V2Contract.address])
             params.push(callDtata)
 
             const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
@@ -902,8 +943,8 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         })
 
 
-        it("Ensure the agenda is properly executed proxyImplementation(2) = DAOCommittee_V2", async () => {
-            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(2)
+        it("Ensure the agenda is properly executed proxyImplementation(0) = DAOCommittee_V2", async () => {
+            let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
             expect(implementation).to.be.equal(newDAOCommittee_V2Contract.address)
         })
 
@@ -922,7 +963,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
 
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(5)
-            expect(result.cureentStatus).to.be.equal(6)
+            expect(result.currentStatus).to.be.equal(6)
         })
 
         it("Create new Agenda", async () => {
@@ -992,7 +1033,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("2. Returns a status called NoticeTime", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(0)
-            expect(result.cureentStatus).to.be.equal(1)
+            expect(result.currentStatus).to.be.equal(1)
         })
 
         it('increase block time and check votable', async function () {
@@ -1015,7 +1056,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("3. Returns (NO CONSENSUS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(4)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("castVote member1", async () => {
@@ -1056,7 +1097,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("4. Returns (pending, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(0)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("castVote member3", async () => {
@@ -1097,7 +1138,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("5. Returns (ACCEPT, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(1)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1115,7 +1156,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("6. Returns (ACCEPT, WAITING_EXEC)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(1)
-            expect(result.cureentStatus).to.be.equal(3)
+            expect(result.currentStatus).to.be.equal(3)
         })
 
 
@@ -1123,7 +1164,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
             const agenda = await daoagendaManager.agendas(agendaID);
             expect(agenda[6]).to.be.equal(0);
 
-            await daoCommittee_V1_Contract.executeAgenda(agendaID);
+            await daoCommittee_V2_Contract.executeAgenda(agendaID);
 
             const afterAgenda = await daoagendaManager.agendas(agendaID); 
             expect(afterAgenda[13]).to.be.equal(true);
@@ -1133,7 +1174,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("7. Returns (ACCEPT, EXECUTED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(1)
-            expect(result.cureentStatus).to.be.equal(4)
+            expect(result.currentStatus).to.be.equal(4)
         })
 
         it("Create new Agenda", async () => {
@@ -1216,7 +1257,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("8. Returns (NO CONSENSUS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(4)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("castVote member1", async () => {
@@ -1257,7 +1298,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("9. Returns (pending, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(0)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("castVote member3", async () => {
@@ -1298,7 +1339,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("10. Returns (DISMISS, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(3)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1311,7 +1352,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("11. Returns (DISMISS, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(3)
-            expect(result.cureentStatus).to.be.equal(5)
+            expect(result.currentStatus).to.be.equal(5)
         })
 
         it("Create new Agenda", async () => {
@@ -1456,7 +1497,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("12. Returns (REJECT, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(2)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1469,7 +1510,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("13. Returns (REJECT, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(2)
-            expect(result.cureentStatus).to.be.equal(5)
+            expect(result.currentStatus).to.be.equal(5)
         })
 
 
@@ -1615,7 +1656,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("14. Returns (PENDING, VOTING)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(0)
-            expect(result.cureentStatus).to.be.equal(2)
+            expect(result.currentStatus).to.be.equal(2)
         })
 
         it("check vote result/status & increase can ExecuteTime", async () => {
@@ -1628,7 +1669,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
         it("15. Returns (NO CONSENSUS, ENDED)", async () => {
             let result = await daoCommittee_V2_Contract.currentAgendaStatus(agendaID)
             expect(result.currentResult).to.be.equal(4)
-            expect(result.cureentStatus).to.be.equal(5)
+            expect(result.currentStatus).to.be.equal(5)
         })
 
     })
