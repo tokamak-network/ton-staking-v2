@@ -15,6 +15,7 @@ const DAOAgendaManager_Json = require('../../abi/DAOAgendaManager.json')
 const Ton_Json = require('../../abi/TON.json')
 
 const DAOCommittee_V1_Json = require('../../test/abi/DAOCommittee_V1.json')
+const DAOProxy2_Json = require("../../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json")
 
 const {encodeFunctionSignature, encodeParameters} = require('web3-eth-abi')
 
@@ -135,6 +136,85 @@ async function proposeAgenda_registerRollupConfigByManager() {
     // expect(executionInfo[1][0]).to.be.equal(param);
 }
 
+async function proposeAgenda_upgradeTo2() {
+    console.log('\n==== proposeAgenda_upgradeTo2 ===== ')
+    const accounts = await ethers.getSigners()
+    let deployer = accounts[0]
+    let deployerAddress = await deployer.getAddress()
+
+    console.log('proposer ', deployerAddress)
+
+    const daoAgendaManagerContract = new ethers.Contract(DAOAgendaManager,  DAOAgendaManager_Json.abi, deployer)
+    const tonContract = new ethers.Contract(TON, Ton_Json.abi,  deployer)
+
+    const daoProxy2Contract = new ethers.Contract(
+        DAOCommitteeProxy,
+        DAOProxy2_Json.abi,
+        deployer
+    )
+
+
+    ///--- Agenda ---------------------------------
+    let targets = []
+    let params = []
+    let callDtata
+
+    let newDAOLogic = "0xF955b73431ba9B411E41A13Bf29787BCD087FA6E"
+
+
+    // =========================================
+    // targets.push(L1BridgeRegistryProxy)
+    // callDtata = l1BridgeRegistry.interface.encodeFunctionData(
+    //     "registerRollupConfigByManager(address,uint8,address,string)", [
+    //         theol0425_rollup_config,
+    //         2,
+    //         l2TON,
+    //         theol0425_name
+    //     ])
+    // params.push(callDtata)
+
+    // =========================================
+
+    targets.push(DAOCommitteeProxy)
+    callDtata = daoProxy2Contract.interface.encodeFunctionData("upgradeTo2", [newDAOLogic])
+    params.push(callDtata)
+
+
+    // =========================================
+    // . make an agenda
+    const noticePeriod = await daoAgendaManagerContract.minimumNoticePeriodSeconds();
+    const votingPeriod = await daoAgendaManagerContract.minimumVotingPeriodSeconds();
+    const agendaFee = await daoAgendaManagerContract.createAgendaFees();
+
+    const param = encodeParameters(
+        ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+        [
+            targets,
+            noticePeriod.toString(),
+            votingPeriod.toString(),
+            true,
+            params
+        ]
+    )
+
+    // =========================================
+    // Propose an agenda
+    let receipt = await (await tonContract.connect(deployer).approveAndCall(
+        DAOCommitteeProxy,
+        agendaFee,
+        param
+    )).wait()
+
+    console.log('receipt ', receipt)
+    agendaId = (await daoAgendaManagerContract.numAgendas()).sub(1);
+    console.log('agendaId',agendaId)
+
+    const executionInfo = await daoAgendaManagerContract.getExecutionInfo(agendaId);
+    console.log("executionInfo :", executionInfo);
+    // expect(executionInfo[0][0]).to.be.equal(DAOCommitteeProxy);
+    // expect(executionInfo[1][0]).to.be.equal(param);
+}
+
 
 async function view() {
 
@@ -198,7 +278,9 @@ async function view_theol0425() {
 
 
 const main = async () => {
-    await proposeAgenda_registerRollupConfigByManager()
+    // await proposeAgenda_registerRollupConfigByManager()
+
+    await proposeAgenda_upgradeTo2()
 
     // await view()
 
