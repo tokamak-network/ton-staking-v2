@@ -22,6 +22,8 @@ import "./StorageStateCommitteeV3.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -517,68 +519,58 @@ contract DAOCommittee_V2 is
     }
 
     /// @notice Returns the current status and results for agendaID.
-    /// @param _agendaID Owner who created the function.
-    /// @return currentResult Current value of AgendaResult
-    /// @return currentStatus Current value of AgendaStatus
-    function currentAgendaStatus(uint256 _agendaID) external view returns (uint256 currentResult, uint256 currentStatus) {
-        //Result -> 0: pending, 1: ACCEPT, 2: REJECT, 3: DISMISS, 4: NO CONSENSUS, 5: NO AGENDA
-        //Status -> 0: NONE, 1: NOTICE, 2: VOTING, 3: WAITING_EXEC, 4: EXECUTED, 5: ENDED, 6: NO AGENDA
+    /// @param _agendaID The ID of the agenda to check.
+    /// @return currentResult Current agenda result (PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA)
+    /// @return currentStatus Current agenda status (NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA)
+    function currentAgendaStatus(uint256 _agendaID) external view returns (CurrentResult currentResult, CurrentStatus currentStatus) {
         uint256 numAgendas = agendaManager.numAgendas();
         if(numAgendas <=  _agendaID){
             // No Agenda
             // (NO AGENDA, NO AGENDA)
-            return (5, 6);
+            return (CurrentResult.NO_AGENDA, CurrentStatus.NO_AGENDA);
         }
 
         uint256 noticeEndTime = agendaManager.getAgendaNoticeEndTimeSeconds(_agendaID);
-        uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
-        
         if (block.timestamp < noticeEndTime) {
             //Notice Time
             //(PENDING, NOTICE)
-            return (0, 1);
-        } else if (noticeEndTime <= block.timestamp && votingEndTime == 0) {
-            //NoticeTime은 지났지만 아무도 투표 안했을때
-            //(NO CONSENSUS, VOTING)
-            currentResult = 4;
-            currentStatus = 2;
-            return (currentResult, currentStatus);
-        } else if (noticeEndTime <= block.timestamp &&  block.timestamp <= votingEndTime) {
-            //NoticeTime이 지나고 누군가 투표 하였고 투표가 종료되지 않았을때
-            (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
-            currentStatus = 2;
-            return (result, currentStatus);
-        } else if (votingEndTime < block.timestamp && votingEndTime != 0) {
-            //votingEndTime이 지난뒤 결과
-            (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
-            if (quorum <= yes) {
-                // yes
-                (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
-                currentResult = result;
-                if (executed) {
-                    currentStatus = 4;
-                } else {
-                    currentStatus = 3;
-                }
-                return (currentResult, currentStatus);
-            } else if (quorum <= no) {
-                // no (REJECT, ENDED)
-                currentResult = 2;
-                currentStatus = 5;
-                return (currentResult, currentStatus);
-            } else if (quorum <= abstain) {
-                // (DISMISS, ENDED)
-                currentResult = 3;
-                currentStatus = 5;
-                return (currentResult, currentStatus);
-            } else {
-                // (NO CONSENSUS, ENDED)
-                currentResult = 4;
-                currentStatus = 5;
-                return (currentResult, currentStatus);
-            }
+            return (CurrentResult.PENDING, CurrentStatus.NOTICE);
         }
 
+        uint256 votingEndTime = agendaManager.getAgendaVotingEndTimeSeconds(_agendaID);
+        if (votingEndTime == 0) {
+            //When the NoticeTime has passed but no one has voted
+            //(NO CONSENSUS, VOTING)
+            return (CurrentResult.NO_CONSENSUS, CurrentStatus.VOTING);
+        }
+        
+        if (block.timestamp <= votingEndTime) {
+            //When the NoticeTime has passed and someone has voted, but voting has not ended
+            (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
+            return (CurrentResult(result), CurrentStatus.VOTING);
+        }
+        
+        //Results after votingEndTime has passed
+        (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
+        
+        if (quorum <= yes) {
+            (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
+            if (executed) {
+                return (CurrentResult(result), CurrentStatus.EXECUTED);
+            } else {
+                return (CurrentResult(result), CurrentStatus.WAITING_EXEC);
+            }
+        }
+        if (quorum <= no) {
+            // no (REJECT, ENDED)
+            return (CurrentResult.REJECT, CurrentStatus.ENDED);
+        }
+        if (quorum <= abstain) {
+            // (DISMISS, ENDED)
+            return (CurrentResult.DISMISS, CurrentStatus.ENDED);
+        }
+        // (NO CONSENSUS, ENDED)
+        return (CurrentResult.NO_CONSENSUS, CurrentStatus.ENDED);
     }
 
     /// @notice Execute the accepted agenda
