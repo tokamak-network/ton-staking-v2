@@ -47,8 +47,8 @@ contract DAOCommittee_V2 is
     using SafeERC20 for IERC20;
 
     bytes private constant claimTONBytes = hex"ef0d5594";
-    bytes private constant claimERC20Bytes = hex"f848091a";
     bytes private constant claimWTONBytes = hex"f52bba70";
+    bytes private constant claimERC20Bytes = hex"f848091a";
 
     enum CurrentResult { PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA }
     enum CurrentStatus { NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA}
@@ -444,14 +444,13 @@ contract DAOCommittee_V2 is
                 bytes memory selector1 = abc.slice(0, 4);
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
-                else if (selector1.equal(claimERC20Bytes)) {
+                if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
+                if (selector1.equal(claimERC20Bytes)) {
                     bytes memory tonaddr = _toBytes(ton);
                     bytes memory ercaddr = abc.slice(16, 20);
                     bool check3 = ercaddr.equal(tonaddr);
                     require(!check3, 'claimERC20 ton dont use');
-                } else if (selector1.equal(claimWTONBytes)) {
-                    revert ClaimWTONError();
-                }
+                } 
             }
         }
 
