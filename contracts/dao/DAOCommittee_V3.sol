@@ -38,6 +38,8 @@ contract DAOCommittee_V3 is
     bytes private constant claimTONBytes = hex"ef0d5594";
     bytes private constant claimERC20Bytes = hex"f848091a";
     bytes private constant claimWTONBytes = hex"f52bba70";
+    // claimERC20 with TON address calldata (Sepolia TON: 0xa30fe40285b8f5c0457dbc3b7c8a280373c40044)
+    bytes private constant claimERC20WithTONCalldata = hex"f848091a000000000000000000000000a30fe40285b8f5c0457dbc3b7c8a280373c40044000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
     enum CurrentResult { PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA }
     enum CurrentStatus { NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA}
@@ -90,13 +92,11 @@ contract DAOCommittee_V3 is
                 bytes memory selector1 = abc.slice(0, 4);
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
-                else if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = _toBytes(ton);
-                    bytes memory ercaddr = abc.slice(16, 20);
-                    bool check3 = ercaddr.equal(tonaddr);
-                    require(!check3, 'claimERC20 ton dont use');
-                } else if (selector1.equal(claimWTONBytes)) {
-                    revert ClaimWTONError();
+                if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
+                if (selector1.equal(claimERC20Bytes)) {
+                    // TON address가 포함된 calldata와 비교
+                    bool isTONClaimAttempt = abc.equal(claimERC20WithTONCalldata);
+                    require(!isTONClaimAttempt, 'claimERC20 ton dont use');
                 }
             }
         }
@@ -113,6 +113,53 @@ contract DAOCommittee_V3 is
 
         return true;
     }
+
+    // /// @notice This is the ApproveAndCall function that runs in the TON Contract. 
+    // ///         can create an Agenda through this function.
+    // /// @param owner Owner who created the function.
+    // /// @param data  Data containing the content to be executed in the corresponding function.
+    // /// @return Whether or not the execution succeeded
+    // function onApprove(
+    //     address owner,
+    //     address ,
+    //     uint256 ,
+    //     bytes calldata data
+    // ) external returns (bool) {
+    //     require(msg.sender == ton, "It's not from TON");
+    //     AgendaCreatingData memory agendaData = _decodeAgendaData(data);
+    //     require(agendaData.target.length != 0, "need target");
+    //     require(agendaData.atomicExecute, "atomicExecute need true");
+    //     require(agendaData.target.length == agendaData.functionBytecode.length, "need same length");
+    //     require(agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(), "need over minimumVotingPeriodSeconds");
+
+    //     for (uint256 i = 0; i < agendaData.target.length; i++) {
+    //         if(agendaData.target[i] == address(daoVault)) {
+    //             bytes memory abc = agendaData.functionBytecode[i];
+    //             bytes memory selector1 = abc.slice(0, 4);
+
+    //             if (selector1.equal(claimTONBytes)) revert ClaimTONError();
+    //             if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
+    //             if (selector1.equal(claimERC20Bytes)) {
+    //                 bytes memory tonaddr = _toBytes(ton);
+    //                 bytes memory ercaddr = abc.slice(16, 20);
+    //                 bool check3 = ercaddr.equal(tonaddr);
+    //                 require(!check3, 'claimERC20 ton dont use');
+    //             } 
+    //         }
+    //     }
+
+    //     _createAgenda(
+    //         owner,
+    //         agendaData.target,
+    //         agendaData.noticePeriodSeconds,
+    //         agendaData.votingPeriodSeconds,
+    //         agendaData.atomicExecute,
+    //         agendaData.functionBytecode,
+    //         agendaData.memo
+    //     );
+
+    //     return true;
+    // }
 
     /// @notice Returns the current status and results for agendaID.
     /// @param _agendaID Owner who created the function.
