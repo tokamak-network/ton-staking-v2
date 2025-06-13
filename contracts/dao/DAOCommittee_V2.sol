@@ -445,12 +445,11 @@ contract DAOCommittee_V2 is
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
                 if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
-                if (selector1.equal(claimERC20Bytes)) {
-                    bytes memory tonaddr = _toBytes(ton);
-                    bytes memory ercaddr = abc.slice(16, 20);
-                    bool check3 = ercaddr.equal(tonaddr);
-                    require(!check3, 'claimERC20 ton dont use');
-                } 
+                
+                bytes memory erc20Address = abc.slice(16, 20);
+                if (selector1.equal(claimERC20Bytes) && erc20Address.equal(_toBytes(ton))) {
+                    revert("claimERC20 ton dont use");
+                }
             }
         }
 
