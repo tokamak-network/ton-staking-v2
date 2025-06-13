@@ -93,10 +93,10 @@ contract DAOCommittee_V3 is
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
                 if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
-                if (selector1.equal(claimERC20Bytes)) {
-                    // TON address가 포함된 calldata와 비교
-                    bool isTONClaimAttempt = abc.equal(claimERC20WithTONCalldata);
-                    require(!isTONClaimAttempt, 'claimERC20 ton dont use');
+                
+                bytes memory erc20Address = abc.slice(16, 20);
+                if (selector1.equal(claimERC20Bytes) && erc20Address.equal(_toBytes(ton))) {
+                    revert("claimERC20 ton dont use");
                 }
             }
         }
