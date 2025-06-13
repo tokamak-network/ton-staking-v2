@@ -113,7 +113,7 @@ describe("currentAgendaStatus Test on Sepolia", () => {
     let adminBytes = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 
-    // mainnet network
+    // sepolia network
     const oldContractInfo = {
         TON: "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044",
         WTON: "0x79e0d92670106c85e9067b56b8f674340dca0bbd",
