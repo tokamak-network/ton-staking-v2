@@ -22,8 +22,6 @@ import "./StorageStateCommitteeV3.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -769,7 +767,7 @@ contract DAOCommittee_V2 is
         return agendaID;
     }
 
-      /// @notice Function to check if it is a candidate
+    /// @notice Function to check if it is a candidate
     /// @param _candidate Candidate Address
     /// @return If true, Candidate, if false, not Candidate
     function isCandidate(address _candidate) external view returns (bool) {
