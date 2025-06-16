@@ -441,6 +441,38 @@ const config: HardhatUserConfig = {
       local: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1',
       sepolia: '0x33E6F5aa5A4cf5d0D2Cb68e43b15976D0E0234b1'
     },
+    L1BridgeRegistryProxy: {
+      default: 46,
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      goerli: '',
+      hardhat: '0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc',
+      local: '0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc',
+      sepolia: '0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc'
+    },
+    OperatorManagerFactory: {
+      default: 46,
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      goerli: '',
+      hardhat: '0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e',
+      local: '0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e',
+      sepolia: '0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e'
+    },
+    CandidateAddOnFactoryProxy: {
+      default: 46,
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      goerli: '',
+      hardhat: '0xf37493caC8BF8df0bD96146211D93D548d506fb9',
+      local: '0xf37493caC8BF8df0bD96146211D93D548d506fb9',
+      sepolia: '0xf37493caC8BF8df0bD96146211D93D548d506fb9'
+    },
+    Layer2ManagerProxy: {
+      default: 46,
+      mainnet: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
+      goerli: '',
+      hardhat: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc',
+      local: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc',
+      sepolia: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc'
+    },
   },
   networks: {
     hardhat: {

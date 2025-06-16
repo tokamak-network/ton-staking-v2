@@ -400,7 +400,39 @@ const config: HardhatUserConfig = {
       hardhat: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
       local: '0x06d34f65869ec94b3ba8c0e08bceb532f65005e2',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
-    }
+    },
+    L1BridgeRegistryProxy: {
+      default: 46,
+      mainnet: '0x39d43281A4A5e922AB0DCf89825D73273D8C5BA4',
+      goerli: '',
+      hardhat: '0x39d43281A4A5e922AB0DCf89825D73273D8C5BA4',
+      local: '0x39d43281A4A5e922AB0DCf89825D73273D8C5BA4',
+      sepolia: '0x2D47fa57101203855b336e9E61BC9da0A6dd0Dbc'
+    },
+    OperatorManagerFactory: {
+      default: 46,
+      mainnet: '0xAf86b21edDdC78ea27E23A7F2151d60d4e069450',
+      goerli: '',
+      hardhat: '0xAf86b21edDdC78ea27E23A7F2151d60d4e069450',
+      local: '0xAf86b21edDdC78ea27E23A7F2151d60d4e069450',
+      sepolia: '0xEEbFD108e124bFeC9545bDbB32aB7840DBC1872e'
+    },
+    CandidateAddOnFactoryProxy: {
+      default: 46,
+      mainnet: '0xFA8ce5caF456115E72B96E5074769b8f66AA5861',
+      goerli: '',
+      hardhat: '0xFA8ce5caF456115E72B96E5074769b8f66AA5861',
+      local: '0xFA8ce5caF456115E72B96E5074769b8f66AA5861',
+      sepolia: '0xf37493caC8BF8df0bD96146211D93D548d506fb9'
+    },
+    Layer2ManagerProxy: {
+      default: 46,
+      mainnet: '0xD6Bf6B2b7553c8064Ba763AD6989829060FdFC1D',
+      goerli: '',
+      hardhat: '0xD6Bf6B2b7553c8064Ba763AD6989829060FdFC1D',
+      local: '0xD6Bf6B2b7553c8064Ba763AD6989829060FdFC1D',
+      sepolia: '0x58B4C2FEf19f5CDdd944AadD8DC99cCC71bfeFDc'
+    },
   },
   networks: {
     hardhat: {
@@ -427,7 +459,8 @@ const config: HardhatUserConfig = {
         // blockNumber:
         // test registerCandidateAddOn
         // blockNumber: 6797943
-        blockNumber: 22081265
+        // blockNumber: 22081265,
+        blockNumber: 22715322
       },
       // allowUnlimitedContractSize: false,
       deploy: ['deploy-staking-v2.5-mainnet'],
