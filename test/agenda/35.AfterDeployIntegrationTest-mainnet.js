@@ -54,6 +54,9 @@ const MultiSigwallet_Json = require('../abi/MultiSigWallet.json')
 
 describe("Pre-Deploy IntegrationTest on Mainnet", () => {
 
+    let candidateAddOnFactoryAddr = ""
+    let daoCommittee_V2Addr = ""
+
     let execute = true
 
     let daoCommitteeAdmin;
@@ -575,13 +578,6 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             )
         })
 
-        it('Deploy the CandidateAddOnFactory', async () => {
-            const candidateAddOnFactoryImpContract = await ethers.getContractFactory("CandidateAddOnFactory")
-            candidateAddOnFactoryImp = await candidateAddOnFactoryImpContract.deploy();
-
-            await candidateAddOnFactoryImp.deployed()
-        });
-
         it("Set candidateAddOnFactory", async () => {
             candidateAddOnFactory = new ethers.Contract(
                 candidateAddOnFactoryProxy.address,
@@ -850,59 +846,7 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
         })
     })
 
-    describe("Deploy And CreateAgenda", () => {
-        it("Deploy the DAOCommittee_V2", async () => {
-            const newDAOCommitteeV2_ImpContract = await ethers.getContractFactory("DAOCommittee_V2")
-            newDAOCommittee_V2Contract = await newDAOCommitteeV2_ImpContract.deploy();
-        })
-
-        it("Create Agenda", async () => {
-            let targets = []
-            let params = []
-            let callDtata
-
-            // =========================================
-            //  1. set candidateAddOnFactoryProxy upgradeTo
-            targets.push(candidateAddOnFactoryProxy.address)
-            callDtata = candidateAddOnFactoryProxy.interface.encodeFunctionData("upgradeTo", [candidateAddOnFactoryImp.address])
-            params.push(callDtata)
-
-            // =========================================
-            // 2. upgradeTo2 -> newDAOCommittee_V2Contract
-            targets.push(daoCommitteeProxy.address)
-            callDtata = daoCommitteeProxy2Contract.interface.encodeFunctionData("upgradeTo2", [newDAOCommittee_V2Contract.address])
-            params.push(callDtata)
-
-            const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
-            const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
-            const agendaFee = await daoagendaManager.createAgendaFees();
-            const param = Web3EthAbi.encodeParameters(
-                ["address[]", "uint128", "uint128", "bool", "bytes[]"],
-                [
-                    targets,
-                    noticePeriod.toString(),
-                    votingPeriod.toString(),
-                    true,
-                    params
-                ]
-            )
-
-            await (await ton.connect(daoCommitteeAdmin).transfer(
-                user1.address,
-                agendaFee
-            )).wait()
-
-             // =========================================
-            // Propose an agenda
-            let receipt = await (await ton.connect(user1).approveAndCall(
-                daoCommitteeProxy.address,
-                agendaFee,
-                param
-            )).wait()
-
-            agendaID = (await daoagendaManager.numAgendas()).sub(1);
-        })
-
+    describe("Agenda Pass", () => {
         it('increase block time and check votable', async function () {
             agendaID = (await daoagendaManager.numAgendas()).sub(1);
             const agenda = await daoagendaManager.agendas(agendaID);  
@@ -1012,7 +956,7 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
 
         it("Ensure the agenda is properly executed proxyImplementation(0) = DAOCommittee_V2", async () => {
             let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
-            expect(implementation).to.be.equal(newDAOCommittee_V2Contract.address)
+            expect(implementation).to.be.equal(daoCommittee_V2Addr)
         })
 
         it("set DAO NewLogic2", async () => {
@@ -1032,7 +976,7 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
 
         it("Check proxyImplementation(0) = DAOCommittee_V2", async () => {
             let implementation = await daoCommitteeProxy2Contract.proxyImplementation(0)
-            expect(implementation).to.be.equal(newDAOCommittee_V2Contract.address)
+            expect(implementation).to.be.equal(daoCommittee_V2Addr)
         })
 
         it("Check proxyImplementation(1) = DAOCommitteeOwner", async () => {
