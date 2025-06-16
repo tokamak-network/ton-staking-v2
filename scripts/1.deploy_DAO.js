@@ -45,8 +45,8 @@ const main = async () => {
   // await DeployDAOCommitteeDAOVault()
   // await DeployDAOCommitteeOwner()
   // await DeployDAOCommittee_V1()
-  // await DeployDAOCommittee_V2()
-  await DeployDAOCommittee_V3()
+  await DeployDAOCommittee_V2()
+//   await DeployDAOCommittee_V3()
 }
 
 
