@@ -1240,11 +1240,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 1
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(newMember1Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+            await daoCommittee_V2_Contract.connect(newMember1Contract).castVote(
                 agendaID,
                 vote,
                 "member1 vote"
@@ -1281,11 +1281,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 1
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(member3Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+            await daoCommittee_V2_Contract.connect(member3Contract).castVote(
                 agendaID,
                 vote,
                 "member3 vote"
@@ -1335,7 +1335,7 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const agenda = await daoagendaManager.agendas(agendaID);
             expect(agenda[6]).to.be.equal(0);
 
-            await daoCommittee_V1_Contract.executeAgenda(agendaID);
+            await daoCommittee_V2_Contract.executeAgenda(agendaID);
 
             const afterAgenda = await daoagendaManager.agendas(agendaID); 
             expect(afterAgenda[13]).to.be.equal(true);
@@ -1442,11 +1442,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 0
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(newMember1Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+            await daoCommittee_V2_Contract.connect(newMember1Contract).castVote(
                 agendaID,
                 vote,
                 "member1 vote"
@@ -1483,11 +1483,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 0
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(member3Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+            await daoCommittee_V2_Contract.connect(member3Contract).castVote(
                 agendaID,
                 vote,
                 "member3 vote"
@@ -1606,11 +1606,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 2
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(newMember1Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+            await daoCommittee_V2_Contract.connect(newMember1Contract).castVote(
                 agendaID,
                 vote,
                 "member1 vote"
@@ -1641,11 +1641,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 2
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(member3Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+            await daoCommittee_V2_Contract.connect(member3Contract).castVote(
                 agendaID,
                 vote,
                 "member3 vote"
@@ -1765,11 +1765,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 1
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(newMember1Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(newMember1Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(newMember1Contract).castVote(
+            await daoCommittee_V2_Contract.connect(newMember1Contract).castVote(
                 agendaID,
                 vote,
                 "member1 vote"
@@ -1800,11 +1800,11 @@ describe("Pre-Deploy IntegrationTest on Mainnet", () => {
             const vote = 2
             
             // first cast not setting so check member
-            let checkMember = await daoCommittee_V1_Contract.isMember(member3Addr)
+            let checkMember = await daoCommittee_V2_Contract.isMember(member3Addr)
             expect(checkMember).to.be.equal(true)
 
             // counting 0:abstainVotes 1:yesVotes 2:noVotes
-            await daoCommittee_V1_Contract.connect(member3Contract).castVote(
+            await daoCommittee_V2_Contract.connect(member3Contract).castVote(
                 agendaID,
                 vote,
                 "member3 vote"
