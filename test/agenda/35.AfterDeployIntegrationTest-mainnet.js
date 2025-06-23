@@ -54,8 +54,8 @@ const MultiSigwallet_Json = require('../abi/MultiSigWallet.json')
 
 describe("Pre-Deploy IntegrationTest on Mainnet", () => {
 
-    let candidateAddOnFactoryAddr = ""
-    let daoCommittee_V2Addr = ""
+    let candidateAddOnFactoryAddr = "0xacf89A80F1EC7B94EA1e184f70E02fa1231cAB22"
+    let daoCommittee_V2Addr = "0x9f2242B4859c2B1c2fa327245c65e785983e9F5B"
 
     let execute = true
 
