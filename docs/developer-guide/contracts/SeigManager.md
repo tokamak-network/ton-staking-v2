@@ -9,14 +9,14 @@
 
 ## Differentiated functions
 
-### [updateSeigniorageLayer (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#writeProxyContract#F50)
+### [updateSeigniorageLayer (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#writeProxyContract#F49)
 Distributes seigniorage to accounts that have staked TON on a specific layer.
  - Parameters
    -  layer2 (address) : Layer Address
 
 ---
 
-### [coinages (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F18)
+### [coinages (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F22)
 Look up the coinage (seigniorage held) contract address of the layer
 - Parameters
   - layer2 (address) : Layer Address
@@ -26,7 +26,7 @@ Look up the coinage (seigniorage held) contract address of the layer
 
 ---
 
-### [commissionRates (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F19)
+### [commissionRates (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F23)
 View operator commission rates for layers
 - Parameters
   - layer2 (address) : Layer Address
@@ -35,7 +35,7 @@ View operator commission rates for layers
 
 ---
 
-### [lastCommitBlock (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F37)
+### [lastCommitBlock (address layer2)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F46)
 The block number that recently distributed seigniorage at a specific layer
 - Parameters
   - layer2 (address) : Layer Address
@@ -45,7 +45,7 @@ The block number that recently distributed seigniorage at a specific layer
 ---
 
 
-### [seigPerBlock ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F50)
+### [seigPerBlock ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F64)
 Seigniorage issuance per block
 - Parameters
   - none
@@ -55,7 +55,7 @@ Seigniorage issuance per block
 
 ---
 
-### [lastSeigBlock ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F38)
+### [lastSeigBlock ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F47)
 The block number where the most recent seigniorage was distributed
 - Parameters
   - none
@@ -65,7 +65,7 @@ The block number where the most recent seigniorage was distributed
 
 ---
 
-### [totalSupplyOfTon ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F64)
+### [totalSupplyOfTon ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F79)
 Total Supply of TON (including seigniorage issuance)
 - Parameters
   - none
@@ -73,7 +73,7 @@ Total Supply of TON (including seigniorage issuance)
   - (uint256) : The total amount, expressed in decimals RAY units (10^27).
 
 ---
-### [stakeOf (address account)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F53)
+### [stakeOf (address account)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F67)
 The amount staked by a specific account
 - Parameters
   - account (address) : Account address
@@ -82,7 +82,7 @@ The amount staked by a specific account
 
 ---
 
-### [stakeOf (address layer2, address account)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F54)
+### [stakeOf (address layer2, address account)](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F68)
 The amount staked by a specific account on a specific layer
 - Parameters
   - layer2 (address) : Layer Address
@@ -103,7 +103,7 @@ Total staked amount in a particular layer
 
 ---
 
-### [stakeOfTotal ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F59)
+### [stakeOfTotal ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F73)
 Total staked amount (based on seigniorage issuance)
 - Parameters
   - none
@@ -112,7 +112,7 @@ Total staked amount (based on seigniorage issuance)
 
 ---
 
-### [stakeOfAllLayers ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F55)
+### [stakeOfAllLayers ()](https://etherscan.io/address/0x0b55a0f463b6defb81c6063973763951712d0e5f?#readProxyContract#F69)
 Total staked amount (based on seigniorage distribution)
 - Parameters
   - none
