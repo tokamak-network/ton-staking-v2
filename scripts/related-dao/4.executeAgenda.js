@@ -8,7 +8,7 @@ async function main() {
 
     // signer는 Candidate Contract의 operator여야함
     const [signer] = await ethers.getSigners();
-    console.log("voter address:", signer.address);
+    console.log("executer address:", signer.address);
 
     
     let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
@@ -34,7 +34,7 @@ async function main() {
 
     const agenda = await daoagendaManager.agendas(agendaID);
     
-    await daoLogicV2.connect(deployer).executeAgenda(agendaID);
+    await daoLogicV2.connect(signer).executeAgenda(agendaID);
     console.log("executed agendaID :", agendaID)
 
 }
