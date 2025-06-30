@@ -9,9 +9,9 @@ const DAOAgendaManagerABI = require("../../abi/daoAgendaManager.json").abi;
 const Web3EthAbi = require('web3-eth-abi');
 
 async function main() {
-    // removeBlackList Candidate 컨트랙트 주소 (수동으로 입력)
-    const CANDIDATE_ADDRESS = "0xF078AE62eA4740E19ddf6c0c5e17Ecdb820BbEe1"; // 여기에 Candidate 컨트랙트 주소를 입력하세요
-    const CANDIDATE_ADDRESS2 = "0xAbD15C021942Ca54aBd944C91705Fe70FEA13f0d"; // 여기에 Candidate 컨트랙트 주소를 입력하세요
+    // removeBlackList Candidate contract address (enter manually)
+    const CANDIDATE_ADDRESS = "0xF078AE62eA4740E19ddf6c0c5e17Ecdb820BbEe1"; // Enter the Candidate contract address you want to remove from the blacklist here
+    const CANDIDATE_ADDRESS2 = "0xAbD15C021942Ca54aBd944C91705Fe70FEA13f0d"; // Enter the Candidate contract address you want to remove from the blacklist here
     
     // 네트워크 확인
     const network = await ethers.provider.getNetwork();
@@ -62,15 +62,30 @@ async function main() {
 
     // =========================================
     // 1. removeFromBlacklist daoCommitteeProxy2Contract
-    targets.push(daoCommitteeProxyAddr)
-    callDtata = daoCommitteeV2.interface.encodeFunctionData("removeFromBlacklist", [CANDIDATE_ADDRESS])
-    params.push(callDtata)
+
+    console.log("=== Check Blacklist Status ===");
+
+    let isBlacklisted = await daoCommitteeV2.blacklist(CANDIDATE_ADDRESS);
+
+    if(isBlacklisted) {
+        console.log("Candidate 1 is blacklisted.");
+        targets.push(daoCommitteeProxyAddr)
+        callDtata = daoCommitteeV2.interface.encodeFunctionData("removeFromBlacklist", [CANDIDATE_ADDRESS])
+        params.push(callDtata)
+    }
+
 
     // =========================================
     // 2. removeFromBlacklist daoCommitteeProxy2Contract
-    targets.push(daoCommitteeProxyAddr)
-    callDtata = daoCommitteeV2.interface.encodeFunctionData("removeFromBlacklist", [CANDIDATE_ADDRESS2])
-    params.push(callDtata)
+
+    isBlacklisted = await daoCommitteeV2.blacklist(CANDIDATE_ADDRESS);
+
+    if(isBlacklisted) {
+        console.log("Candidate 2 is blacklisted.");
+        targets.push(daoCommitteeProxyAddr)
+        callDtata = daoCommitteeV2.interface.encodeFunctionData("removeFromBlacklist", [CANDIDATE_ADDRESS2])
+        params.push(callDtata)
+    }
   
     
     // =========================================
