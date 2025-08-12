@@ -176,11 +176,8 @@ contract DAOCommittee_V2 is
             return INVALID_SIGNATURE;
         }
 
-        // MultiSigWallet에서 필요한 확인 수 가져오기
-        uint256 requiredConfirmations = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-        
         // 서명에서 owner 주소들을 추출하고 검증
-        if (_validateMultiSigSignatures(_hash, _signature, requiredConfirmations)) {
+        if (_validateMultiSigSignatures(_hash, _signature)) {
             return MAGICVALUE;
         }
         
@@ -191,24 +188,23 @@ contract DAOCommittee_V2 is
      * @notice MultiSigWallet owner들의 서명을 검증
      * @param _hash 서명된 해시
      * @param _signature 서명 데이터
-     * @param _requiredConfirmations 필요한 확인 수
      * @return true if valid
      */
     function _validateMultiSigSignatures(
         bytes32 _hash,
-        bytes memory _signature,
-        uint256 _requiredConfirmations
+        bytes memory _signature
     ) internal view returns (bool) {
-        if (_signature.length < _requiredConfirmations * 65) {
+        // 최소 1개의 서명이 필요 (65 bytes)
+        if (_signature.length < 65) {
             return false;
         }
 
         address[] memory owners = IMultiSigWallet(multiSigWallet).getOwners();
         uint256 validSignatures = 0;
-        address[] memory recoveredSigners = new address[](_requiredConfirmations);
+        address[] memory recoveredSigners = new address[](_signature.length / 65);
 
         // 서명에서 owner들을 복구
-        for (uint256 i = 0; i < _requiredConfirmations; i++) {
+        for (uint256 i = 0; i < _signature.length / 65; i++) {
             uint256 offset = i * 65;
             if (offset + 65 > _signature.length) {
                 break;
@@ -225,14 +221,25 @@ contract DAOCommittee_V2 is
                     break;
                 }
             }
+
+            // 서명자가 MultiSigWallet owner인지 확인
+            bool isOwner = false;
+            for (uint256 j = 0; j < owners.length; j++) {
+                if (owners[j] == signer) {
+                    isOwner = true;
+                    break;
+                }
+            }
             
-            if (!isDuplicate && IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+            // 서명자가 MultiSigWallet owner인지 확인
+            if (!isDuplicate && isOwner) {
                 recoveredSigners[validSignatures] = signer;
                 validSignatures++;
             }
         }
 
-        return validSignatures >= _requiredConfirmations;
+        // 최소 1개의 유효한 서명이 있으면 성공
+        return validSignatures > 0;
     }
 
     /**
