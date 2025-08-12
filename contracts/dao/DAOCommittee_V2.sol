@@ -34,6 +34,18 @@ error ZeroAddressError();
 error ClaimTONError();
 error ClaimWTONError();
 
+// ERC-1271 인터페이스
+interface IERC1271 {
+    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
+}
+
+// MultiSigWallet 인터페이스
+interface IMultiSigWallet {
+    function isOwner(address owner) external view returns (bool);
+    function getOwners() external view returns (address[] memory);
+    function numConfirmationsRequired() external view returns (uint256);
+}
+
 contract DAOCommittee_V2 is
     StorageStateCommittee,
     AccessControl,
@@ -48,6 +60,10 @@ contract DAOCommittee_V2 is
     bytes private constant claimWTONBytes = hex"f52bba70";
     bytes private constant claimERC20Bytes = hex"f848091a";
 
+    // ERC-1271 Magic Value
+    bytes4 private constant MAGICVALUE = 0x1626ba7e;
+    bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
+
     enum CurrentResult { PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA }
     enum CurrentStatus { NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA}
 
@@ -59,6 +75,9 @@ contract DAOCommittee_V2 is
         bytes[] functionBytecode;
         string memo;
     }
+
+    // MultiSigWallet 주소
+    address public multiSigWallet;
 
     //////////////////////////////
     // Events
@@ -119,6 +138,11 @@ contract DAOCommittee_V2 is
         uint256 timestamp
     );
 
+    event MultiSigWalletSet(
+        address indexed oldWallet,
+        address indexed newWallet
+    );
+
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
         _;
@@ -132,6 +156,124 @@ contract DAOCommittee_V2 is
     modifier nonZero(address _addr) {
         require(_addr != address(0), "DAOCommittee: zero address");
         _;
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // ERC-1271 Implementation
+    //////////////////////////////////////////////////////////////////////
+
+    /**
+     * @notice ERC-1271 표준에 따른 서명 검증
+     * @param _hash 서명된 해시
+     * @param _signature 서명 데이터 (MultiSigWallet owner들의 서명)
+     * @return magicValue ERC-1271 magic value
+     */
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory _signature
+    ) external view returns (bytes4 magicValue) {
+        if (multiSigWallet == address(0)) {
+            return INVALID_SIGNATURE;
+        }
+
+        // MultiSigWallet에서 필요한 확인 수 가져오기
+        uint256 requiredConfirmations = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
+        
+        // 서명에서 owner 주소들을 추출하고 검증
+        if (_validateMultiSigSignatures(_hash, _signature, requiredConfirmations)) {
+            return MAGICVALUE;
+        }
+        
+        return INVALID_SIGNATURE;
+    }
+
+    /**
+     * @notice MultiSigWallet owner들의 서명을 검증
+     * @param _hash 서명된 해시
+     * @param _signature 서명 데이터
+     * @param _requiredConfirmations 필요한 확인 수
+     * @return true if valid
+     */
+    function _validateMultiSigSignatures(
+        bytes32 _hash,
+        bytes memory _signature,
+        uint256 _requiredConfirmations
+    ) internal view returns (bool) {
+        if (_signature.length < _requiredConfirmations * 65) {
+            return false;
+        }
+
+        address[] memory owners = IMultiSigWallet(multiSigWallet).getOwners();
+        uint256 validSignatures = 0;
+        address[] memory recoveredSigners = new address[](_requiredConfirmations);
+
+        // 서명에서 owner들을 복구
+        for (uint256 i = 0; i < _requiredConfirmations; i++) {
+            uint256 offset = i * 65;
+            if (offset + 65 > _signature.length) {
+                break;
+            }
+
+            bytes memory signaturePart = _signature.slice(offset, 65);
+            address signer = _recoverSigner(_hash, signaturePart);
+            
+            // 중복 서명 확인
+            bool isDuplicate = false;
+            for (uint256 j = 0; j < validSignatures; j++) {
+                if (recoveredSigners[j] == signer) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            
+            if (!isDuplicate && IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+                recoveredSigners[validSignatures] = signer;
+                validSignatures++;
+            }
+        }
+
+        return validSignatures >= _requiredConfirmations;
+    }
+
+    /**
+     * @notice ECDSA 서명에서 서명자 주소 복구
+     * @param _hash 서명된 해시
+     * @param _signature 서명 데이터
+     * @return signer 서명자 주소
+     */
+    function _recoverSigner(
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal pure returns (address signer) {
+        require(_signature.length == 65, "Invalid signature length");
+
+        uint8 v = uint8(_signature[64]);
+        bytes32 r = _signature.readBytes32(0);
+        bytes32 s = _signature.readBytes32(32);
+
+        // EIP-2 서명 가변성 방지
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            revert("Invalid signature 's' value");
+        }
+
+        if (v != 27 && v != 28) {
+            revert("Invalid signature 'v' value");
+        }
+
+        signer = ecrecover(_hash, v, r, s);
+        require(signer != address(0), "Invalid signer");
+
+        return signer;
+    }
+
+    /**
+     * @notice MultiSigWallet 주소 설정 (onlyOwner)
+     * @param _multiSigWallet 새로운 MultiSigWallet 주소
+     */
+    function setMultiSigWallet(address _multiSigWallet) external onlyOwner nonZero(_multiSigWallet) {
+        address oldWallet = multiSigWallet;
+        multiSigWallet = _multiSigWallet;
+        emit MultiSigWalletSet(oldWallet, _multiSigWallet);
     }
 
     //////////////////////////////////////////////////////////////////////
