@@ -248,8 +248,15 @@ contract DAOCommittee_V2 is
         require(_signature.length == 65, "Invalid signature length");
 
         uint8 v = uint8(_signature[64]);
-        bytes32 r = _signature.readBytes32(0);
-        bytes32 s = _signature.readBytes32(32);
+        
+        // bytes에서 bytes32로 직접 변환
+        bytes32 r;
+        bytes32 s;
+        
+        assembly {
+            r := mload(add(_signature, 32))
+            s := mload(add(_signature, 64))
+        }
 
         // EIP-2 서명 가변성 방지
         if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
