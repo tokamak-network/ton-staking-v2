@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@ethersproject/contracts";
-import { DAOCommittee_V1, ERC1271Helper } from "../typechain-types";
+import { DAOCommittee_V2, ERC1271Helper } from "../typechain-types";
 
 describe("ERC-1271 Implementation", function () {
-    let daoCommittee: DAOCommittee_V1;
+    let daoCommittee: DAOCommittee_V2;
     let erc1271Helper: ERC1271Helper;
     let multiSigWallet: any;
     let owner1: SignerWithAddress;
@@ -23,8 +23,8 @@ describe("ERC-1271 Implementation", function () {
         multiSigWallet = await MultiSigWallet.deploy([owner1.address, owner2.address, owner3.address]);
         await multiSigWallet.deployed();
 
-        // DAOCommittee_V1 배포
-        const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V1");
+        // DAOCommittee_V2 배포
+        const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V2");
         daoCommittee = await DAOCommittee.deploy();
         await daoCommittee.deployed();
 

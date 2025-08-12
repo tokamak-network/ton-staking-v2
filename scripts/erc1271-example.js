@@ -13,12 +13,12 @@ async function main() {
     await multiSigWallet.deployed();
     console.log("MultiSigWallet 배포됨:", multiSigWallet.address);
     
-    // 2. DAOCommittee_V1 배포
-    console.log("\n2. DAOCommittee_V1 배포 중...");
-    const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V1");
+    // 2. DAOCommittee_V2 배포
+    console.log("\n2. DAOCommittee_V2 배포 중...");
+    const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V2");
     const daoCommittee = await DAOCommittee.deploy();
     await daoCommittee.deployed();
-    console.log("DAOCommittee_V1 배포됨:", daoCommittee.address);
+    console.log("DAOCommittee_V2 배포됨:", daoCommittee.address);
     
     // 3. ERC1271Helper 배포
     console.log("\n3. ERC1271Helper 배포 중...");
