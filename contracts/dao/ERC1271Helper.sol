@@ -3,6 +3,11 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
+// ERC-1271 인터페이스
+interface IERC1271 {
+    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
+}
+
 /**
  * @title ERC1271Helper
  * @notice ERC-1271 서명 검증을 위한 헬퍼 컨트랙트
@@ -13,25 +18,6 @@ contract ERC1271Helper {
     // ERC-1271 Magic Values
     bytes4 private constant MAGICVALUE = 0x1626ba7e;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
-
-    /**
-     * @notice 컨트랙트의 서명을 검증
-     * @param _contract 검증할 컨트랙트 주소
-     * @param _hash 서명된 해시
-     * @param _signature 서명 데이터
-     * @return true if valid signature
-     */
-    function isValidContractSignature(
-        address _contract,
-        bytes32 _hash,
-        bytes memory _signature
-    ) external view returns (bool) {
-        try IERC1271(_contract).isValidSignature(_hash, _signature) returns (bytes4 magicValue) {
-            return magicValue == MAGICVALUE;
-        } catch {
-            return false;
-        }
-    }
 
     /**
      * @notice EOA 또는 컨트랙트의 서명을 검증
@@ -51,7 +37,41 @@ contract ERC1271Helper {
         }
         
         // 컨트랙트인 경우 ERC-1271 사용
-        return isValidContractSignature(_signer, _hash, _signature);
+        return _isValidContractSignature(_signer, _hash, _signature);
+    }
+
+    /**
+     * @notice 컨트랙트의 서명을 검증 (내부 함수)
+     * @param _contract 검증할 컨트랙트 주소
+     * @param _hash 서명된 해시
+     * @param _signature 서명 데이터
+     * @return true if valid signature
+     */
+    function _isValidContractSignature(
+        address _contract,
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal view returns (bool) {
+        try IERC1271(_contract).isValidSignature(_hash, _signature) returns (bytes4 magicValue) {
+            return magicValue == MAGICVALUE;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * @notice 컨트랙트의 서명을 검증 (외부 호출용)
+     * @param _contract 검증할 컨트랙트 주소
+     * @param _hash 서명된 해시
+     * @param _signature 서명 데이터
+     * @return true if valid signature
+     */
+    function isValidContractSignature(
+        address _contract,
+        bytes32 _hash,
+        bytes memory _signature
+    ) external view returns (bool) {
+        return _isValidContractSignature(_contract, _hash, _signature);
     }
 
     /**
@@ -66,9 +86,4 @@ contract ERC1271Helper {
     ) external pure returns (address signer) {
         return _hash.recover(_signature);
     }
-}
-
-// ERC-1271 인터페이스
-interface IERC1271 {
-    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
 } 
