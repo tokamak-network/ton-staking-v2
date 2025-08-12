@@ -5,8 +5,8 @@ coverage.json
 typechain
 typechain-types
 artifacts
+package-lock.json
 
-artifacts
 # Hardhat files
 cache
 artifacts/@openzeppelin
