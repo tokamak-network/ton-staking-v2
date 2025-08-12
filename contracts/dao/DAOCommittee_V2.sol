@@ -194,52 +194,17 @@ contract DAOCommittee_V2 is
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
-        // 최소 1개의 서명이 필요 (65 bytes)
-        if (_signature.length < 65) {
-            return false;
-        }
+        if (_signature.length < 65) return false;
 
-        address[] memory owners = IMultiSigWallet(multiSigWallet).getOwners();
-        uint256 validSignatures = 0;
-        address[] memory recoveredSigners = new address[](_signature.length / 65);
-
-        // 서명에서 owner들을 복구
-        for (uint256 i = 0; i < _signature.length / 65; i++) {
-            uint256 offset = i * 65;
-            if (offset + 65 > _signature.length) {
-                break;
-            }
-
-            bytes memory signaturePart = _signature.slice(offset, 65);
-            address signer = _recoverSigner(_hash, signaturePart);
-            
-            // 중복 서명 확인
-            bool isDuplicate = false;
-            for (uint256 j = 0; j < validSignatures; j++) {
-                if (recoveredSigners[j] == signer) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-
-            // 서명자가 MultiSigWallet owner인지 확인
-            bool isOwner = false;
-            for (uint256 j = 0; j < owners.length; j++) {
-                if (owners[j] == signer) {
-                    isOwner = true;
-                    break;
-                }
-            }
-            
-            // 서명자가 MultiSigWallet owner인지 확인
-            if (!isDuplicate && isOwner) {
-                recoveredSigners[validSignatures] = signer;
-                validSignatures++;
+        uint256 sigCount = _signature.length / 65;
+        for (uint256 i = 0; i < sigCount; i++) {
+            bytes memory sigPart = _signature.slice(i * 65, 65);
+            address signer = _recoverSigner(_hash, sigPart);
+            if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+                return true; // 한 명만 맞으면 즉시 통과
             }
         }
-
-        // 최소 1개의 유효한 서명이 있으면 성공
-        return validSignatures > 0;
+        return false;
     }
 
     /**
