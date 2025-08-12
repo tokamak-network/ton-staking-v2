@@ -1,16 +1,16 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { SignerWithAddress } from "@ethersproject/contracts";
+// import { Signer } from 'ethers'
 import { DAOCommittee_V2, ERC1271Helper } from "../typechain-types";
 
 describe("ERC-1271 Implementation", function () {
     let daoCommittee: DAOCommittee_V2;
     let erc1271Helper: ERC1271Helper;
     let multiSigWallet: any;
-    let owner1: SignerWithAddress;
-    let owner2: SignerWithAddress;
-    let owner3: SignerWithAddress;
-    let nonOwner: SignerWithAddress;
+    let owner1: any;
+    let owner2: any;
+    let owner3: any;
+    let nonOwner: any;
 
     const MAGICVALUE = "0x1626ba7e";
     const INVALID_SIGNATURE = "0xffffffff";

@@ -1,5 +1,6 @@
 const hre = require("hardhat");
 const { ethers } = hre;
+const MultiSigWallet_ABI = require("../abi/MultiSigWallet.json");
 
 async function main() {
     console.log("=== ERC-1271 사용 예시 ===");
@@ -8,7 +9,7 @@ async function main() {
     
     // 1. MultiSigWallet 배포
     console.log("\n1. MultiSigWallet 배포 중...");
-    const MultiSigWallet = await ethers.getContractFactory("MultiSigWallet");
+    const MultiSigWallet = new ethers.ContractFactory(MultiSigWallet_ABI.abi, MultiSigWallet_ABI.bytecode, owner1);
     const multiSigWallet = await MultiSigWallet.deploy([owner1.address, owner2.address, owner3.address]);
     await multiSigWallet.deployed();
     console.log("MultiSigWallet 배포됨:", multiSigWallet.address);
