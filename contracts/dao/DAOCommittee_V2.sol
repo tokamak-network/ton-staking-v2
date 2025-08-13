@@ -175,6 +175,7 @@ contract DAOCommittee_V2 is
         if (multiSigWallet == address(0)) {
             return INVALID_SIGNATURE;
         }
+        require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "DAOCommittee: multiSigWallet is not an admin");
 
         // 서명에서 owner 주소들을 추출하고 검증
         if (_validateMultiSigSignatures(_hash, _signature)) {
@@ -251,6 +252,7 @@ contract DAOCommittee_V2 is
      */
     function setMultiSigWallet(address _multiSigWallet) external onlyOwner nonZero(_multiSigWallet) {
         address oldWallet = multiSigWallet;
+        require(hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet), "DAOCommittee: new multiSigWallet is not an admin");
         multiSigWallet = _multiSigWallet;
         emit MultiSigWalletSet(oldWallet, _multiSigWallet);
     }
