@@ -1,16 +1,31 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 // import { Signer } from 'ethers'
 import { DAOCommittee_V2, ERC1271Helper } from "../typechain-types";
 
+// const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
+const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
+const DAOCommittee_V2_ABI = require("../artifacts/contracts/dao/DAOCommittee_V2.sol/DAOCommittee_V2.json").abi;
+const MultiSigWallet_ABI = require("../abi/MultiSigWallet.json").abi;
+
 describe("ERC-1271 Implementation", function () {
-    let daoCommittee: DAOCommittee_V2;
+    let daoCommittee: any;
+    let daoCommitteeContract: DAOCommittee_V2;
     let erc1271Helper: ERC1271Helper;
     let multiSigWallet: any;
     let owner1: any;
     let owner2: any;
     let owner3: any;
     let nonOwner: any;
+    // let daoCommitteeProxy: any;
+    let daoCommitteeProxy2Contract: any;
+    let daoCommitteeAdmin: any;
+
+    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";   //sepolia
+    let daoAdminAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2";
+    let multiSigWalletAddr = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C";
+
+    let sendether = "0xDE0B6B3A7640000"
 
     const MAGICVALUE = "0x1626ba7e";
     const INVALID_SIGNATURE = "0xffffffff";
@@ -18,19 +33,55 @@ describe("ERC-1271 Implementation", function () {
     beforeEach(async function () {
         [owner1, owner2, owner3, nonOwner] = await ethers.getSigners();
 
-        // MultiSigWallet 배포 (간단한 버전)
-        const MultiSigWallet = await ethers.getContractFactory("MultiSigWallet");
-        multiSigWallet = await MultiSigWallet.deploy([owner1.address, owner2.address, owner3.address]);
-        await multiSigWallet.deployed();
+        await hre.network.provider.send("hardhat_impersonateAccount", [
+            daoAdminAddress,
+        ]);
+        daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
+
+        await hre.network.provider.send("hardhat_setBalance", [
+            daoAdminAddress,
+            sendether
+        ]);
+
+        // MultiSigWallet 세팅
+        multiSigWallet = new ethers.Contract(
+            multiSigWalletAddr,
+            MultiSigWallet_ABI,
+            ethers.provider
+        )
+
+        // //==== Set DAOCommitteeProxy =================================
+        // daoCommitteeProxy = new ethers.Contract(
+        //     daoCommitteeProxyAddr,
+        //     DAOCommitteeProxyABI,
+        //     ethers.provider
+        // )
+
+        //==== Set Proxy2Contract =================================
+        daoCommitteeProxy2Contract = new ethers.Contract(
+            daoCommitteeProxyAddr,
+            DAOProxy2ABI,
+            ethers.provider
+        )
 
         // DAOCommittee_V2 배포
         const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V2");
-        daoCommittee = await DAOCommittee.deploy();
-        await daoCommittee.deployed();
+        daoCommitteeContract = (await DAOCommittee.deploy()) as DAOCommittee_V2;
+        await daoCommitteeContract.deployed();
+
+        // DAOCommitteeProxy2에 DAOCommittee_V2 업그레이드
+        await daoCommitteeProxy2Contract.connect(daoCommitteeAdmin).upgradeTo2(daoCommitteeContract.address);
+
+        //==== Set Proxy2Contract =================================
+        daoCommittee = new ethers.Contract(
+            daoCommitteeProxyAddr,
+            DAOCommittee_V2_ABI,
+            ethers.provider
+        )
 
         // ERC1271Helper 배포
-        const ERC1271Helper = await ethers.getContractFactory("ERC1271Helper");
-        erc1271Helper = await ERC1271Helper.deploy();
+        const erc1271HelperFactory = await ethers.getContractFactory("ERC1271Helper");
+        erc1271Helper = (await erc1271HelperFactory.deploy()) as ERC1271Helper;
         await erc1271Helper.deployed();
 
         // MultiSigWallet 주소 설정
