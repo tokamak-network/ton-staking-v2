@@ -22,6 +22,8 @@ import "./StorageStateCommitteeV3.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -181,7 +183,7 @@ contract DAOCommittee_V2 is
         if (_validateMultiSigSignatures(_hash, _signature)) {
             return MAGICVALUE;
         }
-        
+        console.log("9");
         return INVALID_SIGNATURE;
     }
 
@@ -197,14 +199,22 @@ contract DAOCommittee_V2 is
     ) internal view returns (bool) {
         if (_signature.length < 65) return false;
 
+        // address signer = _recoverSigner(_hash, _signature);
+        // console.log("signer", signer);
+        // if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+        //     return true; // 한 명만 맞으면 즉시 통과
+        // }
         uint256 sigCount = _signature.length / 65;
         for (uint256 i = 0; i < sigCount; i++) {
             bytes memory sigPart = _signature.slice(i * 65, 65);
             address signer = _recoverSigner(_hash, sigPart);
+            console.log("signer", signer);
             if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+                console.log("8");
                 return true; // 한 명만 맞으면 즉시 통과
             }
         }
+
         return false;
     }
 
@@ -240,7 +250,12 @@ contract DAOCommittee_V2 is
             revert("Invalid signature 'v' value");
         }
 
-        signer = ecrecover(_hash, v, r, s);
+        // Recover ECDSA signer
+        // signer = ecrecover(_hash, v, r, s);
+
+        // Ethereum Signed Message 접두사 추가
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
+        signer = ecrecover(ethSignedMessageHash, v, r, s);
         require(signer != address(0), "Invalid signer");
 
         return signer;
