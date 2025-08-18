@@ -172,31 +172,29 @@ contract DAOCommittee_V2 is
         }
         require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "DAOCommittee: multiSigWallet is not an admin");
 
-        if (_validateMultiSigSignatures(_hash, _signature)) {
+        if (_validateSignatures(_hash, _signature)) {
             return MAGICVALUE;
         }
         return INVALID_SIGNATURE;
     }
 
     /**
-     * @notice Validates signatures from MultiSigWallet owners
+     * @notice Verify the signature of one of the MultiSigWallet owners.
      * @param _hash Hash that was signed
      * @param _signature Signature data
      * @return true if valid
      */
-    function _validateMultiSigSignatures(
+    function _validateSignatures(
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
         if (_signature.length < 65) return false;
 
-        uint256 sigCount = _signature.length / 65;
-        for (uint256 i = 0; i < sigCount; i++) {
-            bytes memory sigPart = _signature.slice(i * 65, 65);
-            address signer = _recoverSigner(_hash, sigPart);
-            if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
-                return true; 
-            }
+
+        bytes memory sigPart = _signature.slice(0, 65);
+        address signer = _recoverSigner(_hash, sigPart);
+        if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+            return true; 
         }
 
         return false;
@@ -232,7 +230,9 @@ contract DAOCommittee_V2 is
             revert("Invalid signature 'v' value");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash)
+        );
         signer = ecrecover(ethSignedMessageHash, v, r, s);
         
         require(signer != address(0), "Invalid signer");
