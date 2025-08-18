@@ -31,9 +31,10 @@ contract ERC1271Helper {
         bytes32 _hash,
         bytes memory _signature
     ) external view returns (bool) {
-        // EOA인 경우 직접 검증
+        // EOA인 경우 직접 검증 (Ethereum Signed Message 접두사 추가)
         if (_signer.code.length == 0) {
-            return _signer == _hash.recover(_signature);
+            bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
+            return _signer == ethSignedMessageHash.recover(_signature);
         }
         
         // 컨트랙트인 경우 ERC-1271 사용
@@ -84,6 +85,8 @@ contract ERC1271Helper {
         bytes32 _hash,
         bytes memory _signature
     ) external pure returns (address signer) {
-        return _hash.recover(_signature);
+        // Ethereum Signed Message 접두사 추가
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
+        return ethSignedMessageHash.recover(_signature);
     }
 } 
