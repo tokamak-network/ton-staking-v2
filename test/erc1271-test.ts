@@ -88,9 +88,6 @@ describe("ERC-1271 Implementation", function () {
         const testOwners = [owner1.address, owner2.address, owner3.address];
         multiSigWallet = await MultiSigWalletFactory.deploy(testOwners);
         await multiSigWallet.deployed();
-        
-        // console.log("MultiSigWallet deployed to:", multiSigWallet.address);
-        // console.log("MultiSigWallet owners:", testOwners);
 
         //==== Set Proxy2Contract =================================
         daoCommitteeProxy2Contract = new ethers.Contract(
@@ -142,7 +139,7 @@ describe("ERC-1271 Implementation", function () {
             const message = "Hello, ERC-1271!";
             const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-            // owner1의 서명 생성 (해시에 직접 서명)
+            // owner1의 서명 생성 (EIP-1271 표준: raw hash 서명)
             const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
 
             let OwnerCheck = await multiSigWallet.isOwner(owner1.address)
@@ -152,117 +149,180 @@ describe("ERC-1271 Implementation", function () {
             expect(result).to.equal(MAGICVALUE);
         });
 
-        // it("should reject invalid signatures", async function () {
-        //     const message = "Hello, ERC-1271!";
-        //     const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+        it("should reject invalid signatures", async function () {
+            const message = "Hello, ERC-1271!";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-        //     // nonOwner의 서명
-        //     const signature = await nonOwner.signMessage(ethers.utils.toUtf8Bytes(message));
+            // nonOwner의 서명 (EIP-1271 표준: raw hash 서명)
+            const signature = await nonOwner.signMessage(ethers.utils.arrayify(hash));
             
-        //     const result = await daoCommittee.isValidSignature(hash, signature);
-        //     expect(result).to.equal(INVALID_SIGNATURE);
-        // });
-
-        // it("should reject duplicate signatures", async function () {
-        //     const message = "Hello, ERC-1271!";
-        //     const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
-            
-        //     // owner1의 서명을 두 번 사용
-        //     const signature1 = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
-        //     const combinedSignature = signature1 + signature1.slice(2); // 같은 서명을 두 번
-            
-        //     const result = await daoCommittee.isValidSignature(hash, combinedSignature);
-        //     expect(result).to.equal(INVALID_SIGNATURE);
-        // });
+            const result = await daoCommittee.isValidSignature(hash, signature);
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
     });
 
-    // describe("ERC1271Helper", function () {
-    //     it("should validate EOA signatures", async function () {
-    //         const message = "Test message";
-    //         const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
-    //         const signature = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
+    describe("ERC1271Helper", function () {
+        it("should validate EOA signatures", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            const signature = await owner1.signMessage(ethers.utils.arrayify(hash));
             
-    //         const isValid = await erc1271Helper.isValidSignature(owner1.address, hash, signature);
-    //         expect(isValid).to.be.true;
-    //     });
+            const isValid = await erc1271Helper.isValidSignature(owner1.address, hash, signature);
+            expect(isValid).to.be.true;
+        });
 
-    //     it("should validate contract signatures via ERC-1271", async function () {
-    //         const message = "Test message";
-    //         const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+        it("should validate contract signatures via ERC-1271", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-    //         // MultiSigWallet owner들의 서명
-    //         const signature1 = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
-    //         const signature2 = await owner2.signMessage(ethers.utils.toUtf8Bytes(message));
-    //         const combinedSignature = signature1 + signature2.slice(2);
+            // MultiSigWallet owner들의 서명 (EIP-1271 표준: raw hash 서명)
+            const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
             
-    //         const isValid = await erc1271Helper.isValidSignature(
-    //             daoCommittee.address, 
-    //             hash, 
-    //             combinedSignature
-    //         );
-    //         expect(isValid).to.be.true;
-    //     });
+            const isValid = await erc1271Helper.isValidSignature(
+                daoCommittee.address, 
+                hash, 
+                signature1
+            );
+            expect(isValid).to.be.true;
+        });
 
-    //     it("should recover signer address", async function () {
-    //         const message = "Test message";
-    //         const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
-    //         const signature = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
+        it("should recover signer address", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            const signature = await owner1.signMessage(ethers.utils.arrayify(hash));
             
-    //         const recoveredSigner = await erc1271Helper.recoverSigner(hash, signature);
-    //         expect(recoveredSigner).to.equal(owner1.address);
-    //     });
-    // });
+            const recoveredSigner = await erc1271Helper.recoverSigner(hash, signature);
+            expect(recoveredSigner).to.equal(owner1.address);
+        });
+    });
 
-    // describe("MultiSigWallet Integration", function () {
-    //     it("should work with actual MultiSigWallet confirmations", async function () {
-    //         // MultiSigWallet에서 트랜잭션 제출
-    //         const data = daoCommittee.interface.encodeFunctionData("setMultiSigWallet", [multiSigWallet.address]);
-    //         await multiSigWallet.submitTransaction(daoCommittee.address, 0, data);
+    describe("Security Tests", function () {
+        it("should reject signatures with wrong hash", async function () {
+            const message1 = "Message 1";
+            const message2 = "Message 2";
+            const hash1 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message1));
+            const hash2 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message2));
             
-    //         // 트랜잭션 확인
-    //         await multiSigWallet.confirmTransaction(0);
-    //         await multiSigWallet.connect(owner2).confirmTransaction(0);
+            // message1에 대한 서명 생성
+            const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash1));
             
-    //         // 트랜잭션 실행
-    //         await multiSigWallet.executeTransaction(0);
-            
-    //         // 이제 ERC-1271 서명 검증이 작동해야 함
-    //         const message = "Test after execution";
-    //         const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
-    //         const signature1 = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
-    //         const signature2 = await owner2.signMessage(ethers.utils.toUtf8Bytes(message));
-    //         const combinedSignature = signature1 + signature2.slice(2);
-            
-    //         const result = await daoCommittee.isValidSignature(hash, combinedSignature);
-    //         expect(result).to.equal(MAGICVALUE);
-    //     });
-    // });
+            // message1의 서명으로 message2의 해시 검증 시도
+            const result = await daoCommittee.isValidSignature(hash2, signature1);
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
 
-    // describe("Security Tests", function () {
-    //     it("should reject signatures with wrong hash", async function () {
-    //         const message1 = "Message 1";
-    //         const message2 = "Message 2";
-    //         const hash1 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message1));
-    //         const hash2 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message2));
+        it("should reject signatures from non-MultiSigWallet owners", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-    //         const signature1 = await owner1.signMessage(ethers.utils.toUtf8Bytes(message1));
-    //         const signature2 = await owner2.signMessage(ethers.utils.toUtf8Bytes(message1));
-    //         const combinedSignature = signature1 + signature2.slice(2);
+            // nonOwner의 서명 (MultiSigWallet owner가 아님)
+            const signature = await nonOwner.signMessage(ethers.utils.arrayify(hash));
             
-    //         // message1의 서명으로 message2의 해시 검증
-    //         const result = await daoCommittee.isValidSignature(hash2, combinedSignature);
-    //         expect(result).to.equal(INVALID_SIGNATURE);
-    //     });
+            const result = await daoCommittee.isValidSignature(hash, signature);
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
 
-    //     it("should handle insufficient signatures", async function () {
-    //         const message = "Test message";
-    //         const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+        it("should reject invalid signature lengths", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-    //         // owner1만 서명
-    //         const signature = await owner1.signMessage(ethers.utils.toUtf8Bytes(message));
+            // 잘못된 길이의 서명 (64바이트 - 1바이트 부족)
+            const invalidSignature = "0x" + "00".repeat(64);
             
-    //         const result = await daoCommittee.isValidSignature(hash, signature);
-    //         expect(result).to.equal(INVALID_SIGNATURE);
-    //     });
-    // });
+            const result = await daoCommittee.isValidSignature(hash, invalidSignature);
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
+
+        it("should reject empty signatures", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            
+            const result = await daoCommittee.isValidSignature(hash, "0x");
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
+
+        it("should reject when multiSigWallet is not set", async function () {
+            // 새로운 DAOCommittee 배포 (multiSigWallet 설정 안함)
+            const DAOCommittee = await ethers.getContractFactory("DAOCommittee_V2");
+            const testDaoCommittee = await DAOCommittee.deploy();
+            await testDaoCommittee.deployed();
+            
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            const signature = await owner1.signMessage(ethers.utils.arrayify(hash));
+            
+            const result = await testDaoCommittee.isValidSignature(hash, signature);
+            expect(result).to.equal(INVALID_SIGNATURE);
+        });
+
+        it("should reject malformed signatures (invalid v value)", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            
+            // 올바른 서명 생성 후 v 값을 잘못된 값으로 변경
+            const validSignature = await owner1.signMessage(ethers.utils.arrayify(hash));
+            const sigBytes = ethers.utils.arrayify(validSignature);
+            
+            // v 값을 26으로 변경 (잘못된 값, 27 또는 28이어야 함)
+            sigBytes[64] = 26;
+            const invalidSignature = ethers.utils.hexlify(sigBytes);
+            
+            // revert가 발생해야 함
+            await expect(
+                daoCommittee.isValidSignature(hash, invalidSignature)
+            ).to.be.revertedWith("Invalid signature 'v' value");
+        });
+
+        it("should handle signature malleability (high s values)", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            
+            // 올바른 서명 생성
+            const validSignature = await owner1.signMessage(ethers.utils.arrayify(hash));
+            const sigBytes = ethers.utils.arrayify(validSignature);
+            
+            // s 값을 높은 값으로 변경 (malleability 테스트)
+            const highS = "0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A1";
+            const highSBytes = ethers.utils.arrayify(highS);
+            
+            for (let i = 0; i < 32; i++) {
+                sigBytes[32 + i] = highSBytes[i];
+            }
+            
+            const malleavleSignature = ethers.utils.hexlify(sigBytes);
+            
+            // revert가 발생해야 함
+            await expect(
+                daoCommittee.isValidSignature(hash, malleavleSignature)
+            ).to.be.revertedWith("Invalid signature 's' value");
+        });
+
+        it("should accept multiple valid owner signatures", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            
+            // 여러 owner들의 서명 생성
+            const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
+            const signature2 = await owner2.signMessage(ethers.utils.arrayify(hash));
+            
+            // 서명들을 연결
+            const combinedSignature = signature1 + signature2.slice(2);
+            
+            const result = await daoCommittee.isValidSignature(hash, combinedSignature);
+            expect(result).to.equal(MAGICVALUE);
+        });
+
+        it("should accept duplicate signatures (same result)", async function () {
+            const message = "Test message";
+            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+            
+            // owner1의 서명을 두 번 연결 (중복)
+            const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
+            const duplicateSignature = signature1 + signature1.slice(2);
+            
+            // 중복이지만 한 명의 유효한 owner 서명이므로 통과해야 함
+            const result = await daoCommittee.isValidSignature(hash, duplicateSignature);
+            expect(result).to.equal(MAGICVALUE);
+        });
+    });
 }); 
