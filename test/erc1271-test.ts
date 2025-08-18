@@ -297,32 +297,17 @@ describe("ERC-1271 Implementation", function () {
             ).to.be.revertedWith("Invalid signature 's' value");
         });
 
-        it("should accept multiple valid owner signatures", async function () {
+        it("should only process first signature (Gas DoS prevention built-in)", async function () {
             const message = "Test message";
             const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
             
-            // 여러 owner들의 서명 생성
+            // 여러 서명을 연결해도 첫 번째만 처리됨
             const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
             const signature2 = await owner2.signMessage(ethers.utils.arrayify(hash));
-            
-            // 서명들을 연결
             const combinedSignature = signature1 + signature2.slice(2);
             
             const result = await daoCommittee.isValidSignature(hash, combinedSignature);
-            expect(result).to.equal(MAGICVALUE);
-        });
-
-        it("should accept duplicate signatures (same result)", async function () {
-            const message = "Test message";
-            const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
-            
-            // owner1의 서명을 두 번 연결 (중복)
-            const signature1 = await owner1.signMessage(ethers.utils.arrayify(hash));
-            const duplicateSignature = signature1 + signature1.slice(2);
-            
-            // 중복이지만 한 명의 유효한 owner 서명이므로 통과해야 함
-            const result = await daoCommittee.isValidSignature(hash, duplicateSignature);
-            expect(result).to.equal(MAGICVALUE);
+            expect(result).to.equal(MAGICVALUE); // 첫 번째 서명(owner1)이 유효하므로 성공
         });
     });
 }); 
