@@ -437,9 +437,9 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `${process.env.ETH_NODE_URI_MAINNET}`,
+        // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 21077756
-        // url: `${process.env.ETH_NODE_URI_sepolia}`,
+        url: `${process.env.ETH_NODE_URI_sepolia}`,
         // npx hardhat test test/layer2/units/3.Layer2Manager.sepolia.test.ts
         // blockNumber: 5859537,
         // blockNumber: 6042730
@@ -456,11 +456,11 @@ const config: HardhatUserConfig = {
         // blockNumber: 6676283,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
-        // blockNumber:
+        blockNumber: 8912424
         // test registerCandidateAddOn
         // blockNumber: 6797943
         // blockNumber: 22081265,
-        blockNumber: 22715322
+        // blockNumber: 22715322
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-staking-v2.5-mainnet'],
@@ -469,7 +469,7 @@ const config: HardhatUserConfig = {
     local: {
       url: `${process.env.ETH_NODE_URI_localhost}`,
       timeout: 800000,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      // accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy-migration']
     },
     mainnet: {
@@ -505,6 +505,15 @@ const config: HardhatUserConfig = {
       // deploy: ['deploy_l2_proxy']
       deploy: ['deploy-layer2']
     },
+    sepoliaFork: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+      // accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      forking: {
+        url: process.env.ETH_NODE_URI_sepolia || "",
+        blockNumber: 8912424        // 과거 블록 사용 (가스 가격 낮음)
+      },
+    }
   },
   deterministicDeployment: (network: string) => {
     // Skip on hardhat's local network.
