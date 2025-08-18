@@ -22,8 +22,6 @@ import "./StorageStateCommitteeV3.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Error that occurs when creating Candidate
  * @param x 1: deployed candidateContract is zero
@@ -36,12 +34,10 @@ error ZeroAddressError();
 error ClaimTONError();
 error ClaimWTONError();
 
-// ERC-1271 인터페이스
 interface IERC1271 {
     function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
 }
 
-// MultiSigWallet 인터페이스
 interface IMultiSigWallet {
     function isOwner(address owner) external view returns (bool);
     function getOwners() external view returns (address[] memory);
@@ -77,9 +73,6 @@ contract DAOCommittee_V2 is
         bytes[] functionBytecode;
         string memo;
     }
-
-    // MultiSigWallet 주소
-    address public multiSigWallet;
 
     //////////////////////////////
     // Events
@@ -165,9 +158,9 @@ contract DAOCommittee_V2 is
     //////////////////////////////////////////////////////////////////////
 
     /**
-     * @notice ERC-1271 표준에 따른 서명 검증
-     * @param _hash 서명된 해시
-     * @param _signature 서명 데이터 (MultiSigWallet owner들의 서명)
+     * @notice Signature validation according to ERC-1271 standard
+     * @param _hash Hash that was signed
+     * @param _signature Signature data (signatures from MultiSigWallet owners)
      * @return magicValue ERC-1271 magic value
      */
     function isValidSignature(
@@ -179,18 +172,16 @@ contract DAOCommittee_V2 is
         }
         require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "DAOCommittee: multiSigWallet is not an admin");
 
-        // 서명에서 owner 주소들을 추출하고 검증
         if (_validateMultiSigSignatures(_hash, _signature)) {
             return MAGICVALUE;
         }
-        console.log("9");
         return INVALID_SIGNATURE;
     }
 
     /**
-     * @notice MultiSigWallet owner들의 서명을 검증
-     * @param _hash 서명된 해시
-     * @param _signature 서명 데이터
+     * @notice Validates signatures from MultiSigWallet owners
+     * @param _hash Hash that was signed
+     * @param _signature Signature data
      * @return true if valid
      */
     function _validateMultiSigSignatures(
@@ -199,19 +190,12 @@ contract DAOCommittee_V2 is
     ) internal view returns (bool) {
         if (_signature.length < 65) return false;
 
-        // address signer = _recoverSigner(_hash, _signature);
-        // console.log("signer", signer);
-        // if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
-        //     return true; // 한 명만 맞으면 즉시 통과
-        // }
         uint256 sigCount = _signature.length / 65;
         for (uint256 i = 0; i < sigCount; i++) {
             bytes memory sigPart = _signature.slice(i * 65, 65);
             address signer = _recoverSigner(_hash, sigPart);
-            console.log("signer", signer);
             if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
-                console.log("8");
-                return true; // 한 명만 맞으면 즉시 통과
+                return true; 
             }
         }
 
@@ -219,10 +203,10 @@ contract DAOCommittee_V2 is
     }
 
     /**
-     * @notice ECDSA 서명에서 서명자 주소 복구
-     * @param _hash 서명된 해시
-     * @param _signature 서명 데이터
-     * @return signer 서명자 주소
+     * @notice Recovers signer address from ECDSA signature
+     * @param _hash Hash that was signed
+     * @param _signature Signature data
+     * @return signer Signer address
      */
     function _recoverSigner(
         bytes32 _hash,
@@ -232,7 +216,6 @@ contract DAOCommittee_V2 is
 
         uint8 v = uint8(_signature[64]);
         
-        // bytes에서 bytes32로 직접 변환
         bytes32 r;
         bytes32 s;
         
@@ -241,7 +224,6 @@ contract DAOCommittee_V2 is
             s := mload(add(_signature, 64))
         }
 
-        // EIP-2 서명 가변성 방지
         if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
             revert("Invalid signature 's' value");
         }
@@ -250,20 +232,17 @@ contract DAOCommittee_V2 is
             revert("Invalid signature 'v' value");
         }
 
-        // Recover ECDSA signer
-        // signer = ecrecover(_hash, v, r, s);
-
-        // Ethereum Signed Message 접두사 추가
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
         signer = ecrecover(ethSignedMessageHash, v, r, s);
+        
         require(signer != address(0), "Invalid signer");
 
         return signer;
     }
 
     /**
-     * @notice MultiSigWallet 주소 설정 (onlyOwner)
-     * @param _multiSigWallet 새로운 MultiSigWallet 주소
+     * @notice Sets MultiSigWallet address (onlyOwner)
+     * @param _multiSigWallet New MultiSigWallet address
      */
     function setMultiSigWallet(address _multiSigWallet) external onlyOwner nonZero(_multiSigWallet) {
         address oldWallet = multiSigWallet;

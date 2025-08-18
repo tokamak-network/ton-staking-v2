@@ -3,5 +3,5 @@ pragma solidity ^0.8.4;
 
 contract StorageStateCommitteeV3 {
     mapping(uint256 => string) public agendaMemo;
-
+    address public multiSigWallet;
 }
