@@ -211,6 +211,6 @@ For technical support and questions:
 
 ---
 
-**Last Updated**: December 2024  
-**Version**: 2.5.0  
+**Last Updated**: August 2025  
+**Version**: 2.0.0  
 **Compatibility**: Safe Global SDK, ethers.js v5+, Hardhat
