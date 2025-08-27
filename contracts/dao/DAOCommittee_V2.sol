@@ -41,7 +41,6 @@ interface IERC1271 {
 interface IMultiSigWallet {
     function isOwner(address owner) external view returns (bool);
     function getOwners() external view returns (address[] memory);
-    function numConfirmationsRequired() external view returns (uint256);
 }
 
 contract DAOCommittee_V2 is
