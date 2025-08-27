@@ -27,7 +27,7 @@ contract EIP1271Implementation is AccessControl, IERC1271 {
     bytes4 private constant MAGICVALUE = 0x1626ba7e;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
     
-    // MultiSig wallet address
+    // MultiSig wallet address (DAO Owner)
     address public multiSigWallet;
     
     // Events
@@ -83,10 +83,11 @@ contract EIP1271Implementation is AccessControl, IERC1271 {
     }
     
     /**
-     * @notice Validate signature from MultiSig owner
+     * @notice Validate single signature from MultiSig owner
+     * @dev Only requires one MultiSig owner signature, not multiple
      * @param _hash Hash that was signed
-     * @param _signature Signature data
-     * @return true if valid
+     * @param _signature Signature data (65 bytes)
+     * @return true if signer is a MultiSig owner
      */
     function _validateSignatures(
         bytes32 _hash,
@@ -94,10 +95,11 @@ contract EIP1271Implementation is AccessControl, IERC1271 {
     ) internal view returns (bool) {
         if (_signature.length < 65) return false;
         
-        // Extract first signature (65 bytes)
+        // Extract first signature (65 bytes) - single signature validation
         bytes memory sigPart = _signature[0:65];
         address signer = _recoverSigner(_hash, sigPart);
         
+        // Only check if signer is one of the MultiSig owners
         return IMultiSigWallet(multiSigWallet).isOwner(signer);
     }
     
@@ -167,51 +169,39 @@ async function signAndValidate() {
 }
 ```
 
-### 고급 구현 (다중 서명 지원)
+### 가스 최적화된 단일 서명 구현
 
 ```solidity
-contract AdvancedEIP1271 is EIP1271Implementation {
+contract OptimizedEIP1271 is EIP1271Implementation {
     /**
-     * @notice Validate multiple signatures from MultiSig
+     * @notice Gas-optimized single signature validation
+     * @dev Ignores MultiSig's required confirmations for efficiency
      * @param _hash Hash that was signed
-     * @param _signature Concatenated signatures
-     * @return true if enough valid signatures
+     * @param _signature Single signature (65 bytes)
+     * @return true if signer is any MultiSig owner
      */
-    function _validateMultipleSignatures(
+    function _validateSingleSignature(
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
-        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-        uint256 sigCount = _signature.length / 65;
+        // Early return for invalid signature length
+        if (_signature.length != 65) return false;
         
-        if (sigCount < requiredSigs) return false;
+        // Recover signer address
+        address signer = _recoverSigner(_hash, _signature);
         
-        address[] memory signers = new address[](sigCount);
-        uint256 validSigs = 0;
-        
-        for (uint256 i = 0; i < sigCount; i++) {
-            bytes memory sig = _signature[i*65:(i+1)*65];
-            address signer = _recoverSigner(_hash, sig);
-            
-            // Check if signer is MultiSig owner and not duplicate
-            if (IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)) {
-                signers[i] = signer;
-                validSigs++;
-            }
-        }
-        
-        return validSigs >= requiredSigs;
+        // Single external call to check ownership
+        return IMultiSigWallet(multiSigWallet).isOwner(signer);
     }
     
-    function _isDuplicate(address[] memory signers, address signer, uint256 currentIndex) 
-        internal 
-        pure 
-        returns (bool) 
-    {
-        for (uint256 i = 0; i < currentIndex; i++) {
-            if (signers[i] == signer) return true;
-        }
-        return false;
+    /**
+     * @notice Override to use single signature validation
+     */
+    function _validateSignatures(
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal view override returns (bool) {
+        return _validateSingleSignature(_hash, _signature);
     }
 }
 ```
@@ -238,21 +228,33 @@ describe("EIP-1271 Implementation", function () {
         await contract.setMultiSigWallet(multiSig.address);
     });
     
-    it("should validate correct signature", async function () {
+    it("should validate signature from MultiSig owner", async function () {
         const message = "test message";
         const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+        // user1 is a MultiSig owner
         const signature = await user1.signMessage(ethers.utils.arrayify(messageHash));
         
         const result = await contract.isValidSignature(messageHash, signature);
         expect(result).to.equal("0x1626ba7e");
     });
     
-    it("should reject invalid signature", async function () {
+    it("should reject signature from non-MultiSig owner", async function () {
         const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("test"));
+        // owner is NOT a MultiSig owner
         const wrongSignature = await owner.signMessage(ethers.utils.arrayify(messageHash));
         
         const result = await contract.isValidSignature(messageHash, wrongSignature);
         expect(result).to.equal("0xffffffff");
+    });
+    
+    it("should work with single signature (not requiring multiple)", async function () {
+        const message = "single sig test";
+        const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
+        // Only one signature needed, even if MultiSig requires 2
+        const signature = await user2.signMessage(ethers.utils.arrayify(messageHash));
+        
+        const result = await contract.isValidSignature(messageHash, signature);
+        expect(result).to.equal("0x1626ba7e");
     });
 });
 ```

@@ -26,9 +26,10 @@ describe("EIP-1271 Basic Functionality", () => {
 #### 2. MultiSig 통합 테스트
 ```javascript
 describe("MultiSig Integration", () => {
-  // MultiSig 지갑 설정
-  // 소유자 서명 검증
+  // MultiSig 지갑이 DAO Owner인지 확인
+  // 단일 소유자 서명 검증
   // 비소유자 서명 거부
+  // MultiSig 소유자 변경 시 동작 확인
 });
 ```
 
@@ -63,18 +64,20 @@ describe("Edge Cases", () => {
 ### 테스트 헬퍼 함수
 
 다음 헬퍼 함수들을 포함해주세요:
-- 서명 생성 함수
-- MultiSig 지갑 모킹
+- **단일 서명 생성 함수**
+- **MultiSig 소유자 서명 생성**
+- MultiSig 지갑 모킹 (DAO Owner 역할)
 - 테스트 데이터 생성
 - 어설션 헬퍼
 
 ### 테스트 데이터
 
 실제적인 테스트 시나리오를 위한:
-- 유효한 서명 예시
-- 무효한 서명 예시
+- **MultiSig 소유자의 유효한 서명 예시**
+- **비소유자의 무효한 서명 예시**
 - 다양한 해시 값
 - MultiSig 소유자 주소들
+- **DAO Owner로 설정된 MultiSig 주소**
 
 각 테스트에 대해 상세한 설명과 함께 완전한 테스트 코드를 제공해주세요.
 ```
@@ -158,6 +161,14 @@ describe("Attack Scenarios", () => {
   
   it("should prevent unauthorized access", async () => {
     // 권한 없는 접근 테스트
+  });
+  
+  it("should reject non-multisig owner signatures", async () => {
+    // MultiSig 소유자가 아닌 서명 거부 테스트
+  });
+  
+  it("should validate single owner signature correctly", async () => {
+    // 단일 소유자 서명 검증 테스트
   });
 });
 ```

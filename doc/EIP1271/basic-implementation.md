@@ -9,6 +9,8 @@
 - Solidity 버전: ^0.8.4
 - OpenZeppelin 라이브러리 사용 가능
 - AccessControl 기반 권한 관리 시스템 사용
+- **DAO Owner는 MultiSigWallet Contract**
+- **EIP-1271 검증: MultiSig 소유자 중 한 명의 서명만으로 충분**
 - MultiSig 지갑과의 통합 필요
 
 ### 구현 요구사항
@@ -20,7 +22,8 @@
 
 2. **서명 검증 로직**
    - ECDSA 서명 복구 및 검증
-   - MultiSig 지갑 소유자 확인
+   - **단일 서명 검증: MultiSig 소유자 중 한 명의 서명만 확인**
+   - MultiSig 지갑 소유자 확인 (`IMultiSigWallet.isOwner()` 사용)
    - 서명 길이 검증 (65바이트)
    - s-value 범위 검증 (replay attack 방지)
    - v 값 검증 (27 또는 28)
@@ -32,8 +35,10 @@
    - 권한 확인 (DEFAULT_ADMIN_ROLE)
 
 4. **MultiSig 통합**
+   - **MultiSig 지갑이 DAO의 Owner (DEFAULT_ADMIN_ROLE)**
    - MultiSig 지갑 주소 설정 기능
-   - 소유자 확인 인터페이스
+   - **단일 소유자 서명 검증 로직**
+   - 소유자 확인 인터페이스 (`isOwner()` 메서드)
    - 권한 기반 접근 제어
 
 ### 참조 구현 패턴
@@ -49,10 +54,25 @@ interface IMultiSigWallet {
     function getOwners() external view returns (address[] memory);
 }
 
+// 상태 변수
+address public multiSigWallet; // DAO Owner (DEFAULT_ADMIN_ROLE)
+
 // 서명 검증 함수 구조
 function isValidSignature(bytes32 _hash, bytes memory _signature) external view returns (bytes4);
 function _validateSignatures(bytes32 _hash, bytes memory _signature) internal view returns (bool);
 function _recoverSigner(bytes32 _hash, bytes memory _signature) internal pure returns (address);
+
+// 핵심 검증 로직 예시 (단일 서명)
+function _validateSignatures(bytes32 _hash, bytes memory _signature) internal view returns (bool) {
+    if (_signature.length < 65) return false;
+    
+    // 첫 번째 서명만 추출 (65바이트)
+    bytes memory sigPart = _signature.slice(0, 65);
+    address signer = _recoverSigner(_hash, sigPart);
+    
+    // MultiSig 소유자 중 한 명인지만 확인하면 충분
+    return IMultiSigWallet(multiSigWallet).isOwner(signer);
+}
 ```
 
 ### 에러 처리
@@ -84,4 +104,10 @@ function _recoverSigner(bytes32 _hash, bytes memory _signature) internal pure re
 - 기존 컨트랙트 코드: [여기에 기존 컨트랙트 붙여넣기]
 - 특정 MultiSig 구현: [사용하는 MultiSig 컨트랙트 정보]
 - 추가 보안 요구사항: [프로젝트별 특수 요구사항]
+
+### 중요 구현 조건
+- **DAO의 Owner는 반드시 MultiSigWallet Contract여야 함**
+- **EIP-1271 검증 시 MultiSig의 모든 소유자 서명이 아닌, 한 명의 서명만으로도 유효**
+- **MultiSig 지갑이 DEFAULT_ADMIN_ROLE을 가져야 함**
+- **단일 서명 검증 방식으로 가스 효율성 확보**
 ```
