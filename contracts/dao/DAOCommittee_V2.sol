@@ -171,7 +171,7 @@ contract DAOCommittee_V2 is
         }
         require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "DAOCommittee: multiSigWallet is not an admin");
 
-        if (_validateSignatures(_hash, _signature)) {
+        if (_validateSignature(_hash, _signature)) {
             return MAGICVALUE;
         }
         return INVALID_SIGNATURE;
@@ -183,7 +183,7 @@ contract DAOCommittee_V2 is
      * @param _signature Signature data
      * @return true if valid
      */
-    function _validateSignatures(
+    function _validateSignature(
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
