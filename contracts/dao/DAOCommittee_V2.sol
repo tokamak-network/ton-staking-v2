@@ -244,7 +244,6 @@ contract DAOCommittee_V2 is
      * @param _multiSigWallet New MultiSigWallet address
      */
     function setMultiSigWallet(address _multiSigWallet) external onlyOwner nonZero(_multiSigWallet) {
-        require(_multiSigWallet.code.length > 0, "Must be a contract");
         address oldWallet = multiSigWallet;
         require(hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet), "DAOCommittee: new multiSigWallet is not an admin");
         multiSigWallet = _multiSigWallet;
