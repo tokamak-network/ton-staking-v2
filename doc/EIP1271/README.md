@@ -4,10 +4,11 @@
 
 ## 파일 구조
 
-- `basic-implementation.md`: 기본 EIP-1271 구현 프롬프트
-- `multisig-integration.md`: MultiSig 지갑과의 통합 프롬프트
+- `basic-implementation.md`: EIP-1271 + MultiSig 통합 구현 프롬프트
 - `security-checklist.md`: 보안 검토 체크리스트
 - `testing-prompts.md`: 테스트 코드 생성 프롬프트
+- `upgrade-guide.md`: 기존 컨트랙트 업그레이드 가이드
+- `examples.md`: 완전한 구현 예시와 사용법
 
 ## 사용 방법
 
