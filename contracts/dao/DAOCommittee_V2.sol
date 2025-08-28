@@ -21,6 +21,8 @@ import "./StorageStateCommitteeV2.sol";
 import "./StorageStateCommitteeV3.sol";
 import "./lib/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @notice Error that occurs when creating Candidate
@@ -34,12 +36,22 @@ error ZeroAddressError();
 error ClaimTONError();
 error ClaimWTONError();
 
+/**
+ * @title Multi-signature wallet interface for EIP-1271 validation.
+ * @dev This interface is used to check if a signer is an owner of the multisig wallet.
+ */
+interface IMultiSigWallet {
+    function isOwner(address owner) external view returns (bool);
+    function getOwners() external view returns (address[] memory);
+}
+
 contract DAOCommittee_V2 is
     StorageStateCommittee,
     AccessControl,
     ERC165A,
     StorageStateCommitteeV2,
-    StorageStateCommitteeV3
+    StorageStateCommitteeV3,
+    IERC1271
 {
     using BytesLib for bytes;
     using SafeERC20 for IERC20;
@@ -59,6 +71,12 @@ contract DAOCommittee_V2 is
         bytes[] functionBytecode;
         string memo;
     }
+
+    //////////////////////////////
+    // EIP-1271
+    //////////////////////////////
+    address public multiSigWallet;
+    event MultiSigWalletChanged(address indexed newMultiSigWallet);
 
     //////////////////////////////
     // Events
@@ -917,4 +935,54 @@ contract DAOCommittee_V2 is
         return "2.0.0";
     }
 
+    //////////////////////////////////////////////////////////////////////
+    // EIP-1271 Implementation
+    //////////////////////////////////////////////////////////////////////
+
+    /// @notice Sets the MultiSigWallet contract address for EIP-1271 signature validation.
+    /// @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
+    /// @param _newMultiSigWallet The address of the new MultiSigWallet contract.
+    function setMultiSigWallet(address _newMultiSigWallet) external onlyOwner {
+        if (_newMultiSigWallet == address(0)) revert ZeroAddressError();
+        multiSigWallet = _newMultiSigWallet;
+        emit MultiSigWalletChanged(_newMultiSigWallet);
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl) returns (bool) {
+        return interfaceId == type(IERC1271).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev See {IERC1271-isValidSignature}.
+     * This function is used to validate signatures for EIP-1271.
+     * It checks if the signature is valid and was made by one of the owners of the `multiSigWallet`.
+     */
+    function isValidSignature(bytes32 _hash, bytes memory _signature) external view returns (bytes4) {
+        if (_validateSignatures(_hash, _signature)) {
+            return IERC1271.isValidSignature.selector;
+        } else {
+            return 0xffffffff;
+        }
+    }
+
+    /// @dev Internal function to validate a single signature.
+    function _validateSignatures(bytes32 _hash, bytes memory _signature) internal view returns (bool) {
+        if (multiSigWallet == address(0)) {
+            return false;
+        }
+        if (_signature.length != 65) {
+            return false;
+        }
+
+        address signer = ECDSA.recover(_hash, _signature);
+        
+        if (signer == address(0)) {
+            return false;
+        }
+
+        return IMultiSigWallet(multiSigWallet).isOwner(signer);
+    }
 }
