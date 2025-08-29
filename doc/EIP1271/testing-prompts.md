@@ -64,8 +64,13 @@ describe("Edge Cases", () => {
 ### 테스트 헬퍼 함수
 
 다음 헬퍼 함수들을 포함해주세요:
-- **단일 서명 생성 함수**
-- **MultiSig 소유자 서명 생성**
+- **다중 서명 생성 함수 (numConfirmationsRequired 수만큼)**
+- **연결된 서명 형식 생성 헬퍼**
+- **MultiSig 소유자들의 서명 생성**
+- **중복 서명자 테스트 헬퍼**
+- **서명 유효기간 설정 헬퍼**
+- **시간 이동 헬퍼 (유효기간 테스트용)**
+- **서명 재사용 테스트 헬퍼**
 - MultiSig 지갑 모킹 (DAO Owner 역할)
 - 테스트 데이터 생성
 - 어설션 헬퍼
@@ -167,8 +172,32 @@ describe("Attack Scenarios", () => {
     // MultiSig 소유자가 아닌 서명 거부 테스트
   });
   
-  it("should validate single owner signature correctly", async () => {
-    // 단일 소유자 서명 검증 테스트
+  it("should enforce MultiSigWallet signature standards", async () => {
+    // MultiSigWallet 서명 기준 준수 테스트
+  });
+  
+  it("should validate multiple owner signatures correctly", async () => {
+    // 다중 소유자 서명 검증 테스트 (numConfirmationsRequired 충족)
+  });
+  
+  it("should reject insufficient signatures", async () => {
+    // 필요 서명 수보다 적은 서명 거부 테스트
+  });
+  
+  it("should prevent duplicate signers", async () => {
+    // 중복 서명자 방지 테스트
+  });
+  
+  it("should prevent signature reuse", async () => {
+    // 서명 재사용 방지 테스트
+  });
+  
+  it("should reject expired signatures", async () => {
+    // 만료된 서명 거부 테스트
+  });
+  
+  it("should allow owner to set signature validity period", async () => {
+    // 서명 유효기간 설정 테스트
   });
 });
 ```
