@@ -3,9 +3,10 @@ import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 
-// ABI imports
-const MultiSigWalletABI = require("./abi/MultiSigWallet.json");
-const DAOCommitteeProxy2ABI = require("./abi/DAOCommitteeProxy2.json");
+/// const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
+const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
+const DAOCommittee_V2_ABI = require("../artifacts/contracts/dao/DAOCommittee_V2.sol/DAOCommittee_V2.json").abi;
+const MultiSigWallet_ABI = require("../abi/MultiSigWallet.json");
 
 describe("EIP-1271 Upgrade Integration Tests", function () {
   // Network Configuration
@@ -13,10 +14,10 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   // Test accounts
   let deployer: SignerWithAddress;
-  let multiSigOwner1: any;
-  let multiSigOwner2: any;
-  let multiSigOwner3: any;
-  let nonOwner: any;
+  let multiSigOwner1: SignerWithAddress;
+  let multiSigOwner2: SignerWithAddress;
+  let multiSigOwner3: SignerWithAddress;
+  let nonOwner: SignerWithAddress;
   let safeWallet: SignerWithAddress;
 
   // Contract instances
@@ -43,7 +44,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   describe("Environment Setup", function () {
     it("should connect to Sepolia network", async function () {
       const network = await ethers.provider.getNetwork();
-      if(network.chainId === 31337) {
+      if (network.chainId === 31337) {
         console.log(`Connected to network: local (chainId: ${network.chainId})`);
       } else {
         console.log(`Connected to network: ${network.name} (chainId: ${network.chainId})`);
@@ -59,10 +60,10 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       // MultiSigWallet 새로 배포
       const MultiSigWalletFactory = await ethers.getContractFactory(
-        MultiSigWalletABI.abi,
-        MultiSigWalletABI.bytecode,
+        MultiSigWallet_ABI.abi,
+        MultiSigWallet_ABI.bytecode,
         deployer
-    );
+      );
 
       // owners 배열과 필요한 확인 수 설정
       const testOwners = [multiSigOwner1.address, multiSigOwner2.address, multiSigOwner3.address];
