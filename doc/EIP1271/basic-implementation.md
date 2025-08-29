@@ -4,16 +4,25 @@
 
 ```
 다음 요구사항에 따라 EIP-1271 스마트 컨트랙트 서명 검증 기능을 구현해주세요:
+```
 
 ### 컨텍스트
 - Solidity 버전: ^0.8.4
 - OpenZeppelin 라이브러리 사용 가능
 - AccessControl 기반 권한 관리 시스템 사용
-- **DAO Owner는 MultiSigWallet Contract**
+- **구조1: Safe Wallet의 Signer중 한명이 DAO Contract**
+- **구조2: DAO Owner는 MultiSigWallet Contract**
+- **구조3: MultiSigWallet의 Owner들이 서명한 것을 검증**
 - **EIP-1271 검증: MultiSigWallet의 numConfirmationsRequired 기준을 충족하는 다중 서명**
-- MultiSig 지갑과의 통합 필요
+- **Safe Wallet 호환성 필수**: Safe Global 앱에서 서명 생성 및 검증 가능해야 함
+- Safe Wallet과의 통합 필요
 
 ### 구현 요구사항
+
+0. **스토리지 상태 변수 정의**
+   - **기존에 사용하고 있는 스토리지 컨트랙트에 상태 변수 선언**
+   - 업그레이드 가능한 컨트랙트 패턴 준수
+   - 스토리지 충돌 방지를 위한 적절한 슬롯 배치
 
 1. **EIP-1271 인터페이스 구현**
    - `isValidSignature(bytes32 _hash, bytes memory _signature)` 함수
@@ -22,7 +31,6 @@
 
 2. **서명 검증 로직**
    - ECDSA 서명 복구 및 검증
-   - **다중 서명 검증: MultiSigWallet의 numConfirmationsRequired 수만큼 유효한 서명 필요**
    - MultiSig 지갑 소유자 확인 (`IMultiSigWallet.isOwner()` 사용)
    - 필요한 서명 수 확인 (`IMultiSigWallet.numConfirmationsRequired()` 사용)
    - 서명 길이 검증 (65바이트 * 서명 개수)
@@ -30,7 +38,7 @@
    - v 값 검증 (27 또는 28)
    - **중복 서명자 방지: 같은 소유자의 중복 서명 거부**
    - **서명 재사용 방지: 검증된 서명은 더 이상 사용 불가**
-   - **서명 유효기간 검증: Owner가 설정한 기간 내에서만 유효**
+
 
 3. **보안 고려사항**
    - 서명 길이 검증
@@ -38,20 +46,13 @@
    - 제로 주소 검증
    - 권한 확인 (DEFAULT_ADMIN_ROLE)
    - **서명 재사용 공격 방지 (nonce 또는 used signatures 추적)**
-   - **타임스탬프 기반 유효기간 검증**
 
-4. **MultiSig 통합**
-   - **MultiSig 지갑이 DAO의 Owner (DEFAULT_ADMIN_ROLE)**
-   - MultiSig 지갑 주소 설정 기능
-   - **다중 서명 방식: numConfirmationsRequired 수만큼의 유효한 서명 필요**
-   - 소유자 확인 인터페이스 (`isOwner()` 메서드)
-   - 필요 서명 수 확인 인터페이스 (`numConfirmationsRequired()` 메서드)
-   - 권한 기반 접근 제어
+4. **Safe Wallet 통합**
+   - **Safe Wallet의 운영자 중 한명은 DAOContract**
+   - **Safe Global 앱 (https://app.safe.global/) 호환성 보장**
 
 5. **서명 관리 기능**
-   - **서명 유효기간 설정 함수 (Owner만 가능)**
    - **사용된 서명 추적 및 저장**
-   - **서명 만료 시간 검증**
    - **서명 상태 조회 기능**
 
 ### 참조 구현 패턴
@@ -68,40 +69,29 @@ interface IMultiSigWallet {
    function numConfirmationsRequired() external view returns (uint);
 }
 
-// 상태 변수
-address public multiSigWallet; // DAO Owner (DEFAULT_ADMIN_ROLE)
-uint256 public signatureValidityPeriod; // 서명 유효기간 (초 단위)
-mapping(bytes32 => bool) public usedSignatures; // 사용된 서명 추적
-mapping(bytes32 => uint256) public signatureTimestamps; // 서명 생성 시간
+// 스토리지 컨트랙트 예시
+contract EIP1271Storage {
+    address public multiSigWallet; // DAO Owner (DEFAULT_ADMIN_ROLE)
+    mapping(bytes32 => bool) public usedSignatures; // 사용된 서명 추적
+}
 
 // 서명 검증 함수 구조
 function isValidSignature(bytes32 _hash, bytes memory _signature) external view returns (bytes4);
 function _validateSignatures(bytes32 _hash, bytes memory _signature) internal view returns (bool);
 function _recoverSigner(bytes32 _hash, bytes memory _signature) internal pure returns (address);
-function setSignatureValidityPeriod(uint256 _period) external onlyOwner;
-function _isSignatureExpired(bytes32 _signatureHash) internal view returns (bool);
 
-// 핵심 검증 로직 예시 (다중 서명 + 재사용 방지 + 유효기간)
-function _validateSignatures(bytes32 _hash, bytes memory _signature) internal returns (bool) {
+// 핵심 검증 로직 예시 (다중 서명 + 재사용 방지)
+function _validateSignatures(bytes32 _hash, bytes memory _signature) internal view returns (bool) {
     uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
     uint256 sigCount = _signature.length / 65;
     
     // 서명 개수가 필요 개수보다 적으면 실패
     if (sigCount < requiredSigs) return false;
     
-    // 서명 해시 생성 (재사용 방지용)
-    bytes32 signatureHash = keccak256(abi.encodePacked(_hash, _signature));
-    
-    // 서명 재사용 검증
-    if (usedSignatures[signatureHash]) return false;
-    
-    // 서명 유효기간 검증
-    if (_isSignatureExpired(signatureHash)) return false;
-    
     address[] memory signers = new address[](sigCount);
     uint256 validSigs = 0;
     
-    // 각 서명을 검증
+    // 각 서명을 검증하고 유효한 서명자 수집
     for (uint256 i = 0; i < sigCount; i++) {
         bytes memory sigPart = _signature.slice(i * 65, 65);
         address signer = _recoverSigner(_hash, sigPart);
@@ -114,13 +104,28 @@ function _validateSignatures(bytes32 _hash, bytes memory _signature) internal re
     }
     
     // 필요한 서명 수를 충족하는지 확인
-    if (validSigs >= requiredSigs) {
-        // 서명을 사용됨으로 표시
-        usedSignatures[signatureHash] = true;
-        return true;
+    if (validSigs < requiredSigs) return false;
+    
+    // 유효한 서명자들만 추출하여 정렬 (순서 무관한 해시 생성)
+    address[] memory validSigners = new address[](validSigs);
+    uint256 validIndex = 0;
+    for (uint256 i = 0; i < sigCount; i++) {
+        if (signers[i] != address(0)) {
+            validSigners[validIndex] = signers[i];
+            validIndex++;
+        }
     }
     
-    return false;
+    // 서명자 주소들을 정렬 (순서 무관한 일관된 해시 생성)
+    _sortAddresses(validSigners);
+    
+    // 정렬된 서명자들로 재사용 방지 해시 생성
+    bytes32 signatureHash = keccak256(abi.encodePacked(_hash, validSigners));
+    
+    // 서명 재사용 검증
+    if (usedSignatures[signatureHash]) return false;
+    
+    return true;
 }
 
 // 중복 서명자 확인 헬퍼 함수
@@ -129,6 +134,20 @@ function _isDuplicate(address[] memory signers, address signer, uint256 currentI
         if (signers[i] == signer) return true;
     }
     return false;
+}
+
+// 주소 정렬 헬퍼 함수 (서명 순서 무관한 해시 생성용)
+function _sortAddresses(address[] memory addresses) internal pure {
+    uint256 length = addresses.length;
+    for (uint256 i = 0; i < length - 1; i++) {
+        for (uint256 j = 0; j < length - i - 1; j++) {
+            if (addresses[j] > addresses[j + 1]) {
+                address temp = addresses[j];
+                addresses[j] = addresses[j + 1];
+                addresses[j + 1] = temp;
+            }
+        }
+    }
 }
 ```
 
@@ -144,18 +163,20 @@ function _isDuplicate(address[] memory signers, address signer, uint256 currentI
 - 필요시 서명 검증 관련 이벤트
 
 ### 추가 함수들
-- `setSignatureValidityPeriod(uint256 _period)`: 서명 유효기간 설정
+- `validateAndUseSignature(bytes32 _hash, bytes memory _signature)`: 서명 검증 후 사용됨으로 표시 (onlyOwner)
 - `isSignatureUsed(bytes32 _signatureHash)`: 서명 사용 여부 확인
-- `getSignatureTimestamp(bytes32 _signatureHash)`: 서명 생성 시간 조회
+- `_getSignatureHash(bytes32 _hash, bytes memory _signature)`: 재사용 방지용 서명 해시 생성
+- `_markSignatureAsUsed(bytes32 _signatureHash)`: 서명을 사용됨으로 표시
 - `cleanupExpiredSignatures(bytes32[] _signatureHashes)`: 만료된 서명 정리
 
 다음과 같은 형태로 완전한 구현 코드를 제공해주세요:
-1. 인터페이스 정의
-2. 상태 변수 선언
-3. 수정자(modifier) 정의
-4. 메인 함수들 구현
-5. 내부 헬퍼 함수들
-6. 이벤트 정의
+1. **스토리지 컨트랙트에 상태 변수 선언**
+2. 인터페이스 정의
+3. 메인 컨트랙트에서 스토리지 상속
+4. 수정자(modifier) 정의
+5. 메인 함수들 구현
+6. 내부 헬퍼 함수들
+7. 이벤트 정의
 
 코드에는 상세한 주석을 포함하고, 각 함수의 목적과 보안 고려사항을 설명해주세요.
 ```
@@ -177,11 +198,10 @@ function _isDuplicate(address[] memory signers, address signer, uint256 currentI
 - **중복 서명자 방지: 같은 소유자가 여러 번 서명할 수 없음**
 - **MultiSig 지갑이 DEFAULT_ADMIN_ROLE을 가져야 함**
 - **검증된 서명은 즉시 사용됨으로 표시하여 재사용 방지**
-- **서명 유효기간은 Owner만 설정 가능하며, 기본값 권장 (예: 1시간)**
-- **만료된 서명은 자동으로 무효 처리**
 
 ### 서명 형식
 - **연결된 서명 형식: signature1 + signature2 + ... (각 65바이트)**
-- **서명 순서는 상관없음 (중복만 방지)**
+- **서명 순서는 상관없음 (중복만 방지, 재사용 방지는 서명자 주소 정렬로 해결)**
 - **필요 서명 수보다 많은 서명 제공 가능 (처음 유효한 것들만 사용)**
+- **재사용 방지: 유효한 서명자들의 주소를 정렬하여 일관된 해시 생성**
 ```

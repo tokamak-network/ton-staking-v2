@@ -6,6 +6,13 @@
 다음 EIP-1271 구현에 대한 포괄적인 테스트 코드를 작성해주세요:
 
 [여기에 구현 코드 붙여넣기]
+```
+
+### 컨텍스트
+- **구조**: Safe Wallet의 Signer 중 한명이 DAO Contract
+- **DAO Owner**: MultiSigWallet Contract (별도의 MultiSig)
+- **EIP-1271 검증**: DAO Contract가 자신의 Owner인 MultiSigWallet 소유자들의 서명 검증
+- **Safe Wallet 호환성**: Safe Global 앱에서 DAO Contract 서명 시 EIP-1271 검증 가능
 
 ### 테스트 프레임워크
 - Hardhat + Ethers.js
@@ -17,72 +24,89 @@
 #### 1. 기본 기능 테스트
 ```javascript
 describe("EIP-1271 Basic Functionality", () => {
-  // 정상적인 서명 검증
+  // 정상적인 서명 검증 (MultiSigWallet 소유자들)
   // 잘못된 서명 검증
-  // 매직 값 반환 확인
+  // 매직 값 반환 확인 (0x1626ba7e)
+  // 무효한 서명 반환 확인 (0xffffffff)
 });
 ```
 
-#### 2. MultiSig 통합 테스트
+#### 2. MultiSigWallet 통합 테스트
 ```javascript
-describe("MultiSig Integration", () => {
-  // MultiSig 지갑이 DAO Owner인지 확인
-  // 단일 소유자 서명 검증
+describe("MultiSigWallet Integration", () => {
+  // MultiSigWallet이 DAO Owner인지 확인
+  // MultiSigWallet 소유자들의 서명 검증
   // 비소유자 서명 거부
-  // MultiSig 소유자 변경 시 동작 확인
+  // numConfirmationsRequired 기준 충족 확인
+  // MultiSigWallet 소유자 변경 시 동작 확인
+  // threshold 변경 시 동작 확인
 });
 ```
 
-#### 3. 보안 테스트
+#### 3. 다중 서명 검증 테스트
+```javascript
+describe("Multi-Signature Validation", () => {
+  // 필요 서명 수 충족 시 성공
+  // 필요 서명 수 미달 시 실패
+  // 중복 서명자 방지
+  // 서명 순서 무관성 확인
+  // 초과 서명 제공 시 처리
+});
+```
+
+#### 4. 보안 테스트
 ```javascript
 describe("Security Tests", () => {
-  // 잘못된 서명 길이
-  // 무효한 v 값
-  // s-value 범위 초과
+  // 서명 재사용 방지
+  // 잘못된 서명 길이 거부
+  // 무효한 v 값 거부 (27, 28 외)
+  // s-value 범위 초과 거부
   // 제로 주소 검증
+  // 서명 변조 감지
 });
 ```
 
-#### 4. 권한 테스트
+#### 5. 권한 테스트
 ```javascript
 describe("Access Control", () => {
-  // admin 권한 확인
+  // MultiSigWallet admin 권한 확인
   // 권한 없는 접근 차단
-  // MultiSig 권한 검증
+  // onlyOwner 함수 접근 제어
+  // MultiSigWallet 설정 권한 검증
 });
 ```
 
-#### 5. 엣지 케이스 테스트
+#### 6. Safe Wallet 호환성 테스트
 ```javascript
-describe("Edge Cases", () => {
-  // 경계값 테스트
-  // 예외 상황 처리
-  // 가스 한도 테스트
+describe("Safe Wallet Compatibility", () => {
+  // Safe Wallet에서 DAO Contract 서명 시나리오
+  // EIP-1271 표준 준수 확인
+  // Safe Global 앱 호환성 검증
 });
 ```
 
 ### 테스트 헬퍼 함수
 
 다음 헬퍼 함수들을 포함해주세요:
-- **다중 서명 생성 함수 (numConfirmationsRequired 수만큼)**
-- **연결된 서명 형식 생성 헬퍼**
-- **MultiSig 소유자들의 서명 생성**
+- **MultiSigWallet 소유자들의 서명 생성 함수**
+- **numConfirmationsRequired 수만큼 서명 생성**
+- **연결된 서명 형식 생성 헬퍼 (signature1 + signature2 + ...)**
 - **중복 서명자 테스트 헬퍼**
-- **서명 유효기간 설정 헬퍼**
-- **시간 이동 헬퍼 (유효기간 테스트용)**
 - **서명 재사용 테스트 헬퍼**
-- MultiSig 지갑 모킹 (DAO Owner 역할)
+- **서명 순서 변경 테스트 헬퍼**
+- MultiSigWallet 모킹 (DAO Owner 역할)
 - 테스트 데이터 생성
 - 어설션 헬퍼
 
 ### 테스트 데이터
 
 실제적인 테스트 시나리오를 위한:
-- **MultiSig 소유자의 유효한 서명 예시**
+- **MultiSigWallet 소유자들의 유효한 서명 예시**
 - **비소유자의 무효한 서명 예시**
+- **DAO Owner로 설정된 MultiSigWallet 주소**
 - 다양한 해시 값
-- MultiSig 소유자 주소들
-- **DAO Owner로 설정된 MultiSig 주소**
+- MultiSigWallet 소유자 주소들 (3-5개)
+- numConfirmationsRequired 설정 (예: 2/3, 3/5)
 
 각 테스트에 대해 상세한 설명과 함께 완전한 테스트 코드를 제공해주세요.
 ```
@@ -133,17 +157,25 @@ describe("Performance Tests", () => {
 ### 모킹 및 스텁
 
 다음 컴포넌트들의 모킹 코드를 제공해주세요:
-- MultiSig 지갑 컨트랙트
+- **MultiSigWallet 컨트랙트** (DAO Owner 역할)
+  - `isOwner()` 함수 모킹
+  - `getOwners()` 함수 모킹  
+  - `numConfirmationsRequired()` 함수 모킹
+- **Safe Wallet 시뮬레이션** (DAO Contract를 서명 대상으로)
+- AccessControl 권한 시스템
 - 외부 의존성들
 - 네트워크 호출
 
 ### 테스트 유틸리티
 
 편의를 위한 유틸리티 함수들:
-- 서명 생성 및 검증
+- **MultiSigWallet 소유자들의 서명 생성 및 검증**
+- **연결된 서명 데이터 생성** (signature1 + signature2 + ...)
+- **서명 해시 계산** (재사용 방지용)
 - 테스트 데이터 팩토리
 - 어설션 매처
 - 테스트 환경 설정
+- **MultiSigWallet 배포 및 설정 헬퍼**
 ```
 
 ## 보안 테스트 프롬프트
@@ -157,27 +189,27 @@ describe("Performance Tests", () => {
 ```javascript
 describe("Attack Scenarios", () => {
   it("should prevent signature replay attacks", async () => {
-    // 서명 재사용 공격 테스트
+    // 서명 재사용 공격 테스트 (usedSignatures 매핑 활용)
   });
   
   it("should prevent signature malleability", async () => {
-    // 서명 변조 공격 테스트
+    // 서명 변조 공격 테스트 (s-value 범위 검증)
   });
   
   it("should prevent unauthorized access", async () => {
-    // 권한 없는 접근 테스트
+    // 권한 없는 접근 테스트 (onlyOwner 검증)
   });
   
   it("should reject non-multisig owner signatures", async () => {
-    // MultiSig 소유자가 아닌 서명 거부 테스트
+    // MultiSigWallet 소유자가 아닌 서명 거부 테스트
   });
   
   it("should enforce MultiSigWallet signature standards", async () => {
-    // MultiSigWallet 서명 기준 준수 테스트
+    // MultiSigWallet 서명 기준 준수 테스트 (numConfirmationsRequired)
   });
   
   it("should validate multiple owner signatures correctly", async () => {
-    // 다중 소유자 서명 검증 테스트 (numConfirmationsRequired 충족)
+    // 다중 소유자 서명 검증 테스트 (threshold 충족)
   });
   
   it("should reject insufficient signatures", async () => {
@@ -185,20 +217,21 @@ describe("Attack Scenarios", () => {
   });
   
   it("should prevent duplicate signers", async () => {
-    // 중복 서명자 방지 테스트
+    // 중복 서명자 방지 테스트 (_isDuplicate 함수)
   });
   
   it("should prevent signature reuse", async () => {
-    // 서명 재사용 방지 테스트
+    // 서명 재사용 방지 테스트 (signatureHash 추적)
   });
   
-  it("should reject expired signatures", async () => {
-    // 만료된 서명 거부 테스트
+  it("should handle signature order independence", async () => {
+    // 서명 순서 무관성 테스트 (정렬된 해시 생성)
   });
   
-  it("should allow owner to set signature validity period", async () => {
-    // 서명 유효기간 설정 테스트
+  it("should reject signatures from non-admin MultiSigWallet", async () => {
+    // DEFAULT_ADMIN_ROLE이 없는 MultiSigWallet 거부
   });
+
 });
 ```
 
@@ -235,11 +268,19 @@ describe("Cryptographic Security", () => {
 ```javascript
 describe("Gas Usage Analysis", () => {
   it("should measure gas consumption for signature verification", async () => {
-    // 서명 검증 가스 사용량 측정
+    // isValidSignature 함수 가스 사용량 측정
   });
   
-  it("should compare gas usage with different signature types", async () => {
-    // 다양한 서명 타입별 가스 비교
+  it("should compare gas usage with different signature counts", async () => {
+    // 서명 개수별 가스 비교 (2개, 3개, 5개 등)
+  });
+  
+  it("should measure gas for validateAndUseSignature", async () => {
+    // 서명 사용 표시 포함 가스 측정
+  });
+  
+  it("should analyze gas efficiency of signature sorting", async () => {
+    // 서명자 정렬 알고리즘 가스 효율성
   });
 });
 ```

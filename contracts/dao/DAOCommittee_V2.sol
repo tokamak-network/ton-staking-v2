@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { IERC20 } from  "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ICandidateFactory } from "./interfaces/ICandidateFactory.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {ICandidateFactory} from './interfaces/ICandidateFactory.sol';
 
-import { ICandidate } from "./interfaces/ICandidate.sol";
-import { ILayer2 } from "./interfaces/ILayer2.sol";
-import { IDAOAgendaManager } from "./interfaces/IDAOAgendaManager.sol";
-import { ISeigManager } from "./interfaces/ISeigManager.sol";
-import { ICoinage } from "./interfaces/ICoinage.sol";
-import { ICandidateAddOnFactory } from "./interfaces/ICandidateAddOnFactory.sol";
-import { LibAgenda } from "./lib/Agenda.sol";
-import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {ICandidate} from './interfaces/ICandidate.sol';
+import {ILayer2} from './interfaces/ILayer2.sol';
+import {IDAOAgendaManager} from './interfaces/IDAOAgendaManager.sol';
+import {ISeigManager} from './interfaces/ISeigManager.sol';
+import {ICoinage} from './interfaces/ICoinage.sol';
+import {ICandidateAddOnFactory} from './interfaces/ICandidateAddOnFactory.sol';
+import {LibAgenda} from './lib/Agenda.sol';
+import {ERC165Checker} from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
 
-import {AccessControl} from "../accessControl/AccessControl.sol";
-import {ERC165A}  from "../accessControl/ERC165A.sol";
+import {AccessControl} from '../accessControl/AccessControl.sol';
+import {ERC165A} from '../accessControl/ERC165A.sol';
 
-import "./StorageStateCommittee.sol";
-import "./StorageStateCommitteeV2.sol";
-import "./StorageStateCommitteeV3.sol";
-import "./lib/BytesLib.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import './StorageStateCommittee.sol';
+import './StorageStateCommitteeV2.sol';
+import './StorageStateCommitteeV3.sol';
+import './lib/BytesLib.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 /**
  * @notice Error that occurs when creating Candidate
@@ -34,6 +34,24 @@ error ZeroAddressError();
 error ClaimTONError();
 error ClaimWTONError();
 
+// Safe Wallet 인터페이스 (Safe Global 호환)
+interface ISafeWallet {
+    function isOwner(address owner) external view returns (bool);
+
+    function getOwners() external view returns (address[] memory);
+
+    function getThreshold() external view returns (uint256);
+}
+
+// 기존 호환성을 위한 MultiSig 인터페이스
+interface IMultiSigWallet {
+    function isOwner(address owner) external view returns (bool);
+
+    function getOwners() external view returns (address[] memory);
+
+    function numConfirmationsRequired() external view returns (uint256);
+}
+
 contract DAOCommittee_V2 is
     StorageStateCommittee,
     AccessControl,
@@ -44,12 +62,31 @@ contract DAOCommittee_V2 is
     using BytesLib for bytes;
     using SafeERC20 for IERC20;
 
-    bytes private constant claimTONBytes = hex"ef0d5594";
-    bytes private constant claimWTONBytes = hex"f52bba70";
-    bytes private constant claimERC20Bytes = hex"f848091a";
+    bytes private constant claimTONBytes = hex'ef0d5594';
+    bytes private constant claimWTONBytes = hex'f52bba70';
+    bytes private constant claimERC20Bytes = hex'f848091a';
 
-    enum CurrentResult { PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA }
-    enum CurrentStatus { NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA}
+    // ERC-1271 Magic Values
+    bytes4 private constant MAGICVALUE = 0x1626ba7e;
+    bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
+
+    enum CurrentResult {
+        PENDING,
+        ACCEPT,
+        REJECT,
+        DISMISS,
+        NO_CONSENSUS,
+        NO_AGENDA
+    }
+    enum CurrentStatus {
+        NONE,
+        NOTICE,
+        VOTING,
+        WAITING_EXEC,
+        EXECUTED,
+        ENDED,
+        NO_AGENDA
+    }
 
     struct AgendaCreatingData {
         address[] target;
@@ -80,10 +117,7 @@ contract DAOCommittee_V2 is
         string comment
     );
 
-    event AgendaExecuted(
-        uint256 indexed id,
-        address[] target
-    );
+    event AgendaExecuted(uint256 indexed id, address[] target);
 
     event CandidateContractCreated(
         address indexed candidate,
@@ -97,41 +131,270 @@ contract DAOCommittee_V2 is
         string memo
     );
 
-    event ChangedMember(
-        uint256 indexed slotIndex,
-        address prevMember,
-        address indexed newMember
-    );
+    event ChangedMember(uint256 indexed slotIndex, address prevMember, address indexed newMember);
 
-    event ClaimedActivityReward(
-        address indexed candidate,
-        address receiver,
-        uint256 amount
-    );
+    event ClaimedActivityReward(address indexed candidate, address receiver, uint256 amount);
 
-    event ChangedMemo(
-        address candidateContract,
-        string newMemo
-    );
+    event ChangedMemo(address candidateContract, string newMemo);
 
-    event MemberBlacklisted(
-        address indexed member,
-        uint256 timestamp
-    );
+    event MemberBlacklisted(address indexed member, uint256 timestamp);
+
+    event MultiSigWalletSet(address indexed oldWallet, address indexed newWallet);
+
+    event SignatureUsed(bytes32 indexed signatureHash, address indexed signer);
 
     modifier onlyOwner() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "DAOCommittee: msg.sender is not an admin");
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            'DAOCommittee: msg.sender is not an admin'
+        );
         _;
     }
 
     modifier validMemberIndex(uint256 _index) {
-        require(_index < maxMember, "DAOCommittee: invalid member index");
+        require(_index < maxMember, 'DAOCommittee: invalid member index');
         _;
     }
 
     modifier nonZero(address _addr) {
-        require(_addr != address(0), "DAOCommittee: zero address");
+        require(_addr != address(0), 'DAOCommittee: zero address');
         _;
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // ERC-1271 Implementation
+    //////////////////////////////////////////////////////////////////////
+
+    /**
+     * @notice Signature validation according to EIP-1271 standard
+     * @dev Validates signatures from MultiSigWallet owners (DAO Contract Owner)
+     * @dev Safe Wallet can use this when DAO Contract is one of its signers
+     * @param _hash Hash that was signed
+     * @param _signature Signature data (multiple signatures from MultiSigWallet owners)
+     * @return magicValue ERC-1271 magic value
+     */
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory _signature
+    ) external view returns (bytes4 magicValue) {
+        if (multiSigWallet == address(0)) {
+            return INVALID_SIGNATURE;
+        }
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet),
+            'DAOCommittee: MultiSigWallet is not an admin'
+        );
+
+        if (_validateSignatures(_hash, _signature)) {
+            return MAGICVALUE;
+        }
+        return INVALID_SIGNATURE;
+    }
+
+    /**
+     * @notice Validate and mark signature as used (for actual execution)
+     * @dev Validates signatures from MultiSigWallet owners and marks as used
+     * @param _hash Hash that was signed
+     * @param _signature Signature data from MultiSigWallet owners
+     * @return true if valid and successfully marked as used
+     */
+    function validateAndUseSignature(
+        bytes32 _hash,
+        bytes memory _signature
+    ) external onlyOwner returns (bool) {
+        if (!_validateSignatures(_hash, _signature)) {
+            return false;
+        }
+
+        // 서명을 사용됨으로 표시
+        bytes32 signatureHash = _getSignatureHash(_hash, _signature);
+        _markSignatureAsUsed(signatureHash);
+
+        return true;
+    }
+
+    /**
+     * @notice Verify multiple signatures from MultiSigWallet owners
+     * @dev Validates signatures from DAO Contract's MultiSigWallet owners
+     * @param _hash Hash that was signed
+     * @param _signature Concatenated signature data from MultiSigWallet owners
+     * @return true if valid signatures meet MultiSigWallet threshold
+     */
+    function _validateSignatures(
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal view returns (bool) {
+        // 서명 해시 생성 및 재사용 검증
+        bytes32 signatureHash = _getSignatureHash(_hash, _signature);
+
+        // 유효하지 않은 서명이거나 이미 사용된 서명
+        if (signatureHash == bytes32(0) || usedSignatures[signatureHash]) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @notice Recovers signer address from ECDSA signature
+     * @param _hash Hash that was signed
+     * @param _signature Signature data (65 bytes)
+     * @return signer Signer address
+     */
+    function _recoverSigner(
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal pure returns (address signer) {
+        require(_signature.length == 65, 'Invalid signature length');
+
+        uint8 v = uint8(_signature[64]);
+        bytes32 r;
+        bytes32 s;
+
+        assembly {
+            r := mload(add(_signature, 32))
+            s := mload(add(_signature, 64))
+        }
+
+        // Prevent signature malleability
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "Invalid signature 's' value"
+        );
+
+        require(v == 27 || v == 28, "Invalid signature 'v' value");
+
+        // Create Ethereum signed message hash
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked('\x19Ethereum Signed Message:\n32', _hash)
+        );
+        signer = ecrecover(ethSignedMessageHash, v, r, s);
+
+        require(signer != address(0), 'Invalid signer');
+        return signer;
+    }
+
+    /**
+     * @notice Check for duplicate signers
+     * @param signers Array of signer addresses
+     * @param signer Address to check
+     * @param currentIndex Current index in the array
+     * @return true if duplicate found
+     */
+    function _isDuplicate(
+        address[] memory signers,
+        address signer,
+        uint256 currentIndex
+    ) internal pure returns (bool) {
+        for (uint256 i = 0; i < currentIndex; i++) {
+            if (signers[i] == signer) return true;
+        }
+        return false;
+    }
+
+    /**
+     * @notice Sort addresses in ascending order (bubble sort for simplicity)
+     * @param addresses Array of addresses to sort
+     */
+    function _sortAddresses(address[] memory addresses) internal pure {
+        uint256 length = addresses.length;
+        for (uint256 i = 0; i < length - 1; i++) {
+            for (uint256 j = 0; j < length - i - 1; j++) {
+                if (addresses[j] > addresses[j + 1]) {
+                    address temp = addresses[j];
+                    addresses[j] = addresses[j + 1];
+                    addresses[j + 1] = temp;
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice Generate signature hash for replay protection
+     * @dev Validates signatures from MultiSigWallet owners (not Safe Wallet)
+     * @param _hash Original hash that was signed
+     * @param _signature Signature data
+     * @return signatureHash Hash for tracking used signatures
+     */
+    function _getSignatureHash(
+        bytes32 _hash,
+        bytes memory _signature
+    ) internal view returns (bytes32 signatureHash) {
+        // MultiSigWallet의 필요 서명 수 가져오기
+        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
+        uint256 sigCount = _signature.length / 65;
+
+        if (sigCount < requiredSigs) return bytes32(0);
+
+        address[] memory signers = new address[](sigCount);
+        uint256 validSigs = 0;
+
+        // 각 서명을 검증하고 유효한 서명자 수집
+        for (uint256 i = 0; i < sigCount; i++) {
+            bytes memory sigPart = _signature.slice(i * 65, 65);
+            address signer = _recoverSigner(_hash, sigPart);
+
+            // MultiSig 소유자이고 중복이 아닌 경우
+            if (
+                IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)
+            ) {
+                signers[i] = signer;
+                validSigs++;
+            }
+        }
+
+        if (validSigs < requiredSigs) return bytes32(0);
+
+        // 유효한 서명자들만 추출하여 정렬 (순서 무관한 해시 생성)
+        address[] memory validSigners = new address[](validSigs);
+        uint256 validIndex = 0;
+        for (uint256 i = 0; i < sigCount; i++) {
+            if (signers[i] != address(0)) {
+                validSigners[validIndex] = signers[i];
+                validIndex++;
+            }
+        }
+
+        // 서명자 주소들을 정렬 (순서 무관한 일관된 해시 생성)
+        _sortAddresses(validSigners);
+
+        // 정렬된 서명자들로 재사용 방지 해시 생성
+        return keccak256(abi.encodePacked(_hash, validSigners));
+    }
+
+    /**
+     * @notice Mark signature as used to prevent replay attacks
+     * @param _signatureHash Hash of the signature to mark as used
+     */
+    function _markSignatureAsUsed(bytes32 _signatureHash) internal {
+        usedSignatures[_signatureHash] = true;
+        emit SignatureUsed(_signatureHash, msg.sender);
+    }
+
+    /**
+     * @notice Check if signature has been used
+     * @param _signatureHash Hash of the signature to check
+     * @return true if signature has been used
+     */
+    function isSignatureUsed(bytes32 _signatureHash) external view returns (bool) {
+        return usedSignatures[_signatureHash];
+    }
+
+    /**
+     * @notice Sets MultiSigWallet address (onlyOwner)
+     * @dev MultiSigWallet becomes the DAO Owner and its owners' signatures are validated via EIP-1271
+     * @param _multiSigWallet New MultiSigWallet address
+     */
+    function setMultiSigWallet(
+        address _multiSigWallet
+    ) external onlyOwner nonZero(_multiSigWallet) {
+        address oldWallet = multiSigWallet;
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet),
+            'DAOCommittee: new MultiSigWallet is not an admin'
+        );
+        multiSigWallet = _multiSigWallet;
+        emit MultiSigWalletSet(oldWallet, _multiSigWallet);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -140,20 +403,17 @@ contract DAOCommittee_V2 is
     /// @notice Removes candidates registered in the blacklist.
     /// @param _candidate Candidate address to be updated
     function removeFromBlacklist(address _candidate) external onlyOwner {
-        require(blacklist[_candidate], "Not blacklisted");
+        require(blacklist[_candidate], 'Not blacklisted');
         blacklist[_candidate] = false;
     }
 
     /// @notice Registers a new Candidate managed by msg.sender.
     /// @param _memo Candidate Memo
-    function createCandidate(string calldata _memo)
-        external
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
-    {
+    function createCandidate(
+        string calldata _memo
+    ) external validSeigManager validLayer2Registry validCommitteeL2Factory {
         address _operator = msg.sender;
-        require(!isExistCandidate(_operator), "DAOCommittee: candidate already registerd");
+        require(!isExistCandidate(_operator), 'DAOCommittee: candidate already registerd');
 
         // Candidate
         address candidateContract = candidateFactory.deploy(
@@ -166,12 +426,12 @@ contract DAOCommittee_V2 is
 
         require(
             candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
+            'DAOCommittee: deployed candidateContract is zero'
         );
 
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-            "DAOCommittee: failed to registerAndDeployCoinage"
+            'DAOCommittee: failed to registerAndDeployCoinage'
         );
 
         _candidateInfos[_operator] = CandidateInfo({
@@ -185,19 +445,15 @@ contract DAOCommittee_V2 is
         candidates.push(_operator);
 
         emit CandidateContractCreated(_operator, candidateContract, _memo);
-
     }
 
     /// @notice Registers a new Candidate managed by operator.
     /// @param _memo Candidate Memo
     /// @param _operatorAddress operatorAddress
-    function createCandidateOwner(string calldata _memo, address _operatorAddress)
-        public
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
-        onlyOwner
-    {
+    function createCandidateOwner(
+        string calldata _memo,
+        address _operatorAddress
+    ) public validSeigManager validLayer2Registry validCommitteeL2Factory onlyOwner {
         // Candidate
         address candidateContract = candidateFactory.deploy(
             _operatorAddress,
@@ -209,9 +465,8 @@ contract DAOCommittee_V2 is
 
         require(
             candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
+            'DAOCommittee: deployed candidateContract is zero'
         );
-
 
         _candidateInfos[_operatorAddress] = CandidateInfo({
             candidateContract: candidateContract,
@@ -222,11 +477,10 @@ contract DAOCommittee_V2 is
         });
 
         candidates.push(_operatorAddress);
-    
 
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
-            "DAOCommittee: failed to registerAndDeployCoinage"
+            'DAOCommittee: failed to registerAndDeployCoinage'
         );
 
         emit CandidateContractCreated(_operatorAddress, candidateContract, _memo);
@@ -236,10 +490,10 @@ contract DAOCommittee_V2 is
     /// @param _memo Candidate Memo
     /// @param _operatorManagerAddress operatorManagerContract Address
     /// @return candidateContract Address
-    function createCandidateAddOn(string calldata _memo, address _operatorManagerAddress)
-        public
-        returns (address)
-    {
+    function createCandidateAddOn(
+        string calldata _memo,
+        address _operatorManagerAddress
+    ) public returns (address) {
         if (msg.sender != layer2Manager) revert PermissionError();
 
         // Candidate
@@ -250,7 +504,8 @@ contract DAOCommittee_V2 is
             address(seigManager)
         );
         if (candidateContract == address(0)) revert CreateCandiateError(1);
-        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0)) revert CreateCandiateError(2);
+        if (_candidateInfos[_operatorManagerAddress].candidateContract != address(0))
+            revert CreateCandiateError(2);
 
         _candidateInfos[_operatorManagerAddress] = CandidateInfo({
             candidateContract: candidateContract,
@@ -262,7 +517,8 @@ contract DAOCommittee_V2 is
 
         candidates.push(_operatorManagerAddress);
 
-        if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager))) revert CreateCandiateError(3);
+        if (!layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)))
+            revert CreateCandiateError(3);
         emit CandidateContractCreated(_operatorManagerAddress, candidateContract, _memo);
 
         return candidateContract;
@@ -272,10 +528,11 @@ contract DAOCommittee_V2 is
     /// @param _operator Operator address of the layer2 contract
     /// @param _layer2 Layer2 contract address to be registered
     /// @param _memo A memo for the candidate
-    function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo)
-        external
-        onlyOwner
-    {
+    function registerLayer2CandidateByOwner(
+        address _operator,
+        address _layer2,
+        string memory _memo
+    ) external onlyOwner {
         _registerLayer2Candidate(_operator, _layer2, _memo);
     }
 
@@ -284,38 +541,34 @@ contract DAOCommittee_V2 is
     /// @return Whether or not the execution succeeded
     function changeMember(
         uint256 _memberIndex
-    )
-        external
-        validMemberIndex(_memberIndex)
-        returns (bool)
-    {
+    ) external validMemberIndex(_memberIndex) returns (bool) {
         address newMember = ICandidate(msg.sender).candidate();
         uint256 operatorAmount = operatorCheck(newMember);
         uint256 minimumAmount = ISeigManager(address(seigManager)).minimumAmount();
-        require(operatorAmount >= minimumAmount, "need more operatorDeposit");
+        require(operatorAmount >= minimumAmount, 'need more operatorDeposit');
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
         require(
             ICandidate(msg.sender).isCandidateContract(),
-            "DAOCommittee: sender is not a candidate contract"
+            'DAOCommittee: sender is not a candidate contract'
         );
         require(
             candidateInfo.candidateContract == msg.sender,
-            "DAOCommittee: invalid candidate contract"
+            'DAOCommittee: invalid candidate contract'
         );
-        require(cooldown[candidateInfo.candidateContract] < block.timestamp, "DAOCommittee: need cooldown");
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
         require(
-            candidateInfo.memberJoinedTime == 0,
-            "DAOCommittee: already member"
+            cooldown[candidateInfo.candidateContract] < block.timestamp,
+            'DAOCommittee: need cooldown'
         );
+        require(!blacklist[candidateInfo.candidateContract], 'DAOCommittee: blacklisted member');
+        require(candidateInfo.memberJoinedTime == 0, 'DAOCommittee: already member');
 
         address prevMember = members[_memberIndex];
         address prevMemberContract = candidateContract(prevMember);
 
         candidateInfo.memberJoinedTime = uint128(block.timestamp);
         candidateInfo.indexMembers = _memberIndex;
-        
+
         cooldown[candidateInfo.candidateContract] = block.timestamp + cooldownTime;
         members[_memberIndex] = newMember;
 
@@ -326,15 +579,17 @@ contract DAOCommittee_V2 is
 
         require(
             ICandidate(msg.sender).totalStaked() > ICandidate(prevMemberContract).totalStaked(),
-            "not enough amount"
+            'not enough amount'
         );
 
         CandidateInfo storage prevCandidateInfo = _candidateInfos[prevMember];
         prevCandidateInfo.indexMembers = 0;
         if (prevCandidateInfo.memberJoinedTime > prevCandidateInfo.claimedTimestamp) {
-            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.memberJoinedTime);
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) -
+                prevCandidateInfo.memberJoinedTime);
         } else {
-            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) - prevCandidateInfo.claimedTimestamp);
+            prevCandidateInfo.rewardPeriod += (uint128(block.timestamp) -
+                prevCandidateInfo.claimedTimestamp);
         }
         prevCandidateInfo.memberJoinedTime = 0;
 
@@ -343,27 +598,26 @@ contract DAOCommittee_V2 is
         return true;
     }
 
-    /// @notice If you remove a Member's qualifications through retireMember, 
-    ///         they will be added to the blacklist and will not be able to use any functions 
+    /// @notice If you remove a Member's qualifications through retireMember,
+    ///         they will be added to the blacklist and will not be able to use any functions
     ///         that a Candidate can perform in the future.
     ///         Please check before executing the function.
     /// @return Whether or not the execution succeeded
     function retireMember() external returns (bool) {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
-        require(
-            candidateInfo.memberJoinedTime > 0,
-            "DAOCommittee: not a member"
-        );
+        require(candidateInfo.memberJoinedTime > 0, 'DAOCommittee: not a member');
         require(
             candidateInfo.candidateContract == msg.sender,
-            "DAOCommittee: invalid candidate contract"
+            'DAOCommittee: invalid candidate contract'
         );
         members[candidateInfo.indexMembers] = address(0);
         if (candidateInfo.memberJoinedTime > candidateInfo.claimedTimestamp) {
-            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.memberJoinedTime);
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) -
+                candidateInfo.memberJoinedTime);
         } else {
-            candidateInfo.rewardPeriod += (uint128(block.timestamp) - candidateInfo.claimedTimestamp);
+            candidateInfo.rewardPeriod += (uint128(block.timestamp) -
+                candidateInfo.claimedTimestamp);
         }
         candidateInfo.memberJoinedTime = 0;
 
@@ -381,12 +635,7 @@ contract DAOCommittee_V2 is
     /// @notice Registers a new Candidate managed by operatorManagerContract.
     /// @param _candidate Candidate Memo
     /// @param _memo Candidate Memo
-    function setMemoOnCandidate(
-        address _candidate,
-        string calldata _memo
-    )
-        external
-    {
+    function setMemoOnCandidate(address _candidate, string calldata _memo) external {
         address candidateContract = candidateContract(_candidate);
         setMemoOnCandidateContract(candidateContract, _memo);
     }
@@ -394,12 +643,7 @@ contract DAOCommittee_V2 is
     /// @notice Set memo
     /// @param _candidateContract candidate contract address
     /// @param _memo New memo on this candidate
-    function setMemoOnCandidateContract(
-        address _candidateContract,
-        string calldata _memo
-    )
-        public
-    {
+    function setMemoOnCandidateContract(address _candidateContract, string calldata _memo) public {
         address candidate = ICandidate(_candidateContract).candidate();
         address contractOwner = candidate;
         if (ICandidate(_candidateContract).isLayer2Candidate()) {
@@ -407,46 +651,48 @@ contract DAOCommittee_V2 is
         }
         require(
             msg.sender == contractOwner,
-            "DAOCommittee: sender is not the candidate of this contract"
+            'DAOCommittee: sender is not the candidate of this contract'
         );
 
         ICandidate(_candidateContract).setMemo(_memo);
         emit ChangedMemo(_candidateContract, _memo);
     }
 
-
     //////////////////////////////////////////////////////////////////////
     // Managing agenda
 
-    /// @notice This is the ApproveAndCall function that runs in the TON Contract. 
+    /// @notice This is the ApproveAndCall function that runs in the TON Contract.
     ///         can create an Agenda through this function.
     /// @param owner Owner who created the function.
     /// @param data  Data containing the content to be executed in the corresponding function.
     /// @return Whether or not the execution succeeded
     function onApprove(
         address owner,
-        address ,
-        uint256 ,
+        address,
+        uint256,
         bytes calldata data
     ) external returns (bool) {
         require(msg.sender == ton, "It's not from TON");
         AgendaCreatingData memory agendaData = _decodeAgendaData(data);
-        require(agendaData.target.length != 0, "need target");
-        require(agendaData.atomicExecute, "atomicExecute need true");
-        require(agendaData.target.length == agendaData.functionBytecode.length, "need same length");
-        require(agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(), "need over minimumVotingPeriodSeconds");
+        require(agendaData.target.length != 0, 'need target');
+        require(agendaData.atomicExecute, 'atomicExecute need true');
+        require(agendaData.target.length == agendaData.functionBytecode.length, 'need same length');
+        require(
+            agendaData.votingPeriodSeconds >= agendaManager.minimumVotingPeriodSeconds(),
+            'need over minimumVotingPeriodSeconds'
+        );
 
         for (uint256 i = 0; i < agendaData.target.length; i++) {
-            if(agendaData.target[i] == address(daoVault)) {
+            if (agendaData.target[i] == address(daoVault)) {
                 bytes memory abc = agendaData.functionBytecode[i];
                 bytes memory selector1 = abc.slice(0, 4);
 
                 if (selector1.equal(claimTONBytes)) revert ClaimTONError();
                 if (selector1.equal(claimWTONBytes)) revert ClaimWTONError();
-                
+
                 bytes memory erc20Address = abc.slice(16, 20);
                 if (selector1.equal(claimERC20Bytes) && erc20Address.equal(_toBytes(ton))) {
-                    revert("claimERC20 ton dont use");
+                    revert('claimERC20 ton dont use');
                 }
             }
         }
@@ -472,23 +718,16 @@ contract DAOCommittee_V2 is
         uint256 _agendaID,
         uint256 _vote,
         string calldata _comment
-    )
-        external
-        validAgendaManager
-    {
+    ) external validAgendaManager {
         address candidate = ICandidate(msg.sender).candidate();
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
         require(
             candidateInfo.candidateContract == msg.sender,
-            "DAOCommittee: invalid candidate contract"
+            'DAOCommittee: invalid candidate contract'
         );
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
+        require(!blacklist[candidateInfo.candidateContract], 'DAOCommittee: blacklisted member');
 
-        agendaManager.castVote(
-            _agendaID,
-            candidate,
-            _vote
-        );
+        agendaManager.castVote(_agendaID, candidate, _vote);
 
         (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
 
@@ -504,10 +743,10 @@ contract DAOCommittee_V2 is
             uint256 totalvotes = yes + no + abstain;
             uint256 remainingVotes = maxMember - totalvotes;
 
-            if((yes + remainingVotes < quorum) && (no + remainingVotes < quorum)) {
+            if ((yes + remainingVotes < quorum) && (no + remainingVotes < quorum)) {
                 // dismiss
                 agendaManager.setResult(_agendaID, LibAgenda.AgendaResult.DISMISS);
-                agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus.ENDED);    
+                agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus.ENDED);
             }
         }
 
@@ -518,9 +757,11 @@ contract DAOCommittee_V2 is
     /// @param _agendaID The ID of the agenda to check.
     /// @return currentResult Current agenda result (PENDING, ACCEPT, REJECT, DISMISS, NO_CONSENSUS, NO_AGENDA)
     /// @return currentStatus Current agenda status (NONE, NOTICE, VOTING, WAITING_EXEC, EXECUTED, ENDED, NO_AGENDA)
-    function currentAgendaStatus(uint256 _agendaID) external view returns (CurrentResult currentResult, CurrentStatus currentStatus) {
+    function currentAgendaStatus(
+        uint256 _agendaID
+    ) external view returns (CurrentResult currentResult, CurrentStatus currentStatus) {
         uint256 numAgendas = agendaManager.numAgendas();
-        if(numAgendas <=  _agendaID){
+        if (numAgendas <= _agendaID) {
             // No Agenda
             // (NO AGENDA, NO AGENDA)
             return (CurrentResult.NO_AGENDA, CurrentStatus.NO_AGENDA);
@@ -539,16 +780,16 @@ contract DAOCommittee_V2 is
             //(NO CONSENSUS, VOTING)
             return (CurrentResult.NO_CONSENSUS, CurrentStatus.VOTING);
         }
-        
+
         if (block.timestamp <= votingEndTime) {
             //When the NoticeTime has passed and someone has voted, but voting has not ended
-            (uint256 result,) = agendaManager.getAgendaResult(_agendaID);
+            (uint256 result, ) = agendaManager.getAgendaResult(_agendaID);
             return (CurrentResult(result), CurrentStatus.VOTING);
         }
-        
+
         //Results after votingEndTime has passed
         (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
-        
+
         if (quorum <= yes) {
             (uint256 result, bool executed) = agendaManager.getAgendaResult(_agendaID);
             if (executed) {
@@ -574,19 +815,21 @@ contract DAOCommittee_V2 is
     function executeAgenda(uint256 _agendaID) external validAgendaManager {
         require(
             agendaManager.canExecuteAgenda(_agendaID),
-            "DAOCommittee: can not execute the agenda"
+            'DAOCommittee: can not execute the agenda'
         );
 
-         (address[] memory target,
-             bytes[] memory functionBytecode,
-             bool atomicExecute,
-         ) = agendaManager.getExecutionInfo(_agendaID);
+        (
+            address[] memory target,
+            bytes[] memory functionBytecode,
+            bool atomicExecute,
+
+        ) = agendaManager.getExecutionInfo(_agendaID);
 
         if (atomicExecute) {
             agendaManager.setExecutedAgenda(_agendaID);
             for (uint256 i = 0; i < target.length; i++) {
                 (bool success, ) = address(target[i]).call(functionBytecode[i]);
-                require(success, "DAOCommittee: Failed to execute the agenda");
+                require(success, 'DAOCommittee: Failed to execute the agenda');
             }
         }
 
@@ -597,7 +840,11 @@ contract DAOCommittee_V2 is
     /// @param _agendaID Agenda ID
     /// @param _status New status
     /// @param _result New result
-    function setAgendaStatus(uint256 _agendaID, uint256 _status, uint256 _result) external onlyOwner {
+    function setAgendaStatus(
+        uint256 _agendaID,
+        uint256 _status,
+        uint256 _result
+    ) external onlyOwner {
         agendaManager.setResult(_agendaID, LibAgenda.AgendaResult(_result));
         agendaManager.setStatus(_agendaID, LibAgenda.AgendaStatus(_status));
     }
@@ -616,9 +863,9 @@ contract DAOCommittee_V2 is
         CandidateInfo storage candidateInfo = _candidateInfos[candidate];
         require(
             candidateInfo.candidateContract == msg.sender,
-            "DAOCommittee: invalid candidate contract"
+            'DAOCommittee: invalid candidate contract'
         );
-        require(!blacklist[candidateInfo.candidateContract], "DAOCommittee: blacklisted member");
+        require(!blacklist[candidateInfo.candidateContract], 'DAOCommittee: blacklisted member');
         uint256 amount = getClaimableActivityReward(candidate);
         require(amount > 0, "DAOCommittee: you don't have claimable wton");
 
@@ -626,11 +873,10 @@ contract DAOCommittee_V2 is
         candidateInfo.rewardPeriod = 0;
 
         uint256 wtonAmount = _toRAY(amount);
-        daoVault.claimERC20(wton,_receiver, wtonAmount);
+        daoVault.claimERC20(wton, _receiver, wtonAmount);
 
         emit ClaimedActivityReward(candidate, _receiver, wtonAmount);
     }
-
 
     /// @notice Convert Wei units to Ray units.
     /// @param v Value to change to Ray
@@ -641,13 +887,17 @@ contract DAOCommittee_V2 is
 
     /// @notice decompose agendaData so that it can be used.
     /// @param input input the bytes data
-    function _decodeAgendaData(bytes calldata input)
-        internal
-        pure
-        returns (AgendaCreatingData memory data)
-    {
-        (data.target, data.noticePeriodSeconds, data.votingPeriodSeconds, data.atomicExecute, data.functionBytecode, data.memo) =
-            abi.decode(input, (address[], uint128, uint128, bool, bytes[], string));
+    function _decodeAgendaData(
+        bytes calldata input
+    ) internal pure returns (AgendaCreatingData memory data) {
+        (
+            data.target,
+            data.noticePeriodSeconds,
+            data.votingPeriodSeconds,
+            data.atomicExecute,
+            data.functionBytecode,
+            data.memo
+        ) = abi.decode(input, (address[], uint128, uint128, bool, bytes[], string));
     }
 
     /// @notice Convert address to bytes.
@@ -669,28 +919,18 @@ contract DAOCommittee_V2 is
     /// @param _operator Operator address of the layer2 contract
     /// @param _layer2 Layer2 contract address to be registered
     /// @param _memo A memo for the candidate
-    function _registerLayer2Candidate(address _operator, address _layer2, string memory _memo)
-        internal
-        validSeigManager
-        validLayer2Registry
-        validCommitteeL2Factory
-    {
-        require(!isExistCandidate(_layer2), "DAOCommittee: candidate already registerd");
+    function _registerLayer2Candidate(
+        address _operator,
+        address _layer2,
+        string memory _memo
+    ) internal validSeigManager validLayer2Registry validCommitteeL2Factory {
+        require(!isExistCandidate(_layer2), 'DAOCommittee: candidate already registerd');
 
-        require(
-            _layer2 != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
-        );
+        require(_layer2 != address(0), 'DAOCommittee: deployed candidateContract is zero');
 
         ILayer2 layer2 = ILayer2(_layer2);
-        require(
-            layer2.isLayer2(),
-            "DAOCommittee: invalid layer2 contract"
-        );
-        require(
-            layer2.operator() == _operator,
-            "DAOCommittee: invalid operator"
-        );
+        require(layer2.isLayer2(), 'DAOCommittee: invalid layer2 contract');
+        require(layer2.operator() == _operator, 'DAOCommittee: invalid operator');
 
         address candidateContract = candidateFactory.deploy(
             _layer2,
@@ -702,7 +942,7 @@ contract DAOCommittee_V2 is
 
         require(
             candidateContract != address(0),
-            "DAOCommittee: deployed candidateContract is zero"
+            'DAOCommittee: deployed candidateContract is zero'
         );
 
         _candidateInfos[_layer2] = CandidateInfo({
@@ -718,7 +958,6 @@ contract DAOCommittee_V2 is
 
         emit Layer2Registered(_layer2, candidateContract, _memo);
     }
-
 
     /// @notice Create an agenda.
     /// @param _creator Agenda creator address
@@ -737,11 +976,7 @@ contract DAOCommittee_V2 is
         bool _atomicExecute,
         bytes[] memory _functionBytecodes,
         string memory _memo
-    )
-        internal
-        validAgendaManager
-        returns (uint256)
-    {
+    ) internal validAgendaManager returns (uint256) {
         // pay to create agenda, burn ton.
         _payCreatingAgendaFee(_creator);
 
@@ -794,11 +1029,7 @@ contract DAOCommittee_V2 is
     /// @return totalsupply of Candidate
     function totalSupplyOnCandidate(
         address _candidate
-    )
-        external
-        view
-        returns (uint256 totalsupply)
-    {
+    ) external view returns (uint256 totalsupply) {
         address candidateContract = candidateContract(_candidate);
         return totalSupplyOnCandidateContract(candidateContract);
     }
@@ -810,11 +1041,7 @@ contract DAOCommittee_V2 is
     function balanceOfOnCandidate(
         address _candidate,
         address _account
-    )
-        external
-        view
-        returns (uint256 amount)
-    {
+    ) external view returns (uint256 amount) {
         address candidateContract = candidateContract(_candidate);
         return balanceOfOnCandidateContract(candidateContract, _account);
     }
@@ -824,12 +1051,8 @@ contract DAOCommittee_V2 is
     /// @return totalsupply of CandidateContract
     function totalSupplyOnCandidateContract(
         address _candidateContract
-    )
-        public
-        view
-        returns (uint256 totalsupply)
-    {
-        require(_candidateContract != address(0), "This account is not a candidate");
+    ) public view returns (uint256 totalsupply) {
+        require(_candidateContract != address(0), 'This account is not a candidate');
 
         return ICandidate(_candidateContract).totalStaked();
     }
@@ -841,12 +1064,8 @@ contract DAOCommittee_V2 is
     function balanceOfOnCandidateContract(
         address _candidateContract,
         address _account
-    )
-        public
-        view
-        returns (uint256 amount)
-    {
-        require(_candidateContract != address(0), "This account is not a candidate");
+    ) public view returns (uint256 amount) {
+        require(_candidateContract != address(0), 'This account is not a candidate');
 
         return ICandidate(_candidateContract).stakedOf(_account);
     }
@@ -865,7 +1084,7 @@ contract DAOCommittee_V2 is
 
     /// @notice calculates how much reward candidate can receive.
     /// @param  _candidate candidate Address
-    /// @return return reward amount 
+    /// @return return reward amount
     function getClaimableActivityReward(address _candidate) public view returns (uint256) {
         CandidateInfo storage info = _candidateInfos[_candidate];
         uint256 period = info.rewardPeriod;
@@ -884,16 +1103,20 @@ contract DAOCommittee_V2 is
     /// @notice Returns information about oldCandidate.
     /// @param  _oldCandidate oldcandidate Address
     /// @return return CandidateInfo2
-    function getOldCandidateInfos(address _oldCandidate) external view returns (CandidateInfo2 memory) {
+    function getOldCandidateInfos(
+        address _oldCandidate
+    ) external view returns (CandidateInfo2 memory) {
         return _oldCandidateInfos[_oldCandidate];
     }
-
 
     /// @notice Return how much the operator in layer2 has staked.
     /// @param  layer2  layer2 Address
     /// @param  operator operator Address
     /// @return operatorAmount
-    function operatorAmountCheck(address layer2,address operator) public view returns (uint256 operatorAmount) {
+    function operatorAmountCheck(
+        address layer2,
+        address operator
+    ) public view returns (uint256 operatorAmount) {
         address coinage = ISeigManager(address(seigManager)).coinages(layer2);
         operatorAmount = ICoinage(coinage).balanceOf(operator);
     }
@@ -909,12 +1132,11 @@ contract DAOCommittee_V2 is
             operatorAmount = ICoinage(coinage).balanceOf(ILayer2(candidate).operator());
         } else {
             coinage = ISeigManager(address(seigManager)).coinages(info.candidateContract);
-            operatorAmount = ICoinage(coinage).balanceOf(candidate);    
+            operatorAmount = ICoinage(coinage).balanceOf(candidate);
         }
     }
 
     function version() public pure virtual returns (string memory) {
-        return "2.0.0";
+        return '2.0.0';
     }
-
 }
