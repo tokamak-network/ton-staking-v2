@@ -7,7 +7,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 // import "@nomiclabs/hardhat-ethers";
 
 import "hardhat-gas-reporter";
-import dotenv from "dotenv" ;
+import dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/types";
 import "hardhat-deploy";
 dotenv.config();
@@ -249,7 +249,7 @@ const config: HardhatUserConfig = {
       local: '0x30e65B3A6e6868F044944Aa0e9C5d52F8dcb138d',
       sepolia: '0x690f994b82f001059e24d79292c3c476854b767a'
     },
-    DAOCommitteeOwner : {
+    DAOCommitteeOwner: {
       default: 28,
       mainnet: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       goerli: '',
@@ -257,7 +257,7 @@ const config: HardhatUserConfig = {
       local: '0xe070ffd0e25801392108076ed5291fa9524c3f44',
       sepolia: '0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2'
     },
-    titanL1StandardBridge : {
+    titanL1StandardBridge: {
       default: 29,
       mainnet: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       goerli: '',
@@ -265,7 +265,7 @@ const config: HardhatUserConfig = {
       local: '0x59aa194798Ba87D26Ba6bEF80B85ec465F4bbcfD',
       sepolia: '0x1F032B938125f9bE411801fb127785430E7b3971'
     },
-    titanL1CrossDomainMessenger : {
+    titanL1CrossDomainMessenger: {
       default: 30,
       mainnet: '0xfd76ef26315Ea36136dC40Aeafb5D276d37944AE',
       goerli: '',
@@ -305,7 +305,7 @@ const config: HardhatUserConfig = {
       local: '0x4200000000000000000000000000000000000012',
       sepolia: '0x4200000000000000000000000000000000000012'
     },
-    thanosL1StandardBridge : {
+    thanosL1StandardBridge: {
       default: 35,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '',
@@ -313,7 +313,7 @@ const config: HardhatUserConfig = {
       local: '0x5D2Ed95c0230Bd53E336f12fA9123847768B2B3E',
       sepolia: '0x5D2Ed95c0230Bd53E336f12fA9123847768B2B3E'
     },
-    thanosL1CrossDomainMessenger : {
+    thanosL1CrossDomainMessenger: {
       default: 36,
       mainnet: '0x0000000000000000000000000000000000000000',
       goerli: '',
@@ -458,9 +458,9 @@ const config: HardhatUserConfig = {
         // blockNumber: 18811511
         // blockNumber:
         // test registerCandidateAddOn
-        // blockNumber: 6797943
+        blockNumber: 8588519
         // blockNumber: 22081265,
-        blockNumber: 22715322
+        // blockNumber: 22715322
       },
       // allowUnlimitedContractSize: false,
       // deploy: ['deploy-staking-v2.5-mainnet'],
@@ -501,7 +501,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      // accounts: [`${process.env.PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
       deploy: ['deploy-layer2']
     },
@@ -526,7 +526,7 @@ const config: HardhatUserConfig = {
       sepolia: `${process.env.ETHERSCAN_API_KEY}`,
       titan: "verify",
       titangoerli: "verify"
-    } ,
+    },
     customChains: [
       {
         network: "titan",
