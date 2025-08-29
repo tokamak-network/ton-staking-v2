@@ -14,10 +14,20 @@
 - **EIP-1271 검증**: DAO Contract가 자신의 Owner인 MultiSigWallet 소유자들의 서명 검증
 - **Safe Wallet 호환성**: Safe Global 앱에서 DAO Contract 서명 시 EIP-1271 검증 가능
 
+### 배포 환경 정보
+- **네트워크**: Sepolia Testnet
+- **DAO 구조**: DAOCommitteeProxy → DAOCommitteeProxy2 → DAOCommittee_V2
+- **DAOCommitteeProxy 주소**: `0xA2101482b28E3D99ff6ced517bA41EFf4971a386`
+- **업그레이드 방식**: DAOCommittee_V2 배포 후 DAOCommitteeProxy2의 `upgradeTo2()` 함수로 지정
+- **MultiSigWallet ABI**: `test/abi/MultiSigWallet.json`
+- **DAOCommitteeProxy2 ABI**: `test/abi/DAOCommitteeProxy2.json`
+
 ### 테스트 프레임워크
 - Hardhat + Ethers.js
 - Chai assertion 라이브러리
 - TypeScript 지원
+- Sepolia 테스트넷 연동 지원
+- 실제 배포된 컨트랙트와의 통합 테스트
 
 ### 테스트 카테고리
 
@@ -85,6 +95,27 @@ describe("Safe Wallet Compatibility", () => {
 });
 ```
 
+#### 7. 실제 배포 환경 통합 테스트
+```javascript
+describe("Sepolia Integration Tests", () => {
+  // Sepolia 네트워크 연결 테스트
+  // 실제 DAOCommitteeProxy 주소로 연결
+  // DAOCommittee_V2 배포 및 업그레이드 테스트
+  // 업그레이드 후 EIP-1271 기능 검증
+  // 실제 MultiSigWallet과의 통합 테스트
+});
+```
+
+#### 8. 프록시 패턴 테스트
+```javascript
+describe("Proxy Pattern Tests", () => {
+  // DAOCommitteeProxy → DAOCommitteeProxy2 → DAOCommittee_V2 구조 검증
+  // upgradeTo2 함수 테스트
+  // 업그레이드 전후 상태 보존 확인
+  // 프록시를 통한 EIP-1271 호출 테스트
+});
+```
+
 ### 테스트 헬퍼 함수
 
 다음 헬퍼 함수들을 포함해주세요:
@@ -94,7 +125,10 @@ describe("Safe Wallet Compatibility", () => {
 - **중복 서명자 테스트 헬퍼**
 - **서명 재사용 테스트 헬퍼**
 - **서명 순서 변경 테스트 헬퍼**
-- MultiSigWallet 모킹 (DAO Owner 역할)
+- **DAOCommitteeProxy2 연동 헬퍼** (upgradeTo2 함수 호출)
+- **Sepolia 네트워크 연결 헬퍼**
+- **실제 배포된 컨트랙트 인스턴스 생성**
+- **ABI 파일 로드 헬퍼** (MultiSigWallet.json, DAOCommitteeProxy2.json)
 - 테스트 데이터 생성
 - 어설션 헬퍼
 
@@ -104,9 +138,51 @@ describe("Safe Wallet Compatibility", () => {
 - **MultiSigWallet 소유자들의 유효한 서명 예시**
 - **비소유자의 무효한 서명 예시**
 - **DAO Owner로 설정된 MultiSigWallet 주소**
+- **Sepolia 네트워크 설정**
+  - DAOCommitteeProxy 주소: `0xA2101482b28E3D99ff6ced517bA41EFf4971a386`
+  - RPC URL 및 네트워크 설정
+- **실제 배포 시나리오**
+  - DAOCommittee_V2 새 배포
+  - DAOCommitteeProxy2.upgradeTo2() 호출
+  - 업그레이드 후 EIP-1271 기능 테스트
 - 다양한 해시 값
 - MultiSigWallet 소유자 주소들 (3-5개)
 - numConfirmationsRequired 설정 (예: 2/3, 3/5)
+
+### 실제 환경 설정 예시
+
+```javascript
+// hardhat.config.ts 설정 예시
+const config: HardhatUserConfig = {
+  networks: {
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+  },
+};
+
+// 테스트 설정 예시
+describe("EIP-1271 Sepolia Integration", () => {
+  const DAO_COMMITTEE_PROXY = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+  
+  beforeEach(async () => {
+    // ABI 파일 로드
+    const multiSigABI = require("../test/abi/MultiSigWallet.json");
+    const proxyABI = require("../test/abi/DAOCommitteeProxy2.json");
+    
+    // 실제 배포된 컨트랙트 연결
+    const daoProxy = new ethers.Contract(DAO_COMMITTEE_PROXY, proxyABI.abi, signer);
+    
+    // DAOCommittee_V2 새로 배포
+    const DAOCommitteeV2 = await ethers.getContractFactory("DAOCommittee_V2");
+    const newImplementation = await DAOCommitteeV2.deploy();
+    
+    // 업그레이드 실행
+    await daoProxy.upgradeTo2(newImplementation.address);
+  });
+});
+```
 
 각 테스트에 대해 상세한 설명과 함께 완전한 테스트 코드를 제공해주세요.
 ```
