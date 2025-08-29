@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 
@@ -20,6 +20,9 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let nonOwner: SignerWithAddress;
   let safeWallet: SignerWithAddress;
 
+  let daoCommitteeAdmin: any;
+
+
   // Contract instances
   let daoProxy: Contract;
   let daoCommitteeV2: Contract;
@@ -33,8 +36,22 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const testHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message"));
   const numConfirmationsRequired = 2; // 2 out of 3 multisig
 
+  const daoAdminAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2";
+  let sendether = "0xDE0B6B3A7640000"
+
+
   before(async function () {
     [deployer, multiSigOwner1, multiSigOwner2, multiSigOwner3, nonOwner, safeWallet] = await ethers.getSigners();
+
+    await hre.network.provider.send("hardhat_impersonateAccount", [
+      daoAdminAddress,
+    ]);
+    daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
+
+    await hre.network.provider.send("hardhat_setBalance", [
+        daoAdminAddress,
+        sendether
+    ]);
 
     console.log("Setting up EIP-1271 upgrade test environment...");
     console.log(`Deployer: ${deployer.address}`);
@@ -70,7 +87,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       multiSigWallet = await MultiSigWalletFactory.deploy(testOwners);
       await multiSigWallet.deployed();
 
-      console.log(`Test MultiSigWallet deployed at: ${multiSigWallet.address}`);
+      // console.log(`Test MultiSigWallet deployed at: ${multiSigWallet.address}`);
 
       // Verify setup
       const owners = await multiSigWallet.getOwners();
@@ -91,7 +108,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       newImplementation = await DAOCommitteeV2Factory.deploy();
       await newImplementation.deployed();
 
-      console.log(`DAOCommittee_V2 deployed at: ${newImplementation.address}`);
+      // console.log(`DAOCommittee_V2 deployed at: ${newImplementation.address}`);
       expect(newImplementation.address).to.be.properAddress;
     });
   });
@@ -100,32 +117,36 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     beforeEach(async function () {
       // Create proxy instance for testing
       // In real scenario, this would connect to existing proxy
-      const DAOCommitteeProxyFactory = await ethers.getContractFactory("DAOCommitteeProxy2");
-      daoProxy = await DAOCommitteeProxyFactory.deploy();
-      await daoProxy.deployed();
+
+      //==== Set Proxy2Contract =================================
+      const daoCommitteeProxy2Contract = new ethers.Contract(
+        DAO_COMMITTEE_PROXY,
+        DAOProxy2ABI,
+        ethers.provider
+      ) 
+
+      daoProxy = daoCommitteeProxy2Contract;
+
 
       // Grant admin role to deployer for testing
-      await daoProxy.grantRole(DEFAULT_ADMIN_ROLE, deployer.address);
+      await daoProxy.connect(daoCommitteeAdmin).grantRole(DEFAULT_ADMIN_ROLE, deployer.address);
     });
 
     it("should upgrade to DAOCommittee_V2 using upgradeTo2", async function () {
       // Perform upgrade
-      const tx = await daoProxy.upgradeTo2(newImplementation.address);
+      const tx = await daoProxy.connect(daoCommitteeAdmin).upgradeTo2(newImplementation.address);
       await tx.wait();
 
       // Verify upgrade
-      const currentImpl = await daoProxy.implementation();
+      const currentImpl = await daoProxy.implementation2(0);
       expect(currentImpl).to.equal(newImplementation.address);
 
-      console.log(`Upgraded to implementation: ${currentImpl}`);
+      // console.log(`Upgraded to implementation: ${currentImpl}`);
     });
 
     it("should preserve proxy state after upgrade", async function () {
       // Set some state before upgrade
-      await daoProxy.grantRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
-
-      // Perform upgrade
-      await daoProxy.upgradeTo2(newImplementation.address);
+      await daoProxy.connect(daoCommitteeAdmin).grantRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
 
       // Verify state is preserved
       const hasRole = await daoProxy.hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
@@ -133,9 +154,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     });
 
     it("should access EIP-1271 functions through proxy after upgrade", async function () {
-      // Upgrade first
-      await daoProxy.upgradeTo2(newImplementation.address);
-
       // Create interface for upgraded proxy
       const upgradedProxy = new ethers.Contract(
         daoProxy.address,
@@ -144,7 +162,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       );
 
       // Test EIP-1271 function accessibility
-      await expect(upgradedProxy.setMultiSigWallet(multiSigWallet.address)).to.not.be.reverted;
+      await expect(upgradedProxy.connect(daoCommitteeAdmin).setMultiSigWallet(multiSigWallet.address)).to.not.be.reverted;
 
       const multiSigAddress = await upgradedProxy.multiSigWallet();
       expect(multiSigAddress).to.equal(multiSigWallet.address);
@@ -153,10 +171,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   describe("EIP-1271 Basic Functionality", function () {
     beforeEach(async function () {
-      // Setup upgraded proxy
-      await daoProxy.upgradeTo2(newImplementation.address);
-      await daoProxy.grantRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
-
       // Create upgraded proxy interface
       daoCommitteeV2 = new ethers.Contract(
         daoProxy.address,
@@ -165,7 +179,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       );
 
       // Set MultiSigWallet
-      await daoCommitteeV2.setMultiSigWallet(multiSigWallet.address);
+      await daoCommitteeV2.connect(daoCommitteeAdmin).setMultiSigWallet(multiSigWallet.address);
     });
 
     it("should return magic value for valid signatures", async function () {
