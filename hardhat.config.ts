@@ -501,7 +501,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
-      accounts: [`${process.env.PRIVATE_KEY}`],
+      accounts: [`${process.env.SEPOLIA_PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
       deploy: ['deploy-layer2']
     },
@@ -576,10 +576,10 @@ const config: HardhatUserConfig = {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 200,
-            // details: {
-            //   yul: true,
-            // },
+            runs: 50,
+            details: {
+              yul: true,
+            },
           },
           metadata: {
             // do not include the metadata hash, since this is machine dependent
