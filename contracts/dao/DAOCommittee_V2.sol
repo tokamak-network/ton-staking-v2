@@ -34,21 +34,8 @@ error ZeroAddressError();
 error ClaimTONError();
 error ClaimWTONError();
 
-// Safe Wallet 인터페이스 (Safe Global 호환)
-interface ISafeWallet {
-    function isOwner(address owner) external view returns (bool);
-
-    function getOwners() external view returns (address[] memory);
-
-    function getThreshold() external view returns (uint256);
-}
-
-// 기존 호환성을 위한 MultiSig 인터페이스
 interface IMultiSigWallet {
     function isOwner(address owner) external view returns (bool);
-
-    function getOwners() external view returns (address[] memory);
-
     function numConfirmationsRequired() external view returns (uint256);
 }
 
