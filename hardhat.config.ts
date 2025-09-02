@@ -501,9 +501,9 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
-      accounts: [`${process.env.SEPOLIA_PRIVATE_KEY}`],
+      accounts: [`${process.env.OWNER_PRIVATE_KEY}`,`${process.env.OWNER_PRIVATE_KEY2}`],
       // deploy: ['deploy_l2_proxy']
-      deploy: ['deploy-layer2']
+      // deploy: ['deploy-layer2']
     },
     sepoliaFork: {
       url: "http://127.0.0.1:8545",

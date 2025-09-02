@@ -34,6 +34,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const INVALID_SIGNATURE = "0xffffffff";
   const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
   const testHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message"));
+  const txHash = "0x34148392eddee2686a39b6da312a95afdbf953bef85122e5b0c73f3b624cba8f"
   const testHash2 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message2"));
   const testHash3 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message3"));
   const testHash4 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message4"));
@@ -215,7 +216,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     it("should return magic value for valid signatures", async function () {
       const signatures = await createMultipleSignatures(
         [multiSigOwner1, multiSigOwner2],
-        testHash
+        txHash
       );
 
       // console.log("Test hash:", testHash);
@@ -223,7 +224,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log("MultiSig owners:", [multiSigOwner1.address, multiSigOwner2.address]);
       // console.log("MultiSig wallet:", multiSigWallet.address);
 
-      const result = await daoCommitteeV2.isValidSignature(testHash, signatures);
+      const result = await daoCommitteeV2.isValidSignature(txHash, signatures);
       // console.log("Result:", result);
       expect(result).to.equal(MAGIC_VALUE);
     });

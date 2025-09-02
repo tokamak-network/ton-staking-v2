@@ -59,23 +59,25 @@ async function ChangeUpgradeTo2() {
 
 async function setMultiSigWallet() {
     const [deployer] = await ethers.getSigners();
+
+    let multiSigWalletAddress = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C" 
     //==== Set DAOCommittee_V2 =================================
     let daoCommittee_V2 = new ethers.Contract(
         sepoliaContractInfo.DAOCommitteeProxy,
-        DAOProxy2ABI,
+        DAOCommittee_V2ABI,
         ethers.provider
     )
 
     //==== DAOCommittee_V2 set MultiSigWalletContract =================================
-    await daoCommitteeProxy2.connect(deployer).upgradeTo2(
-        newLogicDAOv2Address
+    await daoCommittee_V2.connect(deployer).setMultiSigWallet(
+        multiSigWalletAddress
     )
 
 }
 
 
 const main = async () => {
-  await ChangeUpgradeTo2()
+//   await ChangeUpgradeTo2()
   await setMultiSigWallet()
 }
 
