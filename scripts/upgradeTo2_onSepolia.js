@@ -75,10 +75,36 @@ async function setMultiSigWallet() {
 
 }
 
+async function checkDAOisOwner() {
+    const Addr1 = "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea"
+    const Addr2 = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+    const Addr3 = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+
+    //==== Set DAOCommittee_V2 =================================
+    let daoCommittee_V2 = new ethers.Contract(
+        sepoliaContractInfo.DAOCommitteeProxy,
+        DAOCommittee_V2ABI,
+        ethers.provider
+    )
+
+    //==== Check isOwner =================================
+    let isOwner = await daoCommittee_V2.isOwner(Addr1)
+    console.log("isOwner :", isOwner)
+    isOwner = await daoCommittee_V2.isOwner(Addr2)
+    console.log("isOwner :", isOwner)
+    isOwner = await daoCommittee_V2.isOwner(Addr3)
+    console.log("isOwner :", isOwner)
+
+    let multiSigWallet = await daoCommittee_V2.multiSigWallet()
+    console.log("multiSigWallet :", multiSigWallet)
+}
+
+
 
 const main = async () => {
 //   await ChangeUpgradeTo2()
-  await setMultiSigWallet()
+//   await setMultiSigWallet()
+  await checkDAOisOwner()
 }
 
 
