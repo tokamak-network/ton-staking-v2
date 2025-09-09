@@ -54,7 +54,7 @@ contract DAOCommittee_V2 is
     bytes private constant claimERC20Bytes = hex'f848091a';
 
     // ERC-1271 Magic Values
-    bytes4 private constant MAGICVALUE = 0x1626ba7e;
+    bytes4 private constant MAGICVALUE = 0x20c13b0b;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
 
     enum CurrentResult {
@@ -128,8 +128,6 @@ contract DAOCommittee_V2 is
 
     event MultiSigWalletSet(address indexed oldWallet, address indexed newWallet);
 
-    event SignatureUsed(bytes32 indexed signatureHash, address indexed signer);
-
     modifier onlyOwner() {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
@@ -161,7 +159,7 @@ contract DAOCommittee_V2 is
      * @return magicValue ERC-1271 magic value
      */
     function isValidSignature(
-        bytes32 _hash,
+        bytes memory _hash,
         bytes memory _signature
     ) external view returns (bytes4 magicValue) {
         if (multiSigWallet == address(0)) {
@@ -179,26 +177,6 @@ contract DAOCommittee_V2 is
     }
 
     /**
-     * @notice Validate and mark signature as used (for actual execution)
-     * @dev Validates signatures from MultiSigWallet owners and marks as used
-     * @param _hash Hash that was signed
-     * @param _signature Signature data from MultiSigWallet owners
-     * @return true if valid and successfully marked as used
-     */
-    function validateAndUseSignature(
-        bytes32 _hash,
-        bytes memory _signature
-    ) external onlyOwner returns (bool) {
-        require(_validateSignatures(_hash, _signature), 'invalid or used signature');
-
-        // 서명을 사용됨으로 표시
-        bytes32 signatureHash = _getSignatureHash(_hash, _signature);
-        _markSignatureAsUsed(signatureHash);
-
-        return true;
-    }
-
-    /**
      * @notice Verify multiple signatures from MultiSigWallet owners
      * @dev Validates signatures from DAO Contract's MultiSigWallet owners
      * @param _hash Hash that was signed
@@ -206,14 +184,14 @@ contract DAOCommittee_V2 is
      * @return true if valid signatures meet MultiSigWallet threshold
      */
     function _validateSignatures(
-        bytes32 _hash,
+        bytes memory _hash,
         bytes memory _signature
     ) internal view returns (bool) {
         // 서명 해시 생성 및 재사용 검증
         bytes32 signatureHash = _getSignatureHash(_hash, _signature);
 
         // 유효하지 않은 서명이거나 이미 사용된 서명
-        if (signatureHash == bytes32(0) || usedSignatures[signatureHash]) {
+        if (signatureHash == bytes32(0)) {
             return false;
         }
 
@@ -227,7 +205,7 @@ contract DAOCommittee_V2 is
      * @return signer Signer address
      */
     function _recoverSigner(
-        bytes32 _hash,
+        bytes memory _hash,
         bytes memory _signature
     ) internal pure returns (address signer) {
         require(_signature.length == 65, 'bad sig len');
@@ -244,10 +222,10 @@ contract DAOCommittee_V2 is
         // Prevent signature malleability
         require(
             uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
-            "Invalid signature 's' value"
+            "bad sig 's' value"
         );
 
-        require(v == 27 || v == 28, "Invalid signature 'v' value");
+        require(v == 27 || v == 28, "bad sig 'v' value");
 
         // Create Ethereum signed message hash
         bytes32 ethSignedMessageHash = keccak256(
@@ -302,7 +280,7 @@ contract DAOCommittee_V2 is
      * @return signatureHash Hash for tracking used signatures
      */
     function _getSignatureHash(
-        bytes32 _hash,
+        bytes memory _hash,
         bytes memory _signature
     ) internal view returns (bytes32 signatureHash) {
         // MultiSigWallet의 필요 서명 수 가져오기
@@ -347,22 +325,14 @@ contract DAOCommittee_V2 is
         return keccak256(abi.encodePacked(_hash, validSigners));
     }
 
-    /**
-     * @notice Mark signature as used to prevent replay attacks
-     * @param _signatureHash Hash of the signature to mark as used
-     */
-    function _markSignatureAsUsed(bytes32 _signatureHash) internal {
-        usedSignatures[_signatureHash] = true;
-        emit SignatureUsed(_signatureHash, msg.sender);
-    }
 
     /**
-     * @notice Check if signature has been used
-     * @param _signatureHash Hash of the signature to check
-     * @return true if signature has been used
+     * @notice Verify that you are the owner of MultiSigWallet
+     * @param _address Enter address
+     * @return true True if the owner of MultiSigWallet
      */
-    function isSignatureUsed(bytes32 _signatureHash) external view returns (bool) {
-        return usedSignatures[_signatureHash];
+    function isOwner(address _address) external view returns (bool) {
+        return IMultiSigWallet(multiSigWallet).isOwner(_address);
     }
 
     /**
@@ -376,7 +346,7 @@ contract DAOCommittee_V2 is
         address oldWallet = multiSigWallet;
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet),
-            'new multisig not admin'
+            'not admin'
         );
         multiSigWallet = _multiSigWallet;
         emit MultiSigWalletSet(oldWallet, _multiSigWallet);
