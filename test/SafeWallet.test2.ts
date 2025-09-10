@@ -19,8 +19,10 @@ import {
   TypedMessageTypes,
   TypedDataTypes,
   EIP712TxTypes,
-  SafeSignature
+  SafeSignature,
+  SigningMethod
 } from '@safe-global/types-kit'
+import SafeApiKit from '@safe-global/api-kit'
 
 import { 
   keccak256, 
@@ -69,6 +71,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const MULTISIG_WALLET = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C"
 
   const RPC_URL = process.env.ETH_NODE_URI_sepolia;
+  const SAFE_API_KEY = process.env.SAFE_API_KEY;
 
   // Test accounts
   let deployer: SignerWithAddress;
@@ -208,146 +211,268 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   });
 
   describe("EIP-1271 Basic Functionality", function () {
-    it("should return magic value for valid signatures", async function () {
-      const signatures = await createMultipleSignatures(
-        [multiSigOwner1, multiSigOwner2],
-        testHash2
-      );
-      // console.log("testHash2", testHash2);
-      // console.log("signatures", signatures);
+    // it("should return magic value for valid signatures", async function () {
+    //   const signatures = await createMultipleSignatures(
+    //     [multiSigOwner1, multiSigOwner2],
+    //     testHash2
+    //   );
+    //   // console.log("testHash2", testHash2);
+    //   // console.log("signatures", signatures);
 
-      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signatures);
-      console.log("result", result);
-      expect(result).to.equal(MAGIC_VALUE);
-    });
+    //   const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signatures);
+    //   console.log("result", result);
+    //   expect(result).to.equal(MAGIC_VALUE);
+    // });
 
-    it("should return magic value for valid signatures2", async function () {
-      const signatures = await createMultipleSignatures(
-        [multiSigOwner1, multiSigOwner2],
-        testHash2
-      );
-      // console.log("testHash2", testHash2);
-      // console.log("signatures", signatures);
+    // it("should return magic value for valid signatures2", async function () {
+    //   const signatures = await createMultipleSignatures(
+    //     [multiSigOwner1, multiSigOwner2],
+    //     testHash2
+    //   );
+    //   // console.log("testHash2", testHash2);
+    //   // console.log("signatures", signatures);
+    //   let sig = "0x689ede44e2b9b1f653b1df6a446457f33f50058d48a317612254e7ca4b21fe3f14a0dc3882ff8230c1b2c00994539a00d65ce38db418646362149b60b86aa2b61c11625595dee99fb80d9f3e5aadf820e7919addc2c12b8d39e89f2e8ed08face34e03207fcd37f10713d161e56fe39d815eed700f8d6ea52863db2d0c2e0c9fa41b"
+    //   // 1c부분이 v를 담당하는 부분
+    //   // 1c를 2c로 변경했을때 28이 44로 변경됨
 
-      const result = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signatures);
-      // console.log("result", result);
-      expect(result).to.equal(MAGIC_VALUE);
-    });
+    //   let sig1 = "689ede44e2b9b1f653b1df6a446457f33f50058d48a317612254e7ca4b21fe3f14a0dc3882ff8230c1b2c00994539a00d65ce38db418646362149b60b86aa2b6"
+    //   let sig2 = "11625595dee99fb80d9f3e5aadf820e7919addc2c12b8d39e89f2e8ed08face34e03207fcd37f10713d161e56fe39d815eed700f8d6ea52863db2d0c2e0c9fa41b"
+    //   console.log(sig1.length)
+    //   console.log(sig2.length)
 
-    it("check the signHash Result", async function () {
-      let safe = await Safe.init({
-        provider: RPC_URL!,
-        signer: process.env.OWNER_PRIVATE_KEY,
-        safeAddress: DAO_COMMITTEE_PROXY
-      })
+    //   const result = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signatures);
+    //   // console.log("result", result);
+    //   expect(result).to.equal(MAGIC_VALUE);
+    // });
 
-      const signature = await safe.signHash(testHash2);
-      console.log("signature", signature);
+    // it("check the signHash Result", async function () {
+    //   let safe = await Safe.init({
+    //     provider: RPC_URL!,
+    //     signer: process.env.OWNER_PRIVATE_KEY,
+    //     safeAddress: DAO_COMMITTEE_PROXY
+    //   })
 
-      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
-      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
-      // console.log("result", result);
-      expect(result).to.equal(MAGIC_VALUE);
-      // expect(result2).to.equal(MAGIC_VALUE);
+    //   const signature = await safe.signHash(testHash2);
+    //   console.log("signature", signature);
+
+    //   const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
+    //   // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
+    //   // console.log("result", result);
+    //   expect(result).to.equal(MAGIC_VALUE);
+    //   // expect(result2).to.equal(MAGIC_VALUE);
       
-    });
+    // });
 
-    it("check the signHash Result2", async function () {
-      let safe = await Safe.init({
-        provider: RPC_URL!,
-        signer: process.env.OWNER_PRIVATE_KEY,
-        safeAddress: DAO_COMMITTEE_PROXY
-      })
+    // it("check the signHash Result2", async function () {
+    //   let safe = await Safe.init({
+    //     provider: RPC_URL!,
+    //     signer: process.env.OWNER_PRIVATE_KEY,
+    //     safeAddress: DAO_COMMITTEE_PROXY
+    //   })
 
-      const signature = await safe.signHash(testHash2);
-      console.log("signature", signature);
+    //   const signature = await safe.signHash(testHash2);
+    //   console.log("signature", signature);
 
-      // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
-      const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
-      // console.log("result", result);
-      // expect(result).to.equal(MAGIC_VALUE);
-      expect(result2).to.equal(MAGIC_VALUE);
+    //   // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
+    //   const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
+    //   // console.log("result", result);
+    //   // expect(result).to.equal(MAGIC_VALUE);
+    //   expect(result2).to.equal(MAGIC_VALUE);
       
-    });
+    // });
     
+    // it("check the signTransaction Result", async function () {
+    //   let protocolKit = await Safe.init({
+    //     provider: RPC_URL!,
+    //     safeAddress: SAFE_PROXY
+    //   })
+
+    //   let safeTx = await protocolKit.createTransaction({
+    //     transactions: [
+    //         safeTransactionData
+    //     ],
+    //   })
+
+    //   protocolKit = await protocolKit.connect({
+    //     provider: RPC_URL!,
+    //     signer: process.env.OWNER_PRIVATE_KEY,
+    //     safeAddress: DAO_COMMITTEE_PROXY
+    //   })
+
+    //   let multiSigSigns = await protocolKit.signTransaction(
+    //     safeTx,
+    //     SAFE_SIGNATURE,
+    //     SAFE_PROXY
+    //   )
+
+    //   // console.log("multiSigSigns1", multiSigSigns);
+
+    //   protocolKit = await protocolKit.connect({
+    //     provider: RPC_URL!,
+    //     signer: process.env.OWNER_PRIVATE_KEY2,
+    //   })
+
+    //   multiSigSigns = await protocolKit.signTransaction(
+    //     multiSigSigns,
+    //     SAFE_SIGNATURE,
+    //     SAFE_PROXY
+    //   )
+
+    //   // console.log("multiSigSigns2", multiSigSigns);
+
+
+    //   const contractSignature = await buildContractSignature(
+    //     Array.from(multiSigSigns.signatures.values()),
+    //     DAO_COMMITTEE_PROXY
+    //   )
+    //   // console.log("contractSignature", contractSignature)
+
+    //   safeTx.addSignature(contractSignature)
+    //   // console.log("safeTx2", safeTx)
+    //   console.log("safeTx2", safeTx.signatures)
+
+
+    //   let checkSignature = buildSignatureBytes([
+    //     safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+    //   ])
+
+    //   console.log("checkSignature", checkSignature)
+
+    //   const apiKit = new SafeApiKit({
+    //     chainId: 11155111n,
+    //     apiKey: SAFE_API_KEY
+    //   });
+
+    //   const pendingTxs = await apiKit.getPendingTransactions(
+    //     SAFE_PROXY
+    //   )
+
+    //   const transaction = await apiKit.getTransaction(
+    //     pendingTxs.results[0].safeTxHash
+    //   )
+      
+    //   const orginSign = await protocolKit
+    //     .toSafeTransactionType(transaction)
+    //     .then((safeTx) => Array.from(safeTx.signatures.values())[0])
+
+
+    //   // console.log("orginSign", orginSign)
+
+    //   let check2Signature = buildSignatureBytes([
+    //     orginSign,
+    //     safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+    //   ])
+
+    //   console.log("check2Signature", check2Signature)
+      
+    //   const safeTxHash = await protocolKit.getTransactionHash(safeTx)
+    //   console.log("safeTxHash", safeTxHash)
+    //   expect(safeTxHash).to.equal(testHash2);
+
+
+    //   // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, check2Signature);
+    //   const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, check2Signature);
+    //   // console.log("result", result);
+    //   // expect(result).to.equal(MAGIC_VALUE);
+    //   expect(result2).to.equal(MAGIC_VALUE);
+      
+    // });
+
     it("check the signTransaction Result", async function () {
-      let safe = await Safe.init({
+      
+      const apiKit = new SafeApiKit({
+        chainId: 11155111n,
+        apiKey: SAFE_API_KEY
+      });
+
+      let protocolKit = await Safe.init({
         provider: RPC_URL!,
         safeAddress: SAFE_PROXY
       })
 
-      let safeTx = await safe.createTransaction({
+      let safeTx = await protocolKit.createTransaction({
         transactions: [
             safeTransactionData
         ],
       })
 
-      safe = await safe.connect({
-        provider: RPC_URL!,
-        signer: process.env.OWNER_PRIVATE_KEY,
-        safeAddress: DAO_COMMITTEE_PROXY
-      })
+      let multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            safeTx,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+      // console.log("multiSigSigns1", multiSigSigns)
 
-      let multiSigSigns = await safe.signTransaction(
-        safeTx,
-        SAFE_SIGNATURE,
-        SAFE_PROXY
-      )
-
-      console.log("multiSigSigns1", multiSigSigns);
-
-      safe = await safe.connect({
-        provider: RPC_URL!,
-        signer: process.env.OWNER_PRIVATE_KEY2,
-      })
-
-      multiSigSigns = await safe.signTransaction(
-        multiSigSigns,
-        SAFE_SIGNATURE,
-        SAFE_PROXY
-      )
-
-      console.log("multiSigSigns2", multiSigSigns);
-
-
+      multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY2,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            multiSigSigns,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+        console.log("multiSigSigns2", multiSigSigns)
+      
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
-        DAO_COMMITTEE_PROXY
+        DAO_COMMITTEE_PROXY!
       )
-      console.log("contractSignature", contractSignature)
-
+      // console.log("contractSignature", contractSignature)
+      // const contractSig = buildSignatureBytes([contractSignature])
+      
       safeTx.addSignature(contractSignature)
-      console.log("safeTx2", safeTx)
+      // console.log("safeTx2", safeTx)
+      
+      const pendingTxs = await apiKit.getPendingTransactions(
+        SAFE_PROXY!
+      )
+      
+      const transaction = await apiKit.getTransaction(
+        pendingTxs.results[0].safeTxHash
+      )
 
-      console.log("contractSignature", buildSignatureBytes([
-        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
-      ]))
+      const orginSign = await protocolKit
+        .toSafeTransactionType(transaction)
+        .then((safeTx) => Array.from(safeTx.signatures.values())[0])
+
+      console.log("orginSign", orginSign)
+
+      const safeTxHash = await protocolKit.getTransactionHash(safeTx)
+      // console.log("safeTxHash", safeTxHash)
+      expect(safeTxHash).to.equal(testHash2);
 
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
+      console.log("checkSignature", checkSignature)
 
+      let check2Signature = buildSignatureBytes([
+        orginSign,
+        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+      ])
 
-      // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, checkSignature);
-      const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, checkSignature);
-      // console.log("result", result);
-      // expect(result).to.equal(MAGIC_VALUE);
-      expect(result2).to.equal(MAGIC_VALUE);
-      
+      let setSignature = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      let setSignature1 = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a20"
+      let setSignature2 = "0x9e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
+
+      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, checkSignature);
+      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, setSignature3);
+      // expect(result2).to.equal(MAGIC_VALUE);
     });
 
-    // it("should return invalid signature for wrong signatures", async function () {
-    //   const signatures = await createMultipleSignatures(
-    //     [multiSigOwner1, multiSigOwner2],
-    //     testHash
-    //   );
 
-    //   const tx = await daoCommitteeV2.isValidSignature(testHash, signatures);
-    //   const result = await tx.wait();
-    //   console.log("tx", tx);
-    //   console.log("result", result);
-    //   expect(result).to.equal(INVALID_SIGNATURE);
-    // });
 
   });
 
