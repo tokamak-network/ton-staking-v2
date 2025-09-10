@@ -436,6 +436,24 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      accounts: [
+        {
+          privateKey: `${process.env.SAFE_SIGNER1_PRIVATE_KEY}`,
+          balance: "10000000000000000000000"
+        },
+        {
+          privateKey: `${process.env.OWNER_PRIVATE_KEY}`,
+          balance: "10000000000000000000000"
+        },
+        {
+          privateKey: `${process.env.OWNER_PRIVATE_KEY2}`,
+          balance: "10000000000000000000000"
+        },
+        {
+          privateKey: `${process.env.NON_OWNER_KEY}`,
+          balance: "10000000000000000000000"
+        }
+      ],
       forking: {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 21077756
@@ -456,7 +474,7 @@ const config: HardhatUserConfig = {
         // blockNumber: 6676283,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
-        blockNumber: 8912424
+        blockNumber: 9166329
         // test registerCandidateAddOn
         // blockNumber: 6797943
         // blockNumber: 22081265,
@@ -576,7 +594,7 @@ const config: HardhatUserConfig = {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 50,
+            runs: 20,
             details: {
               yul: true,
             },
