@@ -3,8 +3,15 @@ import hre, { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 
+import dotenv from "dotenv" ;
+dotenv.config();
+
 import semverSatisfies from 'semver/functions/satisfies.js'
 
+import Safe, {
+  buildContractSignature,
+  buildSignatureBytes,
+} from '@safe-global/protocol-kit'
 import {
   SafeTransaction,
   SafeTransactionData,
@@ -61,6 +68,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const SAFE_PROXY = "0x623E2B35964F944e166E6531CEF7577C2851F415"
   const MULTISIG_WALLET = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C"
 
+  const RPC_URL = process.env.ETH_NODE_URI_sepolia;
+
   // Test accounts
   let deployer: SignerWithAddress;
   let SafeWalletOwner1: SignerWithAddress;
@@ -84,14 +93,25 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const testHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message"));
   const txHash = "0x34148392eddee2686a39b6da312a95afdbf953bef85122e5b0c73f3b624cba8f"
   const testHash2 = "0x644a6c15e3d1cf448599d487c6f3fe68e93e891205961df6fb5950ff3cf45c66"
-  const testHash3 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message3"));
-  const testHash4 = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message4"));
   const numConfirmationsRequired = 2; // 2 out of 3 multisig
 
   const SAFE_SIGNATURE = 'safe_sign'
 
   const daoAdminAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2";
   let sendether = "0xDE0B6B3A7640000"
+
+  let safeTransactionData = {
+    "to": "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea",
+    "data": "0x",
+    "value": "1000000000000000",
+    "operation": 0,
+    "baseGas": "0",
+    "gasPrice": "0",
+    "gasToken": "0x0000000000000000000000000000000000000000",
+    "nonce": 4,
+    "refundReceiver": "0x0000000000000000000000000000000000000000",
+    "safeTxGas": "0"
+  }
 
 
   before(async function () {
@@ -196,19 +216,130 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log("testHash2", testHash2);
       // console.log("signatures", signatures);
 
-      const result = await daoCommitteeV2.callStatic.isValidSignature(txHash, signatures);
+      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signatures);
       console.log("result", result);
       expect(result).to.equal(MAGIC_VALUE);
     });
 
-    it("check the ", async function () {
+    it("should return magic value for valid signatures2", async function () {
+      const signatures = await createMultipleSignatures(
+        [multiSigOwner1, multiSigOwner2],
+        testHash2
+      );
+      // console.log("testHash2", testHash2);
+      // console.log("signatures", signatures);
 
+      const result = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signatures);
+      // console.log("result", result);
+      expect(result).to.equal(MAGIC_VALUE);
+    });
+
+    it("check the signHash Result", async function () {
+      let safe = await Safe.init({
+        provider: RPC_URL!,
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY
+      })
+
+      const signature = await safe.signHash(testHash2);
+      console.log("signature", signature);
+
+      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
+      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
+      // console.log("result", result);
+      expect(result).to.equal(MAGIC_VALUE);
+      // expect(result2).to.equal(MAGIC_VALUE);
+      
+    });
+
+    it("check the signHash Result2", async function () {
+      let safe = await Safe.init({
+        provider: RPC_URL!,
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY
+      })
+
+      const signature = await safe.signHash(testHash2);
+      console.log("signature", signature);
+
+      // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
+      const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
+      // console.log("result", result);
+      // expect(result).to.equal(MAGIC_VALUE);
+      expect(result2).to.equal(MAGIC_VALUE);
+      
+    });
+    
+    it("check the signTransaction Result", async function () {
+      let safe = await Safe.init({
+        provider: RPC_URL!,
+        safeAddress: SAFE_PROXY
+      })
+
+      let safeTx = await safe.createTransaction({
+        transactions: [
+            safeTransactionData
+        ],
+      })
+
+      safe = await safe.connect({
+        provider: RPC_URL!,
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY
+      })
+
+      let multiSigSigns = await safe.signTransaction(
+        safeTx,
+        SAFE_SIGNATURE,
+        SAFE_PROXY
+      )
+
+      console.log("multiSigSigns1", multiSigSigns);
+
+      safe = await safe.connect({
+        provider: RPC_URL!,
+        signer: process.env.OWNER_PRIVATE_KEY2,
+      })
+
+      multiSigSigns = await safe.signTransaction(
+        multiSigSigns,
+        SAFE_SIGNATURE,
+        SAFE_PROXY
+      )
+
+      console.log("multiSigSigns2", multiSigSigns);
+
+
+      const contractSignature = await buildContractSignature(
+        Array.from(multiSigSigns.signatures.values()),
+        DAO_COMMITTEE_PROXY
+      )
+      console.log("contractSignature", contractSignature)
+
+      safeTx.addSignature(contractSignature)
+      console.log("safeTx2", safeTx)
+
+      console.log("contractSignature", buildSignatureBytes([
+        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+      ]))
+
+      let checkSignature = buildSignatureBytes([
+        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+      ])
+
+
+      // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, checkSignature);
+      const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, checkSignature);
+      // console.log("result", result);
+      // expect(result).to.equal(MAGIC_VALUE);
+      expect(result2).to.equal(MAGIC_VALUE);
+      
     });
 
     // it("should return invalid signature for wrong signatures", async function () {
     //   const signatures = await createMultipleSignatures(
-    //     [nonOwner, multiSigOwner1],
-    //     testHash2
+    //     [multiSigOwner1, multiSigOwner2],
+    //     testHash
     //   );
 
     //   const tx = await daoCommitteeV2.isValidSignature(testHash, signatures);
@@ -524,24 +655,103 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   }
   
 
-  async function signHash(hash: string): Promise<SafeSignature> {
-    const isPasskeySigner = await this.#safeProvider.isPasskeySigner()
-    const signerAddress = await this.#safeProvider.getSignerAddress()
+  // async function signHash(hash: string): Promise<SafeSignature> {
+  //   const isPasskeySigner = await this.#safeProvider.isPasskeySigner()
+  //   const signerAddress = await this.#safeProvider.getSignerAddress()
 
-    if (isPasskeySigner && signerAddress) {
-      let signature = await this.#safeProvider.signMessage(hash)
+  //   if (isPasskeySigner && signerAddress) {
+  //     let signature = await this.#safeProvider.signMessage(hash)
 
-      signature = await adjustVInSignature(SigningMethod.ETH_SIGN, signature, hash, signerAddress)
+  //     signature = await adjustVInSignature(SigningMethod.ETH_SIGN, signature, hash, signerAddress)
 
-      const safeSignature = new EthSafeSignature(signerAddress, signature, true)
+  //     const safeSignature = new EthSafeSignature(signerAddress, signature, true)
 
-      return safeSignature
-    }
+  //     return safeSignature
+  //   }
 
-    const signature = await generateSignature(this.#safeProvider, hash)
+  //   const signature = await generateSignature(this.#safeProvider, hash)
 
-    return signature
-  }
+  //   return signature
+  // }
+
+  // async function signTransaction(
+  //   safeTransaction: SafeTransaction | SafeMultisigTransactionResponse,
+  //   signingMethod: SigningMethodType = SigningMethod.ETH_SIGN_TYPED_DATA_V4,
+  //   preimageSafeAddress?: string
+  // ): Promise<SafeTransaction> {
+  //   const transaction = isSafeMultisigTransactionResponse(safeTransaction)
+  //     ? await this.toSafeTransactionType(safeTransaction)
+  //     : safeTransaction
+
+  //   const signerAddress = await this.#safeProvider.getSignerAddress()
+  //   if (!signerAddress) {
+  //     throw new Error('The protocol-kit requires a signer to use this method')
+  //   }
+
+  //   const addressIsOwner = await this.isOwner(signerAddress)
+  //   if (!addressIsOwner) {
+  //     throw new Error('Transactions can only be signed by Safe owners')
+  //   }
+
+  //   const safeVersion = this.getContractVersion()
+  //   if (
+  //     signingMethod === SigningMethod.SAFE_SIGNATURE &&
+  //     semverSatisfies(safeVersion, EQ_OR_GT_1_3_0) &&
+  //     !preimageSafeAddress
+  //   ) {
+  //     throw new Error('The parent Safe account address is mandatory for contract signatures')
+  //   }
+
+  //   let signature: SafeSignature
+
+  //   const isPasskeySigner = await this.#safeProvider.isPasskeySigner()
+
+  //   if (isPasskeySigner) {
+  //     const txHash = await this.getTransactionHash(transaction)
+
+  //     signature = await this.signHash(txHash)
+  //   } else if (signingMethod === SigningMethod.ETH_SIGN_TYPED_DATA_V4) {
+  //     signature = await this.signTypedData(transaction, 'v4')
+  //   } else if (signingMethod === SigningMethod.ETH_SIGN_TYPED_DATA_V3) {
+  //     signature = await this.signTypedData(transaction, 'v3')
+  //   } else if (signingMethod === SigningMethod.ETH_SIGN_TYPED_DATA) {
+  //     signature = await this.signTypedData(transaction, undefined)
+  //   } else {
+  //     const safeVersion = this.getContractVersion()
+  //     const chainId = await this.getChainId()
+  //     if (!hasSafeFeature(SAFE_FEATURES.ETH_SIGN, safeVersion)) {
+  //       throw new Error('eth_sign is only supported by Safes >= v1.1.0')
+  //     }
+
+  //     let txHash: string
+
+  //     // IMPORTANT: because the safe uses the old EIP-1271 interface which uses `bytes` instead of `bytes32` for the message
+  //     // we need to use the pre-image of the transaction hash to calculate the message hash
+  //     // https://github.com/safe-global/safe-contracts/blob/192c7dc67290940fcbc75165522bb86a37187069/test/core/Safe.Signatures.spec.ts#L229-L233
+  //     if (
+  //       signingMethod === SigningMethod.SAFE_SIGNATURE &&
+  //       semverSatisfies(safeVersion, EQ_OR_GT_1_3_0) &&
+  //       preimageSafeAddress
+  //     ) {
+  //       const txHashData = preimageSafeTransactionHash(
+  //         preimageSafeAddress,
+  //         safeTransaction.data as SafeTransactionData,
+  //         safeVersion,
+  //         chainId
+  //       )
+
+  //       txHash = await this.getSafeMessageHash(txHashData)
+  //     } else {
+  //       txHash = await this.getTransactionHash(transaction)
+  //     }
+  //     signature = await this.signHash(txHash)
+  //   }
+
+  //   const signedSafeTransaction = await this.copyTransaction(transaction)
+  //   signedSafeTransaction.addSignature(signature)
+
+  //   return signedSafeTransaction
+  // }
   
 
 
