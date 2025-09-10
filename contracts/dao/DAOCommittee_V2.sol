@@ -314,14 +314,15 @@ contract DAOCommittee_V2 is
         // require(v > 30 , "bad sig 'v' value");
 
         // Create Ethereum signed message hash
-        // bytes32 ethSignedMessageHash = keccak256(
-        //     abi.encodePacked('\x19Ethereum Signed Message:\n32', _hash)
-        // );
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked('\x19Ethereum Signed Message:\n32', _hash)
+        );
         // bytes32 messageHash = getMessageHash(_hash);
-        bytes32 messageHash = keccak256(_hash);
+        // bytes32 messageHash = keccak256(_hash);
         // signer = messageHash.toEthSignedMessageHash().recover(_signature);
         // signer = ECDSA.recover(messageHash, _signature);
-        signer = ecrecover(messageHash, v-4, r, s);
+        // signer = ecrecover(messageHash, v-4, r, s);
+        signer = ecrecover(ethSignedMessageHash, v, r, s);
         console.log("signer", signer);
 
         require(signer != address(0), 'Invalid signer');

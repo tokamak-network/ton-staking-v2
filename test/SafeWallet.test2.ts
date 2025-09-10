@@ -422,7 +422,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-        console.log("multiSigSigns2", multiSigSigns)
+        // console.log("multiSigSigns2", multiSigSigns)
       
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
@@ -446,7 +446,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         .toSafeTransactionType(transaction)
         .then((safeTx) => Array.from(safeTx.signatures.values())[0])
 
-      console.log("orginSign", orginSign)
+      // console.log("orginSign", orginSign)
 
       const safeTxHash = await protocolKit.getTransactionHash(safeTx)
       // console.log("safeTxHash", safeTxHash)
@@ -455,7 +455,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      console.log("checkSignature", checkSignature)
+      // console.log("checkSignature", checkSignature)
 
       let check2Signature = buildSignatureBytes([
         orginSign,
