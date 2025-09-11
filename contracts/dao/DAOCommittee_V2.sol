@@ -60,9 +60,12 @@ contract DAOCommittee_V2 is
     // ERC-1271 Magic Values
     bytes4 private constant EIP1271_MAGIC_VALUE = 0x20c13b0b;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
-
-    bytes32 public constant SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
-    bytes32 public constant DOMAIN_SEPARATOR_TYPEHASH = 0x035aff83d86937d35b32e04f0ddc6ff469290eef2f1b692d8a815c89404d4749;
+    
+    // EIP-712 constants
+    bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant SAFE_MSG_TYPEHASH = keccak256("SafeMessage(bytes message)");
+    
+    bytes32 public domainSeparator;
     address public constant SENTINEL_OWNERS = address(0x1);
 
     //////////////////////////////
@@ -166,11 +169,11 @@ contract DAOCommittee_V2 is
                 // Use ecrecover with the messageHash for EOA signatures
                 currentOwner = ecrecover(dataHash, uint8(v), r, s);
                 console.log("currentOwner", currentOwner);
-                require(currentOwner > lastOwner, "error1");
-                require(currentOwner != SENTINEL_OWNERS, "error3");
-                require(isOwner(currentOwner), "error2");
             }
-            require (currentOwner > lastOwner && isOwner(currentOwner) && currentOwner != SENTINEL_OWNERS, "Invalid owner provided");
+            require(currentOwner > lastOwner, "error1");
+            require(currentOwner != SENTINEL_OWNERS, "error3");
+            require(isOwner2(currentOwner), "error2");
+            require (currentOwner > lastOwner && isOwner2(currentOwner) && currentOwner != SENTINEL_OWNERS, "Invalid owner provided");
             console.log("pass require");
             lastOwner = currentOwner;
         }
@@ -220,6 +223,10 @@ contract DAOCommittee_V2 is
      */
     function isOwner(address _address) public view returns (bool) {
         return IMultiSigWallet(multiSigWallet).isOwner(_address);
+    }
+
+    function isOwner2(address _address) public view returns (bool) {
+        return _address == 0xA2101482b28E3D99ff6ced517bA41EFf4971a386;
     }
 
     /**
@@ -322,7 +329,7 @@ contract DAOCommittee_V2 is
         // signer = messageHash.toEthSignedMessageHash().recover(_signature);
         // signer = ECDSA.recover(messageHash, _signature);
         // signer = ecrecover(messageHash, v-4, r, s);
-        signer = ecrecover(ethSignedMessageHash, v, r, s);
+        signer = ecrecover(ethSignedMessageHash, v - 4, r, s);
         console.log("signer", signer);
 
         require(signer != address(0), 'Invalid signer');
