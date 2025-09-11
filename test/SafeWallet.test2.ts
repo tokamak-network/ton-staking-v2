@@ -25,7 +25,6 @@ import {
 import SafeApiKit from '@safe-global/api-kit'
 
 import { 
-  keccak256, 
   isHex,
   toHex, 
   Hex, 
@@ -35,14 +34,17 @@ import {
   hashDomain, 
   concat, 
   AbiParameter,
-  encodeAbiParameters 
+  keccak256, 
+  encodeAbiParameters ,
+  recoverAddress,
+  parseAbiParameters
 } from 'viem'
-
 
 /// const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
-const DAOCommittee_V2_ABI = require("../artifacts/contracts/dao/DAOCommittee_V2.sol/DAOCommittee_V2.json").abi;
 const MultiSigWallet_ABI = require("../abi/MultiSigWallet.json");
+const Safe_ABI = require("../abi/Safe.json");
+const CompatibilityFallbackHandler_ABI = require("../abi/CompatibilityFallbackHandler.json");
 
 const EQ_OR_GT_1_3_0 = '>=1.3.0'
 
@@ -67,11 +69,15 @@ const EIP712_DOMAIN = [
 describe("EIP-1271 Upgrade Integration Tests", function () {
   // Network Configuration
   const DAO_COMMITTEE_PROXY = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+  let currentOwner = "0xa2101482b28e3d99ff6ced517ba41eff4971a386"
   const SAFE_PROXY = "0x623E2B35964F944e166E6531CEF7577C2851F415"
   const MULTISIG_WALLET = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C"
 
   const RPC_URL = process.env.ETH_NODE_URI_sepolia;
   const SAFE_API_KEY = process.env.SAFE_API_KEY;
+
+  const safeVersion = "1.4.1"
+  const chainId = 11155111n
 
   // Test accounts
   let deployer: SignerWithAddress;
@@ -80,14 +86,13 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let multiSigOwner2: SignerWithAddress;
   let nonOwner: SignerWithAddress;
 
-  let daoCommitteeAdmin: any;
-
 
   // Contract instances
   let daoProxy: Contract;
   let daoCommitteeV2: Contract;
   let multiSigWallet: Contract;
   let newImplementation: Contract;
+  let safeContract: Contract;
 
   // Test constants
   const MAGIC_VALUE = "0x20c13b0b";
@@ -100,8 +105,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   const SAFE_SIGNATURE = 'safe_sign'
 
-  const daoAdminAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2";
-  let sendether = "0xDE0B6B3A7640000"
+  // let sendether = "0xDE0B6B3A7640000"
 
   let safeTransactionData = {
     "to": "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea",
@@ -119,16 +123,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   before(async function () {
     [SafeWalletOwner1, multiSigOwner1, multiSigOwner2, nonOwner] = await ethers.getSigners();
-
-    await hre.network.provider.send("hardhat_impersonateAccount", [
-      daoAdminAddress,
-    ]);
-    daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
-
-    await hre.network.provider.send("hardhat_setBalance", [
-        daoAdminAddress,
-        sendether
-    ]);
 
     console.log("Setting up EIP-1271 upgrade test environment...");
     console.log(`SafeWalletOwner1: ${SafeWalletOwner1.address}`);
@@ -165,7 +159,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   describe("DAOCommittee_V2 Deployment", function () {
     it("should deploy new DAOCommittee_V2 implementation", async function () {
-      const DAOCommitteeV2Factory = await ethers.getContractFactory("DAOCommittee_V2");
+      const DAOCommitteeV2Factory = await ethers.getContractFactory("DAOCommittee_V3");
       newImplementation = await DAOCommitteeV2Factory.deploy();
       await newImplementation.deployed();
 
@@ -211,6 +205,14 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   });
 
   describe("EIP-1271 Basic Functionality", function () {
+    it("set the SafeContract", async function () {
+      safeContract = new ethers.Contract(
+        SAFE_PROXY,
+        CompatibilityFallbackHandler_ABI.abi,
+        ethers.provider
+      );
+      // console.log("safeContract", safeContract)
+    })
     // it("should return magic value for valid signatures", async function () {
     //   const signatures = await createMultipleSignatures(
     //     [multiSigOwner1, multiSigOwner2],
@@ -455,20 +457,49 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      // console.log("checkSignature", checkSignature)
+      console.log("checkSignature", checkSignature)
 
       let check2Signature = buildSignatureBytes([
         orginSign,
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-
+      
       let setSignature = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let setSignature1 = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a20"
       let setSignature2 = "0x9e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
+      
+      // let getSigner = await recoverSignerFromSafeSignature(
+      //   setSignature2, 
+      //   SAFE_PROXY, 
+      //   safeTransactionData, 
+      //   safeVersion, 
+      //   chainId
+      // )
+      // console.log("getSigner", getSigner)
 
-      const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, checkSignature);
-      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, setSignature3);
+      // safeTxHash = keccak256(
+      //   "\x19\x01" +           // EIP-712 prefix
+      //   domainHash +           // 도메인 해시
+      //   messageHash            // 메시지 해시
+      // )
+      // let domainHash = "0x354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b"
+      // let messageHash = "0x4357a32901c8d398210e2a3f8dd0dbf6cf2a38e887884040ef5225fecc40c3d1"
+      // const chainId = await protocolKit.getChainId()
+      // console.log('체인 ID:', chainId)
+      // const actualHash = await protocolKit.getSafeMessageHash(safeTxHash)
+      // console.log("actualHash", actualHash)
+
+      // const recoveredSigner = await recoverAddress({
+      //   hash: actualHash as `0x${string}`,
+      //   signature: setSignature2 as `0x${string}`
+      // })
+      
+      // console.log('복구된 서명자:', recoveredSigner)
+
+
+      const result = await daoCommitteeV2.callStatic.isValidSignature(safeTxHash, checkSignature);
+      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
     });
 
@@ -877,6 +908,84 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
   //   return signedSafeTransaction
   // }
+
+  async function recoverSignerFromSafeSignature(
+    signature: string,
+    safeAddress: string,
+    safeTransactionData: any,
+    safeVersion: string,
+    chainId: bigint
+  ): Promise<string> {
+    
+    // 1단계: EIP-712 도메인 정의
+    const domain = {
+      chainId: Number(chainId),
+      verifyingContract: safeAddress
+    }
+    
+    // 2단계: SafeTx 타입 정의
+    const SafeTx = [
+      { type: 'address', name: 'to' },
+      { type: 'uint256', name: 'value' },
+      { type: 'bytes', name: 'data' },
+      { type: 'uint8', name: 'operation' },
+      { type: 'uint256', name: 'safeTxGas' },
+      { type: 'uint256', name: 'baseGas' },
+      { type: 'uint256', name: 'gasPrice' },
+      { type: 'address', name: 'gasToken' },
+      { type: 'address', name: 'refundReceiver' },
+      { type: 'uint256', name: 'nonce' }
+    ]
+    
+    // 3단계: EIP-712 인코딩
+    const domainSeparator = keccak256(
+      encodeAbiParameters(
+        parseAbiParameters('bytes32, bytes32, bytes32, uint256, address'),
+        [
+          keccak256('0x1901'), // EIP-712 prefix
+          keccak256('EIP712Domain(uint256 chainId,address verifyingContract)' as `0x${string}`),
+          keccak256('SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)' as `0x${string}`),
+          BigInt(chainId),
+          safeAddress as `0x${string}`
+        ]
+      )
+    )
+    
+    // 4단계: 메시지 해시 생성
+    const messageHash = keccak256(
+      encodeAbiParameters(
+        parseAbiParameters('bytes32, bytes32'),
+        [
+          domainSeparator,
+          keccak256(
+            encodeAbiParameters(
+              parseAbiParameters('address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,uint256'),
+              [
+                safeTransactionData.to,
+                BigInt(safeTransactionData.value),
+                safeTransactionData.data,
+                safeTransactionData.operation,
+                BigInt(safeTransactionData.safeTxGas),
+                BigInt(safeTransactionData.baseGas),
+                BigInt(safeTransactionData.gasPrice),
+                safeTransactionData.gasToken,
+                safeTransactionData.refundReceiver,
+                BigInt(safeTransactionData.nonce)
+              ]
+            )
+          )
+        ]
+      )
+    )
+    console.log("messageHash", messageHash)
+    // 5단계: 서명자 복구
+    const recoveredSigner = await recoverAddress({
+      hash: messageHash as `0x${string}`,
+      signature: signature as `0x${string}`
+    })
+    
+    return recoveredSigner
+  }
   
 
 
