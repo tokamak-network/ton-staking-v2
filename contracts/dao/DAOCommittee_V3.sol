@@ -121,10 +121,10 @@ contract DAOCommittee_V3 is
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), safeMessageHash);
     }
 
-    function encodeMessageDataForSafe(Safe safe, bytes memory message) public view returns (bytes memory) {
-        bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
-        return abi.encodePacked(bytes1(0x19), bytes1(0x01), safe.domainSeparator(), safeMessageHash);
-    }
+    // function encodeMessageDataForSafe(Safe safe, bytes memory message) public view returns (bytes memory) {
+    //     bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
+    //     return abi.encodePacked(bytes1(0x19), bytes1(0x01), safe.domainSeparator(), safeMessageHash);
+    // }
 
     function signMessage(bytes32 messageHash) external {
         signedMessages[messageHash] = 1;
