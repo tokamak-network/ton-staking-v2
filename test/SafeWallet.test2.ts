@@ -498,6 +498,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log('복구된 서명자:', recoveredSigner)
 
 
+      const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
+      console.log("domainSeparator", domainSeparator)
       const result = await daoCommitteeV2.callStatic.isValidSignature(safeTxHash, checkSignature);
       // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
