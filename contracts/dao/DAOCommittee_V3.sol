@@ -46,6 +46,13 @@ interface ISignatureValidator {
     function isValidSignature(bytes memory _data, bytes memory _signature) external view returns (bytes4);
 }
 
+interface ISafe {
+    function domainSeparator() external view returns (bytes32);
+    function getChainId() external view returns (uint256);
+    function signedMessages(bytes32) external view returns (uint256);
+    function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures) external view;
+}
+
 contract DAOCommittee_V3 is
     StorageStateCommittee,
     AccessControl,
@@ -66,6 +73,8 @@ contract DAOCommittee_V3 is
     // bytes32 public constant DOMAIN_SEPARATOR_TYPEHASH = 0x035aff83d86937d35b32e04f0ddc6ff469290eef2f1b692d8a815c89404d4749;
     address public constant SENTINEL_OWNERS = address(0x1);
 
+    address public constant SAFE_PROXY = 0x623E2B35964F944e166E6531CEF7577C2851F415;
+
 
     //////////////////////////////
     // Events
@@ -85,16 +94,18 @@ contract DAOCommittee_V3 is
     // ERC-1271 Implementation
     //////////////////////////////////////////////////////////////////////
 
-    function domainSeparator() public view returns (bytes32) {
-        // return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), this));
-        return 0x354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b;
+    function domainSeparator() public pure returns (bytes32) {
+        return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), SAFE_PROXY));
+        // return hex"354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b";
     }
 
-    function getChainId() public view returns (uint256) {
-        uint256 id;
-        assembly {
-            id := chainid()
-        }
+    function domainSeparator2() public view returns (bytes32) {
+        ISafe safe = ISafe(payable(SAFE_PROXY));
+        return safe.domainSeparator();
+    }
+
+    function getChainId() public pure returns (uint256) {
+        uint256 id = 11155111;
         return id;
     }
 
@@ -102,29 +113,29 @@ contract DAOCommittee_V3 is
         // Caller should be a Safe
         console.log("input _data");
         console.logBytes(_data);
+        ISafe safe = ISafe(payable(SAFE_PROXY));
         bytes memory messageData = encodeMessageDataForSafe(_data);
         bytes32 messageHash = keccak256(messageData);
-        console.log("changed _data is messageData");
-        console.logBytes(messageData);
+        
         console.log("changed _data is messageHash");
         console.logBytes32(messageHash);
+
+        console.log("changed _data is messageData");
+        console.logBytes(messageData);
+
         if (_signature.length == 0) {
-            require(signedMessages[messageHash] != 0, "Hash not approved");
+            console.log("1");
+            require(safe.signedMessages(messageHash) != 0, "Hash not approved");
         } else {
             checkSignatures(messageHash, messageData, _signature);
         }
         return EIP1271_MAGIC_VALUE;
     }
 
-    function encodeMessageDataForSafe(bytes memory message) public view returns (bytes memory) {
+    function encodeMessageDataForSafe(bytes memory message) public pure returns (bytes memory) {
         bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), safeMessageHash);
     }
-
-    // function encodeMessageDataForSafe(Safe safe, bytes memory message) public view returns (bytes memory) {
-    //     bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
-    //     return abi.encodePacked(bytes1(0x19), bytes1(0x01), safe.domainSeparator(), safeMessageHash);
-    // }
 
     function signMessage(bytes32 messageHash) external {
         signedMessages[messageHash] = 1;
@@ -148,10 +159,10 @@ contract DAOCommittee_V3 is
         for (i = 0; i < requiredSignatures; i++) {
             (v, r, s) = signatureSplit(signatures, i);
             console.log("v is ", v);
-            // console.log("r is ");
-            // console.logBytes32(r);
+            console.log("r is ");
+            console.logBytes32(r);
             console.log("s is ");
-            console.log(uint256(s));
+            console.logBytes32(s);
             if (v == 0) {
                 // console.log("dataHash is ");
                 // console.logBytes32(dataHash);
@@ -204,6 +215,10 @@ contract DAOCommittee_V3 is
                 console.log("2");
                 console.log("dataHash is ");
                 console.logBytes32(dataHash);
+                // console.log("r is ");
+                // console.logBytes32(r);
+                // console.log("s is ");
+                // console.logBytes32(s);
                 currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
                 console.log("expected currentOwner is ", currentOwner);
                 console.log("3");
@@ -306,6 +321,7 @@ contract DAOCommittee_V3 is
         // signer = ECDSA.recover(messageHash, _signature);
         // signer = ecrecover(messageHash, v-4, r, s);
         signer = ecrecover(ethSignedMessageHash, v - 4 , r, s);
+        // signer = ecrecover(keccak256(_hash), v - 4, r, s);
         console.log("signer", signer);
 
         require(signer != address(0), 'Invalid signer');

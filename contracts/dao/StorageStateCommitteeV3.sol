@@ -12,5 +12,5 @@ contract StorageStateCommitteeV3 {
     mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
     mapping(address => address) internal owners;
     mapping(bytes32 => uint256) public signedMessages;
-    
+
 }
