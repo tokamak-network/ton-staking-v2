@@ -11,6 +11,7 @@ import semverSatisfies from 'semver/functions/satisfies.js'
 import Safe, {
   buildContractSignature,
   buildSignatureBytes,
+  preimageSafeTransactionHash,
 } from '@safe-global/protocol-kit'
 import {
   SafeTransaction,
@@ -76,8 +77,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const RPC_URL = process.env.ETH_NODE_URI_sepolia;
   const SAFE_API_KEY = process.env.SAFE_API_KEY;
 
-  const safeVersion = "1.4.1"
-  const chainId = 11155111n
+  // const safeVersion = "1.4.1"
+  // const chainId = 11155111n
 
   // Test accounts
   let deployer: SignerWithAddress;
@@ -176,7 +177,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       daoProxy = daoCommitteeProxy2Contract;
     });
-  });
+    });
 
   describe("Proxy Pattern upgradeTo2", function () {
     it("should upgrade to DAOCommittee_V2 using upgradeTo2", async function () {
@@ -209,7 +210,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       safeContract = new ethers.Contract(
         SAFE_PROXY,
         CompatibilityFallbackHandler_ABI.abi,
-        ethers.provider
+          ethers.provider
       );
       // console.log("safeContract", safeContract)
     })
@@ -397,6 +398,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             safeTransactionData
         ],
       })
+      console.log("safeTx", safeTx)
 
       let multiSigSigns = await protocolKit
         .connect({
@@ -412,6 +414,34 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         )
       // console.log("multiSigSigns1", multiSigSigns)
 
+      let protocolKit2 = await protocolKit.connect({
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY,
+      })
+
+      const chainId = await protocolKit2.getChainId()
+      console.log('체인 ID:', chainId)
+
+      let safeVersion = await protocolKit2.getContractVersion()
+      console.log("safeVersion", safeVersion)
+
+      const txHashData = preimageSafeTransactionHash(
+        SAFE_PROXY,
+        safeTx.data as SafeTransactionData,
+        safeVersion,
+        chainId
+      )
+
+      console.log("txHashData", txHashData)
+      const messageHash = await protocolKit2.getSafeMessageHash(txHashData)
+      console.log("messageHash", messageHash)
+
+      // let smapleTxHash = await protocolKit2.getTransactionHash(safeTx)
+      // console.log("smapleTxHash : ", smapleTxHash)   
+
+      let test1 = await protocolKit2.signHash(messageHash)
+      console.log("test1", test1)
+
       multiSigSigns = await protocolKit
         .connect({
           signer: process.env.OWNER_PRIVATE_KEY2,
@@ -424,7 +454,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-        // console.log("multiSigSigns2", multiSigSigns)
+        console.log("multiSigSigns2", multiSigSigns)
       
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
@@ -458,16 +488,46 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
       console.log("checkSignature", checkSignature)
-
+      
+      
       let check2Signature = buildSignatureBytes([
         orginSign,
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
+      console.log("check2Signature", check2Signature)
+
+
+      // let checkSignature3 = buildSignatureBytes([
+      //   orginSign,
+      //   contractSignature
+      // ])
+      // console.log("checkSignature3", checkSignature3)
+
+      let checkSignature4 = buildSignatureBytes2([
+        orginSign,
+        contractSignature
+      ])
+      console.log("checkSignature4", checkSignature4)
       
       let setSignature = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let setSignature1 = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a20"
       let setSignature2 = "0x9e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
+
+      let changedcheckSignature2 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a38600000000000000000000000000000000000000000000000000000000000000820000000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      
+      
+      
+      let makeSignature = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200c5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b00000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      let makeSignatureSampleAddress = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386"
+      let passSample = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b00900000000000000000000000000000000000000000000000000000000000000820051e1d0de7a535297d74a16a9adb961d4dc43fce8cdf961941c830205c71397d21278f49b019239ee95855b383c776bdf048d2e0db7c895bc8b8424dcf4efcfb91b0000000000000000000000000000000000000000000000000000000000000082dca70dc61bb85ffdbd29a5269dd11a6385c51adb62a61add04db49e518ec50702f7d6212ce714e4dfcee681ca8c03baa88085a401321b1b544332a77fed118e61f22bdac89e180594a9e3f859004f1d057ede5d8858371dd75c02a2b5f4f5f9b2c4cf226f3a4bac2eb235905be7f84e527173d7feab5c880797239e9d25d51935f20"
+      let SampleAddress = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b009"
+      console.log("changedcheckSignature3.length : ", makeSignature.length)
+      console.log("passSample.length : ", passSample.length)
+      console.log("--------------------------------")
+      console.log("makeSignatureSampleAddress.length : ", makeSignatureSampleAddress.length)
+      console.log("SampleAddress.length : ", SampleAddress.length)
+      console.log("--------------------------------")
       
       // let getSigner = await recoverSignerFromSafeSignature(
       //   setSignature2, 
@@ -497,17 +557,79 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       
       // console.log('복구된 서명자:', recoveredSigner)
 
+      // console.log("1")
+      // const dataHash = keccak256(safeTxHash as `0x${string}`);
 
-      const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
-      console.log("domainSeparator", domainSeparator)
-      const result = await daoCommitteeV2.callStatic.isValidSignature(safeTxHash, checkSignature);
-      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, setSignature2);
+      // let validCheck = await safeContract["isValidSignature(bytes32,bytes)"](
+      //   safeTxHash,
+      //   makeSignature
+      // )
+      // console.log("validCheck", validCheck)
+
+      let sampleSafeTxHash = "0x471b155e978e50607d41a39e4458e91f50ff92cddcc3024b47b7382ea4827e13"
+      let sampleSign = "0x22bdac89e180594a9e3f859004f1d057ede5d8858371dd75c02a2b5f4f5f9b2c4cf226f3a4bac2eb235905be7f84e527173d7feab5c880797239e9d25d51935f20"
+      let secondHash = "0x387aacc5db817ca362ab38da5c074ebb2abfeeef8df22cb9dab4ef99b220e3dc"
+
+      let messageHash2 = "0x4357a32901c8d398210e2a3f8dd0dbf6cf2a38e887884040ef5225fecc40c3d1"
+
+
+      // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
+      // console.log("domainSeparator", domainSeparator)
+      // const result = await daoCommitteeV2.callStatic.isValidSignature2(messageHash2, setSignature);
+      const result = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, test1.data);
+      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(sampleSafeTxHash, sampleSign);
       // expect(result2).to.equal(MAGIC_VALUE);
     });
 
 
 
   });
+
+  const buildSignatureBytes2 = (signatures: SafeSignature[]): string => {
+    const SIGNATURE_LENGTH_BYTES = 65
+  
+    signatures.sort((left, right) =>
+      left.signer.toLowerCase().localeCompare(right.signer.toLowerCase())
+    )
+    console.log("in buildSignatureBytes2")
+    console.log("signatures", signatures)
+    
+    const EMPTY_DATA: Hex = '0x'
+    let signatureBytes = EMPTY_DATA
+    let dynamicBytes = ''
+  
+    for (const signature of signatures) {
+      console.log("signature", signature)
+      if (signature.isContractSignature) {
+        console.log("isContractSignature is true")
+        /* 
+          A contract signature has a static part of 65 bytes and the dynamic part that needs to be appended 
+          at the end of signature bytes.
+          The signature format is
+          Signature type == 0
+          Constant part: 65 bytes
+          {32-bytes signature verifier}{32-bytes dynamic data position}{1-byte signature type}
+          Dynamic part (solidity bytes): 32 bytes + signature data length
+          {32-bytes signature length}{bytes signature data}
+        */
+        const dynamicPartPosition = (
+          signatures.length * SIGNATURE_LENGTH_BYTES +
+          dynamicBytes.length / 2
+        )
+          .toString(16)
+          .padStart(64, '0')
+  
+        signatureBytes += signature.staticPart(dynamicPartPosition)
+        dynamicBytes += signature.dynamicPart()
+      } else {
+        console.log("isContractSignature is false")
+        signatureBytes += signature.data.slice(2)
+      }
+    }
+    console.log("out buildSignatureBytes2")
+    return signatureBytes + dynamicBytes
+  }
+  
 
   // Helper Functions
   async function createSignature(signer: SignerWithAddress, hash: string): Promise<string> {
@@ -811,7 +933,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       ]
     }
   }
-  
 
   // async function signHash(hash: string): Promise<SafeSignature> {
   //   const isPasskeySigner = await this.#safeProvider.isPasskeySigner()
