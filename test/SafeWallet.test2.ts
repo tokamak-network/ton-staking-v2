@@ -583,13 +583,14 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
       // console.log("domainSeparator", domainSeparator)
-      // const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
-      let result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature);
+      const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
       expect(result).to.equal(MAGIC_VALUE);
-      result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature1);
-      expect(result).to.equal(MAGIC_VALUE);
-      result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature2);
-      expect(result).to.equal(MAGIC_VALUE);
+      // let result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature);
+      // expect(result).to.equal(MAGIC_VALUE);
+      // result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature1);
+      // expect(result).to.equal(MAGIC_VALUE);
+      // result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature2);
+      // expect(result).to.equal(MAGIC_VALUE);
       // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
     });

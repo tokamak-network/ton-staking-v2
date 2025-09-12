@@ -115,18 +115,18 @@ contract DAOCommittee_V3 is
         console.log("input _data");
         console.logBytes(_data);
         ISafe safe = ISafe(payable(SAFE_PROXY));
-        bytes memory messageData = encodeMessageDataForSafe(_data);
-        bytes memory messageData2 = hex"1901354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b2b57efd4fa4aa598d0b4b216b52dc0eb9e5ba85c14802fae4bfc12bb4c7c3ad7";
+        bytes memory messageData = encodeMessageDataForSafe2(_data);
+        // bytes memory messageData2 = hex"1901354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b2b57efd4fa4aa598d0b4b216b52dc0eb9e5ba85c14802fae4bfc12bb4c7c3ad7";
         bytes32 messageHash = keccak256(messageData);
-        bytes32 messageHash2 = keccak256(messageData2);
+        // bytes32 messageHash2 = keccak256(messageData2);
 
         console.log("changed _data is messageData");
         console.logBytes(messageData);
         console.log("changed _data is messageHash");
         console.logBytes32(messageHash);
 
-        console.log("changed _data is messageHash2");
-        console.logBytes32(messageHash2);
+        // console.log("changed _data is messageHash2");
+        // console.logBytes32(messageHash2);
 
         if (_signature.length == 0) {
             console.log("1");
@@ -266,18 +266,18 @@ contract DAOCommittee_V3 is
     }
 
     function isValidSignature2(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
-        console.log("isValidSignature _hash");
-        console.logBytes(_hash);
-        bytes memory messageData = encodeMessageDataForSafe2(_hash);
-        bytes32 messageHash = keccak256(messageData);
-        console.log("isValidSignature2 messageData");
-        console.logBytes(messageData);
-        console.log("isValidSignature2 messageHash");
-        console.logBytes32(messageHash);
-
-        // bytes32 messageHash = keccak256(_hash);
+        // console.log("isValidSignature _hash");
+        // console.logBytes(_hash);
+        // bytes memory messageData = encodeMessageDataForSafe2(_hash);
+        // bytes32 messageHash = keccak256(messageData);
+        // console.log("isValidSignature2 messageData");
+        // console.logBytes(messageData);
         // console.log("isValidSignature2 messageHash");
         // console.logBytes32(messageHash);
+
+        bytes32 messageHash = keccak256(_hash);
+        console.log("isValidSignature2 messageHash");
+        console.logBytes32(messageHash);
 
         if (_validateSignatures(messageHash, _signature)) {
         // if (_validateSignatures(_hash, _signature)) {
