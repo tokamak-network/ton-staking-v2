@@ -420,10 +420,10 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       })
 
       const chainId = await protocolKit2.getChainId()
-      console.log('체인 ID:', chainId)
+      // console.log('체인 ID:', chainId)
 
       let safeVersion = await protocolKit2.getContractVersion()
-      console.log("safeVersion", safeVersion)
+      // console.log("safeVersion", safeVersion)
 
       const txHashData = preimageSafeTransactionHash(
         SAFE_PROXY,
@@ -432,15 +432,15 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         chainId
       )
 
-      console.log("txHashData", txHashData)
+      // console.log("txHashData", txHashData)
       const messageHash = await protocolKit2.getSafeMessageHash(txHashData)
-      console.log("messageHash", messageHash)
+      // console.log("messageHash", messageHash)
 
       // let smapleTxHash = await protocolKit2.getTransactionHash(safeTx)
       // console.log("smapleTxHash : ", smapleTxHash)   
 
       let test1 = await protocolKit2.signHash(messageHash)
-      console.log("test1", test1)
+      // console.log("test1", test1)
 
       multiSigSigns = await protocolKit
         .connect({
@@ -487,14 +487,14 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      console.log("checkSignature", checkSignature)
+      // console.log("checkSignature", checkSignature)
       
       
       let check2Signature = buildSignatureBytes([
         orginSign,
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      console.log("check2Signature", check2Signature)
+      // console.log("check2Signature", check2Signature)
 
 
       // let checkSignature3 = buildSignatureBytes([
@@ -519,12 +519,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let makeSignatureSampleAddress = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386"
       let passSample = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b00900000000000000000000000000000000000000000000000000000000000000820051e1d0de7a535297d74a16a9adb961d4dc43fce8cdf961941c830205c71397d21278f49b019239ee95855b383c776bdf048d2e0db7c895bc8b8424dcf4efcfb91b0000000000000000000000000000000000000000000000000000000000000082dca70dc61bb85ffdbd29a5269dd11a6385c51adb62a61add04db49e518ec50702f7d6212ce714e4dfcee681ca8c03baa88085a401321b1b544332a77fed118e61f22bdac89e180594a9e3f859004f1d057ede5d8858371dd75c02a2b5f4f5f9b2c4cf226f3a4bac2eb235905be7f84e527173d7feab5c880797239e9d25d51935f20"
       let SampleAddress = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b009"
-      console.log("changedcheckSignature3.length : ", makeSignature.length)
-      console.log("passSample.length : ", passSample.length)
-      console.log("--------------------------------")
-      console.log("makeSignatureSampleAddress.length : ", makeSignatureSampleAddress.length)
-      console.log("SampleAddress.length : ", SampleAddress.length)
-      console.log("--------------------------------")
+      // console.log("changedcheckSignature3.length : ", makeSignature.length)
+      // console.log("passSample.length : ", passSample.length)
+      // console.log("--------------------------------")
+      // console.log("makeSignatureSampleAddress.length : ", makeSignatureSampleAddress.length)
+      // console.log("SampleAddress.length : ", SampleAddress.length)
+      // console.log("--------------------------------")
       
       // const signatureResponse = await apiKit.confirmTransaction(
       //   safeTxHash,
@@ -569,8 +569,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log("1")
       // const dataHash = keccak256(safeTxHash as `0x${string}`);
 
-      // let validCheck = await safeContract["isValidSignature(bytes32,bytes)"](
-      //   safeTxHash,
+      // let validCheck = await safeContract["isValidSignature(bytes,bytes)"](
+      //   txHashData,
       //   makeSignature
       // )
       // console.log("validCheck", validCheck)
@@ -584,8 +584,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
       // console.log("domainSeparator", domainSeparator)
       // const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
-      const result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, test1.data);
-      // expect(result2).to.equal(MAGIC_VALUE);
+      let result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature);
+      expect(result).to.equal(MAGIC_VALUE);
+      result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature1);
+      expect(result).to.equal(MAGIC_VALUE);
+      result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature2);
+      expect(result).to.equal(MAGIC_VALUE);
       // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
     });

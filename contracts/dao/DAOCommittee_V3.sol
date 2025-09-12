@@ -266,20 +266,21 @@ contract DAOCommittee_V3 is
     }
 
     function isValidSignature2(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
+        console.log("isValidSignature _hash");
+        console.logBytes(_hash);
         bytes memory messageData = encodeMessageDataForSafe2(_hash);
-        bytes memory messageData2 = encodeMessageDataForSafe2(abi.encode(_hash));
         bytes32 messageHash = keccak256(messageData);
-        bytes32 messageHash2 = keccak256(messageData2);
         console.log("isValidSignature2 messageData");
         console.logBytes(messageData);
         console.log("isValidSignature2 messageHash");
         console.logBytes32(messageHash);
 
-        console.log("isValidSignature2 messageData2");
-        console.logBytes(messageData2);
-        console.log("isValidSignature2 messageHash2");
-        console.logBytes32(messageHash2);
+        // bytes32 messageHash = keccak256(_hash);
+        // console.log("isValidSignature2 messageHash");
+        // console.logBytes32(messageHash);
+
         if (_validateSignatures(messageHash, _signature)) {
+        // if (_validateSignatures(_hash, _signature)) {
             return EIP1271_MAGIC_VALUE;
         }
         return INVALID_SIGNATURE;
