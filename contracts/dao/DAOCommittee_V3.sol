@@ -44,6 +44,7 @@ interface IMultiSigWallet {
 
 interface ISignatureValidator {
     function isValidSignature(bytes memory _data, bytes memory _signature) external view returns (bytes4);
+    function isValidSignature2(bytes memory _data, bytes memory _signature) external view returns (bytes4);
 }
 
 interface ISafe {
@@ -74,6 +75,7 @@ contract DAOCommittee_V3 is
     address public constant SENTINEL_OWNERS = address(0x1);
 
     address public constant SAFE_PROXY = 0x623E2B35964F944e166E6531CEF7577C2851F415;
+    address public constant DAO_COMMITTEE_PROXY = 0xA2101482b28E3D99ff6ced517bA41EFf4971a386;
 
 
     //////////////////////////////
@@ -99,9 +101,8 @@ contract DAOCommittee_V3 is
         // return hex"354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b";
     }
 
-    function domainSeparator2() public view returns (bytes32) {
-        ISafe safe = ISafe(payable(SAFE_PROXY));
-        return safe.domainSeparator();
+    function domainSeparator2() public pure returns (bytes32) {
+        return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), DAO_COMMITTEE_PROXY));
     }
 
     function getChainId() public pure returns (uint256) {
@@ -115,13 +116,17 @@ contract DAOCommittee_V3 is
         console.logBytes(_data);
         ISafe safe = ISafe(payable(SAFE_PROXY));
         bytes memory messageData = encodeMessageDataForSafe(_data);
+        bytes memory messageData2 = hex"1901354d6f7b96d2576ed7cef655de3fc5de82569dc776d566faa0d81e3837df2f3b2b57efd4fa4aa598d0b4b216b52dc0eb9e5ba85c14802fae4bfc12bb4c7c3ad7";
         bytes32 messageHash = keccak256(messageData);
-        
-        console.log("changed _data is messageHash");
-        console.logBytes32(messageHash);
+        bytes32 messageHash2 = keccak256(messageData2);
 
         console.log("changed _data is messageData");
         console.logBytes(messageData);
+        console.log("changed _data is messageHash");
+        console.logBytes32(messageHash);
+
+        console.log("changed _data is messageHash2");
+        console.logBytes32(messageHash2);
 
         if (_signature.length == 0) {
             console.log("1");
@@ -135,6 +140,11 @@ contract DAOCommittee_V3 is
     function encodeMessageDataForSafe(bytes memory message) public pure returns (bytes memory) {
         bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), safeMessageHash);
+    }
+    
+    function encodeMessageDataForSafe2(bytes memory message) public pure returns (bytes memory) {
+        bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
+        return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator2(), safeMessageHash);
     }
 
     function signMessage(bytes32 messageHash) external {
@@ -202,7 +212,7 @@ contract DAOCommittee_V3 is
                 console.log("contractSignature");
                 console.logBytes(contractSignature);
                 console.log("contractSignature.length", contractSignature.length);
-                require(ISignatureValidator(currentOwner).isValidSignature(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
+                require(ISignatureValidator(currentOwner).isValidSignature2(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
             } else if (v == 1) {
                 // If v is 1 then it is an approved hash
                 // When handling approved hashes the address of the approver is encoded into r
@@ -256,14 +266,27 @@ contract DAOCommittee_V3 is
     }
 
     function isValidSignature2(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
-        if (_validateSignatures(_hash, _signature)) {
+        bytes memory messageData = encodeMessageDataForSafe2(_hash);
+        bytes memory messageData2 = encodeMessageDataForSafe2(abi.encode(_hash));
+        bytes32 messageHash = keccak256(messageData);
+        bytes32 messageHash2 = keccak256(messageData2);
+        console.log("isValidSignature2 messageData");
+        console.logBytes(messageData);
+        console.log("isValidSignature2 messageHash");
+        console.logBytes32(messageHash);
+
+        console.log("isValidSignature2 messageData2");
+        console.logBytes(messageData2);
+        console.log("isValidSignature2 messageHash2");
+        console.logBytes32(messageHash2);
+        if (_validateSignatures(messageHash, _signature)) {
             return EIP1271_MAGIC_VALUE;
         }
         return INVALID_SIGNATURE;
     }
 
     function _validateSignatures(
-        bytes memory _hash,
+        bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
         if (_signature.length < 65) return false;
@@ -280,7 +303,7 @@ contract DAOCommittee_V3 is
     }
 
     function _recoverSigner(
-        bytes memory _hash,
+        bytes32 _hash,
         bytes memory _signature
     ) internal view returns (address signer) {
         console.log("signatures");
