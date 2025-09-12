@@ -398,7 +398,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             safeTransactionData
         ],
       })
-      console.log("safeTx", safeTx)
+      // console.log("safeTx", safeTx)
 
       let multiSigSigns = await protocolKit
         .connect({
@@ -454,7 +454,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-        console.log("multiSigSigns2", multiSigSigns)
+        // console.log("multiSigSigns2", multiSigSigns)
       
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
@@ -503,20 +503,17 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // ])
       // console.log("checkSignature3", checkSignature3)
 
-      let checkSignature4 = buildSignatureBytes2([
-        orginSign,
-        contractSignature
-      ])
-      console.log("checkSignature4", checkSignature4)
+      // let checkSignature4 = buildSignatureBytes2([
+      //   orginSign,
+      //   contractSignature
+      // ])
+      // console.log("checkSignature4", checkSignature4)
       
       let setSignature = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let setSignature1 = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a20"
       let setSignature2 = "0x9e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
-      let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
-
+      // let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
       let changedcheckSignature2 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a38600000000000000000000000000000000000000000000000000000000000000820000000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
-      
-      
       
       let makeSignature = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200c5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b00000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       let makeSignatureSampleAddress = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386"
@@ -528,6 +525,18 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       console.log("makeSignatureSampleAddress.length : ", makeSignatureSampleAddress.length)
       console.log("SampleAddress.length : ", SampleAddress.length)
       console.log("--------------------------------")
+      
+      // const signatureResponse = await apiKit.confirmTransaction(
+      //   safeTxHash,
+      //   buildSignatureBytes([
+      //     orginSign,
+      //     safeTx.getSignature(DAO_COMMITTEE_PROXY!) as SafeSignature,
+      //   ])
+      // )
+
+      // console.log("signatureResponse", signatureResponse)
+      
+      
       
       // let getSigner = await recoverSignerFromSafeSignature(
       //   setSignature2, 
@@ -572,12 +581,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       let messageHash2 = "0x4357a32901c8d398210e2a3f8dd0dbf6cf2a38e887884040ef5225fecc40c3d1"
 
-
       // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
       // console.log("domainSeparator", domainSeparator)
-      // const result = await daoCommitteeV2.callStatic.isValidSignature2(messageHash2, setSignature);
-      const result = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, test1.data);
-      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(sampleSafeTxHash, sampleSign);
+      // const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
+      const result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, test1.data);
+      // expect(result2).to.equal(MAGIC_VALUE);
+      // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
     });
 
