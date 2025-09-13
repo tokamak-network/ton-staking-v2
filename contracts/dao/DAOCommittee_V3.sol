@@ -110,7 +110,16 @@ contract DAOCommittee_V3 is
         return id;
     }
 
-    function isValidSignature(bytes memory _data, bytes memory _signature) public view returns (bytes4) {
+    function getChainId2() public view returns (uint256) {
+        uint256 id;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            id := chainid()
+        }
+        return id;
+    }
+
+    function isValidSignature2(bytes memory _data, bytes memory _signature) public view returns (bytes4) {
         // Caller should be a Safe
         console.log("input _data");
         console.logBytes(_data);
@@ -129,12 +138,34 @@ contract DAOCommittee_V3 is
         // console.logBytes32(messageHash2);
 
         if (_signature.length == 0) {
-            console.log("1");
             require(safe.signedMessages(messageHash) != 0, "Hash not approved");
         } else {
             checkSignatures(messageHash, messageData, _signature);
         }
         return EIP1271_MAGIC_VALUE;
+    
+    }
+    function isValidSignature3(bytes memory _data, bytes memory _signature) public view returns (bytes4) {
+        // Caller should be a Safe
+        console.log("input _data");
+        console.logBytes(_data);
+        ISafe safe = ISafe(payable(SAFE_PROXY));
+        bytes32 messageHash = getMessageHashForSafe(safe, _data);
+        console.log("changed _data is messageHash");
+        console.logBytes32(messageHash);
+
+
+        if (_signature.length == 0) {
+            require(safe.signedMessages(messageHash) != 0, "Hash not approved");
+        } else {
+            checkSignatures(messageHash, _data, _signature);
+        }
+        return EIP1271_MAGIC_VALUE;
+    }
+
+    function getMessageHashForSafe(ISafe safe, bytes memory message) public view returns (bytes32) {
+        bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
+        return keccak256(abi.encodePacked(bytes1(0x19), bytes1(0x01), safe.domainSeparator(), safeMessageHash));
     }
 
     function encodeMessageDataForSafe(bytes memory message) public pure returns (bytes memory) {
@@ -179,7 +210,7 @@ contract DAOCommittee_V3 is
                 // console.log("data is ");
                 // console.logBytes(data);
                 // console.log("data.length", data.length);
-                require(keccak256(data) == dataHash, "GS027");
+                // require(keccak256(data) == dataHash, "GS027");
                 // If v is 0 then it is a contract signature
                 // When handling contract signatures the address of the contract is encoded into r
                 currentOwner = address(uint160(uint256(r)));
@@ -212,7 +243,7 @@ contract DAOCommittee_V3 is
                 console.log("contractSignature");
                 console.logBytes(contractSignature);
                 console.log("contractSignature.length", contractSignature.length);
-                require(ISignatureValidator(currentOwner).isValidSignature2(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
+                require(ISignatureValidator(currentOwner).isValidSignature(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
             } else if (v == 1) {
                 // If v is 1 then it is an approved hash
                 // When handling approved hashes the address of the approver is encoded into r
@@ -265,19 +296,20 @@ contract DAOCommittee_V3 is
         }
     }
 
-    function isValidSignature2(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
-        // console.log("isValidSignature _hash");
-        // console.logBytes(_hash);
-        // bytes memory messageData = encodeMessageDataForSafe2(_hash);
-        // bytes32 messageHash = keccak256(messageData);
-        // console.log("isValidSignature2 messageData");
-        // console.logBytes(messageData);
-        // console.log("isValidSignature2 messageHash");
-        // console.logBytes32(messageHash);
-
-        bytes32 messageHash = keccak256(_hash);
+    function isValidSignature(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
+        console.log("isValidSignature _hash");
+        console.logBytes(_hash);
+        bytes memory messageData = encodeMessageDataForSafe2(_hash);
+        bytes32 messageHash = keccak256(messageData);
+        console.log("isValidSignature2 messageData");
+        console.logBytes(messageData);
         console.log("isValidSignature2 messageHash");
         console.logBytes32(messageHash);
+
+
+        // bytes32 messageHash = keccak256(_hash);
+        // console.log("isValidSignature2 messageHash");
+        // console.logBytes32(messageHash);
 
         if (_validateSignatures(messageHash, _signature)) {
         // if (_validateSignatures(_hash, _signature)) {
