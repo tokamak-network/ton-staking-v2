@@ -210,7 +210,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       safeContract = new ethers.Contract(
         SAFE_PROXY,
         CompatibilityFallbackHandler_ABI.abi,
-          ethers.provider
+        ethers.provider
       );
       // console.log("safeContract", safeContract)
     })
@@ -419,11 +419,11 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         safeAddress: DAO_COMMITTEE_PROXY,
       })
 
-      const chainId = await protocolKit2.getChainId()
-      // console.log('체인 ID:', chainId)
+      let chainId = await protocolKit2.getChainId()
+      console.log('체인 ID:', chainId)
 
       let safeVersion = await protocolKit2.getContractVersion()
-      // console.log("safeVersion", safeVersion)
+      console.log("safeVersion", safeVersion)
 
       const txHashData = preimageSafeTransactionHash(
         SAFE_PROXY,
@@ -432,7 +432,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         chainId
       )
 
-      // console.log("txHashData", txHashData)
+      console.log("txHashData", txHashData)
+
       const messageHash = await protocolKit2.getSafeMessageHash(txHashData)
       // console.log("messageHash", messageHash)
 
@@ -494,7 +495,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         orginSign,
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      // console.log("check2Signature", check2Signature)
+      console.log("check2Signature", check2Signature)
 
 
       // let checkSignature3 = buildSignatureBytes([
@@ -569,9 +570,18 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log("1")
       // const dataHash = keccak256(safeTxHash as `0x${string}`);
 
+      // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
+      // console.log("domainSeparator", domainSeparator)
+      // const domainSeparator2 = await daoCommitteeV2.callStatic.domainSeparator2();
+      // console.log("domainSeparator2", domainSeparator2)
+      const getChainId = await daoCommitteeV2.callStatic.getChainId();
+      console.log("getChainId", getChainId)
+      const getChainId2 = await daoCommitteeV2.callStatic.getChainId2();
+      console.log("getChainId2", getChainId2)
+
       // let validCheck = await safeContract["isValidSignature(bytes,bytes)"](
       //   txHashData,
-      //   makeSignature
+      //   check2Signature
       // )
       // console.log("validCheck", validCheck)
 
@@ -583,13 +593,15 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
       // console.log("domainSeparator", domainSeparator)
-      const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
+      const result = await daoCommitteeV2.callStatic.isValidSignature3(txHashData, makeSignature);
       expect(result).to.equal(MAGIC_VALUE);
-      // let result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature);
+      // const result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, makeSignature);
       // expect(result).to.equal(MAGIC_VALUE);
-      // result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature1);
+      // let result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, setSignature);
       // expect(result).to.equal(MAGIC_VALUE);
-      // result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, setSignature2);
+      // result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, setSignature1);
+      // expect(result).to.equal(MAGIC_VALUE);
+      // result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, setSignature2);
       // expect(result).to.equal(MAGIC_VALUE);
       // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
