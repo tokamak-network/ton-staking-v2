@@ -165,13 +165,14 @@ contract DAOCommittee_V2 is
         bytes memory _hash,
         bytes memory _signature
     ) external view returns (bytes4 magicValue) {
-        // if (multiSigWallet == address(0)) {
-        //     return INVALID_SIGNATURE;
-        // }
-        // require(
-        //     hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet),
-        //     'multisig not admin'
-        // );
+        require(_signature.length >= 130, 'bad sig len');
+        if (multiSigWallet == address(0)) {
+            return INVALID_SIGNATURE;
+        }
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet),
+            'multisig not admin'
+        );
         bytes memory messageData = encodeMessageDataForSafe(_hash);
         bytes32 messageHash = keccak256(messageData);
         if (_validateSignatures(messageHash, _signature)) {
@@ -191,6 +192,8 @@ contract DAOCommittee_V2 is
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
+
+        
         address signer;
 
         // Try different signature recovery methods
@@ -220,8 +223,9 @@ contract DAOCommittee_V2 is
     function _recoverSigner(
         bytes32 _hash,
         bytes memory _signature
-    ) internal pure returns (address signer) {
-        // require(_signature.length >= 65, 'bad sig len');
+    ) internal view returns (address signer) {
+        require(_signature.length >= 65, 'bad sig len');
+        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
 
         uint8 v = uint8(_signature[64]);
         bytes32 r;

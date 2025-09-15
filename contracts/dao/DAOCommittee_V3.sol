@@ -147,12 +147,12 @@ contract DAOCommittee_V3 is
     }
     function isValidSignature3(bytes memory _data, bytes memory _signature) public view returns (bytes4) {
         // Caller should be a Safe
-        console.log("input _data");
-        console.logBytes(_data);
+        // console.log("input _data");
+        // console.logBytes(_data);
         ISafe safe = ISafe(payable(SAFE_PROXY));
         bytes32 messageHash = getMessageHashForSafe(safe, _data);
-        console.log("changed _data is messageHash");
-        console.logBytes32(messageHash);
+        // console.log("changed _data is messageHash");
+        // console.logBytes32(messageHash);
 
 
         if (_signature.length == 0) {
@@ -199,11 +199,11 @@ contract DAOCommittee_V3 is
         uint256 i;
         for (i = 0; i < requiredSignatures; i++) {
             (v, r, s) = signatureSplit(signatures, i);
-            console.log("v is ", v);
-            console.log("r is ");
-            console.logBytes32(r);
-            console.log("s is ");
-            console.logBytes32(s);
+            // console.log("v is ", v);
+            // console.log("r is ");
+            // console.logBytes32(r);
+            // console.log("s is ");
+            // console.logBytes32(s);
             if (v == 0) {
                 // console.log("dataHash is ");
                 // console.logBytes32(dataHash);
@@ -238,11 +238,11 @@ contract DAOCommittee_V3 is
                     // The signature data for contract signatures is appended to the concatenated signatures and the offset is stored in s
                     contractSignature := add(add(signatures, s), 0x20)
                 }
-                console.log("data");
-                console.logBytes(data);
-                console.log("contractSignature");
-                console.logBytes(contractSignature);
-                console.log("contractSignature.length", contractSignature.length);
+                // console.log("data");
+                // console.logBytes(data);
+                // console.log("contractSignature");
+                // console.logBytes(contractSignature);
+                // console.log("contractSignature.length", contractSignature.length);
                 require(ISignatureValidator(currentOwner).isValidSignature(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
             } else if (v == 1) {
                 // If v is 1 then it is an approved hash
@@ -322,17 +322,50 @@ contract DAOCommittee_V3 is
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
-        if (_signature.length < 65) return false;
+        // if (_signature.length < 65) return false;
+        require(_signature.length >= 130, 'bad sig len');
+        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
+        uint256 sigCount = _signature.length / 65;
+        console.log("sigCount", sigCount);
+        
+        if (sigCount < requiredSigs) return false;
 
-        address signer;
+        address[] memory signers = new address[](sigCount);
+        uint256 validSigs = 0;
 
-        // Try different signature recovery methods
-        signer = _recoverSigner(_hash, _signature);
-        if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
-            return true; 
+        for (uint256 i = 0; i < sigCount; i++) {
+            bytes memory sigPart = _signature.slice(i * 65, 65);
+            address signer = _recoverSigner(_hash, sigPart);
+
+            // MultiSig 소유자이고 중복이 아닌 경우
+            if (
+                IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)
+            ) {
+                signers[i] = signer;
+                validSigs++;
+            }
         }
 
-        return false;
+        console.log("validSigs", validSigs);
+        console.log("requiredSigs", requiredSigs);
+        if (requiredSigs <= validSigs ) {
+            console.log("requiredSigs <= validSigs");
+            return true;
+        } else {
+            console.log("requiredSigs > validSigs");
+            return false;
+        }
+
+
+        
+        // address signer;
+        // Try different signature recovery methods
+        // signer = _recoverSigner(_hash, _signature);
+        // if (IMultiSigWallet(multiSigWallet).isOwner(signer)) {
+        //     return true; 
+        // }
+
+        // return false;
     }
 
     function _recoverSigner(
@@ -382,6 +415,24 @@ contract DAOCommittee_V3 is
 
         require(signer != address(0), 'Invalid signer');
         return signer;
+    }
+
+     /**
+     * @notice Check for duplicate signers
+     * @param signers Array of signer addresses
+     * @param signer Address to check
+     * @param currentIndex Current index in the array
+     * @return true if duplicate found
+     */
+    function _isDuplicate(
+        address[] memory signers,
+        address signer,
+        uint256 currentIndex
+    ) internal pure returns (bool) {
+        for (uint256 i = 0; i < currentIndex; i++) {
+            if (signers[i] == signer) return true;
+        }
+        return false;
     }
 
 
