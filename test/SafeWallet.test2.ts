@@ -102,6 +102,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const testHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message"));
   const txHash = "0x34148392eddee2686a39b6da312a95afdbf953bef85122e5b0c73f3b624cba8f"
   const testHash2 = "0x644a6c15e3d1cf448599d487c6f3fe68e93e891205961df6fb5950ff3cf45c66"
+  const testHash3 = "0x7bda76da0451419e101d9ea5799411334d48f2efb09637eeb787f4cc521b9810"
   const numConfirmationsRequired = 2; // 2 out of 3 multisig
 
   const SAFE_SIGNATURE = 'safe_sign'
@@ -116,11 +117,14 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     "baseGas": "0",
     "gasPrice": "0",
     "gasToken": "0x0000000000000000000000000000000000000000",
-    "nonce": 4,
+    "nonce": 5,
     "refundReceiver": "0x0000000000000000000000000000000000000000",
     "safeTxGas": "0"
   }
 
+  let apiKit: SafeApiKit;
+  let protocolKit: any;
+  let safeTx: any;
 
   before(async function () {
     [SafeWalletOwner1, multiSigOwner1, multiSigOwner2, nonOwner] = await ethers.getSigners();
@@ -131,6 +135,22 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     console.log(`multiSigOwner2: ${multiSigOwner2.address}`);
     console.log(`nonOwner: ${nonOwner.address}`);
     console.log(`DAO Proxy: ${DAO_COMMITTEE_PROXY}`);
+
+    apiKit = new SafeApiKit({
+      chainId: 11155111n,
+      apiKey: SAFE_API_KEY
+    });
+
+    protocolKit = await Safe.init({
+      provider: RPC_URL!,
+      safeAddress: SAFE_PROXY
+    })
+
+    safeTx = await protocolKit.createTransaction({
+      transactions: [
+          safeTransactionData
+      ],
+    })
   });
 
   describe("Environment Setup", function () {
@@ -283,123 +303,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     //   expect(result2).to.equal(MAGIC_VALUE);
       
     // });
-    
-    // it("check the signTransaction Result", async function () {
-    //   let protocolKit = await Safe.init({
-    //     provider: RPC_URL!,
-    //     safeAddress: SAFE_PROXY
-    //   })
 
-    //   let safeTx = await protocolKit.createTransaction({
-    //     transactions: [
-    //         safeTransactionData
-    //     ],
-    //   })
-
-    //   protocolKit = await protocolKit.connect({
-    //     provider: RPC_URL!,
-    //     signer: process.env.OWNER_PRIVATE_KEY,
-    //     safeAddress: DAO_COMMITTEE_PROXY
-    //   })
-
-    //   let multiSigSigns = await protocolKit.signTransaction(
-    //     safeTx,
-    //     SAFE_SIGNATURE,
-    //     SAFE_PROXY
-    //   )
-
-    //   // console.log("multiSigSigns1", multiSigSigns);
-
-    //   protocolKit = await protocolKit.connect({
-    //     provider: RPC_URL!,
-    //     signer: process.env.OWNER_PRIVATE_KEY2,
-    //   })
-
-    //   multiSigSigns = await protocolKit.signTransaction(
-    //     multiSigSigns,
-    //     SAFE_SIGNATURE,
-    //     SAFE_PROXY
-    //   )
-
-    //   // console.log("multiSigSigns2", multiSigSigns);
-
-
-    //   const contractSignature = await buildContractSignature(
-    //     Array.from(multiSigSigns.signatures.values()),
-    //     DAO_COMMITTEE_PROXY
-    //   )
-    //   // console.log("contractSignature", contractSignature)
-
-    //   safeTx.addSignature(contractSignature)
-    //   // console.log("safeTx2", safeTx)
-    //   console.log("safeTx2", safeTx.signatures)
-
-
-    //   let checkSignature = buildSignatureBytes([
-    //     safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
-    //   ])
-
-    //   console.log("checkSignature", checkSignature)
-
-    //   const apiKit = new SafeApiKit({
-    //     chainId: 11155111n,
-    //     apiKey: SAFE_API_KEY
-    //   });
-
-    //   const pendingTxs = await apiKit.getPendingTransactions(
-    //     SAFE_PROXY
-    //   )
-
-    //   const transaction = await apiKit.getTransaction(
-    //     pendingTxs.results[0].safeTxHash
-    //   )
-      
-    //   const orginSign = await protocolKit
-    //     .toSafeTransactionType(transaction)
-    //     .then((safeTx) => Array.from(safeTx.signatures.values())[0])
-
-
-    //   // console.log("orginSign", orginSign)
-
-    //   let check2Signature = buildSignatureBytes([
-    //     orginSign,
-    //     safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
-    //   ])
-
-    //   console.log("check2Signature", check2Signature)
-      
-    //   const safeTxHash = await protocolKit.getTransactionHash(safeTx)
-    //   console.log("safeTxHash", safeTxHash)
-    //   expect(safeTxHash).to.equal(testHash2);
-
-
-    //   // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, check2Signature);
-    //   const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, check2Signature);
-    //   // console.log("result", result);
-    //   // expect(result).to.equal(MAGIC_VALUE);
-    //   expect(result2).to.equal(MAGIC_VALUE);
-      
-    // });
-
-    it("check the signTransaction Result", async function () {
-      
-      const apiKit = new SafeApiKit({
-        chainId: 11155111n,
-        apiKey: SAFE_API_KEY
-      });
-
-      let protocolKit = await Safe.init({
-        provider: RPC_URL!,
-        safeAddress: SAFE_PROXY
-      })
-
-      let safeTx = await protocolKit.createTransaction({
-        transactions: [
-            safeTransactionData
-        ],
-      })
-      // console.log("safeTx", safeTx)
-
+    it("isValidSignature test passed", async function () {
       let multiSigSigns = await protocolKit
         .connect({
           signer: process.env.OWNER_PRIVATE_KEY,
@@ -434,13 +339,13 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       console.log("txHashData", txHashData)
 
-      const messageHash = await protocolKit2.getSafeMessageHash(txHashData)
+      // const messageHash = await protocolKit2.getSafeMessageHash(txHashData)
       // console.log("messageHash", messageHash)
 
       // let smapleTxHash = await protocolKit2.getTransactionHash(safeTx)
       // console.log("smapleTxHash : ", smapleTxHash)   
 
-      let test1 = await protocolKit2.signHash(messageHash)
+      // let test1 = await protocolKit2.signHash(messageHash)
       // console.log("test1", test1)
 
       multiSigSigns = await protocolKit
@@ -455,7 +360,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-        // console.log("multiSigSigns2", multiSigSigns)
+        console.log("multiSigSigns2", multiSigSigns)
       
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
@@ -483,7 +388,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       const safeTxHash = await protocolKit.getTransactionHash(safeTx)
       // console.log("safeTxHash", safeTxHash)
-      expect(safeTxHash).to.equal(testHash2);
+      expect(safeTxHash).to.equal(testHash3);
 
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
@@ -510,22 +415,29 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // ])
       // console.log("checkSignature4", checkSignature4)
       
-      let setSignature = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
-      let setSignature1 = "0x7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a20"
-      let setSignature2 = "0x9e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
-      // let setSignature3 = "0xc5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b"
+
       let changedcheckSignature2 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a38600000000000000000000000000000000000000000000000000000000000000820000000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
       
       let makeSignature = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200c5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b00000000000000000000000000000000000000000000000000000000000000827c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      // let makeSignature = "
+      // 0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386
+      // 000000000000000000000000000000000000000000000000000000000000008200
+      // c5eca5424f426c2e4817cae6fd86ae57c97d757ee49e609c669065edf9dee6e75b4a2e842d67284b50f4b3024264eb70b38145c31528c8d330d92bad4409aea71b
+      // 0000000000000000000000000000000000000000000000000000000000000082
+      // 7c884a93d367f70eed1edc95ee6b9e0b96fe7f4caf03b7a190e7786aab63be2d302a5d3b534277789465c7b917ba4206ea6c6a5f21e6487c17c2aa118dd6bc2a209e77e9dd73703da05391e6d303891802c4ae677f8e3582d2d27de52391b0bac11d81497fcf36d63b42fcab38cd7d8712aebda9f663f4b21b6f409316b4bf323b1f"
+      
       let makeSignatureSampleAddress = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386"
-      let passSample = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b00900000000000000000000000000000000000000000000000000000000000000820051e1d0de7a535297d74a16a9adb961d4dc43fce8cdf961941c830205c71397d21278f49b019239ee95855b383c776bdf048d2e0db7c895bc8b8424dcf4efcfb91b0000000000000000000000000000000000000000000000000000000000000082dca70dc61bb85ffdbd29a5269dd11a6385c51adb62a61add04db49e518ec50702f7d6212ce714e4dfcee681ca8c03baa88085a401321b1b544332a77fed118e61f22bdac89e180594a9e3f859004f1d057ede5d8858371dd75c02a2b5f4f5f9b2c4cf226f3a4bac2eb235905be7f84e527173d7feab5c880797239e9d25d51935f20"
-      let SampleAddress = "0x0000000000000000000000000A92feB25C1ff258A7df028a9469412ba9F5b009"
-      // console.log("changedcheckSignature3.length : ", makeSignature.length)
-      // console.log("passSample.length : ", passSample.length)
-      // console.log("--------------------------------")
-      // console.log("makeSignatureSampleAddress.length : ", makeSignatureSampleAddress.length)
-      // console.log("SampleAddress.length : ", SampleAddress.length)
-      // console.log("--------------------------------")
+
+      let makeSignature2 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c0000000000000000000000000000000000000000000000000000000000000082592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720"
+      // console.log("makeSignature2.length : ", makeSignature2.length)
+      // let makeSignature2 = "
+      // 0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386
+      // 000000000000000000000000000000000000000000000000000000000000008200
+      // e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c
+      // 0000000000000000000000000000000000000000000000000000000000000082
+      // 592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720"
+      let makeSignature3 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c0000000000000000000000000000000000000000000000000000000000000082451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720"
+      // console.log("makeSignature3.length : ", makeSignature3.length)
       
       // const signatureResponse = await apiKit.confirmTransaction(
       //   safeTxHash,
@@ -533,12 +445,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       //     orginSign,
       //     safeTx.getSignature(DAO_COMMITTEE_PROXY!) as SafeSignature,
       //   ])
-      // )
-
-      // console.log("signatureResponse", signatureResponse)
-      
-      
-      
+      // )      
+    
       // let getSigner = await recoverSignerFromSafeSignature(
       //   setSignature2, 
       //   SAFE_PROXY, 
@@ -567,33 +475,13 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       
       // console.log('복구된 서명자:', recoveredSigner)
 
-      // console.log("1")
-      // const dataHash = keccak256(safeTxHash as `0x${string}`);
-
-      // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
-      // console.log("domainSeparator", domainSeparator)
-      // const domainSeparator2 = await daoCommitteeV2.callStatic.domainSeparator2();
-      // console.log("domainSeparator2", domainSeparator2)
-      const getChainId = await daoCommitteeV2.callStatic.getChainId();
-      console.log("getChainId", getChainId)
-      const getChainId2 = await daoCommitteeV2.callStatic.getChainId2();
-      console.log("getChainId2", getChainId2)
-
       // let validCheck = await safeContract["isValidSignature(bytes,bytes)"](
       //   txHashData,
-      //   check2Signature
+      //   makeSignature2
       // )
       // console.log("validCheck", validCheck)
 
-      let sampleSafeTxHash = "0x471b155e978e50607d41a39e4458e91f50ff92cddcc3024b47b7382ea4827e13"
-      let sampleSign = "0x22bdac89e180594a9e3f859004f1d057ede5d8858371dd75c02a2b5f4f5f9b2c4cf226f3a4bac2eb235905be7f84e527173d7feab5c880797239e9d25d51935f20"
-      let secondHash = "0x387aacc5db817ca362ab38da5c074ebb2abfeeef8df22cb9dab4ef99b220e3dc"
-
-      let messageHash2 = "0x4357a32901c8d398210e2a3f8dd0dbf6cf2a38e887884040ef5225fecc40c3d1"
-
-      // const domainSeparator = await daoCommitteeV2.callStatic.domainSeparator();
-      // console.log("domainSeparator", domainSeparator)
-      const result = await daoCommitteeV2.callStatic.isValidSignature3(txHashData, makeSignature);
+      const result = await daoCommitteeV2.callStatic.isValidSignature3(txHashData, makeSignature2);
       expect(result).to.equal(MAGIC_VALUE);
       // const result = await daoCommitteeV2.callStatic.isValidSignature2(txHashData, makeSignature);
       // expect(result).to.equal(MAGIC_VALUE);
@@ -605,6 +493,148 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // expect(result).to.equal(MAGIC_VALUE);
       // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(messageHash, setSignature2);
       // expect(result2).to.equal(MAGIC_VALUE);
+    });
+
+    it("If the number of duplicate signers in isValidSignature is too small, it fails.", async function () {
+      let multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            safeTx,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+
+      let protocolKit2 = await protocolKit.connect({
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY,
+      })
+
+      let chainId = await protocolKit2.getChainId()
+      let safeVersion = await protocolKit2.getContractVersion()
+
+      const txHashData = preimageSafeTransactionHash(
+        SAFE_PROXY,
+        safeTx.data as SafeTransactionData,
+        safeVersion,
+        chainId
+      )
+
+      multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY2,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            multiSigSigns,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+
+      const contractSignature = await buildContractSignature(
+        Array.from(multiSigSigns.signatures.values()),
+        DAO_COMMITTEE_PROXY!
+      )
+      safeTx.addSignature(contractSignature)
+
+      const pendingTxs = await apiKit.getPendingTransactions(
+        SAFE_PROXY!
+      )
+      const transaction = await apiKit.getTransaction(
+        pendingTxs.results[0].safeTxHash
+      )
+      const orginSign = await protocolKit
+        .toSafeTransactionType(transaction)
+        .then((safeTx) => Array.from(safeTx.signatures.values())[0])
+      
+      const safeTxHash = await protocolKit.getTransactionHash(safeTx)
+
+      let check2Signature = buildSignatureBytes([
+        orginSign,
+        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+      ])
+
+      let makeSignature3 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c0000000000000000000000000000000000000000000000000000000000000082451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720"
+      await expect(daoCommitteeV2.callStatic.isValidSignature3(txHashData, makeSignature3)).to.be.revertedWith("GS024");
+
+    });
+
+    it("In isValidSignature, even if the signer is duplicated, it succeeds if the number of signs is satisfied.", async function () {
+      let multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            safeTx,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+
+      let protocolKit2 = await protocolKit.connect({
+        signer: process.env.OWNER_PRIVATE_KEY,
+        safeAddress: DAO_COMMITTEE_PROXY,
+      })
+
+      let chainId = await protocolKit2.getChainId()
+      let safeVersion = await protocolKit2.getContractVersion()
+
+      const txHashData = preimageSafeTransactionHash(
+        SAFE_PROXY,
+        safeTx.data as SafeTransactionData,
+        safeVersion,
+        chainId
+      )
+
+      multiSigSigns = await protocolKit
+        .connect({
+          signer: process.env.OWNER_PRIVATE_KEY2,
+          safeAddress: DAO_COMMITTEE_PROXY,
+        })
+        .then((k) =>
+          k.signTransaction(
+            multiSigSigns,
+            SigningMethod.SAFE_SIGNATURE,
+            SAFE_PROXY
+          )
+        )
+
+      const contractSignature = await buildContractSignature(
+        Array.from(multiSigSigns.signatures.values()),
+        DAO_COMMITTEE_PROXY!
+      )
+      safeTx.addSignature(contractSignature)
+
+      const pendingTxs = await apiKit.getPendingTransactions(
+        SAFE_PROXY!
+      )
+      const transaction = await apiKit.getTransaction(
+        pendingTxs.results[0].safeTxHash
+      )
+      const orginSign = await protocolKit
+        .toSafeTransactionType(transaction)
+        .then((safeTx) => Array.from(safeTx.signatures.values())[0])
+      
+      const safeTxHash = await protocolKit.getTransactionHash(safeTx)
+
+      let check2Signature = buildSignatureBytes([
+        orginSign,
+        safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
+      ])
+
+      let makeSignature4 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c00000000000000000000000000000000000000000000000000000000000000C3451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f"
+      let makeSignature5 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c00000000000000000000000000000000000000000000000000000000000000C3451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720"
+      let makeSignature6 = "0x000000000000000000000000A2101482b28E3D99ff6ced517bA41EFf4971a386000000000000000000000000000000000000000000000000000000000000008200e3959d981f91f3008815c4f720c674953d1961ff2e9edb6bb9573e9a707f6f1c26d5c9b8a09a68782470115ff364c2379cff78d25a5a13d723ae3a144cece10a1c00000000000000000000000000000000000000000000000000000000000000C3451900dbdd687d2196a88001c90243a526b68f15d0db2df6f6c3cba553ed01413017bbdce7087741ba96cd3c3c9c24acd023989f1e8d101ed7a6188e3df8c2d720592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f592c2304865f6e52b50999d9ce19403a30dd176d6044586deb7290cd43e6eebc1fe22df0a690c2d46852f89226dbec88d91bdcb2d0fa229d9c85d8f8cf354ac81f"
+      const result = await daoCommitteeV2.callStatic.isValidSignature3(txHashData, makeSignature6);
+      expect(result).to.equal(MAGIC_VALUE);
     });
 
 
