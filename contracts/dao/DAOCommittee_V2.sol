@@ -192,17 +192,41 @@ contract DAOCommittee_V2 is
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
-
+        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
+        uint256 sigCount = _signature.length / 65;
         
-        address signer;
+        if (sigCount < requiredSigs) return false;
 
-        // Try different signature recovery methods
-        signer = _recoverSigner(_hash, _signature);
-        if (isOwner(signer)) {
-            return true; 
+        address[] memory signers = new address[](sigCount);
+        uint256 validSigs = 0;
+
+        for (uint256 i = 0; i < sigCount; i++) {
+            bytes memory sigPart = _signature.slice(i * 65, 65);
+            address signer = _recoverSigner(_hash, sigPart);
+
+            // MultiSig 소유자이고 중복이 아닌 경우
+            if (IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)) {
+                signers[i] = signer;
+                validSigs++;
+            }
         }
 
-        return false;
+        if (requiredSigs <= validSigs ) {
+            return true;
+        } else {
+            return false;
+        }
+        
+        // address signer;
+
+        // // Try different signature recovery methods
+        // signer = _recoverSigner(_hash, _signature);
+        // if (isOwner(signer)) {
+        //     return true; 
+        // }
+
+        // return false;
+
         // 서명 해시 생성 및 재사용 검증
         // bytes32 signatureHash = _getSignatureHash(_hash, _signature);
 
@@ -223,26 +247,24 @@ contract DAOCommittee_V2 is
     function _recoverSigner(
         bytes32 _hash,
         bytes memory _signature
-    ) internal view returns (address signer) {
-        require(_signature.length >= 65, 'bad sig len');
-        uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-
-        uint8 v = uint8(_signature[64]);
+    ) internal pure returns (address signer) {
         bytes32 r;
         bytes32 s;
+        uint8 v;
 
         assembly {
             r := mload(add(_signature, 32))
             s := mload(add(_signature, 64))
+            v := byte(0, mload(add(_signature, 96)))
         }
 
         // Prevent signature malleability
-        // require(
-        //     uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
-        //     "bad sig 's' value"
-        // );
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "bad sig 's' value"
+        );
 
-        // require(v == 31 || v == 32, "bad sig 'v' value");
+        require(v == 31 || v == 32, "bad sig 'v' value");
 
         // Create Ethereum signed message hash
         bytes32 ethSignedMessageHash = keccak256(
@@ -272,23 +294,23 @@ contract DAOCommittee_V2 is
         return id;
     }
 
-    // /**
-    //  * @notice Check for duplicate signers
-    //  * @param signers Array of signer addresses
-    //  * @param signer Address to check
-    //  * @param currentIndex Current index in the array
-    //  * @return true if duplicate found
-    //  */
-    // function _isDuplicate(
-    //     address[] memory signers,
-    //     address signer,
-    //     uint256 currentIndex
-    // ) internal pure returns (bool) {
-    //     for (uint256 i = 0; i < currentIndex; i++) {
-    //         if (signers[i] == signer) return true;
-    //     }
-    //     return false;
-    // }
+    /**
+     * @notice Check for duplicate signers
+     * @param signers Array of signer addresses
+     * @param signer Address to check
+     * @param currentIndex Current index in the array
+     * @return true if duplicate found
+     */
+    function _isDuplicate(
+        address[] memory signers,
+        address signer,
+        uint256 currentIndex
+    ) internal pure returns (bool) {
+        for (uint256 i = 0; i < currentIndex; i++) {
+            if (signers[i] == signer) return true;
+        }
+        return false;
+    }
 
     // /**
     //  * @notice Sort addresses in ascending order (bubble sort for simplicity)
@@ -361,18 +383,13 @@ contract DAOCommittee_V2 is
     // }
 
 
-    // /**
-    //  * @notice Verify that you are the owner of MultiSigWallet
-    //  * @param _address Enter address
-    //  * @return true True if the owner of MultiSigWallet
-    //  */
-    // function isOwner(address _address) public view returns (bool) {
-    //     return IMultiSigWallet(multiSigWallet).isOwner(_address);
-    // }
-
-    function isOwner(address _address) public pure returns (bool) {
-        return _address == 0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea
-            || _address == 0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2;
+    /**
+     * @notice Verify that you are the owner of MultiSigWallet
+     * @param _address Enter address
+     * @return true True if the owner of MultiSigWallet
+     */
+    function isOwner(address _address) public view returns (bool) {
+        return IMultiSigWallet(multiSigWallet).isOwner(_address);
     }
 
     /**
