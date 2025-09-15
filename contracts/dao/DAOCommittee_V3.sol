@@ -147,13 +147,12 @@ contract DAOCommittee_V3 is
     }
     function isValidSignature3(bytes memory _data, bytes memory _signature) public view returns (bytes4) {
         // Caller should be a Safe
-        // console.log("input _data");
-        // console.logBytes(_data);
+        // console.log("input _signature");
+        // console.logBytes(_signature);
         ISafe safe = ISafe(payable(SAFE_PROXY));
         bytes32 messageHash = getMessageHashForSafe(safe, _data);
         // console.log("changed _data is messageHash");
         // console.logBytes32(messageHash);
-
 
         if (_signature.length == 0) {
             require(safe.signedMessages(messageHash) != 0, "Hash not approved");
@@ -214,7 +213,7 @@ contract DAOCommittee_V3 is
                 // If v is 0 then it is a contract signature
                 // When handling contract signatures the address of the contract is encoded into r
                 currentOwner = address(uint160(uint256(r)));
-                console.log("currentOwner is ", currentOwner);
+
                 // Check that signature data pointer (s) is not pointing inside the static part of the signatures bytes
                 // This check is not completely accurate, since it is possible that more signatures than the threshold are send.
                 // Here we only check that the pointer is not pointing inside the part that is being processed
@@ -238,11 +237,9 @@ contract DAOCommittee_V3 is
                     // The signature data for contract signatures is appended to the concatenated signatures and the offset is stored in s
                     contractSignature := add(add(signatures, s), 0x20)
                 }
-                // console.log("data");
-                // console.logBytes(data);
-                // console.log("contractSignature");
-                // console.logBytes(contractSignature);
-                // console.log("contractSignature.length", contractSignature.length);
+                console.log("contractSignature");
+                console.logBytes(contractSignature);
+                console.log("contractSignature.length", contractSignature.length);
                 require(ISignatureValidator(currentOwner).isValidSignature(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
             } else if (v == 1) {
                 // If v is 1 then it is an approved hash
@@ -253,26 +250,17 @@ contract DAOCommittee_V3 is
             } else if (v > 30) {
                 // If v > 30 then default va (27,28) has been adjusted for eth_sign flow
                 // To support eth_sign and similar we adjust v and hash the messageHash with the Ethereum message prefix before applying ecrecover
-                console.log("2");
-                console.log("dataHash is ");
-                console.logBytes32(dataHash);
-                // console.log("r is ");
-                // console.logBytes32(r);
-                // console.log("s is ");
-                // console.logBytes32(s);
                 currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
-                console.log("expected currentOwner is ", currentOwner);
-                console.log("3");
             } else {
                 // Default is the ecrecover flow with the provided data hash
                 // Use ecrecover with the messageHash for EOA signatures
                 currentOwner = ecrecover(dataHash, v, r, s);
-                console.log("not expected currentOwner is ", currentOwner);
             }
+            // console.log("currentOwner is ", currentOwner);
+            // console.log("owners[currentOwner] is ", owners[currentOwner]);
             require(currentOwner > lastOwner, "error1");
             // require(owners[currentOwner] != address(0), "error2");
             require(currentOwner != SENTINEL_OWNERS, "error3");
-
             require(isOwner(currentOwner) || isOwner2(currentOwner), "Diff SignerAddress");
             // require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, "GS026");
             console.log("pass require");
@@ -297,14 +285,14 @@ contract DAOCommittee_V3 is
     }
 
     function isValidSignature(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
-        console.log("isValidSignature _hash");
-        console.logBytes(_hash);
+        // console.log("isValidSignature _hash");
+        // console.logBytes(_hash);
         bytes memory messageData = encodeMessageDataForSafe2(_hash);
         bytes32 messageHash = keccak256(messageData);
-        console.log("isValidSignature2 messageData");
-        console.logBytes(messageData);
-        console.log("isValidSignature2 messageHash");
-        console.logBytes32(messageHash);
+        // console.log("isValidSignature2 messageData");
+        // console.logBytes(messageData);
+        // console.log("isValidSignature2 messageHash");
+        // console.logBytes32(messageHash);
 
 
         // bytes32 messageHash = keccak256(_hash);
@@ -322,7 +310,9 @@ contract DAOCommittee_V3 is
         bytes32 _hash,
         bytes memory _signature
     ) internal view returns (bool) {
-        // if (_signature.length < 65) return false;
+        // console.log("_signature.length", _signature.length);
+        // console.log("_signature");
+        // console.logBytes(_signature);
         require(_signature.length >= 130, 'bad sig len');
         uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
         uint256 sigCount = _signature.length / 65;
@@ -371,7 +361,7 @@ contract DAOCommittee_V3 is
     function _recoverSigner(
         bytes32 _hash,
         bytes memory _signature
-    ) internal view returns (address signer) {
+    ) internal pure returns (address signer) {
         console.log("signatures");
         console.logBytes(_signature);
         console.log("signatures.length", _signature.length);
@@ -429,7 +419,10 @@ contract DAOCommittee_V3 is
         address signer,
         uint256 currentIndex
     ) internal pure returns (bool) {
+        console.log("currentIndex", currentIndex);
         for (uint256 i = 0; i < currentIndex; i++) {
+            console.log("signer", signer);
+            console.log("signers[i]", signers[i]);
             if (signers[i] == signer) return true;
         }
         return false;
