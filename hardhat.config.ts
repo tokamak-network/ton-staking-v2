@@ -436,24 +436,24 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      accounts: [
-        {
-          privateKey: `${process.env.SAFE_SIGNER1_PRIVATE_KEY}`,
-          balance: "10000000000000000000000"
-        },
-        {
-          privateKey: `${process.env.OWNER_PRIVATE_KEY}`,
-          balance: "10000000000000000000000"
-        },
-        {
-          privateKey: `${process.env.OWNER_PRIVATE_KEY2}`,
-          balance: "10000000000000000000000"
-        },
-        {
-          privateKey: `${process.env.NON_OWNER_KEY}`,
-          balance: "10000000000000000000000"
-        }
-      ],
+      // accounts: [
+      //   {
+      //     privateKey: `${process.env.SAFE_SIGNER1_PRIVATE_KEY}`,
+      //     balance: "10000000000000000000000"
+      //   },
+      //   {
+      //     privateKey: `${process.env.OWNER_PRIVATE_KEY}`,
+      //     balance: "10000000000000000000000"
+      //   },
+      //   {
+      //     privateKey: `${process.env.OWNER_PRIVATE_KEY2}`,
+      //     balance: "10000000000000000000000"
+      //   },
+      //   {
+      //     privateKey: `${process.env.NON_OWNER_KEY}`,
+      //     balance: "10000000000000000000000"
+      //   }
+      // ],
       forking: {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 21077756
