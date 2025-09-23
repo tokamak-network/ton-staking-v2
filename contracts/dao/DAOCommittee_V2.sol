@@ -216,26 +216,6 @@ contract DAOCommittee_V2 is
         } else {
             return false;
         }
-        
-        // address signer;
-
-        // // Try different signature recovery methods
-        // signer = _recoverSigner(_hash, _signature);
-        // if (isOwner(signer)) {
-        //     return true; 
-        // }
-
-        // return false;
-
-        // 서명 해시 생성 및 재사용 검증
-        // bytes32 signatureHash = _getSignatureHash(_hash, _signature);
-
-        // // 유효하지 않은 서명이거나 이미 사용된 서명
-        // if (signatureHash == bytes32(0)) {
-        //     return false;
-        // }
-
-        // return true;
     }
 
     /**
@@ -311,77 +291,6 @@ contract DAOCommittee_V2 is
         }
         return false;
     }
-
-    // /**
-    //  * @notice Sort addresses in ascending order (bubble sort for simplicity)
-    //  * @param addresses Array of addresses to sort
-    //  */
-    // function _sortAddresses(address[] memory addresses) internal pure {
-    //     uint256 length = addresses.length;
-    //     for (uint256 i = 0; i < length - 1; i++) {
-    //         for (uint256 j = 0; j < length - i - 1; j++) {
-    //             if (addresses[j] > addresses[j + 1]) {
-    //                 address temp = addresses[j];
-    //                 addresses[j] = addresses[j + 1];
-    //                 addresses[j + 1] = temp;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // /**
-    //  * @notice Generate signature hash for replay protection
-    //  * @dev Validates signatures from MultiSigWallet owners (not Safe Wallet)
-    //  * @param _hash Original hash that was signed
-    //  * @param _signature Signature data
-    //  * @return signatureHash Hash for tracking used signatures
-    //  */
-    // function _getSignatureHash(
-    //     bytes memory _hash,
-    //     bytes memory _signature
-    // ) internal view returns (bytes32 signatureHash) {
-    //     // MultiSigWallet의 필요 서명 수 가져오기
-    //     uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-    //     uint256 sigCount = _signature.length / 65;
-
-    //     if (sigCount < requiredSigs) return bytes32(0);
-
-    //     address[] memory signers = new address[](sigCount);
-    //     uint256 validSigs = 0;
-
-    //     // 각 서명을 검증하고 유효한 서명자 수집
-    //     for (uint256 i = 0; i < sigCount; i++) {
-    //         bytes memory sigPart = _signature.slice(i * 65, 65);
-    //         address signer = _recoverSigner(_hash, sigPart);
-
-    //         // MultiSig 소유자이고 중복이 아닌 경우
-    //         if (
-    //             IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)
-    //         ) {
-    //             signers[i] = signer;
-    //             validSigs++;
-    //         }
-    //     }
-
-    //     if (validSigs < requiredSigs) return bytes32(0);
-
-    //     // 유효한 서명자들만 추출하여 정렬 (순서 무관한 해시 생성)
-    //     address[] memory validSigners = new address[](validSigs);
-    //     uint256 validIndex = 0;
-    //     for (uint256 i = 0; i < sigCount; i++) {
-    //         if (signers[i] != address(0)) {
-    //             validSigners[validIndex] = signers[i];
-    //             validIndex++;
-    //         }
-    //     }
-
-    //     // 서명자 주소들을 정렬 (순서 무관한 일관된 해시 생성)
-    //     _sortAddresses(validSigners);
-
-    //     // 정렬된 서명자들로 재사용 방지 해시 생성
-    //     return keccak256(abi.encodePacked(_hash, validSigners));
-    // }
-
 
     /**
      * @notice Verify that you are the owner of MultiSigWallet
