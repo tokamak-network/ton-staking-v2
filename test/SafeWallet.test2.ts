@@ -85,7 +85,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let SafeWalletOwner1: SignerWithAddress;
   let multiSigOwner1: SignerWithAddress;
   let multiSigOwner2: SignerWithAddress;
-  let nonOwner: SignerWithAddress;
 
 
   // Contract instances
@@ -127,13 +126,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let safeTx: any;
 
   before(async function () {
-    [SafeWalletOwner1, multiSigOwner1, multiSigOwner2, nonOwner] = await ethers.getSigners();
+    [SafeWalletOwner1, multiSigOwner1, multiSigOwner2] = await ethers.getSigners();
 
     console.log("Setting up EIP-1271 upgrade test environment...");
     console.log(`SafeWalletOwner1: ${SafeWalletOwner1.address}`);
     console.log(`multiSigOwner1: ${multiSigOwner1.address}`);
     console.log(`multiSigOwner2: ${multiSigOwner2.address}`);
-    console.log(`nonOwner: ${nonOwner.address}`);
     console.log(`DAO Proxy: ${DAO_COMMITTEE_PROXY}`);
 
     apiKit = new SafeApiKit({
