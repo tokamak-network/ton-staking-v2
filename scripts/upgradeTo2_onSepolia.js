@@ -58,9 +58,28 @@ async function ChangeUpgradeTo2() {
 }
 
 async function setMultiSigWallet() {
-    const [deployer] = await ethers.getSigners();
+    const [deployer, deployer2] = await ethers.getSigners();
+    console.log("deployer :", deployer.address)
+    console.log("deployer2 :", deployer2.address)
+    // let multiSigWalletAddress = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C" 
+    let multiSigWalletAddress = "0x865200f8172bf55f99b53A8fa0E26988b94dfBbE" 
 
-    let multiSigWalletAddress = "0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C" 
+    //==== Set DAOCommitteeProxy2 =================================
+    let daoCommitteeProxy2 = new ethers.Contract(
+        sepoliaContractInfo.DAOCommitteeProxy,
+        DAOProxy2ABI,
+        ethers.provider
+    )
+    const DEFAULT_ADMIN_ROLE = await daoCommitteeProxy2.DEFAULT_ADMIN_ROLE()
+    if (await daoCommitteeProxy2.hasRole(DEFAULT_ADMIN_ROLE, multiSigWalletAddress)) {
+        console.log("multiSigWalletAddress already has DEFAULT_ADMIN_ROLE")
+    } else {
+        console.log("multiSigWalletAddress set DEFAULT_ADMIN_ROLE")
+        let tx = await daoCommitteeProxy2.connect(deployer2).grantRole(DEFAULT_ADMIN_ROLE, multiSigWalletAddress)
+        await tx.wait()
+        console.log("DEFAULT_ADMIN_ROLE finish")
+    }
+
     //==== Set DAOCommittee_V2 =================================
     let daoCommittee_V2 = new ethers.Contract(
         sepoliaContractInfo.DAOCommitteeProxy,
@@ -69,7 +88,7 @@ async function setMultiSigWallet() {
     )
 
     //==== DAOCommittee_V2 set MultiSigWalletContract =================================
-    await daoCommittee_V2.connect(deployer).setMultiSigWallet(
+    await daoCommittee_V2.connect(deployer2).setMultiSigWallet(
         multiSigWalletAddress
     )
 
@@ -77,8 +96,10 @@ async function setMultiSigWallet() {
 
 async function checkDAOisOwner() {
     const Addr1 = "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea"
-    const Addr2 = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
-    const Addr3 = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+    // const Addr2 = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+    const Addr2 = "0xCEa9Ebc509C03C19287c2a30B112bb13F796804E"
+    // const Addr3 = "0xc1eba383D94c6021160042491A5dfaF1d82694E6"
+    const Addr3 = "0x3CAd2F9A88AaFbdf76d38e69B02c7eC56562772d"
 
     //==== Set DAOCommittee_V2 =================================
     let daoCommittee_V2 = new ethers.Contract(
