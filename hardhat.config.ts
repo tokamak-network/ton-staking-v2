@@ -436,24 +436,20 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      // accounts: [
-      //   {
-      //     privateKey: `${process.env.SAFE_SIGNER1_PRIVATE_KEY}`,
-      //     balance: "10000000000000000000000"
-      //   },
-      //   {
-      //     privateKey: `${process.env.OWNER_PRIVATE_KEY}`,
-      //     balance: "10000000000000000000000"
-      //   },
-      //   {
-      //     privateKey: `${process.env.OWNER_PRIVATE_KEY2}`,
-      //     balance: "10000000000000000000000"
-      //   },
-      //   {
-      //     privateKey: `${process.env.NON_OWNER_KEY}`,
-      //     balance: "10000000000000000000000"
-      //   }
-      // ],
+      accounts: [
+        {
+          privateKey: `${process.env.SAFE_SIGNER1_PRIVATE_KEY}`,
+          balance: "10000000000000000000000"
+        },
+        {
+          privateKey: `${process.env.OWNER_PRIVATE_KEY}`,
+          balance: "10000000000000000000000"
+        },
+        {
+          privateKey: `${process.env.OWNER_PRIVATE_KEY2}`,
+          balance: "10000000000000000000000"
+        }
+      ],
       forking: {
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 21077756
@@ -474,7 +470,8 @@ const config: HardhatUserConfig = {
         // blockNumber: 6676283,
         // url: `${process.env.ETH_NODE_URI_MAINNET}`,
         // blockNumber: 18811511
-        blockNumber: 9166329
+        blockNumber: 9263611    //SafeWallet test3
+        // blockNumber: 9166329    //SafeWallet test2
         // test registerCandidateAddOn
         // blockNumber: 6797943
         // blockNumber: 22081265,
@@ -525,7 +522,7 @@ const config: HardhatUserConfig = {
     },
     sepoliaFork: {
       url: "http://127.0.0.1:8545",
-      chainId: 31337,
+      chainId: 11155111,
       // accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       forking: {
         url: process.env.ETH_NODE_URI_sepolia || "",
