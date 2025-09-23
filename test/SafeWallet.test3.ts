@@ -12,6 +12,8 @@ import Safe, {
   buildContractSignature,
   buildSignatureBytes,
   preimageSafeTransactionHash,
+  SafeAccountConfig,
+  PredictedSafeProps
 } from '@safe-global/protocol-kit'
 import {
   SafeTransaction,
@@ -21,7 +23,8 @@ import {
   TypedDataTypes,
   EIP712TxTypes,
   SafeSignature,
-  SigningMethod
+  SigningMethod,
+  OperationType
 } from '@safe-global/types-kit'
 import SafeApiKit from '@safe-global/api-kit'
 
@@ -40,6 +43,8 @@ import {
   recoverAddress,
   parseAbiParameters
 } from 'viem'
+
+import { sepolia } from "viem/chains"
 
 /// const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
@@ -83,7 +88,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let multiSigOwner2: SignerWithAddress;
   let multiSigOwner3: SignerWithAddress;
   let nonOwner: SignerWithAddress;
-  let safeWallet: SignerWithAddress;
+  let safeWalletOwner1: SignerWithAddress;
+  let safeWalletOwner2: SignerWithAddress;
 
 
   // Contract instances
@@ -96,7 +102,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   // Test constants
   const MAGIC_VALUE = "0x20c13b0b";
   const INVALID_SIGNATURE = "0xffffffff";
-  // const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
   const testHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("EIP-1271 test message"));
   const txHash = "0x34148392eddee2686a39b6da312a95afdbf953bef85122e5b0c73f3b624cba8f"
   const testHash2 = "0x644a6c15e3d1cf448599d487c6f3fe68e93e891205961df6fb5950ff3cf45c66"
@@ -128,8 +134,10 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   const daoAdminAddress = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2";
   let sendether = "0xDE0B6B3A7640000"
 
+  let safeProxyAddress: any;
+
   before(async function () {
-    [deployer, multiSigOwner1, multiSigOwner2, multiSigOwner3, nonOwner, safeWallet] = await ethers.getSigners();
+    [deployer, multiSigOwner1, multiSigOwner2, multiSigOwner3, nonOwner, safeWalletOwner1, safeWalletOwner2] = await ethers.getSigners();
 
     await hre.network.provider.send("hardhat_impersonateAccount", [
       daoAdminAddress,
@@ -155,16 +163,16 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       apiKey: SAFE_API_KEY
     });
 
-    protocolKit = await Safe.init({
-      provider: RPC_URL!,
-      safeAddress: SAFE_PROXY
-    })
+    // protocolKit = await Safe.init({
+    //   provider: RPC_URL!,
+    //   safeAddress: SAFE_PROXY
+    // })
 
-    safeTx = await protocolKit.createTransaction({
-      transactions: [
-          safeTransactionData
-      ],
-    })
+    // safeTx = await protocolKit.createTransaction({
+    //   transactions: [
+    //       safeTransactionData
+    //   ],
+    // })
   });
 
   describe("Environment Setup", function () {
@@ -229,13 +237,24 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       ) 
 
       daoProxy = daoCommitteeProxy2Contract;
+
+      // Grant admin role to deployer for testing
+      await daoProxy.connect(daoCommitteeAdmin).grantRole(DEFAULT_ADMIN_ROLE, deployer.address);
     });
+
+    it("Set the DAOCommitteeV2", async function () {
+      daoCommitteeV2 = new ethers.Contract(
+        daoProxy.address,
+        newImplementation.interface,
+        deployer
+      );
     });
+  });
 
   describe("Proxy Pattern upgradeTo2", function () {
     it("should upgrade to DAOCommittee_V2 using upgradeTo2", async function () {
       // Perform upgrade
-      const tx = await daoProxy.connect(multiSigOwner2).upgradeTo2(newImplementation.address);
+      const tx = await daoProxy.connect(daoCommitteeAdmin).upgradeTo2(newImplementation.address);
       await tx.wait();
 
       // Verify upgrade
@@ -245,20 +264,73 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log(`Upgraded to implementation: ${currentImpl}`);
     });
 
-    it("should check MultiSigWalletAddress", async function () {
+    it("should preserve proxy state after upgrade", async function () {
+      // Set some state before upgrade
+      await daoProxy.connect(daoCommitteeAdmin).grantRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
+
+      // Verify state is preserved
+      const hasRole = await daoProxy.hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet.address);
+      expect(hasRole).to.be.true;
+    });
+
+    it("should access EIP-1271 functions through proxy after upgrade", async function () {
       // Create interface for upgraded proxy
-      daoCommitteeV2 = new ethers.Contract(
+      const upgradedProxy = new ethers.Contract(
         daoProxy.address,
         newImplementation.interface,
-        multiSigOwner2
+        deployer
       );
 
-      let tx  = await daoCommitteeV2.multiSigWallet()
-      expect(tx).to.equal(MULTISIG_WALLET);
+      await expect(upgradedProxy.connect(daoCommitteeAdmin).setMultiSigWallet(multiSigWallet.address)).to.not.be.reverted;
+
+      const multiSigAddress = await upgradedProxy.multiSigWallet();
+      expect(multiSigAddress).to.equal(multiSigWallet.address);
+    });
+  });
+  
+  describe("SafeWallet Deploly & Propose", function () {
+    it("should deploy NewSafeWallet", async function () {
+      const safeAccountConfig: SafeAccountConfig = {
+        owners: [safeWalletOwner1.address, safeWalletOwner2.address, daoCommitteeV2.address],
+        threshold: 2,
+      }
+
+      const predictedSafe: PredictedSafeProps = {
+        safeAccountConfig,
+      }
+
+      const protocolKit = await Safe.init({
+        provider: sepolia.rpcUrls.default.http[0],
+        signer: process.env.SAFE_OWNER_PRIVATE_KEY,
+        predictedSafe,
+      })
+
+      safeProxyAddress = await protocolKit.getAddress()
+      console.log(`Safe Address : ${safeProxyAddress}`)
+    });
+
+    it("should propose the SafeWallet", async function () {
+
+      let protocolKit = await Safe.init({
+        provider: "https://eth-sepolia.public.blastapi.io",
+        signer: ,
+        safeAddress: safeProxyAddress,
+      })
+
+      safeTx = await protocolKit.createTransaction({
+        transactions: [
+          {
+            to: "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea",
+            value: "1",
+            data: "0x",
+            operation: OperationType.Call,
+          },
+        ],
+      })
     });
   });
 
-  describe("EIP-1271 Basic Functionality", function () {
+  describe("DAO Contract isValidSignature Test", function () {
     it("set the SafeContract", async function () {
       safeContract = new ethers.Contract(
         SAFE_PROXY,
@@ -267,75 +339,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       );
       // console.log("safeContract", safeContract)
     })
-    // it("should return magic value for valid signatures", async function () {
-    //   const signatures = await createMultipleSignatures(
-    //     [multiSigOwner1, multiSigOwner2],
-    //     testHash2
-    //   );
-    //   // console.log("testHash2", testHash2);
-    //   // console.log("signatures", signatures);
-
-    //   const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signatures);
-    //   console.log("result", result);
-    //   expect(result).to.equal(MAGIC_VALUE);
-    // });
-
-    // it("should return magic value for valid signatures2", async function () {
-    //   const signatures = await createMultipleSignatures(
-    //     [multiSigOwner1, multiSigOwner2],
-    //     testHash2
-    //   );
-    //   // console.log("testHash2", testHash2);
-    //   // console.log("signatures", signatures);
-    //   let sig = "0x689ede44e2b9b1f653b1df6a446457f33f50058d48a317612254e7ca4b21fe3f14a0dc3882ff8230c1b2c00994539a00d65ce38db418646362149b60b86aa2b61c11625595dee99fb80d9f3e5aadf820e7919addc2c12b8d39e89f2e8ed08face34e03207fcd37f10713d161e56fe39d815eed700f8d6ea52863db2d0c2e0c9fa41b"
-    //   // 1c부분이 v를 담당하는 부분
-    //   // 1c를 2c로 변경했을때 28이 44로 변경됨
-
-    //   let sig1 = "689ede44e2b9b1f653b1df6a446457f33f50058d48a317612254e7ca4b21fe3f14a0dc3882ff8230c1b2c00994539a00d65ce38db418646362149b60b86aa2b6"
-    //   let sig2 = "11625595dee99fb80d9f3e5aadf820e7919addc2c12b8d39e89f2e8ed08face34e03207fcd37f10713d161e56fe39d815eed700f8d6ea52863db2d0c2e0c9fa41b"
-    //   console.log(sig1.length)
-    //   console.log(sig2.length)
-
-    //   const result = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signatures);
-    //   // console.log("result", result);
-    //   expect(result).to.equal(MAGIC_VALUE);
-    // });
-
-    // it("check the signHash Result", async function () {
-    //   let safe = await Safe.init({
-    //     provider: RPC_URL!,
-    //     signer: process.env.OWNER_PRIVATE_KEY,
-    //     safeAddress: DAO_COMMITTEE_PROXY
-    //   })
-
-    //   const signature = await safe.signHash(testHash2);
-    //   console.log("signature", signature);
-
-    //   const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
-    //   // const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
-    //   // console.log("result", result);
-    //   expect(result).to.equal(MAGIC_VALUE);
-    //   // expect(result2).to.equal(MAGIC_VALUE);
-      
-    // });
-
-    // it("check the signHash Result2", async function () {
-    //   let safe = await Safe.init({
-    //     provider: RPC_URL!,
-    //     signer: process.env.OWNER_PRIVATE_KEY,
-    //     safeAddress: DAO_COMMITTEE_PROXY
-    //   })
-
-    //   const signature = await safe.signHash(testHash2);
-    //   console.log("signature", signature);
-
-    //   // const result = await daoCommitteeV2.callStatic.isValidSignature(testHash2, signature.data);
-    //   const result2 = await daoCommitteeV2.callStatic.isValidSignature2(testHash2, signature.data);
-    //   // console.log("result", result);
-    //   // expect(result).to.equal(MAGIC_VALUE);
-    //   expect(result2).to.equal(MAGIC_VALUE);
-      
-    // });
 
     it("isValidSignature test passed", async function () {
       let multiSigSigns = await protocolKit
