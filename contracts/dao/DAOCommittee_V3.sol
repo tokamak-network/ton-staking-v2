@@ -285,8 +285,8 @@ contract DAOCommittee_V3 is
     }
 
     function isValidSignature(bytes memory _hash, bytes memory _signature) external view returns (bytes4 magicValue) {
-        // console.log("isValidSignature _hash");
-        // console.logBytes(_hash);
+        console.log("isValidSignature _hash");
+        console.logBytes(_hash);
         bytes memory messageData = encodeMessageDataForSafe2(_hash);
         bytes32 messageHash = keccak256(messageData);
         // console.log("isValidSignature2 messageData");
