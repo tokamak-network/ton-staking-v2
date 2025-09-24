@@ -205,7 +205,7 @@ contract DAOCommittee_V2 is
             address signer = _recoverSigner(_hash, sigPart);
 
             // MultiSig 소유자이고 중복이 아닌 경우
-            if (IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)) {
+            if (isOwner(signer) && !_isDuplicate(signers, signer, i)) {
                 signers[i] = signer;
                 validSigs++;
             }
