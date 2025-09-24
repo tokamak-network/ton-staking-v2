@@ -77,6 +77,9 @@ contract DAOCommittee_V3 is
     address public constant SAFE_PROXY = 0x623E2B35964F944e166E6531CEF7577C2851F415;
     address public constant DAO_COMMITTEE_PROXY = 0xA2101482b28E3D99ff6ced517bA41EFf4971a386;
 
+    uint256 public constant threshold = 1;
+    mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
+    mapping(bytes32 => uint256) public signedMessages;
 
     //////////////////////////////
     // Events
