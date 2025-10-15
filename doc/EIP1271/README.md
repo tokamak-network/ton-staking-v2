@@ -8,7 +8,6 @@
 - `security-checklist.md`: 보안 검토 체크리스트
 - `testing-prompts.md`: 테스트 코드 생성 프롬프트
 - `upgrade-guide.md`: 기존 컨트랙트 업그레이드 가이드
-- `examples.md`: 완전한 구현 예시와 사용법
 
 ## 사용 방법
 
