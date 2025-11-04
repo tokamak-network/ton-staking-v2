@@ -23,6 +23,10 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
+import { IDisputeGameFactory } from "../interfaces/IDisputeGameFactory.sol";
+import { IDisputeGame } from "../interfaces/IDisputeGame.sol";
+import { ISystemConfig } from "../interfaces/ISystemConfig.sol";
+
 /**
  * @notice  Error that occurs when registering CandidateAddOn
  * @param x 1: don't create operator
@@ -121,6 +125,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     modifier onlyL1BridgeRegistry() {
         require(l1BridgeRegistry == msg.sender, "sender is not a L1BridgeRegistry");
         _;
+    }
+    
+    enum GameType {
+        CANNON,
+        PERMISSIONED_CANNON,
+        ASTERISC,
+        FAST,
+        ALPHABET
     }
 
     /* ========== onlyOwner ========== */
@@ -286,6 +298,33 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         else _transferDepositAmount(owner, _rollupConfig, amount, false, string(_message));
 
         return true;
+    }
+
+    function slashingCandidate(
+        address _operator,
+        GameType _gameType,
+        Claim _rootClaim,
+        bytes calldata _extraData,
+        address _disputeGame
+    )
+        external
+    {
+        _nonZeroAddress(_operator);
+        //DisputeGameFactory 주소 가져오기
+        address disputeGameFactory = ISystemConfig(operatorInfo[_operator].rollupConfig).disputeGameFactory();
+        //DisputeGameFactory 주소를 가지고 오지 못하면 RollupConfig 주소가 지원되지 않는 주소거나 잘못되었음
+        if (disputeGameFactory == address(0)) revert ZeroAddressError();
+
+        //DisputeGameFactory 주소를 가지고 오면 입력한 DisputeGame 주소와 비교하여 DisputeGameFactory에 등록된 DisputeGame 주소인지 확인
+        ( IDisputeGame disputeGame,) = IDisputeGameFactory(disputeGameFactory).games(_gameType, _rootClaim, _extraData);
+        //DisputeGameFactory에 등록된 DisputeGame 주소가 아니면 잘못된 DisputeGame 주소임
+        require(address(disputeGame) == _disputeGame, "wrong dispute game Address");
+
+        //DisputeGame 주소를 가지고 오면 DisputeGame의 상태를 가져오고 상태가 CHALLENGER_WINS가 아니면 Slashing은 일어나지 않음
+        GameStatus status = IDisputeGame(disputeGame).status();
+        if (status != GameStatus.CHALLENGER_WINS) revert StatusError();
+
+        //Slashing the operator 추가해야함
     }
 
     /* ========== VIEW ========== */
