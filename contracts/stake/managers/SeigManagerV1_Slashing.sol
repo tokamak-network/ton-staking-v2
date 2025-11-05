@@ -407,8 +407,17 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     return true;
   }
 
-  function onSlash(address layer2, address operator) external onlyChallenger checkCoinage(layer2) returns (bool) {
-    Layer2I(layer2).changeOperator(challenger);
+  function onSlash(address layer2, address operator) external onlyDepositManager returns (bool) {
+    uint256 operatorAmount = _coinages[layer2].balanceOf(account); 
+    
+    // burn {v + ⍺} {tot} tokens to the layer2 contract,
+    uint256 totAmount = _additionalTotBurnAmount(layer2, operator, operatorAmount);
+    _tot.burnFrom(layer2, operatorAmount+totAmount);
+
+    // burn {v} {coinages[layer2]} tokens to the account
+    _coinages[layer2].burnFrom(operator, operatorAmount);
+    
+
     return true;
   }
 

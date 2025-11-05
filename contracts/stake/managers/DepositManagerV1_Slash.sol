@@ -50,6 +50,10 @@ contract DepositManagerV1_1 is
         _;
     }
     
+    modifier onlyLayer2Manager() {
+        require(msg.sender == layer2Manager, "not layer2Manager");
+        _;
+    }
 
     ////////////////////
     // Events
@@ -76,13 +80,16 @@ contract DepositManagerV1_1 is
     event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
     event SetMinDepositGasLimit(uint32 gasLimit_);
 
-    function slash(address layer2, address operator) external returns (bool) {
+    function slash(address layer2, address operator) external onlyLayer2Manager returns (bool) {
         require(operator == ILayer2(layer2).operator(), "operator is not an operator");
-
+        
+        //현재는 operator의 Deposit된 금액이 Slashing 되는 것으로 진행
         _accStaked[layer2][operator] = 0;
         _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - _accStaked[layer2][operator];
         _accStakedAccount[operator] = _accStakedAccount[operator] - _accStaked[layer2][operator];
-
+        
+        require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+        
         return true;
     }
 
