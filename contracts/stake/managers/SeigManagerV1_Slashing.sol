@@ -408,7 +408,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function onSlash(address layer2, address operator) external onlyDepositManager returns (bool) {
-    uint256 operatorAmount = _coinages[layer2].balanceOf(account); 
+    uint256 operatorAmount = _coinages[layer2].balanceOf(operator); 
     
     // burn {v + ⍺} {tot} tokens to the layer2 contract,
     uint256 totAmount = _additionalTotBurnAmount(layer2, operator, operatorAmount);
