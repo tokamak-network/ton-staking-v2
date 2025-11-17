@@ -204,7 +204,7 @@ contract DAOCommittee_V2 is
             bytes memory sigPart = _signature.slice(i * 65, 65);
             address signer = _recoverSigner(_hash, sigPart);
 
-            // MultiSig 소유자이고 중복이 아닌 경우
+            // If you are a MultiSig owner and there are no duplicates
             if (isOwner(signer) && !_isDuplicate(signers, signer, i)) {
                 signers[i] = signer;
                 validSigs++;
@@ -244,7 +244,7 @@ contract DAOCommittee_V2 is
             "bad sig 's' value"
         );
 
-        require(v == 31 || v == 32, "bad sig 'v' value");
+        require(v > 30, "bad sig 'v' value");
 
         // Create Ethereum signed message hash
         bytes32 ethSignedMessageHash = keccak256(
