@@ -8,14 +8,11 @@
 
 ### 컨텍스트
 - Solidity 버전: ^0.8.4
-- OpenZeppelin 라이브러리 사용 가능
 - AccessControl 기반 권한 관리 시스템 사용
 - **구조1: Safe Wallet의 Signer중 한명이 DAO Contract**
 - **구조2: DAO Owner는 MultiSigWallet Contract**
 - **구조3: MultiSigWallet의 Owner들이 서명한 것을 검증**
-- **EIP-1271 검증: MultiSigWallet의 numConfirmationsRequired 기준을 충족하는 다중 서명**
-- **Safe Wallet 호환성 필수**: Safe Global 앱에서 서명 생성 및 검증 가능해야 함
-- Safe Wallet과의 통합 필요
+- **SafeWallet의 Signature 검증: MultiSigWallet의 numConfirmationsRequired 기준을 충족하는 다중 서명**
 
 ### 구현 요구사항
 
