@@ -3,3 +3,8 @@ src = "src"
 out = "out"
 libs = ["lib"]
 via_ir = true
+fs_permissions = [{ access = "read", path = "./.env" }]
+
+
+[rpc_endpoints]
+mainnet = "${ETH_NODE_URI_MAINNET}"
