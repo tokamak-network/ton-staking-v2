@@ -11,6 +11,9 @@ import { IOptimismPortal } from "../layer2/interfaces/IOptimismPortal.sol";
 import { IStandardBridge } from "../layer2/interfaces/IStandardBridge.sol";
 import { IOperator } from "../layer2/interfaces/IOperator.sol";
 
+import { Claim } from "./lib/LibUDT.sol";
+import { GameStatus, GameType } from "./lib/Types.sol";
+
 import { IIDepositManager } from "../stake/interfaces/IIDepositManager.sol";
 import { ISeigManager } from "../stake/interfaces/ISeigManager.sol";
 import { ITON } from "../stake/interfaces/ITON.sol";
@@ -23,9 +26,9 @@ import { AccessibleCommon } from "../common/AccessibleCommon.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-import { IDisputeGameFactory } from "../interfaces/IDisputeGameFactory.sol";
-import { IDisputeGame } from "../interfaces/IDisputeGame.sol";
-import { ISystemConfig } from "../interfaces/ISystemConfig.sol";
+import { IDisputeGameFactory } from "./interfaces/IDisputeGameFactory.sol";
+import { IDisputeGame } from "./interfaces/IDisputeGame.sol";
+import { ISystemConfig } from "./interfaces/ISystemConfig.sol";
 
 /**
  * @notice  Error that occurs when registering CandidateAddOn
@@ -52,6 +55,7 @@ error IncludeError();
  *          3: wrong data parameter length
  */
 error OnApproveError(uint x);
+error SlashingError();
 
 
 contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
@@ -127,13 +131,6 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _;
     }
     
-    enum GameType {
-        CANNON,
-        PERMISSIONED_CANNON,
-        ASTERISC,
-        FAST,
-        ALPHABET
-    }
 
     /* ========== onlyOwner ========== */
 
