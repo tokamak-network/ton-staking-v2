@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 interface IWTON {
-
+    function ton() external view returns (address);
     function onApprove(
         address owner,
         address spender,
