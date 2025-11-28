@@ -3,7 +3,7 @@ import hre, { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 
-import dotenv from "dotenv" ;
+import dotenv from "dotenv";
 dotenv.config();
 
 import semverSatisfies from 'semver/functions/satisfies.js'
@@ -95,8 +95,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     daoCommitteeAdmin = await hre.ethers.getSigner(daoAdminAddress);
 
     await hre.network.provider.send("hardhat_setBalance", [
-        daoAdminAddress,
-        sendether
+      daoAdminAddress,
+      sendether
     ]);
 
     console.log("Setting up EIP-1271 upgrade test environment...");
@@ -117,7 +117,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
     safeTx = await protocolKit.createTransaction({
       transactions: [
-          safeTransactionData
+        safeTransactionData
       ],
     })
     console.log("safeTx :", safeTx);
@@ -144,7 +144,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         MULTISIG_WALLET,
         MultiSigWallet_ABI.abi,
         ethers.provider
-      ) 
+      )
     });
   });
 
@@ -154,7 +154,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         DAO_COMMITTEE_PROXY,
         DAOProxy2ABI,
         ethers.provider
-      ) 
+      )
 
       daoProxy = daoCommitteeProxy2Contract;
     });
@@ -168,7 +168,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
     });
 
     it("should check MultiSigWalletAddress", async function () {
-      let tx  = await daoCommitteeV2.multiSigWallet()
+      let tx = await daoCommitteeV2.multiSigWallet()
       expect(tx).to.equal(MULTISIG_WALLET);
     });
   });
@@ -230,31 +230,32 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-        // console.log("multiSigSigns2", multiSigSigns)
-      
+      // console.log("multiSigSigns2", multiSigSigns)
+
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
         DAO_COMMITTEE_PROXY!
       )
       // console.log("contractSignature", contractSignature)
       // const contractSig = buildSignatureBytes([contractSignature])
-      
+
       safeTx.addSignature(contractSignature)
       // console.log("safeTx2", safeTx)
-      
+
       const pendingTxs = await apiKit.getPendingTransactions(
         SAFE_PROXY!
       )
-      
+      console.log("pendingTxs", pendingTxs)
+
       const transaction = await apiKit.getTransaction(
         pendingTxs.results[0].safeTxHash
       )
+      console.log("transaction", transaction)
 
       const orginSign = await protocolKit
         .toSafeTransactionType(transaction)
         .then((safeTx) => Array.from(safeTx.signatures.values())[0])
-
-      // console.log("orginSign", orginSign)
+      console.log("orginSign", orginSign)
 
       const safeTxHash = await protocolKit.getTransactionHash(safeTx)
       // console.log("safeTxHash", safeTxHash)
@@ -263,16 +264,19 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let checkSignature = buildSignatureBytes([
         safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       ])
-      
+      console.log("checkSignature :", checkSignature)
+      console.log("checkSignature length :", checkSignature.length)
+
       // let check2Signature = buildSignatureBytes([
       //   orginSign,
       //   safeTx.getSignature(DAO_COMMITTEE_PROXY) as SafeSignature,
       // ])
       // console.log("check2Signature", check2Signature)
 
-      let sigLength =196
-      const makeSignature = "0x" + checkSignature.substring(sigLength); 
-    
+      let sigLength = 196
+      const makeSignature = "0x" + checkSignature.substring(sigLength);
+      console.log("makeSignature", makeSignature)
+
       const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
       expect(result).to.equal(MAGIC_VALUE);
     });
@@ -324,7 +328,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       let getSignature = Array.from(multiSigSigns.signatures.values())[1]
       // let getSignature2= Array.from(multiSigSigns.signatures.values())[2]
 
-      const makeSignature = getSignature.data; 
+      const makeSignature = getSignature.data;
       const makeSignature3 = makeSignature + makeSignature.substring(2);
       // console.log("makeSignature3", makeSignature3)
       // console.log("makeSignature3.length", makeSignature3.length)
@@ -375,12 +379,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-      
-      let getSignature = Array.from(multiSigSigns.signatures.values())[1]
-      let getSignature2= Array.from(multiSigSigns.signatures.values())[2]
 
-      const makeSignature = getSignature.data; 
-      const makeSignature2 = getSignature2.data; 
+      let getSignature = Array.from(multiSigSigns.signatures.values())[1]
+      let getSignature2 = Array.from(multiSigSigns.signatures.values())[2]
+
+      const makeSignature = getSignature.data;
+      const makeSignature2 = getSignature2.data;
       const makeSignature3 = makeSignature + makeSignature.substring(2) + makeSignature2.substring(2);
       // console.log("makeSignature3", makeSignature3)
 
@@ -390,7 +394,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
 
 
-  });  
+  });
 
 
 });
