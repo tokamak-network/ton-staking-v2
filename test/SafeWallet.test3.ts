@@ -120,6 +120,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
           safeTransactionData
       ],
     })
+    console.log("safeTx :", safeTx);
   });
 
   describe("Environment Setup", function () {
