@@ -120,7 +120,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         safeTransactionData
       ],
     })
-    console.log("safeTx :", safeTx);
+    // console.log("safeTx :", safeTx);
   });
 
   describe("Environment Setup", function () {
@@ -230,7 +230,7 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
             SAFE_PROXY
           )
         )
-      // console.log("multiSigSigns2", multiSigSigns)
+      console.log("multiSigSigns2", multiSigSigns)
 
       const contractSignature = await buildContractSignature(
         Array.from(multiSigSigns.signatures.values()),
@@ -245,12 +245,12 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       const pendingTxs = await apiKit.getPendingTransactions(
         SAFE_PROXY!
       )
-      console.log("pendingTxs", pendingTxs)
+      // console.log("pendingTxs", pendingTxs)
 
       const transaction = await apiKit.getTransaction(
         pendingTxs.results[0].safeTxHash
       )
-      console.log("transaction", transaction)
+      // console.log("transaction", transaction)
 
       const orginSign = await protocolKit
         .toSafeTransactionType(transaction)
@@ -279,6 +279,19 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
       expect(result).to.equal(MAGIC_VALUE);
+
+      let sumSignature = buildSignatureBytes([
+        orginSign,
+        safeTx.getSignature(DAO_COMMITTEE_PROXY!) as SafeSignature,
+      ])
+      console.log("sumSignature", sumSignature)
+      console.log("sumSignature length", sumSignature.length)
+
+      const signatureResponse = await apiKit.confirmTransaction(
+        safeTxHash,
+        sumSignature
+      )
+      console.log("signatureResponse", signatureResponse)
     });
 
     it("If the number of duplicate signers in isValidSignature is too small, it fails.", async function () {
