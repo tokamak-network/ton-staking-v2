@@ -6,8 +6,6 @@ import { Contract } from "ethers";
 import dotenv from "dotenv";
 dotenv.config();
 
-import semverSatisfies from 'semver/functions/satisfies.js'
-
 import Safe, {
   buildContractSignature,
   buildSignatureBytes,
@@ -19,6 +17,9 @@ import {
   SigningMethod
 } from '@safe-global/types-kit'
 import SafeApiKit from '@safe-global/api-kit'
+import { createWalletClient, http, Hex } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 
 /// const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
@@ -106,6 +107,8 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
   let proxyAdminAddress = "0xab59cCb04588C95CEa44206868f90a943BcD1e0c"
   let originalOwner = "0xcf358978506df27dD3688B3233b23f25b3756Edb"
   let changedOwner = "0x7220c734653ae8Ca014d4D82A84041EE4169499c"
+
+  const FOUNDATION_KEY = process.env.EXECUTE_PRIVATE_KEY;
 
   before(async function () {
     [SafeWalletOwner1, multiSigOwner1, multiSigOwner2] = await ethers.getSigners();
@@ -212,6 +215,23 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       // console.log("safeContract", safeContract)
     })
 
+    it("FOUNDATION CONFIRMATION", async function () {
+      let newProtocolKit = await protocolKit.connect({
+        signer: process.env.EXECUTE_PRIVATE_KEY,
+        safeAddress: SAFE_PROXY,
+      })
+
+      const newSafeTxHash = await newProtocolKit.getTransactionHash(safeTx)
+      console.log("newSafeTxHash :", newSafeTxHash)
+      const newSignature = await newProtocolKit.signHash(newSafeTxHash)
+
+      const newSignatureResponse = await apiKit.confirmTransaction(
+        newSafeTxHash,
+        newSignature.data
+      )
+      console.log("newSignatureResponse :", newSignatureResponse)
+    })
+
     it("isValidSignature GovernanceFlow test passed", async function () {
       let beforeOwner = await proxyAdmin.owner()
       expect(beforeOwner).to.equal(originalOwner)
@@ -311,6 +331,29 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
         sumSignature
       )
       console.log("signatureResponse", signatureResponse)
+
+      const safeTransaction = await protocolKit.toSafeTransactionType(transaction)
+      safeTransaction.encodedSignatures = () => {
+        return signatureResponse.signature
+      }
+      const data = await protocolKit.getEncodedTransaction(safeTransaction)
+      console.log(data)
+
+      //account Setting
+      const account = privateKeyToAccount(process.env.EXECUTE_PRIVATE_KEY as Hex)
+      const client = createWalletClient({
+        account,
+        chain: sepolia,
+        transport: http("https://eth-sepolia.api.onfinality.io/public"),
+      })
+
+      //send data
+      const hash = await client.sendTransaction({
+        to: SAFE_PROXY as `0x${string}`,
+        data: data as Hex,
+      })
+      console.log(hash)
+
     });
 
   });
