@@ -13,6 +13,7 @@
 - **구조2: DAO Owner는 MultiSigWallet Contract**
 - **구조3: MultiSigWallet의 Owner들이 서명한 것을 검증**
 - **SafeWallet의 Signature 검증: MultiSigWallet의 numConfirmationsRequired 기준을 충족하는 다중 서명**
+- 표준 isValidSignature함수가 아닌 SafeWallet의 
 
 ### 구현 요구사항
 
