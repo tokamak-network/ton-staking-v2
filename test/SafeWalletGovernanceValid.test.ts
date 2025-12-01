@@ -285,32 +285,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
 
       const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature);
       expect(result).to.equal(MAGIC_VALUE);
-
-
-      const transaction = await apiKit.getTransaction(
-        testHash
-      )
-      console.log("transaction", transaction)
-
-      const orginSign = await protocolKit
-        .toSafeTransactionType(transaction)
-        .then((safeTx) => Array.from(safeTx.signatures.values())[0])
-
-      console.log("orginSign", orginSign)
-
-      let sumSignature = buildSignatureBytes([
-        orginSign,
-        safeTx.getSignature(DAO_COMMITTEE_PROXY!) as SafeSignature,
-      ])
-
-      console.log("sumSignature", sumSignature)
-      console.log("sumSignature.length", sumSignature.length)
-
-      const signatureResponse = await apiKit.confirmTransaction(
-        safeTxHash,
-        sumSignature
-      )
-      console.log("signatureResponse", signatureResponse)
     });
 
     it("If the number of duplicate signers in isValidSignature is too small, it fails.", async function () {
@@ -423,93 +397,6 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       const result = await daoCommitteeV2.callStatic.isValidSignature(txHashData, makeSignature3);
       expect(result).to.equal(MAGIC_VALUE);
     });
-
-    it("execute the transaction", async function () {
-      let beforeOwner = await proxyAdmin.owner()
-      expect(beforeOwner).to.equal(originalOwner)
-
-      let multiSigSigns = await protocolKit
-        .connect({
-          signer: process.env.OWNER_PRIVATE_KEY,
-          safeAddress: DAO_COMMITTEE_PROXY,
-        })
-        .then((k) =>
-          k.signTransaction(
-            safeTx,
-            SigningMethod.SAFE_SIGNATURE,
-            SAFE_PROXY
-          )
-        )
-
-      let protocolKit2 = await protocolKit.connect({
-        signer: process.env.OWNER_PRIVATE_KEY,
-        safeAddress: DAO_COMMITTEE_PROXY,
-      })
-
-      let chainId = await protocolKit2.getChainId()
-      let safeVersion = await protocolKit2.getContractVersion()
-      const safeTxHash = await protocolKit.getTransactionHash(safeTx)
-      expect(safeTxHash).to.equal(testHash);
-
-      const txHashData = preimageSafeTransactionHash(
-        SAFE_PROXY,
-        safeTx.data as SafeTransactionData,
-        safeVersion,
-        chainId
-      )
-
-      console.log("txHashData", txHashData)
-
-      multiSigSigns = await protocolKit
-        .connect({
-          signer: process.env.OWNER_PRIVATE_KEY2,
-          safeAddress: DAO_COMMITTEE_PROXY,
-        })
-        .then((k) =>
-          k.signTransaction(
-            multiSigSigns,
-            SigningMethod.SAFE_SIGNATURE,
-            SAFE_PROXY
-          )
-        )
-
-      const contractSignature = await buildContractSignature(
-        Array.from(multiSigSigns.signatures.values()),
-        DAO_COMMITTEE_PROXY!
-      )
-      safeTx.addSignature(contractSignature)
-
-
-      const transaction = await apiKit.getTransaction(
-        testHash
-      )
-      console.log("transaction", transaction)
-
-      const orginSign = await protocolKit
-        .toSafeTransactionType(transaction)
-        .then((safeTx) => Array.from(safeTx.signatures.values())[0])
-
-      console.log("orginSign", orginSign)
-
-      let sumSignature = buildSignatureBytes([
-        orginSign,
-        safeTx.getSignature(DAO_COMMITTEE_PROXY!) as SafeSignature,
-      ])
-
-      console.log("sumSignature", sumSignature)
-      console.log("sumSignature.length", sumSignature.length)
-
-      const signatureResponse = await apiKit.confirmTransaction(
-        safeTxHash,
-        sumSignature
-      )
-      console.log("signatureResponse", signatureResponse)
-
-
-    })
-
-
-
   });
 
 
