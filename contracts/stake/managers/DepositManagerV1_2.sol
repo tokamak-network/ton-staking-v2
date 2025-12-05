@@ -34,7 +34,7 @@ contract DepositManagerV1_2 is
     ////////////////////
 
     modifier onlyLayer2(address layer2) {
-      require(ILayer2Registry(_registry).layer2s(layer2), "Caller is not a Layer2");
+      require(ILayer2Registry(_registry).layer2s(layer2), "Address is not a registered Layer2");
       _;
     }
 
@@ -70,15 +70,15 @@ contract DepositManagerV1_2 is
     function _redeposit(address layer2, uint256 i, uint256 n) internal onlyLayer2(layer2) returns (bool) {
       uint256 accAmount;
 
-      WithdrawalReqeust[] memory requsts = _withdrawalRequests[layer2][msg.sender];
+      WithdrawalReqeust[] memory requests = _withdrawalRequests[layer2][msg.sender];
 
-      require(requsts.length > 0, "DepositManager: no request");
-      require(requsts.length - i >= n, "DepositManager: n exceeds num of pending requests");
+      require(requests.length > 0, "DepositManager: no request");
+      require(requests.length - i >= n, "DepositManager: n exceeds num of pending requests");
 
       uint256 e = i + n;
       for (; i < e; i++) {
         // WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
-        WithdrawalReqeust memory r = requsts[i];
+        WithdrawalReqeust memory r = requests[i];
 
         uint256 amount = r.amount;
 

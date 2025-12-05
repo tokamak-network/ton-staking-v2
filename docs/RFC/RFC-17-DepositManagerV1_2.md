@@ -194,7 +194,6 @@ Comprehensive test coverage has been implemented:
 
 - **No Security Impact**: This is a non-breaking upgrade that only adds event emissions
 - **Event-only Change**: No state changes or logic modifications
-- **Gas Cost**: Minimal increase (~21,000 gas per event emission)
 - **Audit Status**: Code follows existing patterns and has comprehensive test coverage
 
 ## References
@@ -229,4 +228,3 @@ Comprehensive test coverage has been implemented:
 3. Prepare DAO agenda proposal
 4. Execute deployment after approval
 
----
