@@ -6,64 +6,16 @@ import { jsonFixtures } from './shared/fixtures'
 import DepositManagerProxy_Json from './abi/DepositManagerProxy.json'
 import DepositManager_Dune_Json from './abi/DepositManager_Dune.json'
 import {encodeFunctionSignature} from 'web3-eth-abi'
-
-const STAKING_DECIMALS = 27; // Staking uses 27 decimals
-
-function roundDown(val: BigNumber, decimals: number) {
-    return ethers.utils.formatUnits(val, decimals).split(".")[0]
-}
-
-async function execAllowance(contract: any, fromSigner: Signer, toAddress: string, amount: BigNumber) {
-    let allowance = await contract.allowance(await fromSigner.getAddress(), toAddress);
-    if (allowance.lt(amount)) {
-        await contract.connect(fromSigner).approve(toAddress, amount);
-    }
-}
-
-// Helper: Get actual stake balance (may be slightly less due to rounding)
-async function getActualStakeBalance(seigManager: Contract, layer2: string, account: Signer): Promise<BigNumber> {
-    return await seigManager["stakeOf(address,address)"](layer2, await account.getAddress());
-}
-
-// Helper: Setup deposit (transfer WTON, approve, deposit)
-async function setupDeposit(
-    wton: Contract,
-    depositManager: Contract,
-    deployer: Signer,
-    account: Signer,
-    layer2: string,
-    amount: BigNumber
-) {
-    await wton.connect(deployer).transfer(await account.getAddress(), amount);
-    await execAllowance(wton, account, depositManager.address, amount);
-    await depositManager.connect(account)["deposit(address,uint256)"](layer2, amount);
-}
-
-// Helper: Setup withdrawal request (get actual balance and request withdrawal)
-async function setupWithdrawal(
-    depositManager: Contract,
-    seigManager: Contract,
-    account: Signer,
-    layer2: string,
-    requestedAmount: BigNumber
-): Promise<BigNumber> {
-    const actualStakeBalance = await getActualStakeBalance(seigManager, layer2, account);
-    const withdrawalAmount = actualStakeBalance.lt(requestedAmount) ? actualStakeBalance : requestedAmount;
-    await depositManager.connect(account)["requestWithdrawal(address,uint256)"](layer2, withdrawalAmount);
-    return withdrawalAmount;
-}
-
-// Helper: Find event log in receipt
-function findEventInReceipt(contract: Contract, receipt: any, eventName: string) {
-    const eventTopic = contract.interface.getEventTopic(eventName);
-    const eventLog = receipt.logs.find((x: any) => x.topics[0] === eventTopic);
-    return eventLog ? contract.interface.parseLog(eventLog) : null;
-}
-
-// Helper: Compare stake balance with tolerance (add 1 wei for rounding)
-function expectStakeBalance(actual: BigNumber, expected: BigNumber) {
-    expect(roundDown(actual.add(1), STAKING_DECIMALS)).to.be.eq(roundDown(expected, STAKING_DECIMALS));
-}
+import {
+    STAKING_DECIMALS,
+    roundDown,
+    execAllowance,
+    getActualStakeBalance,
+    setupDeposit,
+    setupWithdrawal,
+    findEventInReceipt,
+    expectStakeBalance
+} from './shared/depositManagerHelpers'
 
 describe('DepositManagerV1_2 - Standalone Tests', () => {
     let deployer: Signer, addr1: Signer, addr2: Signer;
@@ -228,12 +180,18 @@ describe('DepositManagerV1_2 - Standalone Tests', () => {
             const tx = await depositManagerV1_2.connect(account).redepositMulti(layer2, 2);
             const receipt = await tx.wait();
 
+            const depositedEvent = findEventInReceipt(depositManagerV1_2, receipt, 'Deposited');
             const canceledEvent = findEventInReceipt(depositManagerV1_2, receipt, 'WithdrawalRequestCanceled');
+
+            expect(depositedEvent).to.not.be.null;
             expect(canceledEvent).to.not.be.null;
 
-            if (canceledEvent) {
+            if (depositedEvent && canceledEvent) {
                 const expectedAmount = withdrawalAmount1.add(withdrawalAmount2);
+                expect(depositedEvent.args.amount).to.be.eq(expectedAmount);
                 expect(canceledEvent.args.amount).to.be.eq(expectedAmount);
+                expect(depositedEvent.args.layer2.toLowerCase()).to.be.eq(canceledEvent.args.layer2.toLowerCase());
+                expect(depositedEvent.args.depositor.toLowerCase()).to.be.eq(canceledEvent.args.depositor.toLowerCase());
             }
         });
     });
