@@ -1,5 +1,7 @@
 # RFC: Add WithdrawalRequestCanceled Event to DepositManager
 
+> **Note**: This RFC is discussed in the [tokamak-dao-contracts](https://github.com/tokamak-network/tokamak-dao-contracts) repository, while the implementation is in the [ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2) repository.
+
 ## Summary
 
 This RFC proposes adding a `WithdrawalRequestCanceled` event to the `DepositManager` contract to enable accurate tracking of TON circulating supply by distinguishing between "fresh deposits" and "withdrawal cancellations (redeposits)".
@@ -76,7 +78,9 @@ Both events are emitted with identical parameters, allowing:
 
 ### Contract Code
 
-**Full Implementation**: [`contracts/stake/managers/DepositManagerV1_2.sol`](../contracts/stake/managers/DepositManagerV1_2.sol)
+**Repository**: [tokamak-network/ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2)
+**Branch**: `rfc-17`
+**Full Implementation**: [`contracts/stake/managers/DepositManagerV1_2.sol`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/contracts/stake/managers/DepositManagerV1_2.sol)
 
 ### Key Implementation Details
 
@@ -118,10 +122,13 @@ event WithdrawalRequestCanceled(address indexed layer2, address depositor, uint2
 
 ### Test Implementation
 
+**Repository**: [tokamak-network/ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2)
+**Branch**: `rfc-17`
+
 **Test Files**:
-- [`test/deposit-manager-v1-2-standalone.test.ts`](../test/deposit-manager-v1-2-standalone.test.ts) - Standalone tests
-- [`test/deposit-manager-v1-2-agenda.test.ts`](../test/deposit-manager-v1-2-agenda.test.ts) - Agenda-based registration tests
-- [`test/shared/depositManagerHelpers.ts`](../test/shared/depositManagerHelpers.ts) - Shared helper functions
+- [`test/deposit-manager-v1-2-standalone.test.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/deposit-manager-v1-2-standalone.test.ts) - Standalone tests
+- [`test/deposit-manager-v1-2-agenda.test.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/deposit-manager-v1-2-agenda.test.ts) - Agenda-based registration tests
+- [`test/shared/depositManagerHelpers.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/shared/depositManagerHelpers.ts) - Shared helper functions
 
 ## Testing
 
@@ -192,12 +199,21 @@ Comprehensive test coverage has been implemented:
 
 ## References
 
-- **Proposal Discussion**: https://github.com/tokamak-network/tokamak-dao-contracts/discussions/17
-- **Contract Code**: `contracts/stake/managers/DepositManagerV1_2.sol`
+### Discussions & Proposals
+- **RFC Discussion**: [tokamak-dao-contracts/discussions/17](https://github.com/tokamak-network/tokamak-dao-contracts/discussions/17)
+- **Original Proposal**: [tokamak-dao-contracts/discussions/16](https://github.com/tokamak-network/tokamak-dao-contracts/discussions/16)
+
+### Implementation Repository
+- **Repository**: [tokamak-network/ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2)
+- **Branch**: `rfc-17`
+- **Pull Request**: _[To be added after PR creation]_
+
+### Code Files
+- **Contract**: [`contracts/stake/managers/DepositManagerV1_2.sol`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/contracts/stake/managers/DepositManagerV1_2.sol)
 - **Test Files**:
-  - `test/deposit-manager-v1-2-standalone.test.ts`
-  - `test/deposit-manager-v1-2-agenda.test.ts`
-  - `test/shared/depositManagerHelpers.ts`
+  - [`test/deposit-manager-v1-2-standalone.test.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/deposit-manager-v1-2-standalone.test.ts)
+  - [`test/deposit-manager-v1-2-agenda.test.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/deposit-manager-v1-2-agenda.test.ts)
+  - [`test/shared/depositManagerHelpers.ts`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/test/shared/depositManagerHelpers.ts)
 
 ## Questions for Discussion
 
