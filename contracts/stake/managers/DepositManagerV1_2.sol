@@ -16,6 +16,11 @@ import {DepositManagerV1_1Storage} from './DepositManagerV1_1Storage.sol';
  *      When users cancel their withdrawal requests via redeposit, both Deposited and WithdrawalRequestCanceled
  *      events are emitted, enabling precise calculation of net pending withdrawals for liquidity analysis.
  * @notice Proposal: https://github.com/tokamak-network/tokamak-dao-contracts/discussions/16
+ * @notice RFC: https://github.com/tokamak-network/tokamak-dao-contracts/discussions/17
+ * @notice Test Files:
+ * - test/deposit-manager-v1-2-standalone.test.ts
+ * - test/deposit-manager-v1-2-agenda.test.ts
+ * - test/shared/depositManagerHelpers.ts
  */
 contract DepositManagerV1_2 is
     ProxyStorage,
