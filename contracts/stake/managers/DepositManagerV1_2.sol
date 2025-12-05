@@ -70,15 +70,14 @@ contract DepositManagerV1_2 is
     function _redeposit(address layer2, uint256 i, uint256 n) internal onlyLayer2(layer2) returns (bool) {
       uint256 accAmount;
 
-      WithdrawalReqeust[] memory requests = _withdrawalRequests[layer2][msg.sender];
+      uint256 numRequests = _withdrawalRequests[layer2][msg.sender].length;
 
-      require(requests.length > 0, "DepositManager: no request");
-      require(requests.length - i >= n, "DepositManager: n exceeds num of pending requests");
+      require(numRequests > 0, "DepositManager: no request");
+      require(numRequests - i >= n, "DepositManager: n exceeds num of pending requests");
 
       uint256 e = i + n;
       for (; i < e; i++) {
-        // WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
-        WithdrawalReqeust memory r = requests[i];
+        WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
 
         uint256 amount = r.amount;
 
@@ -87,7 +86,6 @@ contract DepositManagerV1_2 is
 
         accAmount = accAmount + amount;
         r.processed = true;
-        _withdrawalRequests[layer2][msg.sender][i] = r;
       }
 
       // deposit-related storages
