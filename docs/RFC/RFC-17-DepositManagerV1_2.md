@@ -205,7 +205,7 @@ Comprehensive test coverage has been implemented:
 ### Implementation Repository
 - **Repository**: [tokamak-network/ton-staking-v2](https://github.com/tokamak-network/ton-staking-v2)
 - **Branch**: `rfc-17`
-- **Pull Request**: _[To be added after PR creation]_
+- **Pull Request**: [tokamak-staking-v2/pull/330](https://github.com/tokamak-network/ton-staking-v2/pull/330)
 
 ### Code Files
 - **Contract**: [`contracts/stake/managers/DepositManagerV1_2.sol`](https://github.com/tokamak-network/ton-staking-v2/blob/rfc-17/contracts/stake/managers/DepositManagerV1_2.sol)
