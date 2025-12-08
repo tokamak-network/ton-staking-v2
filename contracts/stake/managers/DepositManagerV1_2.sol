@@ -88,22 +88,19 @@ contract DepositManagerV1_2 is
         r.processed = true;
       }
 
-      // deposit-related storages
-      _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
-      _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + accAmount;
-      _accStakedAccount[msg.sender] = _accStakedAccount[msg.sender] + accAmount;
+      _withdrawalRequestIndex[layer2][msg.sender] += n;
 
       // withdrawal-related storages
       _pendingUnstaked[layer2][msg.sender] = _pendingUnstaked[layer2][msg.sender] - accAmount;
       _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] - accAmount;
       _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] - accAmount;
-
-      _withdrawalRequestIndex[layer2][msg.sender] += n;
-
-      emit Deposited(layer2, msg.sender, accAmount);
-
-      // add event for withdrawal request canceled
       emit WithdrawalRequestCanceled(layer2, msg.sender, accAmount);
+
+      // deposit-related storages
+      _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
+      _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + accAmount;
+      _accStakedAccount[msg.sender] = _accStakedAccount[msg.sender] + accAmount;
+      emit Deposited(layer2, msg.sender, accAmount);
 
       require(ISeigManager(_seigManager).onDeposit(layer2, msg.sender, accAmount), "fail SeigManager.onDeposit");
 
