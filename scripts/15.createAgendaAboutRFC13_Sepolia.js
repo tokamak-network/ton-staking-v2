@@ -5,14 +5,7 @@ const DAOCommitteeProxyABI = require("../abi/DAOCommitteeProxy.json").abi;
 const DAOProxy2ABI = require("../artifacts/contracts/proxy/DAOCommitteeProxy2.sol/DAOCommitteeProxy2.json").abi;
 const DAOCommitteeOwnerABI = require("../artifacts/contracts/dao/DAOCommitteeOwner.sol/DAOCommitteeOwner.json").abi;
 const DAOAgendaManagerABI = require("../abi/daoAgendaManager.json").abi;
-const SeigManagerProxy_Json = require('../abi/DepositManagerProxy.json')
-const DepositManagerProxy_Json = require('../abi/DepositManagerProxy.json')
 const TonABI = require("../abi/TON.json").abi;
-const SeigManagerV2ABI = require("../artifacts/contracts/stake/managers/SeigManagerV1_2.sol/SeigManagerV1_2.json").abi;
-const SeigManagerV3ABI = require("../artifacts/contracts/stake/managers/SeigManagerV1_3.sol/SeigManagerV1_3.json").abi;
-const DepositManagerV1ABI = require("../artifacts/contracts/stake/managers/DepositManagerV1_1.sol/DepositManagerV1_1.json").abi;
-const l1BridgeRegistryV1ABI = require("../artifacts/contracts/layer2/L1BridgeRegistryV1_1.sol/L1BridgeRegistryV1_1.json").abi;
-const CandidateABI = require("../abi/Candidate.json").abi;
 const DAOLogicABI = require("../artifacts/contracts/dao/DAOCommittee_V1.sol/DAOCommittee_V1.json").abi;
 
 
@@ -90,28 +83,33 @@ async function CreateAgendaAboutRFC13() {
     const noticePeriod = await daoagendaManager.minimumNoticePeriodSeconds();
     const votingPeriod = await daoagendaManager.minimumVotingPeriodSeconds();
     const agendaFee = await daoagendaManager.createAgendaFees();
+    const memo = "https://github.com/tokamak-network/tokamak-dao-contracts/discussions/13"
     const param = Web3EthAbi.encodeParameters(
-        ["address[]", "uint128", "uint128", "bool", "bytes[]"],
+        ["address[]", "uint128", "uint128", "bool", "bytes[]", "string"],
         [
             targets,
             noticePeriod.toString(),
             votingPeriod.toString(),
             true,
-            params
+            params,
+            memo
         ]
     )
 
     // =========================================
     // Propose an agenda
     console.log("deployerAddr :", deployer.address)
-    let receipt = await ton.connect(deployer).approveAndCall(
-        daoCommitteeProxy.address,
-        agendaFee,
-        param
-    )
-    console.log("tx Hash :", receipt.hash)
-    console.log(receipt)
-    console.log(receipt.nonce)
+    // let receipt = await ton.connect(deployer).approveAndCall(
+    //     daoCommitteeProxy.address,
+    //     agendaFee,
+    //     param
+    // )
+    // console.log("tx Hash :", receipt.hash)
+    // console.log(receipt)
+    // console.log(receipt.nonce)
+
+    console.log("AgendaID : ", await daoagendaManager.numAgendas())
+    console.log(await daoagendaManager.getExecutionInfo(await daoagendaManager.numAgendas() - 1))
 }
 
 
