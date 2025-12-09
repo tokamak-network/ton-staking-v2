@@ -289,13 +289,13 @@ describe("EIP-1271 Upgrade Integration Tests", function () {
       const transaction = await apiKit.getTransaction(
         testHash
       )
-      console.log("transaction", transaction)
+      // console.log("transaction", transaction)
 
       const orginSign = await protocolKit
         .toSafeTransactionType(transaction)
         .then((safeTx) => Array.from(safeTx.signatures.values())[0])
 
-      console.log("orginSign", orginSign)
+      // console.log("orginSign", orginSign)
 
       let sumSignature = buildSignatureBytes([
         orginSign,

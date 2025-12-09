@@ -546,31 +546,32 @@ const config: HardhatUserConfig = {
     }
   },
   etherscan: {
-    apiKey: {
-      mainnet: `${process.env.ETHERSCAN_API_KEY}`,
-      goerli: `${process.env.ETHERSCAN_API_KEY}`,
-      sepolia: `${process.env.ETHERSCAN_API_KEY}`,
-      titan: "verify",
-      titangoerli: "verify"
-    },
-    customChains: [
-      {
-        network: "titan",
-        chainId: 55004,
-        urls: {
-          apiURL: "https://explorer.titan.tokamak.network//api",
-          browserURL: "https://explorer.titan.tokamak.network/"
-        }
-      },
-      {
-        network: "titangoerli",
-        chainId: 5050,
-        urls: {
-          apiURL: "https://explorer.titan-goerli.tokamak.network/api",
-          browserURL: "https://explorer.titan-goerli.tokamak.network/"
-        }
-      }
-    ]
+    apiKey: process.env.ETHERSCAN_API_KEY || ""
+    // apiKey: {
+    //   mainnet: `${process.env.ETHERSCAN_API_KEY}`,
+    //   goerli: `${process.env.ETHERSCAN_API_KEY}`,
+    //   sepolia: `${process.env.ETHERSCAN_API_KEY}`,
+    //   titan: "verify",
+    //   titangoerli: "verify"
+    // },
+    // customChains: [
+    //   {
+    //     network: "titan",
+    //     chainId: 55004,
+    //     urls: {
+    //       apiURL: "https://explorer.titan.tokamak.network//api",
+    //       browserURL: "https://explorer.titan.tokamak.network/"
+    //     }
+    //   },
+    //   {
+    //     network: "titangoerli",
+    //     chainId: 5050,
+    //     urls: {
+    //       apiURL: "https://explorer.titan-goerli.tokamak.network/api",
+    //       browserURL: "https://explorer.titan-goerli.tokamak.network/"
+    //     }
+    //   }
+    // ]
   },
   gasReporter: {
     enabled: true,
