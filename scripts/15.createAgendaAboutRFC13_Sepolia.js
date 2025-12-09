@@ -25,6 +25,13 @@ async function CreateAgendaAboutRFC13() {
     let tonAddr = "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044";
     let daoCommitteeV2Addr = "0x0364F7D2Dc60708460C89A2B1b059D80Cf644098";
 
+    let member1 = "0xD4335A175c36c0922F6A368b83f9F6671bf07606"
+    let member2 = "0x466321E2c5Ef10aEF592Fea65cd8e4025532A1F3"
+    let member3 = "0xaB024aDDd4b61e836Bb920Fb9f07bd2bAE0CFA8E"
+    let account1 = "0xf0B595d10a92A5a9BC3fFeA7e79f5d266b6035Ea"
+    let account2 = "0x757DE9c340c556b56f62eFaE859Da5e08BAAE7A2"
+
+
     // need the check setImplementation2 SeigManger & DepositManager number
 
     const [deployer] = await ethers.getSigners();
@@ -53,6 +60,13 @@ async function CreateAgendaAboutRFC13() {
     let ton = new ethers.Contract(
         tonAddr,
         TonABI,
+        ethers.provider
+    )
+
+    //==== Set DAOCommittee_V1 =================================
+    let daoCommitteeV1 = new ethers.Contract(
+        daoCommitteeProxyAddr,
+        DAOLogicABI,
         ethers.provider
     )
 
@@ -110,6 +124,14 @@ async function CreateAgendaAboutRFC13() {
 
     console.log("AgendaID : ", await daoagendaManager.numAgendas())
     console.log(await daoagendaManager.getExecutionInfo(await daoagendaManager.numAgendas() - 1))
+
+    // ==== check Member Balance ====
+    console.log("Member1 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(member1))
+    console.log("Member2 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(member2))
+    console.log("Member3 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(member3))
+
+    console.log("account1 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(account1))
+    console.log("account2 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(account2))
 }
 
 
