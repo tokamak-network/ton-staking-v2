@@ -1,5 +1,6 @@
 // import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
+// import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-verify";
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import "@nomicfoundation/hardhat-chai-matchers";
@@ -518,7 +519,8 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: `${process.env.ETH_NODE_URI_sepolia}`,
       // accounts: [`${process.env.OWNER_PRIVATE_KEY}`, `${process.env.OWNER_PRIVATE_KEY2}`],
-      accounts: [`${process.env.SAFE_SIGNER1_PRIVATE_KEY}`, `${process.env.OWNER_PRIVATE_KEY}`, `${process.env.OWNER_PRIVATE_KEY2}`],
+      // accounts: [`${process.env.SAFE_SIGNER1_PRIVATE_KEY}`, `${process.env.OWNER_PRIVATE_KEY}`, `${process.env.OWNER_PRIVATE_KEY2}`],
+      accounts: [`${process.env.DEPLOY_PRIVATE_KEY}`],
       // deploy: ['deploy_l2_proxy']
       // deploy: ['deploy-layer2']
     },
