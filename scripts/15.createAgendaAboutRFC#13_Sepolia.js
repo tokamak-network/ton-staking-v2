@@ -30,7 +30,7 @@ async function CreateAgendaAboutRFC13() {
     let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
     let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
     let tonAddr = "0xa30fe40285b8f5c0457dbc3b7c8a280373c40044";
-    let daoCommitteeV2Addr = "";
+    let daoCommitteeV2Addr = "0x0364F7D2Dc60708460C89A2B1b059D80Cf644098";
 
     // need the check setImplementation2 SeigManger & DepositManager number
 
