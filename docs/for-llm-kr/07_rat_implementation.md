@@ -8,18 +8,19 @@
 
 ### 1.1 Optimism RAT vs TON V3 RAT 비교
 
-| 항목 | Optimism RAT | TON V3 RAT |
-|------|-------------|------------|
+| 항목 | Optimism RAT | TON V3 RAT (백서 V2) |
+|------|-------------|----------------------|
 | **스테이킹 자산** | ETH (native) | WTON (ERC20) |
 | **담보금 관리** | RAT 컨트랙트에 직접 보관 | **DepositManager에 대리 스테이킹** |
 | **트리거 시점** | Dispute Game 생성 시 | Dispute Game 생성 시 |
 | **트리거 주체** | DisputeGameFactory | DisputeGameFactory |
 | **검증자 범위** | 글로벌 (모든 게임) | **L2별 등록** |
 | **증거 형식** | stateRoot의 left/right 자식 해시 | TBD (확인 필요) |
-| **슬래싱 방식** | perTestBondAmount 선차감 | **전체 담보금 선차감** (백서: full collateral) |
-| **슬래싱 귀속** | 컨트랙트에 잔류 | **RAT 컨트랙트에 귀속** |
-| **보상 시스템** | 없음 (본드 반환만) | 시뇨리지 분배 (α_v/n) |
-| **담보금 시뇨리지** | 없음 | **RAT 컨트랙트에 귀속** (출금 시 검증자에게 지급) |
+| **슬래싱 방식** | perTestBondAmount 선차감 | **C_off 선차감** (백서 V2: 슬래싱 페널티) |
+| **슬래싱 귀속** | 컨트랙트에 잔류 | **TBD** (귀속처 미정) |
+| **D_min 확인** | 없음 | D_min 미만 시 즉시 검증자 세트에서 제거 |
+| **보상 시스템** | 없음 (본드 반환만) | 시뇨리지 분배 (α/n) · y(x) |
+| **담보금 시뇨리지** | 없음 | 유지 담보금 시뇨리지 → 검증자, 몰수분 → TBD |
 
 ### 1.2 L2별 검증자 등록 방식
 
@@ -99,7 +100,7 @@ contracts/
         ▼                   ▼
 ┌───────────────┐  ┌──────────────────────────────────────────────┐
 │ DepositManager│  │  SeigManager → Layer2Manager → OperatorManager │
-│ (대리스테이킹) │  │  → RAT.distributeReward()                     │
+│ (대리스테이킹) │  │  → RAT.distributeValidatorReward()             │
 └───────────────┘  └──────────────────────────────────────────────┘
 ```
 
@@ -149,19 +150,19 @@ RAT 트리거/복구/슬래싱 (내부 기록만):
 /// @dev depositedAmount: RAT이 DepositManager에 대리 스테이킹한 금액
 struct ValidatorRegistration {
     // Slot 1: 32 bytes
-    uint256 depositedAmount;        // RAT이 대신 예치한 금액 (DepositManager에 스테이킹됨)
+    uint256 depositedAmount;        // 현재 유효 담보금 (RAT이 대신 예치, 선차감 후 금액)
 
     // Slot 2: 32 bytes
-    uint256 slashingPenalties;      // RAT 트리거 시 몰수된 금액 (원금+시뇨리지, 증거제출 시 복구용)
+    uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액 (증거 제출 시 복구)
 
     // Slot 3: 32 bytes
-    uint256 pendingRewards;         // 해당 SystemConfig(L2)에서 받은 검증자 보상 중 미청구 금액
+    uint256 pendingRewards;         // 해당 SystemConfig(L2)에서 받은 검증자 보상 중 미청구 금액 (백서 공식 13: (α/n)·y(x))
 
     // Slot 4: 32 bytes
-    uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor (시뇨리지 계산용)
+    uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor (시뇨리지 계산용, 재예치 시 현행화)
 
-    // Slot 5: 17 bytes (packed)
-    uint64 slashingTriggeredBlock;  // RAT 트리거된 블록 (증거제출 기간 확인용)
+    // Slot 5: 13 bytes (packed)
+    uint64 latestTestEndBlock;      // 가장 최근 RAT 테스트의 증거 제출 마감 블록 (출금 조건 체크용)
     uint32 validatorIndex;          // activeValidators 배열 내 인덱스
     bool isActive;                  // 활성 상태 여부
 }
@@ -170,7 +171,29 @@ struct ValidatorRegistration {
 **대리 스테이킹 설계 이유:**
 - 검증자가 직접 스테이킹하면 임의로 언스테이킹 가능 → 담보금 역할 상실
 - RAT이 대리 스테이킹하면 검증자는 출금 불가 → 담보금 보호
-- RAT 명의로 스테이킹되므로 시뇨리지는 RAT이 수령 → 출금 시 검증자에게 지급
+
+**RAT 테스트 흐름:**
+```
+RAT 트리거 시:
+  depositedAmount -= C_off
+  totalBondForRAT += C_off
+  latestTestEndBlock = max(latestTestEndBlock, block.number + evidenceSubmissionPeriod)
+
+증거 제출 성공 시:
+  depositedAmount += C_off
+  totalBondForRAT -= C_off
+
+미응답 시:
+  (아무것도 안 함 - 이미 차감됨, lazy evaluation)
+
+출금 시:
+  require(block.number > latestTestEndBlock)  // 테스트 종료일이 지나야 출금 가능
+  출금 가능 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
+```
+
+**시뇨리지 처리:**
+- 유지한 담보금에 대한 시뇨리지 → 검증자에게 지급
+- 몰수된 원금 + 시뇨리지 → **TBD** (귀속처 미정)
 
 > **참고:** RAT 명의의 스테이킹은 L2 자격조건(S_i ≥ θ·B_i)에 기여하지 않습니다. S_i는 시퀀서(오퍼레이터) 명의의 스테이킹만 포함합니다.
 
@@ -259,7 +282,6 @@ mapping(address => bytes32) public gameToTestId;
 | `validChallengers[]` | `activeValidators[systemConfig][]` | SystemConfig별 활성 검증자 배열 |
 | - | `validatorPools[systemConfig]` | SystemConfig별 풀 정보 |
 | - | `validatorSystemConfigs[addr]` | 검증자가 등록한 SystemConfig 목록 |
-| - | `operatorManagerOf[systemConfig]` | SystemConfig → OperatorManager 매핑 |
 
 ---
 
@@ -279,13 +301,13 @@ abstract contract RATStorage {
     // ============================================
 
     /// @notice SystemConfig별 검증자 등록 정보
-    /// @dev depositedAmount: RAT이 DepositManager에 대리 스테이킹한 금액
+    /// @dev depositedAmount: RAT이 DepositManager에 대리 스테이킹한 금액 (선차감 후 금액)
     struct ValidatorRegistration {
-        uint256 depositedAmount;        // RAT이 대신 예치한 금액 (DepositManager에 스테이킹됨)
-        uint256 slashingPenalties;      // RAT 트리거 시 몰수된 금액 (원금+시뇨리지, 증거제출 시 복구용)
+        uint256 depositedAmount;        // 현재 유효 담보금 (RAT이 대신 예치, 선차감 후 금액)
+        uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액 (증거 제출 시 복구)
         uint256 pendingRewards;         // 해당 SystemConfig(L2)에서 받은 검증자 보상 중 미청구 금액
-        uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor (시뇨리지 계산용)
-        uint64 slashingTriggeredBlock;  // RAT 트리거된 블록 (증거제출 기간 확인용)
+        uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor (시뇨리지 계산용, 재예치 시 현행화)
+        uint64 latestTestEndBlock;      // 가장 최근 RAT 테스트의 증거 제출 마감 블록 (출금 조건 체크용)
         uint32 validatorIndex;          // activeValidators 배열 내 인덱스
         bool isActive;                  // 활성 상태 여부
     }
@@ -308,9 +330,6 @@ abstract contract RATStorage {
         // slashed 필드 제거됨
     }
 
-    /// @notice 슬래싱 패널티 누적액
-    /// @dev RAT 트리거 시 증가, 증거제출/챌린지승리 시 차감
-    uint256 public totalSlashingPenalties;
 
     // ============================================
     // SystemConfig별 검증자 등록
@@ -332,10 +351,6 @@ abstract contract RATStorage {
     /// @notice (validator, systemConfig) → 등록 여부 (중복 등록 방지)
     mapping(address => mapping(address => bool)) public isRegistered;
 
-    /// @notice SystemConfig → OperatorManager 매핑
-    /// @dev OperatorManager에서 distributeReward 호출 시 검증용
-    mapping(address => address) public operatorManagerOf;
-
     /// @notice L1BridgeRegistry 주소 (SystemConfig 유효성 검증용)
     address public l1BridgeRegistry;
 
@@ -352,24 +367,52 @@ abstract contract RATStorage {
     mapping(address => bytes32) public gameToTestId;
 
     // ============================================
+    // 출금 큐
+    // ============================================
+
+    /// @notice 출금 요청 정보 (큐 방식)
+    struct UnstakeRequest {
+        address validator;          // 검증자 주소
+        address systemConfig;       // SystemConfig 주소
+        uint256 amount;             // 출금 요청 금액 (원금 + 시뇨리지)
+        uint256 principal;          // 원금 (시뇨리지 계산용)
+        bool completed;             // 출금 완료 여부
+    }
+
+    /// @notice 출금 요청 큐
+    UnstakeRequest[] public unstakeQueue;
+
+    /// @notice 다음 처리할 큐 인덱스 (0부터 시작)
+    uint256 public nextUnstakeIndex;
+
+    /// @notice (validator, systemConfig) → 출금 요청 큐 인덱스 (본인 출금 인덱스 조회용)
+    /// @dev registrationId = keccak256(abi.encodePacked(validator, systemConfig))
+    mapping(bytes32 => uint256) public unstakeQueueIndex;
+
+    // ============================================
     // 파라미터
     // ============================================
 
     /// @notice 증거 제출 기간 (블록 수)
     uint256 public evidenceSubmissionPeriod;
 
-    /// @notice 백서 공식 (5) 파라미터: D_validator ≥ (c_m · N) / π_a
-    uint256 public ratResponseCost;          // c_m: 단일 RAT 응답 비용
-    uint256 public batchCount;               // N: 검증 대상 배치 수
+    /// @notice 백서 공식 (3), (4), (5) 파라미터
+    /// @dev (3) c_m ≤ (π_a / n) · C_off  - RAT 균형 조건
+    /// @dev (4) C_off ≥ (c_m · n) / π_a  - 슬래싱 페널티 최소 조건
+    /// @dev (5) D_validator = C_off + Δ_validator  - 검증자 담보금
+    uint256 public attentionCost;            // c_m: 에포크당 주의력 유지 비용
+    uint256 public slashingPenalty;          // C_off: 슬래싱 페널티 (RAT 미응답 시 차감)
+    uint256 public validatorBuffer;          // Δ_validator: 추가 버퍼
 
-    /// @notice RAT 트리거 확률 (0-100,000)
-    /// @dev 100,000 = 100%
+    /// @notice RAT 트리거 확률 (0-1e27, RAY 단위)
+    /// @dev π_a: 시스템 전체 RAT 트리거 확률
     uint256 public ratTriggerProbability;
 
-    /// @notice 최대 확률 상수
-    uint256 internal constant MAX_PROBABILITY = 100_000;
+    /// @notice 최소 담보금 임계값 (D_min)
+    /// @dev 담보금이 이 값 미만이면 검증자 세트에서 제거
+    uint256 public minimumThreshold;
 
-    // 참고: perTestBondAmount 제거됨 - 선차감 메커니즘에서 전체 담보금 사용 (백서: full collateral)
+    // 참고: perTestBondAmount 제거됨 - 선차감 메커니즘에서 C_off 사용 (백서 공식 4)
 
     // ============================================
     // 외부 컨트랙트 참조
@@ -452,13 +495,13 @@ interface IRAT {
 
     /// @notice SystemConfig별 검증자 등록 정보
     struct ValidatorRegistration {
-        uint256 depositedAmount;
-        uint256 slashingPenalties;
-        uint256 pendingRewards;
-        uint256 coinageFactorAtDeposit;
-        uint64 slashingTriggeredBlock;
-        uint32 validatorIndex;
-        bool isActive;
+        uint256 depositedAmount;        // 현재 유효 담보금 (선차감 후 금액)
+        uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
+        uint256 pendingRewards;         // 미청구 검증자 보상
+        uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor
+        uint64 latestTestEndBlock;      // 가장 최근 RAT 테스트의 증거 제출 마감 블록
+        uint32 validatorIndex;          // activeValidators 배열 내 인덱스
+        bool isActive;                  // 활성 상태 여부
     }
 
     /// @notice SystemConfig별 검증자 풀 정보
@@ -563,10 +606,11 @@ interface IRAT {
     event UnstakeRequested(
         address indexed validator,
         address indexed systemConfig,
-        uint256 amount
+        uint256 amount,
+        uint256 queueIndex             // 큐 인덱스
     );
 
-    /// @notice 출금 처리 완료 이벤트
+    /// @notice 출금 처리 완료 이벤트 (요청자 본인에게 바로 전송)
     event UnstakeProcessed(
         address indexed validator,
         address indexed systemConfig,
@@ -574,6 +618,7 @@ interface IRAT {
         uint256 totalWithdrawn,        // 원금 + 시뇨리지
         uint256 seigniorage            // 시뇨리지 금액
     );
+
 
     // ============================================
     // 에러
@@ -668,11 +713,11 @@ interface IRAT {
     // 보상 함수
     // ============================================
 
-    /// @notice 검증자 보상 분배 (OperatorManager 전용)
-    /// @dev OperatorManager.receiveL2Seigniorage()에서 검증자 몫(α_v · Seig_i)을 계산한 후 호출
+    /// @notice 검증자 보상 분배 (SeigManager 전용)
+    /// @dev SeigManager.updateSeigniorage()에서 검증자 몫(α · S_i)을 계산한 후 호출
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @param amount 검증자 몫 (α_v · Seig_i)
-    function distributeReward(address systemConfig, uint256 amount) external;
+    /// @param amount 검증자 몫 (α · S_i)
+    function distributeValidatorReward(address systemConfig, uint256 amount) external;
 
     /// @notice SystemConfig별 보상 청구
     /// @param systemConfig L2의 SystemConfig 주소
@@ -683,29 +728,78 @@ interface IRAT {
     /// @param systemConfig L2의 SystemConfig 주소
     function getPendingRewards(address validator, address systemConfig) external view returns (uint256);
 
-    /// @notice 검증자의 모든 SystemConfig에서 보상 일괄 청구
-    function claimAllRewards() external;
+    /// @notice 여러 SystemConfig에서 보상 일괄 청구 (배치)
+    /// @dev 가스비 예측을 위해 호출자가 직접 SystemConfig 목록 지정
+    /// @param systemConfigs 청구할 SystemConfig 주소 배열
+    function claimRewardsBatch(address[] calldata systemConfigs) external;
+
+    /// @notice 검증자가 등록한 모든 SystemConfig의 미청구 보상 총합 조회
+    /// @param validator 검증자 주소
+    function getTotalPendingRewards(address validator) external view returns (uint256 total);
+
+    // ============================================
+    // 출금 함수
+    // ============================================
+
+    /// @notice 담보금 출금 요청 (비활성 상태에서만 가능, 전액 출금만 가능)
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return queueIndex 출금 요청이 추가된 큐 인덱스
+    function requestUnstake(address systemConfig) external returns (uint256 queueIndex);
+
+    /// @notice 출금 완료 처리
+    /// @dev 본인 인덱스로 호출. 이미 완료 상태면 바로 전송, 아니면 일괄 처리 후 전송
+    /// @param myIndex 본인의 출금 요청 큐 인덱스
+    function processUnstakes(uint256 myIndex) external;
+
+    /// @notice 출금 큐 길이 조회
+    function getUnstakeQueueLength() external view returns (uint256);
+
+    /// @notice 출금 요청 정보 조회
+    /// @param index 큐 인덱스
+    function getUnstakeRequest(uint256 index) external view returns (
+        address validator,
+        address systemConfig,
+        uint256 amount,
+        uint256 principal,
+        bool completed
+    );
+
+    /// @notice 검증자의 출금 요청 큐 인덱스 조회
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    function getUnstakeQueueIndex(address validator, address systemConfig) external view returns (uint256);
 
     // ============================================
     // 파라미터 관리 함수
     // ============================================
 
-    // setPerTestBondAmount 제거됨: 선차감 메커니즘에서 전체 담보금 사용
-
     /// @notice 증거 제출 기간 설정
     function setEvidenceSubmissionPeriod(uint256 period) external;
 
-    /// @notice RAT 응답 비용 설정 (c_m)
-    function setRatResponseCost(uint256 cost) external;
+    /// @notice 주의력 유지 비용 설정 (c_m)
+    function setAttentionCost(uint256 cost) external;
 
-    /// @notice 검증 대상 배치 수 설정 (N)
-    function setBatchCount(uint256 count) external;
+    /// @notice 슬래싱 페널티 설정 (C_off)
+    /// @dev 백서 공식 (4): C_off ≥ (c_m · n) / π_a
+    function setSlashingPenalty(uint256 penalty) external;
+
+    /// @notice 검증자 버퍼 설정 (Δ_validator)
+    function setValidatorBuffer(uint256 buffer) external;
 
     /// @notice RAT 트리거 확률 설정 (π_a)
     function setRatTriggerProbability(uint256 probability) external;
 
+    /// @notice 최소 담보금 임계값 설정 (D_min)
+    function setMinimumThreshold(uint256 threshold) external;
+
     /// @notice 최소 담보금 조회 (백서 공식 5)
+    /// @dev D_validator = C_off + Δ_validator
     function getMinimumCollateral() external view returns (uint256);
+
+    /// @notice C_off 최소 요구값 검증 (백서 공식 4)
+    /// @dev C_off ≥ (c_m · n) / π_a
+    /// @param n 검증자 수
+    function validateSlashingPenalty(uint256 n) external view returns (bool);
 }
 ```
 
@@ -729,16 +823,15 @@ function registerValidator(address systemConfig, uint256 amount) external nonRee
 
     // 해당 SystemConfig에 이미 등록되어 있는지 확인
     if (isRegistered[msg.sender][systemConfig]) {
-        // 미응답 확정 상태인지 확인 (slashingPenalties > 0 AND 증거제출 기간 지남)
         bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
         ValidatorRegistration storage existingReg = registrations[regId];
 
-        bool isSlashingFinalized = existingReg.slashingPenalties > 0
-            && block.number > existingReg.slashingTriggeredBlock + evidenceSubmissionPeriod;
+        // 활성 상태가 아니고, 진행 중인 RAT 테스트가 없으면 재등록 허용
+        if (existingReg.isActive || existingReg.totalBondForRAT > 0) {
+            revert AlreadyRegistered();
+        }
 
-        if (!isSlashingFinalized) revert AlreadyRegistered();
-
-        // 미응답 확정 상태면 기존 등록 정보 초기화 후 재등록 허용
+        // 비활성화되고 RAT 테스트도 없으면 재등록 허용
         isRegistered[msg.sender][systemConfig] = false;
     }
 
@@ -763,6 +856,7 @@ function registerValidator(address systemConfig, uint256 amount) external nonRee
     // 등록 정보 저장
     registrations[regId] = ValidatorRegistration({
         depositedAmount: amount,        // RAT이 대신 예치한 금액
+        totalBondForRAT: 0,             // 진행 중인 RAT 테스트 없음
         pendingRewards: 0,
         coinageFactorAtDeposit: currentFactor,  // 예치 시점의 factor 저장
         validatorIndex: uint32(activeValidators[systemConfig].length),
@@ -822,30 +916,28 @@ function triggerAttentionTest(
     ValidatorRegistration storage reg = registrations[regId];
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
 
-    // ★ 원금 + 시뇨리지 계산 (현재 factor 기준)
-    uint256 principal = reg.depositedAmount;
-    RefactorCoinageSnapshotI coinage = ISeigManager(seigManager).getCoinage(layer2);
-    uint256 currentFactor = coinage.factor();
-    uint256 depositFactor = reg.coinageFactorAtDeposit;
-
-    uint256 slashAmount = principal;
-    if (currentFactor > depositFactor && depositFactor > 0) {
-        // 원금 + 시뇨리지 = 원금 * (현재 factor / 예치 factor)
-        slashAmount = (principal * currentFactor) / depositFactor;
+    // ★ C_off 선차감 (백서 공식 4: 슬래싱 페널티)
+    uint256 slashAmount = slashingPenalty;
+    if (reg.depositedAmount < slashAmount) {
+        slashAmount = reg.depositedAmount;  // 잔액이 C_off 미만이면 전액
     }
 
-    // ★ 내부 기록 변경 (depositedAmount는 유지, slashingPenalties로 출금 차단)
-    reg.slashingPenalties = slashAmount;  // 복구용 금액 저장 (이 값이 있으면 출금 불가)
-    reg.slashingTriggeredBlock = uint64(block.number);  // 증거제출 기간 확인용
+    // ★ 내부 기록 변경 (선차감-복구 메커니즘)
+    reg.depositedAmount -= slashAmount;
+    reg.totalBondForRAT += slashAmount;
 
-    // 슬래싱 패널티 누적
-    totalSlashingPenalties += slashAmount;
+    // ★ 최신 테스트 종료 블록 업데이트 (출금 조건 체크용)
+    uint64 testEndBlock = uint64(block.number + evidenceSubmissionPeriod);
+    if (testEndBlock > reg.latestTestEndBlock) {
+        reg.latestTestEndBlock = testEndBlock;
+    }
 
-    // 검증자 비활성화 (isRegistered는 유지 - 증거제출 기간 중 재등록 방지)
-    reg.isActive = false;
-    validatorPools[systemConfig].activeValidatorCount--;
-    validatorPools[systemConfig].totalPrincipal -= principal;
-    _removeFromActiveValidators(systemConfig, selectedValidator, reg.validatorIndex);
+    // ★ D_min 확인 - 잔액이 D_min 미만이면 즉시 검증자 세트에서 제거
+    if (reg.depositedAmount < minimumThreshold) {
+        reg.isActive = false;
+        validatorPools[systemConfig].activeValidatorCount--;
+        _removeFromActiveValidators(systemConfig, selectedValidator, reg.validatorIndex);
+    }
 
     // 테스트 ID 생성 (systemConfig + batchIndex)
     bytes32 testId = _getTestId(systemConfig, batchIndex);
@@ -853,7 +945,7 @@ function triggerAttentionTest(
     // RAT 테스트 저장
     attentionTests[testId] = AttentionTest({
         expectedHash: batchHash,
-        bondAmount: uint96(slashAmount),  // 복구용 금액 기록 (원금+시뇨리지)
+        bondAmount: uint96(slashAmount),  // 복구용 금액 기록 (C_off)
         validatorAddress: selectedValidator,
         systemConfig: systemConfig,
         blockNumber: uint64(block.number),
@@ -889,32 +981,26 @@ function submitEvidence(
     // 현재는 proofData의 해시와 expectedHash를 비교하지만, 실제 구현 시 더 정교한 검증이 필요할 수 있음
     if (keccak256(proofData) != test.expectedHash) revert ProofVerificationFailed();
 
-    // ★ 내부 기록 복구 (DepositManager 상호작용 없음)
+    // ★ C_off 복구
     test.evidenceSubmitted = true;
+    uint256 restoredAmount = uint256(test.bondAmount);
 
     bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
 
-    uint256 restoredAmount = reg.slashingPenalties;
+    // 잔액 복구
+    reg.depositedAmount += restoredAmount;
+    reg.totalBondForRAT -= restoredAmount;
 
-    // 슬래싱 패널티 차감
-    totalSlashingPenalties -= restoredAmount;
+    // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+    if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+        reg.isActive = true;
+        reg.validatorIndex = uint32(activeValidators[systemConfig].length);
+        activeValidators[systemConfig].push(msg.sender);
+        validatorPools[systemConfig].activeValidatorCount++;
+    }
 
-    // 검증자 기록 복구 (depositedAmount는 유지되어 있음)
-    reg.slashingPenalties = 0;  // 출금 차단 해제
-
-    // 현재 factor로 coinageFactorAtDeposit 재설정
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    RefactorCoinageSnapshotI coinage = ISeigManager(seigManager).getCoinage(layer2);
-    reg.coinageFactorAtDeposit = coinage.factor();
-
-    // 검증자 재활성화 (isRegistered는 유지되어 있음)
-    reg.isActive = true;
-    reg.validatorIndex = uint32(activeValidators[systemConfig].length);
-    activeValidators[systemConfig].push(msg.sender);
-    validatorPools[systemConfig].activeValidatorCount++;
-    validatorPools[systemConfig].totalPrincipal += reg.depositedAmount;
-
     emit EvidenceSubmitted(testId, systemConfig, layer2, msg.sender, restoredAmount);
 }
 ```
@@ -953,32 +1039,26 @@ function resolveClaim(address _claimant) external {
     if (test.validatorAddress != _claimant) return;
     if (test.evidenceSubmitted) return;  // 이미 처리됨
 
-    // ★ 내부 기록만 복구 (DepositManager 상호작용 없음)
+    // ★ C_off 복구
     test.evidenceSubmitted = true;
+    uint256 restoredAmount = uint256(test.bondAmount);
 
     bytes32 regId = _getRegistrationId(_claimant, test.systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
 
-    uint256 restoredAmount = reg.slashingPenalties;
+    // 잔액 복구
+    reg.depositedAmount += restoredAmount;
+    reg.totalBondForRAT -= restoredAmount;
 
-    // 슬래싱 패널티 차감
-    totalSlashingPenalties -= restoredAmount;
+    // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+    if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+        reg.isActive = true;
+        reg.validatorIndex = uint32(activeValidators[test.systemConfig].length);
+        activeValidators[test.systemConfig].push(_claimant);
+        validatorPools[test.systemConfig].activeValidatorCount++;
+    }
 
-    // 검증자 기록 복구 (depositedAmount는 유지되어 있음)
-    reg.slashingPenalties = 0;  // 출금 차단 해제
-
-    // 현재 factor로 coinageFactorAtDeposit 재설정
     address layer2 = _getLayer2FromSystemConfig(test.systemConfig);
-    RefactorCoinageSnapshotI coinage = ISeigManager(seigManager).getCoinage(layer2);
-    reg.coinageFactorAtDeposit = coinage.factor();
-
-    // 검증자 재활성화 (isRegistered는 유지되어 있음)
-    reg.isActive = true;
-    reg.validatorIndex = uint32(activeValidators[test.systemConfig].length);
-    activeValidators[test.systemConfig].push(_claimant);
-    validatorPools[test.systemConfig].activeValidatorCount++;
-    validatorPools[test.systemConfig].totalPrincipal += reg.depositedAmount;
-
     emit BondRefunded(testId, test.systemConfig, layer2, _claimant, restoredAmount);
 }
 ```
@@ -1033,62 +1113,67 @@ function triggerAttentionTest(...) external onlyLayer2Manager {
 - `AttentionTriggered` 발생 후 `EvidenceSubmitted` 또는 `BondRefunded` 이벤트가 없으면 → 영구 몰수
 - `AttentionTriggered` 발생 후 위 이벤트 중 하나라도 있으면 → 복구됨
 
-### 6.6 검증자 보상 분배 (OperatorManager → RAT)
+### 6.6 검증자 보상 분배 (SeigManager → RAT)
 
-**분배 흐름:**
+**백서 공식 (13):**
+```
+v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
+```
+
+> **TBD: 검증자 보상 분배 방식**
+>
+> 백서 공식 (13)의 `v_i = (α/n) · y(x)` 해석이 모호합니다:
+> - 해석 1: 전체 y(x)에서 균등 분배 (모든 검증자 동일 보상)
+> - 해석 2: L2별 S_i에서 분배 (L2 성과에 따라 다른 보상)
+>
+> **현재 구현:** L2별 성과(S_i)에 따라 분배 (해석 2)
+> 백서 Figure 3에서 Validator가 L2별 TVL 구간에서 분배받는 것으로 표시되어 있어 이 해석을 채택합니다.
+> 추후 백서 확정 시 재검토 필요.
+
+**분배 흐름 (L2별 분배):**
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  1. SeigManager.updateSeigniorage()                                 │
-│     - L2 시뇨리지 계산: Seig_i = y(x) · (B̃_i / x)                   │
-│     - Layer2Manager.transferL2Seigniorage(layer2, Seig_i) 호출     │
+│     - 각 L2별 시뇨리지 계산: S_i = y(x) · (B̃_i / x)                 │
+│     - L2별 검증자 몫: α · S_i                                       │
+│     - RAT.distributeValidatorReward(systemConfig, α · S_i) 호출     │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  2. Layer2Manager.transferL2Seigniorage(layer2, Seig_i)            │
-│     - OperatorManager로 WTON 전송                                   │
-│     - OperatorManager.receiveL2Seigniorage(Seig_i) 호출             │
+│  2. RAT.distributeValidatorReward(systemConfig, amount)             │
+│     - amount = α · S_i                                              │
+│     - n = 해당 L2의 활성 검증자 수                                   │
+│     - n > 0: 각 검증자당 amount / n                                 │
+│     - n = 0: 미분배 (TBD: 귀속처 정책 결정 필요)                    │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  3. OperatorManager.receiveL2Seigniorage(Seig_i)                   │
-│     - 검증자 몫 계산: α_v · Seig_i                                  │
-│     - RAT 컨트랙트로 WTON 전송                                       │
-│     - RAT.distributeReward(systemConfig, α_v · Seig_i) 호출        │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  4. RAT.distributeReward(systemConfig, amount)                      │
-│     - amount = α_v · Seig_i                                         │
-│     - 각 검증자당: amount / n (n = 활성 검증자 수)                   │
-│     - 각 검증자의 pendingRewards에 누적                             │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  5. 검증자가 claimRewards(systemConfig) 호출                        │
+│  3. 검증자가 claimRewards(systemConfig) 호출                        │
 │     - pendingRewards를 WTON으로 전송                                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ```solidity
-/// @notice 검증자 보상 분배 (OperatorManager에서 호출)
-/// @dev OperatorManager.receiveL2Seigniorage()에서 검증자 몫을 계산한 후 호출
+/// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
 /// @param systemConfig L2의 SystemConfig 주소
-/// @param amount 검증자 몫 (α_v · Seig_i)
-/// @dev 백서 공식 (13): v_i = (α_v/n) · Seig_i
-///      여기서 amount = α_v · Seig_i, 각 검증자는 amount / n을 받음
-function distributeReward(address systemConfig, uint256 amount) external {
-    // OperatorManager에서만 호출 가능
-    require(msg.sender == operatorManagerOf[systemConfig], "not operator manager");
+/// @param amount 해당 L2의 검증자 몫 (α · S_i)
+function distributeValidatorReward(address systemConfig, uint256 amount) external {
+    // SeigManager에서만 호출 가능
+    require(msg.sender == seigManager, "not seig manager");
 
     ValidatorPool storage pool = validatorPools[systemConfig];
-    require(pool.activeValidatorCount > 0, "no active validators");
 
-    // 각 검증자에게 균등 분배: v_i = amount / n
-    // amount = α_v · Seig_i (OperatorManager에서 이미 계산됨)
+    // 검증자가 없으면 미분배 (TBD: 귀속처 정책 결정 필요)
+    if (pool.activeValidatorCount == 0) {
+        // 현재는 컨트랙트에 보관 (추후 정책에 따라 DAO 귀속 등 결정)
+        undistributedRewards += amount;
+        emit ValidatorRewardUndistributed(systemConfig, amount);
+        return;
+    }
+
+    // 각 검증자에게 균등 분배: amount / n
     uint256 perValidator = amount / pool.activeValidatorCount;
 
     // 해당 SystemConfig의 각 활성 검증자에게 보상 누적
@@ -1102,79 +1187,112 @@ function distributeReward(address systemConfig, uint256 amount) external {
     }
 
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    emit RewardDistributed(systemConfig, layer2, amount);
+    emit ValidatorRewardDistributed(systemConfig, layer2, amount, pool.activeValidatorCount);
 }
 ```
 
 **분배 예시:**
 ```
-L2 시뇨리지: Seig_i = 1000 WTON
-검증자 분배 비율: α_v = 20%
-활성 검증자 수: n = 5명
+L2 시뇨리지: S_i = 1,000 WTON
+검증자 분배 비율: α = 20%
+해당 L2의 활성 검증자 수: n = 5명
 
-1. OperatorManager.receiveL2Seigniorage(1000):
-   - 검증자 몫 = 1000 × 20% = 200 WTON
-   - RAT.distributeReward(systemConfig, 200) 호출
+1. SeigManager.updateSeigniorage():
+   - L2별 검증자 몫 = 1,000 × 20% = 200 WTON
+   - RAT.distributeValidatorReward(systemConfig, 200) 호출
 
-2. RAT.distributeReward(systemConfig, 200):
+2. RAT.distributeValidatorReward(systemConfig, 200):
+   - n = 5 (검증자 있음)
    - 각 검증자당 = 200 / 5 = 40 WTON
    - 각 검증자의 pendingRewards에 40 WTON 누적
+
+검증자가 없는 경우 (n = 0):
+   - undistributedRewards에 200 WTON 누적
+   - TBD: 추후 정책에 따라 DAO 귀속 또는 다른 처리
 ```
 
 ### 6.7 담보금 출금 (coinage factor 기반 시뇨리지 계산)
 
+#### 출금 큐 구조
+
+RAT은 DepositManager에 대리 스테이킹하므로, 출금 시 DepositManager의 출금 큐를 사용합니다.
+DepositManager는 FIFO(선입선출) 큐 방식이므로, 앞선 출금 요청이 처리되어야 뒤의 요청을 처리할 수 있습니다.
+
+```
+DepositManager 출금 큐 (RAT 명의):
+┌─────────────────────────────────────────────────────────────┐
+│  [0] 검증자 A - 1,000 WTON (2주 대기 완료, 미처리)           │
+│  [1] 검증자 B - 2,000 WTON (2주 대기 완료, 미처리)           │
+│  [2] 검증자 C - 3,000 WTON (출금 요청 중)                    │
+│  [3] 검증자 D - 4,000 WTON (출금 요청)  ← 새로운 요청        │
+└─────────────────────────────────────────────────────────────┘
+
+검증자 D가 processUnstakes(3) 호출 시:
+→ DepositManager에서 [0]~[3] 모두 처리 (WTON이 RAT로 돌아옴)
+→ [0], [1], [2], [3] 모두 "출금 완료" 표시
+→ [3] 검증자 D만 바로 WTON 수령
+
+이후 검증자 A가 processUnstakes(0) 호출 시:
+→ [0]은 이미 "출금 완료" 상태
+→ DepositManager 호출 없이 바로 A에게 WTON 전송
+```
+
+#### 출금 완료 규칙
+
+**단일 함수 `processUnstakes(myIndex)`로 통합:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ (A) 본인 인덱스가 이미 "출금 완료" 상태인 경우              │
+│     → 바로 WTON 전송                                        │
+├─────────────────────────────────────────────────────────────┤
+│ (B) 아직 미완료인 경우                                      │
+│     → nextUnstakeIndex ~ myIndex까지 DepositManager 일괄 처리│
+│     → 모든 건 "출금 완료" 상태로 표시                       │
+│     → 본인에게만 WTON 전송                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**조회 함수:**
+- `getUnstakeQueueIndex(validator, systemConfig)` → 본인 큐 인덱스
+- `getUnstakeRequest(index)` → 출금 요청 상세 정보
+
+**수수료 처리: TBD** (시뇨리지에서 출금 완료를 대신해준 수수료를 차감해서 호출자에게 보상할지는 추가 검토 필요)
+
 ```solidity
-/// @notice 검증자별 출금 요청 정보
-struct WithdrawalRequest {
+/// @notice 출금 요청 정보 (큐 방식)
+struct UnstakeRequest {
+    address validator;          // 검증자 주소
+    address systemConfig;       // SystemConfig 주소
     uint256 amount;             // 출금 요청 금액 (원금 + 시뇨리지)
-    uint256 principal;          // 원금 (이벤트용)
-    uint256 requestBlock;       // 요청 블록
-    bool pending;               // 처리 대기 중 여부
+    uint256 principal;          // 원금 (시뇨리지 계산용)
+    bool completed;             // 출금 완료 여부
 }
 
-/// @notice (validator, systemConfig) → 출금 요청 정보
-mapping(bytes32 => WithdrawalRequest) public withdrawalRequests;
+/// @notice 출금 요청 큐
+UnstakeRequest[] public unstakeQueue;
+
+/// @notice 다음 처리할 큐 인덱스 (0부터 시작)
+uint256 public nextUnstakeIndex;
+
+/// @notice (validator, systemConfig) → 출금 요청 큐 인덱스 (본인 출금 인덱스 조회용)
+/// @dev 검증자가 본인의 출금을 처리할 때 이 인덱스 사용
+mapping(bytes32 => uint256) public unstakeQueueIndex;
 
 /// @notice 담보금 출금 요청 (비활성 상태에서만 가능, 전액 출금만 가능)
-/// @dev RAT이 DepositManager에 출금 요청, 2주 후 processUnstake로 완료
+/// @dev RAT이 DepositManager에 출금 요청, 큐에 추가
 /// @dev 부분 출금 불가: 항상 depositedAmount 전체를 출금
 /// @param systemConfig L2의 SystemConfig 주소
-function requestUnstake(address systemConfig) external nonReentrant {
+/// @return queueIndex 출금 요청이 추가된 큐 인덱스
+function requestUnstake(address systemConfig) external nonReentrant returns (uint256 queueIndex) {
     bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
 
     require(!reg.isActive, "still active");
     require(reg.depositedAmount > 0, "no balance to withdraw");
 
-    // 슬래싱 상태 처리
-    if (reg.slashingPenalties > 0) {
-        // 증거제출 기간 중에는 출금 불가
-        require(
-            block.number > reg.slashingTriggeredBlock + evidenceSubmissionPeriod,
-            "evidence period not ended"
-        );
-
-        // 슬래싱 확정: 전체 담보금 몰수, 상태 초기화
-        reg.slashingPenalties = 0;
-        reg.slashingTriggeredBlock = 0;
-        reg.depositedAmount = 0;
-        isRegistered[msg.sender][systemConfig] = false;
-
-        revert("fully slashed, no balance");
-    }
-
-    // 증거제출 기간 중에는 출금 불가 (슬래싱 없이 비활성화된 경우도 체크)
-    if (reg.slashingTriggeredBlock > 0) {
-        require(
-            block.number > reg.slashingTriggeredBlock + evidenceSubmissionPeriod,
-            "evidence period not ended"
-        );
-        // 기간 지났는데 slashingPenalties == 0이면 증거제출 성공한 경우
-        reg.slashingTriggeredBlock = 0;
-    }
-
-    WithdrawalRequest storage req = withdrawalRequests[regId];
-    require(!req.pending, "withdrawal already pending");
+    // 테스트 종료일이 지나야 출금 가능
+    require(block.number > reg.latestTestEndBlock, "evidence period not ended");
 
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
 
@@ -1198,48 +1316,89 @@ function requestUnstake(address systemConfig) external nonReentrant {
     // RAT이 DepositManager에 출금 요청 (원금 + 시뇨리지 포함)
     IDepositManager(depositManager).requestWithdrawal(layer2, withdrawAmount);
 
-    // 출금 요청 기록
-    req.amount = withdrawAmount;
-    req.principal = principal;  // 원금 기록 (이벤트용)
-    req.requestBlock = block.number;
-    req.pending = true;
+    // 출금 요청 큐에 추가
+    queueIndex = unstakeQueue.length;
+    unstakeQueue.push(UnstakeRequest({
+        validator: msg.sender,
+        systemConfig: systemConfig,
+        amount: withdrawAmount,
+        principal: principal,
+        completed: false
+    }));
 
-    emit UnstakeRequested(msg.sender, systemConfig, withdrawAmount);
-}
-
-/// @notice 출금 요청 처리 (2주 대기 기간 후, 검증자가 호출)
-/// @dev 검증자가 호출하여 DepositManager에서 실제 출금 후 검증자에게 전송
-/// @param systemConfig L2의 SystemConfig 주소
-function processUnstake(address systemConfig) external nonReentrant {
+    // 검증자별 큐 인덱스 저장 (본인 출금 시 조회용)
     bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
-    WithdrawalRequest storage req = withdrawalRequests[regId];
+    unstakeQueueIndex[regId] = queueIndex;
 
-    require(req.pending, "no pending withdrawal");
-    // 참고: 대기 기간 체크는 DepositManager.processRequest에서 수행
-
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-
-    // DepositManager에서 실제 출금 처리
-    // requestUnstake에서 이미 원금+시뇨리지 금액으로 요청했음
-    uint256 beforeBalance = IERC20(wton).balanceOf(address(this));
-    IDepositManager(depositManager).processRequest(layer2, false);
-    uint256 afterBalance = IERC20(wton).balanceOf(address(this));
-
-    uint256 withdrawn = afterBalance - beforeBalance;
-    require(withdrawn >= req.amount, "insufficient withdrawal");
-
-    // 출금 요청 완료 처리
-    uint256 principal = req.principal;
-    uint256 seigniorage = req.amount - principal;
-    req.pending = false;
-    req.amount = 0;
-    req.principal = 0;
-
-    // 검증자에게 전송 (원금 + 시뇨리지)
-    IERC20(wton).transfer(msg.sender, withdrawn);
-
-    emit UnstakeProcessed(msg.sender, systemConfig, layer2, withdrawn, seigniorage);
+    emit UnstakeRequested(msg.sender, systemConfig, withdrawAmount, queueIndex);
 }
+
+/// @notice 출금 완료 처리
+/// @dev 본인 인덱스로 호출. 이미 완료 상태면 바로 전송, 아니면 일괄 처리 후 전송
+/// @param myIndex 본인의 출금 요청 큐 인덱스
+function processUnstakes(uint256 myIndex) external nonReentrant {
+    require(myIndex < unstakeQueue.length, "invalid index");
+
+    UnstakeRequest storage myReq = unstakeQueue[myIndex];
+    require(myReq.validator == msg.sender, "not your request");
+    require(myReq.amount > 0, "already claimed");
+
+    // 이미 출금 완료 상태인 경우: 바로 전송만
+    if (myReq.completed) {
+        uint256 amount = myReq.amount;
+        uint256 principal = myReq.principal;
+        myReq.amount = 0;  // 중복 수령 방지
+
+        IERC20(wton).transfer(msg.sender, amount);
+
+        address layer2 = _getLayer2FromSystemConfig(myReq.systemConfig);
+        emit UnstakeProcessed(msg.sender, myReq.systemConfig, layer2, amount, amount - principal);
+        return;
+    }
+
+    // 아직 미완료인 경우: nextUnstakeIndex부터 myIndex까지 일괄 처리
+    require(myIndex >= nextUnstakeIndex, "invalid state");
+
+    uint256 processCount = myIndex - nextUnstakeIndex + 1;
+
+    // 처리 전 잔액 기록
+    uint256 beforeBalance = IERC20(wton).balanceOf(address(this));
+
+    // DepositManager에서 일괄 출금 처리
+    address layer2 = _getLayer2FromSystemConfig(myReq.systemConfig);
+    IDepositManager(depositManager).processRequests(layer2, processCount, false);
+
+    uint256 afterBalance = IERC20(wton).balanceOf(address(this));
+    uint256 totalWithdrawn = afterBalance - beforeBalance;
+
+    // 각 출금 건 처리 - 출금 완료 상태로 표시
+    uint256 totalExpected = 0;
+    for (uint256 i = nextUnstakeIndex; i <= myIndex; i++) {
+        UnstakeRequest storage req = unstakeQueue[i];
+        if (req.completed) continue;
+
+        totalExpected += req.amount;
+        req.completed = true;
+    }
+
+    require(totalWithdrawn >= totalExpected, "insufficient withdrawal");
+
+    // 다음 처리 인덱스 업데이트
+    nextUnstakeIndex = myIndex + 1;
+
+    // 요청자에게만 바로 전송
+    uint256 myAmount = myReq.amount;
+    uint256 myPrincipal = myReq.principal;
+    myReq.amount = 0;  // 중복 수령 방지
+
+    IERC20(wton).transfer(msg.sender, myAmount);
+
+    emit UnstakeProcessed(msg.sender, myReq.systemConfig, layer2, myAmount, myAmount - myPrincipal);
+
+    // TBD: 수수료 처리
+    // 앞선 출금 건들의 시뇨리지에서 가스비 수수료를 차감해서 msg.sender에게 보상?
+}
+
 ```
 
 **시뇨리지 계산 예시:**
@@ -1254,28 +1413,9 @@ function processUnstake(address systemConfig) external nonReentrant {
 총 출금 가능 금액 = 10,000 + 1,000 = 11,000 WTON
 ```
 
-### 6.8 OperatorManager 관리
+### 6.8 내부 유틸리티 함수
 
 ```solidity
-/// @notice SystemConfig의 OperatorManager 설정 (Layer2Manager 전용)
-/// @dev SystemConfig 유효성은 L1BridgeRegistry를 통해 확인
-/// @param systemConfig L2의 SystemConfig 주소
-/// @param operatorManager 해당 SystemConfig의 OperatorManager 주소
-function setOperatorManager(address systemConfig, address operatorManager) external onlyLayer2Manager {
-    // L1BridgeRegistry를 통해 SystemConfig 유효성 확인
-    (bool valid,,) = IL1BridgeRegistry(l1BridgeRegistry).checkL1Bridge(systemConfig);
-    if (!valid) revert InvalidSystemConfig();
-
-    operatorManagerOf[systemConfig] = operatorManager;
-
-    // 더미 요소로 인덱스 0 예약 (처음 설정 시)
-    if (activeValidators[systemConfig].length == 0) {
-        activeValidators[systemConfig].push(address(0));
-    }
-
-    emit OperatorManagerSet(systemConfig, operatorManager);
-}
-
 /// @notice SystemConfig별 activeValidators 배열에서 검증자 제거
 function _removeFromActiveValidators(
     address systemConfig,
@@ -1323,17 +1463,18 @@ activeValidators[systemConfig][]  // L2마다 별도 풀
 
 ### 7.3 슬래싱 처리
 
-| Optimism | TON V3 |
-|----------|--------|
-| perTestBondAmount 선차감 | **전체 담보금 선차감** (백서: full collateral) |
-| 본드가 컨트랙트에 잔류 | RAT 컨트랙트에 귀속 |
-| implicit slashing | **자동 슬래싱** (별도 함수 불필요) |
+| Optimism | TON V3 (백서 V2) |
+|----------|------------------|
+| perTestBondAmount 선차감 | **C_off (슬래싱 페널티)** 선차감 |
+| 본드가 컨트랙트에 잔류 | 몰수된 C_off 귀속처 TBD |
+| implicit slashing | **Lazy Evaluation** (별도 함수 불필요) |
+| - | D_min 미만 시 즉시 검증자 세트에서 제거 |
 
 ### 7.4 보상 시스템
 
 | Optimism | TON V3 |
 |----------|--------|
-| 보상 없음 | SystemConfig별 시뇨리지 분배 (α_v/n) |
+| 보상 없음 | SystemConfig별 시뇨리지 분배 (α/n)·y(x) |
 
 ### 7.5 트리거 시점
 
@@ -1437,14 +1578,13 @@ contract Layer2ManagerV1_2 {
         rat = _rat;
     }
 
-    /// @notice 새로운 L2 등록 시 SystemConfig 화이트리스트 추가
-    function registerL2(address systemConfig, ...) external {
-        // ... 기존 L2 등록 로직 ...
-
-        // RAT에 OperatorManager 설정
-        if (rat != address(0)) {
-            address operatorManager = operatorInfo[rollupConfigInfo[systemConfig].operatorManager].operatorManager;
-            IRAT(rat).setOperatorManager(systemConfig, operatorManager);
+    /// @notice 검증자 보상 분배 (시뇨리지 업데이트 시 호출)
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @param amount 검증자 몫 (α · S_i)
+    function distributeValidatorReward(address systemConfig, uint256 amount) internal {
+        if (rat != address(0) && amount > 0) {
+            IERC20(wton).approve(rat, amount);
+            IRAT(rat).distributeValidatorReward(systemConfig, amount);
         }
     }
 }
@@ -1452,60 +1592,149 @@ contract Layer2ManagerV1_2 {
 
 ### 8.5 SeigManagerV1_4 수정
 
+검증자 보상은 각 L2의 시뇨리지 계산 시 함께 처리됩니다.
+
+**백서 공식 (13):**
+```
+v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
+```
+
+> **TBD: 검증자 보상 분배 방식**
+>
+> 백서 공식 해석이 모호하여, 현재는 **L2별 성과(S_i)에 따라 분배**하는 방식으로 구현합니다.
+> 검증자가 없는 L2의 경우 해당 검증자 몫(α · S_i)은 **미분배** 처리됩니다.
+> 추후 백서 확정 시 재검토 필요.
+
 ```solidity
-// SeigManagerV1_4.sol에 추가
+// SeigManagerV1_4.sol
 
 function updateSeigniorage() external {
     // ... 기존 시뇨리지 계산 로직 ...
 
-    // V3 시뇨리지 분배 (각 SystemConfig별로)
-    uint256 validatorPoolAmount = rmul(v3Seigniorage, validatorDistributionRatio);
+    // 각 L2별 시뇨리지 분배
+    for (uint256 i = 0; i < eligibleL2s.length; i++) {
+        address systemConfig = eligibleL2s[i];
 
-    if (validatorPoolAmount > 0 && rat != address(0)) {
-        // WTON 민트 및 RAT 컨트랙트로 전송
-        IWTON(wton).mint(rat, validatorPoolAmount);
+        // L2별 시뇨리지 계산: S_i = y(x) · (B̃_i / x)
+        uint256 seigI = calculateL2Seigniorage(systemConfig);
 
-        // 각 SystemConfig별로 보상 분배
-        // (실제 구현에서는 각 L2의 활성 검증자 수에 비례하여 분배)
-        IRAT(rat).distributePeriodRewards(systemConfig, currentPeriod, amountForThisL2);
+        // 검증자 몫: α · S_i
+        uint256 validatorAmount = rmul(seigI, validatorDistributionRatio);
+
+        // 시퀀서 몫: (1 - α) · S_i
+        uint256 sequencerAmount = seigI - validatorAmount;
+
+        // 시퀀서에게 분배 (기존 로직)
+        _distributeToSequencer(systemConfig, sequencerAmount);
+
+        // 검증자에게 분배 (RAT 통해)
+        // 검증자가 없으면 RAT에서 미분배 처리
+        if (validatorAmount > 0 && rat != address(0)) {
+            IWTON(wton).mint(address(this), validatorAmount);
+            IERC20(wton).approve(rat, validatorAmount);
+            IRAT(rat).distributeValidatorReward(systemConfig, validatorAmount);
+        }
     }
 }
 ```
+
+> **TBD: 검증자 없을 때 미분배분 처리**
+>
+> L2에 검증자가 없으면 해당 L2의 검증자 몫(α · S_i)은 RAT 컨트랙트의 `undistributedRewards`에 누적됩니다.
+> 이 미분배분의 처리 방안은 추후 정책 결정이 필요합니다:
+> - 옵션 1: DAO로 귀속
+> - 옵션 2: 시퀀서에게 추가 분배
+> - 옵션 3: 컨트랙트에 보관 (현재 구현)
 
 ---
 
 ## 9. 배포 파라미터
 
-| 파라미터 | 백서 명시 | 설명 |
-|---------|----------|------|
-| `evidenceSubmissionPeriod` | ❌ | 증거 제출 기간 (블록 수) |
-| `ratResponseCost` | ✅ (c_m) | 단일 RAT 응답 비용 |
-| `batchCount` | ✅ (N) | 검증 대상 배치 수 |
-| `ratTriggerProbability` | ✅ (π_a) | RAT 발생 확률 |
+### 9.1 백서 공식 기반 파라미터
 
-**최소 담보금은 백서 공식 (5)로 동적 계산:**
+**백서 공식 정리:**
+```
+(3) c_m ≤ (π_a / n) · C_off    - RAT 균형 조건
+(4) C_off ≥ (c_m · n) / π_a    - 슬래싱 페널티 최소 조건
+(5) D_validator = C_off + Δ_validator  - 검증자 담보금
+```
+
+| 파라미터 | 백서 기호 | 설명 |
+|---------|----------|------|
+| `attentionCost` | c_m | 에포크당 주의력 유지 비용 |
+| `slashingPenalty` | C_off | RAT 미응답 시 슬래싱 페널티 |
+| `validatorBuffer` | Δ_validator | 검증자 추가 버퍼 |
+| `ratTriggerProbability` | π_a | RAT 트리거 확률 |
+| `minimumThreshold` | D_min | 최소 담보금 임계값 (이 미만 시 검증자 세트에서 제거) |
+| `evidenceSubmissionPeriod` | - | 증거 제출 기간 (블록 수, 백서 미명시) |
+
+### 9.2 최소 담보금 계산
+
+**백서 공식 (5):**
 ```solidity
 /// @notice 최소 담보금 계산 (백서 공식 5)
-/// @dev D_validator ≥ (c_m · N) / π_a
+/// @dev D_validator = C_off + Δ_validator
 function getMinimumCollateral() public view returns (uint256) {
-    return (ratResponseCost * batchCount * MAX_PROBABILITY) / ratTriggerProbability;
+    return slashingPenalty + validatorBuffer;
 }
 ```
 
-> **참고**: `perTestBondAmount` 파라미터는 제거됨 - 선차감 메커니즘에서 전체 담보금 사용 (백서: full collateral slashing)
+### 9.3 C_off 유효성 검증
+
+**백서 공식 (4):**
+```solidity
+/// @notice C_off가 백서 공식 (4)를 만족하는지 검증
+/// @dev C_off ≥ (c_m · n) / π_a
+/// @param n 검증자 수
+function validateSlashingPenalty(uint256 n) public view returns (bool) {
+    // C_off ≥ (c_m · n) / π_a
+    // → C_off · π_a ≥ c_m · n
+    return slashingPenalty * ratTriggerProbability >= attentionCost * n * RAY;
+}
+```
+
+**검증자 수에 따른 C_off 최소값 예시:**
+```
+c_m = 0.01 TON (주의력 유지 비용)
+π_a = 0.1 (10% 트리거 확률)
+n = 10명 (검증자 수)
+
+C_off ≥ (0.01 × 10) / 0.1 = 1 TON
+
+n = 100명인 경우:
+C_off ≥ (0.01 × 100) / 0.1 = 10 TON
+```
+
+> **주의**: 검증자 수(n)가 증가하면 C_off 최소 요구값도 증가합니다. 거버넌스는 검증자 수 변화에 따라 C_off를 조정해야 합니다.
 
 ---
 
 ## 10. 테스트 체크리스트
 
-- [ ] 검증자 스테이킹/언스테이킹
-- [ ] RAT 트리거 확률 검증
+### 10.1 검증자 관리
+- [ ] 검증자 등록 (최소 담보금 = C_off + Δ_validator 이상)
+- [ ] 검증자 해제 및 출금
+- [ ] D_min 미만 시 검증자 세트에서 자동 제거
+
+### 10.2 RAT 테스트
+- [ ] RAT 트리거 확률 (π_a) 검증
 - [ ] 검증자 랜덤 선택 분포
-- [ ] RAT 트리거 시 전체 스테이킹 금액 선차감 검증
+- [ ] RAT 트리거 시 C_off 선차감 검증
 - [ ] 증거 제출 성공 시 담보금 복구 검증
 - [ ] 증거 제출 실패 (기간 초과) - 별도 트랜잭션 없이 슬래싱 완료 확인
-- [ ] 몰수된 자금 RAT 컨트랙트 귀속 확인
-- [ ] 보상 분배 및 청구
-- [ ] 파라미터 변경 권한
+- [ ] 챌린지 승리 시 resolveClaim으로 담보금 복구 확인
+
+### 10.3 경제 파라미터
+- [ ] validateSlashingPenalty(n): C_off ≥ (c_m · n) / π_a 검증
+- [ ] getMinimumCollateral(): D_validator = C_off + Δ_validator 검증
+- [ ] 검증자 수 변화에 따른 C_off 최소값 검증
+
+### 10.4 보상 분배
+- [ ] 검증자 보상 분배 (α/n)·y(x)
+- [ ] 검증자 없는 L2의 미분배 처리
+- [ ] 보상 청구 (claimRewards, claimRewardsBatch)
+
+### 10.5 기타
+- [ ] 파라미터 변경 권한 (ratManager)
 - [ ] 업그레이드 호환성
-- [ ] 이벤트 기반 자금 추적 (AttentionTriggered/EvidenceSubmitted)
+- [ ] 이벤트 기반 자금 추적 (AttentionTriggered/EvidenceSubmitted/BondRefunded)

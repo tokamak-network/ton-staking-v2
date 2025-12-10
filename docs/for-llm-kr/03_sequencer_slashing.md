@@ -25,7 +25,7 @@ D_sequencer = H_max · C_max + Δ_sequencer
 | 파라미터 | 설명 | 범위 |
 |---------|------|------|
 | **H_max** | 최대 동시 챌린저 수 | 프로토콜 레벨 (전체 동일) |
-| **C_max** | 단일 fraud proof 실행의 최대 온체인 비용 | 프로토콜 레벨 (전체 동일) |
+| **C_max** | 단일 fraud proof 실행의 예상(estimated) 온체인 비용 | 프로토콜 레벨 (전체 동일) |
 | **Δ_sequencer** | 시퀀서가 제공하는 추가 보상 | 시퀀서별 설정 가능 |
 
 V3에서는 백서 공식과 기존 V2 최소 담보금 중 **큰 값**을 최소 담보금으로 사용합니다.
@@ -81,8 +81,9 @@ function getSequencerDeposit(address layer2) public view returns (uint256) {
 /// @dev 프로토콜에서 정의, 거버넌스로 변경 가능
 uint256 public maxChallengers;
 
-/// @notice C_max: 단일 fraud proof 실행의 최대 온체인 비용
+/// @notice C_max: 단일 fraud proof 실행의 예상(estimated) 온체인 비용
 /// @dev 프로토콜에서 정의, 거버넌스로 변경 가능
+/// @dev 회의록 결정: "maximum cost" → "estimated/sufficient cost"로 완화
 uint256 public maxFraudProofCost;
 
 /// @notice V2 최소 담보금 (기존, 하위 호환용)
@@ -142,7 +143,7 @@ R_challenger = C_max + (Δ_sequencer / n)
 
 | 파라미터 | 설명 |
 |---------|------|
-| **C_max** | fraud proof 비용 보전 (최소 보장) |
+| **C_max** | fraud proof 예상 비용 보전 (최소 보장) |
 | **Δ_sequencer** | 시퀀서가 설정한 추가 보상 |
 | **n** | 성공한 챌린저 수 |
 
@@ -164,6 +165,13 @@ R_challenger = C_max + (Δ_sequencer / n)
 
 - 슬래싱 전: `S_i = 100 WTON`, `B_i = 500 TON`, `θ = 0.1` → `100 ≥ 50` ✅ 유효
 - 슬래싱 후: `S_i = 0 WTON` → `0 ≥ 50` ❌ 무효 → 시뇨리지 분배에서 제외
+
+> **검토 필요 (백서 vs 현재 설계)**
+>
+> - 슬래싱된 시퀀서는 스테이킹된 담보금을 잃습니다.
+> - 이는 최소 자격 요건을 더 이상 충족하지 못하므로 시뇨리지를 받을 자격이 없어짐을 의미합니다. **이것은 L2 시퀀싱에 영향을 주지 않습니다.** 나중에 담보금을 다시 예치하여 최소 자격 요건을 충족하면 시뇨리지를 다시 받을 수 있습니다.
+>
+> **그러나 백서에서는 L2 시퀀싱이 정지된다고 명시되어 있습니다. 또한 re-bonding period 내에 담보금을 복구하지 않으면 active sequencer set에서 영구 제거된다고 명시되어 있습니다. 이 부분이 추가 개발이 필요한지 확인이 필요합니다.**
 
 ---
 
@@ -259,92 +267,33 @@ function transferStake(
 
 ## 6. 반복 위반 페널티
 
-### 6.1 페널티 공식
+> **회의록 결정 (2025-12-08)**: γ squared 공식 제거 권고됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.
 
-백서 공식 (3)에 따르면, 시퀀서가 **슬래싱 윈도우(slashing window)** 내에 여러 번 fraud를 저지르면 필요 담보금이 증가합니다:
+### 6.1 현재 상태
 
-```
-D_sequencer^(n) = γ^(n-1) · D_sequencer^(1)
-```
+~~백서 공식 (3)에 따르면, 시퀀서가 **슬래싱 윈도우(slashing window)** 내에 여러 번 fraud를 저지르면 필요 담보금이 증가합니다:~~
 
-| 파라미터 | 설명 |
-|---------|------|
-| **γ** | 페널티 팩터 (γ > 1, 거버넌스에서 결정) |
-| **n** | 슬래싱 윈도우 내 위반 횟수 |
-| **D^(1)** | 기본 담보금 |
+~~`D_sequencer^(n) = γ^(n-1) · D_sequencer^(1)`~~
 
-**슬래싱 윈도우 동작 방식:**
-- 슬래싱 윈도우는 **슬래싱이 발생한 시점부터** 시작됨
-- 윈도우 내에 추가 슬래싱이 발생하면 위반 횟수(n)가 증가하고 필요 담보금이 γ배씩 증가
-- 윈도우가 종료되면 (마지막 슬래싱 후 일정 기간 경과) 위반 횟수가 리셋됨
-- 구체적인 윈도우 기간은 거버넌스에서 결정
+**회의록 결정에 따라 위 공식은 삭제되었습니다.**
 
-### 6.2 페널티 스토리지
+### 6.2 대안 검토 (TBD)
+
+반복 위반에 대한 페널티 메커니즘은 다음과 같은 대안이 논의 중입니다:
+
+1. **단순 누적 기록**: 위반 횟수만 기록하고, 거버넌스에서 수동으로 제재 결정
+2. **블랙리스트**: 일정 횟수 이상 위반 시 해당 시퀀서 영구 차단
+3. **페널티 없음**: 매 위반마다 동일한 담보금 슬래싱 (현재 기본 동작)
+
+구체적인 메커니즘은 향후 거버넌스에서 결정될 예정입니다.
+
+### 6.3 슬래싱 기록 스토리지
 
 ```solidity
-/// @notice 페널티 팩터 (γ > 1)
-/// @dev 거버넌스에서 결정
-uint256 public penaltyFactor;
-
-/// @notice 슬래싱 윈도우 (이 기간 내 반복 위반 시 페널티 증가)
-/// @dev 구체적인 기간은 거버넌스에서 결정
-uint256 public slashingWindow;
-
 /// @notice L2별 슬래싱 기록 (layer2 => timestamps)
+/// @dev 반복 위반 추적용, 향후 페널티 메커니즘에서 사용
 mapping(address => uint256[]) public sequencerSlashTimestamps;
 ```
-
-### 6.3 페널티 계산 구현
-
-```solidity
-/// @notice 최근 위반 횟수 조회
-/// @param layer2 L2 주소
-function getRecentViolationCount(address layer2)
-    public view
-    returns (uint256 count)
-{
-    uint256[] storage timestamps = sequencerSlashTimestamps[layer2];
-    uint256 windowStart = block.timestamp - slashingWindow;
-
-    for (uint256 i = timestamps.length; i > 0; i--) {
-        if (timestamps[i - 1] >= windowStart) {
-            count++;
-        } else {
-            break;  // 시간순 정렬이므로 더 이상 확인 불필요
-        }
-    }
-}
-
-/// @notice 반복 위반 시 필요 담보금 계산
-/// @dev 백서 공식 (3): D^(n) = γ^(n-1) · D^(1)
-/// @param layer2 L2 주소
-/// @param baseDeposit 기본 담보금
-function getRequiredDepositWithPenalty(address layer2, uint256 baseDeposit)
-    public view
-    returns (uint256)
-{
-    uint256 violations = getRecentViolationCount(layer2);
-    if (violations == 0) return baseDeposit;
-
-    // γ^(n-1) · D^(1)
-    uint256 multiplier = RAY;
-    for (uint256 i = 0; i < violations; i++) {
-        multiplier = FullMath.rmul(multiplier, penaltyFactor);
-    }
-    return FullMath.rmul(baseDeposit, multiplier);
-}
-```
-
-### 6.4 페널티 예시
-
-γ = 1.5, 기본 담보금 = 100 WTON인 경우:
-
-| 위반 횟수 | 필요 담보금 | 계산 |
-|----------|------------|------|
-| 1회 | 100 WTON | 1.5^0 × 100 |
-| 2회 | 150 WTON | 1.5^1 × 100 |
-| 3회 | 225 WTON | 1.5^2 × 100 |
-| 4회 | 337.5 WTON | 1.5^3 × 100 |
 
 ---
 
@@ -391,7 +340,7 @@ event PenaltyApplied(
 | 파라미터 | 설명 | 권장값 |
 |---------|------|--------|
 | **H_max** | 최대 동시 챌린저 수 | 10 |
-| **C_max** | 단일 fraud proof 최대 온체인 비용 | 10e27 (10 TON) |
-| **γ (penaltyFactor)** | 반복 위반 페널티 팩터 (γ > 1) | TBD |
-| **slashingWindow** | 슬래싱 윈도우 기간 | TBD |
+| **C_max** | 단일 fraud proof 예상(estimated) 온체인 비용 | 10e27 (10 TON) |
 | **minimumInitialDepositAmount** | V2 최소 담보금 | 1000.1e27 |
+
+> **회의록 결정 (2025-12-08)**: γ squared 공식 제거로 인해 `penaltyFactor`, `slashingWindow` 파라미터는 삭제됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.

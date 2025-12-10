@@ -48,12 +48,13 @@ A (전체 시뇨리지)
     │   Seig_i = y(x) · (B̃_i / x)
     │
     ├─► 시퀀서/검증자 분배 (백서 공식 13):
-    │   o_i = (1 - α_v) · Seig_i    // 시퀀서
-    │   v_total = α_v · y(x)        // 검증자 풀
+    │   o_i = (1 - α) · Seig_i    // 시퀀서
+    │   v_total = α · y(x)        // 검증자 풀
     │
-    └─► 미분배분 DAO 귀속:
+    └─► 미분배분 DAO Treasury 귀속:
         미분배 = L - y(x)
         totalDAO = S_DAO + 미분배
+        → DAO Treasury로 전송
 ```
 
 ---
@@ -71,7 +72,7 @@ A (전체 시뇨리지)
 | **r** | 추가 시뇨리지 비율 (relativeSeigRate, 1→0으로 먼저 감소) |
 | **d** | DAO 분배 비율 (daoDistributionRatio) |
 | **θ** | 최소 스테이킹 비율 (minStakingRatio) |
-| **α_v** | 검증자 분배 비율 (validatorDistributionRatio) |
+| **α** | 검증자 분배 비율 (validatorDistributionRatio) |
 | **k** | 반포화점 (halfSaturationPoint) |
 | **L** | L2 분배 가능량 = (1-d)·A₂ |
 | **x** | 전체 유효 Bridged TON = Σ B̃_i |
@@ -129,7 +130,7 @@ A₂ = A · (1 - 0) · (1 - 0) = A
 - ❌ V2: 스테이킹 지분 비례 분배 → ✅ V3: Bridged TON 비례 분배
 - ✅ **점진적 전환**: λ, r 파라미터로 스테이커 시뇨리지를 서서히 V3 분배로 이동
 - ❌ V2: TVL 기반 L2 보상 → ✅ V3: 성과(Bridged TON) 기반 + 자격 조건
-- ❌ V2: 검증자 보상 없음 → ✅ V3: 검증자에게 α_v 비율 분배
+- ❌ V2: 검증자 보상 없음 → ✅ V3: 검증자에게 α 비율 분배
 - ❌ V2: 선형 분배 → ✅ V3: 쌍곡선 포화 함수 (수확체감)
 
 ---
@@ -237,9 +238,11 @@ bridgedTONRewardPerUint += (totalY × WEI_UNIT) / totalEffectiveBridgedTON
 // 3. L2별 보상 계산 (V2와 동일한 패턴)
 layer2Seigs = (bridgedTONRewardPerUint × B̃_i) / WEI_UNIT - initialDebt_i
 
-// 4. 시퀀서/검증자 분리
-sequencerReward = layer2Seigs × (1 - α_v)  // 시퀀서
-validatorPool += layer2Seigs × α_v          // 검증자 풀
+// 4. 시퀀서/검증자 분리 (백서 공식 13)
+// 검증자 풀: α · y(x) 전체에서 먼저 분리
+// 시퀀서: 각 L2별로 (1 - α) · S_i
+sequencerReward = layer2Seigs  // 시퀀서 (이미 α 제외된 금액)
+// validatorPool = α · y(x) (전체에서 한번에 분배)
 
 // 5. 초기부채 갱신
 initialDebt_i = (bridgedTONRewardPerUint × newB̃_i) / WEI_UNIT
@@ -306,4 +309,37 @@ y(x)
 | (10) | `x = Σ B̃_i` | `totalEffectiveBridgedTON` (캐시됨) |
 | (11) | `y(x) = L · (x/(k+x))` | `hyperbolicSaturation()` |
 | (12) | `Seig_i = y(x) · (B̃_i/x)` | `calculateL2Seigniorage()` |
-| (13) | `v_i = (α_v/n)·y(x), o_i = (1-α_v)·Seig_i` | `ValidatorPool.distributePeriodRewards()`, `calculateSequencerReward()` |
+| (13) | `v_i = (α/n)·y(x), o_i = (1-α)·Seig_i` | `ValidatorPool.distributePeriodRewards()`, `calculateSequencerReward()` |
+
+---
+
+## 10. DAO 귀속 명시
+
+**백서 V2 (Page 15)**: "Additionally, any undistributed seigniorage to L2s is also allocated to the DAO, which may use the funds for ecosystem reinvestment and public infrastructure development."
+
+미분배분은 DAO로 귀속됩니다.
+
+```
+미분배분 = L - y(x)
+
+발생 조건:
+- y(x) < L 일 때 (쌍곡선 함수 특성상 항상 y(x) < L)
+- L2의 Bridged TON이 낮을수록 미분배분 증가
+
+귀속처:
+- DAO로 귀속
+- 생태계 재투자, 공공 인프라 개발 등에 사용 가능 (백서 명시)
+```
+
+**분배 흐름:**
+```
+A₂ (V3 분배 재원)
+├─► S_DAO = d · A₂        → DAO Treasury (고정 분배)
+└─► L = (1-d) · A₂        → L2 분배 가능량
+    ├─► y(x)              → L2 시퀀서 + 검증자
+    └─► L - y(x)          → DAO Treasury (미분배분)
+
+∴ totalDAO = S_DAO + (L - y(x))
+           = d·A₂ + (1-d)·A₂ - y(x)
+           = A₂ - y(x)
+```

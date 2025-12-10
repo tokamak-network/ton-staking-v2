@@ -220,7 +220,7 @@ bool internal _lock;  // ✅ 유지
 |------------------------------|------|
 | `daoDistributionRatio` | d: DAO 분배율 |
 | `minStakingRatio` | θ: 최소 스테이킹 비율 |
-| `validatorDistributionRatio` | α_v: 검증자 분배율 |
+| `validatorDistributionRatio` | α: 검증자 분배율 |
 | `halfSaturationPoint` | k: 반포화점 |
 | `bridgedTONRewardPerUint` | Bridged TON 단위당 누적 보상 |
 | `totalEffectiveBridgedTON` | x: 전체 유효 Bridged TON |
@@ -250,5 +250,5 @@ bool internal _lock;  // ✅ 유지
 |--------|-----|-----|
 | **스테이커** | ✅ Coinage factor 시뇨리지 | 점진적 감소 후 V3 분배 대상 아님 (자격 조건으로 사용) |
 | **L2 시퀀서** | ✅ TVL 비례 | ✅ Bridged TON 비례 |
-| **검증자** | ❌ 없음 | ✅ α_v·y(x)/n |
+| **검증자** | ❌ 없음 | ✅ α·y(x)/n |
 | **DAO** | ✅ daoSeigRate | ✅ d·A₂ + 미분배분 |

@@ -6,50 +6,62 @@
 
 > **참고**: 검증자 등록, 보상, RAT 시스템에 대한 상세 내용은 [04_validator.md](./04_validator.md)를 참조하세요.
 
-### 백서 명시 내용
+### 백서 V2 명시 내용
 
-백서 **섹션 2.1.2. 검증자를 위한 경제적 보안** (PDF Page 10):
+백서 V2 **섹션 2.1.2. 검증자를 위한 경제적 보안** (PDF Page 11):
 
-| 항목 | 백서 내용 |
+| 항목 | 백서 V2 내용 |
 |------|----------|
 | **슬래싱 조건** | RAT 미응답 |
-| **슬래싱 금액** | "full collateral slashing" (전체 담보금) |
-| **슬래싱 후** | 즉시 예치금 보충 필요, 미충족 시 활성 검증자 세트에서 제거 |
+| **슬래싱 금액** | **C_off** (슬래싱 페널티, 전체 담보금이 아님) |
+| **슬래싱 후** | 잔액이 D_min 미만이면 **즉시 활성 검증자 세트에서 제거** |
 | **반복 페널티** | 없음 (시퀀서와 달리 증가하는 페널티 미적용) |
 
-**백서 원문:**
-> "Slashing for validators is applied solely in the context of RAT. In alignment with the sequencer's collateral model, the protocol adopts full collateral slashing. When an attention test is issued with probability π_a, the selected validator must respond within the required time window. Failure to do so triggers a slashing event in which the full deposit is forfeited."
+**백서 V2 원문:**
+> "Slashing for validators is applied solely in the context of RAT. When an attention test is triggered with probability π_a, the selected validator must respond within the required time window. Failure to do so triggers a slashing event in which a penalty C_off is deducted from the validator's deposit. If the remaining deposit falls below the minimum threshold D_min, the validator must replenish it within a specified period; otherwise, the validator is removed from the active validator set."
 
-### 구현 방식: 선차감-복구 메커니즘
+**구현 해석:**
+백서의 "within a specified period"는 증거 제출 기간을 의미하며, 별도의 담보금 보충 기간을 두지 않습니다. D_min 미만 시 **즉시 활성 검증자 세트에서 제거**하여 관리 복잡도를 낮추고, 재등록을 원하면 D_min 이상 되도록 추가 예치하여 `registerValidator()`를 호출하도록 합니다.
 
-Optimism RAT.sol의 **선차감-복구 메커니즘**을 채택하되, 차감 금액은 백서대로 **전체 담보금**으로 합니다.
+### 백서 V2 핵심 공식
 
-| 항목 | Optimism RAT | TON V3 RAT |
-|------|-------------|------------|
-| **트리거 시 차감** | perTestBondAmount | **전체 담보금 (depositedAmount)** |
-| **증거 제출 시** | bondAmount 복구 | **전체 담보금 복구** |
-| **미응답 시** | bondAmount 손실 | **전체 담보금 RAT 컨트랙트 귀속** |
-| **별도 슬래싱 tx** | 불필요 | **완전히 불필요** |
+```
+c_m ≤ (π_a / N) · C_off               ... (3) RAT 균형 조건
+C_off ≥ (c_m · N) / π_a               ... (4) 최소 슬래싱 페널티
+D_validator = C_off + Δ_validator      ... (5) 실제 담보금
+```
+
+### 구현 방식: C_off 기반 선차감-복구 메커니즘
+
+Optimism RAT.sol의 **선차감-복구 메커니즘**을 채택하며, 차감 금액은 **C_off (슬래싱 페널티)**입니다.
+
+| 항목 | Optimism RAT | TON V3 RAT (백서 V2) |
+|------|-------------|----------------------|
+| **트리거 시 차감** | perTestBondAmount | **C_off** |
+| **증거 제출 시** | bondAmount 복구 | **C_off 복구** |
+| **미응답 시** | bondAmount 손실 | **C_off 몰수 + D_min 확인** |
+| **잔액 < D_min 시** | - | **즉시 활성 검증자 세트에서 제거** |
 
 **장점:**
-- RAT 트리거 시 이미 담보금이 RAT 컨트랙트로 이전되어 있으므로, 미응답 시 **별도의 슬래싱 트랜잭션이 완전히 불필요**
-- 가스비 절감 및 프로세스 간소화
-- 백서의 "full collateral slashing" 원칙 준수
+- 단일 미응답에 전체 담보금을 잃지 않음 (점진적 페널티)
+- 관리 복잡도 최소화 (별도 보충 트랜잭션 불필요)
+- 백서 V2의 C_off/D_min 설계 준수
+- 제거된 검증자는 잔액을 클레임하여 출금 가능 (재등록 시 D_min 이상 되도록 추가 예치 필요)
 
 ---
 
-## 2. 슬래싱 메커니즘: 선이전-복구 방식
+## 2. 슬래싱 메커니즘: C_off 기반 선차감-복구 방식
 
 ### 2.1 핵심 원리
 
-RAT 트리거 시점에 **전체 담보금을 RAT 컨트랙트로 이전**합니다. 증거 제출 성공 시에만 복구하고, 미응답 시에는 **아무 조치도 필요 없습니다** (이미 RAT 컨트랙트에 귀속).
+RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 시 C_off를 복구하고, 미응답 시에는 별도 트랜잭션 없이 이미 차감된 상태로 유지됩니다. 잔액이 D_min 미만이면 **즉시 활성 검증자 세트에서 제거**됩니다.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. RAT 트리거 (triggerAttentionTest)                        │
-│     - 내부 기록: depositedAmount = 0 (선차감)                  │
-│     - attentionTest.bondAmount = 전체 담보금                 │
-│     - 검증자 비활성화 (isActive = false)                     │
+│     - depositedAmount -= C_off (선차감)                      │
+│     - totalBondForRAT += C_off                              │
+│     - attentionTest.bondAmount = C_off                      │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -65,72 +77,102 @@ RAT 트리거 시점에 **전체 담보금을 RAT 컨트랙트로 이전**합니
     └─────────────────┘             └─────────────────┘
               │                               │
               ▼                               ▼
-    ┌─────────────────┐             ┌─────────────────┐
-    │  담보금 복구     │             │  아무것도 안함  │
-    │  RAT → 검증자   │             │  (이미 몰수됨)  │
-    │  isActive = true│             │  RAT에 귀속     │
-    └─────────────────┘             └─────────────────┘
+    ┌─────────────────┐             ┌─────────────────────────┐
+    │  C_off 복구      │             │  (아무것도 안 함)        │
+    │  depositedAmount│             │  이미 차감되어 있음      │
+    │  += C_off       │             └─────────────────────────┘
+    │  totalBondForRAT│                       │
+    │  -= C_off       │                       ▼
+    └─────────────────┘             ┌─────────────────────────┐
+                                    │  잔액 확인               │
+                                    │  depositedAmount vs D_min│
+                                    └─────────────────────────┘
+                                              │
+                              ┌───────────────┴───────────────┐
+                              ▼                               ▼
+                    ┌─────────────────┐             ┌─────────────────┐
+                    │ >= D_min        │             │ < D_min         │
+                    │ 활성 상태 유지   │             │ 즉시 검증자 제거 │
+                    └─────────────────┘             │ (잔액 클레임 가능)│
+                                                    └─────────────────┘
 ```
 
 ### 2.2 각 단계별 상태 변화
 
-| 단계 | 검증자 잔액 | RAT 컨트랙트 | isActive |
-|------|------------|-------------|----------|
-| **등록 후** | D_validator | - | true |
-| **RAT 트리거** | 0 | +D_validator (bondAmount) | false |
-| **증거 제출 성공** | D_validator (복구) | -D_validator | true |
-| **미응답** | 0 | D_validator (귀속) | false |
+| 단계 | depositedAmount | totalBondForRAT | isActive |
+|------|-----------------|-----------------|----------|
+| **등록 후** | D_validator | 0 | true |
+| **RAT 트리거** | D_validator - C_off | C_off | true |
+| **증거 제출 성공** | D_validator | 0 | true |
+| **미응답 (잔액 >= D_min)** | D_validator - C_off | 0 (테스트 종료 후) | true |
+| **미응답 (잔액 < D_min)** | (클레임 대기) | 0 | **false** (즉시 제거) |
 
 ### 2.3 장점
 
-1. **미응답 시 별도 트랜잭션 완전 불필요**: 담보금이 이미 RAT 컨트랙트에 있으므로 슬래싱 완료
-2. **가스비 대폭 절감**: `finalizeSlash()` 함수 자체가 불필요
-3. **단순한 로직**: 증거 제출 성공 시에만 복구 처리
+1. **점진적 페널티**: 단일 미응답에 전체 담보금을 잃지 않음
+2. **간단한 관리**: D_min 미만 시 즉시 제거 (별도 트랜잭션 불필요)
+3. **공정한 처리**: 제거 시 잔액은 검증자가 클레임하여 출금 가능
+4. **백서 V2 준수**: C_off/D_min 설계 정확히 구현
 
-### 2.4 슬래싱된 담보금 활용
+### 2.4 출금 금액 계산
 
-RAT 컨트랙트에 귀속된 담보금은 프로토콜 재무로 활용됩니다:
-- 검증자 보상 풀로 재분배
-- DAO 거버넌스 결정에 따라 활용
-- 또는 컨트랙트에 누적 보관
+```
+출금 가능 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
+```
 
-> **참고**: 백서에서는 "the full deposit is forfeited"(전체 담보금 몰수)라고만 명시하고, 귀속처는 지정하지 않았습니다.
+- `depositedAmount`: 현재 유효 담보금 (슬래싱으로 차감된 후 금액)
+- `coinageFactorAtDeposit`: 예치 시점의 coinage factor
+- `currentFactor`: 출금 시점의 coinage factor
+- `totalBondForRAT`: 출금 시점에 0이 아니면 latestTestEndBlock 블록이 지나야 출금가능
+
+**몰수된 담보금 처리**: 몰수된 원금 + 시뇨리지의 사용처는 **TBD** (미정)
 
 ---
 
-## 3. 구현: 선이전-복구 방식
+## 3. 구현: C_off 기반 선차감-복구 방식
 
-### 3.1 RAT 트리거 시 (전체 스테이킹 금액 RAT 컨트랙트로 이전)
+### 3.1 RAT 트리거 시 (C_off만 선차감)
 
 ```solidity
-/// @notice RAT 테스트 트리거 - 전체 스테이킹 금액 RAT 컨트랙트로 이전
+/// @notice RAT 테스트 트리거 - C_off만 선차감
 function triggerAttentionTest(
     address systemConfig,
     uint32 batchIndex,
     bytes32 batchHash,
     bytes32 blockHash
-) external onlyLayer2Manager {
+) external onlyAuthorizedTrigger {
     // ... 검증자 랜덤 선택 로직 ...
 
     address selectedValidator = validators[selectedIndex];
     bytes32 regId = _getRegistrationId(selectedValidator, systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
 
-    // ★ 전체 담보금 선차감 (백서: full collateral)
-    // DepositManager의 실제 스테이킹은 RAT 명의로 유지, 내부 기록만 변경
-    uint256 bondAmount = reg.depositedAmount;  // 전액
-    reg.depositedAmount = 0;  // 내부 기록에서 차감
+    // ★ C_off만 선차감 (백서 V2: C_off 슬래싱)
+    uint256 slashAmount = slashingPenalty;
+    if (reg.depositedAmount < slashAmount) {
+        slashAmount = reg.depositedAmount;  // 잔액이 C_off 미만이면 전액
+    }
+    reg.depositedAmount -= slashAmount;
+    reg.totalBondForRAT += slashAmount;
 
-    // 검증자 비활성화
-    reg.isActive = false;
-    validatorPools[systemConfig].activeValidatorCount--;
-    _removeFromActiveValidators(systemConfig, selectedValidator, reg.validatorIndex);
+    // ★ 최신 테스트 종료 블록 업데이트 (출금 조건 체크용)
+    uint64 testEndBlock = uint64(block.number + evidenceSubmissionPeriod);
+    if (testEndBlock > reg.latestTestEndBlock) {
+        reg.latestTestEndBlock = testEndBlock;
+    }
+
+    // ★ D_min 확인 - 잔액이 D_min 미만이면 즉시 검증자 세트에서 제거
+    if (reg.depositedAmount < minimumThreshold) {
+        reg.isActive = false;
+        validatorPools[systemConfig].activeValidatorCount--;
+        _removeFromActiveValidators(systemConfig, selectedValidator, reg.validatorIndex);
+    }
 
     // 테스트 정보 저장
     bytes32 testId = _getTestId(systemConfig, batchIndex);
     attentionTests[testId] = AttentionTest({
         expectedHash: batchHash,
-        bondAmount: uint96(bondAmount),  // 복구용 금액 기록
+        bondAmount: uint96(slashAmount),  // 복구용 금액 기록 (C_off)
         validatorAddress: selectedValidator,
         systemConfig: systemConfig,
         blockNumber: uint64(block.number),
@@ -142,10 +184,10 @@ function triggerAttentionTest(
 }
 ```
 
-### 3.2 증거 제출 성공 시 (담보금 복구)
+### 3.2 증거 제출 성공 시 (C_off 복구)
 
 ```solidity
-/// @notice 증거 제출 - 담보금 복구
+/// @notice 증거 제출 - C_off 복구
 function submitEvidence(
     address systemConfig,
     uint32 batchIndex,
@@ -164,36 +206,48 @@ function submitEvidence(
     // 증거 검증
     if (keccak256(proofData) != test.expectedHash) revert ProofVerificationFailed();
 
-    // ★ 전체 담보금 복구
+    // ★ C_off 복구
     test.evidenceSubmitted = true;
     uint256 restoredAmount = uint256(test.bondAmount);
 
     bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
-    reg.depositedAmount = restoredAmount;  // 내부 기록 복구
 
-    // 검증자 재활성화
-    reg.isActive = true;
-    reg.validatorIndex = uint32(activeValidators[systemConfig].length);
-    activeValidators[systemConfig].push(msg.sender);
-    validatorPools[systemConfig].activeValidatorCount++;
+    // 잔액 복구
+    reg.depositedAmount += restoredAmount;
+    reg.totalBondForRAT -= restoredAmount;
+
+    // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+    if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+        reg.isActive = true;
+        reg.validatorIndex = uint32(activeValidators[systemConfig].length);
+        activeValidators[systemConfig].push(msg.sender);
+        validatorPools[systemConfig].activeValidatorCount++;
+    }
 
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
     emit EvidenceSubmitted(testId, systemConfig, layer2, msg.sender, restoredAmount);
 }
 ```
 
-### 3.3 미응답 시
+### 3.3 미응답 시 (Lazy Evaluation)
 
-**별도 함수 불필요** - RAT 트리거 시점에 이미 담보금이 RAT 컨트랙트로 이전되어 있으므로, 미응답 시 슬래싱이 자동 완료됩니다.
+**선차감-복구 방식**이므로 미응답 시 별도의 `finalizeSlash` 함수가 필요 없습니다.
 
 ```
 미응답 시 상태:
-- 검증자.depositedAmount = 0 (이미 차감됨)
-- 검증자.isActive = false (이미 비활성화됨)
-- 담보금 = RAT 컨트랙트에 귀속 (프로토콜 재무)
-- 추가 트랜잭션 = 없음
+- depositedAmount: 변경 없음 (RAT 트리거 시점에 이미 C_off 차감됨)
+- totalBondForRAT: 변경 없음 (출금 시점에 자동 처리)
+- 별도 트랜잭션: 불필요 (lazy evaluation)
+
+출금 시점에 처리:
+- latestTestEndBlock 이후에만 출금 가능
+- 출금 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
 ```
+
+**D_min 확인 시점:**
+- 출금 요청 시 `depositedAmount < D_min`이면 검증자는 이미 비활성화 상태
+- 재등록 원할 시: D_min 이상 되도록 추가 예치 후 `registerValidator()` 호출
 
 ### 3.4 챌린지 승리 시 담보금 복구 (resolveClaim)
 
@@ -201,7 +255,7 @@ function submitEvidence(
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  RAT 트리거 → 검증자 담보금 선차감 → 비활성화                  │
+│  RAT 트리거 → 검증자 C_off 선차감                            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -218,14 +272,14 @@ function submitEvidence(
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  담보금 복구 + 검증자 재활성화                                │
-│  - depositedAmount 복구 (내부 기록)                         │
-│  - isActive = true                                          │
+│  C_off 복구                                                  │
+│  - depositedAmount += C_off                                 │
+│  - totalBondForRAT -= C_off                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ```solidity
-/// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 담보금 복구)
+/// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 C_off 복구)
 /// @param _claimant 게임에서 이긴 주소 (챌린저)
 /// @dev msg.sender = FaultDisputeGame 주소
 function resolveClaim(address _claimant) external {
@@ -239,19 +293,24 @@ function resolveClaim(address _claimant) external {
     if (test.validatorAddress != _claimant) return;
     if (test.evidenceSubmitted) return;  // 이미 처리됨
 
-    // ★ 담보금 복구
+    // ★ C_off 복구
     test.evidenceSubmitted = true;
     uint256 restoredAmount = uint256(test.bondAmount);
 
     bytes32 regId = _getRegistrationId(_claimant, test.systemConfig);
     ValidatorRegistration storage reg = registrations[regId];
-    reg.depositedAmount = restoredAmount;  // 내부 기록 복구
 
-    // 검증자 재활성화
-    reg.isActive = true;
-    reg.validatorIndex = uint32(activeValidators[test.systemConfig].length);
-    activeValidators[test.systemConfig].push(_claimant);
-    validatorPools[test.systemConfig].activeValidatorCount++;
+    // 잔액 복구
+    reg.depositedAmount += restoredAmount;
+    reg.totalBondForRAT -= restoredAmount;
+
+    // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+    if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+        reg.isActive = true;
+        reg.validatorIndex = uint32(activeValidators[test.systemConfig].length);
+        activeValidators[test.systemConfig].push(_claimant);
+        validatorPools[test.systemConfig].activeValidatorCount++;
+    }
 
     address layer2 = _getLayer2FromSystemConfig(test.systemConfig);
     emit BondRefunded(testId, test.systemConfig, layer2, _claimant, restoredAmount);
@@ -261,8 +320,8 @@ function resolveClaim(address _claimant) external {
 **핵심 포인트:**
 - `msg.sender`는 FaultDisputeGame 주소 (게임 컨트랙트가 직접 호출)
 - `_claimant`는 게임에서 이긴 챌린저 주소
-- RAT에서 선택된 검증자와 게임 승자가 같아야 담보금 복구
-- `submitEvidence`와 동일한 효과: 담보금 복구 + 검증자 재활성화
+- RAT에서 선택된 검증자와 게임 승자가 같아야 C_off 복구
+- `submitEvidence`와 동일한 효과: C_off 복구 + 검증자 세트 복구
 
 ---
 
@@ -274,6 +333,8 @@ function resolveClaim(address _claimant) external {
 검증자 A (Titan L2에 등록):
 - depositedAmount = 10,000 WTON
 - pendingRewards = 500 WTON
+- C_off = 2,000 WTON (슬래싱 페널티)
+- D_min = 3,000 WTON (최소 임계값)
 - RAT 트리거됨 (batchIndex = 12345)
 - evidenceSubmissionPeriod = 7200 블록 (~24시간)
 ```
@@ -284,10 +345,10 @@ function resolveClaim(address _claimant) external {
 triggerAttentionTest(titanSystemConfig, 12345, ...) 호출
 
 상태 변화:
-- A.depositedAmount: 10,000 → 0 (내부 기록에서 차감)
-- attentionTest.bondAmount: 0 → 10,000 (컨트랙트 보관)
-- A.isActive: true → false
-- activeValidatorCount: n → n-1
+- A.depositedAmount: 10,000 → 8,000 (C_off 선차감)
+- A.totalBondForRAT: 0 → 2,000
+- attentionTest.bondAmount: 0 → 2,000
+- A.isActive: true (유지)
 ```
 
 ### 4.3 증거 제출 성공 시
@@ -296,29 +357,54 @@ triggerAttentionTest(titanSystemConfig, 12345, ...) 호출
 submitEvidence(titanSystemConfig, 12345, proofData) 호출
 
 상태 변화:
-- A.depositedAmount: 0 → 10,000 (내부 기록 복구)
-- A.isActive: false → true
-- activeValidatorCount: n-1 → n
+- A.depositedAmount: 8,000 → 10,000 (C_off 복구)
+- A.totalBondForRAT: 2,000 → 0
 ```
 
-### 4.4 미응답 시
+### 4.4 미응답 시 (잔액 >= D_min)
 
 ```
-응답 윈도우(7200 블록) 경과 후:
+응답 윈도우 경과 후 (별도 트랜잭션 불필요 - lazy evaluation)
 
 상태:
-- A.depositedAmount: 0 (변경 없음, 이미 차감됨)
-- A.isActive: false (변경 없음)
-- 담보금 10,000 WTON: RAT 컨트랙트에 귀속
-- 추가 트랜잭션: 없음
+- A.depositedAmount: 8,000 (변경 없음, RAT 트리거 시 이미 차감됨)
+- A.totalBondForRAT: 2,000 (변경 없음)
+- A.isActive: true (8,000 >= D_min 이므로 활성 유지)
+- A.latestTestEndBlock: block.number + evidenceSubmissionPeriod
+
+출금 시:
+- latestTestEndBlock 이후에만 출금 가능
 ```
 
-### 4.5 결과 비교
+### 4.5 연속 미응답 시 (잔액 < D_min → 즉시 제거)
 
-| 시나리오 | 검증자 A | RAT 컨트랙트 | 활성 검증자 수 |
-|---------|---------|-------------|--------------|
-| **증거 제출 성공** | 담보금 10,000 복구, 활성화 | 변동 없음 | 유지 |
-| **미응답** | 담보금 10,000 손실, 비활성화 | +10,000 귀속 | -1 감소 |
+```
+4번 연속 RAT 트리거 후:
+- 초기: 10,000 WTON
+- 1차 트리거: 10,000 - 2,000 = 8,000 (>= D_min, 활성 유지)
+- 2차 트리거: 8,000 - 2,000 = 6,000 (>= D_min, 활성 유지)
+- 3차 트리거: 6,000 - 2,000 = 4,000 (>= D_min, 활성 유지)
+- 4차 트리거: 4,000 - 2,000 = 2,000 (< D_min, 즉시 제거!)
+
+triggerAttentionTest 호출 시 (4차):
+- A.depositedAmount: 4,000 → 2,000 (C_off 선차감)
+- A.depositedAmount < D_min 확인
+- ★ 즉시 검증자 세트에서 제거
+  - A.isActive: false
+  - 활성 검증자 목록에서 제거
+- 잔액 2,000 WTON: latestTestEndBlock 이후 출금 가능
+
+재등록 희망 시:
+- D_min 이상 되도록 추가 예치 후 registerValidator() 호출
+```
+
+### 4.6 결과 비교
+
+| 시나리오 | depositedAmount | 슬래싱 금액 | 활성 상태 |
+|---------|----------------|------------|----------|
+| **증거 제출 성공** | 10,000 (복구) | 0 | 활성 유지 |
+| **미응답 (1회)** | 8,000 | 2,000 | 활성 유지 |
+| **미응답 (4회, D_min 미만)** | 2,000 (반환) | 8,000 | 즉시 비활성화 |
 
 ---
 
@@ -326,66 +412,111 @@ submitEvidence(titanSystemConfig, 12345, proofData) 호출
 
 ### 5.1 슬래싱 후 재등록 가능 여부
 
-슬래싱된 검증자도 다시 등록할 수 있습니다:
+D_min 미만으로 제거된 검증자도 추가 예치하여 다시 등록할 수 있습니다:
 
 ```solidity
-// 슬래싱 후 상태
-validatorInfo[validator].isActive = false;
-validatorInfo[validator].depositAmount = 0;
+// D_min 미만으로 제거된 후 상태
+reg.isActive = false;
+reg.depositedAmount = 2,000;  // 잔액 유지
 
-// 재등록 시
-function registerValidator(uint256 depositAmount) external {
-    require(!validatorInfo[msg.sender].isActive, "already registered");
-    // isActive가 false이므로 재등록 가능
+// 재등록 시: 추가 예치하여 D_min 이상이 되면 등록 가능
+function registerValidator(address systemConfig, uint256 amount) external {
+    // 비활성 상태이고 latestTestEndBlock 이후면 재등록 허용
+    // 기존 depositedAmount + 신규 amount >= D_min 이면 등록 성공
+
+    reg.depositedAmount += amount;
+    reg.coinageFactorAtDeposit = currentFactor;  // factor 현행화
+    reg.isActive = true;
     ...
 }
 ```
 
-### 5.2 재등록 시 주의사항
+### 5.2 재등록 시 시뇨리지 처리
 
-- 새로운 담보금 필요 (최소 담보금 이상)
-- 이전 슬래싱 기록은 남아있음 (추후 참고용)
-- 미청구 보상은 복구되지 않음
+재등록 시 `coinageFactorAtDeposit`을 현재 factor로 갱신합니다. **기존 잔액에 대한 시뇨리지는 포기**됩니다.
+
+```
+예시:
+- 기존 예치: 2,000 WTON, factor = 1.0
+- 현재 factor = 1.1 (10% 시뇨리지 발생)
+- 원래 받을 수 있는 금액: 2,000 × 1.1 = 2,200 WTON
+
+재등록 시:
+- 추가 예치: 1,500 WTON
+- 새 depositedAmount = 2,000 + 1,500 = 3,500 WTON
+- coinageFactorAtDeposit = 1.1 (현재 factor로 갱신)
+
+출금 시 (factor = 1.2):
+- 출금 금액 = 3,500 × (1.2 / 1.1) = 3,818 WTON
+- 기존 2,000에 대한 시뇨리지 200 WTON은 받지 못함
+```
+
+### 5.3 재등록 시 주의사항
+
+- 기존 잔액 + 추가 예치 >= D_min 이어야 함
+- latestTestEndBlock 이후에만 재등록 가능 (진행 중인 RAT 테스트 종료 후)
+- **기존 잔액에 대한 시뇨리지는 포기됨** (factor 현행화)
+- 미청구 보상은 별도 청구 필요 (claimRewards)
 
 ---
 
 ## 6. 이벤트
 
-선차감-복구 메커니즘에서 슬래싱은 별도 이벤트 없이 RAT 트리거 및 증거 제출 이벤트로 추적됩니다.
+C_off 기반 선차감-복구 메커니즘의 이벤트:
 
 ```solidity
-/// @notice RAT 테스트 트리거 (스테이킹 금액 선차감)
+/// @notice RAT 테스트 트리거 (C_off 선차감)
+/// @dev D_min 미만 시 검증자 세트에서 제거됨
 event AttentionTriggered(
     bytes32 indexed testId,
     address indexed systemConfig,
     address indexed layer2,
     address validator,
-    uint32 batchIndex
+    uint32 batchIndex,
+    uint256 bondAmount,       // 차감된 본드 금액 (C_off 또는 잔액 전액)
+    bool removedFromSet       // D_min 미만으로 제거되었는지 여부
 );
 
-/// @notice 증거 제출 성공 (스테이킹 금액 복구)
+/// @notice 증거 제출 성공 (C_off 복구)
+/// @dev 비활성 상태였고 D_min 이상이면 검증자 세트에 복구됨
 event EvidenceSubmitted(
     bytes32 indexed testId,
     address indexed systemConfig,
     address indexed layer2,
     address validator,
-    uint256 restoredAmount
+    uint256 restoredAmount,
+    bool restoredToSet        // 검증자 세트에 복구되었는지 여부
+);
+
+/// @notice 챌린지 승리로 C_off 복구
+event BondRefunded(
+    bytes32 indexed testId,
+    address indexed systemConfig,
+    address indexed layer2,
+    address validator,
+    uint256 restoredAmount,
+    bool restoredToSet        // 검증자 세트에 복구되었는지 여부
 );
 ```
 
-**몰수된 자금 추적:**
-- `AttentionTriggered` 발생 후 `EvidenceSubmitted`가 없으면 → 영구 몰수
-- `AttentionTriggered` 발생 후 `EvidenceSubmitted`가 있으면 → 복구됨
+**자금 추적 (Lazy Evaluation):**
+- `AttentionTriggered` 발생 → C_off 선차감 완료
+- `EvidenceSubmitted` 또는 `BondRefunded` 발생 → C_off 복구
+- 위 이벤트 없이 `latestTestEndBlock` 경과 → C_off 몰수 (별도 이벤트 없음)
 
 ---
 
 ## 7. 시퀀서 슬래싱과 비교
 
-| 항목 | 시퀀서 슬래싱 | 검증자 슬래싱 |
-|------|-------------|-------------|
+| 항목 | 시퀀서 슬래싱 | 검증자 슬래싱 (백서 V2) |
+|------|-------------|------------------------|
 | **슬래싱 조건** | Fraud proof 성공 | RAT 미응답 |
-| **슬래싱 금액** | 전체 담보금 | 전체 담보금 |
-| **슬래싱 방식** | 후처리 (별도 tx) | 선차감-복구 (별도 tx 불필요) |
+| **슬래싱 금액** | 전체 담보금 | **C_off** (페널티 금액) |
+| **슬래싱 방식** | 후처리 (별도 tx) | C_off 선차감-복구 |
+| **임계값 확인** | 없음 | **D_min 확인** |
+| **D_min 미만 시** | 해당 없음 | **즉시 활성 검증자 세트에서 제거** |
 | **챌린저 보상** | C_max + Δ/n | 없음 |
-| **귀속처** | DAO | RAT 컨트랙트 |
-| **담보금 형태** | 스테이킹 잔액 | 스테이킹 잔액 |
+| **귀속처** | DAO | TBD (미정) |
+| **담보금 형태** | 스테이킹 잔액 | RAT 대리 스테이킹 잔액 |
+| **시뇨리지** | 스테이커에게 지급 | 유지된 담보금만 검증자에게 지급, 몰수분은 TBD |
+| **잔액 처리** | 없음 | D_min 미만 제거 시 잔액 클레임 가능 |

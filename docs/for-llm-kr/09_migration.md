@@ -18,7 +18,7 @@
 8. 초기 파라미터 설정:
    - setDaoDistributionRatio(0.2e27)     // d = 20%
    - setMinStakingRatio(0.1e27)          // θ = 10%
-   - setValidatorDistributionRatio(0.2e27) // α_v = 20%
+   - setValidatorDistributionRatio(0.2e27) // α = 20%
    - setHalfSaturationPoint(10_000_000e27) // k = 1000만 TON
    - setStakedSeigFactor(1e27)           // λ = 100% (초기: V2와 동일)
 
@@ -143,7 +143,7 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 // V3 핵심 파라미터 (RAY 단위: 1e27)
 daoDistributionRatio = 0.2e27;        // d = 20%
 minStakingRatio = 0.1e27;             // θ = 10%
-validatorDistributionRatio = 0.2e27; // α_v = 20%
+validatorDistributionRatio = 0.2e27; // α = 20%
 halfSaturationPoint = 10_000_000e27; // k = 1000만 TON
 
 // 전환 파라미터 (초기값)
@@ -187,6 +187,6 @@ ratResponseWindow = 1 hours;
 
 ## 8. 참고 자료
 
-- **Tokamak Economics Whitepaper V2** (December 3, 2025)
+- **Tokamak Economics Whitepaper V2** (December 9, 2025)
 - **TON Staking V2 문서**: `/Users/zena/tonv2/ton-staking-v2/docs/kr/ton-staking-v2.md`
 - **V2 코드베이스**: `/Users/zena/tonv2/ton-staking-v2/contracts/`

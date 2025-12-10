@@ -14,14 +14,14 @@
 |---------|------|------|--------|------|
 | **daoDistributionRatio** | d | DAO 고정 분배 비율 | 0.2e27 (20%) | RAY |
 | **minStakingRatio** | θ | 최소 스테이킹 비율 (자격 조건) | 0.1e27 (10%) | RAY |
-| **validatorDistributionRatio** | α_v | 검증자 분배 비율 | 0.2e27 (20%) | RAY |
+| **validatorDistributionRatio** | α | 검증자 분배 비율 | 0.2e27 (20%) | RAY |
 | **halfSaturationPoint** | k | 쌍곡선 반포화점 | 10,000,000e27 | RAY (TON) |
 
 **관련 공식:**
 - 백서 (7): `S_DAO = d · A₂`
 - 백서 (8): `S_i ≥ θ · B_i`
 - 백서 (11): `y(k) = L/2`
-- 백서 (13): `v_i = (α_v/n) · y(x)`
+- 백서 (13): `v_i = (α/n) · y(x)`
 
 ---
 
@@ -39,34 +39,37 @@
 
 ---
 
-### 2.3 슬래싱 파라미터
+### 2.3 시퀀서 슬래싱 파라미터
 
 | 파라미터 | 기호 | 설명 | 권장값 | 비고 |
 |---------|------|------|--------|------|
 | **maxChallengers** | H_max | 최대 동시 챌린저 수 | 10 | 프로토콜 레벨 |
-| **maxFraudProofCost** | C_max | 단일 fraud proof 최대 온체인 비용 | 10e27 (10 TON) | RAY 단위 |
-| **penaltyFactor** | γ | 반복 위반 페널티 팩터 | TBD (γ > 1) | - |
-| **slashingWindow** | - | 슬래싱 윈도우 기간 | TBD | 초(seconds) |
+| **maxFraudProofCost** | C_max | 단일 fraud proof 예상(estimated) 온체인 비용 | 10e27 (10 TON) | RAY 단위 |
 | **minimumInitialDepositAmount** | - | V2 최소 담보금 (하위 호환) | 1000.1e27 | RAY 단위 |
 
 **관련 공식:**
 - 백서 (1): `D_sequencer = H_max · C_max + Δ_sequencer`
 - 백서 (2): `R_challenger = C_max + (Δ_sequencer / n)`
-- 백서 (3): `D^(n) = γ^(n-1) · D^(1)`
+
+> **참고**: γ squared 공식 (`D^(n) = γ^(n-1) · D^(1)`)은 백서 V2 (December 9, 2025)에서 제거되었습니다. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정입니다.
 
 ---
 
-### 2.4 검증자 풀 파라미터
+### 2.4 검증자 파라미터 (백서 V2)
 
-| 파라미터 | 설명 | 권장값 | 비고 |
-|---------|------|--------|------|
-| **minimumValidatorDeposit** | 최소 검증자 담보금 | 10,000e27 (1만 WTON) | RAY 단위 |
-| **ratProbability** | RAT 발생 확률 (π_a) | 0.01e27 (1%) | RAY 단위 |
-| **ratResponseWindow** | RAT 응답 윈도우 | 1 hours | 초(seconds) |
+| 파라미터 | 기호 | 설명 | 권장값 | 비고 |
+|---------|------|------|--------|------|
+| **attentionCost** | c_m | 에폭당 attentiveness 유지 비용 | TBD | RAY 단위 |
+| **ratTriggerProbability** | π_a | RAT 트리거 확률 | 0.01e27 (1%) | RAY 단위 |
+| **slashingPenalty** | C_off | 오프라인 시 슬래싱 페널티 | TBD | 백서 (4)로 계산 |
+| **validatorBuffer** | Δ_validator | 검증자 추가 담보금 | TBD | 검증자별 설정 |
+| **minimumThreshold** | D_min | 최소 담보금 임계값 | TBD | C_off 이상 권장 |
+| **evidenceSubmissionPeriod** | - | 증거 제출 기간 | ~24시간 | 블록 수 |
 
-**관련 공식:**
-- 백서 (5): `D_validator ≥ (c_m · N) / π_a`
-- 백서 (6): `D_validator = (c_m · N) / π_a + Δ_validator`
+**관련 공식 (백서 V2 Page 11):**
+- 백서 (3): `c_m ≤ (π_a / N) · C_off` - RAT 균형 조건
+- 백서 (4): `C_off ≥ (c_m · N) / π_a` - 최소 슬래싱 페널티
+- 백서 (5): `D_validator = C_off + Δ_validator` - 실제 담보금
 
 ---
 
@@ -80,23 +83,25 @@
 // 시뇨리지 분배
 uint256 public daoDistributionRatio;       // d
 uint256 public minStakingRatio;            // θ
-uint256 public validatorDistributionRatio; // α_v
+uint256 public validatorDistributionRatio; // α
 uint256 public halfSaturationPoint;        // k
 
 // 전환
 uint256 public stakedSeigFactor;           // λ
 uint256 public relativeSeigRate;           // r
 
-// 슬래싱
+// 시퀀서 슬래싱
 uint256 public maxChallengers;             // H_max
 uint256 public maxFraudProofCost;          // C_max
-uint256 public penaltyFactor;              // γ
-uint256 public slashingWindow;
+uint256 public minimumInitialDepositAmount; // V2 최소 담보금
 
-// 검증자
-uint256 public minimumValidatorDeposit;
-uint256 public ratProbability;             // π_a
-uint256 public ratResponseWindow;
+// 검증자 (백서 V2)
+uint256 public attentionCost;              // c_m
+uint256 public ratTriggerProbability;      // π_a
+uint256 public slashingPenalty;            // C_off
+uint256 public validatorBuffer;            // Δ_validator
+uint256 public minimumThreshold;           // D_min
+uint256 public evidenceSubmissionPeriod;
 ```
 
 ### 3.2 개별 설정 가능
@@ -123,7 +128,7 @@ mapping(address => uint256) public sequencerAdditionalReward;
 // ========================================
 daoDistributionRatio = 0.2e27;        // d = 20%
 minStakingRatio = 0.1e27;             // θ = 10%
-validatorDistributionRatio = 0.2e27; // α_v = 20%
+validatorDistributionRatio = 0.2e27; // α = 20%
 halfSaturationPoint = 10_000_000e27; // k = 1000만 TON
 
 // ========================================
@@ -133,20 +138,21 @@ stakedSeigFactor = 1e27;              // λ = 100%
 relativeSeigRate = 0.4e27;            // r = 40%
 
 // ========================================
-// 슬래싱 파라미터
+// 시퀀서 슬래싱 파라미터
 // ========================================
 maxChallengers = 10;                   // H_max = 10명
-maxFraudProofCost = 10e27;             // C_max = 10 TON
+maxFraudProofCost = 10e27;             // C_max = 10 TON (예상 비용)
 minimumInitialDepositAmount = 1000.1e27; // V2 기존값 유지
-penaltyFactor = TBD;                   // γ: 거버넌스 결정 필요
-slashingWindow = TBD;                  // 거버넌스 결정 필요
 
 // ========================================
-// 검증자 풀 파라미터
+// 검증자 파라미터 (백서 V2)
 // ========================================
-minimumValidatorDeposit = 10_000e27;  // 최소 1만 WTON
-ratProbability = 0.01e27;             // π_a = 1%
-ratResponseWindow = 1 hours;
+attentionCost = TBD;                   // c_m: 에폭당 유지 비용
+ratTriggerProbability = 0.01e27;       // π_a = 1%
+slashingPenalty = TBD;                 // C_off: 백서 (4)로 계산
+validatorBuffer = TBD;                 // Δ_validator: 검증자별 설정
+minimumThreshold = TBD;                // D_min: C_off 이상 권장
+evidenceSubmissionPeriod = 7200;       // ~24시간 (블록 수)
 ```
 
 ---
@@ -159,7 +165,7 @@ ratResponseWindow = 1 hours;
 |---------|-------------|-------------|
 | **d (DAO 비율)** | DAO 수익 증가, L2 인센티브 감소 | DAO 수익 감소, L2 인센티브 증가 |
 | **θ (최소 스테이킹)** | 자격 조건 강화, 참여 L2 감소 | 자격 조건 완화, 참여 L2 증가 |
-| **α_v (검증자 비율)** | 검증자 수익 증가, 시퀀서 수익 감소 | 검증자 수익 감소, 시퀀서 수익 증가 |
+| **α (검증자 비율)** | 검증자 수익 증가, 시퀀서 수익 감소 | 검증자 수익 감소, 시퀀서 수익 증가 |
 | **k (반포화점)** | 포화 속도 감소, 대형 L2 유리 | 포화 속도 증가, 소형 L2 유리 |
 
 ### 5.2 전환 파라미터 조정
@@ -174,14 +180,21 @@ ratResponseWindow = 1 hours;
 | **스테이커 APY** | 스테이커의 연간 수익률 | APY가 목표 범위 내일 때 전환 진행 |
 | **TON 가격 변동성** | 시장 안정성 지표 | 변동성 낮을 때 전환 가속 |
 
-### 5.3 슬래싱 파라미터 조정
+### 5.3 시퀀서 슬래싱 파라미터 조정
 
 | 파라미터 | 증가 시 효과 | 감소 시 효과 |
 |---------|-------------|-------------|
 | **H_max** | 더 많은 챌린저 참여 가능 | 챌린저 참여 제한 |
 | **C_max** | 챌린저 보상 증가, 시퀀서 담보금 증가 | 챌린저 보상 감소 |
-| **γ (페널티 팩터)** | 반복 위반 억제력 강화 | 반복 위반 억제력 약화 |
-| **slashingWindow** | 더 긴 기간 동안 위반 누적 | 더 짧은 기간 동안만 위반 누적 |
+
+### 5.4 검증자 파라미터 조정 (백서 V2)
+
+| 파라미터 | 증가 시 효과 | 감소 시 효과 |
+|---------|-------------|-------------|
+| **c_m (유지 비용)** | C_off 증가 필요 | C_off 감소 가능 |
+| **π_a (RAT 확률)** | 검증자 부담 증가, C_off 감소 가능 | 검증자 부담 감소, C_off 증가 필요 |
+| **C_off (슬래싱 페널티)** | 검증자 진입 장벽 증가 | 검증자 진입 장벽 감소 |
+| **D_min (최소 임계값)** | 검증자 퇴출 기준 강화 | 검증자 퇴출 기준 완화 |
 
 ---
 
@@ -204,8 +217,11 @@ ratResponseWindow = 1 hours;
 
 | 파라미터 | 설명 | 결정 시 고려사항 |
 |---------|------|-----------------|
-| **penaltyFactor (γ)** | 반복 위반 페널티 팩터 | 1.5~2.0 권장, 억제력과 공정성 균형 |
-| **slashingWindow** | 슬래싱 윈도우 기간 | 1주~1개월 권장, 시퀀서 회복 기회 고려 |
+| **attentionCost (c_m)** | 에폭당 attentiveness 유지 비용 | 검증자 운영 비용 측정 필요 |
+| **slashingPenalty (C_off)** | 오프라인 시 슬래싱 페널티 | 백서 (4) `C_off ≥ (c_m · N) / π_a` |
+| **minimumThreshold (D_min)** | 최소 담보금 임계값 | C_off 이상 권장 |
+
+> **참고**: γ squared 공식 관련 파라미터 (`penaltyFactor`, `slashingWindow`)는 백서 V2에서 제거되었습니다.
 
 ---
 
@@ -223,22 +239,25 @@ function setRelativeSeigRate(uint256 rate) external onlyOwner;
 function setValidatorPool(address pool) external onlyOwner;
 ```
 
-### 8.2 슬래싱 컨트랙트
+### 8.2 슬래싱 컨트랙트 (시퀀서)
 
 ```solidity
 function setMaxChallengers(uint256 hMax) external onlyOwner;
 function setMaxFraudProofCost(uint256 cMax) external onlyOwner;
-function setPenaltyFactor(uint256 gamma) external onlyOwner;
-function setSlashingWindow(uint256 window) external onlyOwner;
 function setMinimumInitialDepositAmount(uint256 amount) external onlyOwner;
 ```
 
-### 8.3 ValidatorPoolV1
+### 8.3 RAT 컨트랙트 (검증자, 백서 V2)
 
 ```solidity
-function setMinimumValidatorDeposit(uint256 amount) external onlyOwner;
-function setRatProbability(uint256 probability) external onlyOwner;
-function setRatResponseWindow(uint256 window) external onlyOwner;
+function setAttentionCost(uint256 cost) external onlyOwner;
+function setSlashingPenalty(uint256 penalty) external onlyOwner;
+function setValidatorBuffer(uint256 buffer) external onlyOwner;
+function setMinimumThreshold(uint256 threshold) external onlyOwner;
+function setRatTriggerProbability(uint256 probability) external onlyOwner;
+function setEvidenceSubmissionPeriod(uint256 period) external onlyOwner;
+function getMinimumCollateral() external view returns (uint256);  // C_off + Δ_validator
+function validateSlashingPenalty(uint256 n) external view returns (bool);  // 백서 (4) 검증
 ```
 
 ---

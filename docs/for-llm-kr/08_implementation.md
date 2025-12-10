@@ -19,8 +19,8 @@ contract SeigManagerV1_4Storage {
     /// @dev 백서 공식 (8): S_i ≥ θ · B_i
     uint256 public minStakingRatio;
 
-    /// @notice α_v: 검증자 분배 비율 (0 < α_v < 1), RAY 단위
-    /// @dev 백서 공식 (13): v_i = (α_v/n) · y(x)
+    /// @notice α: 검증자 분배 비율 (0 < α < 1), RAY 단위
+    /// @dev 백서 공식 (13): v_i = (α/n) · y(x)
     uint256 public validatorDistributionRatio;
 
     /// @notice k: 반포화점 (half-saturation point), RAY 단위
@@ -68,7 +68,7 @@ contract SeigManagerV1_4Storage {
         uint256 endBlock;
         uint256 totalSeigniorage;
         uint256 totalDistributed;       // y(x)
-        uint256 validatorPoolAmount;    // α_v · y(x)
+        uint256 validatorPoolAmount;    // α · y(x)
         bool finalized;
     }
 
@@ -146,7 +146,7 @@ function calculateL2Seigniorage(
 }
 
 /// @notice 시퀀서 보상 계산
-/// @dev 백서 공식 (13): o_i = (1 - α_v) · Seig_i
+/// @dev 백서 공식 (13): o_i = (1 - α) · Seig_i
 function calculateSequencerReward(uint256 l2Seigniorage)
     public view
     returns (uint256)
@@ -243,7 +243,7 @@ function _distributeV3Seigniorage(uint256 A2) internal {
         // y(x) = L · (x / (k + x))
         y = FullMath.rmul(L, FullMath.rdiv(x, halfSaturationPoint + x));
 
-        // 검증자 풀: α_v · y(x) (백서 공식 13)
+        // 검증자 풀: α · y(x) (백서 공식 13)
         validatorPoolAmount = FullMath.rmul(y, validatorDistributionRatio);
 
         // 단위당 보상 누적 (시퀀서용)
@@ -304,7 +304,7 @@ event SeigGivenV3(
     uint256 totalDistributed,   // y(x): 쌍곡선 결과
     uint256 l2Seigniorage,      // Seig_i: 해당 L2 분배량
     uint256 sequencerReward,    // o_i: 시퀀서 보상
-    uint256 validatorPoolAmount,// α_v·y(x): 검증자 풀
+    uint256 validatorPoolAmount,// α·y(x): 검증자 풀
     uint256 undistributed       // L - y(x): DAO 추가분
 );
 
@@ -400,8 +400,21 @@ contract ValidatorPoolStorage {
     address public wton;
     address public ton;
 
-    /// @notice 최소 검증자 담보금
+    /// @notice 최소 검증자 담보금 (D_validator)
+    /// @dev 백서 공식 (5): D_validator = C_off + Δ_validator
     uint256 public minimumValidatorDeposit;
+
+    // ==========================================
+    // 백서 V2 신규 파라미터
+    // ==========================================
+
+    /// @notice C_off: 슬래싱 페널티 (백서 공식 4)
+    /// @dev 백서 공식 (4): C_off ≥ (c_m · N) / π_a
+    uint256 public slashingPenalty;
+
+    /// @notice D_min: 최소 담보금 임계값
+    /// @dev 잔액이 D_min 미만이면 활성 검증자 세트에서 제거
+    uint256 public minimumThreshold;
 }
 ```
 
@@ -420,7 +433,7 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     // ==========================================
 
     /// @notice 검증자 등록
-    /// @dev 백서 공식 (6): D_validator = (c_m·N)/π_a + Δ_validator
+    /// @dev 백서 공식 (5): D_validator = C_off + Δ_validator
     function registerValidator(uint256 depositAmount) external {
         require(!validatorInfo[msg.sender].isActive, "already registered");
         require(depositAmount >= getMinimumDeposit(), "insufficient deposit");
@@ -460,10 +473,11 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     }
 
     /// @notice 최소 담보금 계산
-    /// @dev 백서 공식 (5): D_validator ≥ (c_m·N)/π_a
+    /// @dev 백서 V2 공식 (5): D_validator = C_off + Δ_validator
+    /// @dev 07_rat_implementation.md의 getMinimumCollateral()과 동일
     function getMinimumDeposit() public view returns (uint256) {
-        // 구현: 프로토콜 파라미터 기반 계산
-        // 간소화: 고정값 사용 가능
+        // 백서 V2 공식: D_validator = C_off + Δ_validator
+        // minimumValidatorDeposit = slashingPenalty + validatorBuffer로 설정됨
         return minimumValidatorDeposit;
     }
 
@@ -508,7 +522,9 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     }
 
     /// @notice RAT 미응답 슬래싱
-    /// @dev 백서: "full collateral slashing"
+    /// @dev 백서 V2: C_off 기반 슬래싱 (전체 담보금이 아닌 페널티 금액만)
+    /// @dev 실제 구현은 RAT.sol의 선차감-복구 메커니즘 사용
+    /// @dev 이 함수는 07_rat_implementation.md의 triggerAttentionTest와 연동
     function slashUnresponsiveValidator(address validator, uint256 batchId)
         external
     {
@@ -523,16 +539,24 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
         challenge.slashed = true;
 
         ValidatorInfo storage info = validatorInfo[validator];
-        uint256 slashedAmount = info.depositAmount;
 
-        info.depositAmount = 0;
-        info.isActive = false;
-        activeValidatorCount--;
+        // ★ 백서 V2: C_off만 슬래싱 (전체 담보금이 아님)
+        uint256 slashedAmount = slashingPenalty;
+        if (info.depositAmount < slashedAmount) {
+            slashedAmount = info.depositAmount;  // 잔액이 C_off 미만이면 전액
+        }
+        info.depositAmount -= slashedAmount;
 
-        // 슬래싱된 금액은 프로토콜 재무로
-        // (또는 DAO로 전송)
+        // ★ 백서 V2: D_min 미만이면 즉시 활성 검증자 세트에서 제거
+        if (info.depositAmount < minimumThreshold) {
+            info.isActive = false;
+            activeValidatorCount--;
+            // 잔액은 검증자가 클레임하여 출금 가능
+        }
 
-        emit ValidatorSlashed(validator, slashedAmount);
+        // 슬래싱된 금액 처리 (TBD: DAO 또는 프로토콜 재무)
+
+        emit ValidatorSlashed(validator, slashedAmount, info.depositAmount < minimumThreshold);
     }
 
     // ==========================================
@@ -540,7 +564,7 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     // ==========================================
 
     /// @notice 기간 보상 분배 (SeigManager에서 호출)
-    /// @dev 백서 공식 (13): v_i = (α_v/n) · y(x)
+    /// @dev 백서 공식 (13): v_i = (α/n) · y(x)
     function distributePeriodRewards(uint256 periodId, uint256 totalAmount)
         external
         onlySeigManager
@@ -583,7 +607,11 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
 
     event ValidatorRegistered(address indexed validator, uint256 depositAmount);
     event ValidatorDeactivated(address indexed validator);
-    event ValidatorSlashed(address indexed validator, uint256 amount);
+    /// @notice 백서 V2: C_off 기반 슬래싱 이벤트
+    /// @param validator 슬래싱된 검증자
+    /// @param slashedAmount 슬래싱된 금액 (C_off 또는 잔액 전액)
+    /// @param removedFromSet D_min 미만으로 활성 세트에서 제거되었는지
+    event ValidatorSlashed(address indexed validator, uint256 slashedAmount, bool removedFromSet);
     event RATIssued(address indexed validator, uint256 indexed batchId, uint256 deadline);
     event RATResponded(address indexed validator, uint256 indexed batchId, bool attestation);
     event ValidatorRewardDistributed(uint256 indexed periodId, uint256 totalAmount, uint256 perValidator);

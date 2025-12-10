@@ -1,6 +1,6 @@
 # TON Staking V3 스마트 컨트랙트 구현 명세서
 
-> **참고 문서**: [Tokamak_Economics_Whitepaper.pdf](../Tokamak_Economics_Whitepaper.pdf)
+> **참고 문서**: [Tokamak_Economics_Whitepape_V2_(121025).pdf](../Tokamak_Economics_Whitepape_V2_(121025).pdf) (December 9, 2025)
 
 ## 개요
 
@@ -8,12 +8,12 @@
 
 ### V3의 핵심 변경사항
 
-| 구분 | V2 | V3 |일부
+| 구분 | V2 | V3 |
 |------|-----|-----|
 | **시뇨리지 분배 기준** | L2 TVL (단순 비례) | Bridged TON (성과 기반) |
 | **분배 함수** | 선형 분배 | 쌍곡선 포화 함수 y(x) = L·(x/(k+x)) |
 | **자격 조건** | 최소 예치금만 | S_i ≥ θ·B_i (스테이킹 비율 강제) |
-| **검증자 보상** | 없음 | α_v·y(x) / n (RAT 기반) |
+| **검증자 보상** | 없음 | α·y(x) / n (RAT 기반) |
 | **DAO 할당** | 고정 비율 | 고정 비율 + 미분배분 |
 
 ---
@@ -34,6 +34,9 @@
 | **[08_implementation.md](./08_implementation.md)** | SeigManagerV1_4, ValidatorPoolV1, Layer2ManagerV1_2 구현 코드 |
 | **[09_migration.md](./09_migration.md)** | 마이그레이션 가이드, 테스트 체크리스트, 배포 파라미터 |
 | **[10_governance_parameters.md](./10_governance_parameters.md)** | 거버넌스 결정 파라미터 통합, 조정 가이드, 미결정 항목 |
+| **[11_whitepaper_v2_changes.md](./11_whitepaper_v2_changes.md)** | 백서 V2 변경사항 추적, 문서 수정 이력 |
+| **[12_tbd_items.md](./12_tbd_items.md)** | 미결정 항목 (TBD), 설계 결정 필요 사항 |
+| **[13_external_interfaces.md](./13_external_interfaces.md)** | 외부 인터페이스, 호출 주체/시점, 이벤트 |
 
 ---
 
@@ -78,7 +81,7 @@ A₂ = A · (1 - 0) · (1 - 0) = A
 | (10) | `x = Σ B̃_i` | 전체 유효 Bridged TON |
 | (11) | `y(x) = L · (x/(k+x))` | 쌍곡선 포화 함수 |
 | (12) | `Seig_i = y(x) · (B̃_i/x)` | L2별 시뇨리지 |
-| (13) | `o_i = (1-α_v)·Seig_i`, `v_i = (α_v/n)·y(x)` | 시퀀서/검증자 분배 |
+| (13) | `o_i = (1-α)·Seig_i`, `v_i = (α/n)·y(x)` | 시퀀서/검증자 분배 |
 
 ---
 
@@ -110,7 +113,7 @@ contracts/
 // 백서 기반 파라미터 (RAY 단위: 1e27)
 uint256 public daoDistributionRatio;      // d: DAO 고정 비율 (0.2e27 = 20%)
 uint256 public minStakingRatio;           // θ: 최소 스테이킹 비율 (0.1e27 = 10%)
-uint256 public validatorDistributionRatio; // α_v: 검증자 분배 비율 (0.2e27 = 20%)
+uint256 public validatorDistributionRatio; // α: 검증자 분배 비율 (0.2e27 = 20%)
 uint256 public halfSaturationPoint;       // k: 반포화점 (10_000_000e27 TON)
 uint256 public stakedSeigFactor;          // λ: 지분 시뇨리지 비율 (전환용)
 ```
@@ -119,6 +122,6 @@ uint256 public stakedSeigFactor;          // λ: 지분 시뇨리지 비율 (전
 
 ## 참고 자료
 
-- **Tokamak Economics Whitepaper V2** (December 3, 2025)
+- **Tokamak Economics Whitepaper V2** (December 9, 2025)
 - **TON Staking V2 문서**: `tokamak-network/ton-staking-v2/docs/kr/ton-staking-v2.md`
 - **V2 코드베이스**: `tokamak-network/ton-staking-v2/contracts/`
