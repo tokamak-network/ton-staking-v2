@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import { FullMath } from "../../libraries/FullMath.sol";
 import { IDepositManager } from "../interfaces/IDepositManager.sol";
 import { ICandidate } from "../../dao/interfaces/ICandidate.sol";
 import { ILayer2Registry } from "../../dao/interfaces/ILayer2Registry.sol";
@@ -11,7 +12,6 @@ import { PauserRoleRenounceTarget } from "../interfaces/PauserRoleRenounceTarget
 import { OwnableTarget } from "../interfaces/OwnableTarget.sol";
 
 import { IRefactor } from "../interfaces/IRefactor.sol";
-import { DSMath } from "../../libraries/DSMath.sol";
 import { RefactorCoinageSnapshotI } from "../interfaces/RefactorCoinageSnapshotI.sol";
 import { CoinageFactoryI } from "../../dao/interfaces/CoinageFactoryI.sol";
 import { IWTON } from "../../dao/interfaces/IWTON.sol";
@@ -52,7 +52,10 @@ import { SeigManagerV1_1Storage } from "./SeigManagerV1_1Storage.sol";
  *     - withdrawal ratio of the account  = amount to withdraw / total supply of coinage
  *
  */
-contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, SeigManagerV1I, DSMath {
+contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerStorage, SeigManagerV1_1Storage, SeigManagerV1I {
+  using FullMath for uint256;
+
+  uint constant WAD_UNIT = 1e18;
 
   //////////////////////////////
   // Modifiers
@@ -158,7 +161,7 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
 
   function pause() public onlyPauser whenNotPaused {
-    revert("Moved to SeigManagerV1_3.");
+    revert("Moved to SeigManagerV1_2.");
     _pausedBlock = block.number;
     paused = true;
     emit Paused(msg.sender);
@@ -507,10 +510,12 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 nextTotalSupply = _tot.balanceOf(layer2);
     uint256 newFactor = _calcNewFactor(prevTotalSupply, nextTotalSupply, prevFactor);
 
-    uint256 uncommittedBalance = rmul(
-      rdiv(coinage.balanceOf(account), prevFactor),
-      newFactor
-    );
+    // uint256 uncommittedBalance = rmul(
+    //   rdiv(coinage.balanceOf(account), prevFactor),
+    //   newFactor
+    // );
+
+    uint256 uncommittedBalance = coinage.balanceOf(account).mulDivRoundingUp(RAY, prevFactor).mulDivRoundingUp(newFactor,RAY);
 
     return (uncommittedBalance - _coinages[layer2].balanceOf(account));
   }
@@ -613,17 +618,22 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
     //       note that coinageTotalSupply and totBalalnce are RAY values.
-    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_) {
+    if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WAD_UNIT) {
       return 0;
     }
 
-    return rdiv(
-      rmul(
-        totBalalnce - coinageTotalSupply,
-        amount
-      ),
-      coinageTotalSupply
-    );
+
+    // return rdiv(
+    //   rmul(
+    //     totBalalnce - coinageTotalSupply,
+    //     amount
+    //   ),
+    //   coinageTotalSupply
+    // );
+
+    return (totBalalnce - coinageTotalSupply).mulDivRoundingUp(amount,RAY)
+      .mulDivRoundingUp(RAY,coinageTotalSupply);
+
   }
 
 
@@ -655,7 +665,8 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
     // if commission rate is possitive
     if (!isCommissionRateNegative_) {
-      operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
+      // operatorSeigs = rmul(seigs, commissionRate); // additional seig for operator
+      operatorSeigs = seigs.mulDivRoundingUp(commissionRate, RAY); // additional seig for operator
       nextTotalSupply = nextTotalSupply - operatorSeigs;
       return (nextTotalSupply, operatorSeigs);
     }
@@ -673,18 +684,26 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
       return (nextTotalSupply, operatorSeigs);
     }
 
-    uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
+    // uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
+    uint256 operatorRate = operatorBalance.mulDivRoundingUp(RAY, prevTotalSupply);
 
     // ɑ: insufficient seig for operator
-    operatorSeigs = rmul(
-      rmul(seigs, operatorRate), // seigs for operator
-      commissionRate
-    );
+    // operatorSeigs = rmul(
+    //   rmul(seigs, operatorRate), // seigs for operator
+    //   commissionRate
+    // );
+    operatorSeigs = seigs.mulDivRoundingUp(operatorRate, RAY).mulDivRoundingUp(commissionRate, RAY);
+
 
     // β:
+    // uint256 delegatorSeigs = operatorRate == RAY
+    //   ? operatorSeigs
+    //   : rdiv(operatorSeigs, RAY - operatorRate);
+
     uint256 delegatorSeigs = operatorRate == RAY
       ? operatorSeigs
-      : rdiv(operatorSeigs, RAY - operatorRate);
+      : operatorSeigs.mulDivRoundingUp(RAY, RAY - operatorRate);
+
 
     // 𝜸:
     // operatorSeigs = operatorRate == RAY
@@ -701,7 +720,8 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   }
 
   function _calcNewFactor(uint256 source, uint256 target, uint256 oldFactor) internal pure returns (uint256) {
-    return rdiv(rmul(target, oldFactor), source);
+    // return rdiv(rmul(target, oldFactor), source);
+    return target.mulDivRoundingUp(oldFactor,RAY).mulDivRoundingUp(RAY, source);
   }
 
 
@@ -747,17 +767,20 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 tos = totalSupplyOfTon();
 
     // maximum seigniorages * staked rate
-    uint256 stakedSeig = rdiv(
-      rmul(
-        maxSeig,
-        // total staked amount
-        _tot.totalSupply()
-      ),
-      tos
-    );
+    // uint256 stakedSeig = rdiv(
+    //   rmul(
+    //     maxSeig,
+    //     // total staked amount
+    //     _tot.totalSupply()
+    //   ),
+    //   tos
+    // );
+
+    uint256 stakedSeig = maxSeig.mulDivRoundingUp(_tot.totalSupply(), RAY).mulDivRoundingUp(RAY, tos);
 
     // pseig
-    uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
+    // uint256 totalPseig = rmul(maxSeig - stakedSeig, relativeSeigRate);
+    uint256 totalPseig = (maxSeig - stakedSeig).mulDivRoundingUp(relativeSeigRate, RAY);
 
     nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
     _lastSeigBlock = block.number;
@@ -777,13 +800,16 @@ contract SeigManagerV1_1 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
     uint256 relativeSeig;
 
     if (address(_powerton) != address(0)) {
-      powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+      // powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+      powertonSeig = unstakedSeig.mulDivRoundingUp(powerTONSeigRate, RAY);
+
       IWTON(_wton).mint(address(_powerton), powertonSeig);
       // IPowerTON(_powerton).updateSeigniorage(powertonSeig);
     }
 
     if (dao != address(0)) {
-      daoSeig = rmul(unstakedSeig, daoSeigRate);
+      // daoSeig = rmul(unstakedSeig, daoSeigRate);
+      daoSeig = unstakedSeig.mulDivRoundingUp(daoSeigRate, RAY);
       IWTON(_wton).mint(address(dao), daoSeig);
     }
 
