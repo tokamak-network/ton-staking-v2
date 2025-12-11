@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 interface IWTON {
-
+    function ton() external view returns (address);
     function onApprove(
         address owner,
         address spender,
@@ -18,5 +18,5 @@ interface IWTON {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function renounceMinter() external ;
     function mint(address account, uint256 amount) external returns (bool);
-
+    function balanceOf(address account) external view returns (uint256 amount);
 }

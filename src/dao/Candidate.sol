@@ -158,7 +158,7 @@ contract Candidate is ProxyStorage, AccessibleCommon, CandidateStorage, ILayer2 
 
     function operator() external view override returns (address) { return candidate; }
     function isLayer2() external view override returns (bool) { 
-        return isLayer2Candidate; 
+        return true; 
     }
     function currentFork() external pure override returns (uint256) { return 1; }
     function lastEpoch(uint256 forkNumber) external pure override returns (uint256) { return 1; }
