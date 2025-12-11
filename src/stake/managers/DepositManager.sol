@@ -126,17 +126,9 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
   function _deposit(address layer2, address account, uint256 amount, address payer) internal onlyLayer2(layer2) returns (bool) {
     require(account != address(0) && amount != 0, "zero amount or zero address");
 
-    uint256 amountOfLayerAccount =  _accStaked[layer2][account];
-    uint256 amountOfLayer =  _accStakedLayer2[layer2];
-    uint256 amountOfAccount =  _accStakedAccount[account];
-
-    amountOfLayerAccount += amount;
-    amountOfLayer += amount;
-    amountOfAccount += amount;
-
-    _accStaked[layer2][account] = amountOfLayerAccount;
-    _accStakedLayer2[layer2] = amountOfLayer;
-    _accStakedAccount[account] = amountOfAccount;
+    _accStaked[layer2][account] = _accStaked[layer2][account] + amount;
+    _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + amount;
+    _accStakedAccount[account] = _accStakedAccount[account] + amount;
 
     IERC20(_wton).safeTransferFrom(payer, address(this), amount);
 
@@ -192,31 +184,14 @@ contract DepositManager is ProxyStorage, AccessibleCommon, DepositManagerStorage
 
 
     // deposit-related storages
-
-    uint256 amountOfLayerAccount =  _accStaked[layer2][msg.sender];
-    uint256 amountOfLayer =  _accStakedLayer2[layer2];
-    uint256 amountOfAccount =  _accStakedAccount[msg.sender];
-
-    amountOfLayerAccount += accAmount;
-    amountOfLayer += accAmount;
-    amountOfAccount += accAmount;
-
-    _accStaked[layer2][msg.sender] = amountOfLayerAccount;
-    _accStakedLayer2[layer2] = amountOfLayer;
-    _accStakedAccount[msg.sender] = amountOfAccount;
+    _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
+    _accStakedLayer2[layer2] = _accStakedLayer2[layer2] + accAmount;
+    _accStakedAccount[msg.sender] = _accStakedAccount[msg.sender] + accAmount;
 
     // withdrawal-related storages
-    uint256 pendingOfLayerAccount =  _pendingUnstaked[layer2][msg.sender];
-    uint256 pendingOfLayer =  _pendingUnstakedLayer2[layer2];
-    uint256 pendingOfAccount =  _pendingUnstakedAccount[msg.sender];
-
-    pendingOfLayerAccount -= accAmount;
-    pendingOfLayer -= accAmount;
-    pendingOfAccount -= accAmount;
-
-    _pendingUnstaked[layer2][msg.sender] = pendingOfLayerAccount;
-    _pendingUnstakedLayer2[layer2] = pendingOfLayer;
-    _pendingUnstakedAccount[msg.sender] = pendingOfAccount;
+    _pendingUnstaked[layer2][msg.sender] = _pendingUnstaked[layer2][msg.sender] - accAmount;
+    _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] - accAmount;
+    _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] - accAmount;
 
     _withdrawalRequestIndex[layer2][msg.sender] += n;
 

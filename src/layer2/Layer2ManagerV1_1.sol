@@ -49,9 +49,6 @@ error IncludeError();
  */
 error OnApproveError(uint x);
 
-// interface OnApprove {
-//     function onApprove(address owner, address spender, uint256 amount, bytes calldata data) external returns (bool);
-// }
 
 contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
@@ -108,12 +105,13 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     event SetOperatorManagerFactory(address _operatorManagerFactory);
 
     /**
-     * @notice Event that occurs when sending seigniorage to operator of layer2
+     * @notice Event occurs when pausisetting the operatorManagerFactory
      * @param layer2        the layer2 address
-     * @param operator      Address for receiving seigniorage
-     * @param amount        Transfer amount
+     * @param to            The address that receives the seigniorage. This will be the operator address.
+     * @param amount        Amount of transmission seigniorage
      */
-    event TransferWTON(address layer2, address operator, uint256 amount);
+    event TransferWTON(address layer2, address to, uint256 amount);
+
 
     modifier onlySeigManger() {
         require(seigManager == msg.sender, "sender is not a SeigManager");
@@ -137,6 +135,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         address _seigManager,
         address _swapProxy
     )  external  onlyOwner {
+        require(ton == address(0), "already initialized");
+
         l1BridgeRegistry = _l1BridgeRegistry;
         operatorManagerFactory = _operatorManagerFactory;
         ton = _ton;
@@ -152,6 +152,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     function setOperatorManagerFactory(
         address _operatorManagerFactory
     )  external  onlyOwner {
+        require(operatorManagerFactory != _operatorManagerFactory, "same");
         operatorManagerFactory = _operatorManagerFactory;
         emit SetOperatorManagerFactory( _operatorManagerFactory);
     }
@@ -187,6 +188,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         rollupConfigInfo[rollupConfig].status = 2;
         emit PausedCandidateAddOn(rollupConfig, _layer2);
+
     }
 
     /**
@@ -207,7 +209,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         if (!ISeigManager(seigManager).includeFromL2Seigniorage(_layer2)) revert IncludeError();
     }
 
-    /* ========== onlySeigManger  ========== */
+     /* ========== onlySeigManger  ========== */
 
     /**
      * @notice When executing update seigniorage, the seigniorage is settled to the Operator of Layer 2.
@@ -223,6 +225,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
         emit TransferWTON(layer2, operator, amount);
     }
+
 
     /* ========== Anybody can execute ========== */
 
@@ -244,9 +247,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _nonZeroAddress(rollupConfig);
         if (bytes(memo).length == 0) revert ZeroBytesError();
         if (rollupConfigInfo[rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(rollupConfig);
 
-        if (!res) revert RegisterError(5);
+        if (!_availableRegister(rollupConfig)) revert RegisterError(5);
         _transferDepositAmount(msg.sender, rollupConfig, amount, flagTon, memo);
     }
 
@@ -274,8 +276,8 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         _nonZeroAddress(_rollupConfig);
 
         if (rollupConfigInfo[_rollupConfig].operatorManager != address(0)) revert RegisterError(4);
-        (bool res,) = _availableRegister(_rollupConfig);
-        if (!res) revert RegisterError(5);
+
+        if (!_availableRegister(_rollupConfig)) revert RegisterError(5);
 
         // if (msg.sender == ton) _transferDepositAmount(owner, _rollupConfig, amount, true, string(bytes(data[20:])));
         // else _transferDepositAmount(owner, _rollupConfig, amount, false, string(bytes(data[20:])));
@@ -347,10 +349,17 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
          (result, l1Bridge, portal, l2Ton,,,,) = _checkL1BridgeDetail(_rollupConfig);
     }
 
-    function availableRegister(address _rollupConfig) external view returns (bool result, uint256 amount) {
+    function availableRegister(address _rollupConfig) external view returns (bool result) {
         return _availableRegister(_rollupConfig) ;
     }
 
+    function verifyOperator(address layer2, address _rollupConfig, address _operator ) external view returns (bool verified) {
+
+       if ( operatorOfLayer[layer2] == _operator &&
+            operatorInfo[_operator].rollupConfig == _rollupConfig &&
+            rollupConfigInfo[_rollupConfig].operatorManager == _operator) verified = true;
+
+    }
 
     /**
      * @notice Layer 2 related information search
@@ -380,7 +389,7 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     }
 
     function _checkL1BridgeDetail(address _rollupConfig)
-        public
+        internal
         view
         returns (bool result, address l1Bridge, address portal, address l2Ton, uint8 _type, uint8 status,
         bool rejectedSeigs, bool rejectedL2Deposit)
@@ -411,11 +420,12 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         }
     }
 
-
     function layerInfo(address layer2) external view returns (address rollupConfig, address operator) {
         operator = operatorOfLayer[layer2];
         rollupConfig = operatorInfo[operator].rollupConfig;
     }
+
+
 
     /* ========== internal ========== */
 
@@ -452,28 +462,11 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
 
     }
 
-    function _availableRegister(address _rollupConfig) internal view returns (bool result, uint256 amount) {
+    function _availableRegister(address _rollupConfig) internal view returns (bool result) {
 
         (uint8 _type,,,, ) = IL1BridgeRegistry(l1BridgeRegistry).getRollupInfo(_rollupConfig);
-        // if (bytes32(bytes(_name)) != bytes32((bytes(name_)))) return (false, 0);  /// It must be the same as the name registered in l1BridgeRegister.
+        return _type != 0 ? true : false;
 
-        if (_type == 1) { // optimism legacy : titan
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            if (l1Bridge != address(0)) {
-                amount = IERC20(ton).balanceOf(l1Bridge);
-                result = true;
-            }
-
-        } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
-
-            address l1Bridge = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
-            address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
-            if (optimismPortal != address(0) && l1Bridge != address(0) ) {
-                amount = IERC20(ton).balanceOf(optimismPortal);
-                result = true;
-            }
-        }
     }
 
     function _checkLayer2TVL(address _rollupConfig) internal view returns (bool result, uint256 amount) {
