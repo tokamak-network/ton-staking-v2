@@ -2,4 +2,8 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+test = "test"
 via_ir = true
+
+[profile.default.fuzz]
+runs = 256
