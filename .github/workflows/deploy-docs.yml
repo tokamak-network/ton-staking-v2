@@ -42,6 +42,11 @@ jobs:
       - name: Build website
         run: npm run build
 
+      - name: Move build to docs-v3 folder
+        run: |
+          mkdir -p ../deploy/docs-v3
+          mv build/* ../deploy/docs-v3/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
@@ -50,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs-site/build
+          path: docs-site/deploy
 
   deploy:
     environment:
