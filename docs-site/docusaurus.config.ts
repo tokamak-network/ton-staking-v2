@@ -44,7 +44,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/tokamak-network/ton-staking-v2/tree/main/docs-site/',
+          editUrl: 'https://github.com/tokamak-network/ton-staking-v2/tree/ton-staking-v3/dev/docs-site/',
         },
         blog: false, // 블로그 비활성화
         theme: {
