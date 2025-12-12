@@ -30,6 +30,7 @@ interface IRAT {
         bytes32 indexed testId,
         address indexed validator,
         address indexed systemConfig,
+        address gameAddress,
         uint32 batchIndex,
         uint256 deadline
     );
@@ -74,6 +75,14 @@ interface IRAT {
         address indexed validator,
         address indexed systemConfig,
         uint256 amount
+    );
+
+    /// @notice 챌린지 승리로 담보금 복구 이벤트 (resolveClaim)
+    event BondRestored(
+        bytes32 indexed testId,
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 restoredAmount
     );
 
     // ==========================================
@@ -129,11 +138,13 @@ interface IRAT {
 
     /// @notice RAT 테스트 트리거
     /// @dev DisputeGameFactory에서만 호출 가능
+    /// @param gameAddress 생성된 DisputeGame 주소 (resolveClaim에서 testId 조회용)
     /// @param systemConfig L2의 SystemConfig 주소
     /// @param batchIndex 배치 인덱스
     /// @param batchHash 배치 해시
     /// @param blockHash 블록 해시 (랜덤 시드)
     function triggerAttentionTest(
+        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
@@ -153,6 +164,11 @@ interface IRAT {
     /// @notice 슬래싱 실행 (미응답 검증자)
     /// @param testId Attention Test ID
     function finalizeSlash(bytes32 testId) external;
+
+    /// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 담보금 복구)
+    /// @dev msg.sender = FaultDisputeGame 주소
+    /// @param _claimant 게임에서 이긴 주소 (챌린저)
+    function resolveClaim(address _claimant) external;
 
     // ==========================================
     // External Functions - Rewards

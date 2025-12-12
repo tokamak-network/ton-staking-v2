@@ -28,6 +28,10 @@ contract RATTest is Test {
     address public validator2 = address(0x200);
     address public validator3 = address(0x300);
 
+    // Mock game addresses for RAT tests
+    address public mockGame1 = address(0x1000);
+    address public mockGame2 = address(0x2000);
+
     uint256 internal constant RAY = 1e27;
 
     // 백서 V2 기본값
@@ -244,7 +248,7 @@ contract RATTest is Test {
         bytes32 blockHash = keccak256("block1");
 
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, batchHash, blockHash);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
 
         // 검증자의 담보금 선차감 확인
         (
@@ -267,14 +271,14 @@ contract RATTest is Test {
 
         vm.prank(validator1);
         vm.expectRevert();
-        rat.triggerAttentionTest(systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
     }
 
     /// @notice 활성 검증자 없을 때 RAT 트리거 (무시됨)
     function test_triggerAttentionTest_noActiveValidators() public {
         // 검증자 없는 상태에서 트리거
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // 테스트가 생성되지 않음 확인
         assertEq(rat.activeTestCount(systemConfig1), 0, "No test should be created");
@@ -294,7 +298,7 @@ contract RATTest is Test {
         bytes32 blockHash = keccak256("block1");
 
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, batchHash, blockHash);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
 
         // 증거 제출
         vm.prank(validator1);
@@ -323,7 +327,7 @@ contract RATTest is Test {
         bytes32 blockHash = keccak256("block1");
 
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, batchHash, blockHash);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
 
         // 마감 경과
         vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
@@ -340,7 +344,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // 다른 검증자가 제출 시도
         vm.prank(validator2);
@@ -361,7 +365,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // testId 가져오기
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
@@ -403,7 +407,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
@@ -436,7 +440,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
@@ -452,7 +456,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // 증거 제출
         vm.prank(validator1);
@@ -607,7 +611,7 @@ contract RATTest is Test {
 
         uint32 batchIndex = 1;
         vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 

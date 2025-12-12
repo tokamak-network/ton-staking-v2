@@ -312,8 +312,7 @@ function resolveClaim(address _claimant) external {
         validatorPools[test.systemConfig].activeValidatorCount++;
     }
 
-    address layer2 = _getLayer2FromSystemConfig(test.systemConfig);
-    emit BondRefunded(testId, test.systemConfig, layer2, _claimant, restoredAmount);
+    emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);
 }
 ```
 
@@ -489,19 +488,17 @@ event EvidenceSubmitted(
 );
 
 /// @notice 챌린지 승리로 C_off 복구
-event BondRefunded(
+event BondRestored(
     bytes32 indexed testId,
+    address indexed validator,
     address indexed systemConfig,
-    address indexed layer2,
-    address validator,
-    uint256 restoredAmount,
-    bool restoredToSet        // 검증자 세트에 복구되었는지 여부
+    uint256 restoredAmount
 );
 ```
 
 **자금 추적 (Lazy Evaluation):**
-- `AttentionTriggered` 발생 → C_off 선차감 완료
-- `EvidenceSubmitted` 또는 `BondRefunded` 발생 → C_off 복구
+- `AttentionTestTriggered` 발생 → C_off 선차감 완료
+- `EvidenceSubmitted` 또는 `BondRestored` 발생 → C_off 복구
 - 위 이벤트 없이 `latestTestEndBlock` 경과 → C_off 몰수 (별도 이벤트 없음)
 
 ---

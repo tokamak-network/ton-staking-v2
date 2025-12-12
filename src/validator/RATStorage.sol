@@ -88,6 +88,9 @@ contract RATStorage {
     /// @notice systemConfig => 활성 테스트 수
     mapping(address => uint256) public activeTestCount;
 
+    /// @notice game address => testId 매핑 (resolveClaim에서 사용)
+    mapping(address => bytes32) public gameToTestId;
+
     // ==========================================
     // 백서 V2 파라미터 (Page 11)
     // ==========================================

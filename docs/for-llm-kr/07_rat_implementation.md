@@ -552,12 +552,13 @@ interface IRAT {
     );
 
     /// @notice RAT 테스트 트리거 이벤트
-    event AttentionTriggered(
+    event AttentionTestTriggered(
         bytes32 indexed testId,
+        address indexed validator,
         address indexed systemConfig,
-        address indexed layer2,        // Layer2 Candidate 주소
-        address validator,
-        uint32 batchIndex
+        address gameAddress,           // DisputeGame 주소 (resolveClaim용)
+        uint32 batchIndex,
+        uint256 deadline
     );
 
     /// @notice 증거 제출 성공 이벤트
@@ -570,11 +571,10 @@ interface IRAT {
     );
 
     /// @notice 챌린지 승리로 담보금 복구 이벤트 (resolveClaim)
-    event BondRefunded(
+    event BondRestored(
         bytes32 indexed testId,
+        address indexed validator,
         address indexed systemConfig,
-        address indexed layer2,        // Layer2 Candidate 주소
-        address validator,
         uint256 restoredAmount
     );
 
@@ -680,11 +680,13 @@ interface IRAT {
 
     /// @notice RAT 테스트 트리거 (Layer2Manager 전용)
     /// @dev 해당 SystemConfig에 등록된 검증자 중에서만 선택
+    /// @param gameAddress 생성된 DisputeGame 주소 (resolveClaim에서 testId 조회용)
     /// @param systemConfig L2의 SystemConfig 주소
     /// @param batchIndex 배치 인덱스
     /// @param batchHash 배치 해시
     /// @param blockHash 블록 해시 (검증자 선택용)
     function triggerAttentionTest(
+        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
@@ -887,7 +889,9 @@ function registerValidator(address systemConfig, uint256 amount) external nonRee
 /// @notice RAT 테스트 트리거 - 내부 기록만 변경 (담보금은 RAT 명의로 스테이킹 유지)
 /// @dev 해당 SystemConfig에 등록된 검증자 중에서만 선택
 /// @dev 담보금은 DepositManager에 RAT 명의로 계속 스테이킹되어 있음
+/// @param gameAddress 생성된 DisputeGame 주소 (resolveClaim에서 testId 조회용)
 function triggerAttentionTest(
+    address gameAddress,
     address systemConfig,
     uint32 batchIndex,
     bytes32 batchHash,
@@ -952,7 +956,10 @@ function triggerAttentionTest(
         evidenceSubmitted: false
     });
 
-    emit AttentionTriggered(testId, systemConfig, layer2, selectedValidator, batchIndex);
+    // ★ 게임 주소 → testId 매핑 저장 (resolveClaim에서 조회용)
+    gameToTestId[gameAddress] = testId;
+
+    emit AttentionTestTriggered(testId, selectedValidator, systemConfig, gameAddress, batchIndex, testEndBlock);
 }
 ```
 
@@ -1059,7 +1066,7 @@ function resolveClaim(address _claimant) external {
     }
 
     address layer2 = _getLayer2FromSystemConfig(test.systemConfig);
-    emit BondRefunded(testId, test.systemConfig, layer2, _claimant, restoredAmount);
+    emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);
 }
 ```
 
@@ -1110,8 +1117,8 @@ function triggerAttentionTest(...) external onlyLayer2Manager {
 ```
 
 **몰수된 자금 추적:**
-- `AttentionTriggered` 발생 후 `EvidenceSubmitted` 또는 `BondRefunded` 이벤트가 없으면 → 영구 몰수
-- `AttentionTriggered` 발생 후 위 이벤트 중 하나라도 있으면 → 복구됨
+- `AttentionTestTriggered` 발생 후 `EvidenceSubmitted` 또는 `BondRestored` 이벤트가 없으면 → 영구 몰수
+- `AttentionTestTriggered` 발생 후 위 이벤트 중 하나라도 있으면 → 복구됨
 
 ### 6.6 검증자 보상 분배 (SeigManager → RAT)
 
@@ -1508,11 +1515,13 @@ RAT는 L2 프로포저(시퀀서)가 **DisputeGame을 생성할 때** 트리거�
 interface IRATTrigger {
     /// @notice RAT 테스트 트리거
     /// @dev DisputeGame 생성 시 호출
+    /// @param gameAddress 생성된 DisputeGame 주소 (resolveClaim에서 testId 조회용)
     /// @param systemConfig L2의 SystemConfig 주소 (L2 식별자)
     /// @param batchIndex 배치/게임 인덱스
     /// @param batchHash 배치 해시 또는 Output Root
     /// @param blockHash 블록 해시 (검증자 랜덤 선택용)
     function triggerAttentionTest(
+        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
@@ -1540,9 +1549,10 @@ contract DisputeGameFactory {
         if (rat != address(0)) {
             address systemConfig = _getSystemConfig(); // 해당 L2의 SystemConfig
             try IRAT(rat).triggerAttentionTest(
+                address(proxy_),           // gameAddress (생성된 게임 주소)
                 systemConfig,
-                uint32(gameCount),     // batchIndex
-                _rootClaim.raw(),      // batchHash (Output Root)
+                uint32(gameCount),         // batchIndex
+                _rootClaim.raw(),          // batchHash (Output Root)
                 blockhash(block.number - 1)  // blockHash
             ) {} catch {}
         }
@@ -1737,4 +1747,4 @@ C_off ≥ (0.01 × 100) / 0.1 = 10 TON
 ### 10.5 기타
 - [ ] 파라미터 변경 권한 (ratManager)
 - [ ] 업그레이드 호환성
-- [ ] 이벤트 기반 자금 추적 (AttentionTriggered/EvidenceSubmitted/BondRefunded)
+- [ ] 이벤트 기반 자금 추적 (AttentionTestTriggered/EvidenceSubmitted/BondRestored)

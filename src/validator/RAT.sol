@@ -275,6 +275,7 @@ contract RAT is RATStorage, IRAT {
 
     /// @inheritdoc IRAT
     function triggerAttentionTest(
+        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
@@ -321,7 +322,10 @@ contract RAT is RATStorage, IRAT {
         batchToTestId[systemConfig][batchIndex] = testId;
         activeTestCount[systemConfig]++;
 
-        emit AttentionTestTriggered(testId, selectedValidator, systemConfig, batchIndex, deadline);
+        // 게임 주소 → testId 매핑 저장 (resolveClaim에서 조회용)
+        gameToTestId[gameAddress] = testId;
+
+        emit AttentionTestTriggered(testId, selectedValidator, systemConfig, gameAddress, batchIndex, deadline);
     }
 
     /// @inheritdoc IRAT
@@ -380,6 +384,37 @@ contract RAT is RATStorage, IRAT {
         }
 
         emit ValidatorSlashed(testId, test.validatorAddress, test.systemConfig, test.bondAmount, removedFromSet);
+    }
+
+    /// @inheritdoc IRAT
+    function resolveClaim(address _claimant) external {
+        // msg.sender = 게임 주소로 테스트 조회
+        bytes32 testId = gameToTestId[msg.sender];
+        if (testId == bytes32(0)) return;  // 해당 게임의 RAT 테스트가 없음
+
+        AttentionTest storage test = attentionTests[testId];
+
+        // 선택된 검증자가 게임 승자와 같은지 확인
+        if (test.validatorAddress != _claimant) return;
+        if (test.status != AttentionTestStatus.Pending) return;  // 이미 처리됨
+
+        // 담보금 복구
+        test.status = AttentionTestStatus.Responded;
+        activeTestCount[test.systemConfig]--;
+
+        ValidatorRegistration storage reg = validatorRegistrations[test.systemConfig][_claimant];
+
+        // 잔액 복구
+        uint256 restoredAmount = test.bondAmount;
+        reg.depositedAmount += restoredAmount;
+        reg.totalBondForRAT -= restoredAmount;
+
+        // 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+        if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+            _restoreValidator(test.systemConfig, _claimant, reg);
+        }
+
+        emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);
     }
 
     // ==========================================
@@ -501,6 +536,23 @@ contract RAT is RATStorage, IRAT {
         pool.totalDeposited -= reg.depositedAmount;
 
         // 잔액은 검증자가 deactivateValidator()로 출금 가능
+    }
+
+    /// @notice 검증자 복구 (resolveClaim에서 사용)
+    function _restoreValidator(
+        address systemConfig,
+        address validator,
+        ValidatorRegistration storage reg
+    ) internal {
+        reg.isActive = true;
+
+        ValidatorPoolInfo storage pool = validatorPools[systemConfig];
+        pool.activeCount++;
+        pool.totalDeposited += reg.depositedAmount;
+
+        // 검증자 인덱스 업데이트
+        reg.validatorIndex = uint32(pool.validators.length);
+        pool.validators.push(validator);
     }
 
     // ==========================================
