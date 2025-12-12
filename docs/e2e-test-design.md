@@ -53,7 +53,7 @@ ton-staking-v2/
 ```go
 // Test accounts from sys.Cfg.Secrets
 var (
-    Alice   = sys.Cfg.Secrets.Alice   // Honest challenger
+    Alice   = sys.Cfg.Secrets.Alice   // Honest validator
     Bob     = sys.Cfg.Secrets.Bob     // Dishonest actor
     Mallory = sys.Cfg.Secrets.Mallory // Alternative actor
 )
@@ -91,7 +91,7 @@ sys, l1Client := StartFaultDisputeSystemWithRAT(t, opts...)
 3. Create FaultDisputeGame via DisputeGameFactory
 4. Verify IRAT.triggerAttentionTest() is called
 5. Verify AttentionTestTriggered event is emitted
-6. Verify challenger is selected and bond is locked
+6. Verify validator is selected and bond is locked
 ```
 
 **Code Outline**:
@@ -107,8 +107,8 @@ func TestRATTriggerOnGameCreation(t *testing.T) {
     // Get RAT contract instance
     ratContract := GetRATContract(t, sys)
 
-    // Record initial challenger state
-    challengerBefore := ratContract.GetChallengerInfo(challenger)
+    // Record initial validator state
+    validatorBefore := ratContract.GetValidatorRegistration(validator, systemConfig)
 
     // Create dispute game
     disputeGameFactory := NewFactoryHelper(t, ctx, sys)
@@ -117,9 +117,9 @@ func TestRATTriggerOnGameCreation(t *testing.T) {
     // Verify RAT attention test was triggered
     ratContract.WaitForAttentionTest(ctx, game.GameAddress())
 
-    // Verify challenger bond was locked
-    challengerAfter := ratContract.GetChallengerInfo(challenger)
-    require.Less(t, challengerAfter.StakingAmount, challengerBefore.StakingAmount)
+    // Verify validator bond was locked
+    validatorAfter := ratContract.GetValidatorRegistration(validator, systemConfig)
+    require.Less(t, validatorAfter.DepositedAmount, validatorBefore.DepositedAmount)
 }
 ```
 
@@ -127,15 +127,15 @@ func TestRATTriggerOnGameCreation(t *testing.T) {
 
 **Test**: `TestRATEvidenceSubmission`
 
-**Purpose**: Verify challenger can submit correct evidence and restore bond.
+**Purpose**: Verify validator can submit correct evidence and restore bond.
 
 **Flow**:
 ```
 1. Trigger RAT attention test
-2. Challenger submits correct evidence (proofLV, proofRV)
+2. Validator submits correct evidence
 3. Verify evidence is validated
-4. Verify bond is restored to challenger
-5. Verify CorrectEvidenceSubmitted event is emitted
+4. Verify bond is restored to validator
+5. Verify EvidenceSubmitted event is emitted
 ```
 
 **Code Outline**:
@@ -151,17 +151,18 @@ func TestRATEvidenceSubmission(t *testing.T) {
 
     // Create game and trigger RAT
     game := CreateDisputeGameWithRAT(t, ctx, sys)
-    attentionTest := ratContract.GetAttentionTest(game.GameAddress())
+    testId := ratContract.GetTestIdByGame(game.GameAddress())
+    attentionTest := ratContract.GetAttentionTest(testId)
 
     // Generate correct evidence
-    proofLV, proofRV := GenerateCorrectEvidence(attentionTest.StateRoot)
+    evidence := GenerateCorrectEvidence(attentionTest.BatchHash)
 
-    // Submit evidence as challenger
-    tx := ratContract.SubmitCorrectEvidence(
-        game.GameAddress(),
-        proofLV,
-        proofRV,
-        WithSigner(challenger),
+    // Submit evidence as validator
+    tx := ratContract.SubmitEvidence(
+        attentionTest.SystemConfig,
+        attentionTest.BatchIndex,
+        evidence,
+        WithSigner(validator),
     )
 
     // Verify bond restored
@@ -169,8 +170,8 @@ func TestRATEvidenceSubmission(t *testing.T) {
     require.True(t, receipt.Status == 1)
 
     // Verify event
-    event := FindEvent[CorrectEvidenceSubmitted](receipt)
-    require.Equal(t, challenger, event.Challenger)
+    event := FindEvent[EvidenceSubmitted](receipt)
+    require.Equal(t, validator, event.Validator)
 }
 ```
 
@@ -178,16 +179,16 @@ func TestRATEvidenceSubmission(t *testing.T) {
 
 **Test**: `TestRATResolveClaimBondRefund`
 
-**Purpose**: Verify bond is refunded when challenger wins the game.
+**Purpose**: Verify bond is refunded when validator wins the game as challenger.
 
 **Flow**:
 ```
 1. Trigger RAT attention test
-2. Challenger participates in dispute game
-3. Challenger wins the game
+2. Validator participates in dispute game as challenger
+3. Validator wins the game
 4. FaultDisputeGame calls IRAT.resolveClaim(claimant)
 5. Verify bond is refunded
-6. Verify BondRefunded event is emitted
+6. Verify BondRestored event is emitted
 ```
 
 **Code Outline**:
@@ -204,7 +205,7 @@ func TestRATResolveClaimBondRefund(t *testing.T) {
     // Create dishonest game
     game := CreateDishonestDisputeGame(t, ctx, sys)
 
-    // Start honest challenger
+    // Start honest challenger (validator)
     game.StartChallenger(ctx, "Challenger", WithPrivKey(sys.Cfg.Secrets.Alice))
 
     // Play game until challenger wins
@@ -215,8 +216,8 @@ func TestRATResolveClaimBondRefund(t *testing.T) {
     game.WaitForGameStatus(ctx, gameTypes.GameStatusChallengerWon)
 
     // Verify bond was refunded via resolveClaim
-    challengerInfo := ratContract.GetChallengerInfo(challenger)
-    require.True(t, challengerInfo.StakingAmount >= perTestBondAmount)
+    validatorInfo := ratContract.GetValidatorRegistration(validator, systemConfig)
+    require.True(t, validatorInfo.DepositedAmount >= minimumDeposit)
 }
 ```
 
@@ -231,8 +232,9 @@ func TestRATResolveClaimBondRefund(t *testing.T) {
 1. Trigger RAT attention test
 2. Do NOT submit evidence
 3. Wait for evidence submission period to expire
-4. Verify bond is slashed (not restored)
-5. Verify challenger validity status updated if below minimum
+4. Call finalizeSlash()
+5. Verify bond is slashed (not restored)
+6. Verify validator removed from active set if below D_min
 ```
 
 **Code Outline**:
@@ -248,23 +250,23 @@ func TestRATEvidenceSubmissionExpiry(t *testing.T) {
 
     // Create game and trigger RAT
     game := CreateDisputeGameWithRAT(t, ctx, sys)
-    attentionTest := ratContract.GetAttentionTest(game.GameAddress())
+    testId := ratContract.GetTestIdByGame(game.GameAddress())
+    attentionTest := ratContract.GetAttentionTest(testId)
 
     // Get initial bond amount
     bondBefore := attentionTest.BondAmount
 
     // Advance time past evidence submission period
-    advanceBlocks(t, l1Client, evidenceSubmissionPeriod + 1)
+    sys.TimeTravelClock.AdvanceTime(evidenceSubmissionPeriod + 1)
 
-    // Try to submit evidence - should fail
-    _, err := ratContract.SubmitCorrectEvidence(
-        game.GameAddress(),
-        proofLV,
-        proofRV,
-        WithSigner(challenger),
-    )
-    require.Error(t, err)
-    require.Contains(t, err.Error(), "EvidenceSubmissionExpired")
+    // Finalize slash
+    tx := ratContract.FinalizeSlash(testId)
+    receipt := WaitForReceipt(ctx, l1Client, tx)
+    require.True(t, receipt.Status == 1)
+
+    // Verify ValidatorSlashed event
+    event := FindEvent[ValidatorSlashed](receipt)
+    require.Equal(t, bondBefore, event.SlashedAmount)
 }
 ```
 
@@ -301,8 +303,10 @@ func TestRATMultiL2Identification(t *testing.T) {
     gameL2B := CreateDisputeGame(t, ctx, sys, "l2-b")
 
     // Get attention tests
-    testL2A := ratContract.GetAttentionTest(gameL2A.GameAddress())
-    testL2B := ratContract.GetAttentionTest(gameL2B.GameAddress())
+    testIdL2A := ratContract.GetTestIdByGame(gameL2A.GameAddress())
+    testIdL2B := ratContract.GetTestIdByGame(gameL2B.GameAddress())
+    testL2A := ratContract.GetAttentionTest(testIdL2A)
+    testL2B := ratContract.GetAttentionTest(testIdL2B)
 
     // Verify different systemConfigs
     require.NotEqual(t, testL2A.SystemConfig, testL2B.SystemConfig)
@@ -319,26 +323,26 @@ func TestRATMultiL2Identification(t *testing.T) {
 
 **Flow**:
 ```
-1. Set RAT trigger probability to 50% (50000/100000)
+1. Set RAT trigger probability to 50% (0.5e27 in RAY)
 2. Create 100 dispute games
 3. Count how many triggered RAT attention tests
 4. Verify approximately 50% triggered (within statistical tolerance)
 ```
 
-### 7. Challenger Staking Test
+### 7. Validator Staking Test
 
-**Test**: `TestRATChallengerStaking`
+**Test**: `TestRATValidatorStaking`
 
-**Purpose**: Verify challenger staking and validity management.
+**Purpose**: Verify validator staking and validity management.
 
 **Flow**:
 ```
-1. Stake as new challenger
-2. Verify added to validChallengers array
-3. Trigger RAT and reduce stake below minimum
-4. Verify removed from validChallengers array
-5. Stake again to restore validity
-6. Verify re-added to validChallengers array
+1. Register as new validator with minimum deposit (D_min)
+2. Verify added to active validators
+3. Trigger RAT and get slashed (reduce deposit below D_min)
+4. Verify removed from active validators
+5. Re-register with additional deposit
+6. Verify re-added to active validators
 ```
 
 ### 8. Valid Output Root Defense Test
@@ -351,7 +355,7 @@ func TestRATMultiL2Identification(t *testing.T) {
 ```
 1. Create dispute game with correct output root
 2. Trigger RAT attention test
-3. Challenger submits correct evidence
+3. Validator submits correct evidence
 4. Defender wins the game
 5. Verify RAT bond is restored (not slashed)
 ```
@@ -379,8 +383,8 @@ func TestRATValidOutputRootDefense(t *testing.T) {
     game.WaitForGameStatus(ctx, gameTypes.GameStatusDefenderWon)
 
     // Verify RAT bond was NOT slashed (defender won means no dispute)
-    challengerInfo := ratContract.GetChallengerInfo(challenger)
-    require.True(t, challengerInfo.StakingAmount >= initialStake)
+    validatorInfo := ratContract.GetValidatorRegistration(validator, systemConfig)
+    require.True(t, validatorInfo.DepositedAmount >= initialDeposit)
 }
 ```
 
@@ -395,7 +399,7 @@ func TestRATValidOutputRootDefense(t *testing.T) {
 1. Start system with batcher stopped
 2. Create dispute game (data unavailable on L1)
 3. Trigger RAT attention test
-4. Challenger cannot generate valid evidence
+4. Validator cannot generate valid evidence
 5. Verify RAT slash behavior for unavailable data
 ```
 
@@ -444,9 +448,10 @@ func (g *RATGameHelper) LogGameData(ctx context.Context) {
     g.T.Logf("Game Address: %s", g.GameAddr)
     g.T.Logf("RAT Contract: %s", g.RATAddr)
 
-    attentionTest := g.RATContract.GetAttentionTest(g.GameAddr)
+    testId := g.RATContract.GetTestIdByGame(g.GameAddr)
+    attentionTest := g.RATContract.GetAttentionTest(testId)
     g.T.Logf("Attention Test Status: %v", attentionTest.Status)
-    g.T.Logf("Challenger: %s", attentionTest.ChallengerAddress)
+    g.T.Logf("Validator: %s", attentionTest.ValidatorAddress)
     g.T.Logf("Bond Amount: %v", attentionTest.BondAmount)
     g.T.Logf("======================")
 }
@@ -467,20 +472,34 @@ type RATHelper struct {
 
 func NewRATHelper(client *ethclient.Client, address common.Address) *RATHelper
 
-func (r *RATHelper) GetChallengerInfo(challenger common.Address) (*ChallengerInfo, error)
+func (r *RATHelper) GetValidatorRegistration(validator, systemConfig common.Address) (*ValidatorRegistration, error)
 
-func (r *RATHelper) GetAttentionTest(gameAddress common.Address) (*AttentionInfo, error)
+func (r *RATHelper) GetAttentionTest(testId [32]byte) (*AttentionTest, error)
 
-func (r *RATHelper) Stake(ctx context.Context, opts *bind.TransactOpts, amount *big.Int) (*types.Transaction, error)
+func (r *RATHelper) GetTestIdByGame(gameAddress common.Address) ([32]byte, error)
 
-func (r *RATHelper) SubmitCorrectEvidence(
+func (r *RATHelper) RegisterValidator(
     ctx context.Context,
     opts *bind.TransactOpts,
-    gameAddress common.Address,
-    proofLV, proofRV [32]byte,
+    systemConfig common.Address,
+    depositAmount *big.Int,
 ) (*types.Transaction, error)
 
-func (r *RATHelper) WaitForAttentionTest(ctx context.Context, gameAddress common.Address) (*AttentionInfo, error)
+func (r *RATHelper) SubmitEvidence(
+    ctx context.Context,
+    opts *bind.TransactOpts,
+    systemConfig common.Address,
+    batchIndex uint32,
+    evidence []byte,
+) (*types.Transaction, error)
+
+func (r *RATHelper) FinalizeSlash(
+    ctx context.Context,
+    opts *bind.TransactOpts,
+    testId [32]byte,
+) (*types.Transaction, error)
+
+func (r *RATHelper) WaitForAttentionTest(ctx context.Context, gameAddress common.Address) (*AttentionTest, error)
 ```
 
 ### System Setup Helper
@@ -511,13 +530,20 @@ contract DeployTONStakingRAT is Script {
 
         RAT rat = new RAT();
         rat.initialize(
-            disputeGameFactory,
-            perTestBondAmount,
-            evidenceSubmissionPeriod,
-            minimumStakingBalance,
-            ratTriggerProbability,
-            manager
+            seigManager,           // SeigManager address
+            wton,                  // WTON address
+            ton,                   // TON address
+            depositManager,        // DepositManager address
+            owner                  // Owner address
         );
+
+        // Set RAT parameters
+        rat.setSlashingPenalty(100e27);           // C_off = 100 WTON
+        rat.setValidatorBuffer(100e27);           // Δ_validator = 100 WTON
+        rat.setMinimumThreshold(200e27);          // D_min = 200 WTON (C_off + Δ)
+        rat.setRatTriggerProbability(0.01e27);    // π_a = 1%
+        rat.setEvidenceSubmissionPeriod(1 hours); // 1 hour
+        rat.setAuthorizedTrigger(disputeGameFactory);
 
         vm.stopBroadcast();
 
@@ -532,10 +558,11 @@ contract DeployTONStakingRAT is Script {
 
 ```bash
 # E2E test configuration
-export RAT_PER_TEST_BOND_AMOUNT=100000000000000000  # 0.1 ETH
-export RAT_EVIDENCE_SUBMISSION_PERIOD=100           # 100 blocks
-export RAT_MINIMUM_STAKING_BALANCE=1000000000000000000  # 1 ETH
-export RAT_TRIGGER_PROBABILITY=50400                # Weekly probability
+export RAT_SLASHING_PENALTY=100000000000000000000000000000  # 100 WTON (RAY)
+export RAT_VALIDATOR_BUFFER=100000000000000000000000000000  # 100 WTON (RAY)
+export RAT_MINIMUM_THRESHOLD=200000000000000000000000000000 # 200 WTON (RAY)
+export RAT_EVIDENCE_SUBMISSION_PERIOD=3600                  # 1 hour in seconds
+export RAT_TRIGGER_PROBABILITY=10000000000000000000000000   # 1% (0.01 RAY)
 ```
 
 ### Makefile Target
@@ -554,51 +581,151 @@ devnet-allocs-rat:
 
 ## Interface Reference
 
-### IRAT Interface (from Optimism)
+### IRAT Interface (from TON Staking V3)
 
 ```solidity
 interface IRAT {
-    /// @notice Triggers attention test (called by DisputeGameFactory)
+    // ==========================================
+    // Structs (defined in RATStorage)
+    // ==========================================
+
+    struct ValidatorRegistration {
+        uint256 depositedAmount;        // Current valid deposit (after pre-deduction)
+        uint256 totalBondForRAT;        // Total amount locked in ongoing RAT tests
+        uint256 pendingRewards;         // Unclaimed validator rewards
+        uint256 coinageFactorAtDeposit; // Coinage factor at deposit time
+        uint32 validatorIndex;          // Validator index
+        bool isActive;                  // Active status
+    }
+
+    struct AttentionTest {
+        address validatorAddress;       // Selected validator
+        address systemConfig;           // L2 SystemConfig address
+        uint32 batchIndex;              // Batch index
+        bytes32 batchHash;              // Batch hash
+        uint256 bondAmount;             // Pre-deducted bond (C_off)
+        uint256 createdAt;              // Creation time
+        uint256 deadline;               // Response deadline
+        AttentionTestStatus status;     // Status (Pending/Responded/Slashed/Expired)
+    }
+
+    // ==========================================
+    // Events
+    // ==========================================
+
+    event ValidatorRegistered(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 depositAmount,
+        uint256 registrationId
+    );
+
+    event ValidatorDeactivated(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 returnedAmount
+    );
+
+    event AttentionTestTriggered(
+        bytes32 indexed testId,
+        address indexed validator,
+        address indexed systemConfig,
+        address gameAddress,
+        uint32 batchIndex,
+        uint256 deadline
+    );
+
+    event EvidenceSubmitted(
+        bytes32 indexed testId,
+        address indexed validator,
+        address indexed systemConfig,
+        uint32 batchIndex
+    );
+
+    event ValidatorSlashed(
+        bytes32 indexed testId,
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 slashedAmount,
+        bool removedFromSet
+    );
+
+    event BondRestored(
+        bytes32 indexed testId,
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 restoredAmount
+    );
+
+    event DepositAdded(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 amount
+    );
+
+    // ==========================================
+    // View Functions
+    // ==========================================
+
+    function getMinimumCollateral() external view returns (uint256);
+    function validateSlashingPenalty(uint256 n) external view returns (bool);
+    function getValidatorCount(address systemConfig) external view returns (uint256);
+    function getActiveValidatorCount(address systemConfig) external view returns (uint256);
+    function getTotalPendingRewards(address validator) external view returns (uint256);
+    function getPendingRewards(address validator, address systemConfig) external view returns (uint256);
+
+    // ==========================================
+    // Validator Management
+    // ==========================================
+
+    function registerValidator(address systemConfig, uint256 depositAmount) external;
+    function deactivateValidator(address systemConfig) external;
+    function addDeposit(address systemConfig, uint256 amount) external;
+
+    // ==========================================
+    // RAT Operations
+    // ==========================================
+
+    /// @notice Trigger RAT test (called by DisputeGameFactory)
     function triggerAttentionTest(
+        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
         bytes32 blockHash
     ) external;
 
-    /// @notice Called when a claim is resolved in FaultDisputeGame
-    function resolveClaim(address claimant) external;
-}
-```
+    /// @notice Submit RAT evidence
+    function submitEvidence(
+        address systemConfig,
+        uint32 batchIndex,
+        bytes calldata evidence
+    ) external;
 
-### RAT Contract Interface (TON Staking V3)
+    /// @notice Finalize slash for non-responding validator
+    function finalizeSlash(bytes32 testId) external;
 
-```solidity
-interface ITONStakingRAT is IRAT {
-    struct ChallengerInfo {
-        uint256 stakingAmount;
-        uint256 totalSlashedAmount;
-        uint32 validatorIndex;
-        bool isValid;
-    }
+    /// @notice Called by FaultDisputeGame when game resolves (refund bond if challenger wins)
+    function resolveClaim(address _claimant) external;
 
-    struct AttentionInfo {
-        bytes32 stateRoot;
-        uint96 bondAmount;
-        address challengerAddress;
-        uint64 l1BlockNumber;
-        bool evidenceSubmitted;
-    }
+    // ==========================================
+    // Rewards
+    // ==========================================
 
-    event ChallengerStaked(address indexed challenger, uint256 amount);
-    event AttentionTriggered(address indexed gameAddress, address indexed challenger);
-    event CorrectEvidenceSubmitted(address indexed gameAddress, address indexed challenger, uint256 restoredAmount);
-    event BondRefunded(address indexed gameAddress, address indexed challenger, uint256 refundedAmount);
+    function claimRewards(address systemConfig) external;
+    function claimRewardsBatch(address[] calldata systemConfigs) external;
+    function distributeValidatorReward(address systemConfig, uint256 amount) external;
 
-    function stake() external payable;
-    function getChallengerInfo(address _challenger) external view returns (ChallengerInfo memory);
-    function submitCorrectEvidence(address _gameAddress, bytes32 _proofLV, bytes32 _proofRV) external;
-    function getValidChallengerCount() external view returns (uint256);
+    // ==========================================
+    // Governance
+    // ==========================================
+
+    function setAttentionCost(uint256 cost) external;
+    function setSlashingPenalty(uint256 penalty) external;
+    function setValidatorBuffer(uint256 buffer) external;
+    function setMinimumThreshold(uint256 threshold) external;
+    function setRatTriggerProbability(uint256 probability) external;
+    function setEvidenceSubmissionPeriod(uint256 period) external;
 }
 ```
 
@@ -614,35 +741,39 @@ interface ITONStakingRAT is IRAT {
          │───────────────────────►│                        │
          │                        │                        │
          │                        │ triggerAttentionTest() │
+         │                        │ (gameAddr, systemConfig,│
+         │                        │  batchIdx, batchHash,  │
+         │                        │  blockHash)            │
          │                        │───────────────────────►│
          │                        │                        │
-         │                        │                        │ Select challenger
-         │                        │                        │ Lock bond
+         │                        │                        │ Select validator
+         │                        │                        │ Lock bond (C_off)
          │                        │                        │
          │                        │◄──────────────────────│
          │                        │                        │
-         │                        │                        │ emit AttentionTriggered
+         │                        │                        │ emit AttentionTestTriggered
          │                        │                        │
          │◄───────────────────────│                        │
          │                        │                        │
          │                        │                        │
 ┌────────┴────────┐      ┌────────┴────────┐      ┌────────┴────────┐
-│   Challenger    │      │ FaultDispute    │      │   TON Staking   │
-│   (Validator)   │      │     Game        │      │    V3 RAT       │
+│    Validator    │      │ FaultDispute    │      │   TON Staking   │
+│                 │      │     Game        │      │    V3 RAT       │
 └────────┬────────┘      └────────┬────────┘      └────────┬────────┘
          │                        │                        │
-         │ submitCorrectEvidence()│                        │
+         │ submitEvidence()       │                        │
+         │ (systemConfig, batchIndex, evidence)            │
          │────────────────────────────────────────────────►│
          │                        │                        │
-         │                        │                        │ Verify proof
+         │                        │                        │ Verify evidence
          │                        │                        │ Restore bond
          │                        │                        │
          │◄───────────────────────────────────────────────│
          │                        │                        │
-         │                        │                        │ emit CorrectEvidenceSubmitted
+         │                        │                        │ emit EvidenceSubmitted
          │                        │                        │
-         │ (or) resolveClaim()    │                        │
-         │        wins game       │                        │
+         │ (or) wins game as      │                        │
+         │      challenger        │                        │
          │◄──────────────────────│                        │
          │                        │                        │
          │                        │ resolveClaim(claimant) │
@@ -652,7 +783,7 @@ interface ITONStakingRAT is IRAT {
          │                        │                        │
          │                        │◄──────────────────────│
          │                        │                        │
-         │                        │                        │ emit BondRefunded
+         │                        │                        │ emit BondRestored
 ```
 
 ## Reference: Asterisc E2E Test Comparison
