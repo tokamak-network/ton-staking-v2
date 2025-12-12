@@ -643,4 +643,348 @@ contract RATTest is Test {
         uint256 totalRewards = rat.getTotalPendingRewards(validator1);
         assertEq(totalRewards, 3000e27, "Total pending rewards should be sum of all L2s");
     }
+
+    // ==========================================
+    // resolveClaim 테스트 (FaultDisputeGame 연동)
+    // ==========================================
+
+    /// @notice resolveClaim 성공 - 게임 승리 시 본드 복구
+    function test_resolveClaim_success() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        uint32 batchIndex = 1;
+        bytes32 batchHash = keccak256("batch1");
+        bytes32 blockHash = keccak256("block1");
+
+        // RAT 트리거
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+
+        // 트리거 후 상태 확인
+        (
+            uint256 depositAfterTrigger,
+            uint256 bondAfterTrigger,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterTrigger, 400e27, "Deposit should be reduced by C_off");
+        assertEq(bondAfterTrigger, 100e27, "Bond should be C_off");
+
+        // FaultDisputeGame에서 resolveClaim 호출 (게임 승리)
+        vm.prank(mockGame1);
+        rat.resolveClaim(validator1);
+
+        // 본드 복구 확인
+        (
+            uint256 depositAfterResolve,
+            uint256 bondAfterResolve,
+            ,
+            ,
+            ,
+            bool isActive
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterResolve, 500e27, "Deposit should be fully restored");
+        assertEq(bondAfterResolve, 0, "Bond should be cleared");
+        assertTrue(isActive, "Validator should remain active");
+    }
+
+    /// @notice resolveClaim - 등록되지 않은 게임 주소에서 호출 시 무시
+    function test_resolveClaim_unknownGame() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        // 등록되지 않은 게임 주소에서 호출
+        address unknownGame = address(0x9999);
+        vm.prank(unknownGame);
+        rat.resolveClaim(validator1);
+
+        // 상태 변화 없음 확인
+        (
+            uint256 depositedAmount,
+            ,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositedAmount, 500e27, "Deposit should be unchanged");
+    }
+
+    /// @notice resolveClaim - 선택된 검증자가 아닌 경우 무시
+    function test_resolveClaim_notSelectedValidator() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        uint32 batchIndex = 1;
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // validator2 (선택되지 않은 검증자)로 resolveClaim 호출
+        vm.prank(mockGame1);
+        rat.resolveClaim(validator2);
+
+        // validator1의 본드는 그대로
+        (
+            uint256 depositedAmount,
+            uint256 bondAmount,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositedAmount, 400e27, "Deposit should still be reduced");
+        assertEq(bondAmount, 100e27, "Bond should still be locked");
+    }
+
+    /// @notice resolveClaim - 이미 응답한 테스트에 대해 무시
+    function test_resolveClaim_alreadyResponded() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        uint32 batchIndex = 1;
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // 증거 제출로 먼저 응답
+        vm.prank(validator1);
+        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+
+        // 이후 resolveClaim 호출 - 무시되어야 함
+        vm.prank(mockGame1);
+        rat.resolveClaim(validator1);
+
+        // 상태 확인 (submitEvidence로 이미 복구됨)
+        (
+            uint256 depositedAmount,
+            uint256 bondAmount,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositedAmount, 500e27, "Deposit should be restored by submitEvidence");
+        assertEq(bondAmount, 0, "Bond should be cleared by submitEvidence");
+    }
+
+    // ==========================================
+    // gameToTestId 매핑 테스트
+    // ==========================================
+
+    /// @notice gameToTestId 매핑 확인
+    function test_gameToTestId_mapping() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        uint32 batchIndex = 1;
+        bytes32 batchHash = keccak256("batch1");
+        bytes32 blockHash = keccak256("block1");
+
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+
+        // gameToTestId 매핑 확인
+        bytes32 testIdFromGame = rat.gameToTestId(mockGame1);
+        bytes32 testIdFromBatch = rat.batchToTestId(systemConfig1, batchIndex);
+
+        assertEq(testIdFromGame, testIdFromBatch, "Game address should map to same testId");
+        assertTrue(testIdFromGame != bytes32(0), "TestId should not be zero");
+    }
+
+    // ==========================================
+    // 여러 게임 동시 진행 테스트
+    // ==========================================
+
+    /// @notice 여러 게임이 동시에 진행될 때 RAT 테스트
+    function test_multipleGamesSimultaneous() public {
+        // 3명의 검증자 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1, 500e27);
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        // 첫 번째 게임 - RAT 트리거
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 두 번째 게임 - RAT 트리거
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame2, systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
+
+        // 두 게임이 다른 testId를 가져야 함
+        bytes32 testId1 = rat.gameToTestId(mockGame1);
+        bytes32 testId2 = rat.gameToTestId(mockGame2);
+
+        assertTrue(testId1 != testId2, "Different games should have different testIds");
+
+        // activeTestCount 확인
+        assertEq(rat.activeTestCount(systemConfig1), 2, "Should have 2 active tests");
+    }
+
+    /// @notice 여러 게임 중 일부만 응답
+    function test_multipleGames_partialResponse() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 500e27);
+
+        // 두 게임 트리거 (같은 검증자가 선택됨)
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 첫 번째 테스트에 대한 담보금 차감 후 두 번째 트리거
+        // 담보금: 500 - 100 = 400
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame2, systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
+
+        // 담보금: 400 - 100 = 300, bond: 200
+        (
+            uint256 depositedAmount,
+            uint256 totalBond,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositedAmount, 300e27, "Deposit should be reduced twice");
+        assertEq(totalBond, 200e27, "Bond should be doubled");
+
+        // 첫 번째 게임에서만 resolveClaim
+        vm.prank(mockGame1);
+        rat.resolveClaim(validator1);
+
+        // 첫 번째 본드만 복구
+        (
+            uint256 depositAfter,
+            uint256 bondAfter,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfter, 400e27, "One bond should be restored");
+        assertEq(bondAfter, 100e27, "One bond should remain");
+    }
+
+    // ==========================================
+    // 검증자 복구 테스트 (비활성화 후 재활성화)
+    // ==========================================
+
+    /// @notice resolveClaim으로 비활성화된 검증자 복구
+    function test_resolveClaim_restoreInactiveValidator() public {
+        // 최소 담보금으로 등록
+        uint256 initialDeposit = minimumDeposit; // 200
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, initialDeposit);
+
+        // RAT 트리거 - 담보금: 200 - 100 = 100 (D_min 미만이지만 아직 활성)
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        (
+            uint256 depositAfterTrigger,
+            ,
+            ,
+            ,
+            ,
+            bool isActiveAfterTrigger
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterTrigger, 100e27, "Deposit should be 100 (below D_min)");
+        // 트리거 시점에서는 아직 활성 (슬래싱 전)
+        assertTrue(isActiveAfterTrigger, "Should still be active after trigger");
+
+        // resolveClaim으로 본드 복구 - 담보금: 100 + 100 = 200 >= D_min
+        vm.prank(mockGame1);
+        rat.resolveClaim(validator1);
+
+        (
+            uint256 depositAfterResolve,
+            uint256 bondAfterResolve,
+            ,
+            ,
+            ,
+            bool isActiveAfterResolve
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterResolve, 200e27, "Deposit should be restored to 200");
+        assertEq(bondAfterResolve, 0, "Bond should be cleared");
+        assertTrue(isActiveAfterResolve, "Should be active after bond restore");
+    }
+
+    /// @notice 슬래싱 후 추가 입금으로 검증자 재활성화
+    function test_reactivateValidator_afterSlash() public {
+        // 최소 담보금으로 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, minimumDeposit);
+
+        // RAT 트리거
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        bytes32 testId = rat.batchToTestId(systemConfig1, 1);
+
+        // 마감 경과 후 슬래싱
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
+        rat.finalizeSlash(testId);
+
+        // 비활성화 확인
+        (
+            uint256 depositAfterSlash,
+            ,
+            ,
+            ,
+            ,
+            bool isActiveAfterSlash
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterSlash, 100e27, "Deposit should be 100 after slash");
+        assertFalse(isActiveAfterSlash, "Should be inactive after slash");
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0, "Active count should be 0");
+
+        // registerValidator로 재등록 (기존 담보금 + 추가 입금)
+        // 기존 100e27이 있으므로 100e27만 추가하면 D_min(200e27) 충족
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, 100e27);
+
+        // 재활성화 확인
+        (
+            uint256 depositAfterReregister,
+            ,
+            ,
+            ,
+            ,
+            bool isActiveAfterReregister
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterReregister, 200e27, "Deposit should be 200 after reregister");
+        assertTrue(isActiveAfterReregister, "Should be reactivated after reregister");
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Active count should be 1");
+    }
+
+    /// @notice 비활성 검증자가 addDeposit 사용 불가 테스트
+    function test_addDeposit_revertWhenInactive() public {
+        // 최소 담보금으로 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1, minimumDeposit);
+
+        // RAT 트리거
+        vm.prank(authorizedTrigger);
+        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        bytes32 testId = rat.batchToTestId(systemConfig1, 1);
+
+        // 마감 경과 후 슬래싱
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
+        rat.finalizeSlash(testId);
+
+        // 비활성 상태에서 addDeposit 시도 - 실패해야 함
+        vm.prank(validator1);
+        vm.expectRevert(abi.encodeWithSignature("NotActiveValidatorError()"));
+        rat.addDeposit(systemConfig1, 100e27);
+    }
 }

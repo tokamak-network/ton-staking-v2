@@ -203,30 +203,49 @@ contract RAT is RATStorage, IRAT {
         if (reg.isActive) revert AlreadyRegisteredError();
 
         uint256 minDeposit = getMinimumCollateral();
-        if (depositAmount < minDeposit) revert InsufficientDepositError();
 
-        // WTON 전송
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), depositAmount);
+        // 기존 담보금이 있는 경우 (슬래싱 후 재등록)
+        uint256 totalDeposit = reg.depositedAmount + depositAmount;
+        if (totalDeposit < minDeposit) revert InsufficientDepositError();
 
-        // 검증자 풀에 추가
+        // WTON 전송 (추가 입금분만)
+        if (depositAmount > 0) {
+            IERC20(wton).safeTransferFrom(msg.sender, address(this), depositAmount);
+        }
+
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
-        uint256 index = pool.validators.length;
-        pool.validators.push(msg.sender);
-        pool.activeCount++;
-        pool.totalDeposited += depositAmount;
 
-        // 검증자 등록 정보 설정
-        reg.depositedAmount = depositAmount;
-        reg.totalBondForRAT = 0;
-        reg.pendingRewards = 0;
-        reg.coinageFactorAtDeposit = 0; // TODO: coinage factor 연동
-        reg.validatorIndex = uint32(index);
-        reg.isActive = true;
+        // 신규 등록인지 재등록인지 확인
+        bool isReregistration = reg.depositedAmount > 0;
 
-        validatorIndexes[systemConfig][msg.sender] = index;
-        validatorSystemConfigs[msg.sender].push(systemConfig);
+        if (isReregistration) {
+            // 재등록: 풀에 재활성화
+            pool.activeCount++;
+            pool.totalDeposited += totalDeposit;
 
-        emit ValidatorRegistered(msg.sender, systemConfig, depositAmount, index);
+            // 기존 인덱스 유지, 담보금만 업데이트
+            reg.depositedAmount = totalDeposit;
+            reg.isActive = true;
+        } else {
+            // 신규 등록
+            uint256 index = pool.validators.length;
+            pool.validators.push(msg.sender);
+            pool.activeCount++;
+            pool.totalDeposited += totalDeposit;
+
+            // 검증자 등록 정보 설정
+            reg.depositedAmount = totalDeposit;
+            reg.totalBondForRAT = 0;
+            reg.pendingRewards = 0;
+            reg.coinageFactorAtDeposit = 0; // TODO: coinage factor 연동
+            reg.validatorIndex = uint32(index);
+            reg.isActive = true;
+
+            validatorIndexes[systemConfig][msg.sender] = index;
+            validatorSystemConfigs[msg.sender].push(systemConfig);
+        }
+
+        emit ValidatorRegistered(msg.sender, systemConfig, totalDeposit, reg.validatorIndex);
     }
 
     /// @inheritdoc IRAT
@@ -258,6 +277,8 @@ contract RAT is RATStorage, IRAT {
     /// @inheritdoc IRAT
     function addDeposit(address systemConfig, uint256 amount) external ifFree {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+        // 활성 검증자만 추가 입금 가능
+        // 비활성 검증자는 registerValidator()로 재등록해야 함
         if (!reg.isActive) revert NotActiveValidatorError();
         if (amount == 0) revert ZeroAmountError();
 
