@@ -12,6 +12,16 @@ function HomepageHeader() {
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
+        <div style={{
+          background: '#ff9800',
+          color: '#000',
+          padding: '0.5rem 1rem',
+          borderRadius: '4px',
+          marginBottom: '1rem',
+          fontWeight: 'bold',
+        }}>
+          WARNING: This documentation is for development version
+        </div>
         <Heading as="h1" className="hero__title">
           {siteConfig.title}
         </Heading>
