@@ -57,8 +57,10 @@ contract DAOCommittee_V2 is
     bytes4 private constant MAGICVALUE = 0x20c13b0b;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
 
-    bytes32 private constant SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
-    bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+    bytes32 private constant SAFE_MSG_TYPEHASH =
+        0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
+    bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH =
+        0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
 
     enum CurrentResult {
         PENDING,
@@ -132,10 +134,7 @@ contract DAOCommittee_V2 is
     event MultiSigWalletSet(address indexed oldWallet, address indexed newWallet);
 
     modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
-            'not admin'
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), 'not admin');
         _;
     }
 
@@ -169,10 +168,7 @@ contract DAOCommittee_V2 is
         if (multiSigWallet == address(0)) {
             return INVALID_SIGNATURE;
         }
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet),
-            'multisig not admin'
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), 'multisig not admin');
         bytes memory messageData = encodeMessageDataForSafe(_hash);
         bytes32 messageHash = keccak256(messageData);
         if (_validateSignatures(messageHash, _signature)) {
@@ -194,7 +190,7 @@ contract DAOCommittee_V2 is
     ) internal view returns (bool) {
         uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
         uint256 sigCount = _signature.length / 65;
-        
+
         if (sigCount < requiredSigs) return false;
 
         address[] memory signers = new address[](sigCount);
@@ -211,7 +207,7 @@ contract DAOCommittee_V2 is
             }
         }
 
-        if (requiredSigs <= validSigs ) {
+        if (requiredSigs <= validSigs) {
             return true;
         } else {
             return false;
@@ -310,10 +306,7 @@ contract DAOCommittee_V2 is
         address _multiSigWallet
     ) external onlyOwner nonZero(_multiSigWallet) {
         address oldWallet = multiSigWallet;
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet),
-            'not admin'
-        );
+        require(hasRole(DEFAULT_ADMIN_ROLE, _multiSigWallet), 'not admin');
         multiSigWallet = _multiSigWallet;
         emit MultiSigWalletSet(oldWallet, _multiSigWallet);
     }
@@ -345,10 +338,7 @@ contract DAOCommittee_V2 is
             address(seigManager)
         );
 
-        require(
-            candidateContract != address(0),
-            'zero candidate'
-        );
+        require(candidateContract != address(0), 'zero candidate');
 
         require(
             layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
@@ -469,18 +459,12 @@ contract DAOCommittee_V2 is
         require(operatorAmount >= minimumAmount, 'insufficient deposit');
 
         CandidateInfo storage candidateInfo = _candidateInfos[newMember];
-        require(
-            ICandidate(msg.sender).isCandidateContract(),
-            'not candidate contract'
-        );
+        require(ICandidate(msg.sender).isCandidateContract(), 'not candidate contract');
         require(
             candidateInfo.candidateContract == msg.sender,
             'DAOCommittee: invalid candidate contract'
         );
-        require(
-            cooldown[candidateInfo.candidateContract] < block.timestamp,
-            'cooldown'
-        );
+        require(cooldown[candidateInfo.candidateContract] < block.timestamp, 'cooldown');
         require(!blacklist[candidateInfo.candidateContract], 'blacklisted');
         require(candidateInfo.memberJoinedTime == 0, 'already member');
 
@@ -788,7 +772,7 @@ contract DAOCommittee_V2 is
         );
         require(!blacklist[candidateInfo.candidateContract], 'DAOCommittee: blacklisted member');
         uint256 amount = getClaimableActivityReward(candidate);
-        require(amount > 0, "no claimable");
+        require(amount > 0, 'no claimable');
 
         candidateInfo.claimedTimestamp = uint128(block.timestamp);
         candidateInfo.rewardPeriod = 0;
