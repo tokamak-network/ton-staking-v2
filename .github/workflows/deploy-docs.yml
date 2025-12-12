@@ -42,22 +42,13 @@ jobs:
       - name: Build website
         run: npm run build
 
-      - name: Prepare deploy folder
-        working-directory: .
-        run: |
-          mkdir -p deploy/docs-v3
-          cp -r docs-site/build/* deploy/docs-v3/
-          ls -la deploy/docs-v3/
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        with:
-          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: deploy
+          path: docs-site/build
 
   deploy:
     environment:
