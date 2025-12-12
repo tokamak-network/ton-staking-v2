@@ -15,4 +15,9 @@ interface ILayer2Manager {
 
     function transferL2Seigniorage(address layer2, uint256 amount) external;
     function layerInfo(address layer2) external view returns (address rollupConfig, address operator);
+
+    /// @notice SystemConfig 주소로 Layer2 주소 조회
+    /// @param systemConfig SystemConfig 컨트랙트 주소
+    /// @return layer2 해당 Layer2 주소 (없으면 address(0))
+    function getLayer2BySystemConfig(address systemConfig) external view returns (address layer2);
 }

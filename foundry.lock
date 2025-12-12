@@ -10,5 +10,11 @@
       "name": "v4.8.2",
       "rev": "d00acef4059807535af0bd0dd0ddf619747a044b"
     }
+  },
+  "lib/optimism": {
+    "branch": {
+      "name": "feature/challenger-game-type-check",
+      "rev": "0973ff42a5c8db8dce77ec69592e1b10044540fe"
+    }
   }
 }

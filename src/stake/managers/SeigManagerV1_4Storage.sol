@@ -110,6 +110,10 @@ contract SeigManagerV1_4Storage {
     /// @dev 반복 위반 추적용
     mapping(address => uint256[]) public sequencerSlashTimestamps;
 
+    /// @notice 이미 슬래싱된 FaultDisputeGame 주소 추적
+    /// @dev gameAddress => slashed
+    mapping(address => bool) public slashedGames;
+
     // ==========================================
     // V3 마이그레이션 상태
     // ==========================================

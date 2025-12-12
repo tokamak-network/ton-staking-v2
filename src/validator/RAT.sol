@@ -44,6 +44,25 @@ contract RAT is RATStorage, IRAT {
     using SafeERC20 for IERC20;
 
     // ==========================================
+    // Modifiers
+    // ==========================================
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not owner");
+        _;
+    }
+
+    modifier onlySeigManager() {
+        require(msg.sender == seigManager, "not seigManager");
+        _;
+    }
+
+    modifier onlyAuthorizedTrigger() {
+        require(msg.sender == authorizedTrigger, "not authorized");
+        _;
+    }
+
+    // ==========================================
     // Constructor / Initializer
     // ==========================================
 

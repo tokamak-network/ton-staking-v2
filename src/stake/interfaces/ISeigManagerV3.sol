@@ -166,6 +166,16 @@ interface ISeigManagerV3 {
     function setMaxFraudProofCost(uint256 cMax) external;
 
     // ==========================================
+    // External Functions - Slashing
+    // ==========================================
+
+    /// @notice 시퀀서 슬래싱 - Permissionless 방식 (게임 종료 후 호출)
+    /// @dev 누구나 호출 가능, 게임 상태를 온체인에서 검증
+    /// @param gameAddress 종료된 FaultDisputeGame 주소
+    /// @param challengers 챌린저 주소 목록 (오프체인에서 파악하여 전달)
+    function slashSequencerByGame(address gameAddress, address[] calldata challengers) external;
+
+    // ==========================================
     // External Functions - Migration
     // ==========================================
 

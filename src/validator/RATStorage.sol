@@ -153,7 +153,7 @@ contract RATStorage {
     bool public paused;
 
     // ==========================================
-    // Modifiers
+    // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)
     // ==========================================
 
     modifier ifFree() {
@@ -165,21 +165,6 @@ contract RATStorage {
 
     modifier whenNotPaused() {
         require(!paused, "paused");
-        _;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "not owner");
-        _;
-    }
-
-    modifier onlySeigManager() {
-        require(msg.sender == seigManager, "not seigManager");
-        _;
-    }
-
-    modifier onlyAuthorizedTrigger() {
-        require(msg.sender == authorizedTrigger, "not authorized");
         _;
     }
 }

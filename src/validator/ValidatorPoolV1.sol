@@ -36,6 +36,25 @@ contract ValidatorPoolV1 is ValidatorPoolStorage, IValidatorPool {
     using SafeERC20 for IERC20;
 
     // ==========================================
+    // Modifiers
+    // ==========================================
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not owner");
+        _;
+    }
+
+    modifier onlySeigManager() {
+        require(msg.sender == seigManager, "not seigManager");
+        _;
+    }
+
+    modifier onlyRATIssuer() {
+        require(msg.sender == ratIssuer, "not ratIssuer");
+        _;
+    }
+
+    // ==========================================
     // Constructor / Initializer
     // ==========================================
 

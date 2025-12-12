@@ -36,6 +36,9 @@ error InvalidParameterError();
 error AlreadyMigratedError();
 error NotMigratedError();
 error ZeroAddressError();
+error GameNotResolvedError();
+error AlreadySlashedError();
+error InvalidGameError();
 
 /**
  * @title SeigManagerV1_4
@@ -545,6 +548,112 @@ contract SeigManagerV1_4 is
         coinage.mint(to, amount);
 
         emit StakeTransferred(layer2, from, to, amount);
+    }
+
+    /// @inheritdoc ISeigManagerV3
+    /// @notice 시퀀서 슬래싱 - Permissionless 방식 (게임 종료 후 호출)
+    /// @dev 누구나 호출 가능, 게임 상태를 온체인에서 검증
+    /// @param gameAddress 종료된 FaultDisputeGame 주소
+    /// @param challengers 챌린저 주소 목록 (오프체인에서 파악하여 전달)
+    function slashSequencerByGame(
+        address gameAddress,
+        address[] calldata challengers
+    ) external onlyMigrated {
+        // 이미 슬래싱되었는지 확인
+        if (slashedGames[gameAddress]) revert AlreadySlashedError();
+
+        // FaultDisputeGame 인터페이스로 게임 상태 조회
+        // status() returns GameStatus enum: 0=IN_PROGRESS, 1=CHALLENGER_WINS, 2=DEFENDER_WINS
+        (bool success, bytes memory data) = gameAddress.staticcall(
+            abi.encodeWithSignature("status()")
+        );
+        if (!success) revert InvalidGameError();
+
+        uint8 gameStatus = abi.decode(data, (uint8));
+        // CHALLENGER_WINS = 1
+        if (gameStatus != 1) revert GameNotResolvedError();
+
+        // SystemConfig 조회하여 Layer2 찾기
+        (success, data) = gameAddress.staticcall(
+            abi.encodeWithSignature("systemConfig()")
+        );
+        if (!success) revert InvalidGameError();
+        address systemConfig = abi.decode(data, (address));
+
+        // Layer2 주소 조회
+        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+        if (layer2 == address(0)) revert InvalidGameError();
+
+        // 슬래싱 처리됨으로 마킹
+        slashedGames[gameAddress] = true;
+
+        // 슬래싱 실행
+        _executeSlashing(layer2, challengers);
+    }
+
+    /// @notice 내부 슬래싱 실행
+    /// @param layer2 슬래싱 대상 L2
+    /// @param challengers 보상받을 챌린저 목록
+    function _executeSlashing(address layer2, address[] calldata challengers) internal {
+        uint256 n = challengers.length;
+
+        // 시퀀서(오퍼레이터) 주소 조회
+        address sequencer = Layer2I(layer2).operator();
+        if (sequencer == address(0)) revert ZeroAddressError();
+
+        // 담보금 = 해당 L2에 스테이킹된 시퀀서의 금액
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        uint256 deposit = coinage.balanceOf(sequencer);
+        if (deposit == 0) revert InvalidParameterError();
+
+        if (n == 0) {
+            // 챌린저가 없으면 전액 DAO로
+            coinage.burnFrom(sequencer, deposit);
+            coinage.mint(dao, deposit);
+
+            _pauseLayer2Tvl(layer2);
+            sequencerSlashTimestamps[layer2].push(block.timestamp);
+
+            emit SequencerSlashed(layer2, sequencer, deposit, 0);
+            return;
+        }
+
+        // 최대 챌린저 수 제한
+        if (n > maxChallengers) n = maxChallengers;
+
+        uint256 additionalReward = sequencerAdditionalReward[layer2];
+
+        // 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
+        uint256 perChallengerReward = maxFraudProofCost + (additionalReward / n);
+
+        // 총 챌린저 보상이 담보금을 초과하지 않도록
+        uint256 totalChallengerRewards = perChallengerReward * n;
+        if (totalChallengerRewards > deposit) {
+            perChallengerReward = deposit / n;
+            totalChallengerRewards = perChallengerReward * n;
+        }
+
+        // 각 챌린저에게 스테이킹 잔액으로 이전
+        for (uint256 i = 0; i < n; i++) {
+            coinage.burnFrom(sequencer, perChallengerReward);
+            coinage.mint(challengers[i], perChallengerReward);
+            emit ChallengerRewarded(challengers[i], layer2, perChallengerReward);
+        }
+
+        // 나머지는 DAO로
+        uint256 remainder = deposit - totalChallengerRewards;
+        if (remainder > 0) {
+            coinage.burnFrom(sequencer, remainder);
+            coinage.mint(dao, remainder);
+        }
+
+        // L2 시뇨리지 분배에서 제외
+        _pauseLayer2Tvl(layer2);
+
+        // 슬래싱 기록 저장
+        sequencerSlashTimestamps[layer2].push(block.timestamp);
+
+        emit SequencerSlashed(layer2, sequencer, deposit, n);
     }
 
     // ==========================================

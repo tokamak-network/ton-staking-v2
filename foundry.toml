@@ -21,3 +21,6 @@ remappings = [
 
 [profile.default.fuzz]
 runs = 256
+
+# Allow script to write deployment files
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
