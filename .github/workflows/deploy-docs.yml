@@ -44,8 +44,8 @@ jobs:
 
       - name: Move build to docs-v3 folder
         run: |
-          mkdir -p ../deploy/docs-v3
-          mv build/* ../deploy/docs-v3/
+          mkdir -p deploy/docs-v3
+          mv build/* deploy/docs-v3/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
