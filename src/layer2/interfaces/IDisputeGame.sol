@@ -38,7 +38,7 @@ interface IDisputeGame is IInitializable {
     /// @notice Getter for the root claim.
     /// @dev `clones-with-immutable-args` argument #2
     /// @return rootClaim_ The root claim of the DisputeGame.
-    function rootClaim() external pure returns (Claim rootClaim_);
+    function rootClaim() external view returns (Claim rootClaim_);
 
     /// @notice Getter for the parent hash of the L1 block when the dispute game was created.
     /// @dev `clones-with-immutable-args` argument #3
@@ -48,7 +48,7 @@ interface IDisputeGame is IInitializable {
     /// @notice Getter for the extra data.
     /// @dev `clones-with-immutable-args` argument #4
     /// @return extraData_ Any extra data supplied to the dispute game contract by the creator.
-    function extraData() external pure returns (bytes memory extraData_);
+    function extraData() external view returns (bytes memory extraData_);
 
     /// @notice If all necessary information has been gathered, this function should mark the game
     ///         status as either `CHALLENGER_WINS` or `DEFENDER_WINS` and return the status of
