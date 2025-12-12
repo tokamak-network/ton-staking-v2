@@ -7,4 +7,4 @@
 [submodule "lib/optimism"]
 	path = lib/optimism
 	url = https://github.com/tokamak-network/optimism.git
-	branch = feature/challenger-game-type-check
+	branch = feature/ton-staking-v3

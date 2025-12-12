@@ -39,6 +39,23 @@ forge build
 git submodule update --remote lib/optimism
 ```
 
+### ⚠️ lib/optimism 서브모듈 주의사항
+
+`lib/optimism` 서브모듈의 커밋을 변경할 때는 **명시적으로 GIT_DIR을 지정**해야 합니다. 그렇지 않으면 상위 저장소(ton-staking-v2)의 HEAD가 변경될 수 있습니다.
+
+**안전한 서브모듈 커밋 변경 방법:**
+
+```bash
+# 명시적 GIT_DIR 사용 (권장)
+GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git fetch origin feature/ton-staking-v3
+GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commit-hash>
+```
+
+**현재 lib/optimism 설정:**
+- Repository: `tokamak-network/optimism`
+- Branch: `feature/ton-staking-v3`
+- Commit: `15487ec3a` (feat: integrate TON Staking V3 RAT with Optimism dispute system)
+
 ## 프로젝트 구조
 
 ```
