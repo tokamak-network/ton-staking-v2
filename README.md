@@ -54,7 +54,7 @@ GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commi
 **현재 lib/optimism 설정:**
 - Repository: `tokamak-network/optimism`
 - Branch: `feature/ton-staking-v3`
-- Commit: `15487ec3a` (feat: integrate TON Staking V3 RAT with Optimism dispute system)
+- Commit: `2e955e16f` (feat: integrate TON Staking V3 RAT and SeigManager with Optimism dispute system)
 
 ## 프로젝트 구조
 
@@ -70,7 +70,8 @@ src/
 └── dao/                # DAO 관련 컨트랙트
 
 lib/
-├── optimism/           # tokamak-network/optimism (branch: feature/challenger-game-type-check)
+├── optimism/           # tokamak-network/optimism (branch: feature/ton-staking-v3)
+├── tokamak-dao-contracts/  # tokamak-network/tokamak-dao-contracts (DAO 거버넌스)
 ├── openzeppelin-contracts/
 └── forge-std/
 ```
@@ -94,6 +95,7 @@ forge test --match-test testUpdateSeigniorageV3
 |-----------|------|
 | `@optimism/` | Optimism L1/L2 인터페이스 (SystemConfig, L1StandardBridge, OptimismPortal 등) |
 | `@openzeppelin/contracts/` | ERC20, SafeERC20, Math 등 |
+| `@tokamak-dao/` | DAO 거버넌스 컨트랙트 (DAOCommitteeProxy, DAOAgendaManager 등) |
 
 ### Optimism 인터페이스 사용 예시
 

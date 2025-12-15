@@ -8,3 +8,6 @@
 	path = lib/optimism
 	url = https://github.com/tokamak-network/optimism.git
 	branch = feature/ton-staking-v3
+[submodule "lib/tokamak-dao-contracts"]
+	path = lib/tokamak-dao-contracts
+	url = https://github.com/tokamak-network/tokamak-dao-contracts.git
