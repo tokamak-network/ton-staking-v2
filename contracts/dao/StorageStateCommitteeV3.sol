@@ -6,4 +6,5 @@ contract StorageStateCommitteeV3 {
 
     // EIP-1271 관련 상태 변수들
     address public multiSigWallet; // DAO Owner (DEFAULT_ADMIN_ROLE)
+    uint256 requiredConfirmation;
 }
