@@ -132,6 +132,8 @@ async function CreateAgendaAboutRFC13() {
 
     console.log("account1 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(account1))
     console.log("account2 Balance : ", await daoCommitteeV1.totalSupplyOnCandidate(account2))
+
+    console.log("get voting count : ", await daoagendaManager.getVotingCount(await daoagendaManager.numAgendas() - 1))
 }
 
 
