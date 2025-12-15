@@ -7,6 +7,26 @@ import {RATStorage} from "../../src/validator/RATStorage.sol";
 import {MockWTON} from "./mocks/MockWTON.sol";
 import {MockTON} from "./mocks/MockTON.sol";
 
+/// @notice Mock FaultDisputeGame that provides systemConfig() for RAT.resolveClaim()
+contract MockFaultDisputeGame {
+    address public systemConfig;
+
+    constructor(address _systemConfig) {
+        systemConfig = _systemConfig;
+    }
+}
+
+/// @notice Mock L1BridgeRegistry for factory validation
+contract MockL1BridgeRegistry {
+    /// @notice factory => rollupConfig mapping
+    mapping(address => address) public rollupConfigWithDisputeGameFactory;
+
+    /// @notice Register a factory as valid
+    function setFactory(address factory, address rollupConfig) external {
+        rollupConfigWithDisputeGameFactory[factory] = rollupConfig;
+    }
+}
+
 /// @title RATTest
 /// @notice RAT (Randomized Attention Test) 단위 테스트
 /// @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
@@ -14,11 +34,12 @@ contract RATTest is Test {
     RAT public rat;
     MockWTON public wton;
     MockTON public ton;
+    MockL1BridgeRegistry public mockL1BridgeRegistry;
 
     address public owner = address(this);
     address public seigManager = address(0x1);
     address public depositManager = address(0x2);
-    address public authorizedTrigger = address(0x3);
+    address public factory = address(0x3);  // DisputeGameFactory 역할
     address public treasury = address(0x4);
 
     address public systemConfig1 = address(0x10);
@@ -28,9 +49,9 @@ contract RATTest is Test {
     address public validator2 = address(0x200);
     address public validator3 = address(0x300);
 
-    // Mock game addresses for RAT tests
-    address public mockGame1 = address(0x1000);
-    address public mockGame2 = address(0x2000);
+    // Mock game contracts for RAT tests (provides systemConfig() for resolveClaim)
+    MockFaultDisputeGame public mockGame1;
+    MockFaultDisputeGame public mockGame2;
 
     uint256 internal constant RAY = 1e27;
 
@@ -47,6 +68,15 @@ contract RATTest is Test {
         ton = new MockTON();
         wton.setTON(address(ton));
 
+        // Deploy mock L1BridgeRegistry
+        mockL1BridgeRegistry = new MockL1BridgeRegistry();
+        // factory를 systemConfig1의 유효한 factory로 등록
+        mockL1BridgeRegistry.setFactory(factory, systemConfig1);
+
+        // Deploy mock games (with systemConfig for resolveClaim)
+        mockGame1 = new MockFaultDisputeGame(systemConfig1);
+        mockGame2 = new MockFaultDisputeGame(systemConfig1);
+
         // Deploy RAT
         rat = new RAT();
         rat.initialize(
@@ -61,7 +91,7 @@ contract RATTest is Test {
         rat.setSlashingPenalty(slashingPenalty);
         rat.setValidatorBuffer(validatorBuffer);
         rat.setMinimumThreshold(minimumThreshold);
-        rat.setAuthorizedTrigger(authorizedTrigger);
+        rat.setL1BridgeRegistry(address(mockL1BridgeRegistry));  // factory 검증용
         rat.setTreasury(treasury);
         rat.setEvidenceSubmissionPeriod(evidenceSubmissionPeriod);
 
@@ -247,8 +277,8 @@ contract RATTest is Test {
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
 
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
         // 검증자의 담보금 선차감 확인
         (
@@ -271,14 +301,14 @@ contract RATTest is Test {
 
         vm.prank(validator1);
         vm.expectRevert();
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
     }
 
     /// @notice 활성 검증자 없을 때 RAT 트리거 (무시됨)
     function test_triggerAttentionTest_noActiveValidators() public {
         // 검증자 없는 상태에서 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // 테스트가 생성되지 않음 확인
         assertEq(rat.activeTestCount(systemConfig1), 0, "No test should be created");
@@ -297,8 +327,8 @@ contract RATTest is Test {
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
 
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
         // 증거 제출
         vm.prank(validator1);
@@ -326,8 +356,8 @@ contract RATTest is Test {
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
 
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
         // 마감 경과
         vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
@@ -343,8 +373,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // 다른 검증자가 제출 시도
         vm.prank(validator2);
@@ -364,8 +394,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, initialDeposit);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // testId 가져오기
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
@@ -406,8 +436,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, initialDeposit);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
@@ -439,8 +469,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
@@ -455,8 +485,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // 증거 제출
         vm.prank(validator1);
@@ -610,8 +640,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
@@ -658,8 +688,8 @@ contract RATTest is Test {
         bytes32 blockHash = keccak256("block1");
 
         // RAT 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
         // 트리거 후 상태 확인
         (
@@ -674,7 +704,7 @@ contract RATTest is Test {
         assertEq(bondAfterTrigger, 100e27, "Bond should be C_off");
 
         // FaultDisputeGame에서 resolveClaim 호출 (게임 승리)
-        vm.prank(mockGame1);
+        vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
         // 본드 복구 확인
@@ -720,11 +750,11 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // validator2 (선택되지 않은 검증자)로 resolveClaim 호출
-        vm.prank(mockGame1);
+        vm.prank(address(mockGame1));
         rat.resolveClaim(validator2);
 
         // validator1의 본드는 그대로
@@ -746,15 +776,15 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         uint32 batchIndex = 1;
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // 증거 제출로 먼저 응답
         vm.prank(validator1);
         rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
 
         // 이후 resolveClaim 호출 - 무시되어야 함
-        vm.prank(mockGame1);
+        vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
         // 상태 확인 (submitEvidence로 이미 복구됨)
@@ -783,14 +813,14 @@ contract RATTest is Test {
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
 
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, batchIndex, batchHash, blockHash);
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
         // gameToTestId 매핑 확인
-        bytes32 testIdFromGame = rat.gameToTestId(mockGame1);
+        bytes32 testIdFromGame = rat.gameToTestId(address(mockGame1));
         bytes32 testIdFromBatch = rat.batchToTestId(systemConfig1, batchIndex);
 
-        assertEq(testIdFromGame, testIdFromBatch, "Game address should map to same testId");
+        assertEq(testIdFromGame, testIdFromBatch, "Game should map to same testId");
         assertTrue(testIdFromGame != bytes32(0), "TestId should not be zero");
     }
 
@@ -809,16 +839,16 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, 500e27);
 
         // 첫 번째 게임 - RAT 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // 두 번째 게임 - RAT 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame2, systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame2), systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
 
         // 두 게임이 다른 testId를 가져야 함
-        bytes32 testId1 = rat.gameToTestId(mockGame1);
-        bytes32 testId2 = rat.gameToTestId(mockGame2);
+        bytes32 testId1 = rat.gameToTestId(address(mockGame1));
+        bytes32 testId2 = rat.gameToTestId(address(mockGame2));
 
         assertTrue(testId1 != testId2, "Different games should have different testIds");
 
@@ -826,19 +856,19 @@ contract RATTest is Test {
         assertEq(rat.activeTestCount(systemConfig1), 2, "Should have 2 active tests");
     }
 
-    /// @notice 여러 게임 중 일부만 응답
+    /// @notice 여러 게임 중 일부만 응답 - resolveClaim으로 각 게임별 본드 복구
     function test_multipleGames_partialResponse() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1, 500e27);
 
         // 두 게임 트리거 (같은 검증자가 선택됨)
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // 첫 번째 테스트에 대한 담보금 차감 후 두 번째 트리거
         // 담보금: 500 - 100 = 400
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame2, systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame2), systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
 
         // 담보금: 400 - 100 = 300, bond: 200
         (
@@ -852,21 +882,37 @@ contract RATTest is Test {
         assertEq(depositedAmount, 300e27, "Deposit should be reduced twice");
         assertEq(totalBond, 200e27, "Bond should be doubled");
 
-        // 첫 번째 게임에서만 resolveClaim
-        vm.prank(mockGame1);
+        // 첫 번째 게임에서 resolveClaim 호출 - gameToTestId로 찾음
+        vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
-        // 첫 번째 본드만 복구
+        // 첫 번째 본드 복구 확인
         (
-            uint256 depositAfter,
-            uint256 bondAfter,
+            uint256 depositAfterFirst,
+            uint256 bondAfterFirst,
             ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
-        assertEq(depositAfter, 400e27, "One bond should be restored");
-        assertEq(bondAfter, 100e27, "One bond should remain");
+        assertEq(depositAfterFirst, 400e27, "One bond should be restored");
+        assertEq(bondAfterFirst, 100e27, "One bond should remain");
+
+        // 두 번째 게임에서 resolveClaim 호출
+        vm.prank(address(mockGame2));
+        rat.resolveClaim(validator1);
+
+        // 두 번째 본드도 복구 확인
+        (
+            uint256 depositAfterSecond,
+            uint256 bondAfterSecond,
+            ,
+            ,
+            ,
+        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+
+        assertEq(depositAfterSecond, 500e27, "All bonds should be restored");
+        assertEq(bondAfterSecond, 0, "No bonds should remain");
     }
 
     // ==========================================
@@ -882,8 +928,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, initialDeposit);
 
         // RAT 트리거 - 담보금: 200 - 100 = 100 (D_min 미만이지만 아직 활성)
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         (
             uint256 depositAfterTrigger,
@@ -899,7 +945,7 @@ contract RATTest is Test {
         assertTrue(isActiveAfterTrigger, "Should still be active after trigger");
 
         // resolveClaim으로 본드 복구 - 담보금: 100 + 100 = 200 >= D_min
-        vm.prank(mockGame1);
+        vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
         (
@@ -923,8 +969,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, minimumDeposit);
 
         // RAT 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, 1);
 
@@ -973,8 +1019,8 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1, minimumDeposit);
 
         // RAT 트리거
-        vm.prank(authorizedTrigger);
-        rat.triggerAttentionTest(mockGame1, systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         bytes32 testId = rat.batchToTestId(systemConfig1, 1);
 

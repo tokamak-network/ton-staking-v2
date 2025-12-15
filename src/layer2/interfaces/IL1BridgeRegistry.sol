@@ -14,4 +14,8 @@ interface IL1BridgeRegistry {
     function rollupType(address rollupConfig) external view returns (uint8);
     function checkLayer2TVL(address _rollupConfig) external view returns (bool result, uint256 amount);
     function layer2TVL(address _rollupConfig) external view returns (uint256 amount);
+
+    /// @notice DisputeGameFactory => rollupConfig 역방향 매핑
+    /// @dev RAT에서 factory 검증 시 사용
+    function rollupConfigWithDisputeGameFactory(address factory) external view returns (address rollupConfig);
 }

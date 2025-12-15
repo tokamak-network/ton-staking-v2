@@ -123,4 +123,13 @@ contract SeigManagerV1_4Storage {
 
     /// @notice V3 마이그레이션 블록
     uint256 public v3MigrationBlock;
+
+    // ==========================================
+    // TVL 트리거 시뇨리지 동기화 제어
+    // ==========================================
+
+    /// @notice TVL 변경 시 effectiveBridgedTON 즉시 동기화 여부
+    /// @dev true: onBridgedTONChange에서 즉시 동기화 (가스비 증가)
+    /// @dev false: 시뇨리지 계산 시점에만 동기화 (기본값)
+    bool public autoSyncEffectiveTVL;
 }

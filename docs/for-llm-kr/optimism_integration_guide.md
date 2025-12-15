@@ -8,31 +8,76 @@
 
 Optimism에서 TON V3와 연동하기 위해 다음 함수 호출을 추가해야 합니다:
 
-### A. RAT (Randomized Attention Test) 연동
+### A. L2 등록 (Rollup Type)
+
+TON V3에서 L2를 등록할 때 타입을 지정합니다. DisputeGame을 지원하는 L2는 **Type 3**으로 등록합니다.
+
+| Rollup Type | 설명 | Native TON | TON 보관 위치 | DisputeGameFactory |
+|-------------|------|:----------:|:------------:|:------------------:|
+| **Type 1 (Legacy)** | Optimism Legacy with Native TON | ✅ | L1StandardBridge | 미사용 |
+| **Type 2 (Bedrock)** | Bedrock with Native TON | ✅ | OptimismPortal | 미사용 |
+| **Type 3 (Bedrock with DG)** | Bedrock with Native TON + DisputeGame | ✅ | OptimismPortal | **자동 등록** |
+
+> **Native TON**: 모든 타입이 L2에서 TON을 네이티브 토큰으로 사용합니다.
+> - Type 1: TON은 L1StandardBridge에 보관
+> - Type 2/3: TON은 OptimismPortal에 보관
+
+```solidity
+// L1BridgeRegistryV1_2.sol
+function registerRollupConfig(
+    address rollupConfig,  // SystemConfig 주소
+    uint8 _type,           // 3 = OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+    address _l2TON,
+    string calldata _name
+) external onlyRegistrant;
+```
+
+**Type 3 등록 시 자동으로 저장되는 정보:**
+1. `l1Bridge[bridge] = true` - L1StandardBridge 등록
+2. `portal[portal] = true` - OptimismPortal 등록
+3. `disputeGameFactory[rollupConfig] = true` - DisputeGameFactory 등록 여부
+4. `rollupConfigWithDisputeGameFactory[factory] = rollupConfig` - 역방향 매핑 (factory → rollupConfig)
+
+```solidity
+// L1BridgeRegistryV1_2Storage.sol
+contract L1BridgeRegistryV1_2Storage {
+    /// @notice rollupConfig => DisputeGameFactory 등록여부
+    mapping(address => bool) public disputeGameFactory;
+
+    /// @notice DisputeGameFactory => rollupConfig (역방향 매핑)
+    mapping(address => address) public rollupConfigWithDisputeGameFactory;
+}
+```
+
+**역방향 매핑 용도**: RAT에서 `triggerAttentionTest` 호출 시 factory 주소로 rollupConfig를 조회하여 L2를 식별합니다.
+
+### B. RAT (Randomized Attention Test) 연동
 
 | 컴포넌트 | 호출할 함수 | 시점 |
 |---------|------------|------|
 | **DisputeGameFactory** | `IRAT.triggerAttentionTest(...)` | DisputeGame 생성 시 |
 | **FaultDisputeGame** | `IRAT.resolveClaim(winner)` | 챌린저 승리 시 |
 
-### B. Bridged TON (TVL) 변경 알림
+### C. Bridged TON (TVL) 변경 알림
 
 L2 타입에 따라 **둘 중 하나만** 구현:
 
 | L2 타입 | TON 보관 위치 | 호출할 함수 |
 |--------|-------------|------------|
-| **Type 1 (Legacy)** | L1StandardBridge | `ISeigManager.onBridgedTONChange(layer2, newAmount)` |
-| **Type 2 (Bedrock)** | OptimismPortal | `ISeigManager.onBridgedTONChange(layer2, newAmount)` |
+| **Type 1 (Legacy)** | L1StandardBridge | `ISeigManager.onBridgedTONChange(rollupConfig, totalTONTVL)` |
+| **Type 2/3 (Bedrock)** | OptimismPortal | `ISeigManager.onBridgedTONChange(rollupConfig, totalTONTVL)` |
 
-### C. 시퀀서 슬래싱
+> **파라미터**:
+> - `rollupConfig`: L2의 SystemConfig 주소
+> - `totalTONTVL`: 현재 브리지에 보관된 총 TON 양
+
+### D. 시퀀서 슬래싱
 
 **Optimism 수정 불필요!** - TON V3에서 게임 상태를 직접 조회하여 Permissionless 방식으로 처리
 
 | 호출 방식 | 설명 |
 |---------|------|
 | 누구나 `SeigManager.slashSequencerByGame(gameAddress)` 호출 | TON V3가 FaultDisputeGame에서 `status()`, `claimData` 등 조회하여 검증 |
-
-> **참고**: 현재 TON V3의 `IRAT.sol`에는 `gameAddress` 파라미터와 `resolveClaim` 함수가 누락되어 있습니다. 연동 전에 TON V3 측에서 인터페이스 업데이트가 필요합니다.
 
 ---
 
@@ -60,7 +105,7 @@ RAT(Randomized Attention Test)는 L2 검증자(Validator)들이 실제로 L2 상
 
 ## 2. IRAT 인터페이스
 
-Optimism에서 사용할 RAT 인터페이스입니다.
+Optimism에서 사용할 RAT 인터페이스입니다. **gameAddress 파라미터 없이** Optimism 서브모듈과 동일한 인터페이스를 사용합니다.
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -71,13 +116,11 @@ pragma solidity ^0.8.15;
 interface IRAT {
     /// @notice RAT 테스트 트리거
     /// @dev DisputeGame 생성 시 DisputeGameFactory에서 호출
-    /// @param gameAddress 생성된 DisputeGame 주소 (resolveClaim에서 testId 조회용)
     /// @param systemConfig L2의 SystemConfig 주소 (L2 식별자)
     /// @param batchIndex 배치/게임 인덱스
     /// @param batchHash 배치 해시 또는 Output Root
     /// @param blockHash 블록 해시 (검증자 랜덤 선택용)
     function triggerAttentionTest(
-        address gameAddress,
         address systemConfig,
         uint32 batchIndex,
         bytes32 batchHash,
@@ -86,27 +129,37 @@ interface IRAT {
 
     /// @notice 챌린지 승리 시 담보금 복구
     /// @dev FaultDisputeGame에서 게임 해결 시 호출
+    /// @dev RAT은 msg.sender(게임)의 systemConfig()를 호출하여 테스트 조회
     /// @param _claimant 게임에서 이긴 주소 (챌린저)
     function resolveClaim(address _claimant) external;
 }
 ```
 
-### 2.1 현재 Optimism IRAT vs TON V3 IRAT 비교
+### 2.1 인터페이스 설계
 
-| 함수 | 현재 Optimism IRAT | TON V3 IRAT (필요) |
-|------|-------------------|-------------------|
-| `triggerAttentionTest` | `(address _gameAddress, bytes32 _stateRoot, bytes32 _blockHash)` | `(address gameAddress, address systemConfig, uint32 batchIndex, bytes32 batchHash, bytes32 blockHash)` |
-| `resolveClaim` | `(address _claimant)` | `(address _claimant)` (동일) |
+| 함수 | Optimism 서브모듈 | TON V3 IRAT |
+|------|------------------|-------------|
+| `triggerAttentionTest` | `(address systemConfig, uint32 batchIndex, bytes32 batchHash, bytes32 blockHash)` | **동일** |
+| `resolveClaim` | `(address _claimant)` | **동일** |
 
 **파라미터 설명:**
 
 | 파라미터 | 용도 |
 |---------|------|
-| `gameAddress` | 나중에 챌린저 승리 시 `resolveClaim`에서 `gameToTestId[msg.sender]`로 테스트 조회 |
 | `systemConfig` | RAT이 **어느 L2의 검증자 풀**에서 검증자를 선택할지 결정 (L2 식별자) |
-| `batchIndex` | 테스트 ID 생성에 사용 (`testId = keccak256(systemConfig, batchIndex)`) |
+| `batchIndex` | 테스트 ID 생성에 사용 |
 | `batchHash` | 검증자가 제출해야 할 증거의 기준값 (Output Root) |
 | `blockHash` | 검증자 랜덤 선택에 사용 |
+
+### 2.2 resolveClaim에서 테스트 조회 방식
+
+`gameAddress` 파라미터 없이 테스트를 찾는 방법:
+
+1. `resolveClaim(claimant)` 호출 시 `msg.sender` = FaultDisputeGame 주소
+2. RAT이 `msg.sender.systemConfig()` 호출하여 L2 식별
+3. `activeTestByValidator[systemConfig][claimant]`로 테스트 조회
+
+> **중요**: 이 방식이 동작하려면 **FaultDisputeGame에 `systemConfig()` 뷰 함수가 필수**입니다. (섹션 4.1 참조)
 
 ---
 
@@ -223,7 +276,30 @@ function resolveClaim(address _claimant) external {
 
 ## 4. FaultDisputeGame 수정
 
-### 4.1 챌린지 승리 시 RAT 콜백
+### 4.1 systemConfig() 뷰 함수 추가 (필수)
+
+**RAT이 resolveClaim에서 테스트를 찾기 위해 FaultDisputeGame에서 systemConfig를 조회합니다.**
+
+```solidity
+// FaultDisputeGame.sol
+
+contract FaultDisputeGame {
+    /// @notice 이 게임이 속한 L2의 SystemConfig 주소
+    /// @dev RAT.resolveClaim()에서 호출하여 테스트 조회에 사용
+    address public systemConfig;
+
+    /// @notice 초기화 시 systemConfig 설정
+    function initialize(address _rat, address _systemConfig) public payable virtual {
+        rat = _rat;
+        systemConfig = _systemConfig;  // ★ 추가
+        _initialize();
+    }
+}
+```
+
+> **중요**: 현재 FaultDisputeGame에는 `systemConfig()` 함수가 없습니다. RAT 연동을 위해 반드시 추가해야 합니다.
+
+### 4.2 챌린지 승리 시 RAT 콜백
 
 검증자가 챌린저로서 FaultDisputeGame에서 승리하면, RAT 컨트랙트에 콜백하여 담보금을 복구합니다.
 
@@ -235,6 +311,9 @@ import { IRAT } from "interfaces/L1/IRAT.sol";
 contract FaultDisputeGame {
     /// @notice RAT 컨트랙트 주소
     address public rat;
+
+    /// @notice 이 게임이 속한 L2의 SystemConfig 주소
+    address public systemConfig;
 
     /// @notice 챌린지 승리 시 RAT 콜백
     /// @param claimant 게임에서 이긴 주소
@@ -262,7 +341,7 @@ contract FaultDisputeGame {
 }
 ```
 
-### 4.2 RAT resolveClaim 동작
+### 4.3 RAT resolveClaim 동작
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -275,7 +354,9 @@ contract FaultDisputeGame {
 │     └─→ IRAT(rat).resolveClaim(winner)                      │
 │         └─→ RAT 컨트랙트에서:                                │
 │             - msg.sender = 게임 주소                         │
-│             - gameToTestId[msg.sender]로 테스트 조회         │
+│             - game.systemConfig() 호출하여 L2 식별           │
+│             - activeTestByValidator[systemConfig][winner]로  │
+│               테스트 조회                                    │
 │             - winner가 선택된 검증자면 담보금 복구           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -458,9 +539,9 @@ TON이 L1 ↔ L2 간 브리지를 통해 이동할 때, TON V3 시뇨리지 분�
 interface ISeigManager {
     /// @notice L2의 Bridged TON(TVL) 변경 시 호출
     /// @dev L1Bridge/OptimismPortal에서 TON 입금/출금 완료 후 호출
-    /// @param layer2 L2 주소 (candidate contract 주소)
-    /// @param newBridgedTON 새로운 Bridged TON 양 (전체 잔액)
-    function onBridgedTONChange(address layer2, uint256 newBridgedTON) external;
+    /// @param rollupConfig L2의 SystemConfig 주소
+    /// @param totalTONTVL 현재 브리지에 보관된 총 TON 양
+    function onBridgedTONChange(address rollupConfig, uint256 totalTONTVL) external;
 }
 ```
 
@@ -482,14 +563,14 @@ contract L1StandardBridge {
     /// @notice TON 토큰 주소
     address public ton;
 
-    /// @notice L2 주소 (candidate)
-    address public layer2;
+    /// @notice L2의 SystemConfig 주소
+    address public rollupConfig;
 
     /// @notice TON 입금/출금 완료 후 호출
     function _notifyBridgedTONChange() internal {
-        if (seigManager != address(0) && layer2 != address(0)) {
-            uint256 newBalance = IERC20(ton).balanceOf(address(this));
-            try ISeigManager(seigManager).onBridgedTONChange(layer2, newBalance) {
+        if (seigManager != address(0) && rollupConfig != address(0)) {
+            uint256 totalTONTVL = IERC20(ton).balanceOf(address(this));
+            try ISeigManager(seigManager).onBridgedTONChange(rollupConfig, totalTONTVL) {
             } catch {
                 // 실패해도 브리지 동작은 계속
             }
@@ -498,7 +579,7 @@ contract L1StandardBridge {
 }
 ```
 
-#### Type 2 (Bedrock): OptimismPortal 수정
+#### Type 2/3 (Bedrock with Native TON): OptimismPortal 수정
 
 ```solidity
 // OptimismPortal.sol
@@ -506,13 +587,13 @@ contract L1StandardBridge {
 contract OptimismPortal {
     address public seigManager;
     address public ton;
-    address public layer2;
+    address public rollupConfig;
 
     /// @notice TON 입금/출금 완료 후
     function _notifyBridgedTONChange() internal {
-        if (seigManager != address(0) && layer2 != address(0)) {
-            uint256 newBalance = IERC20(ton).balanceOf(address(this));
-            try ISeigManager(seigManager).onBridgedTONChange(layer2, newBalance) {
+        if (seigManager != address(0) && rollupConfig != address(0)) {
+            uint256 totalTONTVL = IERC20(ton).balanceOf(address(this));
+            try ISeigManager(seigManager).onBridgedTONChange(rollupConfig, totalTONTVL) {
             } catch {
             }
         }
@@ -534,7 +615,8 @@ contract OptimismPortal {
        │                     │  (브리지에 TON 보관) │
        │                     │                     │
        │                     │  onBridgedTONChange │
-       │                     │  (layer2, balance)  │
+       │                     │  (rollupConfig,     │
+       │                     │   totalTONTVL)      │
        │                     │────────────────────>│
        │                     │                     │
        │                     │                     │ bridgedTONInfo 갱신

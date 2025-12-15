@@ -156,6 +156,17 @@ contract RATStorage {
     bool public paused;
 
     // ==========================================
+    // Factory 검증 관련
+    // ==========================================
+
+    /// @notice L1BridgeRegistry 주소 (factory 검증용)
+    address public l1BridgeRegistry;
+
+    /// @notice 게임주소 => 팩토리주소 매핑
+    /// @dev triggerAttentionTest 호출 시 msg.sender(factory)를 저장
+    mapping(address => address) public factoryByGame;
+
+    // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)
     // ==========================================
 

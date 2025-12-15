@@ -158,6 +158,9 @@ contract SeigManagerV1_4 is
         uint256 amount
     );
 
+    /// @notice TVL 자동 동기화 설정 변경 이벤트
+    event AutoSyncEffectiveTVLUpdated(bool enabled);
+
     // ==========================================
     // Governance Functions - V3 Parameters
     // ==========================================
@@ -240,6 +243,13 @@ contract SeigManagerV1_4 is
         disputeContract = dispute;
     }
 
+    /// @notice TVL 변경 시 자동 동기화 여부 설정
+    /// @param enabled true: 즉시 동기화, false: 시뇨리지 계산 시점에만 동기화
+    function setAutoSyncEffectiveTVL(bool enabled) external onlyOwner {
+        autoSyncEffectiveTVL = enabled;
+        emit AutoSyncEffectiveTVLUpdated(enabled);
+    }
+
     /// @notice 시퀀서 추가 보상 설정 (Δ_sequencer)
     function setSequencerAdditionalReward(address layer2, uint256 additionalReward) external onlyOwner {
         sequencerAdditionalReward[layer2] = additionalReward;
@@ -278,22 +288,19 @@ contract SeigManagerV1_4 is
         onlyMigrated
     {
         SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
-        uint256 oldEffective = info.effectiveBridgedTON;
 
         info.currentBridgedTON = newBridgedTON;
         info.lastUpdateTime = block.timestamp;
 
-        // 자격 재평가
+        // 자격만 재평가
         _updateEligibility(layer2);
 
-        uint256 newEffective = info.effectiveBridgedTON;
-
-        // 전역 합계 갱신
-        if (newEffective != oldEffective) {
-            totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+        // autoSyncEffectiveTVL이 true면 effectiveBridgedTON도 즉시 동기화
+        if (autoSyncEffectiveTVL) {
+            _syncEffectiveBridgedTON(layer2);
         }
 
-        emit BridgedTONChanged(layer2, newBridgedTON, newEffective, info.isEligible);
+        emit BridgedTONChanged(layer2, newBridgedTON, info.effectiveBridgedTON, info.isEligible);
     }
 
     /// @inheritdoc ISeigManagerV3
@@ -308,21 +315,13 @@ contract SeigManagerV1_4 is
         );
 
         SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
-        uint256 oldEffective = info.effectiveBridgedTON;
         bool oldEligible = info.isEligible;
 
-        // 자격 재평가
+        // 자격만 재평가 (effectiveBridgedTON은 시뇨리지 계산 시 갱신)
         _updateEligibility(layer2);
 
-        uint256 newEffective = info.effectiveBridgedTON;
-
-        // 전역 합계 갱신
-        if (newEffective != oldEffective) {
-            totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
-        }
-
         if (oldEligible != info.isEligible) {
-            emit EligibilityChanged(layer2, info.isEligible, info.currentBridgedTON, newEffective);
+            emit EligibilityChanged(layer2, info.isEligible, info.currentBridgedTON, info.effectiveBridgedTON);
         }
     }
 
@@ -976,6 +975,9 @@ contract SeigManagerV1_4 is
             // 개별 L2 보상 정산
             (, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
             if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+                // 호출자의 effectiveBridgedTON 동기화 (isEligible 기반)
+                _syncEffectiveBridgedTON(msg.sender);
+
                 BridgedTONInfo storage info = bridgedTONInfo[msg.sender];
                 if (info.isEligible && info.effectiveBridgedTON > 0) {
                     layer2Seigs = (bridgedTONRewardPerUint * info.effectiveBridgedTON) / WEI_UNIT - info.initialDebt;
@@ -1050,14 +1052,27 @@ contract SeigManagerV1_4 is
         }
     }
 
-    /// @notice L2 자격 업데이트
+    /// @notice L2 자격만 업데이트 (effectiveBridgedTON은 시뇨리지 계산 시 갱신)
     function _updateEligibility(address layer2) internal {
         BridgedTONInfo storage info = bridgedTONInfo[layer2];
 
         (bool eligible, , ) = checkEligibility(layer2);
 
         info.isEligible = eligible;
-        info.effectiveBridgedTON = eligible ? info.currentBridgedTON : 0;
+        // effectiveBridgedTON은 여기서 업데이트하지 않음
+        // updateSeigniorage 시점에 _syncEffectiveBridgedTON에서 갱신
+    }
+
+    /// @notice effectiveBridgedTON 동기화 (시뇨리지 계산 전 호출)
+    function _syncEffectiveBridgedTON(address layer2) internal {
+        BridgedTONInfo storage info = bridgedTONInfo[layer2];
+        uint256 oldEffective = info.effectiveBridgedTON;
+        uint256 newEffective = info.isEligible ? info.currentBridgedTON : 0;
+
+        if (newEffective != oldEffective) {
+            info.effectiveBridgedTON = newEffective;
+            totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+        }
     }
 
     function _onlyLayer2Manager() internal view {

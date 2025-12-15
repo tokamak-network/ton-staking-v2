@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {RATStorage} from "./RATStorage.sol";
 import {IRAT} from "./IRAT.sol";
+import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 
 // Custom Errors
 error AlreadyRegisteredError();
@@ -22,6 +23,7 @@ error NoRewardsError();
 error ZeroAmountError();
 error InvalidParameterError();
 error NotSelectedValidatorError();
+error InvalidFactoryError();
 
 /**
  * @title RAT (Randomized Attention Test)
@@ -59,6 +61,14 @@ contract RAT is RATStorage, IRAT {
 
     modifier onlyAuthorizedTrigger() {
         require(msg.sender == authorizedTrigger, "not authorized");
+        _;
+    }
+
+    /// @notice L1BridgeRegistry에 등록된 유효한 factory인지 검증
+    modifier onlyValidFactory() {
+        if (l1BridgeRegistry == address(0)) revert InvalidFactoryError();
+        address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithDisputeGameFactory(msg.sender);
+        if (rollupConfig == address(0)) revert InvalidFactoryError();
         _;
     }
 
@@ -301,7 +311,10 @@ contract RAT is RATStorage, IRAT {
         uint32 batchIndex,
         bytes32 batchHash,
         bytes32 blockHash
-    ) external onlyAuthorizedTrigger whenNotPaused {
+    ) external onlyValidFactory whenNotPaused {
+        // factory 주소 저장 (msg.sender = DisputeGameFactory)
+        factoryByGame[gameAddress] = msg.sender;
+
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
         if (pool.activeCount == 0) return; // 활성 검증자 없으면 무시
 
@@ -409,6 +422,9 @@ contract RAT is RATStorage, IRAT {
 
     /// @inheritdoc IRAT
     function resolveClaim(address _claimant) external {
+        // msg.sender = 게임 주소, 유효한 게임인지 확인
+        if (factoryByGame[msg.sender] == address(0)) return;  // 유효한 factory에서 생성된 게임이 아님
+
         // msg.sender = 게임 주소로 테스트 조회
         bytes32 testId = gameToTestId[msg.sender];
         if (testId == bytes32(0)) return;  // 해당 게임의 RAT 테스트가 없음
@@ -611,9 +627,14 @@ contract RAT is RATStorage, IRAT {
         evidenceSubmissionPeriod = period;
     }
 
-    /// @notice RAT 트리거 권한 주소 설정
+    /// @notice RAT 트리거 권한 주소 설정 (deprecated - use L1BridgeRegistry instead)
     function setAuthorizedTrigger(address trigger) external onlyOwner {
         authorizedTrigger = trigger;
+    }
+
+    /// @notice L1BridgeRegistry 주소 설정 (factory 검증용)
+    function setL1BridgeRegistry(address _l1BridgeRegistry) external onlyOwner {
+        l1BridgeRegistry = _l1BridgeRegistry;
     }
 
     /// @notice Treasury 주소 설정
