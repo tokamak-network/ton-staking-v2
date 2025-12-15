@@ -9,3 +9,4 @@ src/=lib/optimism/packages/contracts-bedrock/src/
 safe-contracts/=lib/optimism/packages/contracts-bedrock/lib/safe-contracts/contracts/
 forge-std/=lib/forge-std/src/
 ds-test/=lib/openzeppelin-contracts/lib/forge-std/lib/ds-test/src/
+@tokamak-dao/=lib/tokamak-dao-contracts/contracts/
