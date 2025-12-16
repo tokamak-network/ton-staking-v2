@@ -35,6 +35,7 @@ contract RATStorage {
         uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
         uint256 pendingRewards;         // 미청구 검증자 보상
         uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor
+        uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
         uint32 validatorIndex;          // 검증자 인덱스
         bool isActive;                  // 활성 상태
     }
@@ -132,6 +133,9 @@ contract RATStorage {
     /// @notice DepositManager 주소
     address public depositManager;
 
+    /// @notice Layer2Manager 주소
+    address public layer2Manager;
+
     /// @notice RAT 트리거 권한 주소 (DisputeGameFactory 등)
     address public authorizedTrigger;
 
@@ -165,6 +169,10 @@ contract RATStorage {
     /// @notice 게임주소 => 팩토리주소 매핑
     /// @dev triggerAttentionTest 호출 시 msg.sender(factory)를 저장
     mapping(address => address) public factoryByGame;
+
+    /// @notice 출금 대기 중인 금액 (systemConfig => validator => amount)
+    /// @dev deactivateValidator 후 2주 대기 후 processWithdrawal로 수령
+    mapping(address => mapping(address => uint256)) public pendingWithdrawals;
 
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)

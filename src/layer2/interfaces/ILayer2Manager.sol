@@ -20,4 +20,14 @@ interface ILayer2Manager {
     /// @param systemConfig SystemConfig 컨트랙트 주소
     /// @return layer2 해당 Layer2 주소 (없으면 address(0))
     function getLayer2BySystemConfig(address systemConfig) external view returns (address layer2);
+
+    /// @notice rollupConfig의 Bridged TON 조회
+    /// @param rollupConfig L2의 SystemConfig 주소
+    /// @return bridgedTON Bridged TON 양 (TON 단위)
+    function getBridgedTON(address rollupConfig) external view returns (uint256 bridgedTON);
+
+    /// @notice Layer2 주소로 Bridged TON 조회
+    /// @param layer2 L2 주소 (candidate)
+    /// @return bridgedTON Bridged TON 양 (TON 단위)
+    function getBridgedTONByLayer(address layer2) external view returns (uint256 bridgedTON);
 }

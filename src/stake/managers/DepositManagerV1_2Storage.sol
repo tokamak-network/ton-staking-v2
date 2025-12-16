@@ -2,12 +2,8 @@
 pragma solidity ^0.8.4;
 
 /// @title DepositManagerV1_2Storage
-/// @notice V3 신규 스토리지 - onStakingChange 콜백 관련
+/// @notice V1_2 스토리지 - 미래 확장을 위한 예약 슬롯
 contract DepositManagerV1_2Storage {
-    // ==========================================
-    // V3 신규: SeigManager 콜백 설정
-    // ==========================================
-
-    /// @notice V3 스테이킹 변경 콜백 활성화 여부
-    bool public v3CallbackEnabled;
+    // 예약된 슬롯 (향후 확장용)
+    uint256[50] private __gap;
 }

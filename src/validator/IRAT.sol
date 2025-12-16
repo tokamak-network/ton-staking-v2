@@ -85,6 +85,19 @@ interface IRAT {
         uint256 restoredAmount
     );
 
+    /// @notice 검증자 세트 복구 이벤트 (D_min 미만 제거 후 복구)
+    event ValidatorRestored(
+        address indexed validator,
+        address indexed systemConfig
+    );
+
+    /// @notice 출금 완료 이벤트 (processWithdrawal)
+    event WithdrawalProcessed(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 amount
+    );
+
     // ==========================================
     // View Functions
     // ==========================================
@@ -132,6 +145,10 @@ interface IRAT {
     /// @param amount 추가 금액 (WTON)
     function addDeposit(address systemConfig, uint256 amount) external;
 
+    /// @notice 출금 완료 처리 (deactivateValidator 후 2주 경과 시 호출)
+    /// @param systemConfig L2의 SystemConfig 주소
+    function processWithdrawal(address systemConfig) external;
+
     // ==========================================
     // External Functions - RAT Operations
     // ==========================================
@@ -160,10 +177,6 @@ interface IRAT {
         uint32 batchIndex,
         bytes calldata evidence
     ) external;
-
-    /// @notice 슬래싱 실행 (미응답 검증자)
-    /// @param testId Attention Test ID
-    function finalizeSlash(bytes32 testId) external;
 
     /// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 담보금 복구)
     /// @dev msg.sender = FaultDisputeGame 주소

@@ -52,12 +52,8 @@ interface IOperator {
 
 /**
  * @title DepositManagerV1_2
- * @notice TON Staking V3 DepositManager - onStakingChange 콜백 추가
- * @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
- *
- * V3 변경사항:
- * - deposit/withdraw 후 SeigManager.onStakingChange() 콜백 호출
- * - L2 자격 조건 (S_i ≥ θ·B_i) 실시간 재평가 지원
+ * @notice TON Staking DepositManager V1.2
+ * @dev 구조화된 출금 요청 및 일괄 처리 지원
  */
 contract DepositManagerV1_2 is
     ProxyStorage,
@@ -100,12 +96,6 @@ contract DepositManagerV1_2 is
     event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
     event SetMinDepositGasLimit(uint32 gasLimit_);
 
-    /// @notice V3 신규: 콜백 활성화 이벤트
-    event V3CallbackEnabledUpdated(bool enabled);
-
-    /// @notice V3 신규: 스테이킹 변경 콜백 이벤트
-    event StakingChangeNotified(address indexed layer2);
-
     // ==========================================
     // Owner Functions
     // ==========================================
@@ -119,12 +109,6 @@ contract DepositManagerV1_2 is
         l1BridgeRegistry = _l1BridgeRegistry;
         layer2Manager = _layer2Manager;
         emit SetAddresses(_l1BridgeRegistry, _layer2Manager);
-    }
-
-    /// @notice V3 콜백 활성화 설정
-    function setV3CallbackEnabled(bool enabled) external onlyOwner {
-        v3CallbackEnabled = enabled;
-        emit V3CallbackEnabledUpdated(enabled);
     }
 
     // ==========================================
@@ -155,7 +139,7 @@ contract DepositManagerV1_2 is
         // SeigManager 콜백
         require(ISeigManager(_seigManager).onDeposit(layer2, account, amount), "onDeposit failed");
 
-        // V3 콜백: 스테이킹 변경 알림
+        // V3: 스테이킹 변경 알림 (자격 재평가용)
         _notifyStakingChange(layer2);
 
         return true;
@@ -204,7 +188,7 @@ contract DepositManagerV1_2 is
         if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
         if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
         require(l2Ton != address(0), "l2Ton: zero address");
-        if ((l2Type != 1 && l2Type != 2) || status != 1) revert CheckL1BridgeError(5);
+        if ((l2Type != 1 && l2Type != 2 && l2Type != 3) || status != 1) revert CheckL1BridgeError(5);
 
         uint32 _minDepositGasLimit = 0;
         if (l2Ton != LEGACY_ERC20_NATIVE_TOKEN) _minDepositGasLimit = 210_000;
@@ -228,7 +212,7 @@ contract DepositManagerV1_2 is
 
         uint256 bal;
 
-        if (l2Type == 2) {
+        if (l2Type == 2 || l2Type == 3) {
             bal = IERC20(_ton).balanceOf(portal);
 
             IL1Bridge(l1Bridge).bridgeNativeTokenTo(msg.sender, tonAmount, _minDepositGasLimit, "");
@@ -251,7 +235,7 @@ contract DepositManagerV1_2 is
 
         require(bal == tonAmount, "fail depositERC20To");
 
-        // V3 콜백: 스테이킹 변경 알림
+        // V3: 스테이킹 변경 알림 (자격 재평가용)
         _notifyStakingChange(layer2);
 
         emit DepositedERC20To(l1Bridge, _ton, l2Ton, msg.sender, tonAmount, _minDepositGasLimit);
@@ -287,7 +271,7 @@ contract DepositManagerV1_2 is
 
         require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount));
 
-        // V3 콜백: 스테이킹 변경 알림
+        // V3: 스테이킹 변경 알림 (자격 재평가용)
         _notifyStakingChange(layer2);
 
         return true;
@@ -321,9 +305,6 @@ contract DepositManagerV1_2 is
 
         // WTON 전송
         IERC20(_wton).safeTransfer(msg.sender, amount);
-
-        // V3 콜백: 스테이킹 변경 알림
-        _notifyStakingChange(layer2);
 
         return true;
     }
@@ -367,9 +348,6 @@ contract DepositManagerV1_2 is
         // WTON 전송
         IERC20(_wton).safeTransfer(msg.sender, totalAmount);
 
-        // V3 콜백: 스테이킹 변경 알림
-        _notifyStakingChange(layer2);
-
         return true;
     }
 
@@ -384,18 +362,11 @@ contract DepositManagerV1_2 is
                 : withdrawalDelay[layer2];
     }
 
-    /**
-     * @notice V3: SeigManager에 스테이킹 변경 알림
-     * @param layer2 변경된 L2 주소
-     */
+    /// @notice 스테이킹 변경 후 SeigManager에 알림 (V3)
+    /// @dev SeigManager가 내부적으로 자격 재평가 및 캐시 갱신
+    /// @param layer2 L2 주소
     function _notifyStakingChange(address layer2) internal {
-        if (!v3CallbackEnabled) return;
-
-        try ISeigManagerV3(_seigManager).onStakingChange(layer2) {
-            emit StakingChangeNotified(layer2);
-        } catch {
-            // V3가 아닌 SeigManager의 경우 무시
-        }
+        try ISeigManagerV3(_seigManager).onStakingChange(layer2) {} catch {}
     }
 
     // ==========================================

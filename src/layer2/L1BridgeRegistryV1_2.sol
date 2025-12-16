@@ -252,7 +252,7 @@ contract L1BridgeRegistryV1_2 is
             emit AddedBridge(rollupConfig, bridge_);
         }
 
-        if (_type == 2 || _type == 3) {
+        if (_type == 2 ) {
             address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (portal_ == address(0)) revert PortalError();
             portal[portal_] = true;
@@ -261,9 +261,16 @@ contract L1BridgeRegistryV1_2 is
 
         if( _type == 3 ) {
             address disputeGameFactory_ = IOptimismSystemConfig(rollupConfig).disputeGameFactory();
+            address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
             if (disputeGameFactory_ == address(0)) revert DisputeGameFactoryError();
+            if (portal_ == address(0)) revert PortalError();
+
+            portal[portal_] = true;
+            rollupConfigWithPortal[portal_] = rollupConfig;
+
             disputeGameFactory[rollupConfig] = true;
             rollupConfigWithDisputeGameFactory[disputeGameFactory_] = rollupConfig;
+
             emit AddedDisputeGameFactory(rollupConfig, disputeGameFactory_);
         }
 

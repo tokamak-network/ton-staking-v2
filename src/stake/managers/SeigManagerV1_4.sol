@@ -14,6 +14,7 @@ import {ITON} from "../interfaces/ITON.sol";
 import {IL1BridgeRegistry} from "../../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../../layer2/interfaces/ILayer2Manager.sol";
 import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
+import {IOptimismSystemConfig} from "../../layer2/interfaces/IOptimismSystemConfig.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import {AuthControlSeigManager} from "../../common/AuthControlSeigManager.sol";
@@ -21,6 +22,7 @@ import {SeigManagerStorage} from "./SeigManagerStorage.sol";
 import {SeigManagerV1_1Storage} from "./SeigManagerV1_1Storage.sol";
 import {SeigManagerV1_3Storage} from "./SeigManagerV1_3Storage.sol";
 import {SeigManagerV1_4Storage} from "./SeigManagerV1_4Storage.sol";
+
 
 // Custom Errors
 error LastSeigBlockError();
@@ -39,6 +41,7 @@ error ZeroAddressError();
 error GameNotResolvedError();
 error AlreadySlashedError();
 error InvalidGameError();
+error InvalidFactoryError();
 
 /**
  * @title SeigManagerV1_4
@@ -150,14 +153,6 @@ contract SeigManagerV1_4 is
         uint256 reward
     );
 
-    /// @notice 스테이킹 잔액 이전 이벤트
-    event StakeTransferred(
-        address indexed layer2,
-        address indexed from,
-        address indexed to,
-        uint256 amount
-    );
-
     /// @notice TVL 자동 동기화 설정 변경 이벤트
     event AutoSyncEffectiveTVLUpdated(bool enabled);
 
@@ -237,13 +232,10 @@ contract SeigManagerV1_4 is
         ratContract = rat;
     }
 
-    /// @notice DisputeContract 주소 설정
-    function setDisputeContract(address dispute) external onlyOwner {
-        if (dispute == address(0)) revert ZeroAddressError();
-        disputeContract = dispute;
-    }
-
-    /// @notice TVL 변경 시 자동 동기화 여부 설정
+    /// @notice TVL 변경 시 effectiveBridgedTON 즉시 동기화 여부 설정
+    /// @dev 현재 구현에서는 이 플래그와 관계없이 항상 즉시 동기화됨
+    ///      향후 가스 최적화를 위한 지연 동기화 옵션으로 사용 예정
+    ///      이 변수가 필요한지 검토해야 함.
     /// @param enabled true: 즉시 동기화, false: 시뇨리지 계산 시점에만 동기화
     function setAutoSyncEffectiveTVL(bool enabled) external onlyOwner {
         autoSyncEffectiveTVL = enabled;
@@ -255,98 +247,75 @@ contract SeigManagerV1_4 is
         sequencerAdditionalReward[layer2] = additionalReward;
     }
 
-    /// @notice Layer2Manager 주소 설정
-    function setLayer2Manager(address layer2Manager_) external onlyOwner {
-        layer2Manager = layer2Manager_;
-    }
-
-    /// @notice L1BridgeRegistry 주소 설정
-    function setL1BridgeRegistry(address l1BridgeRegistry_) external onlyOwner {
-        l1BridgeRegistry = l1BridgeRegistry_;
-    }
-
-    /// @notice L2 시뇨리지 시작 블록 설정
-    function setLayer2StartBlock(uint256 startBlock_) external onlyOwner {
-        layer2StartBlock = startBlock_;
-    }
-
-    function pause() public onlyPauser whenNotPaused {
-        require(_pausedBlock < _lastSeigBlock, "updateSeigniorage required");
-        _pausedBlock = block.number;
-        paused = true;
-        emit Paused(msg.sender);
-    }
-
     // ==========================================
     // External Functions - Callbacks (V3 신규)
     // ==========================================
 
     /// @inheritdoc ISeigManagerV3
-    function onBridgedTONChange(address layer2, uint256 newBridgedTON)
+    /// @notice L2의 Bridged TON 변경 시 호출 (타입 3 전용)
+    /// @dev OptimismPortal에서 TON 입금/출금 시 SeigManager를 직접 호출
+    ///      트리거 함수이므로 조건 불충족 시 revert 대신 early return
+    function onBridgedTONChange()
         external
-        onlyL1BridgeOrRegistry
         onlyMigrated
     {
-        SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
+        // 1. 호출자(포탈)로부터 rollupConfig 역방향 조회
+        address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithPortal(msg.sender);
+        if (rollupConfig == address(0)) return;
 
-        info.currentBridgedTON = newBridgedTON;
-        info.lastUpdateTime = block.timestamp;
+        // 2. 타입 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME) 검증
+        uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
+        if (rollupType != 3) return;
 
-        // 자격만 재평가
-        _updateEligibility(layer2);
+        // 3. rollupConfig → layer2 변환
+        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(rollupConfig);
+        if (layer2 == address(0)) return;
 
-        // autoSyncEffectiveTVL이 true면 effectiveBridgedTON도 즉시 동기화
-        if (autoSyncEffectiveTVL) {
-            _syncEffectiveBridgedTON(layer2);
-        }
-
-        emit BridgedTONChanged(layer2, newBridgedTON, info.effectiveBridgedTON, info.isEligible);
+        // 4. 자격평가 및 effectiveBridgedTON 동기화
+        _updateEligibilityInternal(layer2);
     }
 
     /// @inheritdoc ISeigManagerV3
+    /// @notice 스테이킹 변경 시 L2 유효성 재평가
+    /// @dev DepositManager에서 deposit/withdraw 후 호출
     function onStakingChange(address layer2)
         external
+        onlyDepositManager
         onlyMigrated
     {
-        // DepositManager 또는 내부에서 호출 가능
-        require(
-            msg.sender == address(_depositManager) || msg.sender == address(this),
-            "not authorized"
-        );
+        _updateEligibilityInternal(layer2);
+    }
 
+    /// @notice 자격 상태 업데이트 (내부 함수)
+    /// @dev 외부 호출자는 이미 검증된 상태에서 호출
+    function _updateEligibilityInternal(address layer2) internal {
         SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
         bool oldEligible = info.isEligible;
 
-        // 자격만 재평가 (effectiveBridgedTON은 시뇨리지 계산 시 갱신)
-        _updateEligibility(layer2);
+        // 새로운 자격 상태 확인
+        (bool newEligible, , ) = checkCurrentEligibility(layer2);
 
-        if (oldEligible != info.isEligible) {
-            emit EligibilityChanged(layer2, info.isEligible, info.currentBridgedTON, info.effectiveBridgedTON);
-        }
-    }
+        // 상태 변경 없으면 리턴
+        if (oldEligible == newEligible) return;
 
-    /// @inheritdoc ISeigManagerV3
-    function initializeBridgedTON(address layer2, uint256 initialBridgedTON)
-        external
-        onlyMigrated
-    {
-        require(msg.sender == layer2Manager, "only layer2Manager");
+        if (oldEligible && !newEligible) {
+            // true → false: 자격 상실
+            // effectiveBridgedTON 제거
+            totalEffectiveBridgedTON -= info.effectiveBridgedTON;
+            info.effectiveBridgedTON = 0;
 
-        SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
-
-        info.currentBridgedTON = initialBridgedTON;
-        info.startBlock = block.number;
-        info.lastUpdateTime = block.timestamp;
-        info.initialDebt = (bridgedTONRewardPerUint * initialBridgedTON) / WEI_UNIT;
-
-        // 초기 자격 평가
-        _updateEligibility(layer2);
-
-        if (info.isEligible) {
+        } else {
+            // false → true: 자격 획득
+            // 1. effectiveBridgedTON 설정
+            info.effectiveBridgedTON = info.currentBridgedTON;
             totalEffectiveBridgedTON += info.effectiveBridgedTON;
+
+            // 2. initialDebt 설정 (이 시점부터 수익 시작, 과거 소급 방지)
+            info.initialDebt = (bridgedTONRewardPerUint * info.effectiveBridgedTON) / WEI_UNIT;
         }
 
-        emit BridgedTONChanged(layer2, initialBridgedTON, info.effectiveBridgedTON, info.isEligible);
+        info.isEligible = newEligible;
+        emit EligibilityChanged(layer2, newEligible, info.currentBridgedTON, info.effectiveBridgedTON);
     }
 
     // ==========================================
@@ -359,24 +328,65 @@ contract SeigManagerV1_4 is
     }
 
     /// @inheritdoc ISeigManagerV3
-    function checkEligibility(address layer2)
+    /// @notice L2 시퀀서의 시뇨리지 수령 자격 실시간 확인
+    /// @dev 백서 공식 (9): 1_i = {1 if S_i ≥ θ·B_i, 0 otherwise}
+    /// @dev S_i는 시퀀서(오퍼레이터)의 스테이킹량만 포함 (RAT 등 다른 스테이킹 제외)
+    /// @dev B_i는 L1 브리지에서 직접 조회 (가스비 높지만 정확함)
+    /// @param layer2 L2 주소
+    /// @return eligible 시뇨리지 수령 자격 여부
+    /// @return requiredStake 필요 스테이킹량 (θ·B_i)
+    /// @return currentStake 현재 시퀀서 스테이킹량 (S_i)
+    function checkCurrentEligibility(address layer2)
         public
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake)
     {
-        SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
-        uint256 bridgedTON = info.currentBridgedTON;
+        // B_i: L1 브리지에서 직접 조회 (실시간)
+        uint256 bridgedTON = ILayer2Manager(layer2Manager).getBridgedTONByLayer(layer2);
 
         // θ·B_i 계산
+         // Todo. 브릿지된 톤은 톤기준, 필요한 스테이킹양은 WTON 이므로, 고려해서 변환해줘야한다.
         requiredStake = rmul(bridgedTON, minStakingRatio);
 
-        // 현재 스테이킹 금액 조회
-        RefactorCoinageSnapshotI coinage = _coinages[layer2];
-        currentStake = address(coinage) != address(0) ? coinage.totalSupply() : 0;
+        // S_i: 시퀀서(오퍼레이터)의 현재 스테이킹량 (실시간 조회)
+        currentStake = _getSequencerStake(layer2);
 
         // S_i ≥ θ·B_i
         eligible = currentStake >= requiredStake;
     }
+
+    /// @notice 캐시된 값으로 자격 확인 (내부 사용)
+    /// @dev _updateEligibility에서 호출, 가스비 절약
+    function _checkEligibilityCached(address layer2)
+        internal
+        view
+        returns (bool eligible, uint256 requiredStake, uint256 currentStake)
+    {
+        SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
+
+        // θ·B_i 계산 (캐시된 B_i 기준)
+        // Todo. 브릿지된 톤은 톤기준, 필요한 스테이킹양은 WTON 이므로, 고려해서 변환해줘야한다.
+        requiredStake = rmul(info.currentBridgedTON, minStakingRatio);
+
+        // S_i: 시퀀서(오퍼레이터)의 현재 스테이킹량
+        currentStake = _getSequencerStake(layer2);
+
+        // S_i ≥ θ·B_i
+        eligible = currentStake >= requiredStake;
+    }
+
+    /// @notice 시퀀서(오퍼레이터)의 스테이킹량 조회
+    /// @dev RAT 등 다른 계정의 스테이킹은 제외
+    /// @param layer2 L2 주소
+    /// @return 시퀀서의 스테이킹량
+    function _getSequencerStake(address layer2) internal view returns (uint256) {
+        address sequencer = Layer2I(layer2).operator();
+        if (sequencer == address(0)) return 0;
+
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        return address(coinage) != address(0) ? coinage.balanceOf(sequencer) : 0;
+    }
+
 
     /// @inheritdoc ISeigManagerV3
     function hyperbolicSaturation(uint256 x, uint256 maxL2Allocation)
@@ -447,116 +457,18 @@ contract SeigManagerV1_4 is
         // Seig_i = y(x) · (B̃_i / x)
         seigniorage = calculateL2Seigniorage(layer2, y, x);
     }
-
-    // ==========================================
-    // External Functions - Layer2Manager
-    // ==========================================
-
-    function excludeFromL2Seigniorage(address layer2) external returns (bool) {
-        _onlyLayer2Manager();
-        _pauseLayer2Tvl(layer2);
-        emit ExcludedFromL2Seigniorage(layer2);
-        return true;
-    }
-
-    function includeFromL2Seigniorage(address layer2) external returns (bool) {
-        _onlyLayer2Manager();
-        _unpauseLayer2Tvl(layer2);
-        require(!isPauseL2Seigniorage(layer2), "error includeFromL2Seigniorage");
-        emit IncludedFromL2Seigniorage(layer2);
-        return true;
-    }
-
     // ==========================================
     // External Functions - Sequencer Slashing
     // ==========================================
 
-    /// @notice 시퀀서 슬래싱 (fraud proof 성공 시)
-    /// @dev 백서: "the entire bond (D_sequencer) is slashed"
-    /// @param layer2 슬래싱 대상 L2 주소
-    /// @param challengers 성공한 챌린저 목록
-    function slashSequencer(address layer2, address[] calldata challengers)
-        external
-        onlyMigrated
-    {
-        require(msg.sender == disputeContract, "only dispute contract");
-        uint256 n = challengers.length;
-        require(n > 0 && n <= maxChallengers, "invalid challenger count");
-
-        // 시퀀서(오퍼레이터) 주소 조회
-        address sequencer = Layer2I(layer2).operator();
-        require(sequencer != address(0), "no operator");
-
-        // 담보금 = 해당 L2에 스테이킹된 시퀀서의 금액
-        RefactorCoinageSnapshotI coinage = _coinages[layer2];
-        uint256 deposit = coinage.balanceOf(sequencer);
-        require(deposit > 0, "no deposit to slash");
-
-        uint256 additionalReward = sequencerAdditionalReward[layer2];
-
-        // 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
-        uint256 perChallengerReward = maxFraudProofCost + (additionalReward / n);
-
-        // 총 챌린저 보상이 담보금을 초과하지 않도록
-        uint256 totalChallengerRewards = perChallengerReward * n;
-        if (totalChallengerRewards > deposit) {
-            perChallengerReward = deposit / n;
-            totalChallengerRewards = perChallengerReward * n;
-        }
-
-        // 각 챌린저에게 스테이킹 잔액으로 이전 (coinage 잔액 변경)
-        for (uint256 i = 0; i < n; i++) {
-            coinage.burnFrom(sequencer, perChallengerReward);
-            coinage.mint(challengers[i], perChallengerReward);
-            emit ChallengerRewarded(challengers[i], layer2, perChallengerReward);
-        }
-
-        // 나머지는 DAO의 스테이킹 잔액으로 이전
-        uint256 remainder = deposit - totalChallengerRewards;
-        if (remainder > 0) {
-            coinage.burnFrom(sequencer, remainder);
-            coinage.mint(dao, remainder);
-        }
-
-        // L2 시뇨리지 분배에서 제외
-        _pauseLayer2Tvl(layer2);
-
-        // 슬래싱 기록 저장
-        sequencerSlashTimestamps[layer2].push(block.timestamp);
-
-        emit SequencerSlashed(layer2, sequencer, deposit, n);
-    }
-
-    /// @notice 스테이킹 잔액 이전 (슬래싱 컨트랙트 전용)
-    /// @param layer2 L2 주소
-    /// @param from 출발 계정 (슬래싱 대상)
-    /// @param to 도착 계정 (챌린저 또는 DAO)
-    /// @param amount 이전 금액
-    function transferStake(
-        address layer2,
-        address from,
-        address to,
-        uint256 amount
-    ) external onlyMigrated {
-        require(msg.sender == disputeContract, "only dispute contract");
-
-        RefactorCoinageSnapshotI coinage = _coinages[layer2];
-        require(coinage.balanceOf(from) >= amount, "insufficient balance");
-
-        coinage.burnFrom(from, amount);
-        coinage.mint(to, amount);
-
-        emit StakeTransferred(layer2, from, to, amount);
-    }
-
     /// @inheritdoc ISeigManagerV3
     /// @notice 시퀀서 슬래싱 - Permissionless 방식 (게임 종료 후 호출)
     /// @dev 누구나 호출 가능, 게임 상태를 온체인에서 검증
+    ///      DisputeGameFactory 검증을 통해 가짜 게임 컨트랙트 방지
+    ///      챌린저는 claimData(0).counteredBy에서 온체인 조회
     /// @param gameAddress 종료된 FaultDisputeGame 주소
-    /// @param challengers 챌린저 주소 목록 (오프체인에서 파악하여 전달)
     function slashSequencerByGame(
-        address gameAddress,
-        address[] calldata challengers
+        address gameAddress
     ) external onlyMigrated {
         // 이미 슬래싱되었는지 확인
         if (slashedGames[gameAddress]) revert AlreadySlashedError();
@@ -572,30 +484,56 @@ contract SeigManagerV1_4 is
         // CHALLENGER_WINS = 1
         if (gameStatus != 1) revert GameNotResolvedError();
 
-        // SystemConfig 조회하여 Layer2 찾기
+        // SystemConfig 조회
         (success, data) = gameAddress.staticcall(
             abi.encodeWithSignature("systemConfig()")
         );
         if (!success) revert InvalidGameError();
         address systemConfig = abi.decode(data, (address));
 
+        // DisputeGameFactory 검증 - 가짜 게임 컨트랙트 방지
+        address factory = IOptimismSystemConfig(systemConfig).disputeGameFactory();
+        if (factory == address(0)) revert InvalidFactoryError();
+
+        // L1BridgeRegistry에서 factory가 등록되어 있는지 확인
+        address registeredConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithDisputeGameFactory(factory);
+        if (registeredConfig != systemConfig) revert InvalidFactoryError();
+
         // Layer2 주소 조회
         address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
         if (layer2 == address(0)) revert InvalidGameError();
+
+        // 챌린저 온체인 조회 - claimData(0).counteredBy
+        address challenger = _getChallengerFromGame(gameAddress);
 
         // 슬래싱 처리됨으로 마킹
         slashedGames[gameAddress] = true;
 
         // 슬래싱 실행
-        _executeSlashing(layer2, challengers);
+        _executeSlashingWithChallenger(layer2, challenger);
     }
 
-    /// @notice 내부 슬래싱 실행
-    /// @param layer2 슬래싱 대상 L2
-    /// @param challengers 보상받을 챌린저 목록
-    function _executeSlashing(address layer2, address[] calldata challengers) internal {
-        uint256 n = challengers.length;
+    /// @notice 게임에서 챌린저 주소 조회
+    /// @dev claimData(0).counteredBy 조회 - root claim을 counter한 주소
+    /// @param gameAddress FaultDisputeGame 주소
+    /// @return challenger 챌린저 주소 (없으면 address(0))
+    function _getChallengerFromGame(address gameAddress) internal view returns (address challenger) {
+        // claimData(0) 조회: (parentIndex, counteredBy, claimant, bond, claim, position, clock)
+        (bool success, bytes memory data) = gameAddress.staticcall(
+            abi.encodeWithSignature("claimData(uint256)", 0)
+        );
+        if (success && data.length >= 64) {
+            // counteredBy는 두 번째 필드 (32-63 bytes)
+            assembly {
+                challenger := mload(add(data, 64))
+            }
+        }
+    }
 
+    /// @notice 내부 슬래싱 실행 (단일 챌린저)
+    /// @param layer2 슬래싱 대상 L2
+    /// @param challenger 보상받을 챌린저 (address(0)이면 전액 DAO로)
+    function _executeSlashingWithChallenger(address layer2, address challenger) internal {
         // 시퀀서(오퍼레이터) 주소 조회
         address sequencer = Layer2I(layer2).operator();
         if (sequencer == address(0)) revert ZeroAddressError();
@@ -605,54 +543,48 @@ contract SeigManagerV1_4 is
         uint256 deposit = coinage.balanceOf(sequencer);
         if (deposit == 0) revert InvalidParameterError();
 
-        if (n == 0) {
+        if (challenger == address(0)) {
             // 챌린저가 없으면 전액 DAO로
             coinage.burnFrom(sequencer, deposit);
             coinage.mint(dao, deposit);
 
-            _pauseLayer2Tvl(layer2);
+            // L2 유효성 재평가 (시퀀서 스테이킹 = 0 → 자격 상실)
+            this.onStakingChange(layer2);
             sequencerSlashTimestamps[layer2].push(block.timestamp);
 
             emit SequencerSlashed(layer2, sequencer, deposit, 0);
             return;
         }
 
-        // 최대 챌린저 수 제한
-        if (n > maxChallengers) n = maxChallengers;
-
         uint256 additionalReward = sequencerAdditionalReward[layer2];
 
-        // 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
-        uint256 perChallengerReward = maxFraudProofCost + (additionalReward / n);
+        // 백서 공식 (2): R_challenger = C_max + Δ_sequencer (단일 챌린저이므로 n=1)
+        uint256 challengerReward = maxFraudProofCost + additionalReward;
 
-        // 총 챌린저 보상이 담보금을 초과하지 않도록
-        uint256 totalChallengerRewards = perChallengerReward * n;
-        if (totalChallengerRewards > deposit) {
-            perChallengerReward = deposit / n;
-            totalChallengerRewards = perChallengerReward * n;
+        // 챌린저 보상이 담보금을 초과하지 않도록
+        if (challengerReward > deposit) {
+            challengerReward = deposit;
         }
 
-        // 각 챌린저에게 스테이킹 잔액으로 이전
-        for (uint256 i = 0; i < n; i++) {
-            coinage.burnFrom(sequencer, perChallengerReward);
-            coinage.mint(challengers[i], perChallengerReward);
-            emit ChallengerRewarded(challengers[i], layer2, perChallengerReward);
-        }
+        // 챌린저에게 보상 이전
+        coinage.burnFrom(sequencer, challengerReward);
+        coinage.mint(challenger, challengerReward);
+        emit ChallengerRewarded(challenger, layer2, challengerReward);
 
         // 나머지는 DAO로
-        uint256 remainder = deposit - totalChallengerRewards;
+        uint256 remainder = deposit - challengerReward;
         if (remainder > 0) {
             coinage.burnFrom(sequencer, remainder);
             coinage.mint(dao, remainder);
         }
 
-        // L2 시뇨리지 분배에서 제외
-        _pauseLayer2Tvl(layer2);
+        // L2 유효성 재평가 (시퀀서 스테이킹 = 0 → 자격 상실)
+        this.onStakingChange(layer2);
 
         // 슬래싱 기록 저장
         sequencerSlashTimestamps[layer2].push(block.timestamp);
 
-        emit SequencerSlashed(layer2, sequencer, deposit, n);
+        emit SequencerSlashed(layer2, sequencer, deposit, 1);
     }
 
     // ==========================================
@@ -668,57 +600,6 @@ contract SeigManagerV1_4 is
         if (!ICandidate(layer2).updateSeigniorage())
             revert UpdateSeigniorageError();
         return true;
-    }
-
-    // ==========================================
-    // View Functions - Existing
-    // ==========================================
-
-    function getOperatorAmount(address layer2) external view returns (uint256) {
-        address operator = Layer2I(layer2).operator();
-        return _coinages[layer2].balanceOf(operator);
-    }
-
-    function allowIssuanceLayer2Seigs(address layer2)
-        public
-        view
-        returns (address rollupConfig, bool allowed)
-    {
-        (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
-        if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1)
-            allowed = true;
-    }
-
-    function unSettledReward(address layer2) public view returns (uint256 amount) {
-        SeigManagerV1_4Storage.BridgedTONInfo memory info = bridgedTONInfo[layer2];
-        if (info.effectiveBridgedTON != 0) {
-            amount = (bridgedTONRewardPerUint * info.effectiveBridgedTON) / WEI_UNIT - info.initialDebt;
-        }
-    }
-
-    function unallocatedSeigniorage() external view returns (uint256 amount) {
-        amount = _tot.totalSupply() - stakeOfAllLayers();
-    }
-
-    function stakeOfAllLayers() public view returns (uint256 amount) {
-        uint256 num = ILayer2Registry(_registry).numLayer2s();
-        for (uint256 i = 0; i < num; i++) {
-            address layer2 = ILayer2Registry(_registry).layer2ByIndex(i);
-            address coin = address(_coinages[layer2]);
-            if (coin != address(0)) amount += _coinages[layer2].totalSupply();
-        }
-    }
-
-    function isPauseL2Seigniorage(address layer2) public view returns (bool) {
-        uint256[] memory pauseBlocks = layer2PauseBlocks[layer2];
-        uint256 len = pauseBlocks.length;
-        if (len == 0) return false;
-
-        uint256 pauseBlock = pauseBlocks[len - 1];
-
-        if (pauseBlock != 0 && layer2UnpauseBlocks[layer2][pauseBlock] == 0)
-            return true;
-        else return false;
     }
 
     // ==========================================
@@ -973,8 +854,8 @@ contract SeigManagerV1_4 is
             }
 
             // 개별 L2 보상 정산
-            (, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
-            if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+            (, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+            if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
                 // 호출자의 effectiveBridgedTON 동기화 (isEligible 기반)
                 _syncEffectiveBridgedTON(msg.sender);
 
@@ -1027,8 +908,8 @@ contract SeigManagerV1_4 is
             IWTON(_wton).mint(layer2Manager, l2TotalSeigs);
         }
 
-        (address rollupConfig, bool allowed) = allowIssuanceLayer2Seigs(msg.sender);
-        if (allowed && !isPauseL2Seigniorage(msg.sender)) {
+        (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+        if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
             uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
             Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
             Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
@@ -1052,16 +933,6 @@ contract SeigManagerV1_4 is
         }
     }
 
-    /// @notice L2 자격만 업데이트 (effectiveBridgedTON은 시뇨리지 계산 시 갱신)
-    function _updateEligibility(address layer2) internal {
-        BridgedTONInfo storage info = bridgedTONInfo[layer2];
-
-        (bool eligible, , ) = checkEligibility(layer2);
-
-        info.isEligible = eligible;
-        // effectiveBridgedTON은 여기서 업데이트하지 않음
-        // updateSeigniorage 시점에 _syncEffectiveBridgedTON에서 갱신
-    }
 
     /// @notice effectiveBridgedTON 동기화 (시뇨리지 계산 전 호출)
     function _syncEffectiveBridgedTON(address layer2) internal {
@@ -1150,7 +1021,7 @@ contract SeigManagerV1_4 is
     }
 
     function _pauseLayer2Tvl(address layer2) internal {
-        require(!isPauseL2Seigniorage(layer2), "already paused");
+        require(!_isPauseL2Seigniorage(layer2), "already paused");
 
         if (!ICandidate(layer2).updateSeigniorage())
             revert UpdateSeigniorageError();
@@ -1174,9 +1045,9 @@ contract SeigManagerV1_4 is
     }
 
     function _unpauseLayer2Tvl(address layer2) internal {
-        (, bool allowed) = allowIssuanceLayer2Seigs(layer2);
+        (, bool allowed) = _allowIssuanceLayer2Seigs(layer2);
         require(allowed, "not allowed");
-        require(isPauseL2Seigniorage(layer2), "not paused");
+        require(_isPauseL2Seigniorage(layer2), "not paused");
 
         uint256 lastIndex = layer2PauseBlocks[layer2].length - 1;
         layer2UnpauseBlocks[layer2][layer2PauseBlocks[layer2][lastIndex]] = block.number;
@@ -1200,5 +1071,22 @@ contract SeigManagerV1_4 is
             (_seigPerBlock * (blockNumber - startBlock)) -
             (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
             burntAmount;
+    }
+
+    function _isPauseL2Seigniorage(address layer2) internal view returns (bool) {
+        uint256[] memory pauseBlocks = layer2PauseBlocks[layer2];
+        uint256 len = pauseBlocks.length;
+        if (len == 0) return false;
+
+        uint256 pauseBlock = pauseBlocks[len - 1];
+
+        if (pauseBlock != 0 && layer2UnpauseBlocks[layer2][pauseBlock] == 0) return true;
+        else return false;
+    }
+    function _allowIssuanceLayer2Seigs(
+        address layer2
+    ) internal view returns (address rollupConfig, bool allowed) {
+        (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+        if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
 }

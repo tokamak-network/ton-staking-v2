@@ -10,4 +10,7 @@ contract L1BridgeRegistryV1_2Storage {
 
     /// @notice DisputeGameFactory => rollupConfig
     mapping(address => address) public rollupConfigWithDisputeGameFactory;
+
+    /// @notice portal => rollupConfig
+    mapping(address => address) public rollupConfigWithPortal;
 }

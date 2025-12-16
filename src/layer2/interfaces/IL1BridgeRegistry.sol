@@ -18,4 +18,8 @@ interface IL1BridgeRegistry {
     /// @notice DisputeGameFactory => rollupConfig 역방향 매핑
     /// @dev RAT에서 factory 검증 시 사용
     function rollupConfigWithDisputeGameFactory(address factory) external view returns (address rollupConfig);
+
+    /// @notice Portal => rollupConfig 역방향 매핑
+    /// @dev SeigManager.onBridgedTONChange에서 호출자 검증 시 사용
+    function rollupConfigWithPortal(address portal) external view returns (address rollupConfig);
 }

@@ -6,6 +6,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {RATStorage} from "./RATStorage.sol";
 import {IRAT} from "./IRAT.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
+import {IOnApprove} from "../stake/interfaces/IOnApprove.sol";
+import {IDepositManager} from "../stake/interfaces/IDepositManager.sol";
+import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 
 // Custom Errors
 error AlreadyRegisteredError();
@@ -16,9 +19,7 @@ error TestNotFoundError();
 error TestAlreadyExistsError();
 error NotYourTestError();
 error TestAlreadyRespondedError();
-error DeadlineNotPassedError();
 error DeadlinePassedError();
-error TestAlreadyFinalizedError();
 error NoRewardsError();
 error ZeroAmountError();
 error InvalidParameterError();
@@ -42,7 +43,7 @@ error InvalidFactoryError();
  * - (4) C_off ≥ (c_m · n) / π_a - 최소 슬래싱 페널티
  * - (5) D_validator = C_off + Δ_validator - 검증자 담보금
  */
-contract RAT is RATStorage, IRAT {
+contract RAT is RATStorage, IRAT, IOnApprove {
     using SafeERC20 for IERC20;
 
     // ==========================================
@@ -81,6 +82,7 @@ contract RAT is RATStorage, IRAT {
         address _wton,
         address _ton,
         address _depositManager,
+        address _layer2Manager,
         address _owner
     ) external {
         require(seigManager == address(0), "already initialized");
@@ -89,6 +91,7 @@ contract RAT is RATStorage, IRAT {
         wton = _wton;
         ton = _ton;
         depositManager = _depositManager;
+        layer2Manager = _layer2Manager;
         owner = _owner;
 
         // 기본값 설정
@@ -202,14 +205,152 @@ contract RAT is RATStorage, IRAT {
     // ==========================================
 
     /// @inheritdoc IRAT
+    /// @dev WTON으로 검증자 등록. TON으로 등록하려면 TON.approveAndCall 사용
     function registerValidator(address systemConfig, uint256 depositAmount)
         external
         ifFree
         whenNotPaused
     {
         if (systemConfig == address(0)) revert InvalidSystemConfigError();
+        if (depositAmount == 0) revert ZeroAmountError();
 
+        // WTON 전송
+        IERC20(wton).safeTransferFrom(msg.sender, address(this), depositAmount);
+
+        // DepositManager에 대리 스테이킹
+        _depositToDepositManager(systemConfig, depositAmount);
+
+        // 검증자 등록 로직
+        _registerValidatorInternal(msg.sender, systemConfig, depositAmount);
+    }
+
+    /// @inheritdoc IRAT
+    /// @notice 검증자 탈퇴 및 출금 요청
+    /// @dev 2주 대기 후 processWithdrawal 호출 필요
+    function deactivateValidator(address systemConfig) external ifFree {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+        if (!reg.isActive) revert NotActiveValidatorError();
+
+        // 진행 중인 RAT 테스트가 있으면 대기 (deadline 경과 후에만 출금 가능)
+        require(block.timestamp >= reg.latestTestDeadline, "pending RAT tests");
+
+        // 미응답한 RAT 테스트의 totalBondForRAT는 손실 확정 (Lazy Evaluation)
+        // accumulatedSlashings에 추가하여 Treasury로 회수
+        if (reg.totalBondForRAT > 0) {
+            accumulatedSlashings += reg.totalBondForRAT;
+            reg.totalBondForRAT = 0;
+        }
+
+        reg.isActive = false;
+
+        ValidatorPoolInfo storage pool = validatorPools[systemConfig];
+        pool.activeCount--;
+        pool.totalDeposited -= reg.depositedAmount;
+
+        uint256 withdrawAmount = reg.depositedAmount;
+        reg.depositedAmount = 0;
+
+        // DepositManager에 출금 요청 (2주 대기 필요)
+        if (withdrawAmount > 0) {
+            address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+            IDepositManager(depositManager).requestWithdrawal(layer2, withdrawAmount);
+        }
+
+        // 미청구 보상은 즉시 지급
+        uint256 pendingRewards = reg.pendingRewards;
+        reg.pendingRewards = 0;
+        if (pendingRewards > 0) {
+            IERC20(wton).safeTransfer(msg.sender, pendingRewards);
+        }
+
+        // 출금 요청 정보 저장 (processWithdrawal에서 사용)
+        pendingWithdrawals[systemConfig][msg.sender] = withdrawAmount;
+
+        emit ValidatorDeactivated(msg.sender, systemConfig, withdrawAmount);
+    }
+
+    /// @notice 출금 완료 처리 (deactivateValidator 후 2주 경과 시 호출)
+    /// @param systemConfig L2 SystemConfig 주소
+    function processWithdrawal(address systemConfig) external ifFree {
+        uint256 amount = pendingWithdrawals[systemConfig][msg.sender];
+        require(amount > 0, "no pending withdrawal");
+
+        pendingWithdrawals[systemConfig][msg.sender] = 0;
+
+        // DepositManager에서 출금 처리
+        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+        IDepositManager(depositManager).processRequest(layer2, false); // false = receive WTON
+
+        // WTON을 검증자에게 전송
+        IERC20(wton).safeTransfer(msg.sender, amount);
+
+        emit WithdrawalProcessed(msg.sender, systemConfig, amount);
+    }
+
+    /// @inheritdoc IRAT
+    function addDeposit(address systemConfig, uint256 amount) external ifFree {
+        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+        // 활성 검증자만 추가 입금 가능
+        // 비활성 검증자는 registerValidator()로 재등록해야 함
+        if (!reg.isActive) revert NotActiveValidatorError();
+        if (amount == 0) revert ZeroAmountError();
+
+        // WTON 전송 받기
+        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
+
+        // DepositManager에 추가 스테이킹
+        _depositToDepositManager(systemConfig, amount);
+
+        reg.depositedAmount += amount;
+        validatorPools[systemConfig].totalDeposited += amount;
+
+        emit DepositAdded(msg.sender, systemConfig, amount);
+    }
+
+    /// @notice WTON에서 호출되는 콜백 (TON.approveAndCall → WTON → RAT 경유)
+    /// @param owner TON 전송자 (검증자)
+    /// @param spender RAT 컨트랙트 주소 (사용 안함)
+    /// @param amount WTON 양 (27 decimals)
+    /// @param data systemConfig 주소 (32바이트)
+    function onApprove(
+        address owner,
+        address spender,
+        uint256 amount,
+        bytes calldata data
+    ) external override ifFree whenNotPaused returns (bool) {
+        require(msg.sender == wton, "only WTON");
+
+        // data에서 systemConfig 추출 (32바이트)
+        require(data.length >= 32, "invalid data");
+        address systemConfig = address(uint160(uint256(bytes32(data[:32]))));
+        if (systemConfig == address(0)) revert InvalidSystemConfigError();
+
+        // WTON은 이미 RAT에 전송됨 (WTON.onApprove에서 transfer)
+
+        // DepositManager에 대리 스테이킹
+        _depositToDepositManager(systemConfig, amount);
+
+        // 검증자 등록 로직
+        _registerValidatorInternal(owner, systemConfig, amount);
+
+        return true;
+    }
+
+    /// @notice DepositManager에 대리 스테이킹
+    /// @dev RAT 명의로 스테이킹하여 검증자가 임의로 출금 불가
+    function _depositToDepositManager(address systemConfig, uint256 wtonAmount) internal {
+        // systemConfig → layer2 주소 조회
+        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+        require(layer2 != address(0), "invalid systemConfig");
+
+        // WTON approve 후 DepositManager에 예치 (RAT 명의)
+        IERC20(wton).approve(depositManager, wtonAmount);
+        IDepositManager(depositManager).deposit(layer2, wtonAmount);
+    }
+
+    /// @notice 내부 검증자 등록 로직
+    function _registerValidatorInternal(address validator, address systemConfig, uint256 depositAmount) internal {
+        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         if (reg.isActive) revert AlreadyRegisteredError();
 
         uint256 minDeposit = getMinimumCollateral();
@@ -217,11 +358,6 @@ contract RAT is RATStorage, IRAT {
         // 기존 담보금이 있는 경우 (슬래싱 후 재등록)
         uint256 totalDeposit = reg.depositedAmount + depositAmount;
         if (totalDeposit < minDeposit) revert InsufficientDepositError();
-
-        // WTON 전송 (추가 입금분만)
-        if (depositAmount > 0) {
-            IERC20(wton).safeTransferFrom(msg.sender, address(this), depositAmount);
-        }
 
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
 
@@ -239,7 +375,7 @@ contract RAT is RATStorage, IRAT {
         } else {
             // 신규 등록
             uint256 index = pool.validators.length;
-            pool.validators.push(msg.sender);
+            pool.validators.push(validator);
             pool.activeCount++;
             pool.totalDeposited += totalDeposit;
 
@@ -251,53 +387,11 @@ contract RAT is RATStorage, IRAT {
             reg.validatorIndex = uint32(index);
             reg.isActive = true;
 
-            validatorIndexes[systemConfig][msg.sender] = index;
-            validatorSystemConfigs[msg.sender].push(systemConfig);
+            validatorIndexes[systemConfig][validator] = index;
+            validatorSystemConfigs[validator].push(systemConfig);
         }
 
-        emit ValidatorRegistered(msg.sender, systemConfig, totalDeposit, reg.validatorIndex);
-    }
-
-    /// @inheritdoc IRAT
-    function deactivateValidator(address systemConfig) external ifFree {
-        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
-        if (!reg.isActive) revert NotActiveValidatorError();
-
-        // 진행 중인 RAT가 있으면 대기
-        require(reg.totalBondForRAT == 0, "pending RAT tests");
-
-        reg.isActive = false;
-
-        ValidatorPoolInfo storage pool = validatorPools[systemConfig];
-        pool.activeCount--;
-        pool.totalDeposited -= reg.depositedAmount;
-
-        // 담보금 + 미청구 보상 반환
-        uint256 totalReturn = reg.depositedAmount + reg.pendingRewards;
-        reg.depositedAmount = 0;
-        reg.pendingRewards = 0;
-
-        if (totalReturn > 0) {
-            IERC20(wton).safeTransfer(msg.sender, totalReturn);
-        }
-
-        emit ValidatorDeactivated(msg.sender, systemConfig, totalReturn);
-    }
-
-    /// @inheritdoc IRAT
-    function addDeposit(address systemConfig, uint256 amount) external ifFree {
-        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
-        // 활성 검증자만 추가 입금 가능
-        // 비활성 검증자는 registerValidator()로 재등록해야 함
-        if (!reg.isActive) revert NotActiveValidatorError();
-        if (amount == 0) revert ZeroAmountError();
-
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
-
-        reg.depositedAmount += amount;
-        validatorPools[systemConfig].totalDeposited += amount;
-
-        emit DepositAdded(msg.sender, systemConfig, amount);
+        emit ValidatorRegistered(validator, systemConfig, totalDeposit, reg.validatorIndex);
     }
 
     // ==========================================
@@ -342,6 +436,18 @@ contract RAT is RATStorage, IRAT {
         bytes32 testId = keccak256(abi.encodePacked(systemConfig, batchIndex, selectedValidator, block.timestamp));
         uint256 deadline = block.timestamp + evidenceSubmissionPeriod;
 
+        // 최신 테스트 마감 시간 업데이트 (출금 조건 체크용)
+        if (uint64(deadline) > reg.latestTestDeadline) {
+            reg.latestTestDeadline = uint64(deadline);
+        }
+
+        // D_min 확인 - 잔액이 D_min 미만이면 즉시 검증자 세트에서 제거
+        bool removedFromSet = false;
+        if (reg.depositedAmount < minimumThreshold) {
+            _removeValidator(systemConfig, selectedValidator, reg);
+            removedFromSet = true;
+        }
+
         attentionTests[testId] = AttentionTest({
             validatorAddress: selectedValidator,
             systemConfig: systemConfig,
@@ -360,6 +466,11 @@ contract RAT is RATStorage, IRAT {
         gameToTestId[gameAddress] = testId;
 
         emit AttentionTestTriggered(testId, selectedValidator, systemConfig, gameAddress, batchIndex, deadline);
+
+        // D_min 미만으로 제거된 경우 슬래싱 이벤트 발생
+        if (removedFromSet) {
+            emit ValidatorSlashed(testId, selectedValidator, systemConfig, bondAmount, true);
+        }
     }
 
     /// @inheritdoc IRAT
@@ -389,35 +500,13 @@ contract RAT is RATStorage, IRAT {
         test.status = AttentionTestStatus.Responded;
         activeTestCount[systemConfig]--;
 
-        emit EvidenceSubmitted(testId, msg.sender, systemConfig, batchIndex);
-    }
-
-    /// @inheritdoc IRAT
-    function finalizeSlash(bytes32 testId) external ifFree {
-        AttentionTest storage test = attentionTests[testId];
-
-        if (test.validatorAddress == address(0)) revert TestNotFoundError();
-        if (test.status != AttentionTestStatus.Pending) revert TestAlreadyFinalizedError();
-        if (block.timestamp <= test.deadline) revert DeadlineNotPassedError();
-
-        // 슬래싱 확정
-        test.status = AttentionTestStatus.Slashed;
-        activeTestCount[test.systemConfig]--;
-
-        ValidatorRegistration storage reg = validatorRegistrations[test.systemConfig][test.validatorAddress];
-
-        // 묶인 담보금에서 슬래싱 처리 (이미 선차감됨)
-        reg.totalBondForRAT -= test.bondAmount;
-        accumulatedSlashings += test.bondAmount;
-
-        // D_min 미만이면 활성 검증자 세트에서 제거
-        bool removedFromSet = false;
-        if (reg.depositedAmount < minimumThreshold) {
-            _removeValidator(test.systemConfig, test.validatorAddress, reg);
-            removedFromSet = true;
+        // 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
+        if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
+            _restoreValidator(systemConfig, msg.sender, reg);
+            emit ValidatorRestored(msg.sender, systemConfig);
         }
 
-        emit ValidatorSlashed(testId, test.validatorAddress, test.systemConfig, test.bondAmount, removedFromSet);
+        emit EvidenceSubmitted(testId, msg.sender, systemConfig, batchIndex);
     }
 
     /// @inheritdoc IRAT
@@ -449,6 +538,7 @@ contract RAT is RATStorage, IRAT {
         // 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
         if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
             _restoreValidator(test.systemConfig, _claimant, reg);
+            emit ValidatorRestored(_claimant, test.systemConfig);
         }
 
         emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);

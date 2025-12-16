@@ -79,12 +79,13 @@ interface ISeigManagerV3 {
     /// @notice 유효 Bridged TON 조회 (자격 없으면 0)
     function getEffectiveBridgedTON(address layer2) external view returns (uint256);
 
-    /// @notice L2 자격 확인
+    /// @notice L2 자격 실시간 확인 (L1 브리지에서 직접 조회)
+    /// @dev B_i는 L1 브리지에서 동적으로 조회, S_i는 coinage에서 동적으로 조회
     /// @param layer2 L2 주소
     /// @return eligible 자격 여부
     /// @return requiredStake 필요 스테이킹 (θ·B_i)
     /// @return currentStake 현재 스테이킹 (S_i)
-    function checkEligibility(address layer2)
+    function checkCurrentEligibility(address layer2)
         external
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake);
@@ -121,21 +122,16 @@ interface ISeigManagerV3 {
     // External Functions - Callbacks
     // ==========================================
 
-    /// @notice L2의 Bridged TON 변경 시 호출
-    /// @dev L1Bridge에서 TON 입금/출금 시 호출
-    /// @param layer2 L2 주소 (candidate)
-    /// @param newBridgedTON 새로운 Bridged TON 양
-    function onBridgedTONChange(address layer2, uint256 newBridgedTON) external;
+    /// @notice L2의 Bridged TON 변경 시 호출 (타입 3 전용)
+    /// @dev OptimismPortal에서 TON 입금/출금 시 SeigManager를 직접 호출
+    ///      호출자(msg.sender)로부터 L1BridgeRegistry.rollupConfigWithPortal로 rollupConfig 조회
+    ///      트리거 함수이므로 revert 대신 early return 사용
+    function onBridgedTONChange() external;
 
     /// @notice L2의 스테이킹 금액 변경 시 호출
     /// @dev DepositManager에서 deposit/withdraw 시 호출
     /// @param layer2 L2 주소 (candidate)
     function onStakingChange(address layer2) external;
-
-    /// @notice 초기 Bridged TON 설정 (등록 시)
-    /// @param layer2 L2 주소
-    /// @param initialBridgedTON 초기 Bridged TON 양
-    function initializeBridgedTON(address layer2, uint256 initialBridgedTON) external;
 
     // ==========================================
     // External Functions - Governance
@@ -171,9 +167,10 @@ interface ISeigManagerV3 {
 
     /// @notice 시퀀서 슬래싱 - Permissionless 방식 (게임 종료 후 호출)
     /// @dev 누구나 호출 가능, 게임 상태를 온체인에서 검증
+    ///      DisputeGameFactory 검증을 통해 가짜 게임 컨트랙트 방지
+    ///      챌린저는 claimData(0).counteredBy에서 온체인 조회
     /// @param gameAddress 종료된 FaultDisputeGame 주소
-    /// @param challengers 챌린저 주소 목록 (오프체인에서 파악하여 전달)
-    function slashSequencerByGame(address gameAddress, address[] calldata challengers) external;
+    function slashSequencerByGame(address gameAddress) external;
 
     // ==========================================
     // External Functions - Migration

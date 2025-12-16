@@ -99,9 +99,6 @@ contract SeigManagerV1_4Storage {
     // 시퀀서 슬래싱 관련 스토리지
     // ==========================================
 
-    /// @notice DisputeGame/FaultProof 컨트랙트 주소 (슬래싱 권한)
-    address public disputeContract;
-
     /// @notice 시퀀서별 추가 보상 (Δ_sequencer)
     /// @dev layer2 => additionalReward
     mapping(address => uint256) public sequencerAdditionalReward;
@@ -125,11 +122,25 @@ contract SeigManagerV1_4Storage {
     uint256 public v3MigrationBlock;
 
     // ==========================================
-    // TVL 트리거 시뇨리지 동기화 제어
+    // TVL 동기화 제어
     // ==========================================
 
     /// @notice TVL 변경 시 effectiveBridgedTON 즉시 동기화 여부
-    /// @dev true: onBridgedTONChange에서 즉시 동기화 (가스비 증가)
-    /// @dev false: 시뇨리지 계산 시점에만 동기화 (기본값)
+    ///
+    /// @dev 목적: Bridged TON이 변경될 때 totalEffectiveBridgedTON을 즉시 업데이트할지 결정
+    ///
+    /// @dev true (즉시 동기화):
+    ///      - onBridgedTONChange 호출 시 즉시 _updateEligibilityInternal 실행
+    ///      - 자격 변경이 즉시 반영되어 정확한 시뇨리지 분배
+    ///      - 단점: 가스비 증가 (eligibility 체크 + storage 업데이트)
+    ///
+    /// @dev false (지연 동기화, 기본값):
+    ///      - 시뇨리지 계산 시점(_updateSeigniorage)에만 동기화
+    ///      - onBridgedTONChange는 no-op (아무 작업 안함)
+    ///      - 장점: 가스비 절약
+    ///      - 단점: 시뇨리지 계산 전까지 자격 변경이 반영되지 않음
+    ///
+    /// @dev 현재 구현: 항상 즉시 동기화 (이 플래그 미사용)
+    ///      향후 가스 최적화를 위해 지연 동기화 옵션으로 사용 가능
     bool public autoSyncEffectiveTVL;
 }
