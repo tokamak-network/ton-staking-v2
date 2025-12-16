@@ -339,30 +339,26 @@ contract DeployV3Full is Script {
         // V1_3 함수 selectors 등록 (pause/unpause는 V1_3에서 처리)
         // pause()는 V1_4에도 있어서 V1_4로 라우팅
 
-        // V1_4 함수 selectors 등록 (16개)
-        bytes4[] memory v1_4Selectors = new bytes4[](16);
+        // V1_4 함수 selectors 등록 (12개)
+        bytes4[] memory v1_4Selectors = new bytes4[](12);
         // V1_4에만 있는 함수들 (V1_2에 없음)
         v1_4Selectors[0] = SeigManagerV1_4.setRATContract.selector;
-        v1_4Selectors[1] = SeigManagerV1_4.setDisputeContract.selector;
-        v1_4Selectors[2] = SeigManagerV1_4.setValidatorPool.selector;
-        v1_4Selectors[3] = SeigManagerV1_4.setDaoDistributionRatio.selector;
-        v1_4Selectors[4] = SeigManagerV1_4.setMinStakingRatio.selector;
-        v1_4Selectors[5] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
-        v1_4Selectors[6] = SeigManagerV1_4.setHalfSaturationPoint.selector;
-        v1_4Selectors[7] = SeigManagerV1_4.setStakedSeigFactor.selector;
-        v1_4Selectors[8] = SeigManagerV1_4.migrateToV3.selector;
-        v1_4Selectors[9] = SeigManagerV1_4.slashSequencer.selector;
-        v1_4Selectors[10] = SeigManagerV1_4.slashSequencerByGame.selector;
-        v1_4Selectors[11] = SeigManagerV1_4.transferStake.selector;
-        v1_4Selectors[12] = SeigManagerV1_4.onBridgedTONChange.selector;
-        v1_4Selectors[13] = SeigManagerV1_4.initializeBridgedTON.selector;
+        v1_4Selectors[1] = SeigManagerV1_4.setValidatorPool.selector;
+        v1_4Selectors[2] = SeigManagerV1_4.setDaoDistributionRatio.selector;
+        v1_4Selectors[3] = SeigManagerV1_4.setMinStakingRatio.selector;
+        v1_4Selectors[4] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
+        v1_4Selectors[5] = SeigManagerV1_4.setHalfSaturationPoint.selector;
+        v1_4Selectors[6] = SeigManagerV1_4.setStakedSeigFactor.selector;
+        v1_4Selectors[7] = SeigManagerV1_4.migrateToV3.selector;
+        v1_4Selectors[8] = SeigManagerV1_4.slashSequencerByGame.selector;
+        v1_4Selectors[9] = SeigManagerV1_4.onBridgedTONChange.selector;
         // 로직 수정으로 V1_4로 오버라이드 (V1_2에도 있지만 V3 로직 적용)
-        v1_4Selectors[14] = SeigManagerV1_4.updateSeigniorage.selector;
-        v1_4Selectors[15] = SeigManagerV1_4.updateSeigniorageLayer.selector;
+        v1_4Selectors[10] = SeigManagerV1_4.updateSeigniorage.selector;
+        v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorageLayer.selector;
         // 참고: setLayer2Manager는 V1_2에 이미 있으므로 V1_4 라우팅 불필요
 
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
-        console.log("SeigManager V1_4 selectors registered (16 functions)");
+        console.log("SeigManager V1_4 selectors registered (12 functions)");
 
         // 나머지 함수들은 V1_2 (기본 구현체)가 처리
 
@@ -401,17 +397,16 @@ contract DeployV3Full is Script {
         console.log("DepositManager Index 2 (V1_1) selectors registered");
 
         // Index 3: V1_2 함수 라우팅 (V1_1 오버라이드 포함)
-        bytes4[] memory dmIndex3Selectors = new bytes4[](10);
-        dmIndex3Selectors[0] = DepositManagerV1_2.setV3CallbackEnabled.selector;
-        dmIndex3Selectors[1] = DepositManagerV1_2.deposit.selector;
-        dmIndex3Selectors[2] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
-        dmIndex3Selectors[3] = DepositManagerV1_2.requestWithdrawal.selector;
-        dmIndex3Selectors[4] = DepositManagerV1_2.processRequest.selector;
-        dmIndex3Selectors[5] = DepositManagerV1_2.processRequests.selector;
-        dmIndex3Selectors[6] = DepositManagerV1_2.getWithdrawalRequests.selector;
-        dmIndex3Selectors[7] = DepositManagerV1_2.pendingUnstaked.selector;
-        dmIndex3Selectors[8] = DepositManagerV1_2.accStaked.selector;
-        dmIndex3Selectors[9] = DepositManagerV1_2.accUnstaked.selector;
+        bytes4[] memory dmIndex3Selectors = new bytes4[](9);
+        dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
+        dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
+        dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
+        dmIndex3Selectors[3] = DepositManagerV1_2.processRequest.selector;
+        dmIndex3Selectors[4] = DepositManagerV1_2.processRequests.selector;
+        dmIndex3Selectors[5] = DepositManagerV1_2.getWithdrawalRequests.selector;
+        dmIndex3Selectors[6] = DepositManagerV1_2.pendingUnstaked.selector;
+        dmIndex3Selectors[7] = DepositManagerV1_2.accStaked.selector;
+        dmIndex3Selectors[8] = DepositManagerV1_2.accUnstaked.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
         console.log("DepositManager Index 3 (V1_2) selectors registered");
         console.log("");
@@ -469,6 +464,7 @@ contract DeployV3Full is Script {
             wton,
             ton,
             depositManagerProxy,
+            layer2ManagerProxy,
             deployer
         );
         console.log("RAT initialized");
@@ -520,13 +516,17 @@ contract DeployV3Full is Script {
     function _setupCrossReferences(address deployer) internal {
         console.log("--- Step 10: Setup Cross-References ---");
 
-        // SeigManager -> Layer2Manager
-        SeigManagerV1_4(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
+        // SeigManager -> Layer2Manager (V1_2에 정의됨)
+        SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
 
         // SeigManager -> RAT
         SeigManagerV1_4(seigManagerProxy).setRATContract(ratProxy);
         console.log("SeigManager.setRATContract done");
+
+        // SeigManager -> ValidatorPool
+        SeigManagerV1_4(seigManagerProxy).setValidatorPool(validatorPoolProxy);
+        console.log("SeigManager.setValidatorPool done");
 
         // Layer2Manager.setAddresses (using V1_1 interface - Index 0)
         Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
@@ -552,13 +552,12 @@ contract DeployV3Full is Script {
         console.log("Layer2Manager V1_2 implementation set alive");
 
         // V1_2 함수 selectors 등록 (V3 신규 함수들)
-        bytes4[] memory l2mV1_2Selectors = new bytes4[](4);
-        l2mV1_2Selectors[0] = Layer2ManagerV1_2.registerCandidateAddOnV3.selector;
+        bytes4[] memory l2mV1_2Selectors = new bytes4[](3);
+        l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
         l2mV1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
-        l2mV1_2Selectors[2] = Layer2ManagerV1_2.updateBridgedTON.selector;
-        l2mV1_2Selectors[3] = Layer2ManagerV1_2.getCachedBridgedTON.selector;
+        l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
         Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
-        console.log("Layer2Manager V1_2 selectors registered (4 functions)");
+        console.log("Layer2Manager V1_2 selectors registered (3 functions)");
 
         // L1BridgeRegistry.setAddresses (using V1_1 interface - Index 0)
         L1BridgeRegistryV1_1(l1BridgeRegistryProxy).setAddresses(
@@ -606,6 +605,13 @@ contract DeployV3Full is Script {
             layer2ManagerProxy
         );
         console.log("OperatorManagerFactory.setAddresses done");
+
+        // DepositManager.setAddresses (V1_1 - Index 2로 라우팅됨)
+        DepositManagerV1_1(depositManagerProxy).setAddresses(
+            l1BridgeRegistryProxy,
+            layer2ManagerProxy
+        );
+        console.log("DepositManager.setAddresses done");
         console.log("");
     }
 

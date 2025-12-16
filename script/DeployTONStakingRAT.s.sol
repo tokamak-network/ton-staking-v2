@@ -20,6 +20,7 @@ contract DeployTONStakingRAT is Script {
     address public wton;
     address public ton;
     address public depositManager;
+    address public layer2Manager;
     address public disputeGameFactory;
     address public l1BridgeRegistry;
     address public owner;
@@ -41,6 +42,7 @@ contract DeployTONStakingRAT is Script {
         wton = vm.envAddress("WTON");
         ton = vm.envAddress("TON");
         depositManager = vm.envAddress("DEPOSIT_MANAGER");
+        layer2Manager = vm.envAddress("LAYER2_MANAGER");
         disputeGameFactory = vm.envAddress("DISPUTE_GAME_FACTORY");
         l1BridgeRegistry = vm.envAddress("L1_BRIDGE_REGISTRY");
         owner = vm.envOr("RAT_OWNER", msg.sender);
@@ -63,6 +65,7 @@ contract DeployTONStakingRAT is Script {
             wton,
             ton,
             depositManager,
+            layer2Manager,
             owner
         );
         console.log("RAT initialized with owner:", owner);
@@ -127,12 +130,14 @@ contract DeployTONStakingRATDevnet is Script {
         address mockWton = address(0x1002);
         address mockTon = address(0x1003);
         address mockDepositManager = address(0x1004);
+        address mockLayer2Manager = address(0x1005);
 
         rat.initialize(
             mockSeigManager,
             mockWton,
             mockTon,
             mockDepositManager,
+            mockLayer2Manager,
             DEPLOY_ADDRESS
         );
 
@@ -182,6 +187,7 @@ contract DeployTONStakingRATForAllocs is Script {
         address wton = vm.envAddress("WTON");
         address ton = vm.envAddress("TON");
         address depositManager = vm.envAddress("DEPOSIT_MANAGER");
+        address layer2Manager = vm.envAddress("LAYER2_MANAGER");
         address l1BridgeRegistry = vm.envAddress("L1_BRIDGE_REGISTRY");
 
         vm.startBroadcast();
@@ -196,6 +202,7 @@ contract DeployTONStakingRATForAllocs is Script {
             wton,
             ton,
             depositManager,
+            layer2Manager,
             msg.sender
         );
 

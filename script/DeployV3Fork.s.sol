@@ -100,6 +100,7 @@ contract DeployV3Fork is Script {
             WTON,
             TON,
             DEPOSIT_MANAGER_PROXY,
+            LAYER2_MANAGER_PROXY,
             deployer
         );
         console.log("RAT Proxy:", ratProxy);
@@ -217,7 +218,7 @@ contract DeployV3ForkWithImpersonation is Script {
         ratImpl = address(new RAT());
         ratProxy = address(new RATProxy());
         IProxy(ratProxy).upgradeTo(ratImpl);
-        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, DEPOSIT_MANAGER_PROXY, deployer);
+        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, DEPOSIT_MANAGER_PROXY, LAYER2_MANAGER_PROXY, deployer);
 
         validatorPoolImpl = address(new ValidatorPoolV1());
         validatorPoolProxy = address(new ValidatorPoolProxy());
@@ -319,6 +320,7 @@ contract DeployV3ForkSepolia is Script {
             WTON,
             TON,
             DEPOSIT_MANAGER_PROXY,
+            LAYER2_MANAGER_PROXY,
             deployer
         );
         console.log("RAT Proxy:", ratProxy);
