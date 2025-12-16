@@ -8,38 +8,65 @@
 
 ## 2. SeigManager 외부 인터페이스
 
-### 2.1 Bridged TON 변경 알림
+### 2.1 Bridged TON 변경 알림 (타입 3 전용)
 
 ```solidity
-/// @notice L2의 Bridged TON(TVL) 변경 시 호출
-/// @dev L1Bridge에서 TON 입금/출금 시 호출해야 함
-/// @param layer2 L2 주소 (candidate)
-/// @param newBridgedTON 새로운 Bridged TON 양
-function onBridgedTONChange(address layer2, uint256 newBridgedTON) external;
+/// @notice L2의 Bridged TON(TVL) 변경 시 호출 (타입 3 전용)
+/// @dev OptimismPortal에서 TON 입금/출금 시 SeigManager를 직접 호출해야 함
+///      msg.sender(OptimismPortal)로부터 rollupConfig를 자동 조회
+///      트리거 함수이므로 revert 대신 early return 사용 - 호출자의 트랜잭션 실패 방지
+function onBridgedTONChange() external;
 ```
 
 | 항목 | 내용 |
 |------|------|
-| **호출 주체** | L1Bridge, L1BridgeRegistry |
+| **지원 타입** | **타입 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME) 전용** |
+| **호출 주체** | OptimismPortal (SeigManager를 직접 호출) |
 | **호출 시점** | TON 입금/출금 완료 후 |
-| **접근 제어** | `onlyL1BridgeOrRegistry` |
-| **영향** | `totalEffectiveBridgedTON` 갱신, L2 자격 재평가 |
+| **접근 제어** | early return 패턴 사용 (revert 하지 않음) |
+| **영향** | L2 자격 재평가, `totalEffectiveBridgedTON` 갱신 |
 
-### 2.2 스테이킹 변경 알림
+**함수 동작 흐름:**
+```solidity
+function onBridgedTONChange() external onlyMigrated {
+    // 1. msg.sender(OptimismPortal)로 rollupConfig 조회
+    address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithPortal(msg.sender);
+    if (rollupConfig == address(0)) return;  // 등록되지 않은 포탈 → early return
+
+    // 2. 타입 3만 지원
+    uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
+    if (rollupType != 3) return;  // 타입 3 아님 → early return
+
+    // 3. layer2 주소 조회
+    address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(rollupConfig);
+    if (layer2 == address(0)) return;  // 등록되지 않은 L2 → early return
+
+    // 4. 자격 재평가
+    _updateEligibilityInternal(layer2);
+}
+```
+
+> **중요 - 타입 3 전용**:
+> - 타입 1/2 롤업은 이 함수를 사용하지 않습니다
+> - 타입 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME) 롤업만 OptimismPortal에서 직접 SeigManager를 호출합니다
+> - 트리거 함수이므로 모든 오류 상황에서 revert 대신 early return하여 호출자(OptimismPortal)의 트랜잭션이 실패하지 않도록 합니다
+
+### 2.2 TON 스테이킹 변경 시 자격 재평가
 
 ```solidity
-/// @notice L2의 스테이킹 금액 변경 시 호출
-/// @dev DepositManager에서 deposit/withdraw 시 호출해야 함
-/// @param layer2 L2 주소 (candidate)
+/// @notice TON 스테이킹 변경 시 호출 (자격 재평가용)
+/// @dev DepositManager에서 deposit/withdraw 후 호출
+/// @param layer2 L2 주소
 function onStakingChange(address layer2) external;
 ```
 
 | 항목 | 내용 |
 |------|------|
-| **호출 주체** | DepositManager, SeigManager (슬래싱 시) |
-| **호출 시점** | deposit/withdraw/slashSequencer/transferStake 완료 후 |
-| **접근 제어** | `onlyDepositManager` 또는 내부 호출 |
-| **영향** | L2 자격 조건 `S_i ≥ θ·B_i` 재평가 |
+| **호출 주체** | DepositManager |
+| **호출 시점** | deposit/withdraw 완료 후 |
+| **영향** | L2 자격(S_i ≥ θ·B_i) 재평가, totalEffectiveBridgedTON 갱신 |
+
+> **참고**: 온체인에서 모든 L2를 순회하여 자격을 재평가하는 것은 가스 비용이 너무 높아 불가능합니다. 따라서 스테이킹 변경 시 해당 L2의 자격만 실시간으로 재평가합니다.
 
 ---
 
@@ -62,10 +89,10 @@ function onApprove(address owner, address spender, uint256 amount, bytes calldat
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 스테이커 (EOA 또는 컨트랙트) |
-| **호출 시점** | 스테이킹 시 |
-| **V3 변경** | 완료 후 `SeigManager.onStakingChange(layer2)` 호출 추가 |
+| **호출 시점** | TON 스테이킹 시 |
+| **V3 변경** | deposit/withdraw 후 `SeigManager.onStakingChange(layer2)` 호출 추가 |
 
-### 3.2 출금 요청 (기존 V2 유지)
+### 3.2 출금 요청
 
 ```solidity
 /// @notice 출금 요청
@@ -81,7 +108,7 @@ function processRequest(address layer2) external;
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 스테이커 |
-| **V3 변경** | 완료 후 `SeigManager.onStakingChange(layer2)` 호출 추가 |
+| **V3 변경** | requestWithdrawal 후 `SeigManager.onStakingChange(layer2)` 호출 추가 |
 
 ---
 
@@ -235,12 +262,12 @@ function setEvidenceSubmissionPeriod(uint256 period) external onlyOwner;
 ### 7.1 L2 자격 조회
 
 ```solidity
-/// @notice L2 자격 확인
+/// @notice L2 자격 확인 (실시간)
 /// @param layer2 L2 주소
 /// @return eligible 자격 여부
 /// @return requiredStake 필요 스테이킹 (θ·B_i)
 /// @return currentStake 현재 스테이킹 (S_i)
-function checkEligibility(address layer2)
+function checkCurrentEligibility(address layer2)
     external view
     returns (bool eligible, uint256 requiredStake, uint256 currentStake);
 
@@ -298,29 +325,48 @@ function validateSlashingPenalty(uint256 n) external view returns (bool);
 
 ## 8. 호출 흐름 요약
 
-### 8.1 TON 브리지 입금 시
+### 8.1 TON 브리지 입금/출금 시 (타입 3 전용)
 
 ```
-L1Bridge.deposit(TON)
+OptimismPortal.depositTransaction() 또는 finalizeWithdrawalTransaction()
     │
-    └─► SeigManager.onBridgedTONChange(layer2, newAmount)
+    └─► SeigManager.onBridgedTONChange()  [포탈이 직접 호출]
             │
-            ├─► bridgedTONInfo[layer2] 갱신
-            ├─► checkEligibility(layer2) 재평가
-            └─► totalEffectiveBridgedTON 갱신
+            ├─► L1BridgeRegistry.rollupConfigWithPortal(msg.sender) → rollupConfig 조회
+            │       (등록되지 않은 포탈이면 early return)
+            │
+            ├─► rollupType == 3 검증
+            │       (타입 3 아니면 early return)
+            │
+            ├─► Layer2Manager.getLayer2BySystemConfig(rollupConfig) → layer2 조회
+            │       (등록되지 않은 L2이면 early return)
+            │
+            └─► _updateEligibilityInternal(layer2)
+                    │
+                    ├─► checkCurrentEligibility(layer2) 재평가
+                    └─► totalEffectiveBridgedTON 갱신
 ```
 
-### 8.2 스테이킹 변경 시
+> **참고**: 타입 1/2 롤업은 `onBridgedTONChange`를 사용하지 않습니다. OptimismPortal이 SeigManager를 직접 호출하며, 트리거 함수이므로 모든 오류 상황에서 revert 대신 early return합니다.
+
+### 8.2 TON 스테이킹 변경 시
 
 ```
 DepositManager.deposit(layer2, amount)
     │
+    ├─► SeigManager.onDeposit(layer2, account, amount)
+    │       │
+    │       └─► 스테이킹 기록 업데이트
+    │
     └─► SeigManager.onStakingChange(layer2)
             │
-            └─► checkEligibility(layer2) 재평가
+            └─► _updateEligibilityInternal(layer2)
                     │
-                    └─► (자격 변경 시) totalEffectiveBridgedTON 갱신
+                    ├─► checkCurrentEligibility(layer2) 재평가
+                    └─► totalEffectiveBridgedTON 갱신
 ```
+
+> **참고**: 온체인에서 모든 L2를 순회하여 자격을 재평가하는 것은 가스 비용이 너무 높아 불가능합니다. 따라서 `onStakingChange` 콜백을 통해 해당 L2의 자격만 실시간으로 재평가합니다.
 
 ### 8.3 RAT 흐름
 

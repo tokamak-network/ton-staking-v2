@@ -629,8 +629,7 @@ factory.setAutoCoinageLogic(address(coinageLogic));
 | `slashSequencer(address,address[])` | `0x484ebff6` | 시퀀서 슬래싱 |
 | `slashSequencerByGame(address,address[])` | `0xf4266fde` | DisputeGame 기반 시퀀서 슬래싱 |
 | `transferStake(address,address,address,uint256)` | `0x26334f93` | 스테이크 전송 |
-| `onBridgedTONChange(address,uint256)` | `0x92736bfd` | Bridged TON 변경 콜백 |
-| `initializeBridgedTON(address,uint256)` | `0xa71827f4` | Bridged TON 초기화 |
+| `onBridgedTONChange()` | `0x9a6288eb` | Bridged TON 변경 콜백 (트리거 함수, 타입 3 전용) |
 | `updateSeigniorage()` | `0x764a7856` | 시뇨리지 분배 (V1_2 오버라이드 - V3 로직) |
 | `updateSeigniorageLayer(address)` | `0x1e1f0b60` | Layer2별 시뇨리지 분배 (V1_2 오버라이드 - V3 로직) |
 
@@ -714,7 +713,7 @@ proxy.setAliveImplementation2(address(seigManagerV1_4), true);
 // Step 5: V1_4 함수들을 V1_4 구현체로 라우팅
 // ==========================================
 // 참고: setLayer2Manager는 V1_2(기본 구현체)에 이미 있으므로 라우팅 불필요
-bytes4[] memory v1_4Selectors = new bytes4[](16);
+bytes4[] memory v1_4Selectors = new bytes4[](15);
 v1_4Selectors[0] = SeigManagerV1_4.setRATContract.selector;
 v1_4Selectors[1] = SeigManagerV1_4.setDisputeContract.selector;
 v1_4Selectors[2] = SeigManagerV1_4.setValidatorPool.selector;
@@ -728,9 +727,8 @@ v1_4Selectors[9] = SeigManagerV1_4.slashSequencer.selector;
 v1_4Selectors[10] = SeigManagerV1_4.slashSequencerByGame.selector;
 v1_4Selectors[11] = SeigManagerV1_4.transferStake.selector;
 v1_4Selectors[12] = SeigManagerV1_4.onBridgedTONChange.selector;
-v1_4Selectors[13] = SeigManagerV1_4.initializeBridgedTON.selector;
-v1_4Selectors[14] = SeigManagerV1_4.updateSeigniorage.selector;        // V1_2 오버라이드
-v1_4Selectors[15] = SeigManagerV1_4.updateSeigniorageLayer.selector;   // V1_2 오버라이드
+v1_4Selectors[13] = SeigManagerV1_4.updateSeigniorage.selector;        // V1_2 오버라이드
+v1_4Selectors[14] = SeigManagerV1_4.updateSeigniorageLayer.selector;   // V1_2 오버라이드
 
 // 이 호출 후, 위 selector들로 호출하면 V1_4로 라우팅됨
 proxy.setSelectorImplementations2(v1_4Selectors, address(seigManagerV1_4));

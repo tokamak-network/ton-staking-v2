@@ -109,7 +109,6 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 - [ ] `hyperbolicSaturation()`: y(k) = L/2 확인, 단조 증가, 상한 L
 - [ ] `calculateL2Seigniorage()`: 비례 분배 정확성
 - [ ] `onBridgedTONChange()`: Bridged TON 변경 시 캐시 갱신
-- [ ] `onStakingChange()`: 스테이킹 변경 시 유효성 재평가
 
 ### 4.2 전환 메커니즘 테스트
 
@@ -124,7 +123,7 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 - [ ] updateSeigniorageV3() 전체 플로우
 - [ ] ValidatorPool 보상 분배
 - [ ] 자격 상실 시 시뇨리지 재분배
-- [ ] DepositManager → SeigManager 콜백 테스트
+- [ ] Layer2Manager → SeigManager 콜백 테스트
 - [ ] L1Bridge → SeigManager 콜백 테스트
 
 ### 4.4 경계 조건 테스트
@@ -179,7 +178,7 @@ ratResponseWindow = 1 hours;
 | **SeigManagerV1_4Storage** | 신규 | V3 파라미터 스토리지, 전환 파라미터 |
 | **Layer2ManagerV1_2** | 업그레이드 | Bridged TON 조회/업데이트, 자격 확인 |
 | **L1BridgeRegistryV1_2** | 업그레이드 | Bridged TON 조회 함수 추가 |
-| **DepositManagerV1_3** | 업그레이드 | onStakingChange 콜백 호출 |
+| **DepositManagerV1_2** | 업그레이드 | 구조화된 출금 요청 및 일괄 처리 지원 |
 | **ValidatorPoolV1** | 신규 | RAT 검증자 보상 관리 |
 | **ValidatorPoolStorage** | 신규 | 검증자 데이터 스토리지 |
 

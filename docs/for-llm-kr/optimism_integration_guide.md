@@ -58,18 +58,20 @@ contract L1BridgeRegistryV1_2Storage {
 | **DisputeGameFactory** | `IRAT.triggerAttentionTest(...)` | DisputeGame 생성 시 |
 | **FaultDisputeGame** | `IRAT.resolveClaim(winner)` | 챌린저 승리 시 |
 
-### C. Bridged TON (TVL) 변경 알림
+### C. Bridged TON (TVL) 변경 알림 (타입 3 전용)
 
-L2 타입에 따라 **둘 중 하나만** 구현:
+**타입 3만 지원**: OptimismPortal이 SeigManager를 직접 호출합니다.
 
-| L2 타입 | TON 보관 위치 | 호출할 함수 |
-|--------|-------------|------------|
-| **Type 1 (Legacy)** | L1StandardBridge | `ISeigManager.onBridgedTONChange(rollupConfig, totalTONTVL)` |
-| **Type 2/3 (Bedrock)** | OptimismPortal | `ISeigManager.onBridgedTONChange(rollupConfig, totalTONTVL)` |
+| L2 타입 | TON 보관 위치 | 호출할 함수 | 시뇨리지 제공 (신규백서) |
+|--------|-------------|------------|------|
+| **Type 1 (Legacy)** | L1StandardBridge | - | 미지원 |
+| **Type 2 (Bedrock)** | OptimismPortal | - | 미지원 |
+| **Type 3 (Bedrock with DG)** | OptimismPortal | `ISeigManager.onBridgedTONChange()` | **지원** |
 
-> **파라미터**:
-> - `rollupConfig`: L2의 SystemConfig 주소
-> - `totalTONTVL`: 현재 브리지에 보관된 총 TON 양
+> **중요 사항**:
+> - **타입 3만 지원**: 타입 1/2 롤업은 이 함수를 사용하지 않습니다
+> - **호출자 식별**: SeigManager가 `msg.sender`(OptimismPortal)로부터 rollupConfig를 조회
+> - **트리거 함수**: revert 대신 early return 사용 - 호출자 트랜잭션 실패 방지
 
 ### D. 시퀀서 슬래싱
 
@@ -527,109 +529,111 @@ TON V3 RAT는 SystemConfig 주소를 L2 식별자로 사용합니다. 다른 식
 
 ---
 
-## 10. Bridged TON (TVL) 변경 알림
+## 10. Bridged TON (TVL) 변경 알림 (타입 3 전용)
 
 TON이 L1 ↔ L2 간 브리지를 통해 이동할 때, TON V3 시뇨리지 분배 시스템에 알려야 합니다.
 
-### 10.1 ISeigManager 인터페이스
+> **중요 - V3 시뇨리지 대상**:
+> - **타입 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME)만 V3 시뇨리지 분배 대상**입니다
+> - 타입 1/2 롤업은 V3 백서 기준 시뇨리지를 받지 않습니다
+> - 따라서 `onBridgedTONChange`는 타입 3만 호출합니다
+
+### 10.1 ISeigManager 인터페이스 (타입 3 전용)
 
 ```solidity
 /// @title ISeigManager (TON V3용)
-/// @notice Bridged TON 변경 알림 인터페이스
+/// @notice Bridged TON 변경 알림 인터페이스 (타입 3 전용)
 interface ISeigManager {
-    /// @notice L2의 Bridged TON(TVL) 변경 시 호출
-    /// @dev L1Bridge/OptimismPortal에서 TON 입금/출금 완료 후 호출
-    /// @param rollupConfig L2의 SystemConfig 주소
-    /// @param totalTONTVL 현재 브리지에 보관된 총 TON 양
-    function onBridgedTONChange(address rollupConfig, uint256 totalTONTVL) external;
+    /// @notice L2의 Bridged TON(TVL) 변경 시 호출 (타입 3 전용)
+    /// @dev OptimismPortal에서 TON 입금/출금 완료 후 직접 호출
+    ///      msg.sender(OptimismPortal)로부터 rollupConfig를 자동 조회
+    ///      트리거 함수이므로 revert 대신 early return 사용
+    function onBridgedTONChange() external;
 }
 ```
 
-### 10.2 L2 타입별 구현
+> **참고**:
+> - SeigManager가 `msg.sender`(OptimismPortal)로부터 `L1BridgeRegistry.rollupConfigWithPortal()`을 통해 rollupConfig를 자동 조회
+> - 트리거 함수이므로 모든 오류 상황에서 revert 대신 early return
 
-> **중요**: L2 타입에 따라 **둘 중 하나만** 구현합니다. 둘 다 구현하면 중복 호출됩니다.
-
-#### Type 1 (Legacy): L1StandardBridge 수정
+### 10.2 타입 3 (Bedrock with DisputeGame): OptimismPortal 수정
 
 ```solidity
-// L1StandardBridge.sol
+// OptimismPortal.sol (타입 3 전용)
 
 import { ISeigManager } from "interfaces/L1/ISeigManager.sol";
 
-contract L1StandardBridge {
+contract OptimismPortal {
     /// @notice SeigManager 주소 (TON V3)
     address public seigManager;
 
-    /// @notice TON 토큰 주소
-    address public ton;
-
-    /// @notice L2의 SystemConfig 주소
-    address public rollupConfig;
-
-    /// @notice TON 입금/출금 완료 후 호출
+    /// @notice TON 입금/출금 완료 후 (타입 3 전용)
+    /// @dev SeigManager를 직접 호출, msg.sender(this)로 rollupConfig 자동 조회됨
     function _notifyBridgedTONChange() internal {
-        if (seigManager != address(0) && rollupConfig != address(0)) {
-            uint256 totalTONTVL = IERC20(ton).balanceOf(address(this));
-            try ISeigManager(seigManager).onBridgedTONChange(rollupConfig, totalTONTVL) {
+        if (seigManager != address(0)) {
+            // try-catch로 감싸서 실패해도 브리지 동작은 계속
+            try ISeigManager(seigManager).onBridgedTONChange() {
+                // 성공
             } catch {
-                // 실패해도 브리지 동작은 계속
+                // 실패해도 브리지 동작은 계속 진행
             }
         }
     }
-}
-```
 
-#### Type 2/3 (Bedrock with Native TON): OptimismPortal 수정
+    /// @notice TON 입금 시 호출
+    function depositTransaction(...) external {
+        // ... 기존 입금 로직 ...
 
-```solidity
-// OptimismPortal.sol
+        // ★ Bridged TON 변경 알림
+        _notifyBridgedTONChange();
+    }
 
-contract OptimismPortal {
-    address public seigManager;
-    address public ton;
-    address public rollupConfig;
+    /// @notice TON 출금 완료 시 호출
+    function finalizeWithdrawalTransaction(...) external {
+        // ... 기존 출금 로직 ...
 
-    /// @notice TON 입금/출금 완료 후
-    function _notifyBridgedTONChange() internal {
-        if (seigManager != address(0) && rollupConfig != address(0)) {
-            uint256 totalTONTVL = IERC20(ton).balanceOf(address(this));
-            try ISeigManager(seigManager).onBridgedTONChange(rollupConfig, totalTONTVL) {
-            } catch {
-            }
-        }
+        // ★ Bridged TON 변경 알림
+        _notifyBridgedTONChange();
     }
 }
-```
 
-### 10.4 Bridged TON 변경 시퀀스
+### 10.3 Bridged TON 변경 시퀀스 (타입 3)
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
-│    User     │     │ L1StandardBridge│     │ SeigManager  │
+│    User     │     │ OptimismPortal  │     │ SeigManager  │
 └──────┬──────┘     └────────┬────────┘     └──────┬───────┘
        │                     │                     │
-       │  deposit(TON)       │                     │
+       │  depositTransaction │                     │
        │────────────────────>│                     │
        │                     │                     │
-       │                     │  TON.transfer()     │
-       │                     │  (브리지에 TON 보관) │
+       │                     │  TON 수신           │
+       │                     │  (포탈에 TON 보관)   │
        │                     │                     │
        │                     │  onBridgedTONChange │
-       │                     │  (rollupConfig,     │
-       │                     │   totalTONTVL)      │
+       │                     │  ()                 │
        │                     │────────────────────>│
        │                     │                     │
-       │                     │                     │ bridgedTONInfo 갱신
-       │                     │                     │ 자격 조건 재평가
-       │                     │                     │ totalEffectiveBridgedTON 갱신
+       │                     │                     │ 1. rollupConfigWithPortal(msg.sender)
+       │                     │                     │    → rollupConfig 조회
+       │                     │                     │
+       │                     │                     │ 2. rollupType == 3 검증
+       │                     │                     │    (아니면 early return)
+       │                     │                     │
+       │                     │                     │ 3. getLayer2BySystemConfig(rollupConfig)
+       │                     │                     │    → layer2 조회
+       │                     │                     │
+       │                     │                     │ 4. _updateEligibilityInternal(layer2)
+       │                     │                     │    - 자격 조건 재평가
+       │                     │                     │    - totalEffectiveBridgedTON 갱신
        │                     │                     │
        │    success          │                     │
        │<────────────────────│                     │
 ```
 
-### 10.5 왜 필요한가?
+### 10.4 왜 필요한가?
 
-TON V3 시뇨리지 분배는 **Bridged TON (B_i)** 기반입니다:
+TON V3 시뇨리지 분배는 **Bridged TON (B_i)** 기반입니다 (타입 3 전용):
 
 - **자격 조건**: `S_i ≥ θ · B_i` (스테이킹 ≥ 최소비율 × Bridged TON)
 - **시뇨리지 분배**: `y(x)` 함수에서 `x = Σ B̃_i` (유효 Bridged TON 합계)
@@ -637,6 +641,8 @@ TON V3 시뇨리지 분배는 **Bridged TON (B_i)** 기반입니다:
 Bridged TON이 변경되면:
 1. L2의 자격 조건이 변경될 수 있음
 2. 전체 시뇨리지 분배 비율이 변경될 수 있음
+
+> **타입 1/2 롤업**: V3 백서 기준 시뇨리지 분배 대상이 아니므로 `onBridgedTONChange`를 호출하지 않습니다.
 
 ---
 
@@ -787,12 +793,12 @@ contract SeigManager {
 - [ ] 챌린저 승리 시 `resolveClaim` 콜백 확인
 - [ ] 올바른 파라미터 전달 확인
 
-### 12.2 Bridged TON 테스트 (Optimism 측)
+### 12.2 Bridged TON 테스트 (타입 3 전용 - Optimism 측)
 
-- [ ] TON 입금 시 `onBridgedTONChange` 호출 확인
-- [ ] TON 출금 시 `onBridgedTONChange` 호출 확인
+- [ ] TON 입금 시 `SeigManager.onBridgedTONChange()` 호출 확인
+- [ ] TON 출금 시 `SeigManager.onBridgedTONChange()` 호출 확인
 - [ ] 콜백 실패해도 브리지 동작 성공 확인
-- [ ] 올바른 잔액 전달 확인
+- [ ] 타입 3 롤업에서만 호출 확인 (타입 1/2는 미호출)
 
 ### 12.3 슬래싱 테스트 (TON V3 측 - Optimism 수정 불필요)
 

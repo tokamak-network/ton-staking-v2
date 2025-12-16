@@ -613,38 +613,30 @@ contract Layer2ManagerV1_2Storage {
 ### 5.2 New Functions
 
 ```solidity
-/// @notice Bridged TON query (directly from L1 bridge)
+/// @notice Bridged TON query (uses L1BridgeRegistry.layer2TVL)
 /// @param rollupConfig RollupConfig address
+/// @dev L1BridgeRegistry.layer2TVL includes type-based bridge/portal query logic
 function getBridgedTON(address rollupConfig) public view returns (uint256) {
-    // Query bridge address via L1BridgeRegistry
-    (bool valid, address l1Bridge,,) = IL1BridgeRegistry(l1BridgeRegistry)
-        .checkL1Bridge(rollupConfig);
-
-    if (!valid) return 0;
-
-    // Query locked TON amount from bridge contract
-    return IERC20(ton).balanceOf(l1Bridge);
+    return IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
 }
 
-/// @notice Set initial Bridged TON when registering CandidateAddOn
-function registerCandidateAddOnV3(
-    address rollupConfig,
-    uint256 amount,
-    bool flagTon,
-    string calldata memo
-) external {
-    // Existing V2 registration logic...
-    _registerCandidateAddOn(rollupConfig, amount, flagTon, memo);
+/// @notice Query Bridged TON by L2 address
+/// @param layer2 L2 address
+function getBridgedTONByLayer(address layer2) public view returns (uint256) {
+    address operator = operatorOfLayer[layer2];
+    if (operator == address(0)) return 0;
+    address rollupConfig = operatorInfo[operator].rollupConfig;
+    if (rollupConfig == address(0)) return 0;
+    return getBridgedTON(rollupConfig);
+}
 
-    // V3 New: Set initial Bridged TON
-    uint256 initialBridgedTON = getBridgedTON(rollupConfig);
-    cachedBridgedTON[rollupConfig] = initialBridgedTON;
-
-    // Notify SeigManager
-    ISeigManagerV3(seigManager).initializeBridgedTON(
-        operatorInfo[rollupConfigInfo[rollupConfig].operatorManager].candidateAddOn,
-        initialBridgedTON
-    );
+/// @notice Query Layer2 address by SystemConfig(rollupConfig) address
+/// @param systemConfig SystemConfig contract address
+/// @return layer2 Corresponding Layer2 address (address(0) if not found)
+function getLayer2BySystemConfig(address systemConfig) external view returns (address layer2) {
+    address operatorManager = rollupConfigInfo[systemConfig].operatorManager;
+    if (operatorManager == address(0)) return address(0);
+    return operatorInfo[operatorManager].candidateAddOn;
 }
 ```
 

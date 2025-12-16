@@ -175,67 +175,198 @@ R_challenger = C_max + (Δ_sequencer / n)
 
 ---
 
-## 5. 슬래싱 구현
+## 5. 슬래싱 결정 및 호출
+
+### 5.1 슬래싱 결정 주체
+
+슬래싱은 **FaultDisputeGame** (Optimism의 Fraud Proof 시스템)을 통해 결정됩니다.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FaultDisputeGame                         │
+│                                                             │
+│  1. 시퀀서가 잘못된 상태 루트 제출                            │
+│  2. 챌린저가 fraud proof 제출                                │
+│  3. 분쟁 기간 동안 검증                                      │
+│  4. 게임 종료: CHALLENGER_WINS / DEFENDER_WINS              │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+              게임 상태가 CHALLENGER_WINS (1)이면
+                    슬래싱 실행 가능
+```
+
+### 5.2 슬래싱 호출 방식
+
+슬래싱은 `slashSequencerByGame()` 함수를 통해 Permissionless로 실행됩니다.
+
+게임이 `CHALLENGER_WINS`로 종료되면, **누구나** 슬래싱 실행 함수를 호출할 수 있습니다. 이는 이미 온체인에서 결정된 결과를 실행하는 것일 뿐이며, 호출자가 슬래싱을 "결정"하는 것이 아닙니다.
 
 ```solidity
-/// @notice 시퀀서 슬래싱 (fraud proof 성공 시)
+/// @notice Permissionless 슬래싱 실행
+/// @dev 게임 상태를 온체인에서 검증하여 슬래싱 결정
+/// @param gameAddress 종료된 FaultDisputeGame 주소
+function slashSequencerByGame(address gameAddress) external;
+```
+
+#### 챌린저 조회 방식
+
+**⚠️ 중요: 챌린저 목록은 파라미터로 받지 않고, 온체인에서 직접 조회해야 합니다.**
+
+챌린저를 파라미터로 받으면 호출자가 임의의 주소를 전달하여 보상을 탈취할 수 있습니다. 따라서 FaultDisputeGame 컨트랙트에서 직접 챌린저를 조회해야 합니다.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  챌린저 조회 방식 (TODO)                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  옵션 1: 게임에서 직접 조회                                  │
+│          FaultDisputeGame.getChallengers() 같은 함수 사용   │
+│                                                             │
+│  옵션 2: 이벤트 파싱                                        │
+│          게임의 Move 이벤트를 파싱하여 챌린저 주소 수집      │
+│                                                             │
+│  옵션 3: 단일 챌린저                                        │
+│          root claim에 dispute한 단일 챌린저만 보상          │
+│                                                             │
+│  → Optimism FaultDisputeGame 구조 확인 후 결정 필요         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 5.3 슬래싱 실행 전 검증 (중요)
+
+Permissionless 함수이므로, 악의적인 호출을 방지하기 위한 검증이 필수입니다:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     검증 체크리스트                          │
+├─────────────────────────────────────────────────────────────┤
+│ ✓ 1. DisputeGameFactory 검증                                │
+│      해당 게임이 공식 Factory에서 생성되었는지 확인           │
+│      → 가짜 게임 컨트랙트로 임의 슬래싱 방지                  │
+│                                                             │
+│ ✓ 2. 게임 상태 검증                                         │
+│      status() == CHALLENGER_WINS (1) 인지 확인              │
+│                                                             │
+│ ✓ 3. 중복 슬래싱 방지                                       │
+│      slashedGames[gameAddress] == false 확인                │
+│                                                             │
+│ ✓ 4. L2 매핑 검증                                           │
+│      게임의 systemConfig → 유효한 L2 주소 매핑 확인          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**⚠️ 주의: DisputeGameFactory 검증 없이는 공격자가 가짜 게임 컨트랙트를 배포하여 임의의 시퀀서를 슬래싱할 수 있습니다.**
+
+```solidity
+// 예시: DisputeGameFactory 검증
+function slashSequencerByGame(address gameAddress) external {
+    // 1. DisputeGameFactory에서 생성된 게임인지 확인 (필수!)
+    require(
+        IDisputeGameFactory(disputeGameFactory).gameExists(gameAddress),
+        "not a valid game from factory"
+    );
+
+    // 2. 이미 슬래싱되었는지 확인
+    if (slashedGames[gameAddress]) revert AlreadySlashedError();
+
+    // 3. 게임 상태 확인 (CHALLENGER_WINS = 1)
+    uint8 gameStatus = IFaultDisputeGame(gameAddress).status();
+    if (gameStatus != 1) revert GameNotResolvedError();
+
+    // 4. SystemConfig → L2 매핑
+    address systemConfig = IFaultDisputeGame(gameAddress).systemConfig();
+    address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+    if (layer2 == address(0)) revert InvalidGameError();
+
+    // 5. 챌린저 조회 (TODO: 온체인에서 조회)
+    address[] memory challengers = _getChallengersFromGame(gameAddress);
+
+    // 슬래싱 실행
+    slashedGames[gameAddress] = true;
+    _executeSlashing(layer2, challengers);
+}
+
+// TODO: FaultDisputeGame에서 챌린저 조회 구현
+function _getChallengersFromGame(address gameAddress)
+    internal view
+    returns (address[] memory)
+{
+    // Optimism FaultDisputeGame 구조 확인 후 구현
+    // 옵션 1: game.getChallengers()
+    // 옵션 2: Move 이벤트 파싱
+    // 옵션 3: root claim disputer 조회
+}
+```
+
+---
+
+## 6. 슬래싱 구현
+
+슬래싱은 `slashSequencerByGame()` → `_executeSlashing()` 흐름으로 실행됩니다.
+
+```solidity
+/// @notice 내부 슬래싱 실행
 /// @dev 백서: "the entire bond (D_sequencer) is slashed"
 /// @param layer2 슬래싱 대상 L2 주소
-/// @param challengers 성공한 챌린저 목록
-function slashSequencer(address layer2, address[] calldata challengers)
-    external
-    onlyDisputeContract
-{
+/// @param challengers 성공한 챌린저 목록 (온체인에서 조회됨)
+function _executeSlashing(address layer2, address[] memory challengers) internal {
     uint256 n = challengers.length;
-    require(n > 0 && n <= maxChallengers, "invalid challenger count");
 
     // 시퀀서(오퍼레이터) 주소 조회
-    address sequencer = ILayer2Manager(layer2Manager).getOperator(layer2);
+    address sequencer = Layer2I(layer2).operator();
+    require(sequencer != address(0), "no operator");
 
     // 담보금 = 해당 L2에 스테이킹된 시퀀서의 금액
-    uint256 deposit = ISeigManager(seigManager).stakedOf(layer2, sequencer);
+    RefactorCoinageSnapshotI coinage = _coinages[layer2];
+    uint256 deposit = coinage.balanceOf(sequencer);
     require(deposit > 0, "no deposit to slash");
 
-    uint256 additionalReward = sequencerAdditionalReward[layer2];
+    if (n == 0) {
+        // 챌린저가 없으면 전액 DAO로
+        coinage.burnFrom(sequencer, deposit);
+        coinage.mint(dao, deposit);
+    } else {
+        uint256 additionalReward = sequencerAdditionalReward[layer2];
 
-    // 챌린저 보상 계산: R_challenger = C_max + (Δ_sequencer / n)
-    uint256 perChallengerReward = maxFraudProofCost + (additionalReward / n);
+        // 챌린저 보상 계산: R_challenger = C_max + (Δ_sequencer / n)
+        uint256 perChallengerReward = maxFraudProofCost + (additionalReward / n);
 
-    // 각 챌린저에게 스테이킹 잔액으로 이전 (coinage 잔액 변경)
-    // 출금 대기 기간 없이 바로 transfer할 수 없으므로 스테이킹 상태 유지
-    for (uint256 i = 0; i < n; i++) {
-        ISeigManager(seigManager).transferStake(
-            layer2,
-            sequencer,           // from: 시퀀서
-            challengers[i],      // to: 챌린저
-            perChallengerReward
-        );
-    }
+        // 총 챌린저 보상이 담보금을 초과하지 않도록
+        uint256 totalChallengerRewards = perChallengerReward * n;
+        if (totalChallengerRewards > deposit) {
+            perChallengerReward = deposit / n;
+            totalChallengerRewards = perChallengerReward * n;
+        }
 
-    // 나머지는 DAO의 스테이킹 잔액으로 이전
-    uint256 totalChallengerRewards = perChallengerReward * n;
-    uint256 remainder = deposit - totalChallengerRewards;
-    if (remainder > 0) {
-        ISeigManager(seigManager).transferStake(
-            layer2,
-            sequencer,  // from: 시퀀서
-            dao,        // to: DAO
-            remainder
-        );
+        // 각 챌린저에게 스테이킹 잔액으로 이전
+        for (uint256 i = 0; i < n; i++) {
+            coinage.burnFrom(sequencer, perChallengerReward);
+            coinage.mint(challengers[i], perChallengerReward);
+            emit ChallengerRewarded(challengers[i], layer2, perChallengerReward);
+        }
+
+        // 나머지는 DAO로 이전
+        uint256 remainder = deposit - totalChallengerRewards;
+        if (remainder > 0) {
+            coinage.burnFrom(sequencer, remainder);
+            coinage.mint(dao, remainder);
+        }
     }
 
     // L2 유효성 재평가 (S_i = 0 이므로 S_i ≥ θ·B_i 불충족)
     // → 해당 L2는 시뇨리지 분배에서 제외됨
-    ISeigManager(seigManager).onStakingChange(layer2);
+    onStakingChange(layer2);
 
-    // 슬래싱 기록 저장 (반복 위반 페널티용)
+    // 슬래싱 기록 저장
     sequencerSlashTimestamps[layer2].push(block.timestamp);
 
     emit SequencerSlashed(layer2, sequencer, deposit, n);
 }
 ```
 
-### 5.1 SeigManager.transferStake 함수 (신규)
+### 6.1 SeigManager.transferStake 함수 (신규)
 
 슬래싱 시 스테이킹 잔액을 이전하기 위한 함수:
 
@@ -263,13 +394,89 @@ function transferStake(
 }
 ```
 
+### 6.2 onStakingChange 함수 세부 동작
+
+슬래싱 후 `onStakingChange()`가 호출되면 다음 작업이 수행되어야 합니다:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  onStakingChange(layer2)                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. oldEligible = isEligible                                │
+│  2. newEligible = checkEligibility(layer2)                  │
+│                                                             │
+│  3. if (oldEligible == newEligible) → return (변경 없음)    │
+│                                                             │
+│  4. if (true → false): 자격 상실                            │
+│     ├─ updateSeigniorage() - 미정산 시뇨리지 정산           │
+│     ├─ effectiveBridgedTON = 0                              │
+│     └─ totalEffectiveBridgedTON 감소                        │
+│                                                             │
+│  5. if (false → true): 자격 획득                            │
+│     ├─ effectiveBridgedTON = currentBridgedTON              │
+│     ├─ totalEffectiveBridgedTON 증가                        │
+│     └─ initialDebt 설정 (소급 방지)                         │
+│                                                             │
+│  6. isEligible = newEligible                                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**핵심 포인트:**
+- 상태가 변경되지 않으면 아무 작업도 하지 않음
+- `true → false`: 시뇨리지 정산 먼저, 그 다음 effectiveBridgedTON = 0
+- `false → true`: initialDebt 설정 필수 (과거 소급 방지)
+
+```solidity
+/// @notice 스테이킹 변경 시 L2 유효성 재평가
+/// @param layer2 대상 L2 주소
+function onStakingChange(address layer2) external {
+    require(
+        msg.sender == address(_depositManager) || msg.sender == address(this),
+        "not authorized"
+    );
+
+    BridgedTONInfo storage info = bridgedTONInfo[layer2];
+    bool oldEligible = info.isEligible;
+
+    // 새로운 자격 상태 확인
+    (bool newEligible, , ) = checkEligibility(layer2);
+
+    // 상태 변경 없으면 리턴
+    if (oldEligible == newEligible) return;
+
+    if (oldEligible && !newEligible) {
+        // true → false: 자격 상실
+        // 1. 미정산 시뇨리지 먼저 정산
+        ICandidate(layer2).updateSeigniorage();
+
+        // 2. effectiveBridgedTON 제거
+        totalEffectiveBridgedTON -= info.effectiveBridgedTON;
+        info.effectiveBridgedTON = 0;
+
+    } else {
+        // false → true: 자격 획득
+        // 1. effectiveBridgedTON 설정
+        info.effectiveBridgedTON = info.currentBridgedTON;
+        totalEffectiveBridgedTON += info.effectiveBridgedTON;
+
+        // 2. initialDebt 설정 (이 시점부터 수익 시작)
+        info.initialDebt = (bridgedTONRewardPerUnit * info.effectiveBridgedTON) / WEI_UNIT;
+    }
+
+    info.isEligible = newEligible;
+    emit EligibilityChanged(layer2, newEligible, info.currentBridgedTON, info.effectiveBridgedTON);
+}
+```
+
 ---
 
-## 6. 반복 위반 페널티
+## 7. 반복 위반 페널티
 
 > **회의록 결정 (2025-12-08)**: γ squared 공식 제거 권고됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.
 
-### 6.1 현재 상태
+### 7.1 현재 상태
 
 ~~백서 공식 (3)에 따르면, 시퀀서가 **슬래싱 윈도우(slashing window)** 내에 여러 번 fraud를 저지르면 필요 담보금이 증가합니다:~~
 
@@ -277,7 +484,7 @@ function transferStake(
 
 **회의록 결정에 따라 위 공식은 삭제되었습니다.**
 
-### 6.2 대안 검토 (TBD)
+### 7.2 대안 검토 (TBD)
 
 반복 위반에 대한 페널티 메커니즘은 다음과 같은 대안이 논의 중입니다:
 
@@ -287,7 +494,7 @@ function transferStake(
 
 구체적인 메커니즘은 향후 거버넌스에서 결정될 예정입니다.
 
-### 6.3 슬래싱 기록 스토리지
+### 7.3 슬래싱 기록 스토리지
 
 ```solidity
 /// @notice L2별 슬래싱 기록 (layer2 => timestamps)
@@ -297,7 +504,7 @@ mapping(address => uint256[]) public sequencerSlashTimestamps;
 
 ---
 
-## 7. 이벤트
+## 8. 이벤트
 
 ```solidity
 /// @notice 시퀀서 슬래싱 이벤트
@@ -333,7 +540,7 @@ event PenaltyApplied(
 
 ---
 
-## 8. 거버넌스 파라미터
+## 9. 거버넌스 파라미터
 
 시퀀서 슬래싱 시스템에서 거버넌스가 결정해야 하는 파라미터:
 
@@ -344,3 +551,59 @@ event PenaltyApplied(
 | **minimumInitialDepositAmount** | V2 최소 담보금 | 1000.1e27 |
 
 > **회의록 결정 (2025-12-08)**: γ squared 공식 제거로 인해 `penaltyFactor`, `slashingWindow` 파라미터는 삭제됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.
+
+---
+
+## 10. 개발 필요 사항 (TODO)
+
+`slashSequencerByGame` 함수 완성을 위해 다음 항목 개발이 필요합니다.
+
+### 10.1 DisputeGameFactory 검증 추가
+
+**목적**: 가짜 게임 컨트랙트로부터 보호
+
+**필요한 작업**:
+1. DisputeGameFactory 주소 저장 변수 추가 (Storage)
+2. `gameAddress`가 공식 Factory에서 생성되었는지 검증하는 로직 추가
+3. Factory 설정 함수 추가 (거버넌스 전용)
+
+**검증 방식** (Optimism 구조 확인 필요):
+- `DisputeGameFactory.games(gameAddress)` 조회로 등록 여부 확인
+- 또는 `DisputeGameFactory.gameAtIndex(index)` 순회하여 확인
+
+**위험**: 이 검증 없이는 공격자가 임의의 컨트랙트를 배포하여 원하는 시퀀서를 슬래싱할 수 있음
+
+### 10.2 챌린저 온체인 조회 구현
+
+**목적**: 보상받을 챌린저 목록을 온체인에서 직접 조회
+
+**필요한 작업**:
+1. FaultDisputeGame 구조 분석 (Optimism 코드베이스 확인)
+2. `_getChallengersFromGame(address gameAddress)` 함수 구현
+
+**조회 방식 후보** (Optimism 구조 확인 후 개발):
+
+| 옵션 | 방식 | 비고 |
+|------|------|------|
+| A | `game.getChallengers()` 직접 호출 | 함수 존재 여부 확인 필요 |
+| B | `game.claimData()` 등 구조체 파싱 | Claim 데이터에서 challenger 추출 |
+| C | Root claim의 disputer만 보상 | 단일 챌린저 방식, 가장 단순 |
+
+**확인 필요 사항**:
+- FaultDisputeGame에서 챌린저 정보가 어디에 저장되는지
+- Multi-challenger 지원 여부 (여러 챌린저가 있는 경우 모두 조회 가능한지)
+- 게임 종료 후에도 챌린저 정보가 조회 가능한지
+
+### 10.3 참고: Optimism FaultDisputeGame 구조
+
+```
+확인 필요한 Optimism 컨트랙트:
+- packages/contracts-bedrock/src/dispute/FaultDisputeGame.sol
+- packages/contracts-bedrock/src/dispute/DisputeGameFactory.sol
+- packages/contracts-bedrock/src/dispute/interfaces/IFaultDisputeGame.sol
+
+주요 확인 포인트:
+1. ClaimData 구조체에 claimant(claim 제출자) 필드 존재 여부
+2. rootClaim과 이에 대한 counterclaim 관계
+3. resolve() 후 승자(challenger) 정보 접근 방법
+```

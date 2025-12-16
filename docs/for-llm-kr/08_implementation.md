@@ -641,38 +641,30 @@ contract Layer2ManagerV1_2Storage {
 ### 5.2 신규 함수
 
 ```solidity
-/// @notice Bridged TON 조회 (L1 브리지에서 직접)
+/// @notice Bridged TON 조회 (L1BridgeRegistry.layer2TVL 사용)
 /// @param rollupConfig RollupConfig 주소
+/// @dev L1BridgeRegistry.layer2TVL은 타입별 bridge/portal 조회 로직 포함
 function getBridgedTON(address rollupConfig) public view returns (uint256) {
-    // L1BridgeRegistry를 통해 브리지 주소 조회
-    (bool valid, address l1Bridge,,) = IL1BridgeRegistry(l1BridgeRegistry)
-        .checkL1Bridge(rollupConfig);
-
-    if (!valid) return 0;
-
-    // 브리지 컨트랙트에서 잠긴 TON 양 조회
-    return IERC20(ton).balanceOf(l1Bridge);
+    return IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
 }
 
-/// @notice CandidateAddOn 등록 시 초기 Bridged TON 설정
-function registerCandidateAddOnV3(
-    address rollupConfig,
-    uint256 amount,
-    bool flagTon,
-    string calldata memo
-) external {
-    // 기존 V2 등록 로직...
-    _registerCandidateAddOn(rollupConfig, amount, flagTon, memo);
+/// @notice L2 주소로 Bridged TON 조회
+/// @param layer2 L2 주소
+function getBridgedTONByLayer(address layer2) public view returns (uint256) {
+    address operator = operatorOfLayer[layer2];
+    if (operator == address(0)) return 0;
+    address rollupConfig = operatorInfo[operator].rollupConfig;
+    if (rollupConfig == address(0)) return 0;
+    return getBridgedTON(rollupConfig);
+}
 
-    // V3 신규: 초기 Bridged TON 설정
-    uint256 initialBridgedTON = getBridgedTON(rollupConfig);
-    cachedBridgedTON[rollupConfig] = initialBridgedTON;
-
-    // SeigManager에 알림
-    ISeigManagerV3(seigManager).initializeBridgedTON(
-        operatorInfo[rollupConfigInfo[rollupConfig].operatorManager].candidateAddOn,
-        initialBridgedTON
-    );
+/// @notice SystemConfig(rollupConfig) 주소로 Layer2 주소 조회
+/// @param systemConfig SystemConfig 컨트랙트 주소
+/// @return layer2 해당 Layer2 주소 (없으면 address(0))
+function getLayer2BySystemConfig(address systemConfig) external view returns (address layer2) {
+    address operatorManager = rollupConfigInfo[systemConfig].operatorManager;
+    if (operatorManager == address(0)) return address(0);
+    return operatorInfo[operatorManager].candidateAddOn;
 }
 ```
 
