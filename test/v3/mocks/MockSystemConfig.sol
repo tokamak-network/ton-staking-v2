@@ -5,6 +5,7 @@ pragma solidity ^0.8.4;
 contract MockSystemConfig {
     address public l1StandardBridge;
     address public optimismPortal;
+    address public disputeGameFactory;
 
     function setL1StandardBridge(address _l1StandardBridge) external {
         l1StandardBridge = _l1StandardBridge;
@@ -12,5 +13,9 @@ contract MockSystemConfig {
 
     function setOptimismPortal(address _optimismPortal) external {
         optimismPortal = _optimismPortal;
+    }
+
+    function setDisputeGameFactory(address _disputeGameFactory) external {
+        disputeGameFactory = _disputeGameFactory;
     }
 }

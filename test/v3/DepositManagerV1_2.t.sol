@@ -90,7 +90,6 @@ contract TestableDepositManager {
     address public wton;
     address public registry;
     address public seigManager;
-    bool public v3CallbackEnabled;
 
     // 누적 스테이킹
     mapping(address => mapping(address => uint256)) public accStaked;
@@ -129,7 +128,6 @@ contract TestableDepositManager {
     event WithdrawalRequested(address indexed layer2, address indexed depositor, uint256 amount);
     event WithdrawalProcessed(address indexed layer2, address indexed depositor, uint256 amount);
     event WithdrawalsCancelled(address indexed layer2, address indexed depositor, uint256 count);
-    event StakingChangeNotified(address indexed layer2);
 
     modifier onlyLayer2(address layer2) {
         require(MockLayer2Registry(registry).layer2s(layer2), "not registered layer2");
@@ -153,10 +151,6 @@ contract TestableDepositManager {
     // ==========================================
     // 설정 함수
     // ==========================================
-
-    function setV3CallbackEnabled(bool enabled) external {
-        v3CallbackEnabled = enabled;
-    }
 
     function setGlobalWithdrawalDelay(uint256 delay) external {
         globalWithdrawalDelay = delay;
@@ -190,9 +184,6 @@ contract TestableDepositManager {
             MockSeigManagerForDeposit(seigManager).onDeposit(layer2, account, amount),
             "onDeposit failed"
         );
-
-        // V3 콜백
-        _notifyStakingChange(layer2);
 
         emit Deposited(layer2, account, amount);
         return true;
@@ -236,9 +227,6 @@ contract TestableDepositManager {
         pendingUnstakedLayer2[layer2] += amount;
         pendingUnstakedAccount[msg.sender] += amount;
 
-        // V3 콜백
-        _notifyStakingChange(layer2);
-
         emit WithdrawalRequested(layer2, msg.sender, amount);
         return true;
     }
@@ -271,9 +259,6 @@ contract TestableDepositManager {
             MockSeigManagerForDeposit(seigManager).onDeposit(layer2, msg.sender, amount),
             "onDeposit failed"
         );
-
-        // V3 콜백
-        _notifyStakingChange(layer2);
 
         emit WithdrawalsCancelled(layer2, msg.sender, 1);
         return true;
@@ -313,9 +298,6 @@ contract TestableDepositManager {
 
         // WTON 전송
         MockWTON(wton).transfer(msg.sender, amount);
-
-        // V3 콜백
-        _notifyStakingChange(layer2);
 
         emit WithdrawalProcessed(layer2, msg.sender, amount);
         return true;
@@ -361,9 +343,6 @@ contract TestableDepositManager {
         // WTON 전송
         MockWTON(wton).transfer(msg.sender, totalAmount);
 
-        // V3 콜백
-        _notifyStakingChange(layer2);
-
         emit WithdrawalProcessed(layer2, msg.sender, totalAmount);
         return true;
     }
@@ -375,13 +354,6 @@ contract TestableDepositManager {
     function _getDelayBlocks(address layer2) internal view returns (uint256) {
         uint256 layerDelay = withdrawalDelay[layer2];
         return globalWithdrawalDelay > layerDelay ? globalWithdrawalDelay : layerDelay;
-    }
-
-    function _notifyStakingChange(address layer2) internal {
-        if (!v3CallbackEnabled) return;
-
-        MockSeigManagerForDeposit(seigManager).onStakingChange(layer2);
-        emit StakingChangeNotified(layer2);
     }
 
     // ==========================================
@@ -770,82 +742,6 @@ contract DepositManagerV1_2Test is Test {
     // 5. V3 콜백 테스트
     // ==========================================
 
-    /// @notice V3 콜백 비활성화 시 테스트
-    function test_v3Callback_disabled() public {
-        // 기본적으로 비활성화
-        assertFalse(depositManager.v3CallbackEnabled());
-
-        vm.prank(user1);
-        depositManager.deposit(layer2_1, user1, 100 * RAY);
-
-        // 콜백 호출 안 됨
-        assertEq(seigManager.stakingChangeCallCount(), 0);
-    }
-
-    /// @notice V3 콜백 활성화 시 스테이킹
-    function test_v3Callback_onDeposit() public {
-        depositManager.setV3CallbackEnabled(true);
-
-        vm.prank(user1);
-        depositManager.deposit(layer2_1, user1, 100 * RAY);
-
-        assertEq(seigManager.stakingChangeCallCount(), 1);
-        assertEq(seigManager.lastStakingChangeLayer2(), layer2_1);
-    }
-
-    /// @notice V3 콜백 활성화 시 언스테이킹 요청
-    function test_v3Callback_onRequestWithdrawal() public {
-        depositManager.setV3CallbackEnabled(true);
-
-        vm.prank(user1);
-        depositManager.deposit(layer2_1, user1, 100 * RAY);
-
-        uint256 countAfterDeposit = seigManager.stakingChangeCallCount();
-
-        vm.prank(user1);
-        depositManager.requestWithdrawal(layer2_1, 50 * RAY);
-
-        assertEq(seigManager.stakingChangeCallCount(), countAfterDeposit + 1);
-    }
-
-    /// @notice V3 콜백 활성화 시 언스테이킹 실행
-    function test_v3Callback_onProcessRequest() public {
-        depositManager.setV3CallbackEnabled(true);
-
-        vm.prank(user1);
-        depositManager.deposit(layer2_1, user1, 100 * RAY);
-
-        vm.prank(user1);
-        depositManager.requestWithdrawal(layer2_1, 50 * RAY);
-
-        uint256 countBefore = seigManager.stakingChangeCallCount();
-
-        vm.roll(block.number + 200);
-
-        vm.prank(user1);
-        depositManager.processRequest(layer2_1);
-
-        assertEq(seigManager.stakingChangeCallCount(), countBefore + 1);
-    }
-
-    /// @notice V3 콜백 활성화 시 취소
-    function test_v3Callback_onCancelWithdrawal() public {
-        depositManager.setV3CallbackEnabled(true);
-
-        vm.prank(user1);
-        depositManager.deposit(layer2_1, user1, 100 * RAY);
-
-        vm.prank(user1);
-        depositManager.requestWithdrawal(layer2_1, 50 * RAY);
-
-        uint256 countBefore = seigManager.stakingChangeCallCount();
-
-        vm.prank(user1);
-        depositManager.cancelWithdrawal(layer2_1, 0);
-
-        assertEq(seigManager.stakingChangeCallCount(), countBefore + 1);
-    }
-
     // ==========================================
     // 6. 출금 지연 테스트
     // ==========================================
@@ -898,8 +794,6 @@ contract DepositManagerV1_2Test is Test {
 
     /// @notice 전체 플로우 테스트: 스테이킹 -> 부분 언스테이킹 -> 추가 스테이킹 -> 완전 언스테이킹
     function test_fullScenario() public {
-        depositManager.setV3CallbackEnabled(true);
-
         // 1. 초기 스테이킹
         vm.prank(user1);
         depositManager.deposit(layer2_1, user1, 500 * RAY);

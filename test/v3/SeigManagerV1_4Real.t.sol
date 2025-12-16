@@ -178,50 +178,50 @@ contract SeigManagerV1_4RealTest is Test {
     }
 
     // ==========================================
-    // checkEligibility 함수 테스트
+    // checkCurrentEligibility 함수 테스트
     // ==========================================
 
-    function test_checkEligibility_sufficient() public {
+    function test_checkCurrentEligibility_sufficient() public {
         // Bridged TON: 500, Staked: 100 (≥ 10% of 500 = 50)
         seigManager.setupBridgedTON(layer2_1, 500e27, 500e27, true);
 
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkEligibility(layer2_1);
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
 
         assertEq(required, 50e27, "Required should be 10% of Bridged TON");
         assertEq(current, 100e27, "Current should be staked amount");
         assertTrue(eligible, "Should be eligible");
     }
 
-    function test_checkEligibility_insufficient() public {
+    function test_checkCurrentEligibility_insufficient() public {
         // Bridged TON: 2000, Staked: 100 (< 10% of 2000 = 200)
         seigManager.setupBridgedTON(layer2_1, 2000e27, 0, false);
 
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkEligibility(layer2_1);
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
 
         assertEq(required, 200e27, "Required should be 10% of Bridged TON");
         assertEq(current, 100e27, "Current should be staked amount");
         assertFalse(eligible, "Should not be eligible");
     }
 
-    function test_checkEligibility_exact() public {
+    function test_checkCurrentEligibility_exact() public {
         // Bridged TON: 1000, Staked: 100 (= 10% of 1000)
         seigManager.setupBridgedTON(layer2_1, 1000e27, 1000e27, true);
 
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkEligibility(layer2_1);
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
 
         assertEq(required, 100e27, "Required should be 10% of Bridged TON");
         assertEq(current, 100e27, "Current should equal required");
         assertTrue(eligible, "Should be eligible when equal");
     }
 
-    function testFuzz_checkEligibility(uint256 bridgedTON, uint256 stakedAmount) public {
+    function testFuzz_checkCurrentEligibility(uint256 bridgedTON, uint256 stakedAmount) public {
         bridgedTON = bound(bridgedTON, 1e18, 1e32);
         stakedAmount = bound(stakedAmount, 0, 1e32);
 
         coinage1.setBalance(operator1, stakedAmount);
         seigManager.setupBridgedTON(layer2_1, bridgedTON, bridgedTON, true);
 
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkEligibility(layer2_1);
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
 
         // RAY 연산으로 인한 반올림 오차 허용 (1 wei)
         assertApproxEqAbs(required, bridgedTON / 10, 1, "Required should be ~10% of Bridged TON");

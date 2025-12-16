@@ -12,6 +12,11 @@ import {MockWTON} from "./mocks/MockWTON.sol";
 import {MockL1BridgeRegistry} from "./mocks/MockL1BridgeRegistry.sol";
 import {MockSystemConfig} from "./mocks/MockSystemConfig.sol";
 
+/// @notice Mock DisputeGameFactory for testing
+contract MockDisputeGameFactory {
+    // Minimal implementation
+}
+
 /// @notice Layer2I interface for operator
 interface Layer2I {
     function operator() external view returns (address);
@@ -66,6 +71,9 @@ contract SlashSequencerByGameTest is Test {
     MockFaultDisputeGame faultGame;
     MockLayer2 layer2;
     MockLayer2Manager layer2Manager;
+    MockL1BridgeRegistry l1BridgeRegistry;
+    MockSystemConfig systemConfigContract;
+    MockDisputeGameFactory disputeGameFactory;
     MockCoinage coinage;
     MockTON ton;
     MockWTON wton;
@@ -75,8 +83,6 @@ contract SlashSequencerByGameTest is Test {
     address challenger1 = makeAddr("challenger1");
     address challenger2 = makeAddr("challenger2");
     address dao = makeAddr("dao");
-
-    address systemConfig;
 
     uint256 constant RAY = 1e27;
 
@@ -91,17 +97,31 @@ contract SlashSequencerByGameTest is Test {
         layer2Manager = new MockLayer2Manager();
         layer2 = new MockLayer2(sequencer);
         coinage = new MockCoinage();
+        l1BridgeRegistry = new MockL1BridgeRegistry();
+        systemConfigContract = new MockSystemConfig();
+        disputeGameFactory = new MockDisputeGameFactory();
 
         // Deploy SeigManager (as implementation)
         seigManager = new SeigManagerV1_4();
 
-        // Setup mock systemConfig
-        systemConfig = makeAddr("systemConfig");
-        layer2Manager.setLayer2(systemConfig, address(layer2));
+        // Setup SystemConfig with DisputeGameFactory
+        systemConfigContract.setDisputeGameFactory(address(disputeGameFactory));
+
+        // Setup L1BridgeRegistry to recognize the factory
+        l1BridgeRegistry.setRollupConfigWithDisputeGameFactory(
+            address(disputeGameFactory),
+            address(systemConfigContract)
+        );
+
+        // Setup Layer2Manager
+        layer2Manager.setLayer2(address(systemConfigContract), address(layer2));
 
         // Setup fault game
         faultGame = new MockFaultDisputeGame();
-        faultGame.setSystemConfig(systemConfig);
+        faultGame.setSystemConfig(address(systemConfigContract));
+
+        // Add a claim with challenger1 as counteredBy (root claim counter)
+        faultGame.addClaim(0, challenger1, sequencer, 1 ether);
 
         vm.stopPrank();
     }
@@ -109,22 +129,16 @@ contract SlashSequencerByGameTest is Test {
     /// @notice Test: Cannot slash when game is IN_PROGRESS
     function test_revert_gameNotResolved() public {
         // Game status is IN_PROGRESS (0) by default
-        address[] memory challengers = new address[](1);
-        challengers[0] = challenger1;
-
         vm.expectRevert(); // GameNotResolvedError
-        seigManager.slashSequencerByGame(address(faultGame), challengers);
+        seigManager.slashSequencerByGame(address(faultGame));
     }
 
     /// @notice Test: Cannot slash when game is DEFENDER_WINS
     function test_revert_defenderWins() public {
         faultGame.resolveAsDefenderWins();
 
-        address[] memory challengers = new address[](1);
-        challengers[0] = challenger1;
-
         vm.expectRevert(); // GameNotResolvedError
-        seigManager.slashSequencerByGame(address(faultGame), challengers);
+        seigManager.slashSequencerByGame(address(faultGame));
     }
 
     /// @notice Test: Cannot slash same game twice
@@ -148,20 +162,19 @@ contract SlashSequencerByGameTest is Test {
     }
 
     /// @notice Test: SystemConfig retrieval
-    function test_systemConfigRetrieval() public {
-        assertEq(faultGame.systemConfig(), systemConfig);
+    function test_systemConfigRetrieval() public view {
+        assertEq(faultGame.systemConfig(), address(systemConfigContract));
     }
 
     /// @notice Test: Layer2 lookup from SystemConfig
-    function test_layer2Lookup() public {
-        address foundLayer2 = layer2Manager.getLayer2BySystemConfig(systemConfig);
+    function test_layer2Lookup() public view {
+        address foundLayer2 = layer2Manager.getLayer2BySystemConfig(address(systemConfigContract));
         assertEq(foundLayer2, address(layer2));
     }
 
     /// @notice Test: Challenger extraction from claims
     function test_challengerExtraction() public {
-        // Add claims with counteredBy addresses
-        faultGame.addClaim(0, challenger1, sequencer, 1 ether);
+        // Already added one claim in setUp, add more
         faultGame.addClaim(1, challenger2, sequencer, 1 ether);
         faultGame.addClaim(2, address(0), challenger1, 1 ether); // No counter
 
@@ -176,6 +189,18 @@ contract SlashSequencerByGameTest is Test {
 
         MockFaultDisputeGame.ClaimData memory claim2 = faultGame.claimData(2);
         assertEq(claim2.counteredBy, address(0));
+    }
+
+    /// @notice Test: DisputeGameFactory verification
+    function test_factoryVerification() public view {
+        // Verify factory is set on SystemConfig
+        assertEq(systemConfigContract.disputeGameFactory(), address(disputeGameFactory));
+
+        // Verify L1BridgeRegistry recognizes the factory
+        assertEq(
+            l1BridgeRegistry.rollupConfigWithDisputeGameFactory(address(disputeGameFactory)),
+            address(systemConfigContract)
+        );
     }
 
     /// @notice Test: Single challenger fallback

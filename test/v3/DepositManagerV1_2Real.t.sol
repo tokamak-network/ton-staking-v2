@@ -390,30 +390,6 @@ contract DepositManagerV1_2RealTest is Test {
     }
 
     // ==========================================
-    // V3 Callback Tests
-    // ==========================================
-
-    function test_v3Callback_disabled() public {
-        // V3 callback is disabled by default
-        assertFalse(depositManager.v3CallbackEnabled());
-
-        // Deposit should still work
-        vm.prank(user1);
-        bool result = depositManager.deposit(layer2_1, user1, 100e27);
-        assertTrue(result);
-    }
-
-    function test_v3Callback_enabled() public {
-        depositManager.setV3CallbackEnabled(true);
-        assertTrue(depositManager.v3CallbackEnabled());
-
-        // Deposit should trigger callback
-        vm.prank(user1);
-        bool result = depositManager.deposit(layer2_1, user1, 100e27);
-        assertTrue(result);
-    }
-
-    // ==========================================
     // Owner Functions Tests
     // ==========================================
 
@@ -430,16 +406,6 @@ contract DepositManagerV1_2RealTest is Test {
 
         assertEq(depositManager.l1BridgeRegistry(), newRegistry);
         assertEq(depositManager.layer2Manager(), newManager);
-    }
-
-    function test_setV3CallbackEnabled() public {
-        assertFalse(depositManager.v3CallbackEnabled());
-
-        depositManager.setV3CallbackEnabled(true);
-        assertTrue(depositManager.v3CallbackEnabled());
-
-        depositManager.setV3CallbackEnabled(false);
-        assertFalse(depositManager.v3CallbackEnabled());
     }
 
     // ==========================================

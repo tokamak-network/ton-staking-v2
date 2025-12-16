@@ -14,6 +14,20 @@ contract MockL1BridgeRegistry {
 
     mapping(address => RollupInfo) public rollupInfos;
 
+    /// @notice DisputeGameFactory => rollupConfig mapping
+    mapping(address => address) public rollupConfigWithDisputeGameFactory;
+
+    /// @notice Portal => rollupConfig mapping
+    mapping(address => address) public rollupConfigWithPortal;
+
+    function setRollupConfigWithDisputeGameFactory(address factory, address rollupConfig) external {
+        rollupConfigWithDisputeGameFactory[factory] = rollupConfig;
+    }
+
+    function setRollupConfigWithPortal(address portal, address rollupConfig) external {
+        rollupConfigWithPortal[portal] = rollupConfig;
+    }
+
     function setRollupInfo(
         address rollupConfig,
         uint8 _rollupType,

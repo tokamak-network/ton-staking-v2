@@ -186,7 +186,7 @@ contract MockSeigManagerV3Distribution {
     // ==========================================
 
     /// @notice 백서 공식 (8): S_i ≥ θ · B_i
-    function checkEligibility(address layer2) public view returns (bool eligible, uint256 required, uint256 actual) {
+    function checkCurrentEligibility(address layer2) public view returns (bool eligible, uint256 required, uint256 actual) {
         BridgedTONInfo memory info = bridgedTONInfo[layer2];
 
         if (info.isPaused) return (false, 0, 0);
@@ -207,7 +207,7 @@ contract MockSeigManagerV3Distribution {
             return;
         }
 
-        (bool eligible, uint256 required, uint256 actual) = checkEligibility(layer2);
+        (bool eligible, uint256 required, uint256 actual) = checkCurrentEligibility(layer2);
 
         bool wasEligible = info.isEligible;
         info.isEligible = eligible;
@@ -636,8 +636,8 @@ contract SeigniorageDistributionTest is Test {
         seigManager.registerL2(layer2_2, 500e27, 40e27);
 
         // 자격 확인
-        (bool eligible1, uint256 required1, uint256 actual1) = seigManager.checkEligibility(layer2_1);
-        (bool eligible2, uint256 required2, uint256 actual2) = seigManager.checkEligibility(layer2_2);
+        (bool eligible1, uint256 required1, uint256 actual1) = seigManager.checkCurrentEligibility(layer2_1);
+        (bool eligible2, uint256 required2, uint256 actual2) = seigManager.checkCurrentEligibility(layer2_2);
 
         assertTrue(eligible1, "Layer2_1 should be eligible");
         assertFalse(eligible2, "Layer2_2 should NOT be eligible");
@@ -660,7 +660,7 @@ contract SeigniorageDistributionTest is Test {
         // 초기: 자격 충족
         seigManager.registerL2(layer2_1, 500e27, 100e27);
 
-        (bool eligible1, , ) = seigManager.checkEligibility(layer2_1);
+        (bool eligible1, , ) = seigManager.checkCurrentEligibility(layer2_1);
         assertTrue(eligible1, "Should be eligible initially");
 
         uint256 effectiveBefore = seigManager.totalEffectiveBridgedTON();
@@ -669,7 +669,7 @@ contract SeigniorageDistributionTest is Test {
         // 담보금 감소 (슬래싱 등으로)
         seigManager.updateStakedAmount(layer2_1, 40e27);
 
-        (bool eligible2, , ) = seigManager.checkEligibility(layer2_1);
+        (bool eligible2, , ) = seigManager.checkCurrentEligibility(layer2_1);
         assertFalse(eligible2, "Should lose eligibility after staking decrease");
 
         uint256 effectiveAfter = seigManager.totalEffectiveBridgedTON();
@@ -685,13 +685,13 @@ contract SeigniorageDistributionTest is Test {
         // 초기: 자격 미달
         seigManager.registerL2(layer2_1, 500e27, 40e27);
 
-        (bool eligible1, , ) = seigManager.checkEligibility(layer2_1);
+        (bool eligible1, , ) = seigManager.checkCurrentEligibility(layer2_1);
         assertFalse(eligible1, "Should NOT be eligible initially");
 
         // 담보금 증가
         seigManager.updateStakedAmount(layer2_1, 100e27);
 
-        (bool eligible2, , ) = seigManager.checkEligibility(layer2_1);
+        (bool eligible2, , ) = seigManager.checkCurrentEligibility(layer2_1);
         assertTrue(eligible2, "Should regain eligibility after staking increase");
 
         uint256 effectiveAfter = seigManager.totalEffectiveBridgedTON();
