@@ -26,5 +26,9 @@ contract StorageStateCommitteeV2 {
     mapping(bytes4 => address) public selectorImplementation;
 
     mapping(address => bool) public blacklist;
-    mapping(address => address) public privateLayer2;
+    mapping(address => bool) public privateLayer2;
+
+    mapping(address => uint256) public cooldown;
+
+    uint256 public cooldownTime;
 }
