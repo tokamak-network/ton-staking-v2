@@ -64,5 +64,10 @@ contract MockFaultDisputeGameTest is Test {
 
         // Verify Challenger Wins
         assertEq(uint8(game.status()), uint8(GameStatus.CHALLENGER_WINS), "Status should be CHALLENGER_WINS when step is executed");
+
+        // Verify Challenger Address
+        (,address counteredBy,address claimant,,,,) = game.claimData(0);
+        assertEq(claimant, address(this), "claimant address mismatch");
+        assertEq(counteredBy, challenger, "counteredBy address mismatch");
     }
 }
