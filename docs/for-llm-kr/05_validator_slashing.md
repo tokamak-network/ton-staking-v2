@@ -61,7 +61,8 @@ RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 �
 │  1. RAT 트리거 (triggerAttentionTest)                        │
 │     - depositedAmount -= C_off (선차감)                      │
 │     - totalBondForRAT += C_off                              │
-│     - attentionTest.bondAmount = C_off                      │
+│     - latestTestDeadline 업데이트                            │
+│     - D_min 확인 → 미만이면 즉시 제거 + ValidatorSlashed     │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -79,22 +80,17 @@ RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 �
               ▼                               ▼
     ┌─────────────────┐             ┌─────────────────────────┐
     │  C_off 복구      │             │  (아무것도 안 함)        │
-    │  depositedAmount│             │  이미 차감되어 있음      │
-    │  += C_off       │             └─────────────────────────┘
-    │  totalBondForRAT│                       │
-    │  -= C_off       │                       ▼
-    └─────────────────┘             ┌─────────────────────────┐
-                                    │  잔액 확인               │
-                                    │  depositedAmount vs D_min│
-                                    └─────────────────────────┘
+    │  + D_min 이상이면│             │  이미 차감되어 있음      │
+    │  ValidatorRestored│            │  Lazy Evaluation        │
+    └─────────────────┘             └─────────────────────────┘
                                               │
-                              ┌───────────────┴───────────────┐
-                              ▼                               ▼
-                    ┌─────────────────┐             ┌─────────────────┐
-                    │ >= D_min        │             │ < D_min         │
-                    │ 활성 상태 유지   │             │ 즉시 검증자 제거 │
-                    └─────────────────┘             │ (잔액 클레임 가능)│
-                                                    └─────────────────┘
+                                              ▼
+                                    ┌─────────────────────────┐
+                                    │  출금 시 (deactivate)    │
+                                    │  latestTestDeadline 경과 │
+                                    │  확인 후 totalBondForRAT │
+                                    │  손실 확정               │
+                                    └─────────────────────────┘
 ```
 
 ### 2.2 각 단계별 상태 변화
@@ -102,10 +98,10 @@ RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 �
 | 단계 | depositedAmount | totalBondForRAT | isActive |
 |------|-----------------|-----------------|----------|
 | **등록 후** | D_validator | 0 | true |
-| **RAT 트리거** | D_validator - C_off | C_off | true |
-| **증거 제출 성공** | D_validator | 0 | true |
-| **미응답 (잔액 >= D_min)** | D_validator - C_off | 0 (테스트 종료 후) | true |
-| **미응답 (잔액 < D_min)** | (클레임 대기) | 0 | **false** (즉시 제거) |
+| **RAT 트리거 (D_min 이상)** | D_validator - C_off | C_off | true |
+| **RAT 트리거 (D_min 미만)** | D_validator - C_off | C_off | **false** (즉시 제거) |
+| **증거 제출 성공** | D_validator | 0 | true (복구 가능) |
+| **미응답 후 출금** | D_validator - C_off | 0 (손실 확정) | false |
 
 ### 2.3 장점
 
@@ -114,18 +110,27 @@ RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 �
 3. **공정한 처리**: 제거 시 잔액은 검증자가 클레임하여 출금 가능
 4. **백서 V2 준수**: C_off/D_min 설계 정확히 구현
 
-### 2.4 출금 금액 계산
+### 2.4 출금 조건 및 금액 계산
 
+**출금 조건:**
+```solidity
+// deactivateValidator() 호출 시
+require(block.timestamp >= reg.latestTestDeadline, "pending RAT tests");
+```
+
+- `latestTestDeadline`: 가장 최근 RAT 테스트의 마감 시간
+- deadline 경과 전에는 출금 불가 (증거 제출 기회 보장)
+- deadline 경과 후 `totalBondForRAT > 0`이면 손실 확정 → `accumulatedSlashings`로 이동
+
+**출금 금액 계산:**
 ```
 출금 가능 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
 ```
 
 - `depositedAmount`: 현재 유효 담보금 (슬래싱으로 차감된 후 금액)
-- `coinageFactorAtDeposit`: 예치 시점의 coinage factor
-- `currentFactor`: 출금 시점의 coinage factor
-- `totalBondForRAT`: 출금 시점에 0이 아니면 latestTestEndBlock 블록이 지나야 출금가능
+- `totalBondForRAT`: 미응답한 테스트의 담보금 (출금 시 손실 확정)
 
-**몰수된 담보금 처리**: 몰수된 원금 + 시뇨리지의 사용처는 **TBD** (미정)
+**몰수된 담보금 처리**: `accumulatedSlashings`에 누적 → Treasury로 전송
 
 ---
 
@@ -136,51 +141,48 @@ RAT 트리거 시점에 **C_off만 선차감**합니다. 증거 제출 성공 �
 ```solidity
 /// @notice RAT 테스트 트리거 - C_off만 선차감
 function triggerAttentionTest(
+    address gameAddress,
     address systemConfig,
     uint32 batchIndex,
     bytes32 batchHash,
     bytes32 blockHash
-) external onlyAuthorizedTrigger {
+) external onlyValidFactory whenNotPaused {
     // ... 검증자 랜덤 선택 로직 ...
 
-    address selectedValidator = validators[selectedIndex];
-    bytes32 regId = _getRegistrationId(selectedValidator, systemConfig);
-    ValidatorRegistration storage reg = registrations[regId];
+    ValidatorRegistration storage reg = validatorRegistrations[systemConfig][selectedValidator];
 
     // ★ C_off만 선차감 (백서 V2: C_off 슬래싱)
-    uint256 slashAmount = slashingPenalty;
-    if (reg.depositedAmount < slashAmount) {
-        slashAmount = reg.depositedAmount;  // 잔액이 C_off 미만이면 전액
+    uint256 bondAmount = slashingPenalty;
+    if (reg.depositedAmount < bondAmount) {
+        bondAmount = reg.depositedAmount;  // 잔액이 C_off 미만이면 전액
     }
-    reg.depositedAmount -= slashAmount;
-    reg.totalBondForRAT += slashAmount;
+    reg.depositedAmount -= bondAmount;
+    reg.totalBondForRAT += bondAmount;
 
-    // ★ 최신 테스트 종료 블록 업데이트 (출금 조건 체크용)
-    uint64 testEndBlock = uint64(block.number + evidenceSubmissionPeriod);
-    if (testEndBlock > reg.latestTestEndBlock) {
-        reg.latestTestEndBlock = testEndBlock;
+    // 테스트 정보 저장
+    bytes32 testId = keccak256(abi.encodePacked(systemConfig, batchIndex, selectedValidator, block.timestamp));
+    uint256 deadline = block.timestamp + evidenceSubmissionPeriod;
+
+    // ★ 최신 테스트 마감 시간 업데이트 (출금 조건 체크용)
+    if (uint64(deadline) > reg.latestTestDeadline) {
+        reg.latestTestDeadline = uint64(deadline);
     }
 
     // ★ D_min 확인 - 잔액이 D_min 미만이면 즉시 검증자 세트에서 제거
+    bool removedFromSet = false;
     if (reg.depositedAmount < minimumThreshold) {
-        reg.isActive = false;
-        validatorPools[systemConfig].activeValidatorCount--;
-        _removeFromActiveValidators(systemConfig, selectedValidator, reg.validatorIndex);
+        _removeValidator(systemConfig, selectedValidator, reg);
+        removedFromSet = true;
     }
 
-    // 테스트 정보 저장
-    bytes32 testId = _getTestId(systemConfig, batchIndex);
-    attentionTests[testId] = AttentionTest({
-        expectedHash: batchHash,
-        bondAmount: uint96(slashAmount),  // 복구용 금액 기록 (C_off)
-        validatorAddress: selectedValidator,
-        systemConfig: systemConfig,
-        blockNumber: uint64(block.number),
-        evidenceSubmitted: false
-    });
+    // ... AttentionTest 저장 ...
 
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    emit AttentionTriggered(testId, systemConfig, layer2, selectedValidator, batchIndex);
+    emit AttentionTestTriggered(testId, selectedValidator, systemConfig, gameAddress, batchIndex, deadline);
+
+    // D_min 미만으로 제거된 경우 슬래싱 이벤트 발생
+    if (removedFromSet) {
+        emit ValidatorSlashed(testId, selectedValidator, systemConfig, bondAmount, true);
+    }
 }
 ```
 
@@ -191,62 +193,70 @@ function triggerAttentionTest(
 function submitEvidence(
     address systemConfig,
     uint32 batchIndex,
-    bytes calldata proofData
-) external {
-    bytes32 testId = _getTestId(systemConfig, batchIndex);
+    bytes calldata evidence
+) external ifFree whenNotPaused {
+    bytes32 testId = batchToTestId[systemConfig][batchIndex];
     AttentionTest storage test = attentionTests[testId];
 
     // 검증
-    if (test.validatorAddress != msg.sender) revert NotSelectedValidator();
-    if (test.evidenceSubmitted) revert EvidenceAlreadySubmitted();
+    if (test.validatorAddress != msg.sender) revert NotSelectedValidatorError();
+    if (test.status != AttentionTestStatus.Pending) revert TestAlreadyRespondedError();
+    if (block.timestamp > test.deadline) revert DeadlinePassedError();
 
-    uint256 deadline = test.blockNumber + evidenceSubmissionPeriod;
-    if (block.number > deadline) revert EvidenceSubmissionExpired();
-
-    // 증거 검증
-    if (keccak256(proofData) != test.expectedHash) revert ProofVerificationFailed();
+    // 증거 검증 (TODO: 실제 증거 검증 로직)
+    _verifyEvidence(test.batchHash, evidence);
 
     // ★ C_off 복구
-    test.evidenceSubmitted = true;
-    uint256 restoredAmount = uint256(test.bondAmount);
+    ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+    reg.depositedAmount += test.bondAmount;
+    reg.totalBondForRAT -= test.bondAmount;
 
-    bytes32 regId = _getRegistrationId(msg.sender, systemConfig);
-    ValidatorRegistration storage reg = registrations[regId];
-
-    // 잔액 복구
-    reg.depositedAmount += restoredAmount;
-    reg.totalBondForRAT -= restoredAmount;
+    test.status = AttentionTestStatus.Responded;
+    activeTestCount[systemConfig]--;
 
     // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
     if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
-        reg.isActive = true;
-        reg.validatorIndex = uint32(activeValidators[systemConfig].length);
-        activeValidators[systemConfig].push(msg.sender);
-        validatorPools[systemConfig].activeValidatorCount++;
+        _restoreValidator(systemConfig, msg.sender, reg);
+        emit ValidatorRestored(msg.sender, systemConfig);
     }
 
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    emit EvidenceSubmitted(testId, systemConfig, layer2, msg.sender, restoredAmount);
+    emit EvidenceSubmitted(testId, msg.sender, systemConfig, batchIndex);
 }
 ```
 
 ### 3.3 미응답 시 (Lazy Evaluation)
 
-**선차감-복구 방식**이므로 미응답 시 별도의 `finalizeSlash` 함수가 필요 없습니다.
+**선차감-복구 방식**이므로 미응답 시 별도의 슬래싱 함수가 필요 없습니다.
 
 ```
 미응답 시 상태:
 - depositedAmount: 변경 없음 (RAT 트리거 시점에 이미 C_off 차감됨)
-- totalBondForRAT: 변경 없음 (출금 시점에 자동 처리)
-- 별도 트랜잭션: 불필요 (lazy evaluation)
+- totalBondForRAT: 그대로 유지 (출금 시점에 손실 확정)
+- 별도 트랜잭션: 불필요 (Lazy Evaluation)
+- deadline 경과 후 submitEvidence 호출 시 → DeadlinePassedError
+```
 
-출금 시점에 처리:
-- latestTestEndBlock 이후에만 출금 가능
-- 출금 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
+**출금 시점에 손실 확정 (deactivateValidator):**
+```solidity
+function deactivateValidator(address systemConfig) external ifFree {
+    ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+
+    // ★ 진행 중인 RAT 테스트가 있으면 대기 (deadline 경과 후에만 출금 가능)
+    require(block.timestamp >= reg.latestTestDeadline, "pending RAT tests");
+
+    // ★ 미응답한 RAT 테스트의 totalBondForRAT는 손실 확정 (Lazy Evaluation)
+    if (reg.totalBondForRAT > 0) {
+        accumulatedSlashings += reg.totalBondForRAT;
+        reg.totalBondForRAT = 0;
+    }
+
+    // ... 출금 처리 ...
+}
 ```
 
 **D_min 확인 시점:**
-- 출금 요청 시 `depositedAmount < D_min`이면 검증자는 이미 비활성화 상태
+- RAT 트리거 시점에 D_min 미만이면 즉시 검증자 세트에서 제거 + `ValidatorSlashed` 이벤트
+- 출금 시점에는 이미 비활성화 상태
 - 재등록 원할 시: D_min 이상 되도록 추가 예치 후 `registerValidator()` 호출
 
 ### 3.4 챌린지 승리 시 담보금 복구 (resolveClaim)
@@ -283,6 +293,9 @@ function submitEvidence(
 /// @param _claimant 게임에서 이긴 주소 (챌린저)
 /// @dev msg.sender = FaultDisputeGame 주소
 function resolveClaim(address _claimant) external {
+    // msg.sender = 게임 주소, 유효한 게임인지 확인
+    if (factoryByGame[msg.sender] == address(0)) return;
+
     // msg.sender = 게임 주소로 테스트 조회
     bytes32 testId = gameToTestId[msg.sender];
     if (testId == bytes32(0)) return;  // 해당 게임의 RAT 테스트가 없음
@@ -291,37 +304,35 @@ function resolveClaim(address _claimant) external {
 
     // 선택된 검증자가 게임 승자와 같은지 확인
     if (test.validatorAddress != _claimant) return;
-    if (test.evidenceSubmitted) return;  // 이미 처리됨
+    if (test.status != AttentionTestStatus.Pending) return;  // 이미 처리됨
 
     // ★ C_off 복구
-    test.evidenceSubmitted = true;
-    uint256 restoredAmount = uint256(test.bondAmount);
+    test.status = AttentionTestStatus.Responded;
+    activeTestCount[test.systemConfig]--;
 
-    bytes32 regId = _getRegistrationId(_claimant, test.systemConfig);
-    ValidatorRegistration storage reg = registrations[regId];
+    ValidatorRegistration storage reg = validatorRegistrations[test.systemConfig][_claimant];
 
     // 잔액 복구
+    uint256 restoredAmount = test.bondAmount;
     reg.depositedAmount += restoredAmount;
     reg.totalBondForRAT -= restoredAmount;
 
     // ★ 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
     if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
-        reg.isActive = true;
-        reg.validatorIndex = uint32(activeValidators[test.systemConfig].length);
-        activeValidators[test.systemConfig].push(_claimant);
-        validatorPools[test.systemConfig].activeValidatorCount++;
+        _restoreValidator(test.systemConfig, _claimant, reg);
+        emit ValidatorRestored(_claimant, test.systemConfig);
     }
 
-    address layer2 = _getLayer2FromSystemConfig(test.systemConfig);
-    emit BondRefunded(testId, test.systemConfig, layer2, _claimant, restoredAmount);
+    emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);
 }
 ```
 
 **핵심 포인트:**
 - `msg.sender`는 FaultDisputeGame 주소 (게임 컨트랙트가 직접 호출)
+- `factoryByGame` 검증으로 유효한 게임인지 확인
 - `_claimant`는 게임에서 이긴 챌린저 주소
 - RAT에서 선택된 검증자와 게임 승자가 같아야 C_off 복구
-- `submitEvidence`와 동일한 효과: C_off 복구 + 검증자 세트 복구
+- `submitEvidence`와 동일한 효과: C_off 복구 + 검증자 세트 복구 + `ValidatorRestored` 이벤트
 
 ---
 
@@ -364,16 +375,17 @@ submitEvidence(titanSystemConfig, 12345, proofData) 호출
 ### 4.4 미응답 시 (잔액 >= D_min)
 
 ```
-응답 윈도우 경과 후 (별도 트랜잭션 불필요 - lazy evaluation)
+응답 윈도우 경과 후 (별도 트랜잭션 불필요 - Lazy Evaluation)
 
 상태:
 - A.depositedAmount: 8,000 (변경 없음, RAT 트리거 시 이미 차감됨)
-- A.totalBondForRAT: 2,000 (변경 없음)
+- A.totalBondForRAT: 2,000 (변경 없음, 출금 시 손실 확정)
 - A.isActive: true (8,000 >= D_min 이므로 활성 유지)
-- A.latestTestEndBlock: block.number + evidenceSubmissionPeriod
+- A.latestTestDeadline: block.timestamp + evidenceSubmissionPeriod
 
-출금 시:
-- latestTestEndBlock 이후에만 출금 가능
+출금 시 (deactivateValidator 호출):
+- latestTestDeadline 이후에만 출금 가능
+- totalBondForRAT 2,000은 accumulatedSlashings로 이동 (손실 확정)
 ```
 
 ### 4.5 연속 미응답 시 (잔액 < D_min → 즉시 제거)
@@ -391,8 +403,9 @@ triggerAttentionTest 호출 시 (4차):
 - A.depositedAmount < D_min 확인
 - ★ 즉시 검증자 세트에서 제거
   - A.isActive: false
-  - 활성 검증자 목록에서 제거
-- 잔액 2,000 WTON: latestTestEndBlock 이후 출금 가능
+  - _removeValidator() 호출
+  - ValidatorSlashed 이벤트 발생
+- 잔액 2,000 WTON: latestTestDeadline 이후 출금 가능
 
 재등록 희망 시:
 - D_min 이상 되도록 추가 예치 후 registerValidator() 호출
@@ -454,7 +467,7 @@ function registerValidator(address systemConfig, uint256 amount) external {
 ### 5.3 재등록 시 주의사항
 
 - 기존 잔액 + 추가 예치 >= D_min 이어야 함
-- latestTestEndBlock 이후에만 재등록 가능 (진행 중인 RAT 테스트 종료 후)
+- latestTestDeadline 이후에만 재등록 가능 (진행 중인 RAT 테스트 종료 후)
 - **기존 잔액에 대한 시뇨리지는 포기됨** (factor 현행화)
 - 미청구 보상은 별도 청구 필요 (claimRewards)
 
@@ -466,43 +479,65 @@ C_off 기반 선차감-복구 메커니즘의 이벤트:
 
 ```solidity
 /// @notice RAT 테스트 트리거 (C_off 선차감)
-/// @dev D_min 미만 시 검증자 세트에서 제거됨
-event AttentionTriggered(
+event AttentionTestTriggered(
     bytes32 indexed testId,
+    address indexed validator,
     address indexed systemConfig,
-    address indexed layer2,
-    address validator,
+    address gameAddress,
     uint32 batchIndex,
-    uint256 bondAmount,       // 차감된 본드 금액 (C_off 또는 잔액 전액)
-    bool removedFromSet       // D_min 미만으로 제거되었는지 여부
+    uint256 deadline
+);
+
+/// @notice D_min 미만으로 검증자 세트에서 제거됨
+event ValidatorSlashed(
+    bytes32 indexed testId,
+    address indexed validator,
+    address indexed systemConfig,
+    uint256 slashedAmount,
+    bool removedFromSet
 );
 
 /// @notice 증거 제출 성공 (C_off 복구)
-/// @dev 비활성 상태였고 D_min 이상이면 검증자 세트에 복구됨
 event EvidenceSubmitted(
     bytes32 indexed testId,
+    address indexed validator,
     address indexed systemConfig,
-    address indexed layer2,
-    address validator,
-    uint256 restoredAmount,
-    bool restoredToSet        // 검증자 세트에 복구되었는지 여부
+    uint32 batchIndex
 );
 
 /// @notice 챌린지 승리로 C_off 복구
-event BondRefunded(
+event BondRestored(
     bytes32 indexed testId,
+    address indexed validator,
     address indexed systemConfig,
-    address indexed layer2,
-    address validator,
-    uint256 restoredAmount,
-    bool restoredToSet        // 검증자 세트에 복구되었는지 여부
+    uint256 restoredAmount
+);
+
+/// @notice 검증자 세트 복구 (D_min 미만 제거 후 복구)
+event ValidatorRestored(
+    address indexed validator,
+    address indexed systemConfig
 );
 ```
 
+**이벤트 흐름:**
+
+| 상황 | 이벤트 |
+|------|--------|
+| 검증자 등록 | `ValidatorRegistered` |
+| RAT 트리거 | `AttentionTestTriggered` |
+| D_min 미만 제거 | `ValidatorSlashed` |
+| 증거 제출 성공 | `EvidenceSubmitted` |
+| 챌린지 승리 | `BondRestored` |
+| 검증자 세트 복구 | `ValidatorRestored` |
+| 검증자 탈퇴 | `ValidatorDeactivated` |
+
 **자금 추적 (Lazy Evaluation):**
-- `AttentionTriggered` 발생 → C_off 선차감 완료
-- `EvidenceSubmitted` 또는 `BondRefunded` 발생 → C_off 복구
-- 위 이벤트 없이 `latestTestEndBlock` 경과 → C_off 몰수 (별도 이벤트 없음)
+- `AttentionTestTriggered` 발생 → C_off 선차감 완료
+- `ValidatorSlashed` 발생 → D_min 미만으로 검증자 제거 (C_off 손실 예정)
+- `EvidenceSubmitted` 또는 `BondRestored` 발생 → C_off 복구
+- `ValidatorRestored` 발생 → 검증자 세트에 다시 추가됨
+- 복구 이벤트 없이 `latestTestDeadline` 경과 → 출금 시 C_off 몰수 확정
 
 ---
 

@@ -194,56 +194,108 @@ TON V3 RAT는 **C_off 기반 선차감-복구 메커니즘**을 사용합니다:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. TON 준비                                                 │
-│     - 최소 담보금 이상의 TON 확보                               │
-│     - RAT 컨트랙트에 approve  or TON.approveAndCall           │
+│  1. TON 준비                                                │
+│     - 최소 담보금(D_min) 이상의 TON 확보                       │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  2. registerValidator(systemConfig, amount) 호출             │
-│     - systemConfig: 등록할 L2의 SystemConfig 주소               │
-│     - 기존 예치금 + amount >= D_min (최소 담보금)                 │
-│     - WTON이 RAT 컨트랙트로 전송됨                               │
+│  2. TON.approveAndCall(wton, amount, data) 호출             │
+│     - data: [RAT 주소][SystemConfig 주소]                    │
+│     - WTON이 TON→WTON 변환 후 RAT.onApprove 호출             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  3. RAT 컨트랙트가 WTON 직접 보관                                │
-│     - 검증자는 직접 출금 불가 → 담보금 보호                         │
-│     - 담보금 스테이킹 시뇨리지 미지급 (보상은 α·y(x)/n 으로만 지급)   │
+│  3. RAT.onApprove 실행                                       │
+│     - DepositManager에 WTON 대리 스테이킹 (RAT 명의)           │
+│     - 검증자 내부 등록 정보 기록                                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  4. 검증자 활성화                                              │
-│     - isActive = true (해당 SystemConfig에서)                 │
-│     - validatorPools[systemConfig].activeValidatorCount 증가 │
-│     - 다음 기간부터 보상 수령 자격 획득                             │
+│  4. 검증자 활성화                                             │
+│     - isActive = true (해당 SystemConfig에서)                │
+│     - activeCount 증가                                       │
+│     - 다음 기간부터 보상 수령 자격 획득                          │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  5. 검증 활동 시작                                           │
-│     - 해당 L2(SystemConfig) 배치 모니터링                    │
-│     - RAT 발행 시 응답 준비                                  │
+│     - 해당 L2(SystemConfig) 배치 모니터링                     │
+│     - RAT 발행 시 응답 준비                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 사전 준비 (사용자 관점)
+### 4.2 검증자 등록 (사용자 관점)
+
+TON의 `approveAndCall`을 사용하여 **한 번의 트랜잭션**으로 검증자 등록을 처리합니다.
 
 ```solidity
-// 1. WTON approve
-IERC20(wton).approve(ratContractAddress, amount);
+// data = [RAT 주소 32바이트][SystemConfig 주소 32바이트]
+bytes memory data = abi.encodePacked(
+    bytes32(uint256(uint160(ratContractAddress))),
+    bytes32(uint256(uint160(titanSystemConfig)))
+);
 
-// 2. 특정 L2(SystemConfig)에 검증자 등록
-IRAT(ratContractAddress).registerValidator(titanSystemConfig, amount);
-
-// 3. (선택) 다른 L2에도 등록 가능
-IRAT(ratContractAddress).registerValidator(thanosSystemConfig, anotherAmount);
+// TON.approveAndCall로 검증자 등록 (1 트랜잭션)
+ITON(ton).approveAndCall(wtonAddress, amount, data);
 ```
 
-> **구현 상세**: `registerValidator` 함수 구현은 [07_rat_implementation.md](./07_rat_implementation.md) 6.1장 참조
+**내부 흐름:**
+
+```
+사용자: TON.approveAndCall(wton, amount, data)
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  WTON 컨트랙트                                               │
+│  1. TON → WTON 변환 (1 TON = 1e9 WTON)                      │
+│  2. data에서 RAT 주소 추출                                   │
+│  3. WTON을 RAT으로 전송                                      │
+│  4. RAT.onApprove(owner, wton, wtonAmount, remainingData)   │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  RAT.onApprove                                               │
+│  1. msg.sender == wton 검증                                  │
+│  2. remainingData에서 systemConfig 추출                      │
+│  3. DepositManager.deposit(layer2, wtonAmount) - RAT 명의    │
+│  4. 검증자 등록 정보 저장                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 4.3 onApprove 구현
+
+```solidity
+/// @notice WTON에서 호출되는 콜백 (TON.approveAndCall 경유)
+/// @param owner TON 전송자 (검증자)
+/// @param spender RAT 컨트랙트 주소
+/// @param amount WTON 양 (27 decimals)
+/// @param data systemConfig 주소 (32바이트)
+function onApprove(
+    address owner,
+    address spender,
+    uint256 amount,
+    bytes calldata data
+) external returns (bool) {
+    require(msg.sender == wton, "only WTON");
+
+    address systemConfig = address(uint160(uint256(bytes32(data[:32]))));
+
+    // DepositManager에 대리 스테이킹 (RAT 명의)
+    _depositToDepositManager(systemConfig, amount);
+
+    // 검증자 등록
+    _registerValidatorInternal(owner, systemConfig, amount);
+
+    return true;
+}
+```
+
+> **구현 상세**: `onApprove` 함수 구현은 [07_rat_implementation.md](./07_rat_implementation.md) 6.1장 참조
 
 ---
 
@@ -266,23 +318,29 @@ IRAT(ratContractAddress).registerValidator(thanosSystemConfig, anotherAmount);
 
 ```
 검증자 등록 흐름:
-┌─────────────────┐     WTON      ┌─────────────────┐
-│    검증자        │ ──────────► │      RAT        │
-└─────────────────┘               └─────────────────┘
-                                          │
-                                          │ deposit(layer2, RAT, amount)
-                                          ▼
-                                  ┌─────────────────┐
-                                  │ DepositManager  │
-                                  │ (RAT 명의 예치)   │
-                                  └─────────────────┘
+┌─────────────────┐  approveAndCall  ┌─────────────────┐
+│    검증자        │ ───────────────► │      WTON       │
+│    (TON)        │                   │  TON→WTON 변환  │
+└─────────────────┘                   └────────┬────────┘
+                                               │ onApprove
+                                               ▼
+                                      ┌─────────────────┐
+                                      │       RAT       │
+                                      │   (WTON 수령)   │
+                                      └────────┬────────┘
+                                               │ deposit(layer2, amount)
+                                               ▼
+                                      ┌─────────────────┐
+                                      │ DepositManager  │
+                                      │  (RAT 명의 예치) │
+                                      └─────────────────┘
 
 슬래싱 흐름 (C_off 기반):
 ┌─────────────────────────────────────────────────────────────┐
 │  RAT 트리거 시:                                              │
 │    - depositedAmount -= C_off                               │
 │    - totalBondForRAT += C_off                               │
-│    - DepositManager: 변경 없음 (RAT 명의 스테이킹 유지)      │
+│    - DepositManager: 변경 없음 (RAT 명의 스테이킹 유지)       │
 │                                                             │
 │  증거 제출 성공 시:                                          │
 │    - depositedAmount += C_off (복구)                        │
@@ -291,7 +349,7 @@ IRAT(ratContractAddress).registerValidator(thanosSystemConfig, anotherAmount);
 │  미응답 시:                                                  │
 │    - (아무것도 안 함 - 이미 차감됨)                          │
 │    - 잔액 < D_min 이면 즉시 활성 검증자 세트에서 제거        │
-│    - 잔액은 검증자가 클레임하여 출금 가능                    │
+│    - 잔액은 검증자가 클레임하여 출금 가능                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
