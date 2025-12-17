@@ -53,12 +53,21 @@ contract DAOCommittee_V2 is
     bytes private constant claimWTONBytes = hex"f52bba70";
     bytes private constant claimERC20Bytes = hex"f848091a";
 
-    // ERC-1271 Magic Values
+    // SafeWallet Magic Values
     bytes4 private constant MAGICVALUE = 0x20c13b0b;
     bytes4 private constant INVALID_SIGNATURE = 0xffffffff;
 
+    /**
+     * @dev The precomputed EIP-712 type hash for the Safe message type.
+     *      Precomputed value of: `keccak256("SafeMessage(bytes message)")`.
+     */
     bytes32 private constant SAFE_MSG_TYPEHASH =
         0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
+
+    /**
+     * @dev The precomputed EIP-712 domain separator hash for Safe typed data hashing and signing.
+     *      Precomputed value of: `keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")`.
+     */
     bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH =
         0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
 
@@ -164,11 +173,11 @@ contract DAOCommittee_V2 is
         bytes memory _hash,
         bytes memory _signature
     ) external view returns (bytes4 magicValue) {
-        require(_signature.length >= 130, "bad sig len");
-        if (multiSigWallet == address(0)) {
-            return INVALID_SIGNATURE;
-        }
+        if (multiSigWallet == address(0)) return INVALID_SIGNATURE;
+
+        // It's set to a multiSigWallet address, but do you think don't need to worry about removing Admin rights later?
         require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "multisig not admin");
+
         bytes memory messageData = encodeMessageDataForSafe(_hash);
         bytes32 messageHash = keccak256(messageData);
         if (_validateSignatures(messageHash, _signature)) {
@@ -189,28 +198,32 @@ contract DAOCommittee_V2 is
         bytes memory _signature
     ) internal view returns (bool) {
         uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-        uint256 sigCount = _signature.length / 65;
+        if (_signature.length < (requiredSigs * 65)) return false;
 
+        uint256 sigCount = _signature.length / 65;
         if (sigCount < requiredSigs) return false;
 
+        // if (sigCount < requiredSigs) and if (_signature.length < (requiredSigs * 65)) 
+        // These two conditional statements seem redundant. What do you think?
+        
         address[] memory signers = new address[](sigCount);
         uint256 validSigs = 0;
 
-        for (uint256 i = 0; i < sigCount; i++) {
-            bytes memory sigPart = _signature.slice(i * 65, 65);
-            address signer = _recoverSigner(_hash, sigPart);
-
-            // If you are a MultiSig owner and there are no duplicates
-            if (isOwner(signer) && !_isDuplicate(signers, signer, i)) {
-                signers[i] = signer;
-                validSigs++;
+       for (uint256 i; i < sigCount;) {
+            address signer;
+            unchecked {
+                bytes memory sigPart = _signature.slice(i * 65, 65);
+                signer = _recoverSigner(_hash, sigPart);
             }
-        }
 
-        if (requiredSigs <= validSigs) {
-            return true;
-        } else {
-            return false;
+            if (IMultiSigWallet(multiSigWallet).isOwner(signer) && !_isDuplicate(signers, signer, i)) {
+                signers[i] = signer;
+                if (requiredSigs == ++validSigs) return true;
+            }
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -252,11 +265,21 @@ contract DAOCommittee_V2 is
         return signer;
     }
 
+    /**
+     * @dev Returns the pre-image of the message hash (see {getMessageHashForSafe}).
+     * @param message Message that should be encoded.
+     * @return Encoded message.
+     */
     function encodeMessageDataForSafe(bytes memory message) public view returns (bytes memory) {
         bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), safeMessageHash);
     }
 
+    /**
+     * @dev Returns the EIP-712 domain separator, matching Safe v1.3.0 implementation:
+     * https://github.com/safe-fndn/safe-smart-account/blob/release/v1.3.0/contracts/GnosisSafe.sol#L349-L351
+     * @return Domain separator.
+     */
     function domainSeparator() public view returns (bytes32) {
         return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), this));
     }
