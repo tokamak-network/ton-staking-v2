@@ -162,12 +162,12 @@ contract DAOCommittee_V2 is
     //////////////////////////////////////////////////////////////////////
 
     /**
-     * @notice Signature validation according to EIP-1271 standard
+     * @notice Signature validation according to SafeWallet standard
      * @dev Validates signatures from MultiSigWallet owners (DAO Contract Owner)
      * @dev Safe Wallet can use this when DAO Contract is one of its signers
      * @param _hash Hash that was signed
      * @param _signature Signature data (multiple signatures from MultiSigWallet owners)
-     * @return magicValue ERC-1271 magic value
+     * @return magicValue SafeWallet magic value
      */
     function isValidSignature(
         bytes memory _hash,
