@@ -12,7 +12,7 @@ This document is a specification for implementing the V3 system by upgrading the
 |----------|-----|-----|
 | **Seigniorage Distribution Basis** | L2 TVL (Simple Proportional) | Bridged TON (Performance-Based) |
 | **Distribution Function** | Linear Distribution | Hyperbolic Saturation Function y(x) = L·(x/(k+x)) |
-| **Eligibility Condition** | Minimum Deposit Only | S_i ≥ θ·B_i (Staking Ratio Enforced) |
+| **Eligibility Condition** | Minimum Deposit Only | S_i ≥ θ·B_i (SequencerVault Collateral Based) |
 | **Validator Rewards** | None | α_v·y(x) / n (RAT-Based) |
 | **DAO Allocation** | Fixed Ratio | Fixed Ratio + Undistributed Portion |
 

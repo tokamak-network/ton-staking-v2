@@ -662,65 +662,62 @@ FaultDisputeGame은 이미 다음 정보를 제공합니다:
 - `claimData`: 클레임 정보 (챌린저 주소 포함)
 - `rootClaim()`: 루트 클레임
 
-TON V3의 SeigManager가 이 정보를 직접 조회하여 슬래싱을 검증합니다.
+TON V3의 **SequencerVault**가 이 정보를 직접 조회하여 슬래싱을 검증합니다.
 
-### 11.2 ISeigManager 슬래싱 인터페이스 (TON V3 측)
+> **V3 변경**: 시퀀서 담보금이 SequencerVault에 직접 저장되므로, 슬래싱도 SequencerVault에서 처리합니다.
+
+### 11.2 ISequencerVault 슬래싱 인터페이스 (TON V3 측)
 
 ```solidity
-interface ISeigManager {
-    /// @notice 시퀀서 슬래싱 (Permissionless)
+interface ISequencerVault {
+    /// @notice 시퀀서 슬래싱 - Permissionless 방식
     /// @dev 누구나 호출 가능, 게임 결과를 온체인에서 검증
     /// @param gameAddress FaultDisputeGame 주소
     function slashSequencerByGame(address gameAddress) external;
 }
 ```
 
-### 11.3 TON V3 SeigManager 구현 예시
+### 11.3 TON V3 SequencerVault 구현 예시
 
 ```solidity
-// SeigManager.sol (TON V3)
+// SequencerVault.sol (TON V3)
 
-import { IFaultDisputeGame } from "@optimism/interfaces/dispute/IFaultDisputeGame.sol";
-
-contract SeigManager {
-    /// @notice 게임 주소 → L2 매핑 (DisputeGameFactory 등록 시 설정)
-    mapping(address => address) public gameToLayer2;
-
+contract SequencerVault {
     /// @notice 이미 슬래싱된 게임
     mapping(address => bool) public slashedGames;
 
     /// @notice 시퀀서 슬래싱 (Permissionless)
     /// @param gameAddress FaultDisputeGame 주소
-    function slashSequencerByGame(address gameAddress) external {
+    function slashSequencerByGame(address gameAddress) external whenNotPaused {
         // 이미 슬래싱됨
-        require(!slashedGames[gameAddress], "Already slashed");
+        if (slashedGames[gameAddress]) revert AlreadySlashedGameError();
 
-        // 게임 → L2 매핑 확인
-        address layer2 = gameToLayer2[gameAddress];
-        require(layer2 != address(0), "Unknown game");
+        // ★ 게임 상태 직접 조회 (CHALLENGER_WINS = 1)
+        (bool success, bytes memory data) = gameAddress.staticcall(
+            abi.encodeWithSignature("status()")
+        );
+        uint8 gameStatus = abi.decode(data, (uint8));
+        if (gameStatus != 1) revert GameNotResolvedError();
 
-        // ★ 게임 상태 직접 조회 (Optimism 컨트랙트에서)
-        IFaultDisputeGame game = IFaultDisputeGame(gameAddress);
+        // SystemConfig 조회
+        (success, data) = gameAddress.staticcall(
+            abi.encodeWithSignature("systemConfig()")
+        );
+        address systemConfig = abi.decode(data, (address));
 
-        // 챌린저 승리 확인
-        require(game.status() == GameStatus.CHALLENGER_WINS, "Challenger did not win");
+        // DisputeGameFactory 검증
+        address factory = IOptimismSystemConfig(systemConfig).disputeGameFactory();
+        address registeredConfig = IL1BridgeRegistry(l1BridgeRegistry)
+            .rollupConfigWithDisputeGameFactory(factory);
+        if (registeredConfig != systemConfig) revert InvalidFactoryError();
 
-        // 게임이 해결되었는지 확인
-        require(game.resolvedAt().raw() > 0, "Game not resolved");
+        // 시퀀서 및 챌린저 조회
+        address sequencer = systemConfigSequencer[systemConfig];
+        address challenger = _getChallengerFromGame(gameAddress);
 
         // 슬래싱 실행
         slashedGames[gameAddress] = true;
-        _executeSlashing(layer2, gameAddress);
-    }
-
-    function _executeSlashing(address layer2, address gameAddress) internal {
-        // 챌린저 정보 추출 (게임에서 조회)
-        address[] memory challengers = _extractChallengers(gameAddress);
-
-        // 시퀀서 담보금 슬래싱
-        // 챌린저 보상 분배
-        // L2 자격 재평가
-        // ...
+        _executeSlashing(systemConfig, sequencer, challenger, gameAddress);
     }
 }
 ```

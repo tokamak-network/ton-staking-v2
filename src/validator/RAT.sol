@@ -177,6 +177,11 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         return validatorPools[systemConfig].activeCount;
     }
 
+    /// @inheritdoc IRAT
+    function getL2Validators(address systemConfig) external view returns (address[] memory) {
+        return validatorPools[systemConfig].validators;
+    }
+
     /// @notice 검증자 담보금 조회 (외부 컨트랙트용 간편 함수)
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소
@@ -726,11 +731,12 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     }
 
     /// @notice 누적 슬래싱 금액을 Treasury로 전송
+    /// @dev V3: 검증자 담보금은 TON으로 예치되므로 TON으로 전송
     function withdrawSlashingsToTreasury() external {
         require(treasury != address(0), "treasury not set");
         uint256 amount = accumulatedSlashings;
         accumulatedSlashings = 0;
-        IERC20(wton).safeTransfer(treasury, amount);
+        IERC20(ton).safeTransfer(treasury, amount);
     }
 
     // ==========================================

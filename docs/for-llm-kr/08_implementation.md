@@ -81,6 +81,42 @@ contract SeigManagerV1_4Storage {
     /// @notice 기간 정보 매핑
     mapping(uint256 => PeriodInfo) public periods;
 
+    // ==========================================
+    // 시퀀서 슬래싱 관련 파라미터 (백서 공식 1, 2)
+    // ==========================================
+
+    /// @notice H_max: 최대 동시 챌린저 수
+    /// @dev 백서 공식 (1): D_sequencer = H_max · C_max + Δ_sequencer
+    uint256 public maxChallengers;
+
+    /// @notice C_max: 단일 fraud proof 예상 온체인 비용
+    /// @dev 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
+    uint256 public maxFraudProofCost;
+
+    // ==========================================
+    // RAT 컨트랙트 주소
+    // ==========================================
+
+    /// @notice RAT (Randomized Attention Test) 컨트랙트 주소
+    address public ratContract;
+
+    // ==========================================
+    // V3 마이그레이션 상태
+    // ==========================================
+
+    /// @notice V3 마이그레이션 완료 여부
+    bool public v3Migrated;
+
+    /// @notice V3 마이그레이션 블록
+    uint256 public v3MigrationBlock;
+
+    // ==========================================
+    // SequencerVault 참조
+    // ==========================================
+
+    /// @notice SequencerVault 컨트랙트 주소
+    /// @dev V3: 시퀀서 자격 조건(S_i ≥ θ·B_i)을 SequencerVault 담보금으로 확인
+    address public sequencerVault;
 }
 ```
 
@@ -339,11 +375,13 @@ contract ValidatorPoolStorage {
     // ==========================================
 
     struct ValidatorInfo {
-        bool isActive;
-        uint256 depositAmount;      // D_validator
-        uint256 pendingRewards;
-        uint256 lastClaimPeriod;
-        uint256 lastRATResponse;
+        bool isActive;              // 활성 상태
+        uint256 depositAmount;      // D_validator: 담보금
+        uint256 pendingRewards;     // 미청구 보상
+        uint256 lastClaimPeriod;    // 마지막 청구 기간
+        uint256 lastRATResponse;    // 마지막 RAT 응답 시간
+        uint256 registeredAt;       // 등록 시간
+        uint256 validatorIndex;     // 검증자 인덱스
     }
 
     /// @notice 검증자 목록
@@ -363,20 +401,22 @@ contract ValidatorPoolStorage {
     // ==========================================
 
     struct RATChallenge {
-        address validator;
-        uint256 batchId;
-        uint256 deadline;
-        bool responded;
-        bool slashed;
+        address validator;              // 대상 검증자
+        uint256 batchId;                // 배치 ID
+        uint256 deadline;               // 응답 마감
+        bool responded;                 // 응답 여부
+        bool slashed;                   // 슬래싱 여부
+        uint256 createdAt;              // 생성 시간
     }
 
-    /// @notice RAT 챌린지 매핑
+    /// @notice RAT 챌린지 매핑 (challengeId => RATChallenge)
     mapping(bytes32 => RATChallenge) public ratChallenges;
 
-    /// @notice RAT 발생 확률 (π_a)
+    /// @notice RAT 발생 확률 (π_a), RAY 단위
+    /// @dev 백서 공식 (3): c_m ≤ (π_a / N) · C_off
     uint256 public ratProbability;
 
-    /// @notice RAT 응답 윈도우
+    /// @notice RAT 응답 윈도우 (초)
     uint256 public ratResponseWindow;
 
     // ==========================================
@@ -389,23 +429,11 @@ contract ValidatorPoolStorage {
     /// @notice 기간별 검증자당 보상
     mapping(uint256 => uint256) public periodPerValidatorReward;
 
-    // ==========================================
-    // 참조
-    // ==========================================
-
-    address public seigManager;
-    address public wton;
-    address public ton;
-
-    /// @notice DAO Treasury 주소 (V3: |V_i| = 0 시 귀속처)
-    address public treasury;
-
-    /// @notice 최소 검증자 담보금 (D_validator)
-    /// @dev 백서 공식 (5): D_validator = C_off + Δ_validator
-    uint256 public minimumValidatorDeposit;
+    /// @notice 현재 기간 ID
+    uint256 public currentPeriodId;
 
     // ==========================================
-    // 백서 V2 신규 파라미터
+    // 백서 V2 파라미터
     // ==========================================
 
     /// @notice C_off: 슬래싱 페널티 (백서 공식 4)
@@ -415,6 +443,36 @@ contract ValidatorPoolStorage {
     /// @notice D_min: 최소 담보금 임계값
     /// @dev 잔액이 D_min 미만이면 활성 검증자 세트에서 제거
     uint256 public minimumThreshold;
+
+    /// @notice 최소 검증자 담보금 (D_validator)
+    /// @dev 백서 공식 (5): D_validator = C_off + Δ_validator
+    uint256 public minimumValidatorDeposit;
+
+    /// @notice c_m: 에폭당 attentiveness 유지 비용
+    /// @dev 백서 공식 (3): c_m ≤ (π_a / N) · C_off
+    uint256 public attentionCost;
+
+    /// @notice Δ_validator: 검증자 추가 버퍼
+    uint256 public validatorBuffer;
+
+    // ==========================================
+    // 참조 주소
+    // ==========================================
+
+    /// @notice SeigManager 주소
+    address public seigManager;
+
+    /// @notice WTON 주소
+    address public wton;
+
+    /// @notice TON 주소
+    address public ton;
+
+    /// @notice RAT 트리거 권한 주소 (DisputeGameFactory 등)
+    address public ratIssuer;
+
+    /// @notice Owner 주소
+    address public owner;
 }
 ```
 
@@ -474,11 +532,9 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
 
     /// @notice 최소 담보금 계산
     /// @dev 백서 V2 공식 (5): D_validator = C_off + Δ_validator
-    /// @dev 07_rat_implementation.md의 getMinimumCollateral()과 동일
     function getMinimumDeposit() public view returns (uint256) {
         // 백서 V2 공식: D_validator = C_off + Δ_validator
-        // minimumValidatorDeposit = slashingPenalty + validatorBuffer로 설정됨
-        return minimumValidatorDeposit;
+        return slashingPenalty + validatorBuffer;
     }
 
     // ==========================================
@@ -564,34 +620,32 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     // ==========================================
 
     /// @notice 기간 보상 분배 (SeigManager에서 호출)
-    /// @dev 백서 V3 공식 (13): v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|
-    /// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+    /// @dev 백서 공식 (13): v_i = (α/n) · y(x)
+    /// @dev 주의: ValidatorPoolV1은 activeValidatorCount == 0이면 revert
+    ///      RAT.sol의 distributeValidatorReward()는 treasury로 전송 처리
     function distributePeriodRewards(uint256 periodId, uint256 totalAmount)
         external
         onlySeigManager
     {
-        // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-        if (activeValidatorCount == 0) {
-            if (treasury != address(0) && totalAmount > 0) {
-                IERC20(wton).transfer(treasury, totalAmount);
-                emit ValidatorRewardToTreasury(periodId, totalAmount);
-            }
-            return;
-        }
+        // 활성 검증자가 없으면 revert
+        if (activeValidatorCount == 0) revert NoActiveValidatorsError();
 
         periodValidatorPool[periodId] = totalAmount;
 
-        // v_j = totalAmount / |V_i| (V3 공식 13)
+        // v_i = totalAmount / n
         uint256 perValidator = totalAmount / activeValidatorCount;
         periodPerValidatorReward[periodId] = perValidator;
 
         // 각 활성 검증자에게 보상 누적
-        for (uint256 i = 0; i < validators.length; i++) {
+        uint256 len = validators.length;
+        for (uint256 i = 0; i < len; i++) {
             address validator = validators[i];
             if (validatorInfo[validator].isActive) {
                 validatorInfo[validator].pendingRewards += perValidator;
             }
         }
+
+        currentPeriodId = periodId;
 
         emit ValidatorRewardDistributed(periodId, totalAmount, perValidator);
     }
@@ -624,12 +678,11 @@ contract ValidatorPoolV1 is ValidatorPoolStorage {
     event RATResponded(address indexed validator, uint256 indexed batchId, bool attestation);
     event ValidatorRewardDistributed(uint256 indexed periodId, uint256 totalAmount, uint256 perValidator);
     event ValidatorRewardClaimed(address indexed validator, uint256 amount);
-
-    /// @notice V3 백서: 검증자 미할당 시 Treasury 귀속 이벤트
-    /// @dev |V_i| = 0이면 α·S_i → DAO Treasury
-    event ValidatorRewardToTreasury(uint256 indexed periodId, uint256 amount);
+    event DepositAdded(address indexed validator, uint256 amount);
 }
 ```
+
+> **참고**: `ValidatorRewardToTreasury` 이벤트는 RAT.sol에서 정의되며, ValidatorPoolV1은 `activeValidatorCount == 0`일 때 revert합니다. L2별 검증자 풀에서 treasury 귀속 로직은 RAT.sol의 `distributeValidatorReward()`에서 처리됩니다.
 
 ---
 
@@ -760,13 +813,13 @@ function distributeValidatorReward(address systemConfig, uint256 amount)
 코드에서 V3 측정 방식이 적용되어 있습니다:
 
 ```solidity
-// SeigManagerV1_4.sol:345 - Bridged TON 실시간 조회
+// SeigManagerV1_4.sol:330 - Bridged TON 실시간 조회
 uint256 bridgedTON = ILayer2Manager(layer2Manager).getBridgedTONByLayer(layer2);
 
-// SeigManagerV1_4.sol:351 - Staked TON 실시간 조회
+// SeigManagerV1_4.sol:337 - Staked TON 실시간 조회
 currentStake = _getSequencerStake(layer2);
 
-// SeigManagerV1_4.sol:913 - L2 TVL 현재값 조회
+// SeigManagerV1_4.sol:638 - L2 TVL 현재값 조회
 uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
 ```
 

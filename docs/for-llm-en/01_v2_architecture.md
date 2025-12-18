@@ -235,8 +235,8 @@ bool internal _lock;  // ✅ Maintained
 | Category | V2 | V3 |
 |----------|-----|-----|
 | **`_tot`, `_coinages`** | Used | ✅ **No changes** |
-| **Staker Seigniorage** | Distributed via `setFactor()` | Gradually excluded from V3 distribution (existing logic maintained) |
-| **Staking Role** | Determines seigniorage distribution amount | Used for eligibility check (S_i ≥ θ·B_i) |
+| **Staker Seigniorage** | Distributed via `setFactor()` | **Not provided** |
+| **Staking Role** | Determines seigniorage distribution amount | **Not used** (Eligibility checked via SequencerVault collateral) |
 
 - Existing storage slot structure is **not changed** (proxy pattern compatible)
 - V3 new variables are added in **SeigManagerV1_4Storage**
@@ -248,7 +248,7 @@ Whitepaper Quote:
 
 | Beneficiary | V2 | V3 |
 |-------------|-----|-----|
-| **Stakers** | ✅ Coinage factor seigniorage | Gradually decreases, then not a V3 distribution target (used for eligibility) |
+| **Stakers** | ✅ Coinage factor seigniorage | ❌ **Not provided** |
 | **L2 Sequencers** | ✅ TVL proportional | ✅ Bridged TON proportional |
 | **Validators** | ❌ None | ✅ α_v·y(x)/n |
 | **DAO** | ✅ daoSeigRate | ✅ d·A₂ + undistributed portion |

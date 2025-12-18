@@ -117,6 +117,20 @@ contract ValidatorPoolStorage {
     address public owner;
 
     // ==========================================
+    // Per-L2 분배 관련
+    // ==========================================
+
+    /// @notice RAT 컨트랙트 주소 (L2별 검증자 조회용)
+    address public ratContract;
+
+    /// @notice Treasury 주소 (검증자 없을 때 보상 귀속)
+    address public treasury;
+
+    /// @notice 검증자별 누적 보상 (Per-L2 분배에서 누적)
+    /// @dev RAT에 등록된 검증자들의 보상을 여기서 관리
+    mapping(address => uint256) public validatorPendingRewards;
+
+    // ==========================================
     // 락 (Note: onlyOwner is in Proxy, others in ValidatorPoolV1 implementation)
     // ==========================================
 

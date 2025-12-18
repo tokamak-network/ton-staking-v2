@@ -339,8 +339,8 @@ contract DeployV3Full is Script {
         // V1_3 함수 selectors 등록 (pause/unpause는 V1_3에서 처리)
         // pause()는 V1_4에도 있어서 V1_4로 라우팅
 
-        // V1_4 함수 selectors 등록 (12개)
-        bytes4[] memory v1_4Selectors = new bytes4[](12);
+        // V1_4 함수 selectors 등록 (11개)
+        bytes4[] memory v1_4Selectors = new bytes4[](11);
         // V1_4에만 있는 함수들 (V1_2에 없음)
         v1_4Selectors[0] = SeigManagerV1_4.setRATContract.selector;
         v1_4Selectors[1] = SeigManagerV1_4.setValidatorPool.selector;
@@ -350,15 +350,14 @@ contract DeployV3Full is Script {
         v1_4Selectors[5] = SeigManagerV1_4.setHalfSaturationPoint.selector;
         v1_4Selectors[6] = SeigManagerV1_4.setStakedSeigFactor.selector;
         v1_4Selectors[7] = SeigManagerV1_4.migrateToV3.selector;
-        v1_4Selectors[8] = SeigManagerV1_4.slashSequencerByGame.selector;
-        v1_4Selectors[9] = SeigManagerV1_4.onBridgedTONChange.selector;
+        v1_4Selectors[8] = SeigManagerV1_4.onBridgedTONChange.selector;
         // 로직 수정으로 V1_4로 오버라이드 (V1_2에도 있지만 V3 로직 적용)
-        v1_4Selectors[10] = SeigManagerV1_4.updateSeigniorage.selector;
-        v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorageLayer.selector;
+        v1_4Selectors[9] = SeigManagerV1_4.updateSeigniorage.selector;
+        v1_4Selectors[10] = SeigManagerV1_4.updateSeigniorageLayer.selector;
         // 참고: setLayer2Manager는 V1_2에 이미 있으므로 V1_4 라우팅 불필요
 
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
-        console.log("SeigManager V1_4 selectors registered (12 functions)");
+        console.log("SeigManager V1_4 selectors registered (11 functions)");
 
         // 나머지 함수들은 V1_2 (기본 구현체)가 처리
 

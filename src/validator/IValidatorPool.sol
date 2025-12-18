@@ -112,13 +112,23 @@ interface IValidatorPool {
     // External Functions - Rewards
     // ==========================================
 
-    /// @notice 기간 보상 분배 (SeigManager에서 호출)
+    /// @notice 기간 보상 분배 (SeigManager에서 호출) - 전역 분배
     /// @dev 백서 공식 (13): v_i = (α/n) · y(x)
     /// @param periodId 기간 ID
     /// @param totalAmount 총 보상 금액
     function distributePeriodRewards(uint256 periodId, uint256 totalAmount) external;
 
-    /// @notice 검증자 보상 청구
+    /// @notice L2별 검증자 보상 분배 (SeigManager에서 호출) - Per-L2 분배
+    /// @dev 백서 V3 공식 (13): v_j = (α · S_i) / |V_i|
+    /// @dev RAT에서 해당 L2의 검증자 목록을 조회하여 분배
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @param amount 분배할 보상 금액 (α · S_i)
+    function distributeL2Rewards(address systemConfig, uint256 amount) external;
+
+    /// @notice Per-L2 분배에서 쌓인 검증자 보상 청구
+    function claimL2Rewards() external;
+
+    /// @notice 검증자 보상 청구 (전역 풀)
     function claimRewards() external;
 
     // ==========================================

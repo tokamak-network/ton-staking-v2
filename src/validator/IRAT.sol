@@ -119,6 +119,17 @@ interface IRAT {
     /// @notice 특정 L2의 활성 검증자 수 조회
     function getActiveValidatorCount(address systemConfig) external view returns (uint256);
 
+    /// @notice 특정 L2의 검증자 목록 조회
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return validators 해당 L2에 등록된 검증자 주소 목록
+    function getL2Validators(address systemConfig) external view returns (address[] memory validators);
+
+    /// @notice 특정 L2의 검증자 활성 상태 확인
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 활성 여부
+    function isValidatorActive(address validator, address systemConfig) external view returns (bool);
+
     /// @notice 대기 중인 총 보상 조회
     /// @param validator 검증자 주소
     function getTotalPendingRewards(address validator) external view returns (uint256 total);
