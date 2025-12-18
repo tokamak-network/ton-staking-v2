@@ -59,12 +59,11 @@ contract DeployTONStakingRAT is Script {
         // For devnet, we deploy without proxy for simplicity
         // In production, use TransparentUpgradeableProxy
 
-        // Initialize RAT
+        // Initialize RAT (V3: depositManager 제거)
         ratImpl.initialize(
             seigManager,
             wton,
             ton,
-            depositManager,
             layer2Manager,
             owner
         );
@@ -129,14 +128,12 @@ contract DeployTONStakingRATDevnet is Script {
         address mockSeigManager = address(0x1001);
         address mockWton = address(0x1002);
         address mockTon = address(0x1003);
-        address mockDepositManager = address(0x1004);
         address mockLayer2Manager = address(0x1005);
 
         rat.initialize(
             mockSeigManager,
             mockWton,
             mockTon,
-            mockDepositManager,
             mockLayer2Manager,
             DEPLOY_ADDRESS
         );
@@ -196,12 +193,11 @@ contract DeployTONStakingRATForAllocs is Script {
         RAT rat = new RAT();
         console.log("RAT deployed at:", address(rat));
 
-        // Initialize
+        // Initialize (V3: depositManager 제거)
         rat.initialize(
             seigManager,
             wton,
             ton,
-            depositManager,
             layer2Manager,
             msg.sender
         );

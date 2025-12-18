@@ -95,11 +95,11 @@ contract DeployV3Fork is Script {
         ratProxy = address(new RATProxy());
         IProxy(ratProxy).upgradeTo(ratImpl);
 
+        // V3: depositManager 제거
         RAT(ratProxy).initialize(
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
-            DEPOSIT_MANAGER_PROXY,
             LAYER2_MANAGER_PROXY,
             deployer
         );
@@ -218,7 +218,7 @@ contract DeployV3ForkWithImpersonation is Script {
         ratImpl = address(new RAT());
         ratProxy = address(new RATProxy());
         IProxy(ratProxy).upgradeTo(ratImpl);
-        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, DEPOSIT_MANAGER_PROXY, LAYER2_MANAGER_PROXY, deployer);
+        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
 
         validatorPoolImpl = address(new ValidatorPoolV1());
         validatorPoolProxy = address(new ValidatorPoolProxy());
@@ -319,7 +319,6 @@ contract DeployV3ForkSepolia is Script {
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
-            DEPOSIT_MANAGER_PROXY,
             LAYER2_MANAGER_PROXY,
             deployer
         );

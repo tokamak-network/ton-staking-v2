@@ -30,10 +30,9 @@ contract RATStorage {
 
     /// @notice 검증자 등록 정보
     /// @dev 백서 V2 공식 (5) 기반: D_validator = C_off + Δ_validator
-    /// @dev V3 정책: 담보금 시뇨리지 없음, 출금 시 원금 반환
+    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
     struct ValidatorRegistration {
-        uint256 depositedAmount;        // 현재 유효 담보금 (선차감 후 금액)
-        uint256 depositedPrincipal;     // 원금 (V3: 시뇨리지 없으므로 출금 시 이 값 반환)
+        uint256 depositedAmount;        // 현재 유효 담보금 (원금 - 슬래싱 손실)
         uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
         uint256 pendingRewards;         // 미청구 검증자 보상
         uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
@@ -58,7 +57,6 @@ contract RATStorage {
         address[] validators;           // 검증자 목록
         uint256 activeCount;            // 활성 검증자 수
         uint256 totalDeposited;         // 총 예치 금액
-        uint256 rewardPerValidator;     // 검증자당 보상 (누적)
     }
 
     // ==========================================
@@ -131,8 +129,8 @@ contract RATStorage {
     /// @notice TON 주소
     address public ton;
 
-    /// @notice DepositManager 주소
-    address public depositManager;
+    // V3: depositManager 제거 - RAT에서 TON 직접 보관
+    // address public depositManager;  // DEPRECATED
 
     /// @notice Layer2Manager 주소
     address public layer2Manager;
@@ -171,9 +169,8 @@ contract RATStorage {
     /// @dev triggerAttentionTest 호출 시 msg.sender(factory)를 저장
     mapping(address => address) public factoryByGame;
 
-    /// @notice 출금 대기 중인 금액 (systemConfig => validator => amount)
-    /// @dev deactivateValidator 후 2주 대기 후 processWithdrawal로 수령
-    mapping(address => mapping(address => uint256)) public pendingWithdrawals;
+    // V3: pendingWithdrawals 제거 - 즉시 출금 가능 (DepositManager 미사용)
+    // mapping(address => mapping(address => uint256)) public pendingWithdrawals;  // DEPRECATED
 
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)

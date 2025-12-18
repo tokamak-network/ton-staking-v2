@@ -458,12 +458,11 @@ contract DeployV3Full is Script {
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
-        // Initialize RAT
+        // Initialize RAT (V3: depositManager 제거)
         RAT(ratProxy).initialize(
             seigManagerProxy,
             wton,
             ton,
-            depositManagerProxy,
             layer2ManagerProxy,
             deployer
         );

@@ -7,7 +7,6 @@ import {RATStorage} from "./RATStorage.sol";
 import {IRAT} from "./IRAT.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {IOnApprove} from "../stake/interfaces/IOnApprove.sol";
-import {IDepositManager} from "../stake/interfaces/IDepositManager.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 
 // Custom Errors
@@ -81,7 +80,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         address _seigManager,
         address _wton,
         address _ton,
-        address _depositManager,
         address _layer2Manager,
         address _owner
     ) external {
@@ -90,7 +88,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         seigManager = _seigManager;
         wton = _wton;
         ton = _ton;
-        depositManager = _depositManager;
         layer2Manager = _layer2Manager;
         owner = _owner;
 
@@ -112,7 +109,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         view
         returns (
             uint256 depositedAmount,
-            uint256 depositedPrincipal,
             uint256 totalBondForRAT,
             uint256 pendingRewards,
             uint32 validatorIndex,
@@ -122,7 +118,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         return (
             reg.depositedAmount,
-            reg.depositedPrincipal,
             reg.totalBondForRAT,
             reg.pendingRewards,
             reg.validatorIndex,
@@ -182,6 +177,22 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         return validatorPools[systemConfig].activeCount;
     }
 
+    /// @notice 검증자 담보금 조회 (외부 컨트랙트용 간편 함수)
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 현재 담보금 (슬래싱 반영된 금액)
+    function getValidatorDeposit(address validator, address systemConfig) external view returns (uint256) {
+        return validatorRegistrations[systemConfig][validator].depositedAmount;
+    }
+
+    /// @notice 검증자가 활성 상태인지 확인
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 활성 상태 여부
+    function isValidatorActive(address validator, address systemConfig) external view returns (bool) {
+        return validatorRegistrations[systemConfig][validator].isActive;
+    }
+
     /// @inheritdoc IRAT
     function getTotalPendingRewards(address validator) external view returns (uint256 total) {
         address[] storage configs = validatorSystemConfigs[validator];
@@ -205,7 +216,8 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     // ==========================================
 
     /// @inheritdoc IRAT
-    /// @dev WTON으로 검증자 등록. TON으로 등록하려면 TON.approveAndCall 사용
+    /// @dev TON으로 검증자 등록. TON.approveAndCall(RAT, amount, systemConfig) 사용
+    /// @dev V3: RAT에서 TON 직접 보관 (DepositManager/WTON 미사용)
     function registerValidator(address systemConfig, uint256 depositAmount)
         external
         ifFree
@@ -214,20 +226,17 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         if (systemConfig == address(0)) revert InvalidSystemConfigError();
         if (depositAmount == 0) revert ZeroAmountError();
 
-        // WTON 전송
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), depositAmount);
-
-        // DepositManager에 대리 스테이킹
-        _depositToDepositManager(systemConfig, depositAmount);
+        // TON 직접 전송 받기
+        IERC20(ton).safeTransferFrom(msg.sender, address(this), depositAmount);
 
         // 검증자 등록 로직
         _registerValidatorInternal(msg.sender, systemConfig, depositAmount);
     }
 
     /// @inheritdoc IRAT
-    /// @notice 검증자 탈퇴 및 출금 요청
-    /// @dev 2주 대기 후 processWithdrawal 호출 필요
-    /// @dev V3 정책: 담보금 시뇨리지 없음, 원금(depositedPrincipal) 반환
+    /// @notice 검증자 탈퇴 및 즉시 출금
+    /// @dev V3: RAT에서 TON 직접 보관하므로 즉시 출금 가능 (2주 대기 불필요)
+    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount 전액 반환
     function deactivateValidator(address systemConfig) external ifFree {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
         if (!reg.isActive) revert NotActiveValidatorError();
@@ -248,52 +257,29 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         pool.activeCount--;
         pool.totalDeposited -= reg.depositedAmount;
 
-        // V3 정책: 원금(depositedPrincipal) 반환 (담보금 시뇨리지 없음)
-        // depositedAmount는 슬래싱으로 줄어들 수 있으므로, 실제 출금액은 depositedAmount 사용
-        // depositedPrincipal은 원금 추적용이며, 슬래싱되지 않은 경우 동일
+        // V3 정책: 담보금 전액 반환 (시뇨리지 없음)
         uint256 withdrawAmount = reg.depositedAmount;
         reg.depositedAmount = 0;
-        reg.depositedPrincipal = 0;
 
-        // DepositManager에 출금 요청 (2주 대기 필요)
+        // V3: TON 직접 전송 (즉시 출금)
         if (withdrawAmount > 0) {
-            address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
-            IDepositManager(depositManager).requestWithdrawal(layer2, withdrawAmount);
+            IERC20(ton).safeTransfer(msg.sender, withdrawAmount);
         }
 
-        // 미청구 보상은 즉시 지급
+        // 미청구 보상은 즉시 지급 (WTON)
         uint256 pendingRewards = reg.pendingRewards;
         reg.pendingRewards = 0;
         if (pendingRewards > 0) {
             IERC20(wton).safeTransfer(msg.sender, pendingRewards);
         }
 
-        // 출금 요청 정보 저장 (processWithdrawal에서 사용)
-        // V3: 원금 반환 (담보금 시뇨리지 없음)
-        pendingWithdrawals[systemConfig][msg.sender] = withdrawAmount;
-
         emit ValidatorDeactivated(msg.sender, systemConfig, withdrawAmount);
     }
 
-    /// @notice 출금 완료 처리 (deactivateValidator 후 2주 경과 시 호출)
-    /// @param systemConfig L2 SystemConfig 주소
-    function processWithdrawal(address systemConfig) external ifFree {
-        uint256 amount = pendingWithdrawals[systemConfig][msg.sender];
-        require(amount > 0, "no pending withdrawal");
-
-        pendingWithdrawals[systemConfig][msg.sender] = 0;
-
-        // DepositManager에서 출금 처리
-        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
-        IDepositManager(depositManager).processRequest(layer2, false); // false = receive WTON
-
-        // WTON을 검증자에게 전송
-        IERC20(wton).safeTransfer(msg.sender, amount);
-
-        emit WithdrawalProcessed(msg.sender, systemConfig, amount);
-    }
+    // V3: processWithdrawal 제거 - deactivateValidator에서 즉시 출금
 
     /// @inheritdoc IRAT
+    /// @dev V3: TON 직접 입금 (DepositManager 미사용)
     function addDeposit(address systemConfig, uint256 amount) external ifFree {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
         // 활성 검증자만 추가 입금 가능
@@ -301,23 +287,19 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         if (!reg.isActive) revert NotActiveValidatorError();
         if (amount == 0) revert ZeroAmountError();
 
-        // WTON 전송 받기
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
-
-        // DepositManager에 추가 스테이킹
-        _depositToDepositManager(systemConfig, amount);
+        // TON 직접 전송 받기
+        IERC20(ton).safeTransferFrom(msg.sender, address(this), amount);
 
         reg.depositedAmount += amount;
-        reg.depositedPrincipal += amount;  // V3: 원금 추적
         validatorPools[systemConfig].totalDeposited += amount;
 
         emit DepositAdded(msg.sender, systemConfig, amount);
     }
 
-    /// @notice WTON에서 호출되는 콜백 (TON.approveAndCall → WTON → RAT 경유)
+    /// @notice TON에서 호출되는 콜백 (TON.approveAndCall → RAT)
     /// @param owner TON 전송자 (검증자)
     /// @param spender RAT 컨트랙트 주소 (사용 안함)
-    /// @param amount WTON 양 (27 decimals)
+    /// @param amount TON 양 (18 decimals)
     /// @param data systemConfig 주소 (32바이트)
     function onApprove(
         address owner,
@@ -325,17 +307,14 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         uint256 amount,
         bytes calldata data
     ) external override ifFree whenNotPaused returns (bool) {
-        require(msg.sender == wton, "only WTON");
+        require(msg.sender == ton, "only TON");
 
         // data에서 systemConfig 추출 (32바이트)
         require(data.length >= 32, "invalid data");
         address systemConfig = address(uint160(uint256(bytes32(data[:32]))));
         if (systemConfig == address(0)) revert InvalidSystemConfigError();
 
-        // WTON은 이미 RAT에 전송됨 (WTON.onApprove에서 transfer)
-
-        // DepositManager에 대리 스테이킹
-        _depositToDepositManager(systemConfig, amount);
+        // TON은 이미 RAT에 전송됨 (TON.onApprove에서 transfer)
 
         // 검증자 등록 로직
         _registerValidatorInternal(owner, systemConfig, amount);
@@ -343,20 +322,8 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         return true;
     }
 
-    /// @notice DepositManager에 대리 스테이킹
-    /// @dev RAT 명의로 스테이킹하여 검증자가 임의로 출금 불가
-    function _depositToDepositManager(address systemConfig, uint256 wtonAmount) internal {
-        // systemConfig → layer2 주소 조회
-        address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
-        require(layer2 != address(0), "invalid systemConfig");
-
-        // WTON approve 후 DepositManager에 예치 (RAT 명의)
-        IERC20(wton).approve(depositManager, wtonAmount);
-        IDepositManager(depositManager).deposit(layer2, wtonAmount);
-    }
-
     /// @notice 내부 검증자 등록 로직
-    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedPrincipal로 원금 추적
+    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
     function _registerValidatorInternal(address validator, address systemConfig, uint256 depositAmount) internal {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         if (reg.isActive) revert AlreadyRegisteredError();
@@ -365,7 +332,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
         // 기존 담보금이 있는 경우 (슬래싱 후 재등록)
         uint256 totalDeposit = reg.depositedAmount + depositAmount;
-        uint256 totalPrincipal = reg.depositedPrincipal + depositAmount;
         if (totalDeposit < minDeposit) revert InsufficientDepositError();
 
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
@@ -380,7 +346,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
             // 기존 인덱스 유지, 담보금만 업데이트
             reg.depositedAmount = totalDeposit;
-            reg.depositedPrincipal = totalPrincipal;
             reg.isActive = true;
         } else {
             // 신규 등록
@@ -390,9 +355,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
             pool.totalDeposited += totalDeposit;
 
             // 검증자 등록 정보 설정
-            // V3: 담보금 시뇨리지 없음, 원금 추적용 depositedPrincipal 설정
             reg.depositedAmount = totalDeposit;
-            reg.depositedPrincipal = totalPrincipal;
             reg.totalBondForRAT = 0;
             reg.pendingRewards = 0;
             reg.validatorIndex = uint32(index);
@@ -611,7 +574,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
         // v_i = amount / n (V3 공식 13: (α·S_i) / |V_i|)
         uint256 perValidator = amount / pool.activeCount;
-        pool.rewardPerValidator += perValidator;
 
         // 각 활성 검증자에게 보상 누적
         address[] storage validators = pool.validators;

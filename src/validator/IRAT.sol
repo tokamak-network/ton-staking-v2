@@ -91,12 +91,7 @@ interface IRAT {
         address indexed systemConfig
     );
 
-    /// @notice 출금 완료 이벤트 (processWithdrawal)
-    event WithdrawalProcessed(
-        address indexed validator,
-        address indexed systemConfig,
-        uint256 amount
-    );
+    // V3: WithdrawalProcessed 이벤트 제거 - deactivateValidator에서 즉시 출금
 
     /// @notice 검증자 미할당 시 Treasury 귀속 이벤트
     /// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
@@ -137,8 +132,7 @@ interface IRAT {
     /// @notice 검증자 등록 정보 조회
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @return depositedAmount 현재 유효 담보금
-    /// @return depositedPrincipal 원금 (V3: 시뇨리지 없으므로 출금 시 반환 금액)
+    /// @return depositedAmount 현재 유효 담보금 (원금 - 슬래싱 손실)
     /// @return totalBondForRAT 진행 중인 RAT 테스트에 묶인 금액
     /// @return pendingRewards 미청구 보상
     /// @return validatorIndex 검증자 인덱스
@@ -148,34 +142,45 @@ interface IRAT {
         view
         returns (
             uint256 depositedAmount,
-            uint256 depositedPrincipal,
             uint256 totalBondForRAT,
             uint256 pendingRewards,
             uint32 validatorIndex,
             bool isActive
         );
 
+    /// @notice 검증자 담보금 조회 (외부 컨트랙트용 간편 함수)
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 현재 담보금 (슬래싱 반영된 금액)
+    function getValidatorDeposit(address validator, address systemConfig) external view returns (uint256);
+
+    /// @notice 검증자가 활성 상태인지 확인
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 활성 상태 여부
+    function isValidatorActive(address validator, address systemConfig) external view returns (bool);
+
     // ==========================================
     // External Functions - Validator Management
     // ==========================================
 
     /// @notice 검증자 등록
+    /// @dev V3: TON.approveAndCall(RAT, amount, systemConfig) 사용 권장
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @param depositAmount 담보금 (WTON)
+    /// @param depositAmount 담보금 (TON)
     function registerValidator(address systemConfig, uint256 depositAmount) external;
 
-    /// @notice 검증자 탈퇴
+    /// @notice 검증자 탈퇴 및 즉시 출금
+    /// @dev V3: DepositManager 미사용으로 즉시 출금 가능
     /// @param systemConfig L2의 SystemConfig 주소
     function deactivateValidator(address systemConfig) external;
 
     /// @notice 담보금 추가 예치
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @param amount 추가 금액 (WTON)
+    /// @param amount 추가 금액 (TON)
     function addDeposit(address systemConfig, uint256 amount) external;
 
-    /// @notice 출금 완료 처리 (deactivateValidator 후 2주 경과 시 호출)
-    /// @param systemConfig L2의 SystemConfig 주소
-    function processWithdrawal(address systemConfig) external;
+    // V3: processWithdrawal 제거 - deactivateValidator에서 즉시 출금
 
     // ==========================================
     // External Functions - RAT Operations

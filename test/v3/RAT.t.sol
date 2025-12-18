@@ -77,13 +77,12 @@ contract RATTest is Test {
         mockGame1 = new MockFaultDisputeGame(systemConfig1);
         mockGame2 = new MockFaultDisputeGame(systemConfig1);
 
-        // Deploy RAT
+        // Deploy RAT (V3: depositManager 제거)
         rat = new RAT();
         rat.initialize(
             seigManager,
             address(wton),
             address(ton),
-            depositManager,
             address(0), // layer2Manager (not used in tests)
             owner
         );
@@ -138,7 +137,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             uint256 totalBondForRAT,
             uint256 pendingRewards,
-            ,
             uint32 validatorIndex,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -214,7 +212,6 @@ contract RATTest is Test {
             ,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 700e27, "Deposit should be increased");
@@ -246,7 +243,6 @@ contract RATTest is Test {
         // 검증
         (
             uint256 depositedAmount,
-            ,
             ,
             ,
             ,
@@ -285,7 +281,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -339,7 +334,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -412,14 +406,12 @@ contract RATTest is Test {
             uint256 totalBondForRAT,
             ,
             ,
-            uint64 latestTestDeadline,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         // trigger 시점에 C_off가 선차감됨
         assertEq(depositedAmount, 400e27, "Deposit after trigger (pre-deducted)");
         assertEq(totalBondForRAT, 100e27, "Bond should hold C_off");
-        assertTrue(latestTestDeadline > 0, "Should have test deadline");
         assertTrue(isActive, "Should still be active");
 
         // 마감 경과 후 - 별도 finalize 없이 슬래싱 확정
@@ -447,7 +439,6 @@ contract RATTest is Test {
             ,
             ,
             ,
-            ,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -468,7 +459,7 @@ contract RATTest is Test {
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // trigger 직후 - 선차감됨
-        (uint256 depositBefore,,,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 depositBefore,,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertEq(depositBefore, 400e27, "Deposit pre-deducted");
 
         // 증거 제출
@@ -476,7 +467,7 @@ contract RATTest is Test {
         rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
 
         // 증거 제출 후 - 복구됨
-        (uint256 depositAfter, uint256 bondAfter,,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 depositAfter, uint256 bondAfter,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertEq(depositAfter, 500e27, "Deposit restored after evidence");
         assertEq(bondAfter, 0, "Bond cleared after evidence");
     }
@@ -680,7 +671,6 @@ contract RATTest is Test {
             uint256 bondAfterTrigger,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositAfterTrigger, 400e27, "Deposit should be reduced by C_off");
@@ -694,7 +684,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterResolve,
             uint256 bondAfterResolve,
-            ,
             ,
             ,
             bool isActive
@@ -721,7 +710,6 @@ contract RATTest is Test {
             ,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 500e27, "Deposit should be unchanged");
@@ -744,7 +732,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 bondAmount,
-            ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -774,7 +761,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 bondAmount,
-            ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -859,7 +845,6 @@ contract RATTest is Test {
             uint256 totalBond,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 300e27, "Deposit should be reduced twice");
@@ -875,7 +860,6 @@ contract RATTest is Test {
             uint256 bondAfterFirst,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositAfterFirst, 400e27, "One bond should be restored");
@@ -889,7 +873,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterSecond,
             uint256 bondAfterSecond,
-            ,
             ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -919,7 +902,6 @@ contract RATTest is Test {
             ,
             ,
             ,
-            ,
             bool isActiveAfterTrigger
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -934,7 +916,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterResolve,
             uint256 bondAfterResolve,
-            ,
             ,
             ,
             bool isActiveAfterResolve
@@ -962,7 +943,6 @@ contract RATTest is Test {
             ,
             ,
             ,
-            ,
             bool isActiveAfterSlash
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -978,7 +958,6 @@ contract RATTest is Test {
         // 재활성화 확인
         (
             uint256 depositAfterReregister,
-            ,
             ,
             ,
             ,
@@ -1002,7 +981,7 @@ contract RATTest is Test {
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // trigger 시점에 이미 비활성화됨 (200 - 100 = 100 < D_min(150))
-        (,,,,, bool isActive) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (,,,, bool isActive) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertFalse(isActive, "Should be inactive after trigger (D_min check failed)");
 
         // 비활성 상태에서 addDeposit 시도 - 실패해야 함

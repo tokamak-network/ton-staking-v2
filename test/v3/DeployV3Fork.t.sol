@@ -171,12 +171,11 @@ contract DeployV3ForkTest is Test {
         ratProxy = address(new RATProxy());
         IProxy(ratProxy).upgradeTo(ratImpl);
 
-        // Initialize RAT
+        // Initialize RAT (V3: depositManager 제거)
         RAT(ratProxy).initialize(
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
-            DEPOSIT_MANAGER_PROXY,
             LAYER2_MANAGER_PROXY,
             deployer
         );
@@ -276,7 +275,7 @@ contract DeployV3ForkTest is Test {
         ratImpl = address(new RAT());
         ratProxy = address(new RATProxy());
         IProxy(ratProxy).upgradeTo(ratImpl);
-        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, DEPOSIT_MANAGER_PROXY, LAYER2_MANAGER_PROXY, deployer);
+        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
 
         validatorPoolImpl = address(new ValidatorPoolV1());
         validatorPoolProxy = address(new ValidatorPoolProxy());

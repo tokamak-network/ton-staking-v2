@@ -729,7 +729,6 @@ function distributeValidatorReward(address systemConfig, uint256 amount)
 
     // V3 공식 13: (α · S_i) / |V_i|
     uint256 perValidator = amount / pool.activeCount;
-    pool.rewardPerValidator += perValidator;
 
     // 각 활성 검증자에게 보상 누적
     address[] storage validators = pool.validators;
