@@ -435,69 +435,136 @@ function onApprove(
 
 ## 7. 검증자 보상
 
-### 7.1 보상 공식
+### 7.1 보상 공식 (V3 백서)
 
-**백서 공식 (13)**에 따른 검증자 보상:
+**백서 V3 공식 (13), (14)**에 따른 보상 분배:
 
 ```
-v_i = (α / n) · y(x)    ... (13) 검증자 보상
+v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|    ... (13) 검증자 보상
+o_i = (1 − α) · S_i                      ... (14) 시퀀서 보상
 ```
 
 | 파라미터 | 백서 명시 | 설명 |
 |---------|----------|------|
+| **v_j** | ✅ | 검증자 j가 받는 총 보상 |
+| **V_i** | ✅ | L2 i에 할당된 검증자 집합 |
+| **\|V_i\|** | ✅ | L2 i에 할당된 검증자 수 |
 | **α** | ✅ | 검증자 분배 비율 (예: 20%) |
-| **n** | ✅ | 활성 검증자 수 (해당 SystemConfig 내) |
-| **y(x)** | ✅ | 쌍곡선 포화 함수 결과 |
+| **S_i** | ✅ | L2 i의 시뇨리지 |
+| **o_i** | ✅ | L2 i의 시퀀서가 받는 보상 |
 
-**핵심 특징 (백서 명시):**
-- **SystemConfig별** 활성 검증자가 균등하게 보상 분배 (1/n)
-- 담보금 크기와 무관하게 동일 보상
-- RAT에 응답하고 활성 상태를 유지해야 보상 수령 자격
+### 7.2 V_i (L2별 검증자 할당) 개념
 
-### 7.2 보상 분배 흐름
+V3에서 검증자는 **특정 L2(SystemConfig)에 할당**됩니다. 이를 V_i로 표기합니다.
 
 ```
-특정 L2가 updateSeigniorage() 호출 (SeigManager)
+V_i = L2 i에 할당된 검증자 집합
+
+예시:
+V_Titan = {검증자A, 검증자B}     # Titan L2에 할당된 검증자 2명
+V_Thanos = {검증자A, 검증자C}    # Thanos L2에 할당된 검증자 2명
+
+|V_Titan| = 2
+|V_Thanos| = 2
+```
+
+**검증자 보상 계산 예시:**
+
+검증자 A가 Titan과 Thanos 두 L2에 모두 할당된 경우:
+
+```
+v_A = (α · S_Titan) / |V_Titan| + (α · S_Thanos) / |V_Thanos|
+    = (α · S_Titan) / 2 + (α · S_Thanos) / 2
+```
+
+### 7.3 검증자 미할당 시 DAO Treasury 귀속
+
+**V3 백서 규칙:**
+> "If no validators are assigned to L2 i (|V_i| = 0), the validator portion α · S_i is allocated to the DAO treasury."
+
+L2에 검증자가 할당되지 않은 경우(`|V_i| = 0`), 해당 L2의 검증자 몫 `α · S_i`는 **DAO Treasury로 귀속**됩니다.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  L2 i의 시뇨리지 분배                                        │
+│                                                             │
+│  if |V_i| > 0:                                              │
+│      검증자 몫: α · S_i → V_i 검증자들에게 균등 분배          │
+│      시퀀서 몫: (1 - α) · S_i → 시퀀서에게                   │
+│                                                             │
+│  if |V_i| = 0:                                              │
+│      검증자 몫: α · S_i → DAO Treasury                       │
+│      시퀀서 몫: (1 - α) · S_i → 시퀀서에게                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 7.4 핵심 특징 (V3 백서)
+
+| 항목 | V2 (이전) | V3 (현재) |
+|------|----------|----------|
+| **분배 기준** | 전체 y(x)에서 균등 분배 | L2별 시뇨리지(S_i)에서 분배 |
+| **검증자 수** | n = 전체 검증자 수 | \|V_i\| = 해당 L2에 할당된 검증자 수 |
+| **보상 구조** | 모든 검증자 동일 보상 | 할당된 L2의 성과에 비례 |
+| **미할당 처리** | 명시 없음 | α·S_i → DAO Treasury |
+
+**V3 핵심 특징:**
+- **L2별** 할당된 검증자가 해당 L2의 시뇨리지에서 보상 수령
+- 검증자가 여러 L2에 할당되면, 각 L2에서 받는 보상의 합계가 총 보상
+- 담보금 크기와 무관하게 동일 L2 내에서는 균등 분배
+- RAT에 응답하고 활성 상태를 유지해야 보상 수령 자격
+- 검증자 없는 L2의 검증자 몫은 DAO Treasury로 귀속
+
+### 7.5 보상 분배 흐름 (V3)
+
+```
+특정 L2 i가 updateSeigniorage() 호출 (SeigManager)
             │
             ▼
 ┌───────────────────────────────────────┐
 │  해당 L2의 시뇨리지 계산               │
-│  Seig_i = y(x) · (B̃_i / x)           │
+│  S_i = y(x) · (B̃_i / x)              │
 └───────────────────────────────────────┘
             │
             ▼
 ┌───────────────────────────────────────┐
 │  Layer2Manager.transferL2Seigniorage  │
-│  (layer2, Seig_i)                     │
+│  (layer2, S_i)                        │
 │  → OperatorManager로 WTON 전송        │
 └───────────────────────────────────────┘
             │
             ▼
 ┌───────────────────────────────────────┐
 │  OperatorManager.receiveL2Seigniorage │
-│  - 검증자 수 확인 (0명이면 전액 시퀀서)│
-│  - 시퀀서 몫: (1 - α) · S_i         │
-│  - 검증자 풀: α · y(x) (전체에서)    │
+│  - V_i (해당 L2 검증자 집합) 확인      │
+│  - 시퀀서 몫: (1 - α) · S_i           │
+│  - 검증자 몫: α · S_i                  │
 └───────────────────────────────────────┘
             │
     ┌───────┴───────┐
     ▼               ▼
-┌─────────────┐  ┌─────────────────────────┐
-│ 시퀀서 몫   │  │ 검증자 몫               │
-│ Operator    │  │ RAT 컨트랙트로 전송     │
-│ Manager에   │  │ distributeReward() 호출 │
-│ 남음        │  └─────────────────────────┘
-│ (claimERC20)│              │
-└─────────────┘              ▼
-                 ┌─────────────────────────┐
-                 │ 해당 L2 활성 검증자에게  │
-                 │ 균등 분배 (1/n)          │
-                 └─────────────────────────┘
+┌─────────────┐  ┌──────────────────────────────┐
+│ 시퀀서 몫   │  │ 검증자 몫 분기               │
+│ (1-α)·S_i  │  │                              │
+│ Operator    │  │  if |V_i| > 0:              │
+│ Manager에   │  │    RAT.distributeReward()   │
+│ 남음        │  │    → V_i에게 균등 분배       │
+│ (claimERC20)│  │                              │
+└─────────────┘  │  if |V_i| = 0:              │
+                 │    → DAO Treasury로 전송     │
+                 └──────────────────────────────┘
+                             │
+                             ▼ (|V_i| > 0인 경우)
+                 ┌─────────────────────────────┐
+                 │ 해당 L2 할당 검증자(V_i)에게 │
+                 │ 균등 분배: (α·S_i) / |V_i|   │
+                 └─────────────────────────────┘
 ```
 
-> **참고**: 검증자가 없으면 `validatorAmount = 0` → 전액 시퀀서 몫
+> **V3 변경사항**:
+> - 검증자가 없으면(`|V_i| = 0`) α·S_i → **DAO Treasury**로 귀속
+> - 검증자가 있으면(`|V_i| > 0`) α·S_i → V_i 검증자들에게 균등 분배
 
-### 7.3 보상 청구
+### 7.6 보상 청구
 
 ```solidity
 // SystemConfig별 보상 청구
@@ -680,10 +747,117 @@ ratContract.on("AttentionTriggered", async (testId, systemConfig, layer2, valida
 
 ---
 
-## 11. 참조 문서
+## 11. 관련 코드 파일
+
+### 11.1 핵심 구현 파일
+
+| 파일 | 경로 | 역할 |
+|------|------|------|
+| **RAT.sol** | `src/validator/RAT.sol` | 검증자 등록, RAT 테스트, 보상 분배 |
+| **IRAT.sol** | `src/validator/IRAT.sol` | RAT 인터페이스 정의 |
+| **RATStorage.sol** | `src/validator/RATStorage.sol` | RAT 스토리지 구조 |
+| **SeigManagerV1_4.sol** | `src/stake/managers/SeigManagerV1_4.sol` | V3 시뇨리지 분배 |
+
+### 11.2 검증자 보상 관련 코드
+
+#### RAT.sol - distributeValidatorReward (라인 585-614)
+
+```solidity
+/// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
+function distributeValidatorReward(address systemConfig, uint256 amount)
+    external
+    onlySeigManager
+{
+    ValidatorPoolInfo storage pool = validatorPools[systemConfig];
+
+    // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury ✅
+    if (pool.activeCount == 0) {
+        if (treasury != address(0) && amount > 0) {
+            IERC20(wton).safeTransfer(treasury, amount);
+            emit ValidatorRewardToTreasury(systemConfig, amount);
+        }
+        return;
+    }
+
+    // v_i = amount / n (V3 공식 13: (α·S_i) / |V_i|)
+    uint256 perValidator = amount / pool.activeCount;
+    pool.rewardPerValidator += perValidator;
+
+    // 각 활성 검증자에게 보상 누적
+    address[] storage validators = pool.validators;
+    uint256 len = validators.length;
+    for (uint256 i = 0; i < len; i++) {
+        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validators[i]];
+        if (reg.isActive) {
+            reg.pendingRewards += perValidator;
+        }
+    }
+}
+```
+
+#### SeigManagerV1_4.sol - 검증자 풀 분배 (라인 844-889)
+
+```solidity
+// 검증자 풀: α · y(x) (백서 공식 13)
+validatorPoolAmount = rmul(y, validatorDistributionRatio);
+
+// ... (중간 생략)
+
+// 검증자 풀 분배
+if (validatorPoolAmount > 0 && validatorPool != address(0)) {
+    IWTON(_wton).mint(validatorPool, validatorPoolAmount);
+}
+```
+
+---
+
+## 12. V3 백서 일치 여부 점검
+
+### 12.1 점검 결과 요약
+
+| 항목 | V3 백서 요구사항 | 현재 코드 | 일치 여부 |
+|------|-----------------|----------|----------|
+| **검증자 보상 공식** | `v_j = Σ_{i: j∈V_i} (α·S_i)/\|V_i\|` | L2별로 `amount / activeCount` 분배 | ✅ 일치 |
+| **L2별 분배** | 각 L2의 시뇨리지에서 검증자 보상 분배 | L2별 SystemConfig 기반 분배 구조 존재 | ✅ 일치 |
+| **검증자 미할당 시** | `\|V_i\|=0`이면 `α·S_i` → DAO Treasury | `treasury`로 전송 + 이벤트 발생 | ✅ 일치 |
+| **전체 분배 구조** | L2별 `α·S_i` 계산 | `α·y(x)` 일괄 민트 후 L2별 분배 | ⚠️ 구조적 차이 (결과 동일) |
+
+### 12.2 상세 분석
+
+#### ✅ 일치 항목
+
+1. **L2별 검증자 풀 구조**: RAT는 `validatorPools[systemConfig]`로 L2별 검증자 관리
+2. **균등 분배**: `perValidator = amount / pool.activeCount`로 L2 내 검증자 균등 분배
+3. **보상 청구**: `claimRewards(systemConfig)`로 L2별 보상 청구 가능
+4. **검증자 미할당 시 DAO Treasury 귀속**: `pool.activeCount == 0`일 때 `treasury`로 전송 ✅
+
+#### ⚠️ 구조적 차이 (결과 동일)
+
+**전체 분배 구조:**
+
+| 구분 | V3 백서 | 현재 구현 |
+|------|--------|----------|
+| **계산** | 각 L2별로 `α·S_i` 계산 | `α·y(x)` 전체 계산 후 분배 |
+| **민트** | L2별로 필요한 만큼 | validatorPool에 일괄 민트 |
+
+현재 구현은 전체 `α·y(x)`를 validatorPool(RAT)에 일괄 민트 후, L2별 `distributeValidatorReward` 호출로 분배합니다. 이는 V3 백서의 L2별 `α·S_i` 계산과 구조적으로 다르지만, 최종 결과는 동일합니다.
+
+### 12.3 구현 완료 항목 (2025-12-18)
+
+| 항목 | 파일 | 수정 내용 | 상태 |
+|------|------|----------|------|
+| DAO Treasury 귀속 | `RAT.sol:592-598` | `activeCount == 0`일 때 treasury로 전송 | ✅ 완료 |
+| treasury 변수 | `RATStorage.sol:153` | Treasury 주소 저장 변수 (기존 존재) | ✅ 완료 |
+| 이벤트 추가 | `IRAT.sol:101-106` | `ValidatorRewardToTreasury` 이벤트 | ✅ 완료 |
+
+---
+
+## 13. 참조 문서
 
 - **RAT 구현체 상세**: [07_rat_implementation.md](./07_rat_implementation.md)
   - 스토리지 구조 (3, 4장)
   - 인터페이스 정의 (5장)
   - 핵심 함수 구현 (6장)
   - 통합 가이드 (8장)
+- **V3 백서 변경사항**: [whitepaper_v2_to_v3_changes.md](./whitepaper_v2_to_v3_changes.md)
+- **V3 문서 갭 분석**: [v3_docs_gap_analysis.md](./v3_docs_gap_analysis.md)

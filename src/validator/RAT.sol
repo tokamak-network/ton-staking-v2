@@ -582,14 +582,23 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     }
 
     /// @inheritdoc IRAT
+    /// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
     function distributeValidatorReward(address systemConfig, uint256 amount)
         external
         onlySeigManager
     {
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
-        if (pool.activeCount == 0) return;
 
-        // v_i = amount / n
+        // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+        if (pool.activeCount == 0) {
+            if (treasury != address(0) && amount > 0) {
+                IERC20(wton).safeTransfer(treasury, amount);
+                emit ValidatorRewardToTreasury(systemConfig, amount);
+            }
+            return;
+        }
+
+        // v_i = amount / n (V3 공식 13: (α·S_i) / |V_i|)
         uint256 perValidator = amount / pool.activeCount;
         pool.rewardPerValidator += perValidator;
 

@@ -98,6 +98,13 @@ interface IRAT {
         uint256 amount
     );
 
+    /// @notice 검증자 미할당 시 Treasury 귀속 이벤트
+    /// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+    event ValidatorRewardToTreasury(
+        address indexed systemConfig,
+        uint256 amount
+    );
+
     // ==========================================
     // View Functions
     // ==========================================

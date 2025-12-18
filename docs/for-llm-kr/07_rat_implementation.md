@@ -19,7 +19,7 @@
 | **슬래싱 방식** | perTestBondAmount 선차감 | **C_off 선차감** (백서 V2: 슬래싱 페널티) |
 | **슬래싱 귀속** | 컨트랙트에 잔류 | **TBD** (귀속처 미정) |
 | **D_min 확인** | 없음 | D_min 미만 시 즉시 검증자 세트에서 제거 |
-| **보상 시스템** | 없음 (본드 반환만) | 시뇨리지 분배 (α/n) · y(x) |
+| **보상 시스템** | 없음 (본드 반환만) | 시뇨리지 분배 V3: (α · S_i) / \|V_i\| |
 | **담보금 시뇨리지** | 없음 | 유지 담보금 시뇨리지 → 검증자, 몰수분 → TBD |
 
 ### 1.2 L2별 검증자 등록 방식
@@ -156,7 +156,7 @@ struct ValidatorRegistration {
     uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액 (증거 제출 시 복구)
 
     // Slot 3: 32 bytes
-    uint256 pendingRewards;         // 해당 SystemConfig(L2)에서 받은 검증자 보상 중 미청구 금액 (백서 공식 13: (α/n)·y(x))
+    uint256 pendingRewards;         // 해당 SystemConfig(L2)에서 받은 검증자 보상 중 미청구 금액 (백서 V3 공식 13: (α·S_i) / |V_i|)
 
     // Slot 4: 32 bytes
     uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor (시뇨리지 계산용, 재예치 시 현행화)
@@ -1122,22 +1122,26 @@ function triggerAttentionTest(...) external onlyLayer2Manager {
 
 ### 6.6 검증자 보상 분배 (SeigManager → RAT)
 
-**백서 공식 (13):**
+**백서 V3 공식 (13), (14):**
 ```
-v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
+v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|    ... (13) 검증자 j의 총 보상
+o_i = (1 − α) · S_i                      ... (14) 시퀀서 보상
+
+V_i = L2 i에 할당된 검증자 집합
+|V_i| = 해당 L2의 활성 검증자 수
+|V_i| = 0 이면 α · S_i → DAO Treasury
 ```
 
-> **TBD: 검증자 보상 분배 방식**
+> **✅ V3 백서에서 해결됨**
 >
-> 백서 공식 (13)의 `v_i = (α/n) · y(x)` 해석이 모호합니다:
-> - 해석 1: 전체 y(x)에서 균등 분배 (모든 검증자 동일 보상)
-> - 해석 2: L2별 S_i에서 분배 (L2 성과에 따라 다른 보상)
+> V2에서는 `v_i = (α/n)·y(x)` 공식의 해석이 모호했으나,
+> V3 백서(2025-12-16)에서 **L2별 V_i 집합 기반 분배**로 명확화되었습니다.
 >
-> **현재 구현:** L2별 성과(S_i)에 따라 분배 (해석 2)
-> 백서 Figure 3에서 Validator가 L2별 TVL 구간에서 분배받는 것으로 표시되어 있어 이 해석을 채택합니다.
-> 추후 백서 확정 시 재검토 필요.
+> - 검증자는 특정 L2(들)에 할당됨
+> - 각 L2별로 `(α · S_i) / |V_i|` 분배
+> - 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → **DAO Treasury**
 
-**분배 흐름 (L2별 분배):**
+**분배 흐름 (L2별 분배, V3 백서):**
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  1. SeigManager.updateSeigniorage()                                 │
@@ -1150,9 +1154,9 @@ v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
 ┌─────────────────────────────────────────────────────────────────────┐
 │  2. RAT.distributeValidatorReward(systemConfig, amount)             │
 │     - amount = α · S_i                                              │
-│     - n = 해당 L2의 활성 검증자 수                                   │
-│     - n > 0: 각 검증자당 amount / n                                 │
-│     - n = 0: 미분배 (TBD: 귀속처 정책 결정 필요)                    │
+│     - |V_i| = 해당 L2의 활성 검증자 수 (activeCount)                │
+│     - |V_i| > 0: 각 검증자당 amount / |V_i| (V3 공식 13)           │
+│     - |V_i| = 0: amount → DAO Treasury (V3 백서 명시)              │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1164,58 +1168,60 @@ v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
 
 ```solidity
 /// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
+/// @dev V3 백서 공식 13: (α · S_i) / |V_i|
+/// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
 /// @param systemConfig L2의 SystemConfig 주소
 /// @param amount 해당 L2의 검증자 몫 (α · S_i)
 function distributeValidatorReward(address systemConfig, uint256 amount) external {
     // SeigManager에서만 호출 가능
     require(msg.sender == seigManager, "not seig manager");
 
-    ValidatorPool storage pool = validatorPools[systemConfig];
+    ValidatorPoolInfo storage pool = validatorPools[systemConfig];
 
-    // 검증자가 없으면 미분배 (TBD: 귀속처 정책 결정 필요)
-    if (pool.activeValidatorCount == 0) {
-        // 현재는 컨트랙트에 보관 (추후 정책에 따라 DAO 귀속 등 결정)
-        undistributedRewards += amount;
-        emit ValidatorRewardUndistributed(systemConfig, amount);
+    // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+    if (pool.activeCount == 0) {
+        if (treasury != address(0) && amount > 0) {
+            IERC20(wton).safeTransfer(treasury, amount);
+            emit ValidatorRewardToTreasury(systemConfig, amount);
+        }
         return;
     }
 
-    // 각 검증자에게 균등 분배: amount / n
-    uint256 perValidator = amount / pool.activeValidatorCount;
+    // 각 검증자에게 균등 분배: amount / |V_i| (V3 공식 13)
+    uint256 perValidator = amount / pool.activeCount;
 
     // 해당 SystemConfig의 각 활성 검증자에게 보상 누적
-    address[] storage validators = activeValidators[systemConfig];
-    for (uint256 i = 1; i < validators.length; i++) {
-        address validator = validators[i];
-        bytes32 regId = _getRegistrationId(validator, systemConfig);
-        if (registrations[regId].isActive) {
-            registrations[regId].pendingRewards += perValidator;
+    address[] storage validators = pool.validators;
+    uint256 len = validators.length;
+    for (uint256 i = 0; i < len; i++) {
+        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validators[i]];
+        if (reg.isActive) {
+            reg.pendingRewards += perValidator;
         }
     }
 
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    emit ValidatorRewardDistributed(systemConfig, layer2, amount, pool.activeValidatorCount);
+    emit RewardDistributed(systemConfig, amount, pool.activeCount);
 }
 ```
 
-**분배 예시:**
+**분배 예시 (V3 백서 기준):**
 ```
 L2 시뇨리지: S_i = 1,000 WTON
 검증자 분배 비율: α = 20%
-해당 L2의 활성 검증자 수: n = 5명
+해당 L2의 활성 검증자 수: |V_i| = 5명
 
 1. SeigManager.updateSeigniorage():
-   - L2별 검증자 몫 = 1,000 × 20% = 200 WTON
+   - L2별 검증자 몫 = α · S_i = 1,000 × 20% = 200 WTON
    - RAT.distributeValidatorReward(systemConfig, 200) 호출
 
 2. RAT.distributeValidatorReward(systemConfig, 200):
-   - n = 5 (검증자 있음)
-   - 각 검증자당 = 200 / 5 = 40 WTON
+   - |V_i| = 5 (검증자 있음)
+   - 각 검증자당 = 200 / 5 = 40 WTON (V3 공식 13)
    - 각 검증자의 pendingRewards에 40 WTON 누적
 
-검증자가 없는 경우 (n = 0):
-   - undistributedRewards에 200 WTON 누적
-   - TBD: 추후 정책에 따라 DAO 귀속 또는 다른 처리
+검증자가 없는 경우 (|V_i| = 0):
+   - V3 백서 명시: α · S_i (200 WTON) → DAO Treasury 전송
+   - emit ValidatorRewardToTreasury(systemConfig, 200)
 ```
 
 ### 6.7 담보금 출금 (coinage factor 기반 시뇨리지 계산)
@@ -1481,7 +1487,7 @@ activeValidators[systemConfig][]  // L2마다 별도 풀
 
 | Optimism | TON V3 |
 |----------|--------|
-| 보상 없음 | SystemConfig별 시뇨리지 분배 (α/n)·y(x) |
+| 보상 없음 | SystemConfig별 시뇨리지 분배 V3: (α·S_i) / \|V_i\| |
 
 ### 7.5 트리거 시점
 
@@ -1604,16 +1610,19 @@ contract Layer2ManagerV1_2 {
 
 검증자 보상은 각 L2의 시뇨리지 계산 시 함께 처리됩니다.
 
-**백서 공식 (13):**
+**백서 V3 공식 (13), (14):**
 ```
-v_i = (α/n) · y(x),    o_i = (1 - α) · S_i
+v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|    ... (13) 검증자 보상
+o_i = (1 − α) · S_i                      ... (14) 시퀀서 보상
+
+|V_i| = 0 이면 α · S_i → DAO Treasury
 ```
 
-> **TBD: 검증자 보상 분배 방식**
+> **✅ V3 백서에서 해결됨**
 >
-> 백서 공식 해석이 모호하여, 현재는 **L2별 성과(S_i)에 따라 분배**하는 방식으로 구현합니다.
-> 검증자가 없는 L2의 경우 해당 검증자 몫(α · S_i)은 **미분배** 처리됩니다.
-> 추후 백서 확정 시 재검토 필요.
+> V3 백서(2025-12-16)에서 검증자 보상 분배 방식이 명확화되었습니다:
+> - L2별 V_i (검증자 집합) 기반 분배
+> - 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → **DAO Treasury**
 
 ```solidity
 // SeigManagerV1_4.sol
@@ -1638,7 +1647,7 @@ function updateSeigniorage() external {
         _distributeToSequencer(systemConfig, sequencerAmount);
 
         // 검증자에게 분배 (RAT 통해)
-        // 검증자가 없으면 RAT에서 미분배 처리
+        // V3 백서: 검증자가 없으면 RAT에서 DAO Treasury로 전송
         if (validatorAmount > 0 && rat != address(0)) {
             IWTON(wton).mint(address(this), validatorAmount);
             IERC20(wton).approve(rat, validatorAmount);
@@ -1648,13 +1657,11 @@ function updateSeigniorage() external {
 }
 ```
 
-> **TBD: 검증자 없을 때 미분배분 처리**
+> **✅ V3 백서에서 해결됨: 검증자 없을 때 처리**
 >
-> L2에 검증자가 없으면 해당 L2의 검증자 몫(α · S_i)은 RAT 컨트랙트의 `undistributedRewards`에 누적됩니다.
-> 이 미분배분의 처리 방안은 추후 정책 결정이 필요합니다:
-> - 옵션 1: DAO로 귀속
-> - 옵션 2: 시퀀서에게 추가 분배
-> - 옵션 3: 컨트랙트에 보관 (현재 구현)
+> V3 백서(2025-12-16)에서 명확화:
+> L2에 검증자가 없으면(|V_i| = 0) 해당 L2의 검증자 몫(α · S_i)은 **DAO Treasury**로 전송됩니다.
+> RAT.distributeValidatorReward()에서 자동 처리됨.
 
 ---
 
@@ -1740,11 +1747,91 @@ C_off ≥ (0.01 × 100) / 0.1 = 10 TON
 - [ ] 검증자 수 변화에 따른 C_off 최소값 검증
 
 ### 10.4 보상 분배
-- [ ] 검증자 보상 분배 (α/n)·y(x)
-- [ ] 검증자 없는 L2의 미분배 처리
+- [ ] 검증자 보상 분배 V3: (α·S_i) / |V_i|
+- [ ] 검증자 없는 L2(|V_i| = 0): α·S_i → DAO Treasury
 - [ ] 보상 청구 (claimRewards, claimRewardsBatch)
 
 ### 10.5 기타
 - [ ] 파라미터 변경 권한 (ratManager)
 - [ ] 업그레이드 호환성
 - [ ] 이벤트 기반 자금 추적 (AttentionTestTriggered/EvidenceSubmitted/BondRestored)
+
+---
+
+## 11. 관련 코드 파일
+
+| 파일 | 설명 | 핵심 라인 |
+|------|------|----------|
+| `src/validator/RAT.sol` | RAT 메인 컨트랙트 | `distributeValidatorReward()` - V3 공식 13 구현 |
+| `src/validator/IRAT.sol` | RAT 인터페이스 | `ValidatorRewardToTreasury` 이벤트 - V3 \|V_i\|=0 처리 |
+| `src/stake/managers/SeigManagerV1_4.sol` | 시뇨리지 분배 | `updateSeigniorage()` - L2별 검증자 몫 계산 |
+
+### 11.1 RAT.sol 핵심 함수
+
+```solidity
+// src/validator/RAT.sol
+
+/// @dev V3 백서 공식 13: (α · S_i) / |V_i|
+/// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
+function distributeValidatorReward(address systemConfig, uint256 amount)
+    external
+    onlySeigManager
+{
+    ValidatorPoolInfo storage pool = validatorPools[systemConfig];
+
+    // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+    if (pool.activeCount == 0) {
+        if (treasury != address(0) && amount > 0) {
+            IERC20(wton).safeTransfer(treasury, amount);
+            emit ValidatorRewardToTreasury(systemConfig, amount);
+        }
+        return;
+    }
+
+    // V3 공식 13: (α · S_i) / |V_i|
+    uint256 perValidator = amount / pool.activeCount;
+    // ... 각 검증자에게 보상 누적
+}
+```
+
+### 11.2 IRAT.sol 이벤트
+
+```solidity
+// src/validator/IRAT.sol
+
+/// @notice 검증자 미할당 시 Treasury 귀속 이벤트
+/// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
+event ValidatorRewardToTreasury(
+    address indexed systemConfig,
+    uint256 amount
+);
+```
+
+---
+
+## 12. V3 백서 준수 확인
+
+| 항목 | V3 백서 요구사항 | 구현 상태 |
+|------|-----------------|----------|
+| 공식 (13) | v_j = Σ_{i: j∈V_i} (α · S_i) / \|V_i\| | ✅ RAT.distributeValidatorReward() |
+| 공식 (14) | o_i = (1 − α) · S_i | ✅ SeigManagerV1_4 |
+| V_i 개념 | L2별 검증자 집합 | ✅ validatorPools[systemConfig] |
+| \|V_i\| = 0 처리 | α·S_i → DAO Treasury | ✅ ValidatorRewardToTreasury 이벤트 |
+| 검증자 할당 | L2별 등록 | ✅ registerValidator(systemConfig, amount) |
+
+---
+
+## 13. 참고 문서
+
+- `Tokamak_Economics_Whitepaper_V3.pdf` (December 16, 2025)
+- `docs/for-llm-kr/whitepaper_v2_to_v3_changes.md` - V2 → V3 변경사항
+- `docs/for-llm-kr/02_v3_distribution.md` - V3 분배 공식 상세
+- `docs/for-llm-kr/04_validator.md` - 검증자 보상 상세
+
+---
+
+## 14. 변경 이력
+
+| 날짜 | 내용 |
+|------|------|
+| 2025-12-18 | V3 백서 반영: 공식 (13), (14) 업데이트, \|V_i\|=0 처리 추가 |

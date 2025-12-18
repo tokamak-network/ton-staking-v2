@@ -47,13 +47,16 @@ A (전체 시뇨리지)
     ├─► L2별 시뇨리지 (백서 공식 12):
     │   Seig_i = y(x) · (B̃_i / x)
     │
-    ├─► 시퀀서/검증자 분배 (백서 공식 13):
-    │   o_i = (1 - α) · Seig_i    // 시퀀서
-    │   v_total = α · y(x)        // 검증자 풀
+    ├─► 시퀀서/검증자 분배 (백서 V3 공식 13, 14):
+    │   o_i = (1 - α) · S_i                    // (14) 시퀀서 보상
+    │   v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|  // (13) 검증자 보상
+    │
+    │   V_i = L2 i에 할당된 검증자 집합
+    │   |V_i| = 0 이면 α · S_i → DAO Treasury
     │
     └─► 미분배분 DAO Treasury 귀속:
         미분배 = L - y(x)
-        totalDAO = S_DAO + 미분배
+        totalDAO = S_DAO + 미분배 + Σ(검증자 없는 L2의 α·S_i)
         → DAO Treasury로 전송
 ```
 
@@ -132,6 +135,37 @@ A₂ = A · (1 - 0) · (1 - 0) = A
 - ❌ V2: TVL 기반 L2 보상 → ✅ V3: 성과(Bridged TON) 기반 + 자격 조건
 - ❌ V2: 검증자 보상 없음 → ✅ V3: 검증자에게 α 비율 분배
 - ❌ V2: 선형 분배 → ✅ V3: 쌍곡선 포화 함수 (수확체감)
+- ❌ V2: 기간 평균값 측정 → ✅ V3: 온체인 호출 시점 최신값 측정
+
+### 6.1 측정 방식 변경 (V3 백서)
+
+V3 백서에서 Bridged TON, Staked TON 측정 방식이 변경되었습니다.
+
+| 구분 | V2 | V3 |
+|------|-----|-----|
+| **측정 방식** | 기간 평균값 (averaged values over the period) | 온체인 호출 시점 최신값 (latest observed values) |
+| **샘플링** | 주기적 스냅샷 기반 | 고정 간격 아님, 온체인 호출 기반 |
+| **데이터 소스** | 과거 블록 범위의 평균 | 호출 시점의 현재 상태 |
+
+**V3 측정 방식 장점:**
+- **단순성**: 별도의 스냅샷/평균 계산 불필요
+- **실시간성**: 현재 상태를 즉시 반영
+- **가스 효율성**: 추가적인 스토리지/계산 불필요
+
+**구현 차이:**
+```solidity
+// V2 (기간 평균) - 복잡한 스냅샷 로직
+uint256 averageBridgedTON = calculatePeriodAverage(l2, startBlock, endBlock);
+uint256 averageStakedTON = getAverageStaked(l2, startBlock, endBlock);
+
+// V3 (최신값) - 단순한 현재값 조회
+uint256 currentBridgedTON = getBridgedTON(l2);  // L1BridgeRegistry.layer2TVL()
+uint256 currentStakedTON = getStakedAmount(l2);  // Layer2Manager.stakedAmount()
+```
+
+**관련 코드:**
+- `src/layer2/Layer2ManagerV1_2.sol`: `getBridgedTON()`, `getBridgedTONByLayer()`
+- `src/stake/managers/SeigManagerV1_4.sol`: `updateBridgedTON()`, `checkCurrentEligibility()`
 
 ---
 
@@ -235,14 +269,27 @@ totalY = rmul(l2MaxAllocation, rdiv(totalX, halfSaturationPoint + totalX))
 //    → x가 커질수록 단위당 보상 감소 (수확체감)
 bridgedTONRewardPerUint += (totalY × WEI_UNIT) / totalEffectiveBridgedTON
 
-// 3. L2별 보상 계산 (V2와 동일한 패턴)
+// 3. L2별 시뇨리지 계산 (백서 공식 12)
+//    S_i = y(x) · (B̃_i / x)
 layer2Seigs = (bridgedTONRewardPerUint × B̃_i) / WEI_UNIT - initialDebt_i
 
-// 4. 시퀀서/검증자 분리 (백서 공식 13)
-// 검증자 풀: α · y(x) 전체에서 먼저 분리
-// 시퀀서: 각 L2별로 (1 - α) · S_i
-sequencerReward = layer2Seigs  // 시퀀서 (이미 α 제외된 금액)
-// validatorPool = α · y(x) (전체에서 한번에 분배)
+// 4. 시퀀서/검증자 분리 (백서 V3 공식 13, 14)
+//
+//    (14) 시퀀서 보상: o_i = (1 - α) · S_i
+sequencerReward = rmul(layer2Seigs, RAY - validatorDistributionRatio)
+
+//    (13) 검증자 보상: v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|
+//    - V_i = L2 i에 할당된 검증자 집합
+//    - |V_i| = L2 i의 검증자 수
+validatorAmount = rmul(layer2Seigs, validatorDistributionRatio)  // α · S_i
+
+// RAT 컨트랙트에서 L2별로 검증자에게 분배:
+if (validatorCount > 0) {
+    perValidatorReward = validatorAmount / validatorCount  // (α · S_i) / |V_i|
+} else {
+    // |V_i| = 0 이면 DAO Treasury로 귀속
+    transfer(treasury, validatorAmount)
+}
 
 // 5. 초기부채 갱신
 initialDebt_i = (bridgedTONRewardPerUint × newB̃_i) / WEI_UNIT
@@ -252,6 +299,8 @@ initialDebt_i = (bridgedTONRewardPerUint × newB̃_i) / WEI_UNIT
 - `bridgedTONRewardPerUint`: Bridged TON 1단위당 누적 보상
 - 동일한 `initialDebt` 패턴 사용 (V2 호환)
 - **수확체감**: 전체 x가 커지면 단위당 보상 `L/(k+x)` 감소
+- **L2별 검증자 분배**: 각 L2의 시뇨리지에서 검증자 몫 분리
+- **검증자 미할당 시 DAO 귀속**: |V_i| = 0 이면 α · S_i → Treasury
 
 ### 8.2 비교 다이어그램
 
@@ -296,20 +345,40 @@ y(x)
 | **총 분배량** | `l2TotalSeigs = 상수×TVL` | `y(x) = L×(x/(k+x))` |
 | **단위당 공식** | `l2TotalSeigs / totalTVL` | `y(x) / x = L / (k+x)` |
 | **특성** | 선형 (2배 TVL = 2배 보상) | 수확체감 (한계효용 감소) |
+| **측정 방식** | 기간 평균값 | 온체인 호출 시점 최신값 |
 
 ---
 
 ## 9. 백서 수식 vs 구현 함수 매핑
 
-| 백서 공식 | 수식 | V3 구현 함수 |
-|----------|------|-------------|
-| (7) | `S_DAO = d · A₂` | `rmul(A2, daoDistributionRatio)` |
-| (8) | `S_i ≥ θ · B_i` | `checkEligibility()` |
-| (9) | `1_i = {1 if eligible, 0 otherwise}` | `getIndicator()` |
-| (10) | `x = Σ B̃_i` | `totalEffectiveBridgedTON` (캐시됨) |
-| (11) | `y(x) = L · (x/(k+x))` | `hyperbolicSaturation()` |
-| (12) | `Seig_i = y(x) · (B̃_i/x)` | `calculateL2Seigniorage()` |
-| (13) | `v_i = (α/n)·y(x), o_i = (1-α)·Seig_i` | `ValidatorPool.distributePeriodRewards()`, `calculateSequencerReward()` |
+| 백서 공식 | 수식 | V3 구현 함수 | 파일 |
+|----------|------|-------------|------|
+| (7) | `S_DAO = d · A₂` | `rmul(A2, daoDistributionRatio)` | `SeigManagerV1_4.sol` |
+| (8) | `S_i ≥ θ · B_i` | `checkCurrentEligibility()` | `SeigManagerV1_4.sol:339` |
+| (9) | `1_i = {1 if eligible, 0 otherwise}` | `bridgedTONInfo[layer2].isEligible` | `SeigManagerV1_4.sol` |
+| (10) | `x = Σ B̃_i` | `totalEffectiveBridgedTON` | `SeigManagerV1_4Storage.sol` |
+| (11) | `y(x) = L · (x/(k+x))` | `hyperbolicSaturation()` | `SeigManagerV1_4.sol:392` |
+| (12) | `S_i = y(x) · (B̃_i/x)` | `calculateL2Seigniorage()` | `SeigManagerV1_4.sol:405` |
+| **(13)** | `v_j = Σ_{i: j∈V_i} (α·S_i) / \|V_i\|` | `RAT.distributeValidatorReward()` | `RAT.sol:585` |
+| **(14)** | `o_i = (1 - α) · S_i` | `calculateSequencerReward()` | `SeigManagerV1_4.sol:420` |
+
+### 9.1 V3 백서 공식 (13), (14) 상세
+
+**공식 (13) - 검증자 보상:**
+```
+v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|
+```
+- `v_j`: 검증자 j가 받는 총 보상
+- `V_i`: L2 i에 할당된 검증자 집합
+- `|V_i|`: L2 i에 할당된 검증자 수
+- `|V_i| = 0`이면 `α · S_i` → DAO Treasury
+
+**공식 (14) - 시퀀서 보상:**
+```
+o_i = (1 - α) · S_i
+```
+- `o_i`: L2 i의 시퀀서가 받는 보상
+- `S_i`: L2 i의 시뇨리지
 
 ---
 
@@ -331,15 +400,67 @@ y(x)
 - 생태계 재투자, 공공 인프라 개발 등에 사용 가능 (백서 명시)
 ```
 
-**분배 흐름:**
+**분배 흐름 (V3):**
 ```
 A₂ (V3 분배 재원)
 ├─► S_DAO = d · A₂        → DAO Treasury (고정 분배)
 └─► L = (1-d) · A₂        → L2 분배 가능량
-    ├─► y(x)              → L2 시퀀서 + 검증자
+    ├─► y(x)              → L2별 분배
+    │   ├─► (1-α)·S_i     → 시퀀서 (공식 14)
+    │   └─► α·S_i         → 검증자 (공식 13)
+    │       ├─► |V_i| > 0  → V_i 검증자들에게 균등 분배
+    │       └─► |V_i| = 0  → DAO Treasury 귀속 ✅
     └─► L - y(x)          → DAO Treasury (미분배분)
 
-∴ totalDAO = S_DAO + (L - y(x))
-           = d·A₂ + (1-d)·A₂ - y(x)
-           = A₂ - y(x)
+∴ totalDAO = S_DAO + (L - y(x)) + Σ(검증자 없는 L2의 α·S_i)
 ```
+
+---
+
+## 11. 관련 코드 파일
+
+### 11.1 핵심 구현 파일
+
+| 파일 | 경로 | 역할 |
+|------|------|------|
+| **SeigManagerV1_4.sol** | `src/stake/managers/SeigManagerV1_4.sol` | V3 시뇨리지 분배 메인 로직 |
+| **RAT.sol** | `src/validator/RAT.sol` | 검증자 보상 분배 |
+| **IRAT.sol** | `src/validator/IRAT.sol` | RAT 인터페이스 |
+
+### 11.2 주요 함수 매핑
+
+| 백서 공식 | 함수 | 파일:라인 |
+|----------|------|----------|
+| `y(x) = L·(x/(k+x))` | `hyperbolicSaturation()` | `SeigManagerV1_4.sol:392-402` |
+| `S_i = y(x)·(B̃_i/x)` | `calculateL2Seigniorage()` | `SeigManagerV1_4.sol:405-417` |
+| `o_i = (1-α)·S_i` | `calculateSequencerReward()` | `SeigManagerV1_4.sol:420-427` |
+| `v_j = Σ(α·S_i)/\|V_i\|` | `distributeValidatorReward()` | `RAT.sol:585-614` |
+
+---
+
+## 12. V3 백서 일치 여부 점검
+
+### 12.1 점검 결과 요약
+
+| 항목 | V3 백서 요구사항 | 현재 코드 | 일치 여부 |
+|------|-----------------|----------|----------|
+| **쌍곡선 포화 함수** | `y(x) = L·(x/(k+x))` | `hyperbolicSaturation()` | ✅ 일치 |
+| **L2별 시뇨리지** | `S_i = y(x)·(B̃_i/x)` | `calculateL2Seigniorage()` | ✅ 일치 |
+| **시퀀서 보상 (14)** | `o_i = (1-α)·S_i` | `calculateSequencerReward()` | ✅ 일치 |
+| **검증자 보상 (13)** | `v_j = Σ(α·S_i)/\|V_i\|` | `distributeValidatorReward()` | ✅ 일치 |
+| **검증자 미할당 시** | `\|V_i\|=0` → DAO Treasury | `treasury`로 전송 | ✅ 일치 |
+
+### 12.2 구현 완료 항목 (2025-12-18)
+
+| 항목 | 파일 | 상태 |
+|------|------|------|
+| 검증자 미할당 시 DAO Treasury 귀속 | `RAT.sol:592-598` | ✅ 완료 |
+| `ValidatorRewardToTreasury` 이벤트 | `IRAT.sol:101-106` | ✅ 완료 |
+
+---
+
+## 13. 참조 문서
+
+- **검증자 문서**: [04_validator.md](./04_validator.md)
+- **V3 백서 변경사항**: [whitepaper_v2_to_v3_changes.md](./whitepaper_v2_to_v3_changes.md)
+- **V3 문서 갭 분석**: [v3_docs_gap_analysis.md](./v3_docs_gap_analysis.md)
