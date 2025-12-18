@@ -237,7 +237,8 @@ function setValidatorDistributionRatio(uint256 ratio) external onlyOwner;
 function setHalfSaturationPoint(uint256 k) external onlyOwner;
 function setStakedSeigFactor(uint256 lambda) external onlyOwner;
 function setRelativeSeigRate(uint256 rate) external onlyOwner;
-function setValidatorPool(address pool) external onlyOwner;
+function setRatContract(address rat) external onlyOwner;
+function setValidatorReward(address validatorReward) external onlyOwner;
 ```
 
 ### 8.2 슬래싱 컨트랙트 (시퀀서)

@@ -62,7 +62,7 @@ contract MockOptimismPortal is Ownable {
     }
 
     function claim(address token, address to, uint256 amount) external onlyOwner {
-        IERC20(token).transfer(to, amount);
+        require(IERC20(token).transfer(to, amount), "transfer failed");
     }
 }
 
@@ -92,14 +92,14 @@ contract MockSystemConfig is Ownable {
 
         bridge.setPortal(portal);
 
-        addresses = Addresses(
-            address(0),
-            address(0),
-            address(bridge),
-            address(0),
-            portal,
-            address(0)
-        );
+        addresses = Addresses({
+            l1CrossDomainMessenger: address(0),
+            l1ERC721Bridge: address(0),
+            l1StandardBridge: address(bridge),
+            l2OutputOracle: address(0),
+            optimismPortal: portal,
+            optimismMintableERC20Factory: address(0)
+        });
     }
 
     receive() external payable {

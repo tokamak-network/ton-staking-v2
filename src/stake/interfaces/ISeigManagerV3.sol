@@ -66,8 +66,8 @@ interface ISeigManagerV3 {
     /// @notice 반포화점 변경 이벤트
     event HalfSaturationPointUpdated(uint256 newK);
 
-    /// @notice 검증자 풀 설정 이벤트
-    event ValidatorPoolUpdated(address newPool);
+    /// @notice 검증자 보상 컨트랙트 설정 이벤트
+    event ValidatorRewardUpdated(address newReward);
 
     /// @notice V3 마이그레이션 완료 이벤트
     event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
@@ -152,8 +152,8 @@ interface ISeigManagerV3 {
     /// @notice 지분 시뇨리지 비율 설정 (V2→V3 전환)
     function setStakedSeigFactor(uint256 lambda) external;
 
-    /// @notice 검증자 풀 주소 설정
-    function setValidatorPool(address pool) external;
+    /// @notice 검증자 보상 컨트랙트 주소 설정
+    function setValidatorReward(address reward) external;
 
     /// @notice 최대 챌린저 수 설정
     function setMaxChallengers(uint256 hMax) external;

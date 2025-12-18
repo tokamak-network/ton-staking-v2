@@ -8,7 +8,7 @@ import {ILayer2Registry} from "../../dao/interfaces/ILayer2Registry.sol";
 import {ILayer2} from "../../dao/interfaces/ILayer2.sol";
 import {IWTON} from "../../dao/interfaces/IWTON.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../proxy/ProxyStorage.sol";
+import {ProxyStorage} from "../../proxy/ProxyStorage.sol";
 import {AccessibleCommon} from "../../common/AccessibleCommon.sol";
 import {DepositManagerStorage} from "./DepositManagerStorage.sol";
 import {DepositManagerV1_1Storage} from "./DepositManagerV1_1Storage.sol";

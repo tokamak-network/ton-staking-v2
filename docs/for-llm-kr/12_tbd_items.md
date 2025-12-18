@@ -361,7 +361,6 @@ function withdrawCollateral() external {
 
 - **Tokamak Economics Whitepaper V3** (December 16, 2025) - 최신
 - **Tokamak Economics Whitepaper V2** (December 9, 2025)
-- [whitepaper_v2_to_v3_changes.md](./whitepaper_v2_to_v3_changes.md): V2 → V3 변경사항
 - [04_validator.md](./04_validator.md): 검증자 등록/보상
 - [05_validator_slashing.md](./05_validator_slashing.md): 검증자 슬래싱
 - [07_rat_implementation.md](./07_rat_implementation.md): RAT 구현체

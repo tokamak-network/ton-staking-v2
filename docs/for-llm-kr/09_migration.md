@@ -5,25 +5,29 @@
 ```
 1. SeigManagerV1_4Storage 배포
 2. SeigManagerV1_4 로직 배포
-3. ValidatorPoolStorage 배포
-4. ValidatorPoolV1 배포
-5. Layer2ManagerV1_2 로직 배포
-6. L1BridgeRegistryV1_2 로직 배포
+3. RATStorage 배포
+4. RAT 배포 (검증자 등록/담보금/슬래싱)
+5. ValidatorRewardStorage 배포
+6. ValidatorRewardV1 배포 (검증자 보상 분배)
+7. Layer2ManagerV1_2 로직 배포
+8. L1BridgeRegistryV1_2 로직 배포
 
-7. 프록시 업그레이드:
+9. 프록시 업그레이드:
    - ProxySeigManager.upgradeTo(SeigManagerV1_4)
    - ProxyLayer2Manager.upgradeTo(Layer2ManagerV1_2)
    - ProxyL1BridgeRegistry.upgradeTo(L1BridgeRegistryV1_2)
 
-8. 초기 파라미터 설정:
-   - setDaoDistributionRatio(0.2e27)     // d = 20%
-   - setMinStakingRatio(0.1e27)          // θ = 10%
-   - setValidatorDistributionRatio(0.2e27) // α = 20%
-   - setHalfSaturationPoint(10_000_000e27) // k = 1000만 TON
-   // 초기에는 v3Migrated = false (V2 모드)
+10. 초기 파라미터 설정:
+    - setDaoDistributionRatio(0.2e27)     // d = 20%
+    - setMinStakingRatio(0.1e27)          // θ = 10%
+    - setValidatorDistributionRatio(0.2e27) // α = 20%
+    - setHalfSaturationPoint(10_000_000e27) // k = 1000만 TON
+    // 초기에는 v3Migrated = false (V2 모드)
 
-9. ValidatorPool 연결:
-   - SeigManager.setValidatorPool(ValidatorPoolV1)
+11. 검증자 컨트랙트 연결:
+    - SeigManager.setRatContract(RAT)
+    - SeigManager.setValidatorReward(ValidatorRewardV1)
+    - ValidatorRewardV1.setRatContract(RAT)
 ```
 
 ---
@@ -121,7 +125,7 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 
 - [ ] V2 → V3 마이그레이션 시나리오
 - [ ] updateSeigniorageV3() 전체 플로우
-- [ ] ValidatorPool 보상 분배
+- [ ] ValidatorReward 보상 분배 (distributeL2Rewards, claimAllRewards)
 - [ ] 자격 상실 시 시뇨리지 재분배
 - [ ] Layer2Manager → SeigManager 콜백 테스트
 - [ ] L1Bridge → SeigManager 콜백 테스트
@@ -180,8 +184,10 @@ ratResponseWindow = 1 hours;
 | **Layer2ManagerV1_2** | 업그레이드 | Bridged TON 조회/업데이트, 자격 확인 |
 | **L1BridgeRegistryV1_2** | 업그레이드 | Bridged TON 조회 함수 추가 |
 | **DepositManagerV1_2** | 업그레이드 | 구조화된 출금 요청 및 일괄 처리 지원 |
-| **ValidatorPoolV1** | 신규 | RAT 검증자 보상 관리 |
-| **ValidatorPoolStorage** | 신규 | 검증자 데이터 스토리지 |
+| **RAT** | 신규 | 검증자 등록/담보금/슬래싱 |
+| **RATStorage** | 신규 | RAT 스토리지 |
+| **ValidatorRewardV1** | 신규 | 검증자 보상 분배 (Per-L2 추적) |
+| **ValidatorRewardStorage** | 신규 | ValidatorReward 스토리지 |
 
 ---
 

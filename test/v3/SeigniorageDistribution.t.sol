@@ -19,7 +19,7 @@ contract MockSeigManagerV3Distribution {
 
     address public owner;
     address public dao;
-    address public validatorPool;
+    address public validatorReward;
     address public layer2Manager;
     MockWTON public wton;
 
@@ -87,8 +87,8 @@ contract MockSeigManagerV3Distribution {
         dao = _dao;
     }
 
-    function setValidatorPool(address _pool) external {
-        validatorPool = _pool;
+    function setValidatorReward(address _reward) external {
+        validatorReward = _reward;
     }
 
     function setLayer2Manager(address _manager) external {
@@ -286,8 +286,8 @@ contract MockSeigManagerV3Distribution {
         if (daoSeig > 0 && dao != address(0)) {
             wton.mint(dao, daoSeig);
         }
-        if (validatorSeig > 0 && validatorPool != address(0)) {
-            wton.mint(validatorPool, validatorSeig);
+        if (validatorSeig > 0 && validatorReward != address(0)) {
+            wton.mint(validatorReward, validatorSeig);
         }
         if (sequencerSeig > 0 && layer2Manager != address(0)) {
             wton.mint(layer2Manager, sequencerSeig);
@@ -386,7 +386,7 @@ contract SeigniorageDistributionTest is Test {
     MockTON public ton;
 
     address public dao = address(0x1);
-    address public validatorPool = address(0x2);
+    address public validatorReward = address(0x2);
     address public layer2Manager = address(0x3);
 
     address public layer2_1 = address(0x10);
@@ -402,7 +402,7 @@ contract SeigniorageDistributionTest is Test {
 
         seigManager = new MockSeigManagerV3Distribution(address(wton));
         seigManager.setDAO(dao);
-        seigManager.setValidatorPool(validatorPool);
+        seigManager.setValidatorReward(validatorReward);
         seigManager.setLayer2Manager(layer2Manager);
     }
 

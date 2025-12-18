@@ -16,6 +16,7 @@ import {ILayer2Manager} from "../../layer2/interfaces/ILayer2Manager.sol";
 import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
 import {IOptimismSystemConfig} from "../../layer2/interfaces/IOptimismSystemConfig.sol";
 import {ISequencerVault} from "../../sequencer/ISequencerVault.sol";
+import {IValidatorReward} from "../../validator/IValidatorReward.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import {AuthControlSeigManager} from "../../common/AuthControlSeigManager.sol";
@@ -199,11 +200,11 @@ contract SeigManagerV1_4 is
         emit StakedSeigFactorUpdated(lambda);
     }
 
-    /// @notice 검증자 풀 주소 설정
-    function setValidatorPool(address pool) external onlyOwner {
-        if (pool == address(0)) revert ZeroAddressError();
-        validatorPool = pool;
-        emit ValidatorPoolUpdated(pool);
+    /// @notice 검증자 보상 컨트랙트 주소 설정
+    function setValidatorReward(address reward) external onlyOwner {
+        if (reward == address(0)) revert ZeroAddressError();
+        validatorReward = reward;
+        emit ValidatorRewardUpdated(reward);
     }
 
     /// @notice 최대 챌린저 수 설정
@@ -719,40 +720,45 @@ contract SeigManagerV1_4 is
         // ========================================
         uint256 x = totalEffectiveBridgedTON;
         uint256 y = 0;
-        uint256 validatorPoolAmount = 0;
+        uint256 totalValidatorReward = 0;
 
         if (x > 0) {
             // y(x) = L · (x / (k + x))
             y = hyperbolicSaturation(x, L);
             l2TotalSeigs = y;
 
-            // 검증자 풀: α · y(x) (백서 공식 13)
-            validatorPoolAmount = rmul(y, validatorDistributionRatio);
-
-            // 단위당 보상 누적 (시퀀서용)
-            uint256 sequencerTotal = y - validatorPoolAmount;
-            bridgedTONRewardPerUint += (sequencerTotal * WEI_UNIT) / x;
-
-            // Layer2Manager로 민트 (시퀀서 보상용)
-            if (sequencerTotal > 0) {
-                IWTON(_wton).mint(layer2Manager, sequencerTotal);
-            }
-
             // 개별 L2 보상 정산
-            (, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+            (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
             if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
                 // 호출자의 effectiveBridgedTON 동기화 (isEligible 기반)
                 _syncEffectiveBridgedTON(msg.sender);
 
                 BridgedTONInfo storage info = bridgedTONInfo[msg.sender];
                 if (info.isEligible && info.effectiveBridgedTON > 0) {
-                    layer2Seigs = (bridgedTONRewardPerUint * info.effectiveBridgedTON) / WEI_UNIT - info.initialDebt;
+                    // ========================================
+                    // Per-L2 시뇨리지 계산 (백서 V3 공식)
+                    // S_i = y(x) · (B̃_i / x)
+                    // ========================================
+                    uint256 l2TotalSeigniorage = rmul(y, rdiv(info.effectiveBridgedTON, x));
 
+                    // 검증자 몫: α · S_i (백서 공식 13)
+                    uint256 l2ValidatorReward = rmul(l2TotalSeigniorage, validatorDistributionRatio);
+
+                    // 시퀀서 몫: (1 - α) · S_i (백서 공식 14)
+                    layer2Seigs = l2TotalSeigniorage - l2ValidatorReward;
+
+                    // 시퀀서 보상 전송
                     if (layer2Seigs > 0) {
+                        IWTON(_wton).mint(layer2Manager, layer2Seigs);
                         ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
                     }
 
-                    info.initialDebt = (bridgedTONRewardPerUint * info.effectiveBridgedTON) / WEI_UNIT;
+                    // 검증자 보상 분배 (Per-L2)
+                    if (l2ValidatorReward > 0 && validatorReward != address(0)) {
+                        IWTON(_wton).mint(validatorReward, l2ValidatorReward);
+                        IValidatorReward(validatorReward).distributeL2Rewards(rollupConfig, l2ValidatorReward);
+                        totalValidatorReward += l2ValidatorReward;
+                    }
                 }
             }
         }
@@ -768,12 +774,7 @@ contract SeigManagerV1_4 is
             IWTON(_wton).mint(dao, totalDAO);
         }
 
-        // 검증자 풀 분배
-        if (validatorPoolAmount > 0 && validatorPool != address(0)) {
-            IWTON(_wton).mint(validatorPool, validatorPoolAmount);
-        }
-
-        emit V3SeigniorageDistributed(A2, L, y, totalDAO, validatorPoolAmount);
+        emit V3SeigniorageDistributed(A2, L, y, totalDAO, totalValidatorReward);
     }
 
     /// @notice V2 시뇨리지 분배 (마이그레이션 전 호환)

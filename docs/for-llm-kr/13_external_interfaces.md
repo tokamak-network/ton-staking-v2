@@ -368,7 +368,8 @@ function setDaoDistributionRatio(uint256 ratio) external onlyOwner;      // d
 function setMinStakingRatio(uint256 ratio) external onlyOwner;           // θ
 function setValidatorDistributionRatio(uint256 ratio) external onlyOwner; // α
 function setHalfSaturationPoint(uint256 k) external onlyOwner;           // k
-function setValidatorPool(address pool) external onlyOwner;
+function setRatContract(address rat) external onlyOwner;                 // RAT 컨트랙트
+function setValidatorReward(address reward) external onlyOwner;          // ValidatorReward 컨트랙트
 function migrateToV3() external onlyOwner;                               // V3 모드 전환
 
 // 레거시 (V2 모드에서만 사용)

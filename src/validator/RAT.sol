@@ -104,13 +104,13 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     // ==========================================
 
     /// @notice 검증자 등록 정보 조회
+    /// @dev V3: pendingRewards 제거 - ValidatorReward.getPendingRewards() 사용
     function getValidatorRegistration(address validator, address systemConfig)
         external
         view
         returns (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            uint256 pendingRewards,
             uint32 validatorIndex,
             bool isActive
         )
@@ -119,7 +119,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         return (
             reg.depositedAmount,
             reg.totalBondForRAT,
-            reg.pendingRewards,
             reg.validatorIndex,
             reg.isActive
         );
@@ -196,24 +195,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     /// @return 활성 상태 여부
     function isValidatorActive(address validator, address systemConfig) external view returns (bool) {
         return validatorRegistrations[systemConfig][validator].isActive;
-    }
-
-    /// @inheritdoc IRAT
-    function getTotalPendingRewards(address validator) external view returns (uint256 total) {
-        address[] storage configs = validatorSystemConfigs[validator];
-        uint256 len = configs.length;
-        for (uint256 i = 0; i < len; i++) {
-            total += validatorRegistrations[configs[i]][validator].pendingRewards;
-        }
-    }
-
-    /// @inheritdoc IRAT
-    function getPendingRewards(address validator, address systemConfig)
-        external
-        view
-        returns (uint256)
-    {
-        return validatorRegistrations[systemConfig][validator].pendingRewards;
     }
 
     // ==========================================
@@ -521,74 +502,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         }
 
         emit BondRestored(testId, _claimant, test.systemConfig, restoredAmount);
-    }
-
-    // ==========================================
-    // Rewards
-    // ==========================================
-
-    /// @inheritdoc IRAT
-    function claimRewards(address systemConfig) external ifFree {
-        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
-        if (reg.pendingRewards == 0) revert NoRewardsError();
-
-        uint256 rewards = reg.pendingRewards;
-        reg.pendingRewards = 0;
-
-        IERC20(wton).safeTransfer(msg.sender, rewards);
-
-        emit RewardsClaimed(msg.sender, systemConfig, rewards);
-    }
-
-    /// @inheritdoc IRAT
-    function claimRewardsBatch(address[] calldata systemConfigs) external ifFree {
-        uint256 totalRewards = 0;
-        uint256 len = systemConfigs.length;
-
-        for (uint256 i = 0; i < len; i++) {
-            ValidatorRegistration storage reg = validatorRegistrations[systemConfigs[i]][msg.sender];
-            if (reg.pendingRewards > 0) {
-                totalRewards += reg.pendingRewards;
-                reg.pendingRewards = 0;
-            }
-        }
-
-        if (totalRewards == 0) revert NoRewardsError();
-
-        IERC20(wton).safeTransfer(msg.sender, totalRewards);
-
-        emit RewardsClaimedBatch(msg.sender, totalRewards, len);
-    }
-
-    /// @inheritdoc IRAT
-    /// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
-    function distributeValidatorReward(address systemConfig, uint256 amount)
-        external
-        onlySeigManager
-    {
-        ValidatorPoolInfo storage pool = validatorPools[systemConfig];
-
-        // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-        if (pool.activeCount == 0) {
-            if (treasury != address(0) && amount > 0) {
-                IERC20(wton).safeTransfer(treasury, amount);
-                emit ValidatorRewardToTreasury(systemConfig, amount);
-            }
-            return;
-        }
-
-        // v_i = amount / n (V3 공식 13: (α·S_i) / |V_i|)
-        uint256 perValidator = amount / pool.activeCount;
-
-        // 각 활성 검증자에게 보상 누적
-        address[] storage validators = pool.validators;
-        uint256 len = validators.length;
-        for (uint256 i = 0; i < len; i++) {
-            ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validators[i]];
-            if (reg.isActive) {
-                reg.pendingRewards += perValidator;
-            }
-        }
     }
 
     // ==========================================

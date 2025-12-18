@@ -153,7 +153,6 @@ function migrateToV3() external onlyOwner {
 - ❌ V2: TVL 기반 L2 보상 → ✅ V3: 성과(Bridged TON) 기반 + 자격 조건
 - ❌ V2: 검증자 보상 없음 → ✅ V3: 검증자에게 α 비율 분배
 - ❌ V2: 선형 분배 → ✅ V3: 쌍곡선 포화 함수 (수확체감)
-- ❌ V2: 기간 평균값 측정 → ✅ V3: 온체인 호출 시점 최신값 측정
 
 ---
 
@@ -250,7 +249,7 @@ sequencerReward = rmul(layer2Seigs, RAY - validatorDistributionRatio)
 //    - |V_i| = L2 i의 검증자 수
 validatorAmount = rmul(layer2Seigs, validatorDistributionRatio)  // α · S_i
 
-// RAT 컨트랙트에서 L2별로 검증자에게 분배:
+// ValidatorReward 컨트랙트에서 L2별로 검증자에게 분배:
 if (validatorCount > 0) {
     perValidatorReward = validatorAmount / validatorCount  // (α · S_i) / |V_i|
 } else {
@@ -293,7 +292,7 @@ initialDebt_i = (bridgedTONRewardPerUint × newB̃_i) / WEI_UNIT
 | (10) | `x = Σ B̃_i` | `totalEffectiveBridgedTON` | `SeigManagerV1_4Storage.sol` |
 | (11) | `y(x) = L · (x/(k+x))` | `hyperbolicSaturation()` | `SeigManagerV1_4.sol:392` |
 | (12) | `S_i = y(x) · (B̃_i/x)` | `calculateL2Seigniorage()` | `SeigManagerV1_4.sol:405` |
-| **(13)** | `v_j = Σ_{i: j∈V_i} (α·S_i) / \|V_i\|` | `RAT.distributeValidatorReward()` | `RAT.sol:585` |
+| **(13)** | `v_j = Σ_{i: j∈V_i} (α·S_i) / \|V_i\|` | `ValidatorRewardV1.distributeL2Rewards()` | `ValidatorRewardV1.sol` |
 | **(14)** | `o_i = (1 - α) · S_i` | `calculateSequencerReward()` | `SeigManagerV1_4.sol:420` |
 
 ### 9.1 V3 백서 공식 (13), (14) 상세
@@ -426,17 +425,19 @@ if (v3Migrated) {
 V3 마이그레이션 함수를 호출하면 자동으로 스테이커 시뇨리지가 비활성화됩니다:
 
 ```solidity
-// SeigManagerV1_4.sol:608-646
-function migrateToV3(
-    address layer2Manager_,
-    address validatorPool_,
-    uint256 daoRatio,
-    uint256 k,
-    address treasury_
-) external onlyOwner {
-    // ... 설정 ...
+// SeigManagerV1_4.sol
+function migrateToV3() external onlyOwner {
+    require(!v3Migrated, "already migrated");
     v3Migrated = true;  // 이 플래그가 스테이커 시뇨리지를 비활성화
+    v3MigrationBlock = block.number;
+    emit V3MigrationCompleted(block.number, 0);
 }
+```
+
+**V3 컨트랙트 주소 설정 (별도 호출):**
+```solidity
+SeigManagerV1_4.setValidatorReward(validatorRewardProxy);  // 검증자 보상 분배
+SeigManagerV1_4.setRATContract(ratProxy);                   // RAT 검증자 관리
 ```
 
 **추가 파라미터 설정 불필요**: `v3Migrated = true`가 되면 기존 V1_3 파라미터(r 등)와 관계없이 스테이커 시뇨리지가 0이 됩니다.
@@ -506,7 +507,9 @@ assert(seigManager.v3Migrated() == true);
 | 파일 | 경로 | 역할 |
 |------|------|------|
 | **SeigManagerV1_4.sol** | `src/stake/managers/SeigManagerV1_4.sol` | V3 시뇨리지 분배 메인 로직 |
-| **RAT.sol** | `src/validator/RAT.sol` | 검증자 보상 분배 |
+| **ValidatorRewardV1.sol** | `src/validator/ValidatorRewardV1.sol` | 검증자 보상 분배 |
+| **RAT.sol** | `src/validator/RAT.sol` | 검증자 등록/담보금/슬래싱 |
+| **IValidatorReward.sol** | `src/validator/IValidatorReward.sol` | ValidatorReward 인터페이스 |
 | **IRAT.sol** | `src/validator/IRAT.sol` | RAT 인터페이스 |
 
 ### 12.2 주요 함수 매핑
@@ -516,7 +519,7 @@ assert(seigManager.v3Migrated() == true);
 | `y(x) = L·(x/(k+x))` | `hyperbolicSaturation()` | `SeigManagerV1_4.sol:392-402` |
 | `S_i = y(x)·(B̃_i/x)` | `calculateL2Seigniorage()` | `SeigManagerV1_4.sol:405-417` |
 | `o_i = (1-α)·S_i` | `calculateSequencerReward()` | `SeigManagerV1_4.sol:420-427` |
-| `v_j = Σ(α·S_i)/\|V_i\|` | `distributeValidatorReward()` | `RAT.sol:585-614` |
+| `v_j = Σ(α·S_i)/\|V_i\|` | `distributeL2Rewards()` | `ValidatorRewardV1.sol` |
 
 ---
 
@@ -529,20 +532,22 @@ assert(seigManager.v3Migrated() == true);
 | **쌍곡선 포화 함수** | `y(x) = L·(x/(k+x))` | `hyperbolicSaturation()` | ✅ 일치 |
 | **L2별 시뇨리지** | `S_i = y(x)·(B̃_i/x)` | `calculateL2Seigniorage()` | ✅ 일치 |
 | **시퀀서 보상 (14)** | `o_i = (1-α)·S_i` | `calculateSequencerReward()` | ✅ 일치 |
-| **검증자 보상 (13)** | `v_j = Σ(α·S_i)/\|V_i\|` | `distributeValidatorReward()` | ✅ 일치 |
+| **검증자 보상 (13)** | `v_j = Σ(α·S_i)/\|V_i\|` | `distributeL2Rewards()` | ✅ 일치 |
 | **검증자 미할당 시** | `\|V_i\|=0` → DAO Treasury | `treasury`로 전송 | ✅ 일치 |
 
-### 13.2 구현 완료 항목 (2025-12-18)
+### 13.2 구현 완료 항목 (2025-12-19)
 
 | 항목 | 파일 | 상태 |
 |------|------|------|
-| 검증자 미할당 시 DAO Treasury 귀속 | `RAT.sol:592-598` | ✅ 완료 |
-| `ValidatorRewardToTreasury` 이벤트 | `IRAT.sol:101-106` | ✅ 완료 |
+| 검증자 미할당 시 DAO Treasury 귀속 | `ValidatorRewardV1.sol` | ✅ 완료 |
+| `ValidatorRewardToTreasury` 이벤트 | `IValidatorReward.sol` | ✅ 완료 |
+| Per-L2 보상 추적 | `ValidatorRewardStorage.sol` | ✅ 완료 |
+| `ValidatorRewardReceived` 이벤트 | `IValidatorReward.sol` | ✅ 완료 |
 
 ---
 
 ## 14. 참조 문서
 
 - **검증자 문서**: [04_validator.md](./04_validator.md)
-- **V3 백서 변경사항**: [whitepaper_v2_to_v3_changes.md](./whitepaper_v2_to_v3_changes.md)
-- **V3 문서 갭 분석**: [v3_docs_gap_analysis.md](./v3_docs_gap_analysis.md)
+- **RAT 구현**: [07_rat_implementation.md](./07_rat_implementation.md)
+- **구현 코드**: [08_implementation.md](./08_implementation.md)

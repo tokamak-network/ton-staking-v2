@@ -21,8 +21,10 @@ contracts/
 │   └── DAOCommittee_V1.sol           (변경 없음)
 └── [V3 신규]
     └── validator/
-        ├── ValidatorPoolV1.sol       ← 신규 (RAT 검증자 보상)
-        └── ValidatorPoolStorage.sol
+        ├── RAT.sol                   ← 신규 (검증자 등록/담보금/슬래싱)
+        ├── RATStorage.sol
+        ├── ValidatorRewardV1.sol     ← 신규 (검증자 보상 분배)
+        └── ValidatorRewardStorage.sol
 ```
 
 ---
@@ -228,7 +230,8 @@ bool internal _lock;  // ✅ 유지
 | `bridgedTONRewardPerUint` | Bridged TON 단위당 누적 보상 (V3 전용) |
 | `totalEffectiveBridgedTON` | x: 전체 유효 Bridged TON (V3 전용) |
 | `bridgedTONInfo` | L2별 Bridged TON 정보 매핑 (V3 전용) |
-| `validatorPool` | ValidatorPool 컨트랙트 주소 |
+| `validatorReward` | ValidatorReward 컨트랙트 주소 (검증자 보상 분배) |
+| `ratContract` | RAT 컨트랙트 주소 (검증자 등록/담보금/슬래싱) |
 
 ---
 

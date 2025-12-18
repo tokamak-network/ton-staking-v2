@@ -3,8 +3,9 @@ pragma solidity ^0.8.4;
 
 /// @title IRAT
 /// @notice Randomized Attention Test (RAT) 인터페이스
-/// @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
-/// @dev 백서 Page 11: "Random Attention Test (RAT)"
+/// @dev Tokamak Economics Whitepaper V3 (December 16, 2025) 기준
+/// @dev RAT은 검증자 등록/담보금/슬래싱만 담당
+/// @dev 검증자 보상 분배는 ValidatorReward 컨트랙트에서 처리
 interface IRAT {
     // ==========================================
     // Events
@@ -56,19 +57,7 @@ interface IRAT {
         bool removedFromSet
     );
 
-    /// @notice 보상 청구 이벤트
-    event RewardsClaimed(
-        address indexed validator,
-        address indexed systemConfig,
-        uint256 amount
-    );
-
-    /// @notice 보상 일괄 청구 이벤트
-    event RewardsClaimedBatch(
-        address indexed validator,
-        uint256 totalAmount,
-        uint256 systemConfigCount
-    );
+    // V3: RewardsClaimed, RewardsClaimedBatch 이벤트 제거 - ValidatorReward로 이동
 
     /// @notice 담보금 추가 이벤트
     event DepositAdded(
@@ -92,13 +81,7 @@ interface IRAT {
     );
 
     // V3: WithdrawalProcessed 이벤트 제거 - deactivateValidator에서 즉시 출금
-
-    /// @notice 검증자 미할당 시 Treasury 귀속 이벤트
-    /// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-    event ValidatorRewardToTreasury(
-        address indexed systemConfig,
-        uint256 amount
-    );
+    // V3: ValidatorRewardToTreasury 이벤트 제거 - ValidatorReward로 이동
 
     // ==========================================
     // View Functions
@@ -130,22 +113,11 @@ interface IRAT {
     /// @return 활성 여부
     function isValidatorActive(address validator, address systemConfig) external view returns (bool);
 
-    /// @notice 대기 중인 총 보상 조회
-    /// @param validator 검증자 주소
-    function getTotalPendingRewards(address validator) external view returns (uint256 total);
-
-    /// @notice 특정 L2의 대기 보상 조회
-    function getPendingRewards(address validator, address systemConfig)
-        external
-        view
-        returns (uint256);
-
     /// @notice 검증자 등록 정보 조회
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소
     /// @return depositedAmount 현재 유효 담보금 (원금 - 슬래싱 손실)
     /// @return totalBondForRAT 진행 중인 RAT 테스트에 묶인 금액
-    /// @return pendingRewards 미청구 보상
     /// @return validatorIndex 검증자 인덱스
     /// @return isActive 활성 상태
     function getValidatorRegistration(address validator, address systemConfig)
@@ -154,7 +126,6 @@ interface IRAT {
         returns (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            uint256 pendingRewards,
             uint32 validatorIndex,
             bool isActive
         );
@@ -164,12 +135,6 @@ interface IRAT {
     /// @param systemConfig L2의 SystemConfig 주소
     /// @return 현재 담보금 (슬래싱 반영된 금액)
     function getValidatorDeposit(address validator, address systemConfig) external view returns (uint256);
-
-    /// @notice 검증자가 활성 상태인지 확인
-    /// @param validator 검증자 주소
-    /// @param systemConfig L2의 SystemConfig 주소
-    /// @return 활성 상태 여부
-    function isValidatorActive(address validator, address systemConfig) external view returns (bool);
 
     // ==========================================
     // External Functions - Validator Management
@@ -227,22 +192,10 @@ interface IRAT {
     /// @param _claimant 게임에서 이긴 주소 (챌린저)
     function resolveClaim(address _claimant) external;
 
-    // ==========================================
-    // External Functions - Rewards
-    // ==========================================
-
-    /// @notice 특정 L2의 보상 청구
-    /// @param systemConfig L2의 SystemConfig 주소
-    function claimRewards(address systemConfig) external;
-
-    /// @notice 여러 L2의 보상 일괄 청구
-    /// @param systemConfigs L2의 SystemConfig 주소 배열
-    function claimRewardsBatch(address[] calldata systemConfigs) external;
-
-    /// @notice 검증자 보상 분배 (SeigManager에서 호출)
-    /// @param systemConfig L2의 SystemConfig 주소
-    /// @param amount 보상 금액
-    function distributeValidatorReward(address systemConfig, uint256 amount) external;
+    // V3: Rewards 섹션 제거 - ValidatorReward 컨트랙트로 이동
+    // - claimRewards(systemConfig) -> ValidatorReward.claimAllRewards()
+    // - claimRewardsBatch(systemConfigs) -> ValidatorReward.claimAllRewards()
+    // - distributeValidatorReward(systemConfig, amount) -> ValidatorReward.distributeL2Rewards()
 
     // ==========================================
     // External Functions - Governance

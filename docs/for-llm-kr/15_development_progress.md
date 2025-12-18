@@ -13,7 +13,7 @@ TON Staking V3는 Tokamak Network의 차세대 스테이킹 스마트 컨트랙�
 ### 1.1 주요 기능
 
 - **V3 시뇨리지 분배**: Bridged TON 기반 쌍곡선 포화 함수
-- **검증자 시스템**: ValidatorPool, RAT (Randomized Attention Test)
+- **검증자 시스템**: RAT (검증자 등록/슬래싱), ValidatorReward (보상 분배)
 - **V2→V3 전환**: `v3Migrated` 플래그를 통한 즉시 전환
 - **Optimism 연동**: FaultDisputeGame 기반 시퀀서 슬래싱
 
@@ -26,8 +26,8 @@ src/
 │   └── tokens/         # Coinage 토큰
 ├── layer2/             # L2 관리 및 브릿지 연동
 ├── validator/          # V3 검증자 시스템
-│   ├── ValidatorPoolV1.sol
-│   └── RAT.sol
+│   ├── RAT.sol                 # 검증자 등록/담보금/슬래싱
+│   └── ValidatorRewardV1.sol   # 검증자 보상 분배
 └── dao/                # DAO 관련 컨트랙트
 
 lib/
@@ -49,7 +49,7 @@ lib/
 | L1BridgeRegistryV1_2RealTest | 29 | 0 | 0 |
 | DepositManagerV1_2RealTest | 27 | 0 | 0 |
 | DepositManagerV1_2Test | 24 | 0 | 0 |
-| ValidatorPoolV1Test | 21 | 0 | 0 |
+| ValidatorRewardV1Test | 21 | 0 | 0 |
 | SeigManagerV1_4Test | 21 | 0 | 0 |
 | SeigManagerV1_4RealTest | 21 | 0 | 0 |
 | EndToEndSeigniorageTest | 13 | 0 | 0 |
@@ -69,8 +69,8 @@ lib/
 
 | 컴포넌트 | 파일 | 상태 | 설명 |
 |---------|------|------|------|
-| **ValidatorPool** | `src/validator/ValidatorPoolV1.sol` | ✅ 완료 | 검증자 풀 관리 |
-| **RAT** | `src/validator/RAT.sol` | ✅ 완료 | Randomized Attention Test |
+| **RAT** | `src/validator/RAT.sol` | ✅ 완료 | 검증자 등록/담보금/슬래싱 |
+| **ValidatorReward** | `src/validator/ValidatorRewardV1.sol` | ✅ 완료 | 검증자 보상 분배 (Per-L2 추적) |
 | **SeigManager V1.4** | `src/stake/managers/SeigManagerV1_4.sol` | ✅ 완료 | V3 시뇨리지 분배 |
 | **DepositManager V1.2** | `src/stake/managers/DepositManagerV1_2.sol` | ✅ 완료 | 검증자 담보금 관리 |
 | **L1BridgeRegistry** | `src/layer2/L1BridgeRegistryV1_2.sol` | ✅ 완료 | Bridged TON 추적 |

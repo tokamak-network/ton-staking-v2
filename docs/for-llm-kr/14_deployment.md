@@ -30,8 +30,8 @@ TON Staking V3는 두 가지 배포 방식을 지원합니다:
 - `L1BridgeRegistryV1_2` - Bridged TON 트래킹
 
 **신규 컨트랙트**
-- `RAT` (Proxy + Impl) - Random Audit Task
-- `ValidatorPool` (Proxy + Impl) - 검증자 풀
+- `RAT` (Proxy + Impl) - Random Audit Task (검증자 등록/담보금/슬래싱)
+- `ValidatorReward` (Proxy + Impl) - 검증자 보상 분배
 
 #### 실행 명령어
 
@@ -78,7 +78,7 @@ export SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
 - Mock TON / Mock WTON
 - 모든 매니저 구현체
 - RAT Proxy + Implementation
-- ValidatorPool Proxy + Implementation
+- ValidatorReward Proxy + Implementation
 - 기본 파라미터 설정
 
 #### 실행 명령어
@@ -144,8 +144,8 @@ deployments/
   "l1BridgeRegistryV1_2Impl": "0x...",
   "ratProxy": "0x...",
   "ratImpl": "0x...",
-  "validatorPoolProxy": "0x...",
-  "validatorPoolImpl": "0x..."
+  "validatorRewardProxy": "0x...",
+  "validatorRewardImpl": "0x..."
 }
 ```
 
@@ -190,7 +190,7 @@ forge test --match-path test/v3/DeployV3Fork.t.sol -vvv
    - 코드 사이즈 > 0 검증
 
 2. **프록시 초기화 검증**
-   - RAT, ValidatorPool 프록시 초기화 확인
+   - RAT, ValidatorReward 프록시 초기화 확인
    - 올바른 구현체 연결 확인
 
 3. **파라미터 설정 검증**
@@ -201,7 +201,7 @@ forge test --match-path test/v3/DeployV3Fork.t.sol -vvv
 ### Fork 배포 후
 
 - [ ] 모든 구현체 주소 기록
-- [ ] RAT, ValidatorPool 프록시 주소 기록
+- [ ] RAT, ValidatorReward 프록시 주소 기록
 - [ ] DAO 아젠다 생성 (프록시 업그레이드)
 - [ ] DAO 투표 완료 후 업그레이드 확인
 - [ ] V3 마이그레이션 함수 호출 (`migrateToV3()`)
@@ -210,7 +210,7 @@ forge test --match-path test/v3/DeployV3Fork.t.sol -vvv
 ### Full 배포 후
 
 - [ ] 모든 컨트랙트 주소 기록
-- [ ] RAT, ValidatorPool 초기화 확인
+- [ ] RAT, ValidatorReward 초기화 확인
 - [ ] 테스트 시나리오 실행
 
 ## 트러블슈팅
@@ -254,7 +254,8 @@ error AlreadyInitialized();
    - 프록시 연결 상태 확인
 
 3. **초기화 순서**
-   - RAT, ValidatorPool은 SeigManager 주소 필요
+   - RAT, ValidatorReward는 SeigManager 주소 필요
+   - ValidatorReward는 RAT 주소 필요
    - 올바른 순서로 초기화
 
 4. **권한 설정**

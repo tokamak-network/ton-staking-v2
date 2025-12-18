@@ -13,8 +13,8 @@ import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
-import {ValidatorPoolV1} from "../src/validator/ValidatorPoolV1.sol";
-import {ValidatorPoolProxy} from "../src/validator/ValidatorPoolProxy.sol";
+import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
+import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 
 /// @notice Proxy interface
 interface IProxy {
@@ -86,7 +86,7 @@ contract DeployV3Fork is Script {
         console.log("L1BridgeRegistryV1_2:", l1BridgeRegistryV1_2Impl);
 
         // ==========================================
-        // Step 2: Deploy V3 new contracts (RAT, ValidatorPool)
+        // Step 2: Deploy V3 new contracts (RAT, ValidatorReward)
         // ==========================================
         console.log("\n--- Step 2: Deploy V3 Contracts ---");
 
@@ -106,19 +106,20 @@ contract DeployV3Fork is Script {
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
-        // Deploy ValidatorPool
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        // Deploy ValidatorReward
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
 
-        ValidatorPoolV1(validatorPoolProxy).initialize(
+        ValidatorRewardV1(validatorPoolProxy).initialize(
             SEIG_MANAGER_PROXY,
             WTON,
-            TON,
-            deployer
+            ratProxy,   // RAT contract for validator info
+            deployer,   // treasury (DAO)
+            deployer    // owner
         );
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
-        console.log("ValidatorPool Impl:", validatorPoolImpl);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Impl:", validatorPoolImpl);
 
         vm.stopBroadcast();
 
@@ -220,13 +221,13 @@ contract DeployV3ForkWithImpersonation is Script {
         IProxy(ratProxy).upgradeTo(ratImpl);
         RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
 
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        ValidatorPoolV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, deployer);
+        ValidatorRewardV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer);
 
         console.log("RAT Proxy:", ratProxy);
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
         vm.stopPrank();
 
@@ -325,18 +326,19 @@ contract DeployV3ForkSepolia is Script {
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
 
-        ValidatorPoolV1(validatorPoolProxy).initialize(
+        ValidatorRewardV1(validatorPoolProxy).initialize(
             SEIG_MANAGER_PROXY,
             WTON,
-            TON,
-            deployer
+            ratProxy,   // RAT contract for validator info
+            deployer,   // treasury (DAO)
+            deployer    // owner
         );
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
-        console.log("ValidatorPool Impl:", validatorPoolImpl);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Impl:", validatorPoolImpl);
 
         vm.stopBroadcast();
 

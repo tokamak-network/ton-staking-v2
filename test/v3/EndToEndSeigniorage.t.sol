@@ -170,7 +170,7 @@ contract SimpleSeigManagerV3 {
     address public depositManager;
     address public layer2Manager;
     address public dao;
-    address public validatorPool;
+    address public validatorReward;
 
     // V3 파라미터
     uint256 public daoDistributionRatio;      // d
@@ -266,8 +266,8 @@ contract SimpleSeigManagerV3 {
         relativeSeigRate = _r;
     }
 
-    function setValidatorPool(address _validatorPool) external {
-        validatorPool = _validatorPool;
+    function setValidatorReward(address _validatorReward) external {
+        validatorReward = _validatorReward;
     }
 
     function setCoinage(address layer2, address coinage) external {
@@ -431,8 +431,8 @@ contract SimpleSeigManagerV3 {
         if (daoSeig > 0 && dao != address(0)) {
             MockWTON(wton).mint(dao, daoSeig);
         }
-        if (validatorSeig > 0 && validatorPool != address(0)) {
-            MockWTON(wton).mint(validatorPool, validatorSeig);
+        if (validatorSeig > 0 && validatorReward != address(0)) {
+            MockWTON(wton).mint(validatorReward, validatorSeig);
         }
         if (sequencerSeig > 0 && layer2Manager != address(0)) {
             MockWTON(wton).mint(layer2Manager, sequencerSeig);
@@ -495,7 +495,7 @@ contract EndToEndSeigniorageTest is Test {
     MockTot public tot;
 
     address public dao = address(0x4001);
-    address public validatorPool = address(0x4002);
+    address public validatorReward = address(0x4002);
     address public layer2_1 = address(0x5001);
     address public layer2_2 = address(0x5002);
     address public layer2_3 = address(0x5003);
@@ -533,7 +533,7 @@ contract EndToEndSeigniorageTest is Test {
             0.4e27   // r = 40%
         );
 
-        seigManager.setValidatorPool(validatorPool);
+        seigManager.setValidatorReward(validatorReward);
 
         // 초기 WTON 공급
         wton.mint(address(depositManager), 10_000_000e27);
@@ -604,7 +604,7 @@ contract EndToEndSeigniorageTest is Test {
         vm.roll(block.number + 100);
 
         uint256 daoBefore = wton.balanceOf(dao);
-        uint256 validatorBefore = wton.balanceOf(validatorPool);
+        uint256 validatorBefore = wton.balanceOf(validatorReward);
         uint256 l2ManagerBefore = wton.balanceOf(address(layer2Manager));
 
         seigManager.updateSeigniorage();
@@ -624,7 +624,7 @@ contract EndToEndSeigniorageTest is Test {
 
         // 실제 전송 확인
         assertEq(wton.balanceOf(dao) - daoBefore, daoSeig, "DAO balance mismatch");
-        assertEq(wton.balanceOf(validatorPool) - validatorBefore, validatorSeig, "Validator balance mismatch");
+        assertEq(wton.balanceOf(validatorReward) - validatorBefore, validatorSeig, "Validator balance mismatch");
         assertEq(wton.balanceOf(address(layer2Manager)) - l2ManagerBefore, sequencerSeig, "L2Manager balance mismatch");
     }
 
@@ -861,13 +861,13 @@ contract EndToEndSeigniorageTest is Test {
             vm.roll(block.number + 100);
 
             uint256 daoBefore = wton.balanceOf(dao);
-            uint256 validatorBefore = wton.balanceOf(validatorPool);
+            uint256 validatorBefore = wton.balanceOf(validatorReward);
             uint256 l2ManagerBefore = wton.balanceOf(address(layer2Manager));
 
             seigManager.updateSeigniorage();
 
             uint256 daoGain = wton.balanceOf(dao) - daoBefore;
-            uint256 validatorGain = wton.balanceOf(validatorPool) - validatorBefore;
+            uint256 validatorGain = wton.balanceOf(validatorReward) - validatorBefore;
             uint256 l2ManagerGain = wton.balanceOf(address(layer2Manager)) - l2ManagerBefore;
 
             totalDistributed += daoGain + validatorGain + l2ManagerGain;

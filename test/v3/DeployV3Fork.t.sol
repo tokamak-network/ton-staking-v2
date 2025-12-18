@@ -13,8 +13,8 @@ import {L1BridgeRegistryV1_2} from "../../src/layer2/L1BridgeRegistryV1_2.sol";
 // V3 New Contracts
 import {RAT} from "../../src/validator/RAT.sol";
 import {RATProxy} from "../../src/validator/RATProxy.sol";
-import {ValidatorPoolV1} from "../../src/validator/ValidatorPoolV1.sol";
-import {ValidatorPoolProxy} from "../../src/validator/ValidatorPoolProxy.sol";
+import {ValidatorRewardV1} from "../../src/validator/ValidatorRewardV1.sol";
+import {ValidatorRewardProxy} from "../../src/validator/ValidatorRewardProxy.sol";
 
 // Interfaces
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -157,7 +157,7 @@ contract DeployV3ForkTest is Test {
         console.log("L1BridgeRegistryV1_2:", l1BridgeRegistryV1_2Impl);
     }
 
-    /// @notice RAT/ValidatorPool 프록시 배포 및 초기화 테스트
+    /// @notice RAT/ValidatorReward 프록시 배포 및 초기화 테스트
     function test_deployV3Contracts() public {
         if (block.chainid != 1) {
             console.log("Skipping: Not mainnet fork");
@@ -180,17 +180,18 @@ contract DeployV3ForkTest is Test {
             deployer
         );
 
-        // Deploy ValidatorPool
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        // Deploy ValidatorReward
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
 
-        // Initialize ValidatorPool
-        ValidatorPoolV1(validatorPoolProxy).initialize(
+        // Initialize ValidatorReward
+        ValidatorRewardV1(validatorPoolProxy).initialize(
             SEIG_MANAGER_PROXY,
             WTON,
-            TON,
-            deployer
+            ratProxy,   // RAT contract for validator info
+            deployer,   // treasury (DAO)
+            deployer    // owner
         );
 
         vm.stopPrank();
@@ -201,13 +202,13 @@ contract DeployV3ForkTest is Test {
         assertEq(RAT(ratProxy).ton(), TON, "RAT ton set");
         assertEq(RAT(ratProxy).owner(), deployer, "RAT owner set");
 
-        // Verify ValidatorPool
-        assertEq(ValidatorPoolV1(validatorPoolProxy).seigManager(), SEIG_MANAGER_PROXY, "VP seigManager set");
-        assertEq(ValidatorPoolV1(validatorPoolProxy).wton(), WTON, "VP wton set");
-        assertEq(ValidatorPoolV1(validatorPoolProxy).owner(), deployer, "VP owner set");
+        // Verify ValidatorReward
+        assertEq(ValidatorRewardV1(validatorPoolProxy).seigManager(), SEIG_MANAGER_PROXY, "VR seigManager set");
+        assertEq(ValidatorRewardV1(validatorPoolProxy).wton(), WTON, "VR wton set");
+        assertEq(ValidatorRewardV1(validatorPoolProxy).owner(), deployer, "VR owner set");
 
         console.log("RAT Proxy:", ratProxy);
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
     }
 
     /// @notice 프록시 업그레이드 테스트 (owner impersonation)
@@ -277,10 +278,10 @@ contract DeployV3ForkTest is Test {
         IProxy(ratProxy).upgradeTo(ratImpl);
         RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
 
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        ValidatorPoolV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, deployer);
+        ValidatorRewardV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer);
 
         console.log("Step 2: V3 contracts deployed");
 
@@ -307,10 +308,8 @@ contract DeployV3ForkTest is Test {
         RAT(ratProxy).setMinimumThreshold(1000e27);
         RAT(ratProxy).setEvidenceSubmissionPeriod(1 hours);
 
-        ValidatorPoolV1(validatorPoolProxy).setSlashingPenalty(100e27);
-        ValidatorPoolV1(validatorPoolProxy).setMinimumThreshold(1000e27);
-        ValidatorPoolV1(validatorPoolProxy).setRatProbability(0.01e27);
-        ValidatorPoolV1(validatorPoolProxy).setRatResponseWindow(1 hours);
+        // ValidatorReward는 별도 파라미터 설정 불필요
+        // (RAT에서 검증자 정보를 조회하고 SeigManager에서 호출)
 
         console.log("Step 4: V3 parameters configured");
 
@@ -319,11 +318,11 @@ contract DeployV3ForkTest is Test {
         // Verify final state
         assertEq(RAT(ratProxy).ratTriggerProbability(), 0.01e27, "RAT probability set");
         assertEq(RAT(ratProxy).slashingPenalty(), 100e27, "RAT slashing penalty set");
-        assertEq(ValidatorPoolV1(validatorPoolProxy).slashingPenalty(), 100e27, "VP slashing penalty set");
+        assertEq(ValidatorRewardV1(validatorPoolProxy).seigManager(), SEIG_MANAGER_PROXY, "VR seigManager set");
 
         console.log("=== Deployment Complete ===");
         console.log("RAT Proxy:", ratProxy);
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
     }
 
     /// @notice 업그레이드 후 기존 상태 보존 확인

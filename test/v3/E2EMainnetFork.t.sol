@@ -55,17 +55,11 @@ interface ILayer2 {
     function operator() external view returns (address);
 }
 
-/// @notice ValidatorPool 인터페이스 (import 충돌 방지)
-interface IValidatorPoolV1 {
-    function validatorCount() external view returns (uint256);
-    function totalDeposits() external view returns (uint256);
-    function registerValidator(address systemConfig) external;
-    function getValidatorInfo(address systemConfig) external view returns (
-        uint256 deposit,
-        uint256 rewardDebt,
-        uint256 registeredAt,
-        bool isActive
-    );
+/// @notice ValidatorReward 인터페이스 (import 충돌 방지)
+interface IValidatorRewardV1 {
+    function getPendingRewards(address validator) external view returns (uint256);
+    function distributeL2Rewards(address systemConfig, uint256 amount) external;
+    function claimRewards() external;
 }
 
 /// @notice RAT 인터페이스 (import 충돌 방지)
@@ -274,8 +268,8 @@ contract E2EMainnetForkLiveTest is Test {
         // SeigManagerV1_4(SEIG_MANAGER_PROXY).setValidatorDistributionRatio(0.2e27); // α = 20%
         // SeigManagerV1_4(SEIG_MANAGER_PROXY).setHalfSaturationPoint(1000e27); // k = 1000
 
-        // 3. ValidatorPool 설정
-        // SeigManagerV1_4(SEIG_MANAGER_PROXY).setValidatorPool(address(validatorPool));
+        // 3. ValidatorReward 설정
+        // SeigManagerV1_4(SEIG_MANAGER_PROXY).setValidatorReward(address(validatorReward));
 
         // 4. V3 마이그레이션 실행
         // SeigManagerV1_4(SEIG_MANAGER_PROXY).migrateToV3();
@@ -295,7 +289,7 @@ contract E2EMainnetForkLiveTest is Test {
 
         // 3. 분배 결과 확인
         // - DAO 분배량
-        // - ValidatorPool 분배량
+        // - ValidatorReward 분배량
         // - 시퀀서 분배량
     }
 
@@ -379,7 +373,7 @@ contract E2ELocalSimulationTest is Test {
         assertEq(seigManager.stakedSeigFactor(), 0, "lambda");
         assertEq(seigManager.totalEffectiveBridgedTON(), 0, "totalEffectiveBridgedTON");
         assertEq(seigManager.bridgedTONRewardPerUint(), 0, "bridgedTONRewardPerUint");
-        assertEq(seigManager.validatorPool(), address(0), "validatorPool");
+        assertEq(seigManager.validatorReward(), address(0), "validatorReward");
         assertEq(seigManager.currentPeriodId(), 0, "currentPeriodId");
         assertFalse(seigManager.v3Migrated(), "v3Migrated");
     }

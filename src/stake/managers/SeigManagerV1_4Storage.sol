@@ -54,11 +54,12 @@ contract SeigManagerV1_4Storage {
     mapping(address => BridgedTONInfo) public bridgedTONInfo;
 
     // ==========================================
-    // 검증자 풀 관련
+    // 검증자 보상 관련
     // ==========================================
 
-    /// @notice ValidatorPool 컨트랙트 주소
-    address public validatorPool;
+    /// @notice ValidatorReward 컨트랙트 주소
+    /// @dev Per-L2 검증자 보상 분배용
+    address public validatorReward;
 
     /// @notice 기간(Period) 정보
     struct PeriodInfo {

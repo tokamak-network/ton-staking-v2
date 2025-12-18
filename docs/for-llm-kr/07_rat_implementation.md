@@ -96,8 +96,8 @@ contracts/
         │                   │
         ▼                   ▼
 ┌───────────────┐  ┌──────────────────────────────────────────────┐
-│  RAT 컨트랙트  │  │  SeigManager → Layer2Manager → OperatorManager │
-│  (TON 보관)   │  │  → RAT.distributeValidatorReward()             │
+│  RAT 컨트랙트  │  │  SeigManager → ValidatorReward                 │
+│  (TON 보관)   │  │  → ValidatorReward.distributeL2Rewards()       │
 └───────────────┘  └──────────────────────────────────────────────┘
 ```
 
@@ -151,13 +151,14 @@ RAT 트리거/복구/슬래싱 (내부 기록만):
 /// @notice 검증자 등록 정보
 /// @dev 백서 V2 공식 (5) 기반: D_validator = C_off + Δ_validator
 /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
+/// @dev V3 변경: pendingRewards 제거 → ValidatorReward 컨트랙트에서 관리
 struct ValidatorRegistration {
     uint256 depositedAmount;        // 현재 유효 담보금 (원금 - 슬래싱 손실)
     uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
-    uint256 pendingRewards;         // 미청구 검증자 보상
     uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
     uint32 validatorIndex;          // 검증자 인덱스
     bool isActive;                  // 활성 상태
+    // pendingRewards 제거: ValidatorReward 컨트랙트에서 관리
 }
 ```
 
@@ -239,7 +240,7 @@ struct AttentionTest {
 mapping(bytes32 => ValidatorRegistration) public registrations;
 
 /// @notice systemConfig → 검증자 풀 정보
-mapping(address => ValidatorPool) public validatorPools;
+mapping(address => ValidatorPoolInfo) public validatorPools;
 
 /// @notice systemConfig → 활성 검증자 배열 (인덱스 0은 더미)
 mapping(address => address[]) public activeValidators;
@@ -299,13 +300,14 @@ contract RATStorage {
 
     /// @notice 검증자 등록 정보
     /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
+    /// @dev V3 변경: pendingRewards 제거 → ValidatorReward 컨트랙트에서 관리
     struct ValidatorRegistration {
         uint256 depositedAmount;        // 현재 유효 담보금 (원금 - 슬래싱 손실)
         uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
-        uint256 pendingRewards;         // 미청구 검증자 보상
         uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
         uint32 validatorIndex;          // 검증자 인덱스
         bool isActive;                  // 활성 상태
+        // pendingRewards 제거: ValidatorReward 컨트랙트에서 관리
     }
 
     /// @notice Attention Test 정보
@@ -505,13 +507,13 @@ interface IRAT {
     function getActiveValidatorCount(address systemConfig) external view returns (uint256);
 
     /// @notice 검증자 등록 정보 조회
+    /// @dev V3 변경: pendingRewards 제거 (ValidatorReward에서 관리)
     function getValidatorRegistration(address validator, address systemConfig)
         external
         view
         returns (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            uint256 pendingRewards,
             uint32 validatorIndex,
             bool isActive
         );
@@ -561,17 +563,21 @@ interface IRAT {
     function resolveClaim(address _claimant) external;
 
     // ==========================================
-    // External Functions - Rewards
+    // View Functions - ValidatorReward용
     // ==========================================
 
-    /// @notice 특정 L2의 보상 청구
-    function claimRewards(address systemConfig) external;
+    /// @notice L2별 검증자 목록 조회 (ValidatorReward에서 호출)
+    function getL2Validators(address systemConfig) external view returns (address[] memory);
 
-    /// @notice 여러 L2의 보상 일괄 청구
-    function claimRewardsBatch(address[] calldata systemConfigs) external;
+    // isValidatorActive는 위에서 이미 정의됨
 
-    /// @notice 검증자 보상 분배 (SeigManager에서 호출)
-    function distributeValidatorReward(address systemConfig, uint256 amount) external;
+    // ==========================================
+    // V3 변경: 보상 관련 함수 제거
+    // ==========================================
+    // claimRewards, claimRewardsBatch, distributeValidatorReward는
+    // ValidatorReward 컨트랙트로 이동됨
+    // → IValidatorReward.claimAllRewards()
+    // → IValidatorReward.distributeL2Rewards()
 
     // ==========================================
     // External Functions - Governance
@@ -859,109 +865,41 @@ function triggerAttentionTest(...) external onlyLayer2Manager {
 - `AttentionTestTriggered` 발생 후 `EvidenceSubmitted` 또는 `BondRestored` 이벤트가 없으면 → 영구 몰수
 - `AttentionTestTriggered` 발생 후 위 이벤트 중 하나라도 있으면 → 복구됨
 
-### 6.6 검증자 보상 분배 (SeigManager → RAT)
+### 6.6 검증자 보상 분배 (SeigManager → ValidatorReward)
 
-**백서 V3 공식 (13), (14):**
+> **V3 아키텍처 변경**: 검증자 보상 분배는 **ValidatorReward 컨트랙트**에서 담당합니다.
+> RAT는 검증자 등록/담보금/슬래싱만 관리합니다.
+
+**분배 흐름:**
 ```
-v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|    ... (13) 검증자 j의 총 보상
-o_i = (1 − α) · S_i                      ... (14) 시퀀서 보상
+SeigManager.updateSeigniorage()
+    │
+    ├─► L2별 검증자 몫 계산: α · S_i
+    │
+    └─► ValidatorReward.distributeL2Rewards(systemConfig, amount)
+            │
+            ├─► RAT.getL2Validators(systemConfig) - 검증자 목록 조회
+            ├─► RAT.isValidatorActive() - 활성 상태 확인
+            │
+            ├─► |V_i| > 0: 활성 검증자에게 균등 분배
+            └─► |V_i| = 0: DAO Treasury로 귀속
 
-V_i = L2 i에 할당된 검증자 집합
-|V_i| = 해당 L2의 활성 검증자 수
-|V_i| = 0 이면 α · S_i → DAO Treasury
-```
-
-> **✅ V3 백서에서 해결됨**
->
-> V2에서는 `v_i = (α/n)·y(x)` 공식의 해석이 모호했으나,
-> V3 백서(2025-12-16)에서 **L2별 V_i 집합 기반 분배**로 명확화되었습니다.
->
-> - 검증자는 특정 L2(들)에 할당됨
-> - 각 L2별로 `(α · S_i) / |V_i|` 분배
-> - 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → **DAO Treasury**
-
-**분배 흐름 (L2별 분배, V3 백서):**
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  1. SeigManager.updateSeigniorage()                                 │
-│     - 각 L2별 시뇨리지 계산: S_i = y(x) · (B̃_i / x)                 │
-│     - L2별 검증자 몫: α · S_i                                       │
-│     - RAT.distributeValidatorReward(systemConfig, α · S_i) 호출     │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  2. RAT.distributeValidatorReward(systemConfig, amount)             │
-│     - amount = α · S_i                                              │
-│     - |V_i| = 해당 L2의 활성 검증자 수 (activeCount)                │
-│     - |V_i| > 0: 각 검증자당 amount / |V_i| (V3 공식 13)           │
-│     - |V_i| = 0: amount → DAO Treasury (V3 백서 명시)              │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  3. 검증자가 claimRewards(systemConfig) 호출                        │
-│     - pendingRewards를 WTON으로 전송                                 │
-└─────────────────────────────────────────────────────────────────────┘
+검증자.claimAllRewards() → WTON 수령
 ```
 
+**RAT이 제공하는 조회 함수 (ValidatorReward용):**
 ```solidity
-/// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
-/// @dev V3 백서 공식 13: (α · S_i) / |V_i|
-/// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
-/// @param systemConfig L2의 SystemConfig 주소
-/// @param amount 해당 L2의 검증자 몫 (α · S_i)
-function distributeValidatorReward(address systemConfig, uint256 amount) external {
-    // SeigManager에서만 호출 가능
-    require(msg.sender == seigManager, "not seig manager");
+/// @notice L2별 검증자 목록 조회
+function getL2Validators(address systemConfig) external view returns (address[] memory);
 
-    ValidatorPoolInfo storage pool = validatorPools[systemConfig];
+/// @notice 검증자 활성 상태 확인
+function isValidatorActive(address validator, address systemConfig) external view returns (bool);
 
-    // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-    if (pool.activeCount == 0) {
-        if (treasury != address(0) && amount > 0) {
-            IERC20(wton).safeTransfer(treasury, amount);
-            emit ValidatorRewardToTreasury(systemConfig, amount);
-        }
-        return;
-    }
-
-    // 각 검증자에게 균등 분배: amount / |V_i| (V3 공식 13)
-    uint256 perValidator = amount / pool.activeCount;
-
-    // 해당 SystemConfig의 각 활성 검증자에게 보상 누적
-    address[] storage validators = pool.validators;
-    uint256 len = validators.length;
-    for (uint256 i = 0; i < len; i++) {
-        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validators[i]];
-        if (reg.isActive) {
-            reg.pendingRewards += perValidator;
-        }
-    }
-
-    emit RewardDistributed(systemConfig, amount, pool.activeCount);
-}
+/// @notice 활성 검증자 수 조회
+function getActiveValidatorCount(address systemConfig) external view returns (uint256);
 ```
 
-**분배 예시 (V3 백서 기준):**
-```
-L2 시뇨리지: S_i = 1,000 WTON
-검증자 분배 비율: α = 20%
-해당 L2의 활성 검증자 수: |V_i| = 5명
-
-1. SeigManager.updateSeigniorage():
-   - L2별 검증자 몫 = α · S_i = 1,000 × 20% = 200 WTON
-   - RAT.distributeValidatorReward(systemConfig, 200) 호출
-
-2. RAT.distributeValidatorReward(systemConfig, 200):
-   - |V_i| = 5 (검증자 있음)
-   - 각 검증자당 = 200 / 5 = 40 WTON (V3 공식 13)
-   - 각 검증자의 pendingRewards에 40 WTON 누적
-
-검증자가 없는 경우 (|V_i| = 0):
-   - V3 백서 명시: α · S_i (200 WTON) → DAO Treasury 전송
-   - emit ValidatorRewardToTreasury(systemConfig, 200)
-```
+> **상세 구현**: ValidatorReward 코드는 [08_implementation.md](./08_implementation.md) 참조
 
 ### 6.7 담보금 출금 (V3: 즉시 출금)
 
@@ -1003,12 +941,8 @@ function deactivateValidator(address systemConfig) external ifFree {
         IERC20(ton).safeTransfer(msg.sender, withdrawAmount);
     }
 
-    // 미청구 보상은 즉시 지급 (WTON)
-    uint256 pendingRewards = reg.pendingRewards;
-    reg.pendingRewards = 0;
-    if (pendingRewards > 0) {
-        IERC20(wton).safeTransfer(msg.sender, pendingRewards);
-    }
+    // V3: 미청구 보상은 ValidatorReward에서 별도 청구
+    // IValidatorReward(validatorReward).claimAllRewards() 호출 필요
 
     emit ValidatorDeactivated(msg.sender, systemConfig, withdrawAmount);
 }
@@ -1288,10 +1222,11 @@ C_off ≥ (0.01 × 100) / 0.1 = 10 TON
 - [ ] getMinimumCollateral(): D_validator = C_off + Δ_validator 검증
 - [ ] 검증자 수 변화에 따른 C_off 최소값 검증
 
-### 10.4 보상 분배
-- [ ] 검증자 보상 분배 V3: (α·S_i) / |V_i|
+### 10.4 보상 분배 (ValidatorReward)
+- [ ] 검증자 보상 분배 V3: (α·S_i) / |V_i| - ValidatorReward.distributeL2Rewards()
 - [ ] 검증자 없는 L2(|V_i| = 0): α·S_i → DAO Treasury
-- [ ] 보상 청구 (claimRewards, claimRewardsBatch)
+- [ ] 보상 청구 - ValidatorReward.claimAllRewards()
+- [ ] Per-L2 보상 조회 - ValidatorReward.getPendingRewardsByL2()
 
 ### 10.5 기타
 - [ ] 파라미터 변경 권한 (ratManager)
@@ -1302,51 +1237,25 @@ C_off ≥ (0.01 × 100) / 0.1 = 10 TON
 
 ## 11. 관련 코드 파일
 
-| 파일 | 설명 | 핵심 라인 |
-|------|------|----------|
-| `src/validator/RAT.sol` | RAT 메인 컨트랙트 | `distributeValidatorReward()` - V3 공식 13 구현 |
-| `src/validator/IRAT.sol` | RAT 인터페이스 | `ValidatorRewardToTreasury` 이벤트 - V3 \|V_i\|=0 처리 |
-| `src/stake/managers/SeigManagerV1_4.sol` | 시뇨리지 분배 | `updateSeigniorage()` - L2별 검증자 몫 계산 |
+| 파일 | 설명 |
+|------|------|
+| `src/validator/RAT.sol` | RAT 메인 컨트랙트 - 검증자 등록/담보금/슬래싱 |
+| `src/validator/ValidatorRewardV1.sol` | 검증자 보상 분배 |
+| `src/validator/IRAT.sol` | RAT 인터페이스 |
+| `src/validator/IValidatorReward.sol` | ValidatorReward 인터페이스 |
+| `src/stake/managers/SeigManagerV1_4.sol` | V3 시뇨리지 분배 |
 
-### 11.1 RAT.sol 핵심 함수
+### 11.1 아키텍처 분리
 
-```solidity
-// src/validator/RAT.sol
-
-/// @dev V3 백서 공식 13: (α · S_i) / |V_i|
-/// @dev V3 백서: 검증자가 없는 L2(|V_i| = 0)의 경우 α·S_i → DAO Treasury
-function distributeValidatorReward(address systemConfig, uint256 amount)
-    external
-    onlySeigManager
-{
-    ValidatorPoolInfo storage pool = validatorPools[systemConfig];
-
-    // V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-    if (pool.activeCount == 0) {
-        if (treasury != address(0) && amount > 0) {
-            IERC20(wton).safeTransfer(treasury, amount);
-            emit ValidatorRewardToTreasury(systemConfig, amount);
-        }
-        return;
-    }
-
-    // V3 공식 13: (α · S_i) / |V_i|
-    uint256 perValidator = amount / pool.activeCount;
-    // ... 각 검증자에게 보상 누적
-}
 ```
-
-### 11.2 IRAT.sol 이벤트
-
-```solidity
-// src/validator/IRAT.sol
-
-/// @notice 검증자 미할당 시 Treasury 귀속 이벤트
-/// @dev V3 백서: |V_i| = 0이면 α·S_i → DAO Treasury
-event ValidatorRewardToTreasury(
-    address indexed systemConfig,
-    uint256 amount
-);
+RAT.sol                     ValidatorReward.sol
+─────────────               ──────────────────
+검증자 등록/탈퇴             검증자 보상 분배
+담보금 관리                  Per-L2 보상 추적
+RAT 테스트                   통합 보상 청구
+C_off 슬래싱                 Treasury 귀속 처리
+getL2Validators()  ────────► (조회용)
+isValidatorActive() ────────► (조회용)
 ```
 
 ---
@@ -1355,20 +1264,21 @@ event ValidatorRewardToTreasury(
 
 | 항목 | V3 백서 요구사항 | 구현 상태 |
 |------|-----------------|----------|
-| 공식 (13) | v_j = Σ_{i: j∈V_i} (α · S_i) / \|V_i\| | ✅ RAT.distributeValidatorReward() |
+| 공식 (13) | v_j = Σ_{i: j∈V_i} (α · S_i) / \|V_i\| | ✅ ValidatorRewardV1.distributeL2Rewards() |
 | 공식 (14) | o_i = (1 − α) · S_i | ✅ SeigManagerV1_4 |
-| V_i 개념 | L2별 검증자 집합 | ✅ validatorPools[systemConfig] |
-| \|V_i\| = 0 처리 | α·S_i → DAO Treasury | ✅ ValidatorRewardToTreasury 이벤트 |
-| 검증자 할당 | L2별 등록 | ✅ registerValidator(systemConfig, amount) |
+| V_i 개념 | L2별 검증자 집합 | ✅ RAT.validatorPools[systemConfig] |
+| \|V_i\| = 0 처리 | α·S_i → DAO Treasury | ✅ ValidatorRewardV1 → treasury |
+| 검증자 할당 | L2별 등록 | ✅ RAT.registerValidator(systemConfig, amount) |
+| 보상 청구 | 통합 청구 | ✅ ValidatorRewardV1.claimAllRewards() |
 
 ---
 
 ## 13. 참고 문서
 
 - `Tokamak_Economics_Whitepaper_V3.pdf` (December 16, 2025)
-- `docs/for-llm-kr/whitepaper_v2_to_v3_changes.md` - V2 → V3 변경사항
-- `docs/for-llm-kr/02_v3_distribution.md` - V3 분배 공식 상세
-- `docs/for-llm-kr/04_validator.md` - 검증자 보상 상세
+- [02_v3_distribution.md](./02_v3_distribution.md) - V3 분배 공식 상세
+- [04_validator.md](./04_validator.md) - 검증자 보상 상세
+- [08_implementation.md](./08_implementation.md) - 구현 코드
 
 ---
 

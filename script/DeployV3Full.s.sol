@@ -37,8 +37,8 @@ import {OperatorManagerV1_1} from "../src/layer2/OperatorManagerV1_1.sol";
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
-import {ValidatorPoolV1} from "../src/validator/ValidatorPoolV1.sol";
-import {ValidatorPoolProxy} from "../src/validator/ValidatorPoolProxy.sol";
+import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
+import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 
 // Mocks for testing
 import {MockTON} from "../test/v3/mocks/MockTON.sol";
@@ -65,7 +65,7 @@ interface IProxy {
  * - L1BridgeRegistry (프록시 + 구현체)
  * - OperatorManagerFactory
  * - RAT (프록시 + 구현체)
- * - ValidatorPool (프록시 + 구현체)
+ * - ValidatorReward (프록시 + 구현체)
  */
 contract DeployV3Full is Script {
     // ==========================================
@@ -343,7 +343,7 @@ contract DeployV3Full is Script {
         bytes4[] memory v1_4Selectors = new bytes4[](11);
         // V1_4에만 있는 함수들 (V1_2에 없음)
         v1_4Selectors[0] = SeigManagerV1_4.setRATContract.selector;
-        v1_4Selectors[1] = SeigManagerV1_4.setValidatorPool.selector;
+        v1_4Selectors[1] = SeigManagerV1_4.setValidatorReward.selector;
         v1_4Selectors[2] = SeigManagerV1_4.setDaoDistributionRatio.selector;
         v1_4Selectors[3] = SeigManagerV1_4.setMinStakingRatio.selector;
         v1_4Selectors[4] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
@@ -445,7 +445,7 @@ contract DeployV3Full is Script {
     }
 
     // ==========================================
-    // Step 8: Deploy V3 Contracts (RAT, ValidatorPool)
+    // Step 8: Deploy V3 Contracts (RAT, ValidatorReward)
     // ==========================================
     function _deployV3Contracts(address deployer) internal {
         console.log("--- Step 8: Deploy V3 Contracts ---");
@@ -467,21 +467,22 @@ contract DeployV3Full is Script {
         );
         console.log("RAT initialized");
 
-        // Deploy ValidatorPool
-        validatorPoolImpl = address(new ValidatorPoolV1());
-        validatorPoolProxy = address(new ValidatorPoolProxy());
+        // Deploy ValidatorReward
+        validatorPoolImpl = address(new ValidatorRewardV1());
+        validatorPoolProxy = address(new ValidatorRewardProxy());
         IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        console.log("ValidatorPool Proxy:", validatorPoolProxy);
-        console.log("ValidatorPool Impl:", validatorPoolImpl);
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
+        console.log("ValidatorReward Impl:", validatorPoolImpl);
 
-        // Initialize ValidatorPool
-        ValidatorPoolV1(validatorPoolProxy).initialize(
+        // Initialize ValidatorReward
+        ValidatorRewardV1(validatorPoolProxy).initialize(
             seigManagerProxy,
             wton,
-            ton,
-            deployer
+            ratProxy,   // RAT contract for validator info
+            deployer,   // treasury (initially deployer, should be DAO)
+            deployer    // owner
         );
-        console.log("ValidatorPool initialized");
+        console.log("ValidatorReward initialized");
         console.log("");
     }
 
@@ -499,12 +500,9 @@ contract DeployV3Full is Script {
         RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
         console.log("RAT parameters configured");
 
-        // ValidatorPool parameters
-        ValidatorPoolV1(validatorPoolProxy).setSlashingPenalty(RAT_SLASHING_PENALTY);
-        ValidatorPoolV1(validatorPoolProxy).setMinimumThreshold(RAT_MINIMUM_THRESHOLD);
-        ValidatorPoolV1(validatorPoolProxy).setRatProbability(RAT_TRIGGER_PROBABILITY);
-        ValidatorPoolV1(validatorPoolProxy).setRatResponseWindow(RAT_EVIDENCE_PERIOD);
-        console.log("ValidatorPool parameters configured");
+        // ValidatorReward는 별도 파라미터 설정 불필요
+        // (RAT에서 검증자 정보를 조회하고 SeigManager에서 호출)
+        console.log("ValidatorReward ready");
         console.log("");
     }
 
@@ -522,9 +520,9 @@ contract DeployV3Full is Script {
         SeigManagerV1_4(seigManagerProxy).setRATContract(ratProxy);
         console.log("SeigManager.setRATContract done");
 
-        // SeigManager -> ValidatorPool
-        SeigManagerV1_4(seigManagerProxy).setValidatorPool(validatorPoolProxy);
-        console.log("SeigManager.setValidatorPool done");
+        // SeigManager -> ValidatorReward
+        SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+        console.log("SeigManager.setValidatorReward done");
 
         // Layer2Manager.setAddresses (using V1_1 interface - Index 0)
         Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
@@ -635,7 +633,7 @@ contract DeployV3Full is Script {
         console.log("");
         console.log("V3 Contracts:");
         console.log("  RAT Proxy:", ratProxy);
-        console.log("  ValidatorPool Proxy:", validatorPoolProxy);
+        console.log("  ValidatorReward Proxy:", validatorPoolProxy);
         console.log("");
         console.log("Factory:");
         console.log("  OperatorManagerFactory:", operatorManagerFactory);

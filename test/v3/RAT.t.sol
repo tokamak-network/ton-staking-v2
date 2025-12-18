@@ -95,18 +95,18 @@ contract RATTest is Test {
         rat.setTreasury(treasury);
         rat.setEvidenceSubmissionPeriod(evidenceSubmissionPeriod);
 
-        // Mint WTON to validators
-        wton.mint(validator1, 10000e27);
-        wton.mint(validator2, 10000e27);
-        wton.mint(validator3, 10000e27);
+        // Mint TON to validators (RAT uses TON, not WTON)
+        ton.mint(validator1, 10000e27);
+        ton.mint(validator2, 10000e27);
+        ton.mint(validator3, 10000e27);
 
-        // Approve
+        // Approve TON to RAT
         vm.prank(validator1);
-        wton.approve(address(rat), type(uint256).max);
+        ton.approve(address(rat), type(uint256).max);
         vm.prank(validator2);
-        wton.approve(address(rat), type(uint256).max);
+        ton.approve(address(rat), type(uint256).max);
         vm.prank(validator3);
-        wton.approve(address(rat), type(uint256).max);
+        ton.approve(address(rat), type(uint256).max);
     }
 
     // ==========================================
@@ -136,7 +136,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            uint256 pendingRewards,
             uint32 validatorIndex,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -144,7 +143,6 @@ contract RATTest is Test {
         assertTrue(isActive, "Validator should be active");
         assertEq(depositedAmount, depositAmount, "Deposit amount should match");
         assertEq(totalBondForRAT, 0, "No bonds initially");
-        assertEq(pendingRewards, 0, "No pending rewards");
         assertEq(validatorIndex, 0, "First validator index");
         assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Active count should be 1");
     }
@@ -211,7 +209,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 700e27, "Deposit should be increased");
@@ -243,7 +240,6 @@ contract RATTest is Test {
         // 검증
         (
             uint256 depositedAmount,
-            ,
             ,
             ,
             bool isActive
@@ -281,7 +277,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -334,7 +329,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 totalBondForRAT,
-            ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -405,7 +399,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             uint256 totalBondForRAT,
             ,
-            ,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -438,7 +431,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             ,
             ,
-            ,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -459,7 +451,7 @@ contract RATTest is Test {
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
         // trigger 직후 - 선차감됨
-        (uint256 depositBefore,,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 depositBefore,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertEq(depositBefore, 400e27, "Deposit pre-deducted");
 
         // 증거 제출
@@ -467,102 +459,16 @@ contract RATTest is Test {
         rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
 
         // 증거 제출 후 - 복구됨
-        (uint256 depositAfter, uint256 bondAfter,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 depositAfter, uint256 bondAfter,,) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertEq(depositAfter, 500e27, "Deposit restored after evidence");
         assertEq(bondAfter, 0, "Bond cleared after evidence");
     }
 
-    // ==========================================
-    // 보상 분배 테스트
-    // ==========================================
-
-    /// @notice 검증자 보상 분배 (v_i = amount / n)
-    function test_distributeValidatorReward() public {
-        // 3명의 검증자 등록
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator2);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator3);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        // 보상 민트
-        uint256 totalReward = 3000e27;
-        wton.mint(address(rat), totalReward);
-
-        // SeigManager에서 분배
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig1, totalReward);
-
-        // 각 검증자에게 1000 WTON씩 분배
-        assertEq(rat.getPendingRewards(validator1, systemConfig1), 1000e27, "Validator1 reward");
-        assertEq(rat.getPendingRewards(validator2, systemConfig1), 1000e27, "Validator2 reward");
-        assertEq(rat.getPendingRewards(validator3, systemConfig1), 1000e27, "Validator3 reward");
-    }
-
-    /// @notice 보상 청구
-    function test_claimRewards() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        wton.mint(address(rat), 1000e27);
-
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig1, 1000e27);
-
-        uint256 balanceBefore = wton.balanceOf(validator1);
-
-        vm.prank(validator1);
-        rat.claimRewards(systemConfig1);
-
-        assertEq(rat.getPendingRewards(validator1, systemConfig1), 0, "Pending rewards should be 0");
-        assertEq(
-            wton.balanceOf(validator1),
-            balanceBefore + 1000e27,
-            "Balance should increase"
-        );
-    }
-
-    /// @notice 보상 일괄 청구
-    function test_claimRewardsBatch() public {
-        // 2개 L2에 등록
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig2, 500e27);
-
-        wton.mint(address(rat), 2000e27);
-
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig1, 1000e27);
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig2, 1000e27);
-
-        uint256 balanceBefore = wton.balanceOf(validator1);
-
-        address[] memory configs = new address[](2);
-        configs[0] = systemConfig1;
-        configs[1] = systemConfig2;
-
-        vm.prank(validator1);
-        rat.claimRewardsBatch(configs);
-
-        assertEq(
-            wton.balanceOf(validator1),
-            balanceBefore + 2000e27,
-            "Balance should increase by total rewards"
-        );
-    }
-
-    /// @notice 보상 없을 때 청구 실패
-    function test_claimRewards_noRewards() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.claimRewards(systemConfig1);
-    }
+    // V3: 보상 분배 테스트 제거 - ValidatorReward.t.sol로 이동
+    // - test_distributeValidatorReward -> ValidatorReward.distributeL2Rewards()
+    // - test_claimRewards -> ValidatorReward.claimAllRewards()
+    // - test_claimRewardsBatch -> ValidatorReward.claimAllRewards()
+    // - test_claimRewards_noRewards -> ValidatorReward 테스트
 
     // ==========================================
     // 거버넌스 테스트
@@ -629,24 +535,7 @@ contract RATTest is Test {
         assertEq(rat.accumulatedSlashings(), 0, "Accumulated slashings should be 0");
     }
 
-    /// @notice getTotalPendingRewards 테스트
-    function test_getTotalPendingRewards() public {
-        // 2개 L2에 등록
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig2, 500e27);
-
-        wton.mint(address(rat), 3000e27);
-
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig1, 1000e27);
-        vm.prank(seigManager);
-        rat.distributeValidatorReward(systemConfig2, 2000e27);
-
-        uint256 totalRewards = rat.getTotalPendingRewards(validator1);
-        assertEq(totalRewards, 3000e27, "Total pending rewards should be sum of all L2s");
-    }
+    // V3: test_getTotalPendingRewards 제거 - ValidatorReward.getPendingRewards()로 이동
 
     // ==========================================
     // resolveClaim 테스트 (FaultDisputeGame 연동)
@@ -670,7 +559,6 @@ contract RATTest is Test {
             uint256 depositAfterTrigger,
             uint256 bondAfterTrigger,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositAfterTrigger, 400e27, "Deposit should be reduced by C_off");
@@ -684,7 +572,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterResolve,
             uint256 bondAfterResolve,
-            ,
             ,
             bool isActive
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -709,7 +596,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             ,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 500e27, "Deposit should be unchanged");
@@ -732,7 +618,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 bondAmount,
-            ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -761,7 +646,6 @@ contract RATTest is Test {
         (
             uint256 depositedAmount,
             uint256 bondAmount,
-            ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -844,7 +728,6 @@ contract RATTest is Test {
             uint256 depositedAmount,
             uint256 totalBond,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositedAmount, 300e27, "Deposit should be reduced twice");
@@ -859,7 +742,6 @@ contract RATTest is Test {
             uint256 depositAfterFirst,
             uint256 bondAfterFirst,
             ,
-            ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositAfterFirst, 400e27, "One bond should be restored");
@@ -873,7 +755,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterSecond,
             uint256 bondAfterSecond,
-            ,
             ,
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -901,7 +782,6 @@ contract RATTest is Test {
             uint256 depositAfterTrigger,
             ,
             ,
-            ,
             bool isActiveAfterTrigger
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -916,7 +796,6 @@ contract RATTest is Test {
         (
             uint256 depositAfterResolve,
             uint256 bondAfterResolve,
-            ,
             ,
             bool isActiveAfterResolve
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
@@ -942,7 +821,6 @@ contract RATTest is Test {
             uint256 depositAfterSlash,
             ,
             ,
-            ,
             bool isActiveAfterSlash
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
@@ -958,7 +836,6 @@ contract RATTest is Test {
         // 재활성화 확인
         (
             uint256 depositAfterReregister,
-            ,
             ,
             ,
             bool isActiveAfterReregister
@@ -981,7 +858,7 @@ contract RATTest is Test {
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
         // trigger 시점에 이미 비활성화됨 (200 - 100 = 100 < D_min(150))
-        (,,,, bool isActive) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (,,, bool isActive) = rat.getValidatorRegistration(validator1, systemConfig1);
         assertFalse(isActive, "Should be inactive after trigger (D_min check failed)");
 
         // 비활성 상태에서 addDeposit 시도 - 실패해야 함

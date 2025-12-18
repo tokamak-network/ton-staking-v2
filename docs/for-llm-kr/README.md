@@ -13,7 +13,7 @@
 | **시뇨리지 분배 기준** | L2 TVL (단순 비례) | Bridged TON (성과 기반) |
 | **분배 함수** | 선형 분배 | 쌍곡선 포화 함수 y(x) = L·(x/(k+x)) |
 | **자격 조건** | 최소 예치금만 | S_i ≥ θ·B_i (SequencerVault 담보금 기반) |
-| **검증자 보상** | 없음 | α·y(x) / n (RAT 기반) |
+| **검증자 보상** | 없음 | α·y(x) / n (ValidatorReward 컨트랙트) |
 | **DAO 할당** | 고정 비율 | 고정 비율 + 미분배분 |
 
 ---
@@ -31,7 +31,7 @@
 | **[05_validator_slashing.md](./05_validator_slashing.md)** | 검증자 슬래싱, RAT 미응답 처리, 선차감-복구 메커니즘 |
 | **[06_bridged_ton_tracking.md](./06_bridged_ton_tracking.md)** | Bridged TON 추적 시스템, 콜백 인터페이스 |
 | **[07_rat_implementation.md](./07_rat_implementation.md)** | RAT 구현체 설계, IRAT/RATStorage/RAT.sol |
-| **[08_implementation.md](./08_implementation.md)** | SeigManagerV1_4, ValidatorPoolV1, Layer2ManagerV1_2 구현 코드 |
+| **[08_implementation.md](./08_implementation.md)** | SeigManagerV1_4, ValidatorRewardV1, Layer2ManagerV1_2 구현 코드 |
 | **[09_migration.md](./09_migration.md)** | 마이그레이션 가이드, 테스트 체크리스트, 배포 파라미터 |
 | **[10_governance_parameters.md](./10_governance_parameters.md)** | 거버넌스 결정 파라미터 통합, 조정 가이드, 미결정 항목 |
 | **[11_whitepaper_v2_changes.md](./11_whitepaper_v2_changes.md)** | 백서 V2 변경사항 추적, 문서 수정 이력 |
@@ -100,10 +100,13 @@ contracts/
 │   └── L1BridgeRegistryV1_1.sol      → L1BridgeRegistryV1_2.sol (업그레이드)
 └── [V3 신규]
     └── validator/
-        ├── RAT.sol                   (신규) - Optimism 참고
+        ├── RAT.sol                   (신규) - 검증자 등록/담보금/슬래싱
         ├── RATStorage.sol            (신규)
+        ├── ValidatorRewardV1.sol     (신규) - 검증자 보상 분배
+        ├── ValidatorRewardStorage.sol (신규)
         └── interfaces/
-            └── IRAT.sol              (신규)
+            ├── IRAT.sol              (신규)
+            └── IValidatorReward.sol  (신규)
 ```
 
 ### V3 핵심 파라미터
