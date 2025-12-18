@@ -20,7 +20,7 @@
    - setMinStakingRatio(0.1e27)          // θ = 10%
    - setValidatorDistributionRatio(0.2e27) // α = 20%
    - setHalfSaturationPoint(10_000_000e27) // k = 1000만 TON
-   - setStakedSeigFactor(1e27)           // λ = 100% (초기: V2와 동일)
+   // 초기에는 v3Migrated = false (V2 모드)
 
 9. ValidatorPool 연결:
    - SeigManager.setValidatorPool(ValidatorPoolV1)
@@ -112,10 +112,10 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 
 ### 4.2 전환 메커니즘 테스트
 
-- [ ] λ = 1, r = 0.4 (V2 상태): 스테이커 시뇨리지 100%
-- [ ] λ = 1, r = 0: 추가 시뇨리지 없음
-- [ ] λ = 0.5, r = 0: 지분 시뇨리지 50%
-- [ ] λ = 0, r = 0 (V3 상태): 스테이커 시뇨리지 0%, A₂ = A
+- [ ] v3Migrated = false (V2 모드): V1_3 _increaseTot() 로직 동작 확인
+- [ ] v3Migrated = false: stakedSeig = A × prevTotalSupply / tos 확인
+- [ ] v3Migrated = false: Coinage factor 업데이트 확인
+- [ ] v3Migrated = true (V3 모드): 스테이커 시뇨리지 0%, A₂ = A 확인
 
 ### 4.3 통합 테스트
 
@@ -131,8 +131,8 @@ function estimatedDistribute(uint256 blockNumber, address layer2)
 - [ ] x = 0 일 때 y(x) = 0
 - [ ] 단일 L2만 자격 있을 때
 - [ ] 모든 L2가 자격 없을 때
-- [ ] 검증자가 0명일 때
-- [ ] λ = 0, r = 0 일 때 A₂ = A 확인
+- [ ] 검증자가 0명일 때 (|V_i| = 0 → DAO Treasury)
+- [ ] v3Migrated = true 일 때 A₂ = A 확인
 
 ---
 
@@ -145,9 +145,9 @@ minStakingRatio = 0.1e27;             // θ = 10%
 validatorDistributionRatio = 0.2e27; // α = 20%
 halfSaturationPoint = 10_000_000e27; // k = 1000만 TON
 
-// 전환 파라미터 (초기값)
-stakedSeigFactor = 1e27;              // λ = 100% (V2와 동일)
-relativeSeigRate = 0.4e27;            // r = 40% (V2 기존값 유지)
+// 전환 제어 (초기값: V2 모드)
+v3Migrated = false;                   // 초기: V2 모드
+relativeSeigRate = 0.4e27;            // r = 40% (V2 모드에서만 사용)
 
 // 검증자 풀 파라미터
 minimumValidatorDeposit = 10_000e27; // 최소 1만 WTON
@@ -157,16 +157,17 @@ ratResponseWindow = 1 hours;
 
 ---
 
-## 6. 점진적 전환 일정 예시
+## 6. V3 전환 일정 예시
 
-| 단계 | 시기 | λ | r | 비고 |
-|------|------|---|---|------|
-| Phase 0 | 배포 시 | 1.0 | 0.4 | V2와 동일 |
-| Phase 1 | +1개월 | 1.0 | 0.2 | 추가 시뇨리지 50% 감소 |
-| Phase 2 | +2개월 | 1.0 | 0.0 | 추가 시뇨리지 완전 제거 |
-| Phase 3 | +3개월 | 0.7 | 0.0 | 지분 시뇨리지 30% 감소 |
-| Phase 4 | +4개월 | 0.4 | 0.0 | 지분 시뇨리지 60% 감소 |
-| Phase 5 | +5개월 | 0.0 | 0.0 | V3 완전 전환 |
+| 단계 | 시기 | v3Migrated | 비고 |
+|------|------|------------|------|
+| Phase 0 | 배포 시 | false | V2 모드 (V1_3 로직) |
+| Phase 1 | 전환 준비 | false | 검증자 등록, 스테이커 공지 |
+| Phase 2 | 전환 실행 | true | `migrateToV3()` 호출, V3 모드 활성화 |
+
+**전환 효과:**
+- V2 → V3: 스테이커 시뇨리지 즉시 중단
+- A₂ = A: 전체 시뇨리지가 V3 공식대로 분배
 
 ---
 

@@ -112,9 +112,9 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         view
         returns (
             uint256 depositedAmount,
+            uint256 depositedPrincipal,
             uint256 totalBondForRAT,
             uint256 pendingRewards,
-            uint256 coinageFactorAtDeposit,
             uint32 validatorIndex,
             bool isActive
         )
@@ -122,9 +122,9 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         return (
             reg.depositedAmount,
+            reg.depositedPrincipal,
             reg.totalBondForRAT,
             reg.pendingRewards,
-            reg.coinageFactorAtDeposit,
             reg.validatorIndex,
             reg.isActive
         );
@@ -227,6 +227,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     /// @inheritdoc IRAT
     /// @notice 검증자 탈퇴 및 출금 요청
     /// @dev 2주 대기 후 processWithdrawal 호출 필요
+    /// @dev V3 정책: 담보금 시뇨리지 없음, 원금(depositedPrincipal) 반환
     function deactivateValidator(address systemConfig) external ifFree {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
         if (!reg.isActive) revert NotActiveValidatorError();
@@ -247,8 +248,12 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         pool.activeCount--;
         pool.totalDeposited -= reg.depositedAmount;
 
+        // V3 정책: 원금(depositedPrincipal) 반환 (담보금 시뇨리지 없음)
+        // depositedAmount는 슬래싱으로 줄어들 수 있으므로, 실제 출금액은 depositedAmount 사용
+        // depositedPrincipal은 원금 추적용이며, 슬래싱되지 않은 경우 동일
         uint256 withdrawAmount = reg.depositedAmount;
         reg.depositedAmount = 0;
+        reg.depositedPrincipal = 0;
 
         // DepositManager에 출금 요청 (2주 대기 필요)
         if (withdrawAmount > 0) {
@@ -264,6 +269,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         }
 
         // 출금 요청 정보 저장 (processWithdrawal에서 사용)
+        // V3: 원금 반환 (담보금 시뇨리지 없음)
         pendingWithdrawals[systemConfig][msg.sender] = withdrawAmount;
 
         emit ValidatorDeactivated(msg.sender, systemConfig, withdrawAmount);
@@ -302,6 +308,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         _depositToDepositManager(systemConfig, amount);
 
         reg.depositedAmount += amount;
+        reg.depositedPrincipal += amount;  // V3: 원금 추적
         validatorPools[systemConfig].totalDeposited += amount;
 
         emit DepositAdded(msg.sender, systemConfig, amount);
@@ -349,6 +356,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     }
 
     /// @notice 내부 검증자 등록 로직
+    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedPrincipal로 원금 추적
     function _registerValidatorInternal(address validator, address systemConfig, uint256 depositAmount) internal {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         if (reg.isActive) revert AlreadyRegisteredError();
@@ -357,6 +365,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
         // 기존 담보금이 있는 경우 (슬래싱 후 재등록)
         uint256 totalDeposit = reg.depositedAmount + depositAmount;
+        uint256 totalPrincipal = reg.depositedPrincipal + depositAmount;
         if (totalDeposit < minDeposit) revert InsufficientDepositError();
 
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
@@ -371,6 +380,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
             // 기존 인덱스 유지, 담보금만 업데이트
             reg.depositedAmount = totalDeposit;
+            reg.depositedPrincipal = totalPrincipal;
             reg.isActive = true;
         } else {
             // 신규 등록
@@ -380,10 +390,11 @@ contract RAT is RATStorage, IRAT, IOnApprove {
             pool.totalDeposited += totalDeposit;
 
             // 검증자 등록 정보 설정
+            // V3: 담보금 시뇨리지 없음, 원금 추적용 depositedPrincipal 설정
             reg.depositedAmount = totalDeposit;
+            reg.depositedPrincipal = totalPrincipal;
             reg.totalBondForRAT = 0;
             reg.pendingRewards = 0;
-            reg.coinageFactorAtDeposit = 0; // TODO: coinage factor 연동
             reg.validatorIndex = uint32(index);
             reg.isActive = true;
 

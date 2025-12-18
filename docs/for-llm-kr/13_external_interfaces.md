@@ -228,14 +228,17 @@ function slashSequencer(address layer2, address[] calldata challengers) external
 ### 6.1 V3 파라미터 설정
 
 ```solidity
-// SeigManager
+// SeigManager - V3 파라미터 설정
 function setDaoDistributionRatio(uint256 ratio) external onlyOwner;      // d
 function setMinStakingRatio(uint256 ratio) external onlyOwner;           // θ
 function setValidatorDistributionRatio(uint256 ratio) external onlyOwner; // α
 function setHalfSaturationPoint(uint256 k) external onlyOwner;           // k
-function setStakedSeigFactor(uint256 lambda) external onlyOwner;         // λ
-function setRelativeSeigRate(uint256 rate) external onlyOwner;           // r
 function setValidatorPool(address pool) external onlyOwner;
+function migrateToV3() external onlyOwner;                               // V3 모드 전환
+
+// 레거시 (V2 모드에서만 사용)
+function setRelativeSeigRate(uint256 rate) external onlyOwner;           // r (V2 모드 전용)
+function setStakedSeigFactor(uint256 lambda) external onlyOwner;         // 레거시, 미사용
 ```
 
 ### 6.2 슬래싱 파라미터 설정
@@ -417,8 +420,11 @@ event V3SeigniorageDistributed(
     uint256 validatorPoolAmount    // α · y(x)
 );
 
-event StakedSeigFactorUpdated(uint256 newLambda);
-event RelativeSeigRateUpdated(uint256 newRate);
+event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
+
+// 레거시 이벤트
+event StakedSeigFactorUpdated(uint256 newLambda);  // 미사용
+event RelativeSeigRateUpdated(uint256 newRate);   // V2 모드 전용
 ```
 
 ### 9.2 RAT 이벤트

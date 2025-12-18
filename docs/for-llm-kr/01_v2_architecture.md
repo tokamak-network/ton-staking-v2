@@ -7,7 +7,7 @@ contracts/
 ├── stake/
 │   ├── managers/
 │   │   ├── SeigManagerV1_3.sol       ← V3에서 업그레이드 (SeigManagerV1_4)
-│   │   ├── DepositManagerV1_2.sol    ← V3에서 업그레이드 (DepositManagerV1_3)
+│   │   ├── DepositManagerV1_1.sol    ← V3에서 업그레이드 (DepositManagerV1_2)
 │   │   └── *Storage*.sol             ← V3 스토리지 추가
 │   ├── tokens/
 │   │   └── RefactorCoinageSnapshot.sol (변경 없음)
@@ -156,12 +156,11 @@ uint256 public adjustCommissionDelay;                            // ⚪ V3: 미�
 // --- V2 분배율 ---
 uint256 public powerTONSeigRate;   // ⚪ V3: 미사용
 uint256 public daoSeigRate;        // ⚪ V3: 미사용 (V3는 daoDistributionRatio 사용)
-uint256 public relativeSeigRate;   // ✅ V3: 전환 파라미터로 재사용 (r)
-// 참고: stakedSeigFactor (λ)는 SeigManagerV1_4Storage에 추가됨
+uint256 public relativeSeigRate;   // ⚪ V3: 미사용 (V2 모드에서만 사용, V1_3 기존 파라미터)
 
 uint256 public accRelativeSeig;    // ⚪ V3: 미사용
-uint256 public minimumAmount;      // ✅ 유지
-uint256 public lastSnapshotId;     // ✅ 유지
+uint256 public minimumAmount;      // ✅ 유지 (오퍼레이터 최소 예치금 검증)
+uint256 public lastSnapshotId;     // ⚪ V3: 미사용
 
 // ============================================
 // SeigManagerV1_1Storage - V3 변경사항
@@ -185,7 +184,7 @@ struct Layer2Reward {
 
 address public l1BridgeRegistry;   // ✅ 유지
 address public layer2Manager;      // ✅ 유지
-uint256 public layer2StartBlock;   // ✅ 유지
+uint256 public layer2StartBlock;   // ⚪ V3: 미사용 (V2 분기에서만 사용)
 uint256 public l2RewardPerUint;    // ⚪ V3: 미사용 (V3는 bridgedTONRewardPerUint 사용)
 uint256 public totalLayer2TVL;     // ⚪ V3: 미사용 (V3는 totalEffectiveBridgedTON 사용)
 
@@ -207,26 +206,29 @@ bool internal _lock;  // ✅ 유지
 
 | 기존 스토리지 | V3 상태 | 비고 |
 |------------|---------|------|
-| `_tot` | ✅ 유지 | 변경 없음 |
-| `_coinages` | ✅ 유지 | 변경 없음 |
+| `_tot` | ✅ 유지 | V2 모드에서만 factor 업데이트, V3에서는 조회용 |
+| `_coinages` | ✅ 유지 | V2 모드에서만 factor 업데이트, V3에서는 조회/슬래싱용 |
+| `minimumAmount` | ⚪ V3: 미사용 | V3는 S_i ≥ θ·B_i 조건으로 대체 |
+| `lastSnapshotId` | ⚪ V3: 미사용 | 스냅샷 기능 미사용 |
 | `_powerton` | ⚪ 미사용 | 스토리지 슬롯 유지, V3에서 사용 안함 |
 | `powerTONSeigRate` | ⚪ 미사용 | 스토리지 슬롯 유지, V3에서 사용 안함 |
-| `relativeSeigRate` | ✅ 재사용 | V3 전환 파라미터 r로 활용 |
-| `l2RewardPerUint` | ⚪ 미사용 | 스토리지 슬롯 유지, V3에서 사용 안함 |
-| `totalLayer2TVL` | ⚪ 미사용 | 스토리지 슬롯 유지, V3에서 사용 안함 |
-| `layer2RewardInfo` | ⚪ 미사용 | 스토리지 슬롯 유지, V3에서 사용 안함 |
+| `relativeSeigRate` | ⚪ V2 전용 | V2 모드에서만 사용 (V1_3 기존 파라미터) |
+| `l2RewardPerUint` | ⚪ V2 전용 | V2 모드에서만 사용 |
+| `totalLayer2TVL` | ⚪ V2 전용 | V2 모드에서만 사용 |
+| `layer2RewardInfo` | ⚪ V2 전용 | V2 모드에서만 사용 |
+| `layer2StartBlock` | ⚪ V2 전용 | V2 모드에서만 사용 |
 
 | SeigManagerV1_4Storage (신규) | 설명 |
 |------------------------------|------|
+| `v3Migrated` | V3 모드 활성화 플래그 |
 | `daoDistributionRatio` | d: DAO 분배율 |
 | `minStakingRatio` | θ: 최소 스테이킹 비율 |
 | `validatorDistributionRatio` | α: 검증자 분배율 |
 | `halfSaturationPoint` | k: 반포화점 |
-| `bridgedTONRewardPerUint` | Bridged TON 단위당 누적 보상 |
-| `totalEffectiveBridgedTON` | x: 전체 유효 Bridged TON |
-| `bridgedTONInfo` | L2별 Bridged TON 정보 매핑 |
+| `bridgedTONRewardPerUint` | Bridged TON 단위당 누적 보상 (V3 전용) |
+| `totalEffectiveBridgedTON` | x: 전체 유효 Bridged TON (V3 전용) |
+| `bridgedTONInfo` | L2별 Bridged TON 정보 매핑 (V3 전용) |
 | `validatorPool` | ValidatorPool 컨트랙트 주소 |
-| `stakedSeigFactor` | λ: 지분 시뇨리지 비율 (전환용) |
 
 ---
 

@@ -166,12 +166,21 @@ R_challenger = C_max + (Δ_sequencer / n)
 - 슬래싱 전: `S_i = 100 WTON`, `B_i = 500 TON`, `θ = 0.1` → `100 ≥ 50` ✅ 유효
 - 슬래싱 후: `S_i = 0 WTON` → `0 ≥ 50` ❌ 무효 → 시뇨리지 분배에서 제외
 
-> **검토 필요 (백서 vs 현재 설계)**
+> **⚠️ 백서 vs 현재 구현 차이 (추가 개발 필요)**
 >
-> - 슬래싱된 시퀀서는 스테이킹된 담보금을 잃습니다.
-> - 이는 최소 자격 요건을 더 이상 충족하지 못하므로 시뇨리지를 받을 자격이 없어짐을 의미합니다. **이것은 L2 시퀀싱에 영향을 주지 않습니다.** 나중에 담보금을 다시 예치하여 최소 자격 요건을 충족하면 시뇨리지를 다시 받을 수 있습니다.
+> **백서 (Page 10):**
+> > "A slashed sequencer is **suspended from sequencing** according to protocol rules. To resume operation, the sequencer must **restore the bond within the re-bond period**; failure to do so results in **permanent removal from the active sequencer set**."
 >
-> **그러나 백서에서는 L2 시퀀싱이 정지된다고 명시되어 있습니다. 또한 re-bonding period 내에 담보금을 복구하지 않으면 active sequencer set에서 영구 제거된다고 명시되어 있습니다. 이 부분이 추가 개발이 필요한지 확인이 필요합니다.**
+> | 항목 | 백서 요구사항 | 현재 구현 |
+> |------|--------------|----------|
+> | **슬래싱 시 L2 시퀀싱** | ❌ 정지됨 (suspended) | ⚠️ 영향 없음 (시뇨리지 자격만 상실) |
+> | **re-bond period** | ✅ 담보금 복구 기간 | ⚠️ 미구현 |
+> | **영구 제거** | ✅ 기간 내 미복구 시 제거 | ⚠️ 미구현 |
+>
+> **추가 개발 필요 항목:**
+> 1. 시퀀서 정지 메커니즘 (L2 시퀀싱 정지)
+> 2. re-bond period 파라미터 및 로직
+> 3. 영구 제거 메커니즘 (active sequencer set에서 제거)
 
 ---
 
@@ -257,46 +266,40 @@ Permissionless 함수이므로, 악의적인 호출을 방지하기 위한 검�
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**⚠️ 주의: DisputeGameFactory 검증 없이는 공격자가 가짜 게임 컨트랙트를 배포하여 임의의 시퀀서를 슬래싱할 수 있습니다.**
+**✅ DisputeGameFactory 검증 구현됨**: L1BridgeRegistry에 등록된 rollupConfig와 매칭하여 가짜 게임 컨트랙트 방지
 
 ```solidity
-// 예시: DisputeGameFactory 검증
-function slashSequencerByGame(address gameAddress) external {
-    // 1. DisputeGameFactory에서 생성된 게임인지 확인 (필수!)
-    require(
-        IDisputeGameFactory(disputeGameFactory).gameExists(gameAddress),
-        "not a valid game from factory"
-    );
-
-    // 2. 이미 슬래싱되었는지 확인
+// 실제 구현: L1BridgeRegistry 기반 검증
+function slashSequencerByGame(address gameAddress) external onlyMigrated {
+    // 1. 중복 슬래싱 방지
     if (slashedGames[gameAddress]) revert AlreadySlashedError();
 
-    // 3. 게임 상태 확인 (CHALLENGER_WINS = 1)
+    // 2. 게임 상태 확인 (CHALLENGER_WINS = 1)
     uint8 gameStatus = IFaultDisputeGame(gameAddress).status();
     if (gameStatus != 1) revert GameNotResolvedError();
 
-    // 4. SystemConfig → L2 매핑
+    // 3. SystemConfig 조회
     address systemConfig = IFaultDisputeGame(gameAddress).systemConfig();
+
+    // 4. DisputeGameFactory 검증 - 가짜 게임 컨트랙트 방지
+    address factory = IOptimismSystemConfig(systemConfig).disputeGameFactory();
+    if (factory == address(0)) revert InvalidFactoryError();
+
+    // 5. L1BridgeRegistry에서 factory가 등록되어 있는지 확인
+    address registeredConfig = IL1BridgeRegistry(l1BridgeRegistry)
+        .rollupConfigWithDisputeGameFactory(factory);
+    if (registeredConfig != systemConfig) revert InvalidFactoryError();
+
+    // 6. Layer2 주소 조회
     address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
     if (layer2 == address(0)) revert InvalidGameError();
 
-    // 5. 챌린저 조회 (TODO: 온체인에서 조회)
-    address[] memory challengers = _getChallengersFromGame(gameAddress);
+    // 7. 챌린저 온체인 조회 - claimData(0).counteredBy
+    address challenger = _getChallengerFromGame(gameAddress);
 
     // 슬래싱 실행
     slashedGames[gameAddress] = true;
-    _executeSlashing(layer2, challengers);
-}
-
-// TODO: FaultDisputeGame에서 챌린저 조회 구현
-function _getChallengersFromGame(address gameAddress)
-    internal view
-    returns (address[] memory)
-{
-    // Optimism FaultDisputeGame 구조 확인 후 구현
-    // 옵션 1: game.getChallengers()
-    // 옵션 2: Move 이벤트 파싱
-    // 옵션 3: root claim disputer 조회
+    _executeSlashingWithChallenger(layer2, challenger);
 }
 ```
 
@@ -472,39 +475,7 @@ function onStakingChange(address layer2) external {
 
 ---
 
-## 7. 반복 위반 페널티
-
-> **회의록 결정 (2025-12-08)**: γ squared 공식 제거 권고됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.
-
-### 7.1 현재 상태
-
-~~백서 공식 (3)에 따르면, 시퀀서가 **슬래싱 윈도우(slashing window)** 내에 여러 번 fraud를 저지르면 필요 담보금이 증가합니다:~~
-
-~~`D_sequencer^(n) = γ^(n-1) · D_sequencer^(1)`~~
-
-**회의록 결정에 따라 위 공식은 삭제되었습니다.**
-
-### 7.2 대안 검토 (TBD)
-
-반복 위반에 대한 페널티 메커니즘은 다음과 같은 대안이 논의 중입니다:
-
-1. **단순 누적 기록**: 위반 횟수만 기록하고, 거버넌스에서 수동으로 제재 결정
-2. **블랙리스트**: 일정 횟수 이상 위반 시 해당 시퀀서 영구 차단
-3. **페널티 없음**: 매 위반마다 동일한 담보금 슬래싱 (현재 기본 동작)
-
-구체적인 메커니즘은 향후 거버넌스에서 결정될 예정입니다.
-
-### 7.3 슬래싱 기록 스토리지
-
-```solidity
-/// @notice L2별 슬래싱 기록 (layer2 => timestamps)
-/// @dev 반복 위반 추적용, 향후 페널티 메커니즘에서 사용
-mapping(address => uint256[]) public sequencerSlashTimestamps;
-```
-
----
-
-## 8. 이벤트
+## 7. 이벤트
 
 ```solidity
 /// @notice 시퀀서 슬래싱 이벤트
@@ -530,17 +501,11 @@ event StakeTransferred(
     uint256 amount
 );
 
-/// @notice 반복 위반 페널티 적용 이벤트
-event PenaltyApplied(
-    address indexed layer2,
-    uint256 violationCount,
-    uint256 requiredDeposit
-);
 ```
 
 ---
 
-## 9. 거버넌스 파라미터
+## 8. 거버넌스 파라미터
 
 시퀀서 슬래싱 시스템에서 거버넌스가 결정해야 하는 파라미터:
 
@@ -550,51 +515,56 @@ event PenaltyApplied(
 | **C_max** | 단일 fraud proof 예상(estimated) 온체인 비용 | 10e27 (10 TON) |
 | **minimumInitialDepositAmount** | V2 최소 담보금 | 1000.1e27 |
 
-> **회의록 결정 (2025-12-08)**: γ squared 공식 제거로 인해 `penaltyFactor`, `slashingWindow` 파라미터는 삭제됨. 반복 위반 페널티 메커니즘은 향후 거버넌스에서 재논의 예정.
-
 ---
 
-## 10. 개발 필요 사항 (TODO)
+## 9. 구현 상태
 
-`slashSequencerByGame` 함수 완성을 위해 다음 항목 개발이 필요합니다.
+`slashSequencerByGame` 함수 관련 개발 상태입니다.
 
-### 10.1 DisputeGameFactory 검증 추가
+### 9.1 ✅ DisputeGameFactory 검증 (구현 완료)
 
 **목적**: 가짜 게임 컨트랙트로부터 보호
 
-**필요한 작업**:
-1. DisputeGameFactory 주소 저장 변수 추가 (Storage)
-2. `gameAddress`가 공식 Factory에서 생성되었는지 검증하는 로직 추가
-3. Factory 설정 함수 추가 (거버넌스 전용)
+**구현된 검증 방식**:
+1. `systemConfig.disputeGameFactory()` 조회
+2. `L1BridgeRegistry.rollupConfigWithDisputeGameFactory(factory)` 조회로 등록된 factory인지 확인
+3. 등록된 systemConfig와 일치하는지 검증
 
-**검증 방식** (Optimism 구조 확인 필요):
-- `DisputeGameFactory.games(gameAddress)` 조회로 등록 여부 확인
-- 또는 `DisputeGameFactory.gameAtIndex(index)` 순회하여 확인
+```solidity
+// SeigManagerV1_4.sol - 실제 구현
+address factory = IOptimismSystemConfig(systemConfig).disputeGameFactory();
+if (factory == address(0)) revert InvalidFactoryError();
 
-**위험**: 이 검증 없이는 공격자가 임의의 컨트랙트를 배포하여 원하는 시퀀서를 슬래싱할 수 있음
+address registeredConfig = IL1BridgeRegistry(l1BridgeRegistry)
+    .rollupConfigWithDisputeGameFactory(factory);
+if (registeredConfig != systemConfig) revert InvalidFactoryError();
+```
 
-### 10.2 챌린저 온체인 조회 구현
+### 9.2 ✅ 챌린저 온체인 조회 (구현 완료)
 
-**목적**: 보상받을 챌린저 목록을 온체인에서 직접 조회
+**목적**: 보상받을 챌린저를 온체인에서 직접 조회
 
-**필요한 작업**:
-1. FaultDisputeGame 구조 분석 (Optimism 코드베이스 확인)
-2. `_getChallengersFromGame(address gameAddress)` 함수 구현
+**구현된 조회 방식**: `claimData(0).counteredBy` - root claim을 counter한 단일 챌린저
 
-**조회 방식 후보** (Optimism 구조 확인 후 개발):
+```solidity
+// SeigManagerV1_4.sol - 실제 구현
+function _getChallengerFromGame(address gameAddress) internal view returns (address challenger) {
+    // claimData(0) 조회: (parentIndex, counteredBy, claimant, bond, claim, position, clock)
+    (bool success, bytes memory data) = gameAddress.staticcall(
+        abi.encodeWithSignature("claimData(uint256)", 0)
+    );
+    if (success && data.length >= 64) {
+        // counteredBy는 두 번째 필드 (32-63 bytes)
+        assembly {
+            challenger := mload(add(data, 64))
+        }
+    }
+}
+```
 
-| 옵션 | 방식 | 비고 |
-|------|------|------|
-| A | `game.getChallengers()` 직접 호출 | 함수 존재 여부 확인 필요 |
-| B | `game.claimData()` 등 구조체 파싱 | Claim 데이터에서 challenger 추출 |
-| C | Root claim의 disputer만 보상 | 단일 챌린저 방식, 가장 단순 |
+**참고**: 현재 구현은 단일 챌린저(root claim의 disputer)만 보상하는 방식입니다.
 
-**확인 필요 사항**:
-- FaultDisputeGame에서 챌린저 정보가 어디에 저장되는지
-- Multi-challenger 지원 여부 (여러 챌린저가 있는 경우 모두 조회 가능한지)
-- 게임 종료 후에도 챌린저 정보가 조회 가능한지
-
-### 10.3 참고: Optimism FaultDisputeGame 구조
+### 9.3 참고: Optimism FaultDisputeGame 구조
 
 ```
 확인 필요한 Optimism 컨트랙트:

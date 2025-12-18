@@ -30,11 +30,12 @@ contract RATStorage {
 
     /// @notice 검증자 등록 정보
     /// @dev 백서 V2 공식 (5) 기반: D_validator = C_off + Δ_validator
+    /// @dev V3 정책: 담보금 시뇨리지 없음, 출금 시 원금 반환
     struct ValidatorRegistration {
         uint256 depositedAmount;        // 현재 유효 담보금 (선차감 후 금액)
+        uint256 depositedPrincipal;     // 원금 (V3: 시뇨리지 없으므로 출금 시 이 값 반환)
         uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
         uint256 pendingRewards;         // 미청구 검증자 보상
-        uint256 coinageFactorAtDeposit; // 예치 시점의 coinage factor
         uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
         uint32 validatorIndex;          // 검증자 인덱스
         bool isActive;                  // 활성 상태

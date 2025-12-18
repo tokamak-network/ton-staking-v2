@@ -134,6 +134,27 @@ interface IRAT {
         view
         returns (uint256);
 
+    /// @notice 검증자 등록 정보 조회
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return depositedAmount 현재 유효 담보금
+    /// @return depositedPrincipal 원금 (V3: 시뇨리지 없으므로 출금 시 반환 금액)
+    /// @return totalBondForRAT 진행 중인 RAT 테스트에 묶인 금액
+    /// @return pendingRewards 미청구 보상
+    /// @return validatorIndex 검증자 인덱스
+    /// @return isActive 활성 상태
+    function getValidatorRegistration(address validator, address systemConfig)
+        external
+        view
+        returns (
+            uint256 depositedAmount,
+            uint256 depositedPrincipal,
+            uint256 totalBondForRAT,
+            uint256 pendingRewards,
+            uint32 validatorIndex,
+            bool isActive
+        );
+
     // ==========================================
     // External Functions - Validator Management
     // ==========================================

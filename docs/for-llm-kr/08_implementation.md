@@ -27,8 +27,10 @@ contract SeigManagerV1_4Storage {
     /// @dev 백서 공식 (11): y(k) = L/2
     uint256 public halfSaturationPoint;
 
-    /// @notice λ: 지분 시뇨리지 비율 (전환용), RAY 단위
-    /// @dev λ = 1.0: V2와 동일, λ = 0: 지분 시뇨리지 없음
+    /// @notice λ: 지분 시뇨리지 비율 (미사용, 레거시)
+    /// @dev 현재 구현에서 사용하지 않음
+    ///      - V2 모드: V1_3 공식 사용 (stakedSeig = A × prevTotalSupply / tos)
+    ///      - V3 모드: 스테이커 시뇨리지 없음 (A₂ = A)
     uint256 public stakedSeigFactor;
 
     // ==========================================
@@ -86,18 +88,22 @@ contract SeigManagerV1_4Storage {
 
 ## 2. SeigManagerV1_4 핵심 함수
 
-### 2.1 전환 파라미터 설정 함수
+### 2.1 파라미터 설정 함수 (레거시)
+
+> **참고**:
+> - `stakedSeigFactor` (λ): 미사용 (V2 모드는 V1_3 공식 사용, V3 모드는 스테이커 시뇨리지 없음)
+> - `relativeSeigRate` (r): V2 모드에서 사용됨 (V1_3과 동일), V3 모드에서 미사용
 
 ```solidity
-/// @notice 지분 시뇨리지 비율 설정 (거버넌스)
+/// @notice 지분 시뇨리지 비율 설정 (레거시, 미사용)
 function setStakedSeigFactor(uint256 newLambda) external onlyOwner {
     require(newLambda <= RAY, "lambda > 1");
     stakedSeigFactor = newLambda;
     emit StakedSeigFactorUpdated(newLambda);
 }
 
-/// @notice 추가 시뇨리지 비율 설정 (거버넌스) - 기존 함수 사용
-/// @dev relativeSeigRate는 기존 SeigManagerStorage에 존재
+/// @notice 추가 시뇨리지 비율 설정 (V2 모드에서 사용)
+/// @dev relativeSeigRate는 V2 모드에서 V1_3과 동일하게 적용됨
 function setRelativeSeigRate(uint256 newRate) external onlyOwner {
     require(newRate <= RAY, "rate > 1");
     relativeSeigRate = newRate;
@@ -156,64 +162,56 @@ function calculateSequencerReward(uint256 l2Seigniorage)
 }
 ```
 
-### 2.4 수정된 _updateSeigniorage 로직 (순차적 분배)
+### 2.4 _increaseTotV3 로직 (V3/V2 분기)
 
 ```solidity
-function _updateSeigniorage() internal ifFree returns (bool) {
-    if (paused) return true;
+/// @notice V3 증가 로직 (백서 공식 적용)
+function _increaseTotV3() internal returns (bool result) {
+    if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
+        _lastSeigBlock = block.number;
+        return false;
+    }
 
     uint256 prevTotalSupply = _tot.totalSupply();
-    uint256 blockDelta = block.number - _lastSeigBlock;
-    if (blockDelta == 0) return false;
-
-    // ========================================
-    // A = 전체 기간 시뇨리지
-    // ========================================
-    uint256 A = blockDelta * _seigPerBlock;
-
-    // ========================================
-    // Step 1: 스테이커 지분 시뇨리지 (λ 적용)
-    // S_staked = λ · A · (S / T)
-    // S = 총 스테이킹 금액 (WTON 총 공급량)
-    // T = TON 총 발행량
-    // ========================================
-    uint256 T = ITON(_ton).totalSupply();
-    uint256 S = IWTON(_wton).totalSupply();  // 스테이킹 금액
-
-    uint256 S_staked = FullMath.rmul(
-        FullMath.rmul(A, stakedSeigFactor),  // λ · A
-        FullMath.rdiv(S, T)                  // × (S / T)
-    );
-
-    // A₁ = A - S_staked (1차 잔여)
-    uint256 A1 = A - S_staked;
-
-    // ========================================
-    // Step 2: 스테이커 추가 시뇨리지 (r 적용)
-    // S_relative = A₁ · r
-    // ========================================
-    uint256 S_relative = FullMath.rmul(A1, relativeSeigRate);  // A₁ · r
-
-    // A₂ = A₁ - S_relative (2차 잔여 = V3 분배 재원)
-    uint256 A2 = A1 - S_relative;
-
-    // ========================================
-    // 스테이커 분배 (Coinage factor 업데이트)
-    // ========================================
-    uint256 totalStakerSeig = S_staked + S_relative;
-    uint256 nextTotalSupply = prevTotalSupply + totalStakerSeig;
-    _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
+    uint256 span = block.number - _lastSeigBlock;
+    uint256 A = span * _seigPerBlock;
+    uint256 tos = _totalSupplyOfTon(block.number);
 
     _lastSeigBlock = block.number;
 
-    // ========================================
-    // Step 3: V3 분배 (A₂ 기준, 백서 공식 적용)
-    // ========================================
-    if (A2 > 0) {
-        _distributeV3Seigniorage(A2);
+    if (v3Migrated) {
+        // ========================================
+        // V3: 스테이커 시뇨리지 없음 (V3 백서)
+        // A₂ = A (전체 시뇨리지가 V3 분배 재원)
+        // ========================================
+        emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, prevTotalSupply);
+
+        if (A > 0) {
+            (l2TotalSeigs, layer2Seigs) = _distributeV3Seigniorage(A);
+        }
+    } else {
+        // ========================================
+        // V2: V1_3 _increaseTot() 로직과 동일
+        // ========================================
+
+        // 1. stakedSeig 계산 (V1_3과 동일)
+        uint256 stakedSeig = rdiv(rmul(A, prevTotalSupply), tos);
+
+        // 2. Layer2 TVL 시뇨리지 계산
+        // ... (V1_3과 동일한 layer2 TVL 분배 로직)
+
+        // 3. unstakedSeig, totalPseig 계산 (V1_3과 동일)
+        uint256 unstakedSeig = A - stakedSeig - l2TotalSeigs;
+        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+        uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+
+        // 4. Coinage factor 업데이트
+        _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
+
+        // 5. PowerTON, DAO 분배 (V1_3과 동일)
+        // ...
     }
 
-    emit SeigGivenV3(A, S_staked, S_relative, A2);
     return true;
 }
 
@@ -295,31 +293,29 @@ layer2Seigs = (bridgedTONRewardPerUint * effectiveBridgedTON) / WEI_UNIT - initi
 ## 3. 이벤트
 
 ```solidity
-/// @notice V3 시뇨리지 분배 이벤트 (V2의 SeigGiven2 대체)
-event SeigGivenV3(
+/// @notice V3 시뇨리지 분배 이벤트 (ISeigManagerV3.sol:27-35)
+event V3SeigniorageDistributed(
+    uint256 totalSeigniorage,       // A₂: 전체 시뇨리지
+    uint256 l2MaxAllocation,        // L: (1-d)·A₂ 분배 가능량
+    uint256 totalDistributed,       // y(x): 쌍곡선 결과
+    uint256 totalDAO,               // DAO 총 분배량 (S_DAO + 미분배분)
+    uint256 validatorPoolAmount     // α·y(x): 검증자 풀
+);
+
+/// @notice V3 마이그레이션 완료 이벤트
+event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
+
+/// @notice V2 시뇨리지 분배 이벤트 (V1_3과 동일)
+event SeigGiven2(
     address indexed layer2,
-    uint256 totalSeigniorage,   // A: 기간 시뇨리지
-    uint256 daoAllocation,      // d·A₂: DAO 고정분
-    uint256 l2MaxAllocation,    // L = (1-d)·A₂: 분배 가능량
-    uint256 totalEffectiveBridgedTON, // x: 전체 유효 Bridged TON
-    uint256 totalDistributed,   // y(x): 쌍곡선 결과
-    uint256 l2Seigniorage,      // Seig_i: 해당 L2 분배량
-    uint256 sequencerReward,    // o_i: 시퀀서 보상
-    uint256 validatorPoolAmount,// α·y(x): 검증자 풀
-    uint256 undistributed       // L - y(x): DAO 추가분
-);
-
-/// @notice 전환 파라미터 변경 이벤트
-event TransitionFactorsUpdated(
-    uint256 stakedSeigFactor,   // λ
-    uint256 relativeSeigRate    // r
-);
-
-/// @notice 전환으로 인한 시뇨리지 재분배 이벤트
-event SeigniorageRedirected(
-    uint256 stakedSeigReduction,    // 지분 시뇨리지 감소분
-    uint256 relativeSeigReduction,  // 추가 시뇨리지 감소분
-    uint256 totalToV3Pool           // V3 풀로 이동된 총량
+    uint256 maxSeig,        // A: 전체 시뇨리지
+    uint256 stakedSeig,     // 스테이커 지분 시뇨리지
+    uint256 unstakedSeig,   // 미스테이킹 시뇨리지
+    uint256 powertonSeig,   // PowerTON 분배량
+    uint256 daoSeig,        // DAO 분배량
+    uint256 l2TotalSeigs,   // Layer2 TVL 시뇨리지
+    uint256 layer2Seigs,    // 개별 L2 시뇨리지
+    uint256 relativeSeig    // 추가 시뇨리지 (r 비율)
 );
 ```
 

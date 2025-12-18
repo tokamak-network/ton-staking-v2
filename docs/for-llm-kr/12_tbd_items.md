@@ -60,56 +60,65 @@ v_i = (α/n) · y(x)
 
 ---
 
-### 2.2 시퀀서 슬래싱과 L2 운영
+### 2.2 ⚠️ 시퀀서 슬래싱과 L2 운영 (추가 개발 필요)
 
 **관련 문서**: [03_sequencer_slashing.md](./03_sequencer_slashing.md) (섹션 4.5)
 
-**현재 설계:**
+**현재 구현:**
 - 슬래싱된 시퀀서는 담보금(스테이킹 금액)을 잃음
 - 이로 인해 자격 조건 `S_i ≥ θ · B_i` 불충족 → 시뇨리지 분배에서 제외
 - **L2 시퀀싱 자체에는 영향 없음** (시뇨리지만 못 받음)
 
-**백서 V2 명시:**
-> "If the slashed sequencer fails to restore the bond within the re-bonding period, it is permanently removed from the active sequencer set and suspended from sequencing."
+**백서 (Page 10) 명시:**
+> "A slashed sequencer is **suspended from sequencing** according to protocol rules. To resume operation, the sequencer must **restore the bond within the re-bond period**; failure to do so results in **permanent removal from the active sequencer set**."
 
-**불일치 사항:**
-| 항목 | 현재 설계 | 백서 V2 |
-|------|----------|---------|
-| 슬래싱 후 시퀀싱 | 계속 가능 | 정지됨 |
-| 복구 실패 시 | 시뇨리지만 못 받음 | 영구 제거 |
-| re-bonding period | 없음 | 존재 |
+**백서 vs 현재 구현 차이:**
+| 항목 | 백서 요구사항 | 현재 구현 |
+|------|--------------|----------|
+| **슬래싱 시 L2 시퀀싱** | ❌ 정지됨 (suspended) | ⚠️ 영향 없음 |
+| **re-bond period** | ✅ 담보금 복구 기간 | ⚠️ 미구현 |
+| **영구 제거** | ✅ 기간 내 미복구 시 제거 | ⚠️ 미구현 |
 
-**결정 필요 사항:**
-- [ ] 시퀀서 슬래싱이 L2 시퀀싱을 정지시켜야 하는지
-- [ ] re-bonding period 구현 필요 여부
-- [ ] "active sequencer set" 개념 도입 필요 여부
+**추가 개발 필요 항목:**
+1. **시퀀서 정지 메커니즘**: 슬래싱 시 L2 시퀀싱 정지
+2. **re-bond period 파라미터**: 담보금 복구 기간 설정 (예: 7일)
+3. **영구 제거 메커니즘**: 기간 내 미복구 시 active sequencer set에서 제거
 
-**고려 사항:**
-- 현재 TON Staking V2에서 시퀀서 슬래싱은 담보금에만 영향
-- L2 운영 정지는 추가 개발 필요 (Layer2Manager 연동)
-- 사용자 경험: 슬래싱으로 L2가 정지되면 해당 L2 사용자에게 영향
+**구현 고려 사항:**
+- Layer2Manager 연동 필요 (시퀀서 상태 관리)
+- `sequencerSlashTimestamps` 활용하여 re-bond period 추적
+- "active sequencer set" 개념 도입 필요
 
 ---
 
-### 2.3 몰수된 담보금 귀속처
+### 2.3 ✅ 몰수된 담보금 귀속처 (구현 완료)
 
 **관련 문서**: [05_validator_slashing.md](./05_validator_slashing.md) (섹션 2.4)
 
-**현재 상태:**
-검증자가 RAT 미응답으로 슬래싱되면 `C_off` (슬래싱 페널티)가 몰수됩니다. 이 금액의 귀속처가 미정입니다.
+**구현된 코드**: `src/validator/RAT.sol`
 
-**가능한 옵션:**
+**결정 사항:** DAO Treasury 귀속
 
-| 옵션 | 설명 | 장단점 |
-|------|------|--------|
-| **DAO 귀속** | 슬래싱 금액을 DAO Treasury로 전송 | 프로토콜 재원 확보, 단순 구현 |
-| **검증자 풀 분배** | 다른 활성 검증자들에게 분배 | 검증자 인센티브 강화 |
-| **소각** | WTON 소각 | 토큰 가치 증가, 불가역적 |
-| **보험 풀** | 별도 보험 풀에 적립 | 미래 위험 대비 |
+검증자가 RAT 미응답으로 슬래싱되면 `C_off` (슬래싱 페널티)가 `accumulatedSlashings`에 누적되고, Treasury로 전송됩니다.
 
-**결정 필요 사항:**
-- [ ] 몰수된 담보금 귀속처 결정
-- [ ] 귀속처별 구현 방식 설계
+**구현:**
+```solidity
+// RAT.sol:767-772
+function withdrawSlashingsToTreasury() external {
+    require(treasury != address(0), "treasury not set");
+    uint256 amount = accumulatedSlashings;
+    accumulatedSlashings = 0;
+    IERC20(wton).safeTransfer(treasury, amount);
+}
+```
+
+- **누가**: 누구나 호출 가능 (접근 제한 없음)
+- **언제**: 원할 때 언제든지 호출
+- **동작**: `accumulatedSlashings` 전액을 `treasury` 주소로 전송
+
+**완료:**
+- [x] 몰수된 담보금 귀속처 결정 → DAO Treasury
+- [x] 귀속처별 구현 방식 설계 → `withdrawSlashingsToTreasury()` 함수
 
 ---
 
@@ -148,54 +157,98 @@ D_validator = C_off + Δ_validator    ... (5)
 **관련 문서**: [07_rat_implementation.md](./07_rat_implementation.md) (섹션 1.1)
 
 **현재 상태:**
-Optimism RAT에서는 `stateRoot`의 left/right 자식 해시를 증거로 사용합니다. TON V3에서 동일한 형식을 사용할지 미정입니다.
+RAT 증거 형식이 미정입니다. `stateRoot`의 left/right 자식 해시를 사용하는 방식 등을 검토 중입니다.
 
 **결정 필요 사항:**
-- [ ] 증거 형식 결정 (Optimism 방식 채택 여부)
+- [ ] 증거 형식 결정
 - [ ] 증거 검증 로직 구현
 
 ---
 
-### 3.2 슬래싱된 금액의 시뇨리지 처리
-
-**관련 문서**: [07_rat_implementation.md](./07_rat_implementation.md)
-
-**현재 상태:**
-검증자 담보금은 DepositManager에 대리 스테이킹되어 시뇨리지를 받습니다. 슬래싱 시 원금뿐 아니라 누적 시뇨리지도 함께 처리해야 합니다.
-
-**결정 필요 사항:**
-- [ ] 몰수 시 시뇨리지 포함 여부
-- [ ] 시뇨리지 계산 방식 (coinage factor 적용)
-
----
-
-### 3.3 검증자 담보금 시뇨리지 정책
+### 3.2 ✅ V3 검증자 담보금 시뇨리지 정책 (해결됨)
 
 **관련 문서**: [04_validator.md](./04_validator.md), [07_rat_implementation.md](./07_rat_implementation.md)
 
-**현재 상태:**
-검증자 담보금은 DepositManager를 통해 대리 스테이킹되어 시뇨리지를 받습니다. 이 시뇨리지의 귀속처와 처리 방식이 미정입니다.
+**✅ V3에서 해결됨:**
 
-**주요 쟁점:**
+V3에서는 **스테이킹에 대한 시뇨리지가 없습니다**. 따라서:
 
-| 쟁점 | 설명 |
-|------|------|
-| **시뇨리지 귀속** | 담보금에서 발생한 시뇨리지가 검증자에게 귀속되는지, 프로토콜에 귀속되는지 |
-| **복리 효과** | 시뇨리지가 담보금에 합산되어 복리로 증가하는지 |
-| **출금 시 처리** | 탈퇴 시 시뇨리지 포함 금액을 돌려받는지 |
+- **담보금 시뇨리지**: 없음 (V3 분배 공식에서 스테이커 시뇨리지 제외)
+- **슬래싱 시 시뇨리지 처리**: 해당 없음 (시뇨리지가 없으므로)
+- **검증자 보상**: `α · S_i / |V_i|` 공식으로 별도 지급 (스테이킹 시뇨리지와 무관)
 
-**가능한 옵션:**
+> **참고**: 검증자가 받는 보상은 V3 공식 (13)의 `v_j = Σ_{i: j∈V_i} (α · S_i) / |V_i|`로, 담보금 스테이킹의 시뇨리지가 아니라 L2 검증 활동에 대한 보상입니다.
 
-| 옵션 | 설명 | 장단점 |
-|------|------|--------|
-| **검증자 귀속** | 시뇨리지를 검증자가 수령 | 검증자 인센티브 강화, 구현 복잡 |
-| **프로토콜 귀속** | 시뇨리지를 DAO/ValidatorPool로 | 단순 구현, 검증자 인센티브 약화 |
-| **복리 적립** | 담보금에 자동 합산 | 담보금 자동 증가, D_min 만족 용이 |
+---
 
-**결정 필요 사항:**
-- [ ] 담보금 시뇨리지 귀속처 결정
-- [ ] 시뇨리지 청구 시점/방식 (자동 vs 수동)
-- [ ] 슬래싱 시 시뇨리지 포함 몰수 여부 (3.2와 연관)
+### 3.3 ✅ 검증자 담보금 원금 추적 (구현 완료)
+
+**관련 문서**: [04_validator.md](./04_validator.md), [07_rat_implementation.md](./07_rat_implementation.md)
+
+**구현된 코드:**
+- `src/validator/RATStorage.sol`: `ValidatorRegistration.depositedPrincipal` 필드 추가
+- `src/validator/RAT.sol`: `_registerValidatorInternal()`, `addDeposit()`, `deactivateValidator()` 원금 추적 적용
+- `src/validator/IRAT.sol`: `getValidatorRegistration()` 인터페이스 추가
+
+**해결된 문제:**
+
+V3에서는 스테이킹 시뇨리지가 없지만, **Solidity 정수 나눗셈으로 인해 원금이 완전히 보존되지 않습니다**. `depositedPrincipal` 필드를 추가하여 원금을 추적합니다.
+
+```
+예치 시: 1000 WTON 예치
+    │
+    ▼
+Coinage 계산: deposit / factor → 정수 나눗셈으로 소수점 손실
+    │
+    ▼
+출금 시: balance * factor → 원금보다 작을 수 있음
+```
+
+**예시:**
+```solidity
+// 예치 시
+uint256 deposit = 1000e27;       // 1000 WTON (RAY 단위)
+uint256 factor = 1.1e27;         // 현재 factor
+uint256 coinageBalance = deposit / factor;  // = 909090909...e27 (정수 나눗셈)
+
+// 출금 시
+uint256 withdrawal = coinageBalance * factor;  // = 999999999...e27 (< 1000e27)
+```
+
+**필요한 구현:**
+
+검증자가 **전체 출금** 시 원금 전액을 받을 수 있도록 **원금(principal) 추적**이 필요합니다.
+
+```solidity
+// 검증자 등록 정보에 원금 저장
+struct ValidatorInfo {
+    uint256 depositedPrincipal;  // 원래 예치한 금액 (정수 손실 전)
+    uint256 coinageBalance;      // Coinage에 기록된 잔액
+    // ...
+}
+
+// 출금 시 원금 반환 보장
+function withdrawCollateral() external {
+    ValidatorInfo storage info = validators[msg.sender];
+
+    // 원금과 현재 coinage 잔액 중 큰 값 반환
+    // (V3에서는 시뇨리지가 없으므로 원금이 더 클 수 있음)
+    uint256 withdrawal = info.depositedPrincipal;
+
+    // 또는 원금 그대로 반환
+    _withdraw(msg.sender, withdrawal);
+}
+```
+
+**구현 완료:**
+- [x] V3에서 스테이킹 시뇨리지 없음 → 해결됨
+- [x] 원금 추적 변수 추가 (`depositedPrincipal`) → `RATStorage.sol`에 구현
+- [x] 출금 시 원금 반환 보장 로직 구현 → `deactivateValidator()`에서 `depositedPrincipal` 반환
+- [x] 추가 예치 시 원금 추적 → `addDeposit()`에서 `depositedPrincipal` 누적
+
+**구현 세부사항:**
+- Coinage factor가 증가해도 V3에서는 검증자 담보금에 시뇨리지가 적용되지 않음
+- 출금 시 `depositedPrincipal` (원금)을 반환하여 정수 나눗셈 손실 방지
 
 ---
 
@@ -256,13 +309,13 @@ Optimism RAT에서는 `stateRoot`의 left/right 자식 해시를 증거로 사�
 | 우선순위 | 항목 | 이유 | 상태 |
 |---------|------|------|------|
 | ~~높음~~ | ~~2.1 검증자 보상 분배 방식~~ | ~~핵심 인센티브 구조에 영향~~ | ✅ V3 해결 |
+| **높음** | 2.2 시퀀서 슬래싱과 L2 운영 | 백서 요구사항 미구현 (시퀀서 정지, re-bond period, 영구 제거) | ⚠️ 추가 개발 필요 |
 | **높음** | 2.4 검증자 파라미터 값 | 배포 전 필수 결정 | 미해결 |
-| **높음** | 3.3 검증자 담보금 시뇨리지 정책 | 검증자 인센티브 및 슬래싱 로직에 영향 | 미해결 |
+| **높음** | 3.3 검증자 담보금 원금 추적 | 정수 나눗셈 손실로 원금 반환 보장 필요 | ⚠️ 구현 필요 |
 | **중간** | 2.3 몰수된 담보금 귀속처 | 구현 시 필요하나 기본값 설정 가능 | 미해결 |
 | **중간** | 3.1 RAT 증거 형식 | Optimism 방식 우선 채택 가능 | 미해결 |
-| **중간** | 3.2 슬래싱된 금액의 시뇨리지 처리 | 3.3과 연관, 함께 결정 필요 | 미해결 |
+| ~~중간~~ | ~~3.2 검증자 담보금 시뇨리지 정책~~ | ~~V3에서 스테이킹 시뇨리지 없음~~ | ✅ V3 해결 |
 | **중간** | 3.4 검증자 담보금 출금 시 가스비 정책 | 사용자 경험에 영향, 구현 방식 결정 | 미해결 |
-| **낮음** | 2.2 시퀀서 슬래싱과 L2 운영 | 현재 설계로 동작 가능, 추후 확장 | 미해결 |
 
 ---
 
@@ -293,3 +346,4 @@ Optimism RAT에서는 `stateRoot`의 left/right 자식 해시를 증거로 사�
 | 날짜 | 내용 |
 |------|------|
 | 2025-12-18 | V3 백서 반영: 항목 2.1 해결됨 표시, V3 공식 및 관련 코드 추가 |
+| 2025-12-18 | V3 시뇨리지 정책 반영: 3.2 해결됨 (스테이킹 시뇨리지 없음), 3.3 원금 추적 문제 추가 |

@@ -66,6 +66,8 @@ contract SeigManagerV1_4 is
     ISeigManagerV3
 {
     uint256 internal constant WEI_UNIT = 1e18;
+    uint256 internal constant GWEI_UNIT = 1e9;
+    uint256 internal constant RAY_UNIT = 1e27;
 
     // ==========================================
     // Modifiers
@@ -427,7 +429,11 @@ contract SeigManagerV1_4 is
     }
 
     /// @inheritdoc ISeigManagerV3
+    /// @notice V3 전용 - bridgedTON 기반 L2 시뇨리지 추정
+    /// @dev V2 모드에서는 0 반환 (V2는 layer2TVL 기반, V1_3의 _estimatedDistribute 사용)
     function estimateL2Seigniorage(address layer2) external view returns (uint256 seigniorage) {
+        // V3 전용 함수 - V2 모드에서는 0 반환
+        if (!v3Migrated) return 0;
         if (!bridgedTONInfo[layer2].isEligible) return 0;
         if (totalEffectiveBridgedTON == 0) return 0;
 
@@ -435,20 +441,11 @@ contract SeigManagerV1_4 is
         uint256 blockDelta = block.number - _lastSeigBlock;
         if (blockDelta == 0) return 0;
 
+        // V3: 스테이커 시뇨리지 없음, A₂ = A
         uint256 A = blockDelta * _seigPerBlock;
-        uint256 T = ITON(_ton).totalSupply();
-        uint256 S = IERC20(_wton).totalSupply();
 
-        // S_staked = λ · A · (S / T)
-        uint256 S_staked = rmul(rmul(A, stakedSeigFactor), rdiv(S, T));
-        uint256 A1 = A - S_staked;
-
-        // S_relative = A₁ · r
-        uint256 S_relative = rmul(A1, relativeSeigRate);
-        uint256 A2 = A1 - S_relative;
-
-        // L = (1 - d) · A₂
-        uint256 L = rmul(A2, RAY - daoDistributionRatio);
+        // L = (1 - d) · A
+        uint256 L = rmul(A, RAY - daoDistributionRatio);
 
         // y(x) = L · (x / (k + x))
         uint256 x = totalEffectiveBridgedTON;
@@ -659,9 +656,10 @@ contract SeigManagerV1_4 is
         if (block.number <= _lastSeigBlock) revert LastSeigBlockError();
 
         address operator = Layer2I(msg.sender).operator();
-        uint256 operatorAmount = coinage.balanceOf(operator);
 
-        if (operatorAmount < minimumAmount) revert MinimumAmountError();
+        // V3: minimumAmount 체크 제거
+        // V3에서는 시퀀서 스테이킹 자격 조건이 S_i ≥ θ·B_i로 별도 관리됨
+        // (_checkEligibilityCached에서 처리)
         if (!_increaseTotV3()) revert IncreaseTotError();
 
         _lastCommitBlock[msg.sender] = block.number;
@@ -726,76 +724,100 @@ contract SeigManagerV1_4 is
         // ========================================
         uint256 A = span * _seigPerBlock;
 
-        // ========================================
-        // Step 1: 스테이커 지분 시뇨리지 (λ 적용)
-        // S_staked = λ · A · (S / T)
-        // ========================================
-        uint256 T = ITON(_ton).totalSupply();
         uint256 tos = _totalSupplyOfTon(block.number);
-        uint256 S = IERC20(_wton).totalSupply();
-
-        // λ가 설정되지 않았으면 1 (V2 호환)
-        uint256 lambda = stakedSeigFactor > 0 ? stakedSeigFactor : RAY;
-
-        uint256 S_staked = rmul(
-            rmul(A, lambda),
-            rdiv(prevTotalSupply, tos)
-        );
-
-        // A₁ = A - S_staked
-        uint256 A1 = A - S_staked;
-
-        // ========================================
-        // Step 2: 스테이커 추가 시뇨리지 (r 적용)
-        // S_relative = A₁ · r
-        // ========================================
-        uint256 S_relative = rmul(A1, relativeSeigRate);
-
-        // A₂ = A₁ - S_relative (V3 분배 재원)
-        uint256 A2 = A1 - S_relative;
-
-        // ========================================
-        // 스테이커 분배 (Coinage factor 업데이트)
-        // ========================================
-        uint256 totalStakerSeig = S_staked + S_relative;
-        uint256 nextTotalSupply = prevTotalSupply + totalStakerSeig;
-
-        _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
-        _lastSeigBlock = block.number;
-
-        emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, nextTotalSupply);
-
-        // PowerTON, DAO 분배 (V2 호환)
-        address wton_ = _wton;
-        uint256 unstakedSeig = A - S_staked - S_relative;
-        uint256 powertonSeig;
-        uint256 daoSeig;
-
-        if (_powerton != address(0)) {
-            powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
-            IWTON(wton_).mint(_powerton, powertonSeig);
-        }
-
-        if (dao != address(0) && daoSeigRate > 0) {
-            daoSeig = rmul(unstakedSeig, daoSeigRate);
-            IWTON(wton_).mint(dao, daoSeig);
-        }
-
-        if (relativeSeigRate != 0) {
-            accRelativeSeig += S_relative;
-        }
-
-        // ========================================
-        // Step 3: V3 분배 (A₂ 기준, 백서 공식 적용)
-        // ========================================
         uint256 l2TotalSeigs = 0;
         uint256 layer2Seigs = 0;
+        uint256 S_staked = 0;
+        uint256 S_relative = 0;
+        uint256 unstakedSeig = 0;
+        uint256 powertonSeig = 0;
+        uint256 daoSeig = 0;
+        address wton_ = _wton;
 
-        if (v3Migrated && A2 > 0) {
-            (l2TotalSeigs, layer2Seigs) = _distributeV3Seigniorage(A2);
-        } else if (!v3Migrated && layer2Manager != address(0)) {
-            // V3 마이그레이션 전: 기존 V2 로직 사용
-            (l2TotalSeigs, layer2Seigs) = _distributeV2Seigniorage(A, tos, prevTotalSupply);
+        _lastSeigBlock = block.number;
+
+        if (v3Migrated) {
+            // ========================================
+            // V3: 스테이커 시뇨리지 없음 (V3 백서)
+            // A₂ = A (전체 시뇨리지가 V3 분배 재원)
+            // → S_DAO = d·A (DAO 고정 분배)
+            // → L = (1-d)·A (L2 분배 가능량)
+            // ========================================
+            emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, prevTotalSupply);
+
+            if (A > 0) {
+                (l2TotalSeigs, layer2Seigs) = _distributeV3Seigniorage(A);
+            }
+        } else {
+            // ========================================
+            // V2: V1_3 _increaseTot() 로직과 동일
+            // ========================================
+
+            // 1. stakedSeig 계산 (V1_3과 동일)
+            S_staked = rdiv(rmul(A, prevTotalSupply), tos);
+
+            // 2. Layer2 TVL 시뇨리지 계산 (V1_3과 동일)
+            if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
+
+            if (layer2Manager != address(0) && layer2StartBlock != 1) {
+                if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
+                    uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos - prevTotalSupply);
+                    if (tempTotalLayer2TVL < RAY_UNIT) tempTotalLayer2TVL = 0;
+                    l2TotalSeigs = rdiv(rmul(A, tempTotalLayer2TVL), tos);
+                    l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
+                    if (l2TotalSeigs != 0) IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
+                }
+
+                (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+
+                if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
+                    uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+                    Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
+                    Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+
+                    if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
+                        newLayer2Info.layer2Tvl = curLayer2Tvl;
+                        totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+                    }
+
+                    if (oldLayer2Info.startBlock == 0) {
+                        newLayer2Info.startBlock = block.number;
+                    } else {
+                        if (oldLayer2Info.layer2Tvl > 0) {
+                            layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UNIT) - oldLayer2Info.initialDebt;
+                            if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
+                        }
+                    }
+                    newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UNIT;
+                }
+            }
+
+            // 3. unstakedSeig, totalPseig 계산 (V1_3과 동일)
+            unstakedSeig = A - S_staked - l2TotalSeigs;
+            uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
+            uint256 nextTotalSupply = prevTotalSupply + S_staked + totalPseig;
+
+            // 4. Coinage factor 업데이트
+            _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
+
+            emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, nextTotalSupply);
+
+            // 5. PowerTON, DAO 분배 (V1_3과 동일)
+            if (_powerton != address(0)) {
+                powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+                if (powertonSeig != 0) IWTON(wton_).mint(_powerton, powertonSeig);
+            }
+
+            if (dao != address(0)) {
+                daoSeig = rmul(unstakedSeig, daoSeigRate);
+                if (daoSeig != 0) IWTON(wton_).mint(dao, daoSeig);
+            }
+
+            // 6. relativeSeig 누적 (V1_3과 동일)
+            if (relativeSeigRate != 0) {
+                S_relative = totalPseig;
+                accRelativeSeig += S_relative;
+            }
         }
 
         emit SeigGiven2(

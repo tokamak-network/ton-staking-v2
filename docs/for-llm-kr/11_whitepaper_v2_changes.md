@@ -19,7 +19,6 @@
 | **C_max 정의** | "maximum cost" → "estimated" 또는 "sufficient cost"로 완화 |
 | **멀티시퀀서 환경** | 슬래싱된 시퀀서가 복구 실패해도 롤업 기능 지속 가능 언급 추가 |
 | **미분배분 처리** | "goes to DAO Treasury" 표현 명시 |
-| **gamma squared 공식** | 제거 권고 |
 | **Verifier's Dilemma 인용** | 섹션 1.3에서 유기적으로 연결되도록 수정 |
 
 ---
@@ -180,17 +179,6 @@ D_validator = C_off + Δ_validator       ... (5) 실제 담보금
 
 **추가 필요:**
 > "슬래싱된 시퀀서가 담보금 보충에 실패하더라도 멀티시퀀서 환경에서는 다른 시퀀서가 롤업 기능을 지속할 수 있습니다."
-
-#### 3.3.3 γ(gamma) squared 공식 제거 (회의록 결정)
-
-**기존 (반복 위반 페널티):**
-```
-D^(n) = γ^(n-1) · D^(1)
-```
-
-**수정 필요:**
-- gamma squared 공식 제거 권고됨
-- 반복 위반 페널티 메커니즘 단순화 또는 다른 방식 검토
 
 ### 3.4 07_rat_implementation.md 수정 ✅ 완료
 
@@ -363,15 +351,6 @@ function slashUnresponsiveValidator(...) {
 | **minimumThreshold** | D_min | 검증자 최소 담보금 임계값 | TBD |
 | **replenishPeriod** | - | 담보금 보충 기간 | TBD |
 
-#### 3.6.2 γ(gamma) 관련 파라미터 재검토 (회의록 결정)
-
-**기존:**
-- `penaltyFactor (γ)`: 반복 위반 페널티 팩터
-- 공식: `D^(n) = γ^(n-1) · D^(1)`
-
-**수정 필요:**
-- gamma squared 공식 제거 권고에 따라 해당 파라미터 역할 재정의 또는 제거
-
 ### 3.7 전체 문서 공통 수정 (회의록 결정)
 
 #### 3.7.1 "Time Weighted" 표현 삭제
@@ -400,7 +379,7 @@ function slashUnresponsiveValidator(...) {
 | **05_validator_slashing.md** | 슬래싱 금액 C_off로 변경, 보충 메커니즘 추가 | 높음 | ✅ 완료 |
 | **07_rat_implementation.md** | triggerAttentionTest, 슬래싱 로직 변경 | 높음 | ✅ 완료 |
 | **08_implementation.md** | ValidatorPoolV1 슬래싱 로직 변경 | 높음 | ✅ 완료 |
-| **03_sequencer_slashing.md** | γ squared 공식 제거, C_max 정의 완화 (회의록) | 높음 | ✅ 완료 |
+| **03_sequencer_slashing.md** | C_max 정의 완화 (회의록) | 높음 | ✅ 완료 |
 
 ### 4.2 중간 우선순위 (공식/파라미터 업데이트)
 
@@ -493,7 +472,6 @@ function slashUnresponsiveValidator(...) {
 | C_max 정의 완화 | 03_sequencer_slashing.md | ✅ 완료 |
 | 멀티시퀀서 환경 언급 | 03_sequencer_slashing.md | ⏸️ 보류 (검토 필요) |
 | DAO 귀속 명시 | 02_v3_distribution.md | ✅ 완료 (백서 V2 Page 15 인용) |
-| γ squared 공식 제거 | 03_sequencer_slashing.md | ✅ 완료 |
 
 ---
 

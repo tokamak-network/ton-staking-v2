@@ -26,11 +26,11 @@
 |------|------|
 | **[01_v2_architecture.md](./01_v2_architecture.md)** | V2 아키텍처 분석, Coinage/RewardPerUint 메커니즘, 스토리지 구조 |
 | **[02_v3_distribution.md](./02_v3_distribution.md)** | V3 분배 공식, V2→V3 점진적 전환 메커니즘, 쌍곡선 함수 |
-| **[03_sequencer_slashing.md](./03_sequencer_slashing.md)** | 시퀀서 슬래싱, 챌린저 보상, 반복 위반 페널티 |
+| **[03_sequencer_slashing.md](./03_sequencer_slashing.md)** | 시퀀서 슬래싱, 챌린저 보상 |
 | **[04_validator.md](./04_validator.md)** | 검증자 등록/탈퇴, 담보금, RAT 시스템, 검증자 보상 |
 | **[05_validator_slashing.md](./05_validator_slashing.md)** | 검증자 슬래싱, RAT 미응답 처리, 선차감-복구 메커니즘 |
 | **[06_bridged_ton_tracking.md](./06_bridged_ton_tracking.md)** | Bridged TON 추적 시스템, 콜백 인터페이스 |
-| **[07_rat_implementation.md](./07_rat_implementation.md)** | RAT 구현체 설계 (Optimism 참고), IRAT/RATStorage/RAT.sol |
+| **[07_rat_implementation.md](./07_rat_implementation.md)** | RAT 구현체 설계, IRAT/RATStorage/RAT.sol |
 | **[08_implementation.md](./08_implementation.md)** | SeigManagerV1_4, ValidatorPoolV1, Layer2ManagerV1_2 구현 코드 |
 | **[09_migration.md](./09_migration.md)** | 마이그레이션 가이드, 테스트 체크리스트, 배포 파라미터 |
 | **[10_governance_parameters.md](./10_governance_parameters.md)** | 거버넌스 결정 파라미터 통합, 조정 가이드, 미결정 항목 |
@@ -47,28 +47,27 @@
 | 변수 | 설명 |
 |------|------|
 | **A** | 전체 기간 시뇨리지 (발행될 총량) |
-| **A₁** | 스테이커 지분 시뇨리지(S_staked)를 분배한 후 남은 양 |
-| **A₂** | 스테이커 추가 시뇨리지(S_relative)까지 분배한 후 남은 양 → V3 분배 재원 |
+| **A₂** | V3 분배 재원 (v3Migrated = true일 때 A₂ = A) |
 | **S** | 총 스테이킹 금액 (WTON 총 공급량) |
 | **T** | TON 총 발행량 |
-| **λ** | 지분 시뇨리지 비율 (stakedSeigFactor, 1→0으로 감소) |
-| **r** | 추가 시뇨리지 비율 (relativeSeigRate, 1→0으로 먼저 감소) |
+| **r** | 추가 시뇨리지 비율 (relativeSeigRate, V2 모드에서만 사용) |
 
-### V2→V3 점진적 전환 공식
+### V2→V3 전환 방식
 
 ```
-S_staked   = λ · A · (S / T)
-A₁         = A - S_staked
-           = A · (1 - λ · S/T)
+v3Migrated 플래그 기반 즉시 전환:
 
-S_relative = A₁ · r
-A₂         = A₁ - S_relative
-           = A₁ · (1 - r)
-           = A · (1 - λ · S/T) · (1 - r)
+V2 모드 (v3Migrated = false):
+- V1_3 _increaseTot() 로직 그대로 사용
+- stakedSeig = A × prevTotalSupply / tos
+- totalPseig = unstakedSeig × r
+- Coinage factor 업데이트
 
-V3 완전 전환 시 (λ = 0, r = 0):
-A₂ = A · (1 - 0) · (1 - 0) = A
-→ 전체 시뇨리지가 백서 V3 공식대로 분배됨
+V3 모드 (v3Migrated = true):
+- A₂ = A (전체 시뇨리지가 V3 분배 재원)
+- 스테이커 시뇨리지 = 0
+- Coinage factor 변경 없음
+- 백서 V3 공식대로 분배 (DAO + L2)
 ```
 
 ### 백서 핵심 공식
@@ -94,7 +93,7 @@ contracts/
 ├── stake/
 │   ├── managers/
 │   │   ├── SeigManagerV1_3.sol       → SeigManagerV1_4.sol (업그레이드)
-│   │   ├── DepositManagerV1_2.sol    → DepositManagerV1_3.sol (업그레이드)
+│   │   ├── DepositManagerV1_1.sol    → DepositManagerV1_2.sol (업그레이드)
 │   │   └── SeigManagerV1_4Storage.sol (신규)
 ├── layer2/
 │   ├── Layer2ManagerV1_1.sol         → Layer2ManagerV1_2.sol (업그레이드)
@@ -115,7 +114,9 @@ uint256 public daoDistributionRatio;      // d: DAO 고정 비율 (0.2e27 = 20%)
 uint256 public minStakingRatio;           // θ: 최소 스테이킹 비율 (0.1e27 = 10%)
 uint256 public validatorDistributionRatio; // α: 검증자 분배 비율 (0.2e27 = 20%)
 uint256 public halfSaturationPoint;       // k: 반포화점 (10_000_000e27 TON)
-uint256 public stakedSeigFactor;          // λ: 지분 시뇨리지 비율 (전환용)
+
+// 전환 제어
+bool public v3Migrated;                   // V3 모드 활성화 플래그
 ```
 
 ---

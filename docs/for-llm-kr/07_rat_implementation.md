@@ -2,25 +2,22 @@
 
 ## 1. 개요
 
-이 문서는 Optimism의 RAT(Randomized Attention Test) 구현체를 참고하여 TON Staking V3용 RAT 시스템을 설계합니다.
+이 문서는 TON Staking V3용 RAT(Randomized Attention Test) 시스템의 구현을 설명합니다.
 
-> **참고**: Optimism RAT 원본 코드는 `tokamak-network/optimism/packages/contracts-bedrock/src/L1/RAT.sol`에 있습니다.
+### 1.1 TON V3 RAT 핵심 사항
 
-### 1.1 Optimism RAT vs TON V3 RAT 비교
-
-| 항목 | Optimism RAT | TON V3 RAT (백서 V2) |
-|------|-------------|----------------------|
-| **스테이킹 자산** | ETH (native) | WTON (ERC20) |
-| **담보금 관리** | RAT 컨트랙트에 직접 보관 | **DepositManager에 대리 스테이킹** |
-| **트리거 시점** | Dispute Game 생성 시 | Dispute Game 생성 시 |
-| **트리거 주체** | DisputeGameFactory | DisputeGameFactory |
-| **검증자 범위** | 글로벌 (모든 게임) | **L2별 등록** |
-| **증거 형식** | stateRoot의 left/right 자식 해시 | TBD (확인 필요) |
-| **슬래싱 방식** | perTestBondAmount 선차감 | **C_off 선차감** (백서 V2: 슬래싱 페널티) |
-| **슬래싱 귀속** | 컨트랙트에 잔류 | **TBD** (귀속처 미정) |
-| **D_min 확인** | 없음 | D_min 미만 시 즉시 검증자 세트에서 제거 |
-| **보상 시스템** | 없음 (본드 반환만) | 시뇨리지 분배 V3: (α · S_i) / \|V_i\| |
-| **담보금 시뇨리지** | 없음 | 유지 담보금 시뇨리지 → 검증자, 몰수분 → TBD |
+| 항목 | TON V3 RAT |
+|------|-----------|
+| **스테이킹 자산** | WTON (ERC20) |
+| **담보금 관리** | DepositManager에 대리 스테이킹 |
+| **트리거 시점** | Dispute Game 생성 시 |
+| **트리거 주체** | DisputeGameFactory |
+| **검증자 범위** | L2별 등록 |
+| **슬래싱 방식** | C_off 선차감 (백서 V2: 슬래싱 페널티) |
+| **슬래싱 귀속** | DAO Treasury (`accumulatedSlashings` → `withdrawSlashingsToTreasury()`) |
+| **D_min 확인** | D_min 미만 시 즉시 검증자 세트에서 제거 |
+| **보상 시스템** | 시뇨리지 분배 V3: (α · S_i) / \|V_i\| |
+| **담보금 시뇨리지** | 없음 (V3: 스테이킹 시뇨리지 폐지) |
 
 ### 1.2 L2별 검증자 등록 방식
 
@@ -58,8 +55,7 @@ L2를 식별하는 키로 **SystemConfig 컨트랙트 주소**를 사용합니�
 **SystemConfig 사용 이유:**
 1. **고유성**: 각 L2는 고유한 SystemConfig 주소를 가짐
 2. **검증 가능**: Layer2Manager에서 유효한 SystemConfig인지 검증 가능
-3. **Optimism 호환**: Optimism 아키텍처와 일관성 유지
-4. **확장성**: 향후 SystemConfig의 다른 정보(batcher 등) 활용 가능
+3. **확장성**: 향후 SystemConfig의 다른 정보(batcher 등) 활용 가능
 
 ---
 
@@ -191,9 +187,10 @@ RAT 트리거 시:
   출금 가능 금액 = depositedAmount × (currentFactor / coinageFactorAtDeposit)
 ```
 
-**시뇨리지 처리:**
-- 유지한 담보금에 대한 시뇨리지 → 검증자에게 지급
-- 몰수된 원금 + 시뇨리지 → **TBD** (귀속처 미정)
+**V3 시뇨리지 정책:**
+- **담보금 시뇨리지: 없음** - V3에서는 스테이킹에 대한 시뇨리지가 없음
+- 출금 시 원금 반환 (Solidity 정수 나눗셈 손실 주의 - 원금 추적 필요)
+- 몰수된 원금 귀속처 → **TBD** (DAO/검증자풀/소각 중 결정 필요)
 
 > **참고:** RAT 명의의 스테이킹은 L2 자격조건(S_i ≥ θ·B_i)에 기여하지 않습니다. S_i는 시퀀서(오퍼레이터) 명의의 스테이킹만 포함합니다.
 
@@ -271,17 +268,6 @@ mapping(bytes32 => AttentionTest) public attentionTests;
 /// @notice 게임 주소 → testId 매핑 (resolveClaim에서 사용)
 mapping(address => bytes32) public gameToTestId;
 ```
-
-### 3.5 Optimism vs TON V3 스토리지 비교
-
-| Optimism | TON V3 | 설명 |
-|----------|--------|------|
-| `challengers[addr]` | `registrations[hash]` | (validator, systemConfig) 복합 키 |
-| `attentionTests[game]` | `attentionTests[testId]` | (systemConfig, batchIndex) 복합 키 |
-| - | `gameToTestId[game]` | 게임 주소 → testId 매핑 (resolveClaim용) |
-| `validChallengers[]` | `activeValidators[systemConfig][]` | SystemConfig별 활성 검증자 배열 |
-| - | `validatorPools[systemConfig]` | SystemConfig별 풀 정보 |
-| - | `validatorSystemConfigs[addr]` | 검증자가 등록한 SystemConfig 목록 |
 
 ---
 
@@ -374,8 +360,8 @@ abstract contract RATStorage {
     struct UnstakeRequest {
         address validator;          // 검증자 주소
         address systemConfig;       // SystemConfig 주소
-        uint256 amount;             // 출금 요청 금액 (원금 + 시뇨리지)
-        uint256 principal;          // 원금 (시뇨리지 계산용)
+        uint256 amount;             // 출금 요청 금액 (V3: 원금만)
+        uint256 principal;          // 원금 (원금 추적용)
         bool completed;             // 출금 완료 여부
     }
 
@@ -611,12 +597,12 @@ interface IRAT {
     );
 
     /// @notice 출금 처리 완료 이벤트 (요청자 본인에게 바로 전송)
+    /// @dev V3에서는 담보금 시뇨리지가 없으므로 totalWithdrawn = principal
     event UnstakeProcessed(
         address indexed validator,
         address indexed systemConfig,
         address layer2,                // Layer2 Candidate 주소
-        uint256 totalWithdrawn,        // 원금 + 시뇨리지
-        uint256 seigniorage            // 시뇨리지 금액
+        uint256 totalWithdrawn         // 출금 금액 (V3: 원금)
     );
 
 
@@ -1028,8 +1014,6 @@ function submitEvidence(
 
 검증자가 프로포저의 잘못된 증거를 발견하고 **챌린저로서 FaultDisputeGame에서 승리**하면, 게임 컨트랙트가 `resolveClaim`을 호출하여 담보금을 복구합니다.
 
-> **참고**: Optimism RAT.sol의 `resolveClaim` 함수를 참고하여 구현 (Lines 322-354)
-
 ```solidity
 /// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 담보금 복구)
 /// @dev msg.sender = FaultDisputeGame 주소
@@ -1224,7 +1208,7 @@ L2 시뇨리지: S_i = 1,000 WTON
    - emit ValidatorRewardToTreasury(systemConfig, 200)
 ```
 
-### 6.7 담보금 출금 (coinage factor 기반 시뇨리지 계산)
+### 6.7 담보금 출금 (원금 반환)
 
 #### 출금 큐 구조
 
@@ -1277,8 +1261,8 @@ DepositManager 출금 큐 (RAT 명의):
 struct UnstakeRequest {
     address validator;          // 검증자 주소
     address systemConfig;       // SystemConfig 주소
-    uint256 amount;             // 출금 요청 금액 (원금 + 시뇨리지)
-    uint256 principal;          // 원금 (시뇨리지 계산용)
+    uint256 amount;             // 출금 요청 금액 (V3: 원금만)
+    uint256 principal;          // 원금 (원금 추적용)
     bool completed;             // 출금 완료 여부
 }
 
@@ -1309,9 +1293,9 @@ function requestUnstake(address systemConfig) external nonReentrant returns (uin
 
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
 
-    // factor 비교로 출금 금액 계산 (원금 + 시뇨리지)
-    // coinage는 factor 증가로 시뇨리지를 자동 계산
-    // 출금 금액 = 원금 * (currentFactor / depositFactor)
+    // V3에서는 담보금 시뇨리지가 없으므로 원금만 반환
+    // 단, Solidity 정수 나눗셈으로 coinage 잔액이 원금보다 작을 수 있음
+    // → principal 값을 사용하여 원금 전액 반환 보장 필요
     RefactorCoinageSnapshotI coinage = ISeigManager(seigManager).getCoinage(layer2);
     uint256 currentFactor = coinage.factor();
     uint256 depositFactor = reg.coinageFactorAtDeposit;
@@ -1326,7 +1310,7 @@ function requestUnstake(address systemConfig) external nonReentrant returns (uin
     reg.depositedAmount = 0;
     reg.coinageFactorAtDeposit = 0;
 
-    // RAT이 DepositManager에 출금 요청 (원금 + 시뇨리지 포함)
+    // RAT이 DepositManager에 출금 요청 (V3: 원금만)
     IDepositManager(depositManager).requestWithdrawal(layer2, withdrawAmount);
 
     // 출금 요청 큐에 추가
@@ -1451,55 +1435,9 @@ function _removeFromActiveValidators(
 
 ---
 
-## 7. Optimism RAT와의 주요 차이점
+## 7. 통합 가이드
 
-### 7.1 검증자 범위
-
-| Optimism | TON V3 |
-|----------|--------|
-| 글로벌 검증자 풀 | **SystemConfig별 검증자 풀** |
-| `challengers[addr]` | `registrations[hash(validator, systemConfig)]` |
-
-```solidity
-// Optimism: 글로벌 검증자
-validChallengers[]  // 모든 게임에 동일한 풀
-
-// TON V3: SystemConfig별 검증자
-activeValidators[systemConfig][]  // L2마다 별도 풀
-```
-
-### 7.2 자산 타입
-
-| Optimism | TON V3 |
-|----------|--------|
-| ETH (msg.value) | WTON (ERC20 transferFrom) |
-
-### 7.3 슬래싱 처리
-
-| Optimism | TON V3 (백서 V2) |
-|----------|------------------|
-| perTestBondAmount 선차감 | **C_off (슬래싱 페널티)** 선차감 |
-| 본드가 컨트랙트에 잔류 | 몰수된 C_off 귀속처 TBD |
-| implicit slashing | **Lazy Evaluation** (별도 함수 불필요) |
-| - | D_min 미만 시 즉시 검증자 세트에서 제거 |
-
-### 7.4 보상 시스템
-
-| Optimism | TON V3 |
-|----------|--------|
-| 보상 없음 | SystemConfig별 시뇨리지 분배 V3: (α·S_i) / \|V_i\| |
-
-### 7.5 트리거 시점
-
-| Optimism | TON V3 |
-|----------|--------|
-| Dispute Game 생성 | Dispute Game 생성 |
-
----
-
-## 8. 통합 가이드
-
-### 8.1 RAT 트리거 시점 및 인터페이스
+### 7.1 RAT 트리거 시점 및 인터페이스
 
 RAT는 L2 프로포저(시퀀서)가 **DisputeGame을 생성할 때** 트리거됩니다.
 
@@ -1536,7 +1474,7 @@ interface IRATTrigger {
 }
 ```
 
-### 8.2 DisputeGameFactory 통합
+### 7.2 DisputeGameFactory 통합
 
 ```solidity
 // DisputeGameFactory.sol 수정 예시
@@ -1566,7 +1504,7 @@ contract DisputeGameFactory {
 }
 ```
 
-### 8.3 TRH (Tokamak Rollup Hub) 가이드라인
+### 7.3 TRH (Tokamak Rollup Hub) 가이드라인
 
 1. **DisputeGame 생성 시 RAT 트리거 필수화**
    - 모든 L2 프로포저는 DisputeGame 생성 시 RAT.triggerAttentionTest() 호출
@@ -1580,7 +1518,7 @@ contract DisputeGameFactory {
    - RAT 트리거 실패해도 DisputeGame 생성은 성공해야 함 (try-catch)
    - 검증자가 없거나 확률 미충족 시 RAT는 발생하지 않음
 
-### 8.4 Layer2Manager 수정
+### 7.4 Layer2Manager 수정
 
 ```solidity
 // Layer2ManagerV1_2.sol
@@ -1606,7 +1544,7 @@ contract Layer2ManagerV1_2 {
 }
 ```
 
-### 8.5 SeigManagerV1_4 수정
+### 7.5 SeigManagerV1_4 수정
 
 검증자 보상은 각 L2의 시뇨리지 계산 시 함께 처리됩니다.
 

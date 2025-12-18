@@ -68,14 +68,13 @@ o_i = (1 − α) · S_i                      ... (14) 시퀀서 보상
 **V3 (Page 15):**
 > "Bridged TON and Staked TON are **not sampled at strictly fixed intervals**. Instead, the protocol uses the **latest observed values captured through on-chain calls**, and the evaluation mechanism is structured to closely track periodic measurements over time."
 
-| 구분 | V2 | V3 |
-|------|-----|-----|
-| **측정 방식** | 기간 평균값 (averaged values over the period) | 온체인 호출 시점의 최신 관측값 (latest observed values) |
-| **샘플링** | 주기적 스냅샷 기반 | 고정 간격 아님, 온체인 호출 기반 |
+| 구분 | V3 |
+|------|-----|
+| **측정 방식** | 온체인 호출 시점의 최신 관측값 (latest observed values) |
+| **샘플링** | 고정 간격 아님, 온체인 호출 기반 |
 
-**구현 영향:**
-- V2: 기간 내 여러 시점의 평균을 계산해야 함
-- V3: 호출 시점의 최신값 사용 (구현 단순화)
+**구현:**
+- 호출 시점의 최신값 사용 (구현 단순화)
 
 ---
 

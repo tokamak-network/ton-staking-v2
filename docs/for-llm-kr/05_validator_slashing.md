@@ -15,7 +15,6 @@
 | **슬래싱 조건** | RAT 미응답 |
 | **슬래싱 금액** | **C_off** (슬래싱 페널티, 전체 담보금이 아님) |
 | **슬래싱 후** | 잔액이 D_min 미만이면 **즉시 활성 검증자 세트에서 제거** |
-| **반복 페널티** | 없음 (시퀀서와 달리 증가하는 페널티 미적용) |
 
 **백서 V2 원문:**
 > "Slashing for validators is applied solely in the context of RAT. When an attention test is triggered with probability π_a, the selected validator must respond within the required time window. Failure to do so triggers a slashing event in which a penalty C_off is deducted from the validator's deposit. If the remaining deposit falls below the minimum threshold D_min, the validator must replenish it within a specified period; otherwise, the validator is removed from the active validator set."
@@ -33,14 +32,14 @@ D_validator = C_off + Δ_validator      ... (5) 실제 담보금
 
 ### 구현 방식: C_off 기반 선차감-복구 메커니즘
 
-Optimism RAT.sol의 **선차감-복구 메커니즘**을 채택하며, 차감 금액은 **C_off (슬래싱 페널티)**입니다.
+**선차감-복구 메커니즘**을 사용하며, 차감 금액은 **C_off (슬래싱 페널티)**입니다.
 
-| 항목 | Optimism RAT | TON V3 RAT (백서 V2) |
-|------|-------------|----------------------|
-| **트리거 시 차감** | perTestBondAmount | **C_off** |
-| **증거 제출 시** | bondAmount 복구 | **C_off 복구** |
-| **미응답 시** | bondAmount 손실 | **C_off 몰수 + D_min 확인** |
-| **잔액 < D_min 시** | - | **즉시 활성 검증자 세트에서 제거** |
+| 항목 | TON V3 RAT |
+|------|-----------|
+| **트리거 시 차감** | C_off |
+| **증거 제출 시** | C_off 복구 |
+| **미응답 시** | C_off 몰수 + D_min 확인 |
+| **잔액 < D_min 시** | 즉시 활성 검증자 세트에서 제거 |
 
 **장점:**
 - 단일 미응답에 전체 담보금을 잃지 않음 (점진적 페널티)
@@ -553,5 +552,5 @@ event ValidatorRestored(
 | **챌린저 보상** | C_max + Δ/n | 없음 |
 | **귀속처** | DAO | TBD (미정) |
 | **담보금 형태** | 스테이킹 잔액 | RAT 대리 스테이킹 잔액 |
-| **시뇨리지** | 스테이커에게 지급 | 유지된 담보금만 검증자에게 지급, 몰수분은 TBD |
-| **잔액 처리** | 없음 | D_min 미만 제거 시 잔액 클레임 가능 |
+| **담보금 시뇨리지** | V3: 없음 (스테이커 시뇨리지 폐지) | V3: 없음 (담보금 시뇨리지 없음) |
+| **잔액 처리** | 없음 | D_min 미만 제거 시 잔액(원금) 클레임 가능 |
