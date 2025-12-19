@@ -19,6 +19,7 @@ import { GameType, Claim } from "./lib/LibUDT.sol";
 import { GameStatus } from "./lib/Types.sol";
 import { IDisputeGame } from "./interfaces/IDisputeGame.sol";
 import { IDisputeGameFactory } from "./interfaces/IDisputeGameFactory.sol";
+import { IFaultDisputeGame } from "./interfaces/IFaultDisputeGame.sol";
 import { IOptimismSystemConfig as ISystemConfig } from "./interfaces/IOptimismSystemConfig.sol";
 
 import "./Layer2ManagerStorage.sol";
@@ -117,6 +118,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
      * @param amount        Amount of transmission seigniorage
      */
     event TransferWTON(address layer2, address to, uint256 amount);
+
+    /**
+     * @notice Event occurs when a candidate is slashed
+     * @param operator      the operator address that was slashed
+     * @param challenger    the challenger address who won the dispute
+     * @param disputeGame   the dispute game address
+     */
+    event CandidateSlashed(address indexed operator, address indexed challenger, address disputeGame);
 
 
     modifier onlySeigManger() {
@@ -294,6 +303,14 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         return true;
     }
 
+     /**
+     * @notice Slash the operator when challenger wins the dispute game
+     * @param _operator     The operator address to be slashed
+     * @param _gameType     The game type
+     * @param _rootClaim    The root claim
+     * @param _extraData    Extra data for the dispute game
+     * @param _disputeGame  The dispute game address
+     */
      function slashingCandidate(
         address _operator,
         GameType _gameType,
@@ -318,8 +335,29 @@ contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
         GameStatus status = IDisputeGame(disputeGame).status();
         if (status != GameStatus.CHALLENGER_WINS) revert StatusError();
 
-        //Slashing the operator 
-        if (!IIDepositManager(depositManager).slash(operatorInfo[_operator].candidateAddOn, _operator)) revert SlashingError();
+        // 승리한 Challenger 주소 추출: claimData(0).counteredBy
+        address challenger = _getWinningChallenger(_disputeGame);
+        require(challenger != address(0), "invalid challenger");
+
+        //Slashing the operator and reward the challenger
+        if (!IIDepositManager(depositManager).slash(
+            operatorInfo[_operator].candidateAddOn, 
+            _operator,
+            challenger
+        )) revert SlashingError();
+
+        emit CandidateSlashed(_operator, challenger, _disputeGame);
+    }
+
+    /**
+     * @notice Extract the winning challenger address from dispute game
+     * @param disputeGame The dispute game address
+     * @return challenger The address of the winning challenger
+     */
+    function _getWinningChallenger(address disputeGame) internal view returns (address challenger) {
+        // claimData(0)은 루트 클레임이며, counteredBy는 이를 격파한 챌린저의 주소
+        (, address counteredBy, , , , , ) = IFaultDisputeGame(disputeGame).claimData(0);
+        return counteredBy;
     }
 
     /* ========== VIEW ========== */

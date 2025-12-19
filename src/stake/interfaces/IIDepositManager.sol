@@ -2,5 +2,5 @@
 pragma solidity ^0.8.4;
 interface IIDepositManager {
     function deposit(address layer2, address account, uint256 amount) external returns (bool);
-    function slash(address layer2, address account) external returns (bool);
+    function slash(address layer2, address account, address challenger) external returns (bool);
 }

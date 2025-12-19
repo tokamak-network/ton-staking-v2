@@ -63,6 +63,7 @@ contract DepositManagerV1_1 is
     using SafeERC20 for ITON;
 
     uint256 internal constant GWEI_UNIT = 1e9;
+    uint256 internal constant RAY = 1e27;
 
     modifier onlyLayer2(address layer2) {
         require(ILayer2Registry(_registry).layer2s(layer2));
@@ -99,15 +100,43 @@ contract DepositManagerV1_1 is
     event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
     event SetMinDepositGasLimit(uint32 gasLimit_);
 
-    function slash(address layer2, address operator) external onlyLayer2Manager returns (bool) {
+    event Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashedAmount, uint256 rewardAmount);
+    event SlashingRewardRateSet(uint256 newRate);
+
+    function setSlashingRewardRate(uint256 newRate) external onlyOwner {
+        require(newRate <= RAY, "rate exceeds 100%");
+        slashingRewardRate = newRate;
+        emit SlashingRewardRateSet(newRate);
+    }
+
+    function slash(address layer2, address operator, address challenger) external onlyLayer2Manager returns (bool) {
         require(operator == ILayer2(layer2).operator(), "operator is not an operator");
+        require(challenger != address(0), "invalid challenger address");
         
-        //현재는 operator의 Deposit된 금액이 Slashing 되는 것으로 진행
+        uint256 slashedAmount = _accStaked[layer2][operator];
+        require(slashedAmount > 0, "no staked amount to slash");
+        
+        // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
+        uint256 rewardAmount = 0;
+        if (slashingRewardRate > 0) {
+            // RAY 단위로 계산: slashedAmount * slashingRewardRate / RAY
+            rewardAmount = (slashedAmount * slashingRewardRate) / 1e27;
+        }
+        
+        // 회계 장부 초기화
         _accStaked[layer2][operator] = 0;
-        _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - _accStaked[layer2][operator];
-        _accStakedAccount[operator] = _accStakedAccount[operator] - _accStaked[layer2][operator];
+        _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
+        _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
         
-        require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+        // SeigManager에 슬래싱 및 보상 처리 요청
+        require(ISeigManager(_seigManager).onSlash(layer2, operator, challenger), "fail onSlash");
+        
+        // Challenger에게 보상 지급
+        if (rewardAmount > 0) {
+            require(ISeigManager(_seigManager).rewardChallenger(layer2, challenger, rewardAmount), "fail reward");
+        }
+        
+        emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);
         
         return true;
     }
