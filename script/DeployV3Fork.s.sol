@@ -90,34 +90,39 @@ contract DeployV3Fork is Script {
         // ==========================================
         console.log("\n--- Step 2: Deploy V3 Contracts ---");
 
-        // Deploy RAT
+        // Deploy RAT implementation
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
 
-        // V3: depositManager 제거
-        RAT(ratProxy).initialize(
+        // Prepare RAT initialization data (V3: depositManager 제거)
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
             deployer
         );
+
+        // Deploy RAT proxy with implementation and init data
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
-        // Deploy ValidatorReward
+        // Deploy ValidatorReward implementation
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
 
-        ValidatorRewardV1(validatorPoolProxy).initialize(
+        // Prepare ValidatorReward initialization data
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
             deployer,   // treasury (DAO)
             deployer    // owner
         );
+
+        // Deploy ValidatorReward proxy with implementation and init data
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
         console.log("ValidatorReward Impl:", validatorPoolImpl);
 
@@ -217,14 +222,18 @@ contract DeployV3ForkWithImpersonation is Script {
 
         // Step 2: Deploy V3 contracts
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
-        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
+            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer
+        );
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        ValidatorRewardV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer);
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
+            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer
+        );
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
 
         console.log("RAT Proxy:", ratProxy);
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
@@ -313,30 +322,28 @@ contract DeployV3ForkSepolia is Script {
         console.log("\n--- Step 2: Deploy V3 Contracts ---");
 
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
-
-        RAT(ratProxy).initialize(
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
             deployer
         );
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-
-        ValidatorRewardV1(validatorPoolProxy).initialize(
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
             deployer,   // treasury (DAO)
             deployer    // owner
         );
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
         console.log("ValidatorReward Impl:", validatorPoolImpl);
 

@@ -12,7 +12,6 @@ import {ProxyStorage} from "../../proxy/ProxyStorage.sol";
 import {AccessibleCommon} from "../../common/AccessibleCommon.sol";
 import {DepositManagerStorage} from "./DepositManagerStorage.sol";
 import {DepositManagerV1_1Storage} from "./DepositManagerV1_1Storage.sol";
-import {DepositManagerV1_2Storage} from "./DepositManagerV1_2Storage.sol";
 
 /**
  * @notice Error codes
@@ -59,8 +58,7 @@ contract DepositManagerV1_2 is
     ProxyStorage,
     AccessibleCommon,
     DepositManagerStorage,
-    DepositManagerV1_1Storage,
-    DepositManagerV1_2Storage
+    DepositManagerV1_1Storage
 {
     using SafeERC20 for IERC20;
 
@@ -92,24 +90,6 @@ contract DepositManagerV1_2 is
         uint256 tonAmount,
         uint32 minDepositGasLimit
     );
-
-    event SetAddresses(address l1BridgeRegistry_, address layer2Manager_);
-    event SetMinDepositGasLimit(uint32 gasLimit_);
-
-    // ==========================================
-    // Owner Functions
-    // ==========================================
-
-    function setMinDepositGasLimit(uint32 gasLimit_) external onlyOwner {
-        minDepositGasLimit = gasLimit_;
-        emit SetMinDepositGasLimit(gasLimit_);
-    }
-
-    function setAddresses(address _l1BridgeRegistry, address _layer2Manager) external onlyOwner {
-        l1BridgeRegistry = _l1BridgeRegistry;
-        layer2Manager = _layer2Manager;
-        emit SetAddresses(_l1BridgeRegistry, _layer2Manager);
-    }
 
     // ==========================================
     // Deposit Functions
@@ -277,80 +257,6 @@ contract DepositManagerV1_2 is
         return true;
     }
 
-    /**
-     * @notice 출금 처리 (대기 기간 후)
-     * @param layer2 출금할 L2 주소
-     */
-    function processRequest(address layer2) external onlyLayer2(layer2) returns (bool) {
-        WithdrawalReqeust[] storage requests = _withdrawalRequests[layer2][msg.sender];
-        uint256 index = _withdrawalRequestIndex[layer2][msg.sender];
-
-        require(index < requests.length, "no pending request");
-
-        WithdrawalReqeust storage request = requests[index];
-        require(!request.processed, "already processed");
-        require(block.number >= request.withdrawableBlockNumber, "not yet withdrawable");
-
-        uint256 amount = request.amount;
-        request.processed = true;
-        _withdrawalRequestIndex[layer2][msg.sender] = index + 1;
-
-        _pendingUnstaked[layer2][msg.sender] -= amount;
-        _pendingUnstakedLayer2[layer2] -= amount;
-        _pendingUnstakedAccount[msg.sender] -= amount;
-
-        _accUnstaked[layer2][msg.sender] += amount;
-        _accUnstakedLayer2[layer2] += amount;
-        _accUnstakedAccount[msg.sender] += amount;
-
-        // WTON 전송
-        IERC20(_wton).safeTransfer(msg.sender, amount);
-
-        return true;
-    }
-
-    /**
-     * @notice 일괄 출금 처리
-     * @param layer2 출금할 L2 주소
-     * @param count 처리할 요청 수
-     */
-    function processRequests(address layer2, uint256 count) external onlyLayer2(layer2) returns (bool) {
-        WithdrawalReqeust[] storage requests = _withdrawalRequests[layer2][msg.sender];
-        uint256 index = _withdrawalRequestIndex[layer2][msg.sender];
-
-        require(index < requests.length, "no pending request");
-
-        uint256 totalAmount = 0;
-        uint256 processed = 0;
-
-        for (uint256 i = 0; i < count && (index + i) < requests.length; i++) {
-            WithdrawalReqeust storage request = requests[index + i];
-            if (request.processed) continue;
-            if (block.number < request.withdrawableBlockNumber) continue;
-
-            totalAmount += request.amount;
-            request.processed = true;
-            processed++;
-        }
-
-        require(processed > 0, "no processable request");
-
-        _withdrawalRequestIndex[layer2][msg.sender] = index + processed;
-
-        _pendingUnstaked[layer2][msg.sender] -= totalAmount;
-        _pendingUnstakedLayer2[layer2] -= totalAmount;
-        _pendingUnstakedAccount[msg.sender] -= totalAmount;
-
-        _accUnstaked[layer2][msg.sender] += totalAmount;
-        _accUnstakedLayer2[layer2] += totalAmount;
-        _accUnstakedAccount[msg.sender] += totalAmount;
-
-        // WTON 전송
-        IERC20(_wton).safeTransfer(msg.sender, totalAmount);
-
-        return true;
-    }
-
     // ==========================================
     // Internal Functions
     // ==========================================
@@ -369,33 +275,4 @@ contract DepositManagerV1_2 is
         try ISeigManagerV3(_seigManager).onStakingChange(layer2) {} catch {}
     }
 
-    // ==========================================
-    // View Functions
-    // ==========================================
-
-    function getWithdrawalRequests(
-        address layer2,
-        address account
-    ) external view returns (WithdrawalReqeust[] memory) {
-        return _withdrawalRequests[layer2][account];
-    }
-
-    function getWithdrawalRequestIndex(
-        address layer2,
-        address account
-    ) external view returns (uint256) {
-        return _withdrawalRequestIndex[layer2][account];
-    }
-
-    function pendingUnstaked(address layer2, address account) external view returns (uint256) {
-        return _pendingUnstaked[layer2][account];
-    }
-
-    function accStaked(address layer2, address account) external view returns (uint256) {
-        return _accStaked[layer2][account];
-    }
-
-    function accUnstaked(address layer2, address account) external view returns (uint256) {
-        return _accUnstaked[layer2][account];
-    }
 }

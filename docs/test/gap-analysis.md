@@ -12,25 +12,32 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 | Seigniorage Distribution | ✅ Complete | - |
 | Validator Collateral (RAT) | ✅ Complete | - |
 | V3 Scenarios | ✅ Complete | - |
-| ValidatorReward Distribution | ⚠️ Partial | High |
+| ValidatorReward Distribution | ✅ Complete | - |
 | Bridge Integration | ⚠️ Basic | Medium |
-| Emergency Scenarios | ❌ Missing | Medium |
+| Emergency Scenarios | ⚠️ Partial | Medium |
 | Access Control | ⚠️ Basic | Low |
 
 ## Identified Gaps
 
-### 1. ValidatorReward Distribution (Priority: High)
+### 1. ValidatorReward Distribution (Priority: ~~High~~ Complete)
 
-**Current Status**: Basic integration tested in V3ScenarioReal.t.sol, but dedicated unit tests are missing.
+**Current Status**: ✅ **COMPLETED** - 33 unit tests added in `test/v3/ValidatorRewardV1.t.sol`
 
-**Missing Tests**:
-- `test_distributeL2Rewards` - Per-L2 reward distribution
-- `test_claimRewards` - Validator claims accumulated rewards
-- `test_claimRewardsBatch` - Batch claiming multiple L2s
-- `test_getPendingRewards` - Query pending rewards
-- `test_rewardCalculation` - Verify formula correctness
-
-**Recommendation**: Create `test/v3/ValidatorRewardV1.t.sol` with 20+ unit tests.
+**Implemented Tests**:
+- `test_distributeL2Rewards_basic` - Per-L2 reward distribution
+- `test_distributeL2Rewards_multipleValidators` - Fair distribution among validators
+- `test_distributeL2Rewards_noValidators_toTreasury` - Treasury fallback
+- `test_distributeL2Rewards_excludeInactiveValidators` - Active validator filtering
+- `test_distributeL2Rewards_multipleL2s` - Multiple L2 support
+- `test_claimAllRewards_success` - Validator claims accumulated rewards
+- `test_claimAllRewards_multipleL2s` - Batch claiming across L2s
+- `test_getPendingRewards_accurate` - Query pending rewards
+- `test_getPendingRewardsByL2_accurate` - Per-L2 pending rewards
+- `test_rewardCalculation_formula` - Verify formula: v_j = (α·S_i) / |V_i|
+- `test_rewardCalculation_precision` - Small amount precision
+- Governance tests (setRatContract, setTreasury, setSeigManager, transferOwnership)
+- Emergency withdraw tests
+- Event emission tests (L2RewardDistributed, ValidatorRewardReceived, RewardsClaimed)
 
 ### 2. Bridge Integration (Priority: Medium)
 
@@ -46,7 +53,12 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 
 ### 3. Emergency Scenarios (Priority: Medium)
 
-**Current Status**: No emergency/pause testing.
+**Current Status**: Partial - Emergency tests require complex coinage/tot setup in test environment.
+
+**Challenge**: SeigManager pause requires:
+- PAUSE_ROLE granted to caller
+- `_pausedBlock < _lastSeigBlock` (updateSeigniorage must be called first)
+- Tot coinage initialization
 
 **Missing Tests**:
 - `test_pauseSeigManager` - Pause seigniorage
@@ -55,7 +67,7 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 - `test_emergencyWithdrawal` - User funds during emergency
 - `test_pauseRAT` - Pause validator operations
 
-**Recommendation**: Create `test/v3/EmergencyScenarios.t.sol`.
+**Recommendation**: Create `test/v3/EmergencyScenarios.t.sol` using mainnet fork to inherit coinage setup.
 
 ### 4. Access Control (Priority: Low)
 
@@ -105,16 +117,16 @@ Currently no stress/load tests exist for:
 
 ## Recommended Test Files to Create
 
-### Priority 1 (Required)
+### Priority 1 (Required) - ✅ COMPLETED
 
 ```
-test/v3/ValidatorRewardV1.t.sol       # 20+ tests
+test/v3/ValidatorRewardV1.t.sol       # 33 tests ✅
 ```
 
 ### Priority 2 (Recommended)
 
 ```
-test/v3/EmergencyScenarios.t.sol      # 10+ tests
+test/v3/EmergencyScenarios.t.sol      # 10+ tests (requires fork)
 test/v3/BridgeIntegration.t.sol       # 15+ tests
 ```
 
@@ -128,24 +140,37 @@ test/v3/EdgeCases.t.sol               # 15+ tests
 
 ## Test Implementation Checklist
 
-### ValidatorReward Tests (TODO)
+### ValidatorReward Tests (✅ COMPLETED)
 
-- [ ] `test_distributeL2Rewards_basic`
-- [ ] `test_distributeL2Rewards_multipleL2`
-- [ ] `test_distributeL2Rewards_noValidators`
-- [ ] `test_claimRewards_success`
-- [ ] `test_claimRewards_noRewards`
-- [ ] `test_claimRewards_partialClaim`
-- [ ] `test_claimRewardsBatch_success`
-- [ ] `test_claimRewardsBatch_empty`
-- [ ] `test_getPendingRewards_accurate`
-- [ ] `test_getPendingRewards_afterDistribution`
-- [ ] `test_rewardCalculation_formula`
-- [ ] `test_rewardCalculation_precision`
-- [ ] `test_multiValidator_fairDistribution`
-- [ ] `test_validatorShare_proportional`
-- [ ] `test_onlySeigManager_canDistribute`
-- [ ] `test_rewardAccumulation_overTime`
+- [x] `test_distributeL2Rewards_basic`
+- [x] `test_distributeL2Rewards_multipleValidators`
+- [x] `test_distributeL2Rewards_noValidators_toTreasury`
+- [x] `test_distributeL2Rewards_excludeInactiveValidators`
+- [x] `test_distributeL2Rewards_multipleL2s`
+- [x] `test_distributeL2Rewards_zeroAmount`
+- [x] `test_distributeL2Rewards_onlySeigManager`
+- [x] `test_distributeL2Rewards_accumulation`
+- [x] `test_distributeL2Rewards_remainder`
+- [x] `test_claimAllRewards_success`
+- [x] `test_claimAllRewards_noRewards_reverts`
+- [x] `test_claimAllRewards_multipleL2s`
+- [x] `test_claimAllRewards_claimDistributeClaim`
+- [x] `test_getPendingRewards_accurate`
+- [x] `test_getPendingRewardsByL2_accurate`
+- [x] `test_rewardCalculation_formula`
+- [x] `test_rewardCalculation_precision`
+- [x] `test_initialize_success`
+- [x] `test_initialize_cannotReinitialize`
+- [x] `test_setRatContract` / `test_setRatContract_zeroAddress_reverts`
+- [x] `test_setTreasury`
+- [x] `test_setSeigManager` / `test_setSeigManager_zeroAddress_reverts`
+- [x] `test_transferOwnership` / `test_transferOwnership_zeroAddress_reverts`
+- [x] `test_governance_onlyOwner`
+- [x] `test_emergencyWithdraw` / `test_emergencyWithdraw_onlyOwner`
+- [x] `test_event_L2RewardDistributed`
+- [x] `test_event_ValidatorRewardReceived`
+- [x] `test_event_RewardsClaimed`
+- [x] `test_event_RewardToTreasury`
 
 ### Emergency Tests (TODO)
 
@@ -162,12 +187,15 @@ test/v3/EdgeCases.t.sol               # 15+ tests
 
 The current test suite provides **solid coverage** for V3/V4 core functionality:
 
-- ✅ 142+ tests passing
+- ✅ 175+ tests passing (142 existing + 33 new ValidatorReward tests)
 - ✅ Core staking fully tested
 - ✅ RAT validator collateral fully tested
 - ✅ Seigniorage distribution fully tested
+- ✅ ValidatorReward distribution fully tested
+
+**Completed**:
+1. ~~Create ValidatorReward unit tests (Priority 1)~~ ✅ Done - 33 tests
 
 **Next Steps**:
-1. Create ValidatorReward unit tests (Priority 1)
-2. Add emergency scenario tests (Priority 2)
-3. Expand bridge integration tests (Priority 2)
+1. Add emergency scenario tests using mainnet fork (Priority 2)
+2. Expand bridge integration tests (Priority 2)

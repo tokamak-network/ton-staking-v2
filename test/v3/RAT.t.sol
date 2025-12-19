@@ -232,7 +232,8 @@ contract RATTest is Test {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1, depositAmount);
 
-        uint256 balanceBefore = wton.balanceOf(validator1);
+        // V3: RAT은 TON을 직접 보관하고 반환함 (WTON 아님)
+        uint256 balanceBefore = ton.balanceOf(validator1);
 
         vm.prank(validator1);
         rat.deactivateValidator(systemConfig1);
@@ -249,9 +250,9 @@ contract RATTest is Test {
         assertEq(depositedAmount, 0, "Deposit should be 0");
         assertEq(rat.getActiveValidatorCount(systemConfig1), 0, "Active count should be 0");
 
-        // 담보금 반환 확인
+        // 담보금 반환 확인 (TON으로 반환됨)
         assertEq(
-            wton.balanceOf(validator1),
+            ton.balanceOf(validator1),
             balanceBefore + depositAmount,
             "Deposit should be returned"
         );
@@ -767,6 +768,7 @@ contract RATTest is Test {
     // ==========================================
 
     /// @notice resolveClaim으로 비활성화된 검증자 복구
+    /// @dev trigger 시점에 D_min 미만이면 즉시 비활성화됨, resolveClaim으로 복구 가능
     function test_resolveClaim_restoreInactiveValidator() public {
         // 최소 담보금으로 등록
         uint256 initialDeposit = minimumDeposit; // 200
@@ -774,7 +776,7 @@ contract RATTest is Test {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1, initialDeposit);
 
-        // RAT 트리거 - 담보금: 200 - 100 = 100 (D_min 미만이지만 아직 활성)
+        // RAT 트리거 - 담보금: 200 - 100 = 100 (D_min(150) 미만으로 비활성화됨)
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
@@ -786,10 +788,10 @@ contract RATTest is Test {
         ) = rat.getValidatorRegistration(validator1, systemConfig1);
 
         assertEq(depositAfterTrigger, 100e27, "Deposit should be 100 (below D_min)");
-        // 트리거 시점에서는 아직 활성 (슬래싱 전)
-        assertTrue(isActiveAfterTrigger, "Should still be active after trigger");
+        // trigger 시점에 D_min 미달로 즉시 비활성화됨
+        assertFalse(isActiveAfterTrigger, "Should be inactive after trigger (D_min check)");
 
-        // resolveClaim으로 본드 복구 - 담보금: 100 + 100 = 200 >= D_min
+        // resolveClaim으로 본드 복구 - 담보금: 100 + 100 = 200 >= D_min(150) → 재활성화
         vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
@@ -802,7 +804,7 @@ contract RATTest is Test {
 
         assertEq(depositAfterResolve, 200e27, "Deposit should be restored to 200");
         assertEq(bondAfterResolve, 0, "Bond should be cleared");
-        assertTrue(isActiveAfterResolve, "Should be active after bond restore");
+        assertTrue(isActiveAfterResolve, "Should be active after bond restore (>= D_min)");
     }
 
     /// @notice 슬래싱 후 추가 입금으로 검증자 재활성화

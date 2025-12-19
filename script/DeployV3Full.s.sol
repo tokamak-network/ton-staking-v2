@@ -39,6 +39,7 @@ import {RAT} from "../src/validator/RAT.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 // Mocks for testing
 import {MockTON} from "../test/v3/mocks/MockTON.sol";
@@ -336,28 +337,58 @@ contract DeployV3Full is Script {
         SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerImpl, true);
         console.log("SeigManager V1_3, V1_4 implementations set alive");
 
-        // V1_3 함수 selectors 등록 (pause/unpause는 V1_3에서 처리)
-        // pause()는 V1_4에도 있어서 V1_4로 라우팅
+        // V1_3 함수 selectors 등록 (6개)
+        // pause/unpause, excludeFromL2Seigniorage, includeFromL2Seigniorage, claimableL2Seigniorage, estimatedDistribute
+        bytes4[] memory v1_3Selectors = new bytes4[](6);
+        v1_3Selectors[0] = SeigManagerV1_3.pause.selector;
+        v1_3Selectors[1] = SeigManagerV1_3.unpause.selector;
+        v1_3Selectors[2] = SeigManagerV1_3.excludeFromL2Seigniorage.selector;
+        v1_3Selectors[3] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
+        v1_3Selectors[4] = SeigManagerV1_3.claimableL2Seigniorage.selector;
+        v1_3Selectors[5] = SeigManagerV1_3.estimatedDistribute.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_3Selectors, seigManagerV1_3Impl);
+        console.log("SeigManager V1_3 selectors registered (6 functions)");
 
-        // V1_4 함수 selectors 등록 (11개)
-        bytes4[] memory v1_4Selectors = new bytes4[](11);
-        // V1_4에만 있는 함수들 (V1_2에 없음)
-        v1_4Selectors[0] = SeigManagerV1_4.setRATContract.selector;
-        v1_4Selectors[1] = SeigManagerV1_4.setValidatorReward.selector;
-        v1_4Selectors[2] = SeigManagerV1_4.setDaoDistributionRatio.selector;
-        v1_4Selectors[3] = SeigManagerV1_4.setMinStakingRatio.selector;
-        v1_4Selectors[4] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
-        v1_4Selectors[5] = SeigManagerV1_4.setHalfSaturationPoint.selector;
-        v1_4Selectors[6] = SeigManagerV1_4.setStakedSeigFactor.selector;
-        v1_4Selectors[7] = SeigManagerV1_4.migrateToV3.selector;
-        v1_4Selectors[8] = SeigManagerV1_4.onBridgedTONChange.selector;
+        // V1_4 함수 selectors 등록 (31개)
+        bytes4[] memory v1_4Selectors = new bytes4[](31);
+        // V1_4에만 있는 함수들 (V1_2에 없음) - Setters
+        v1_4Selectors[0] = SeigManagerV1_4.setValidatorReward.selector;
+        v1_4Selectors[1] = SeigManagerV1_4.setDaoDistributionRatio.selector;
+        v1_4Selectors[2] = SeigManagerV1_4.setMinStakingRatio.selector;
+        v1_4Selectors[3] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
+        v1_4Selectors[4] = SeigManagerV1_4.setHalfSaturationPoint.selector;
+        v1_4Selectors[5] = SeigManagerV1_4.setStakedSeigFactor.selector;
+        v1_4Selectors[6] = SeigManagerV1_4.migrateToV3.selector;
+        v1_4Selectors[7] = SeigManagerV1_4.onBridgedTONChange.selector;
+        v1_4Selectors[8] = SeigManagerV1_4.setMaxChallengers.selector;
+        v1_4Selectors[9] = SeigManagerV1_4.setMaxFraudProofCost.selector;
+        v1_4Selectors[10] = SeigManagerV1_4.setSequencerVault.selector;
         // 로직 수정으로 V1_4로 오버라이드 (V1_2에도 있지만 V3 로직 적용)
-        v1_4Selectors[9] = SeigManagerV1_4.updateSeigniorage.selector;
-        v1_4Selectors[10] = SeigManagerV1_4.updateSeigniorageLayer.selector;
-        // 참고: setLayer2Manager는 V1_2에 이미 있으므로 V1_4 라우팅 불필요
+        v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorage.selector;
+        v1_4Selectors[12] = SeigManagerV1_4.updateSeigniorageLayer.selector;
+        // V1_4 view/pure 함수들
+        v1_4Selectors[13] = SeigManagerV1_4.hyperbolicSaturation.selector;
+        v1_4Selectors[14] = SeigManagerV1_4.checkCurrentEligibility.selector;
+        v1_4Selectors[15] = SeigManagerV1_4.calculateL2Seigniorage.selector;
+        v1_4Selectors[16] = SeigManagerV1_4.calculateSequencerReward.selector;
+        // V1_4 Storage getters (V1_4Storage에서 정의된 public 변수들)
+        v1_4Selectors[17] = bytes4(keccak256("daoDistributionRatio()"));
+        v1_4Selectors[18] = bytes4(keccak256("minStakingRatio()"));
+        v1_4Selectors[19] = bytes4(keccak256("validatorDistributionRatio()"));
+        v1_4Selectors[20] = bytes4(keccak256("halfSaturationPoint()"));
+        v1_4Selectors[21] = bytes4(keccak256("stakedSeigFactor()"));
+        v1_4Selectors[22] = bytes4(keccak256("totalEffectiveBridgedTON()"));
+        v1_4Selectors[23] = bytes4(keccak256("bridgedTONInfo(address)"));
+        v1_4Selectors[24] = bytes4(keccak256("validatorReward()"));
+        v1_4Selectors[25] = bytes4(keccak256("maxChallengers()"));
+        v1_4Selectors[26] = bytes4(keccak256("maxFraudProofCost()"));
+        v1_4Selectors[27] = bytes4(keccak256("v3Migrated()"));
+        v1_4Selectors[28] = bytes4(keccak256("v3MigrationBlock()"));
+        v1_4Selectors[29] = bytes4(keccak256("sequencerVault()"));
+        v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
 
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
-        console.log("SeigManager V1_4 selectors registered (11 functions)");
+        console.log("SeigManager V1_4 selectors registered (31 functions)");
 
         // 나머지 함수들은 V1_2 (기본 구현체)가 처리
 
@@ -395,19 +426,15 @@ contract DeployV3Full is Script {
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex2Selectors, depositManagerV1_1Impl);
         console.log("DepositManager Index 2 (V1_1) selectors registered");
 
-        // Index 3: V1_2 함수 라우팅 (V1_1 오버라이드 포함)
-        bytes4[] memory dmIndex3Selectors = new bytes4[](9);
+        // Index 3: V1_2 함수 라우팅 (V3 콜백 포함, V1_1 오버라이드)
+        // V1_2에 정의된 함수만 라우팅: deposit, withdrawAndDepositL2, requestWithdrawal
+        // processRequest, processRequests, view 함수들은 기본 구현체(Index 0)에 있음
+        bytes4[] memory dmIndex3Selectors = new bytes4[](3);
         dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
         dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
         dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
-        dmIndex3Selectors[3] = DepositManagerV1_2.processRequest.selector;
-        dmIndex3Selectors[4] = DepositManagerV1_2.processRequests.selector;
-        dmIndex3Selectors[5] = DepositManagerV1_2.getWithdrawalRequests.selector;
-        dmIndex3Selectors[6] = DepositManagerV1_2.pendingUnstaked.selector;
-        dmIndex3Selectors[7] = DepositManagerV1_2.accStaked.selector;
-        dmIndex3Selectors[8] = DepositManagerV1_2.accUnstaked.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
-        console.log("DepositManager Index 3 (V1_2) selectors registered");
+        console.log("DepositManager Index 3 (V1_2) selectors registered (3 functions)");
         console.log("");
     }
 
@@ -450,38 +477,47 @@ contract DeployV3Full is Script {
     function _deployV3Contracts(address deployer) internal {
         console.log("--- Step 8: Deploy V3 Contracts ---");
 
-        // Deploy RAT
+        // Deploy ProxyAdmin for RAT and ValidatorReward
+        // This separates proxy admin from deployer to avoid TransparentProxy admin fallback restriction
+        address proxyAdmin = address(new ProxyAdmin());
+        console.log("V3 ProxyAdmin:", proxyAdmin);
+
+        // Deploy RAT implementation
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
-        console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
-        // Initialize RAT (V3: depositManager 제거)
-        RAT(ratProxy).initialize(
+        // Prepare RAT initialization data
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
             seigManagerProxy,
             wton,
             ton,
             layer2ManagerProxy,
             deployer
         );
+
+        // Deploy RAT proxy with ProxyAdmin as admin
+        ratProxy = address(new RATProxy(ratImpl, proxyAdmin, ratInitData));
+        console.log("RAT Proxy:", ratProxy);
         console.log("RAT initialized");
 
-        // Deploy ValidatorReward
+        // Deploy ValidatorReward implementation
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        console.log("ValidatorReward Proxy:", validatorPoolProxy);
         console.log("ValidatorReward Impl:", validatorPoolImpl);
 
-        // Initialize ValidatorReward
-        ValidatorRewardV1(validatorPoolProxy).initialize(
+        // Prepare ValidatorReward initialization data
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
             seigManagerProxy,
             wton,
             ratProxy,   // RAT contract for validator info
             deployer,   // treasury (initially deployer, should be DAO)
             deployer    // owner
         );
+
+        // Deploy ValidatorReward proxy with ProxyAdmin as admin
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, proxyAdmin, validatorRewardInitData));
+        console.log("ValidatorReward Proxy:", validatorPoolProxy);
         console.log("ValidatorReward initialized");
         console.log("");
     }
@@ -515,10 +551,6 @@ contract DeployV3Full is Script {
         // SeigManager -> Layer2Manager (V1_2에 정의됨)
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
-
-        // SeigManager -> RAT
-        SeigManagerV1_4(seigManagerProxy).setRATContract(ratProxy);
-        console.log("SeigManager.setRATContract done");
 
         // SeigManager -> ValidatorReward
         SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
@@ -575,7 +607,7 @@ contract DeployV3Full is Script {
 
         // V1_2 함수 selectors 등록 (TYPE 3 DisputeGame 지원 함수들)
         // registerRollupConfig, registerRollupConfigByManager - TYPE 3 지원을 위해 V1_2로 라우팅
-        bytes4[] memory l1brV1_2Selectors = new bytes4[](7);
+        bytes4[] memory l1brV1_2Selectors = new bytes4[](10);
         // registerRollupConfig(address,uint8,address,string)
         l1brV1_2Selectors[0] = bytes4(keccak256("registerRollupConfig(address,uint8,address,string)"));
         // registerRollupConfig(address,uint8,address)
@@ -590,8 +622,12 @@ contract DeployV3Full is Script {
         l1brV1_2Selectors[5] = L1BridgeRegistryV1_2.rejectCandidateAddOn.selector;
         // restoreCandidateAddOn
         l1brV1_2Selectors[6] = L1BridgeRegistryV1_2.restoreCandidateAddOn.selector;
+        // V1_2 Storage getters (DisputeGame 관련)
+        l1brV1_2Selectors[7] = bytes4(keccak256("rollupConfigWithDisputeGameFactory(address)"));
+        l1brV1_2Selectors[8] = bytes4(keccak256("disputeGameFactory(address)"));
+        l1brV1_2Selectors[9] = bytes4(keccak256("rollupConfigWithPortal(address)"));
         L1BridgeRegistryProxy(payable(l1BridgeRegistryProxy)).setSelectorImplementations2(l1brV1_2Selectors, l1BridgeRegistryImpl);
-        console.log("L1BridgeRegistry V1_2 selectors registered (7 functions)");
+        console.log("L1BridgeRegistry V1_2 selectors registered (10 functions)");
 
         // OperatorManagerFactory.setAddresses
         OperatorManagerFactory(operatorManagerFactory).setAddresses(

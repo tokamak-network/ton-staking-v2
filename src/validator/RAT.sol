@@ -658,6 +658,6 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
     /// @notice 비상 출금 (Owner 전용)
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
-        IERC20(token).safeTransfer(owner, amount);
+        IERC20(token).safeTransfer(msg.sender, amount);
     }
 }

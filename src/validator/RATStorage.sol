@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 /// @title RATStorage
 /// @notice Randomized Attention Test (RAT) 스토리지
 /// @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
+/// @dev OpenZeppelin TransparentUpgradeableProxy 사용으로 ERC1967 slot 기반 프록시와 충돌 없음
 contract RATStorage {
     // ==========================================
     // Constants

@@ -5,6 +5,7 @@ pragma solidity ^0.8.4;
 /// @notice TON Staking V3 검증자 보상 스토리지
 /// @dev Tokamak Economics Whitepaper V3 (December 16, 2025) 기준
 /// @dev 검증자 등록/담보금은 RAT에서 관리, 이 컨트랙트는 보상 분배만 담당
+/// @dev OpenZeppelin TransparentUpgradeableProxy 사용으로 ERC1967 slot 기반 프록시와 충돌 없음
 contract ValidatorRewardStorage {
     // ==========================================
     // Constants

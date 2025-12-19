@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../proxy/Proxy.sol";
-import "./RATStorage.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @title RATProxy
  * @notice RAT 컨트랙트의 프록시
- * @dev Proxy와 RATStorage를 상속하여 업그레이드 가능한 패턴 구현
+ * @dev OpenZeppelin TransparentUpgradeableProxy 사용
+ * @dev ERC1967 storage slot을 사용하여 implementation storage와 충돌 방지
  */
-contract RATProxy is Proxy, RATStorage {
-    // Proxy의 onlyOwner modifier와 RATStorage의 storage를 공유
-    // 실제 로직은 RAT implementation에서 처리
+contract RATProxy is TransparentUpgradeableProxy {
+    constructor(
+        address _logic,
+        address admin_,
+        bytes memory _data
+    ) TransparentUpgradeableProxy(_logic, admin_, _data) {}
 }

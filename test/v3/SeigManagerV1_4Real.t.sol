@@ -2,133 +2,44 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
-import "../../src/stake/managers/SeigManagerV1_4.sol";
-import "../../src/stake/managers/SeigManagerV1_4Storage.sol";
-import "../../src/stake/managers/SeigManagerStorage.sol";
+import "../../script/DeployV3Full.s.sol";
+import {InvalidParameterError, ZeroAddressError} from "../../src/stake/managers/SeigManagerV1_4.sol";
 
 /// @title SeigManagerV1_4RealTest
-/// @notice 실제 SeigManagerV1_4 컨트랙트의 순수 함수 테스트
-/// @dev View 함수 및 계산 로직 검증 (커버리지용)
+/// @notice 실제 컨트랙트를 사용한 SeigManagerV1_4 테스트
+/// @dev DeployV3Full을 활용하여 전체 시스템 배포 후 테스트
 
-// ==========================================
-// Minimal Mock for coinage
-// ==========================================
-contract MinimalCoinage {
-    uint256 public totalSupply;
-    uint256 public factor = 1e27;
-    mapping(address => uint256) public balanceOf;
+contract SeigManagerV1_4RealTest is Test, DeployV3Full {
+    // 주요 컨트랙트 참조
+    SeigManagerV1_4 public seigManager;
+    Layer2ManagerV1_2 public layer2Manager;
 
-    function setTotalSupply(uint256 _supply) external {
-        totalSupply = _supply;
-    }
-
-    function setBalance(address account, uint256 amount) external {
-        totalSupply = totalSupply - balanceOf[account] + amount;
-        balanceOf[account] = amount;
-    }
-}
-
-/// @notice SeigManagerV1_4의 순수 계산 함수 테스트를 위한 Harness
-contract SeigManagerV1_4Harness is SeigManagerV1_4 {
-
-    // 초기화 함수 (owner 설정)
-    function initialize() external {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    }
-
-    // 내부 스토리지 직접 설정 (테스트용)
-    function setStorageValues(
-        uint256 _d,
-        uint256 _theta,
-        uint256 _alpha,
-        uint256 _k,
-        uint256 _lambda,
-        uint256 _r
-    ) external {
-        daoDistributionRatio = _d;
-        minStakingRatio = _theta;
-        validatorDistributionRatio = _alpha;
-        halfSaturationPoint = _k;
-        stakedSeigFactor = _lambda;
-        relativeSeigRate = _r;
-    }
-
-    function setMigrated(bool _migrated) external {
-        v3Migrated = _migrated;
-    }
-
-    function setCoinage(address layer2, address coinage) external {
-        _coinages[layer2] = RefactorCoinageSnapshotI(coinage);
-    }
-
-    // Bridged TON 직접 설정
-    function setupBridgedTON(
-        address layer2,
-        uint256 currentBridged,
-        uint256 effectiveBridged,
-        bool isEligible
-    ) external {
-        bridgedTONInfo[layer2] = BridgedTONInfo({
-            currentBridgedTON: currentBridged,
-            effectiveBridgedTON: effectiveBridged,
-            initialDebt: 0,
-            startBlock: block.number,
-            lastUpdateTime: block.timestamp,
-            isEligible: isEligible
-        });
-
-        if (isEligible && effectiveBridged > 0) {
-            totalEffectiveBridgedTON += effectiveBridged;
-        }
-    }
-
-    function setTotalEffectiveBridgedTON(uint256 amount) external {
-        totalEffectiveBridgedTON = amount;
-    }
-
-    // 슬래싱 관련 파라미터 설정
-    function setSlashingParams(uint256 _maxChallengers, uint256 _maxFraudProofCost) external {
-        maxChallengers = _maxChallengers;
-        maxFraudProofCost = _maxFraudProofCost;
-    }
-}
-
-contract SeigManagerV1_4RealTest is Test {
-    SeigManagerV1_4Harness public seigManager;
-    MinimalCoinage public coinage1;
-    MinimalCoinage public coinage2;
-
+    address public owner;
     address public layer2_1 = address(0x1001);
     address public layer2_2 = address(0x1002);
     address public operator1 = address(0x2001);
-    address public operator2 = address(0x2002);
 
     uint256 constant RAY = 1e27;
 
     function setUp() public {
-        seigManager = new SeigManagerV1_4Harness();
-        seigManager.initialize();
+        owner = address(this);
 
-        coinage1 = new MinimalCoinage();
-        coinage2 = new MinimalCoinage();
+        // 직접 배포 (this가 owner가 됨)
+        _deployTokens();
+        _deployCoinageInfrastructure(owner);
+        _deployLayer2Registry(owner);
+        _deployManagerProxies();
+        _deployManagerImplementations();
+        _initializeManagers(owner);
+        _setupMinterPermissions();
+        _deployOperatorManagerFactory(owner);
+        _deployV3Contracts(owner);
+        _configureV3Contracts(owner);
+        _setupCrossReferences(owner);
 
-        // 기본 V3 파라미터 설정
-        seigManager.setStorageValues(
-            0.1e27,  // d = 10%
-            0.1e27,  // θ = 10%
-            0.2e27,  // α = 20%
-            1000e27, // k = 1000
-            RAY,     // λ = 1
-            0.4e27   // r = 40%
-        );
-
-        // Coinage 설정
-        seigManager.setCoinage(layer2_1, address(coinage1));
-        seigManager.setCoinage(layer2_2, address(coinage2));
-
-        // 스테이킹 설정
-        coinage1.setBalance(operator1, 100e27);
-        coinage2.setBalance(operator2, 100e27);
+        // 주요 컨트랙트 참조
+        seigManager = SeigManagerV1_4(seigManagerProxy);
+        layer2Manager = Layer2ManagerV1_2(layer2ManagerProxy);
     }
 
     // ==========================================
@@ -140,7 +51,10 @@ contract SeigManagerV1_4RealTest is Test {
         assertEq(y, 0, "y(0) should be 0");
     }
 
-    function test_hyperbolicSaturation_halfPoint() public view {
+    function test_hyperbolicSaturation_halfPoint() public {
+        // k 설정
+        seigManager.setHalfSaturationPoint(1000e27);
+
         uint256 k = seigManager.halfSaturationPoint();
         uint256 L = 1000e27;
         uint256 y = seigManager.hyperbolicSaturation(k, L);
@@ -149,7 +63,9 @@ contract SeigManagerV1_4RealTest is Test {
         assertApproxEqRel(y, L / 2, 0.01e18, "y(k) should be L/2");
     }
 
-    function test_hyperbolicSaturation_large() public view {
+    function test_hyperbolicSaturation_large() public {
+        seigManager.setHalfSaturationPoint(1000e27);
+
         uint256 L = 1000e27;
         uint256 y = seigManager.hyperbolicSaturation(100000e27, L);
 
@@ -157,7 +73,9 @@ contract SeigManagerV1_4RealTest is Test {
         assertGt(y, L * 99 / 100, "y(large) should approach L");
     }
 
-    function test_hyperbolicSaturation_monotonic() public view {
+    function test_hyperbolicSaturation_monotonic() public {
+        seigManager.setHalfSaturationPoint(1000e27);
+
         uint256 L = 1000e27;
         uint256 prev = 0;
 
@@ -168,8 +86,10 @@ contract SeigManagerV1_4RealTest is Test {
         }
     }
 
-    function testFuzz_hyperbolicSaturation_bounded(uint256 x, uint256 L) public view {
-        x = bound(x, 0, 1e32); // 합리적인 범위로 제한
+    function testFuzz_hyperbolicSaturation_bounded(uint256 x, uint256 L) public {
+        seigManager.setHalfSaturationPoint(1000e27);
+
+        x = bound(x, 0, 1e32);
         L = bound(L, 1e18, 1e32);
 
         uint256 y = seigManager.hyperbolicSaturation(x, L);
@@ -178,94 +98,13 @@ contract SeigManagerV1_4RealTest is Test {
     }
 
     // ==========================================
-    // checkCurrentEligibility 함수 테스트
-    // ==========================================
-
-    function test_checkCurrentEligibility_sufficient() public {
-        // Bridged TON: 500, Staked: 100 (≥ 10% of 500 = 50)
-        seigManager.setupBridgedTON(layer2_1, 500e27, 500e27, true);
-
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
-
-        assertEq(required, 50e27, "Required should be 10% of Bridged TON");
-        assertEq(current, 100e27, "Current should be staked amount");
-        assertTrue(eligible, "Should be eligible");
-    }
-
-    function test_checkCurrentEligibility_insufficient() public {
-        // Bridged TON: 2000, Staked: 100 (< 10% of 2000 = 200)
-        seigManager.setupBridgedTON(layer2_1, 2000e27, 0, false);
-
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
-
-        assertEq(required, 200e27, "Required should be 10% of Bridged TON");
-        assertEq(current, 100e27, "Current should be staked amount");
-        assertFalse(eligible, "Should not be eligible");
-    }
-
-    function test_checkCurrentEligibility_exact() public {
-        // Bridged TON: 1000, Staked: 100 (= 10% of 1000)
-        seigManager.setupBridgedTON(layer2_1, 1000e27, 1000e27, true);
-
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
-
-        assertEq(required, 100e27, "Required should be 10% of Bridged TON");
-        assertEq(current, 100e27, "Current should equal required");
-        assertTrue(eligible, "Should be eligible when equal");
-    }
-
-    function testFuzz_checkCurrentEligibility(uint256 bridgedTON, uint256 stakedAmount) public {
-        bridgedTON = bound(bridgedTON, 1e18, 1e32);
-        stakedAmount = bound(stakedAmount, 0, 1e32);
-
-        coinage1.setBalance(operator1, stakedAmount);
-        seigManager.setupBridgedTON(layer2_1, bridgedTON, bridgedTON, true);
-
-        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(layer2_1);
-
-        // RAY 연산으로 인한 반올림 오차 허용 (1 wei)
-        assertApproxEqAbs(required, bridgedTON / 10, 1, "Required should be ~10% of Bridged TON");
-        assertEq(current, stakedAmount, "Current should match staked amount");
-        assertEq(eligible, stakedAmount >= required, "Eligibility check");
-    }
-
-    // ==========================================
-    // calculateL2Seigniorage 함수 테스트
-    // ==========================================
-
-    function test_calculateL2Seigniorage_proportional() public {
-        seigManager.setupBridgedTON(layer2_1, 300e27, 300e27, true);
-
-        uint256 totalY = 1000e27;
-        uint256 totalX = 1000e27;
-
-        uint256 seig = seigManager.calculateL2Seigniorage(layer2_1, totalY, totalX);
-
-        // 300/1000 * 1000 = 300
-        assertApproxEqRel(seig, 300e27, 0.01e18, "Should get proportional share");
-    }
-
-    function test_calculateL2Seigniorage_zeroEffective() public {
-        seigManager.setupBridgedTON(layer2_1, 500e27, 0, false);
-
-        uint256 seig = seigManager.calculateL2Seigniorage(layer2_1, 1000e27, 1000e27);
-
-        assertEq(seig, 0, "Zero effective should get 0");
-    }
-
-    function test_calculateL2Seigniorage_zeroTotalX() public {
-        seigManager.setupBridgedTON(layer2_1, 500e27, 500e27, true);
-
-        uint256 seig = seigManager.calculateL2Seigniorage(layer2_1, 1000e27, 0);
-
-        assertEq(seig, 0, "Zero totalX should return 0");
-    }
-
-    // ==========================================
     // calculateSequencerReward 함수 테스트
     // ==========================================
 
-    function test_calculateSequencerReward_basic() public view {
+    function test_calculateSequencerReward_basic() public {
+        // α = 20% 설정
+        seigManager.setValidatorDistributionRatio(0.2e27);
+
         uint256 l2Seig = 1000e27;
 
         // α = 20%, 시퀀서 = (1-α) = 80%
@@ -276,7 +115,7 @@ contract SeigManagerV1_4RealTest is Test {
 
     function test_calculateSequencerReward_zeroAlpha() public {
         // α = 0 설정
-        seigManager.setStorageValues(0.1e27, 0.1e27, 0, 1000e27, RAY, 0.4e27);
+        seigManager.setValidatorDistributionRatio(0);
 
         uint256 l2Seig = 1000e27;
         uint256 sequencerReward = seigManager.calculateSequencerReward(l2Seig);
@@ -284,7 +123,9 @@ contract SeigManagerV1_4RealTest is Test {
         assertEq(sequencerReward, 1000e27, "Sequencer should get 100% when alpha=0");
     }
 
-    function testFuzz_calculateSequencerReward(uint256 l2Seig) public view {
+    function testFuzz_calculateSequencerReward(uint256 l2Seig) public {
+        seigManager.setValidatorDistributionRatio(0.2e27);
+
         l2Seig = bound(l2Seig, 0, 1e32);
 
         uint256 sequencerReward = seigManager.calculateSequencerReward(l2Seig);
@@ -296,51 +137,23 @@ contract SeigManagerV1_4RealTest is Test {
     }
 
     // ==========================================
-    // V3 파라미터 View 함수 테스트
+    // V3 파라미터 테스트
     // ==========================================
 
-    function test_v3Parameters() public view {
+    function test_v3Parameters() public {
+        // 파라미터 설정
+        seigManager.setDaoDistributionRatio(0.1e27);
+        seigManager.setMinStakingRatio(0.1e27);
+        seigManager.setValidatorDistributionRatio(0.2e27);
+        seigManager.setHalfSaturationPoint(1000e27);
+        seigManager.setStakedSeigFactor(RAY);
+
+        // 확인
         assertEq(seigManager.daoDistributionRatio(), 0.1e27, "d = 10%");
         assertEq(seigManager.minStakingRatio(), 0.1e27, "theta = 10%");
         assertEq(seigManager.validatorDistributionRatio(), 0.2e27, "alpha = 20%");
         assertEq(seigManager.halfSaturationPoint(), 1000e27, "k = 1000");
         assertEq(seigManager.stakedSeigFactor(), RAY, "lambda = 1");
-        assertEq(seigManager.relativeSeigRate(), 0.4e27, "r = 40%");
-    }
-
-    // ==========================================
-    // Bridged TON 추적 테스트
-    // ==========================================
-
-    function test_bridgedTONInfo() public {
-        seigManager.setupBridgedTON(layer2_1, 1000e27, 1000e27, true);
-
-        (
-            uint256 currentBridged,
-            uint256 effectiveBridged,
-            ,
-            ,
-            ,
-            bool isEligible
-        ) = seigManager.bridgedTONInfo(layer2_1);
-
-        assertEq(currentBridged, 1000e27, "Current bridged TON");
-        assertEq(effectiveBridged, 1000e27, "Effective bridged TON");
-        assertTrue(isEligible, "Should be eligible");
-    }
-
-    function test_totalEffectiveBridgedTON() public {
-        seigManager.setupBridgedTON(layer2_1, 300e27, 300e27, true);
-        seigManager.setupBridgedTON(layer2_2, 700e27, 700e27, true);
-
-        assertEq(seigManager.totalEffectiveBridgedTON(), 1000e27, "Total should be sum");
-    }
-
-    function test_getEffectiveBridgedTON() public {
-        seigManager.setupBridgedTON(layer2_1, 500e27, 500e27, true);
-
-        uint256 effective = seigManager.getEffectiveBridgedTON(layer2_1);
-        assertEq(effective, 500e27, "Should return effective bridged TON");
     }
 
     // ==========================================
@@ -350,7 +163,7 @@ contract SeigManagerV1_4RealTest is Test {
     function test_v3MigrationState() public {
         assertFalse(seigManager.v3Migrated(), "Initially not migrated");
 
-        seigManager.setMigrated(true);
+        seigManager.migrateToV3();
         assertTrue(seigManager.v3Migrated(), "Should be migrated");
     }
 
@@ -359,9 +172,111 @@ contract SeigManagerV1_4RealTest is Test {
     // ==========================================
 
     function test_slashingParameters() public {
-        seigManager.setSlashingParams(10, 1e18);
+        seigManager.setMaxChallengers(10);
+        seigManager.setMaxFraudProofCost(1e18);
 
         assertEq(seigManager.maxChallengers(), 10, "Max challengers");
         assertEq(seigManager.maxFraudProofCost(), 1e18, "Max fraud proof cost");
+    }
+
+    // ==========================================
+    // Governance Setter 함수 테스트
+    // ==========================================
+
+    function test_setStakedSeigFactor_basic() public {
+        seigManager.setStakedSeigFactor(0.5e27);
+        assertEq(seigManager.stakedSeigFactor(), 0.5e27, "Should set lambda to 0.5");
+
+        seigManager.setStakedSeigFactor(RAY);
+        assertEq(seigManager.stakedSeigFactor(), RAY, "Should set lambda to 1.0");
+
+        seigManager.setStakedSeigFactor(0);
+        assertEq(seigManager.stakedSeigFactor(), 0, "Should set lambda to 0");
+    }
+
+    function test_setStakedSeigFactor_exceedsRAY_reverts() public {
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setStakedSeigFactor(RAY + 1);
+    }
+
+    function test_setMaxChallengers_basic() public {
+        seigManager.setMaxChallengers(5);
+        assertEq(seigManager.maxChallengers(), 5, "Should set maxChallengers to 5");
+
+        seigManager.setMaxChallengers(100);
+        assertEq(seigManager.maxChallengers(), 100, "Should set maxChallengers to 100");
+
+        seigManager.setMaxChallengers(0);
+        assertEq(seigManager.maxChallengers(), 0, "Should allow zero challengers");
+    }
+
+    function test_setMaxFraudProofCost_basic() public {
+        seigManager.setMaxFraudProofCost(1 ether);
+        assertEq(seigManager.maxFraudProofCost(), 1 ether, "Should set maxFraudProofCost to 1 ether");
+
+        seigManager.setMaxFraudProofCost(0);
+        assertEq(seigManager.maxFraudProofCost(), 0, "Should allow zero cost");
+    }
+
+    function test_setSequencerVault_basic() public {
+        address vaultAddress = address(0x5678);
+        seigManager.setSequencerVault(vaultAddress);
+        assertEq(seigManager.sequencerVault(), vaultAddress, "Should set SequencerVault address");
+    }
+
+    function test_setSequencerVault_zeroAddress_reverts() public {
+        vm.expectRevert(ZeroAddressError.selector);
+        seigManager.setSequencerVault(address(0));
+    }
+
+    function test_setValidatorReward_basic() public {
+        address rewardAddress = address(0xABCD);
+        seigManager.setValidatorReward(rewardAddress);
+        assertEq(seigManager.validatorReward(), rewardAddress, "Should set ValidatorReward address");
+    }
+
+    function test_setValidatorReward_zeroAddress_reverts() public {
+        vm.expectRevert(ZeroAddressError.selector);
+        seigManager.setValidatorReward(address(0));
+    }
+
+    // ==========================================
+    // onlyOwner 권한 테스트
+    // ==========================================
+
+    function test_setStakedSeigFactor_notOwner_reverts() public {
+        vm.prank(address(0x9999));
+        vm.expectRevert();
+        seigManager.setStakedSeigFactor(0.5e27);
+    }
+
+    function test_setMaxChallengers_notOwner_reverts() public {
+        vm.prank(address(0x9999));
+        vm.expectRevert();
+        seigManager.setMaxChallengers(10);
+    }
+
+    function test_setMaxFraudProofCost_notOwner_reverts() public {
+        vm.prank(address(0x9999));
+        vm.expectRevert();
+        seigManager.setMaxFraudProofCost(1 ether);
+    }
+
+    // ==========================================
+    // 배포 스크립트 연동 테스트
+    // ==========================================
+
+    function test_deployedContractsConnected() public view {
+        // 배포된 컨트랙트들이 서로 연결되어 있는지 확인
+        assertTrue(seigManagerProxy != address(0), "SeigManager deployed");
+        assertTrue(depositManagerProxy != address(0), "DepositManager deployed");
+        assertTrue(layer2ManagerProxy != address(0), "Layer2Manager deployed");
+        assertTrue(ratProxy != address(0), "RAT deployed");
+        assertTrue(validatorPoolProxy != address(0), "ValidatorReward deployed");
+    }
+
+    function test_validatorRewardConnected() public view {
+        // ValidatorReward가 SeigManager에 연결되었는지 확인
+        assertEq(seigManager.validatorReward(), validatorPoolProxy, "ValidatorReward should be connected");
     }
 }

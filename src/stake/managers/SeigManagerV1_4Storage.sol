@@ -90,13 +90,6 @@ contract SeigManagerV1_4Storage {
     uint256 public maxFraudProofCost;
 
     // ==========================================
-    // RAT 컨트랙트 주소
-    // ==========================================
-
-    /// @notice RAT (Randomized Attention Test) 컨트랙트 주소
-    address public ratContract;
-
-    // ==========================================
     // V3 마이그레이션 상태
     // ==========================================
 

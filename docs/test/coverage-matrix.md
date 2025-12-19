@@ -75,6 +75,30 @@
 | Bridged TON Query | Layer2ManagerV1_2Real.t.sol | ⚠️ Basic | 2 |
 | Layer2 by SystemConfig | Layer2ManagerV1_2Real.t.sol | ⚠️ Basic | 1 |
 
+### ValidatorReward Distribution
+
+| Feature | Test File | Status | Tests |
+|---------|-----------|--------|-------|
+| Per-L2 Reward Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Multiple Validators Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| No Validators → Treasury | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Exclude Inactive Validators | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Multiple L2s Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Zero Amount Handling | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Only SeigManager Access | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Reward Accumulation | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Remainder Handling | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Claim All Rewards | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Claim No Rewards Revert | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Claim Multiple L2s | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Claim-Distribute-Claim | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
+| Pending Rewards Query | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
+| Reward Formula Verification | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
+| Initialization | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
+| Governance Functions | ValidatorRewardV1.t.sol | ✅ Complete | 8 |
+| Emergency Withdraw | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
+| Event Emissions | ValidatorRewardV1.t.sol | ✅ Complete | 4 |
+
 ### Manager Functions
 
 | Feature | Test File | Status | Tests |
@@ -107,6 +131,7 @@
 | Core Staking | 12 | 12 | ✅ 100% |
 | Seigniorage Distribution | 50+ | 50+ | ✅ 100% |
 | Validator Collateral (RAT) | 40+ | 40+ | ✅ 100% |
+| ValidatorReward Distribution | 33 | 33 | ✅ 100% |
 | V3 Scenarios | 8 | 8 | ✅ 100% |
 | Manager Functions | 24+ | 24+ | ✅ 100% |
 | Bridge Integration | 6 | 6 | ⚠️ Basic |
@@ -119,23 +144,23 @@
 | SeigManagerV1_4 | 34 | High |
 | DepositManagerV1_2 | 14 | High |
 | RAT | 40+ | Excellent |
+| ValidatorRewardV1 | 33 | ✅ Excellent |
 | Layer2Registry | 2 | Good |
 | Layer2Manager | 6 | Medium |
 | L1BridgeRegistry | 2 | Low |
-| ValidatorReward | 0 | ⚠️ Pending |
 | SequencerVault | 2 | Low |
 
 ## Test Statistics
 
 ```
-Total Test Files:        11
-Total Tests:            142+
-Passing Tests:          142+
+Total Test Files:        12
+Total Tests:            175+
+Passing Tests:          175+
 Failing Tests:          0
 Skipped Tests:          1
 
 Fuzz Tests:             3
-Unit Tests:            100+
+Unit Tests:            133+
 Integration Tests:      30+
 E2E Tests:             12+
 ```
@@ -147,6 +172,6 @@ E2E Tests:             12+
 forge test --match-path "test/v3/*.sol" --summary
 
 # Expected output:
-# Ran 143 tests for 11 test suites
-# 142 passed, 0 failed, 1 skipped
+# Ran 176 tests for 12 test suites
+# 175 passed, 0 failed, 1 skipped
 ```

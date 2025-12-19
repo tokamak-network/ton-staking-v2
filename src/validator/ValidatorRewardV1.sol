@@ -8,7 +8,6 @@ import {IValidatorReward} from "./IValidatorReward.sol";
 import {IRAT} from "./IRAT.sol";
 
 // Custom Errors
-error NotOwnerError();
 error NotSeigManagerError();
 error NoRewardsError();
 error ZeroAddressError();
@@ -24,6 +23,7 @@ error ZeroAmountError();
  * 2. 검증자 보상 청구
  *
  * 검증자 등록/담보금/슬래싱은 RAT에서 관리
+ * 권한 관리는 AccessibleCommon(onlyOwner)을 통해 처리
  */
 contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
     using SafeERC20 for IERC20;
@@ -33,7 +33,7 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
     // ==========================================
 
     modifier onlyOwner() {
-        if (msg.sender != owner) revert NotOwnerError();
+        require(msg.sender == owner, "not owner");
         _;
     }
 
@@ -166,7 +166,7 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
 
     /// @notice Owner 변경
     function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert ZeroAddressError();
+        require(newOwner != address(0), "zero address");
         owner = newOwner;
     }
 
@@ -176,6 +176,6 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
 
     /// @notice 비상 출금 (Owner 전용)
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
-        IERC20(token).safeTransfer(owner, amount);
+        IERC20(token).safeTransfer(msg.sender, amount);
     }
 }

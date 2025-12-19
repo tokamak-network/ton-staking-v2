@@ -168,31 +168,27 @@ contract DeployV3ForkTest is Test {
 
         // Deploy RAT
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
-
-        // Initialize RAT (V3: depositManager 제거)
-        RAT(ratProxy).initialize(
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
             deployer
         );
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
         // Deploy ValidatorReward
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-
-        // Initialize ValidatorReward
-        ValidatorRewardV1(validatorPoolProxy).initialize(
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
             deployer,   // treasury (DAO)
             deployer    // owner
         );
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
 
         vm.stopPrank();
 
@@ -274,14 +270,18 @@ contract DeployV3ForkTest is Test {
 
         // Step 2: Deploy V3 contracts
         ratImpl = address(new RAT());
-        ratProxy = address(new RATProxy());
-        IProxy(ratProxy).upgradeTo(ratImpl);
-        RAT(ratProxy).initialize(SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer);
+        bytes memory ratInitData = abi.encodeWithSelector(
+            RAT.initialize.selector,
+            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer
+        );
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
         validatorPoolImpl = address(new ValidatorRewardV1());
-        validatorPoolProxy = address(new ValidatorRewardProxy());
-        IProxy(validatorPoolProxy).upgradeTo(validatorPoolImpl);
-        ValidatorRewardV1(validatorPoolProxy).initialize(SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer);
+        bytes memory validatorRewardInitData = abi.encodeWithSelector(
+            ValidatorRewardV1.initialize.selector,
+            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer
+        );
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
 
         console.log("Step 2: V3 contracts deployed");
 

@@ -51,7 +51,6 @@ error ZeroAddressError();
  * 2. 쌍곡선 포화 함수 적용
  * 3. 검증자 풀 분배
  * 4. 최소 스테이킹 조건
- * 5. 점진적 V2→V3 전환 메커니즘
  */
 contract SeigManagerV1_4 is
     ProxyStorage,
@@ -192,13 +191,6 @@ contract SeigManagerV1_4 is
         emit HalfSaturationPointUpdated(k);
     }
 
-    /// @notice 지분 시뇨리지 비율 설정 (V2→V3 전환)
-    /// @param lambda 새로운 비율 (RAY 단위, 0 ≤ lambda ≤ 1)
-    function setStakedSeigFactor(uint256 lambda) external onlyOwner {
-        if (lambda > RAY) revert InvalidParameterError();
-        stakedSeigFactor = lambda;
-        emit StakedSeigFactorUpdated(lambda);
-    }
 
     /// @notice 검증자 보상 컨트랙트 주소 설정
     function setValidatorReward(address reward) external onlyOwner {
@@ -207,21 +199,27 @@ contract SeigManagerV1_4 is
         emit ValidatorRewardUpdated(reward);
     }
 
+    /// @notice 지분 시뇨리지 비율 설정 (V2→V3 전환)
+    /// @param lambda 새로운 비율 (RAY 단위, 0 ≤ lambda ≤ 1)
+    /// @dev λ = 1.0: V2와 동일, λ = 0: 지분 시뇨리지 없음
+    function setStakedSeigFactor(uint256 lambda) external onlyOwner {
+        if (lambda > RAY) revert InvalidParameterError();
+        stakedSeigFactor = lambda;
+        emit StakedSeigFactorUpdated(lambda);
+    }
+
     /// @notice 최대 챌린저 수 설정
+    /// @param hMax 최대 동시 챌린저 수
+    /// @dev 백서 공식 (1): D_sequencer = H_max · C_max + Δ_sequencer
     function setMaxChallengers(uint256 hMax) external onlyOwner {
-        if (hMax == 0) revert InvalidParameterError();
         maxChallengers = hMax;
     }
 
     /// @notice 최대 fraud proof 비용 설정
+    /// @param cMax 단일 fraud proof 예상 온체인 비용
+    /// @dev 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
     function setMaxFraudProofCost(uint256 cMax) external onlyOwner {
         maxFraudProofCost = cMax;
-    }
-
-    /// @notice RAT 컨트랙트 주소 설정
-    function setRATContract(address rat) external onlyOwner {
-        if (rat == address(0)) revert ZeroAddressError();
-        ratContract = rat;
     }
 
     /// @notice SequencerVault 컨트랙트 주소 설정
@@ -335,27 +333,7 @@ contract SeigManagerV1_4 is
         requiredStake = rmul(bridgedTON, minStakingRatio);
 
         // S_i: 시퀀서의 현재 담보금 (SequencerVault에서 조회)
-        currentStake = _getSequencerStake(layer2);
-
-        // S_i ≥ θ·B_i
-        eligible = currentStake >= requiredStake;
-    }
-
-    /// @notice 캐시된 값으로 자격 확인 (내부 사용)
-    /// @dev _updateEligibility에서 호출, 가스비 절약
-    function _checkEligibilityCached(address layer2)
-        internal
-        view
-        returns (bool eligible, uint256 requiredStake, uint256 currentStake)
-    {
-        SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
-
-        // θ·B_i 계산 (캐시된 B_i 기준)
-        // Todo. 브릿지된 톤은 톤기준, 필요한 스테이킹양은 WTON 이므로, 고려해서 변환해줘야한다.
-        requiredStake = rmul(info.currentBridgedTON, minStakingRatio);
-
-        // S_i: 시퀀서의 현재 담보금 (SequencerVault에서 조회)
-        currentStake = _getSequencerStake(layer2);
+        currentStake = _getSequencerCollateral(layer2);
 
         // S_i ≥ θ·B_i
         eligible = currentStake >= requiredStake;
@@ -366,7 +344,7 @@ contract SeigManagerV1_4 is
     /// @dev Layer2의 오퍼레이터(OperatorManager)가 SequencerVault에 담보금 예치
     /// @param layer2 L2 주소
     /// @return 시퀀서의 담보금 (TON, 18 decimals)
-    function _getSequencerStake(address layer2) internal view returns (uint256) {
+    function _getSequencerCollateral(address layer2) internal view returns (uint256) {
         if (sequencerVault == address(0)) return 0;
 
         return ISequencerVault(sequencerVault).getSequencerDepositByLayer2(layer2);
