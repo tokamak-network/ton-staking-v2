@@ -175,9 +175,6 @@ contract DAOCommittee_V2 is
     ) external view returns (bytes4 magicValue) {
         if (multiSigWallet == address(0)) return INVALID_SIGNATURE;
 
-        // It's set to a multiSigWallet address, but do you think don't need to worry about removing Admin rights later?
-        require(hasRole(DEFAULT_ADMIN_ROLE, multiSigWallet), "multisig not admin");
-
         bytes memory messageData = encodeMessageDataForSafe(_hash);
         bytes32 messageHash = keccak256(messageData);
         if (_validateSignatures(messageHash, _signature)) {
@@ -198,13 +195,8 @@ contract DAOCommittee_V2 is
         bytes memory _signature
     ) internal view returns (bool) {
         uint256 requiredSigs = IMultiSigWallet(multiSigWallet).numConfirmationsRequired();
-        if (_signature.length < (requiredSigs * 65)) return false;
-
         uint256 sigCount = _signature.length / 65;
         if (sigCount < requiredSigs) return false;
-
-        // if (sigCount < requiredSigs) and if (_signature.length < (requiredSigs * 65)) 
-        // These two conditional statements seem redundant. What do you think?
         
         address[] memory signers = new address[](sigCount);
         uint256 validSigs = 0;
