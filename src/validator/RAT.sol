@@ -94,9 +94,10 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         // 기본값 설정
         ratTriggerProbability = 0.01e27;    // π_a = 1%
         evidenceSubmissionPeriod = 1 hours; // 1시간
-        minimumThreshold = 1000e27;         // D_min = 1000 WTON
-        slashingPenalty = 100e27;           // C_off = 100 WTON
-        validatorBuffer = 100e27;           // Δ_validator = 100 WTON
+        // V3: TON 직접 사용, WEI_UNIT (18 decimals) 단위
+        minimumThreshold = 1000 * WEI_UNIT;  // D_min = 1000 TON
+        slashingPenalty = 100 * WEI_UNIT;    // C_off = 100 TON
+        validatorBuffer = 100 * WEI_UNIT;    // Δ_validator = 100 TON
     }
 
     // ==========================================
