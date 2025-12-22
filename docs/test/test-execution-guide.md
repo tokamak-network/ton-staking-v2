@@ -287,3 +287,9 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge test --match-path "test/v3/*.sol" -vvv
 ```
+
+---
+
+## Go E2E Tests
+
+For Go E2E tests (RAT integration with Optimism), see [Go E2E Test Guide](./go-e2e-test-guide.md).

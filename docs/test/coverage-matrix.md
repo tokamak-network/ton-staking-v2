@@ -175,3 +175,57 @@ forge test --match-path "test/v3/*.sol" --summary
 # Ran 176 tests for 12 test suites
 # 175 passed, 0 failed, 1 skipped
 ```
+
+---
+
+## Go E2E Tests (op-e2e)
+
+### RAT Integration Tests
+
+| Test | Category | Status | Description |
+|------|----------|--------|-------------|
+| `TestRATHelperFunctions` | Unit | ✅ Pass | RAT helper utility functions |
+| `TestRATConstants` | Unit | ✅ Pass | RAT constants verification |
+| `TestRATIntegration_ValidatorRegistration` | Integration | ⏸️ Skip* | Validator registration flow |
+| `TestRATIntegration_GetContractParameters` | Integration | ⏸️ Skip* | Contract parameter reading |
+| `TestRATIntegration_ValidatorCount` | Integration | ⏸️ Skip* | Validator counting |
+| `TestRATIntegration_GetL2Validators` | Integration | ⏸️ Skip* | Get validator list |
+| `TestRATIntegration_FullFlow` | Integration | ⏸️ Skip* | Complete validator lifecycle |
+
+*Requires local devnet with deployed contracts
+
+### RAT E2E Tests (Requires Optimism Devnet)
+
+| Test | Status | Description |
+|------|--------|-------------|
+| `TestRATTriggerOnGameCreation` | ⏸️ Skip | RAT trigger when DisputeGame created |
+| `TestRATEvidenceSubmission` | ⏸️ Skip | Validator evidence submission |
+| `TestRATResolveClaimBondRefund` | ⏸️ Skip | Bond refund on challenger win |
+| `TestRATEvidenceSubmissionExpiry` | ⏸️ Skip | Slashing on evidence timeout |
+| `TestRATMultiL2Identification` | ⏸️ Skip | Multi-L2 chain identification |
+| `TestRATValidatorStaking` | ⏸️ Skip | Validator staking management |
+| `TestRATValidOutputRootDefense` | ⏸️ Skip | Valid output root defense |
+| `TestRATUnsafeProposal` | ⏸️ Skip | Unsafe proposal handling |
+| `TestRATFutureBlockProposal` | ⏸️ Skip | Future block handling |
+
+### Go E2E Test Summary
+
+```
+Total Go Tests:         16
+Passing (Unit):          2
+Skipped (Integration):   5  (requires local devnet)
+Skipped (E2E):           9  (requires Optimism devnet)
+```
+
+### Running Go E2E Tests
+
+```bash
+# Unit tests (always pass)
+cd op-e2e && make test-rat-unit
+
+# Integration tests (requires local Anvil + deployed contracts)
+cd op-e2e && make test-rat-integration
+
+# All tests
+cd op-e2e && make test
+```

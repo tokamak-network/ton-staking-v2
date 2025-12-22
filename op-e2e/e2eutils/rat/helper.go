@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -228,7 +230,81 @@ func (h *RATHelper) GetValidatorDeposit(ctx context.Context, validator, systemCo
 	return deposit
 }
 
+// GetWTON returns the WTON address from the RAT contract
+func (h *RATHelper) GetWTON(ctx context.Context) common.Address {
+	opts := &bind.CallOpts{Context: ctx}
+	wton, err := h.contract.Wton(opts)
+	if err != nil {
+		h.t.Logf("Warning: GetWTON failed: %v", err)
+		return common.Address{}
+	}
+	return wton
+}
+
+// GetTON returns the TON address from the RAT contract
+func (h *RATHelper) GetTON(ctx context.Context) common.Address {
+	opts := &bind.CallOpts{Context: ctx}
+	ton, err := h.contract.Ton(opts)
+	if err != nil {
+		h.t.Logf("Warning: GetTON failed: %v", err)
+		return common.Address{}
+	}
+	return ton
+}
+
+// ApproveTON approves TON spending for the RAT contract
+func (h *RATHelper) ApproveTON(ctx context.Context, privateKey *ecdsa.PrivateKey, chainID *big.Int, amount *big.Int) (*types.Transaction, error) {
+	tonAddr := h.GetTON(ctx)
+	if tonAddr == (common.Address{}) {
+		return nil, nil
+	}
+
+	// Create ERC20 approve call
+	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return nil, err
+	}
+	opts.Context = ctx
+
+	// ERC20 approve function signature: approve(address,uint256)
+	erc20ABI := `[{"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]`
+
+	parsed, err := abi.JSON(strings.NewReader(erc20ABI))
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := parsed.Pack("approve", h.address, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := h.client.PendingNonceAt(ctx, opts.From)
+	if err != nil {
+		return nil, err
+	}
+
+	gasPrice, err := h.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := types.NewTransaction(nonce, tonAddr, big.NewInt(0), 100000, gasPrice, data)
+	signedTx, err := opts.Signer(opts.From, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = h.client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx, nil
+}
+
 // RegisterValidator registers a new validator with the given deposit
+// Note: Call ApproveWTON first to approve WTON spending
 func (h *RATHelper) RegisterValidator(ctx context.Context, privateKey *ecdsa.PrivateKey, chainID *big.Int, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
 	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	if err != nil {
@@ -236,6 +312,62 @@ func (h *RATHelper) RegisterValidator(ctx context.Context, privateKey *ecdsa.Pri
 	}
 	opts.Context = ctx
 	return h.contract.RegisterValidator(opts, systemConfig, depositAmount)
+}
+
+// RegisterValidatorWithApproval uses TON.approveAndCall to register a validator in one call
+// Note: RAT uses TON (not WTON) for validator deposits
+// The RAT contract has onApprove callback that handles the deposit
+func (h *RATHelper) RegisterValidatorWithApproval(ctx context.Context, privateKey *ecdsa.PrivateKey, chainID *big.Int, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	tonAddr := h.GetTON(ctx)
+	if tonAddr == (common.Address{}) {
+		return nil, nil
+	}
+
+	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return nil, err
+	}
+	opts.Context = ctx
+
+	// TON.approveAndCall(address spender, uint256 amount, bytes data)
+	// data = abi.encode(systemConfig) for RAT.onApprove
+	approveAndCallABI := `[{"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"},{"name":"data","type":"bytes"}],"name":"approveAndCall","outputs":[{"name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]`
+
+	parsed, err := abi.JSON(strings.NewReader(approveAndCallABI))
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode systemConfig as 32 bytes for RAT.onApprove
+	data := common.LeftPadBytes(systemConfig.Bytes(), 32)
+
+	callData, err := parsed.Pack("approveAndCall", h.address, depositAmount, data)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := h.client.PendingNonceAt(ctx, opts.From)
+	if err != nil {
+		return nil, err
+	}
+
+	gasPrice, err := h.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := types.NewTransaction(nonce, tonAddr, big.NewInt(0), 300000, gasPrice, callData)
+	signedTx, err := opts.Signer(opts.From, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = h.client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx, nil
 }
 
 // DeactivateValidator deactivates a validator

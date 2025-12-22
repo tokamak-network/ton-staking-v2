@@ -78,11 +78,13 @@ func TestRATIntegration_ValidatorRegistration(t *testing.T) {
 	minCollateral := helper.GetMinimumCollateral(ctx)
 	t.Logf("Minimum collateral: %s", minCollateral.String())
 
-	// Register validator with minimum deposit
-	depositAmount := new(big.Int).Add(minCollateral, rat.MulRAY(10)) // D_min + 10 WTON buffer
+	// Register validator with minimum deposit (TON units, 18 decimals)
+	buffer := big.NewInt(10 * 1e18) // 10 TON buffer
+	depositAmount := new(big.Int).Add(minCollateral, buffer) // D_min + 10 TON buffer
 	t.Logf("Deposit amount: %s", depositAmount.String())
 
-	tx, err := helper.RegisterValidator(ctx, privateKey, chainID, systemConfig, depositAmount)
+	// Use RegisterValidatorWithApproval which handles WTON approval automatically
+	tx, err := helper.RegisterValidatorWithApproval(ctx, privateKey, chainID, systemConfig, depositAmount)
 	if err != nil {
 		t.Logf("RegisterValidator failed (may already be registered): %v", err)
 	} else {

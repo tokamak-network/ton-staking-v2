@@ -199,3 +199,34 @@ The current test suite provides **solid coverage** for V3/V4 core functionality:
 **Next Steps**:
 1. Add emergency scenario tests using mainnet fork (Priority 2)
 2. Expand bridge integration tests (Priority 2)
+
+---
+
+## Go E2E Tests (op-e2e)
+
+### Current Status
+
+Go 기반 E2E 테스트가 `op-e2e/` 디렉토리에 추가되었습니다.
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| Unit Tests | 2 | ✅ Pass |
+| Integration Tests | 5 | ⏸️ Skip (requires devnet) |
+| E2E Tests | 9 | ⏸️ Skip (requires Optimism devnet) |
+
+### Test Coverage
+
+- RAT helper utility functions
+- RAT constants verification
+- Validator registration flow
+- DisputeGame creation → RAT trigger
+- Evidence submission and slashing
+- Multi-L2 chain identification
+
+### Running Tests
+
+```bash
+cd op-e2e && make test-rat-unit        # Unit tests
+cd op-e2e && make test-rat-integration # Integration tests
+cd op-e2e && make test                 # All tests
+```

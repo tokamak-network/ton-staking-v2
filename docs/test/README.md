@@ -37,9 +37,28 @@ forge test --match-test test_updateSeigniorage -vvv
 
 ## Documentation Files
 
-- [Test Execution Guide](./test-execution-guide.md) - How to run tests
+- [Test Execution Guide](./test-execution-guide.md) - Solidity tests (Foundry)
+- [Go E2E Test Guide](./go-e2e-test-guide.md) - Go E2E tests (Optimism)
 - [Coverage Matrix](./coverage-matrix.md) - Feature coverage status
 - [Gap Analysis](./gap-analysis.md) - Missing tests and improvements
+
+## Test Types
+
+### 1. Solidity Tests (Foundry)
+Unit/integration tests for smart contracts using Forge.
+
+```bash
+forge test --match-path "test/v3/*.sol" -vvv
+```
+
+### 2. Go E2E Tests
+End-to-end tests for RAT integration with Optimism fault proofs.
+
+```bash
+cd op-e2e && go test -v ./faultproofs/...
+```
+
+See [op-e2e/README.md](../../op-e2e/README.md) for detailed instructions.
 
 ## V3/V4 Features Tested
 
@@ -109,3 +128,31 @@ Register Validator → Trigger RAT → Submit Evidence → Claim Rewards
 ## Running Tests
 
 See [Test Execution Guide](./test-execution-guide.md) for detailed instructions.
+
+## Go E2E Test Structure
+
+```
+op-e2e/
+├── bindings/
+│   └── rat_generated.go          # Auto-generated RAT contract bindings
+├── e2eutils/rat/
+│   ├── helper.go                 # RAT contract interaction helpers
+│   ├── factory_helper.go         # RATGameHelper for test scenarios
+│   ├── devnet.go                 # Local Anvil devnet configuration
+│   └── deploy.go                 # Contract deployment helpers
+├── faultproofs/
+│   ├── rat_ton_staking_test.go   # RAT E2E test cases (9 tests)
+│   ├── rat_integration_test.go   # Integration tests (5 tests)
+│   └── util.go                   # Test utilities
+├── go.mod
+├── Makefile
+└── README.md
+```
+
+### Go E2E Test Categories
+
+| Category | Tests | Description |
+|----------|-------|-------------|
+| Unit Tests | 2 | Helper functions, constants (no devnet) |
+| Integration Tests | 5 | Validator registration flow (local devnet) |
+| E2E Tests | 9 | Full RAT scenarios (Optimism devnet) |
