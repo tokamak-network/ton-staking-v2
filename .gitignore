@@ -3,6 +3,7 @@
 # foundry files
 cache
 out
+broadcast/
 
 # claude files
 .claude/

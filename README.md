@@ -1,103 +1,195 @@
 # TON Staking V3
 
-Tokamak Network의 V3 스테이킹 스마트 컨트랙트입니다. Tokamak Economics Whitepaper V2를 기반으로 구현되었습니다.
+V3 staking smart contracts for Tokamak Network. Implemented based on Tokamak Economics Whitepaper V2 (December 2025).
 
-## 주요 기능
+## System Overview
 
-- **V3 시뇨리지 분배**: Bridged TON 기반 쌍곡선 포화 함수
-- **검증자 시스템**: ValidatorPool, RAT (Randomized Attention Test)
-- **점진적 V2→V3 전환**: λ, r 파라미터를 통한 부드러운 경제 전환
+TON Staking V3 operates on Ethereum L1 and interacts with multiple L2 rollups (Titan, Thanos, etc.) to provide network security and economic incentives.
 
-## 설치
+### Core Objectives
 
-### 요구사항
+- **L2 Network Security**: Incentivize L2 operators (sequencers) to act honestly through seigniorage rewards
+- **Validator Participation**: Motivate validators to continuously monitor the network via RAT (Randomized Attention Test)
+- **Fair Reward Distribution**: Distribute rewards based on actual network contribution using Bridged TON
+- **DAO Governance**: Manage system parameter adjustments and upgrades through DAO
+
+## V3 Key Changes
+
+| Category | V2 | V3 |
+|----------|-----|-----|
+| **Seigniorage Distribution Basis** | L2 TVL (simple proportion) | Bridged TON (performance-based) |
+| **Distribution Function** | Linear | Hyperbolic saturation `y(x) = L·(x/(k+x))` |
+| **Eligibility Condition** | Minimum deposit only | S_i ≥ θ·B_i (staking ratio requirement) |
+| **Validator Rewards** | None | α·y(x) / n (validator pool distribution) |
+| **DAO Allocation** | Fixed ratio | Fixed ratio + undistributed portion |
+| **Staker Seigniorage** | Provided | **Not provided** (deprecated in V3) |
+
+## Core Contracts
+
+| Contract | Role |
+|----------|------|
+| **SeigManagerV1_4** | Seigniorage calculation and distribution (V3 core) |
+| **DepositManagerV1_2** | TON/WTON staking management |
+| **Layer2ManagerV1_2** | L2 registration and Bridged TON queries |
+| **L1BridgeRegistryV1_2** | Bridge/portal registration, TVL queries |
+| **RAT** | Validator registration, RAT tests, slashing |
+| **ValidatorRewardV1** | Validator reward distribution |
+| **SequencerVault** | Sequencer collateral management, slashing |
+
+## V3 Core Parameters
+
+| Parameter | Symbol | Description |
+|-----------|--------|-------------|
+| `daoDistributionRatio` | d | DAO distribution ratio |
+| `minStakingRatio` | θ | Minimum staking ratio |
+| `validatorDistributionRatio` | α | Validator distribution ratio |
+| `halfSaturationPoint` | k | Half-saturation point |
+| `ratTriggerProbability` | π_a | RAT trigger probability |
+| `slashingPenalty` | C_off | Validator slashing penalty |
+| `evidenceSubmissionPeriod` | - | Evidence submission period |
+
+> **RAY Units**: All ratio parameters are expressed in RAY (10^27) units.
+
+## Installation
+
+### Requirements
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
 
-### Clone 및 빌드
+### Clone and Build
 
 ```bash
-# submodule 포함하여 clone
+# Clone with submodules
 git clone --recursive https://github.com/tokamak-network/ton-staking-v2.git
 cd ton-staking-v2
 
-# 빌드
+# Build
 forge build
 ```
 
-### 이미 clone한 경우 (submodule 초기화)
+### If Already Cloned (Initialize Submodules)
 
 ```bash
 git submodule update --init --recursive
 forge build
 ```
 
-### Submodule 업데이트
+### Update Submodules
 
 ```bash
-# optimism 라이브러리를 최신으로 업데이트
+# Update optimism library to latest
 git submodule update --remote lib/optimism
 ```
 
-### ⚠️ lib/optimism 서브모듈 주의사항
+### lib/optimism Submodule Caution
 
-`lib/optimism` 서브모듈의 커밋을 변경할 때는 **명시적으로 GIT_DIR을 지정**해야 합니다. 그렇지 않으면 상위 저장소(ton-staking-v2)의 HEAD가 변경될 수 있습니다.
+When changing commits in the `lib/optimism` submodule, you **must explicitly specify GIT_DIR**. Otherwise, the parent repository (ton-staking-v2) HEAD may be changed.
 
-**안전한 서브모듈 커밋 변경 방법:**
+**Safe submodule commit change method:**
 
 ```bash
-# 명시적 GIT_DIR 사용 (권장)
+# Use explicit GIT_DIR (recommended)
 GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git fetch origin feature/ton-staking-v3
 GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commit-hash>
 ```
 
-**현재 lib/optimism 설정:**
+**Current lib/optimism settings:**
 - Repository: `tokamak-network/optimism`
 - Branch: `feature/ton-staking-v3`
 - Commit: `2e955e16f` (feat: integrate TON Staking V3 RAT and SeigManager with Optimism dispute system)
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 src/
-├── stake/              # 스테이킹 핵심 로직
-│   ├── managers/       # SeigManager, DepositManager
-│   └── tokens/         # Coinage 토큰
-├── layer2/             # L2 관리 및 브릿지 연동
-├── validator/          # V3 검증자 시스템
-│   ├── ValidatorPoolV1.sol
-│   └── RAT.sol
-└── dao/                # DAO 관련 컨트랙트
+├── stake/                              # Staking system
+│   ├── managers/
+│   │   ├── SeigManager.sol                    # Seigniorage (base)
+│   │   ├── SeigManagerV1_2.sol                # Multi-impl index 0
+│   │   ├── SeigManagerV1_3.sol                # Multi-impl index 1 (pause)
+│   │   ├── SeigManagerV1_4.sol                # Multi-impl index 2 (V3 core)
+│   │   ├── DepositManager.sol                 # Staking (base)
+│   │   ├── DepositManagerV1_1.sol             # L2 deposit
+│   │   └── DepositManagerV1_2.sol             # V3 callback
+│   ├── tokens/
+│   │   ├── RefactorCoinageSnapshot.sol        # Coinage logic
+│   │   └── AutoRefactorCoinage.sol            # Auto-refactor coinage
+│   ├── factory/
+│   │   └── CoinageFactory.sol                 # Coinage factory
+│   ├── Layer2Registry.sol                     # L2 registration
+│   └── interfaces/
+│
+├── layer2/                             # L2 management
+│   ├── Layer2ManagerV1_1.sol                  # L2 manager (base)
+│   ├── Layer2ManagerV1_2.sol                  # V3 Bridged TON
+│   ├── L1BridgeRegistryV1_1.sol               # Bridge registry (base)
+│   ├── L1BridgeRegistryV1_2.sol               # V3 DisputeGame support
+│   ├── OperatorManagerV1_1.sol                # Operator manager
+│   ├── OperatorManagerV1_2.sol                # V3 operator
+│   ├── factory/
+│   │   └── OperatorManagerFactory.sol         # Operator factory
+│   └── interfaces/
+│
+├── validator/                          # Validator system (V3 new)
+│   ├── RAT.sol                                # Randomized Attention Test
+│   ├── RATProxy.sol
+│   ├── ValidatorRewardV1.sol                  # Validator rewards
+│   ├── ValidatorRewardProxy.sol
+│   └── interfaces/
+│
+├── dao/                                # DAO governance
+│   ├── DAOCommittee_V1.sol                    # DAO committee logic
+│   ├── DAOCommitteeOwner.sol                  # Owner functions
+│   ├── Candidate.sol                          # DAO candidate
+│   ├── CandidateAddOnV1_1.sol                 # Candidate add-on
+│   ├── factory/
+│   │   ├── CandidateFactory.sol               # Candidate factory
+│   │   └── CandidateAddOnFactory.sol          # Add-on factory
+│   └── interfaces/
+│
+├── proxy/                              # Proxy contracts
+│   ├── ProxyStorage.sol                       # Base proxy storage
+│   ├── DAOCommitteeProxy2.sol                 # DAO multi-impl router
+│   └── Proxy.sol
+│
+├── common/                             # Common utilities
+│   ├── AccessibleCommon.sol
+│   ├── AuthControlSeigManager.sol
+│   ├── AuthControlLayer2Manager.sol
+│   └── AuthControlL1BridgeRegistry.sol
+│
+└── accessControl/                      # Access control
+    └── AccessControl.sol
 
 lib/
-├── optimism/           # tokamak-network/optimism (branch: feature/ton-staking-v3)
-├── tokamak-dao-contracts/  # tokamak-network/tokamak-dao-contracts (DAO 거버넌스)
+├── optimism/               # tokamak-network/optimism (branch: feature/ton-staking-v3)
+├── tokamak-dao-contracts/  # tokamak-network/tokamak-dao-contracts (DAO governance)
 ├── openzeppelin-contracts/
 └── forge-std/
 ```
 
-## 테스트
+## Testing
 
 ```bash
-# 전체 테스트
+# Run all tests
 forge test
 
-# V3 테스트만
+# V3 tests only
 forge test --match-path "test/v3/*"
 
-# 특정 테스트
+# Specific test
 forge test --match-test testUpdateSeigniorageV3
 ```
 
-## 외부 라이브러리
+## External Libraries
 
-| 라이브러리 | 용도 |
-|-----------|------|
-| `@optimism/` | Optimism L1/L2 인터페이스 (SystemConfig, L1StandardBridge, OptimismPortal 등) |
-| `@openzeppelin/contracts/` | ERC20, SafeERC20, Math 등 |
-| `@tokamak-dao/` | DAO 거버넌스 컨트랙트 (DAOCommitteeProxy, DAOAgendaManager 등) |
+| Library | Purpose |
+|---------|---------|
+| `@optimism/` | Optimism L1/L2 interfaces (SystemConfig, L1StandardBridge, OptimismPortal, etc.) |
+| `@openzeppelin/contracts/` | ERC20, SafeERC20, Math, etc. |
+| `@tokamak-dao/` | DAO governance contracts (DAOCommitteeProxy, DAOAgendaManager, etc.) |
 
-### Optimism 인터페이스 사용 예시
+### Optimism Interface Usage Example
 
 ```solidity
 import { ISystemConfig } from "@optimism/interfaces/L1/ISystemConfig.sol";
@@ -105,10 +197,35 @@ import { IL1StandardBridge } from "@optimism/interfaces/L1/IL1StandardBridge.sol
 import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
 ```
 
-## 문서
+## Tokens
 
-상세 설계 문서는 `docs/for-llm-en/` 디렉토리를 참조하세요.
+| Token | Role |
+|-------|------|
+| **TON** | Native token (18 decimals) |
+| **WTON** | Wrapped TON (27 decimals, 1 TON = 1e9 WTON) |
+| **Coinage** | Staking receipt token (created per L2) |
 
-## 라이선스
+## External Systems
+
+| System | Role |
+|--------|------|
+| **Optimism L2** | L2 rollups (Titan, Thanos, etc.) |
+| **DisputeGameFactory** | Dispute Game creation (RAT trigger) |
+| **OptimismPortal** | L1↔L2 bridge |
+| **DAO** | Governance (DAOCommittee) |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [specs-kr/](./docs/specs-kr/) | V3 system specification (Korean) |
+| [specs-kr/01-system-overview.md](./docs/specs-kr/01-system-overview.md) | System introduction, V3 changes, core concepts |
+| [specs-kr/02-system-architecture.md](./docs/specs-kr/02-system-architecture.md) | Overall architecture, contract dependencies, proxy patterns |
+| [specs-kr/03-contract-structure.md](./docs/specs-kr/03-contract-structure.md) | Directory structure, contract details, storage structure |
+| [specs-kr/04-contract-roles.md](./docs/specs-kr/04-contract-roles.md) | Contract roles, responsibilities, interactions |
+| [specs-kr/05-actors.md](./docs/specs-kr/05-actors.md) | Actor definitions (staker, sequencer, validator, challenger, DAO) |
+| [specs-kr/06-function-specs.md](./docs/specs-kr/06-function-specs.md) | Function specifications, parameters, operation flows |
+
+## License
 
 MIT
