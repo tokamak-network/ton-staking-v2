@@ -1,53 +1,53 @@
-# TON Staking V3 시스템 명세서
+# TON Staking V3 System Specification
 
-> Tokamak Economics Whitepaper V2 (December 2025) 기반
+> Based on Tokamak Economics Whitepaper V2 (December 2025)
 
-## 문서 목록
+## Document List
 
-| 문서 | 설명 |
-|------|------|
-| [01-system-overview.md](./01-system-overview.md) | 시스템 소개, V3 변경사항, 핵심 개념, 주요 흐름, 파라미터 |
-| [02-system-architecture.md](./02-system-architecture.md) | 전체 아키텍처, 컨트랙트 의존성, 프록시 패턴, 롤업 타입, 데이터 흐름 |
-| [03-contract-structure.md](./03-contract-structure.md) | 디렉토리 구조, 컨트랙트 상세, 스토리지 구조, 인터페이스, 상속 관계 |
-| [04-contract-roles.md](./04-contract-roles.md) | 컨트랙트별 역할, 책임, 상호작용 (SeigManager, DepositManager, RAT 등) |
-| [05-actors.md](./05-actors.md) | 액터 정의 (스테이커, 시퀀서, 검증자, 챌린저, DAO) 및 상호작용 |
-| [06-function-specs.md](./06-function-specs.md) | 함수별 상세 설명, 파라미터, 동작 흐름, 이벤트 |
+| Document | Description |
+|----------|-------------|
+| [01-system-overview.md](./01-system-overview.md) | System introduction, V3 changes, core concepts, main flows, parameters |
+| [02-system-architecture.md](./02-system-architecture.md) | Overall architecture, contract dependencies, proxy patterns, rollup types, data flow |
+| [03-contract-structure.md](./03-contract-structure.md) | Directory structure, contract details, storage structure, interfaces, inheritance |
+| [04-contract-roles.md](./04-contract-roles.md) | Contract roles, responsibilities, interactions (SeigManager, DepositManager, RAT, etc.) |
+| [05-actors.md](./05-actors.md) | Actor definitions (staker, sequencer, validator, challenger, DAO) and interactions |
+| [06-function-specs.md](./06-function-specs.md) | Function specifications, parameters, operation flows, events |
 
-## 핵심 컨트랙트
+## Core Contracts
 
-| 컨트랙트 | 역할 |
-|---------|------|
-| **SeigManagerV1_4** | 시뇨리지 계산 및 분배 (V3 핵심) |
-| **DepositManagerV1_2** | TON/WTON 스테이킹 관리 |
-| **Layer2ManagerV1_2** | L2 등록 및 Bridged TON 조회 |
-| **L1BridgeRegistryV1_2** | 브릿지/포탈 등록, TVL 조회 |
-| **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
-| **ValidatorRewardV1** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리, 슬래싱 |
+| Contract | Role |
+|----------|------|
+| **SeigManagerV1_4** | Seigniorage calculation and distribution (V3 core) |
+| **DepositManagerV1_2** | TON/WTON staking management |
+| **Layer2ManagerV1_2** | L2 registration and Bridged TON queries |
+| **L1BridgeRegistryV1_2** | Bridge/portal registration, TVL queries |
+| **RAT** | Validator registration, RAT tests, slashing |
+| **ValidatorRewardV1** | Validator reward distribution |
+| **SequencerVault** | Sequencer collateral management, slashing |
 
-## V3 핵심 변경사항
+## V3 Key Changes
 
-| 항목 | V2 | V3 |
-|------|-----|-----|
-| 시뇨리지 분배 기준 | L2 TVL | Bridged TON |
-| 분배 함수 | 선형 | 쌍곡선 `y(x) = L·(x/(k+x))` |
-| 자격 조건 | 최소 예치금 | `S_i ≥ θ·B_i` |
-| 스테이커 시뇨리지 | 제공 | 미제공 |
-| 검증자 보상 | 없음 | `α·S_i / |V_i|` |
+| Category | V2 | V3 |
+|----------|-----|-----|
+| Seigniorage distribution basis | L2 TVL | Bridged TON |
+| Distribution function | Linear | Hyperbolic `y(x) = L·(x/(k+x))` |
+| Eligibility condition | Minimum deposit | `S_i ≥ θ·B_i` |
+| Staker seigniorage | Provided | Not provided |
+| Validator rewards | None | `α·S_i / |V_i|` |
 
-## 핵심 파라미터
+## Core Parameters
 
-| 파라미터 | 기호 | 설명 |
-|---------|------|------|
-| `daoDistributionRatio` | d | DAO 분배 비율 |
-| `minStakingRatio` | θ | 최소 스테이킹 비율 |
-| `validatorDistributionRatio` | α | 검증자 분배 비율 |
-| `halfSaturationPoint` | k | 반포화점 |
-| `ratTriggerProbability` | π_a | RAT 트리거 확률 |
-| `slashingPenalty` | C_off | 검증자 슬래싱 페널티 |
-| `evidenceSubmissionPeriod` | - | 증거 제출 기간 |
+| Parameter | Symbol | Description |
+|-----------|--------|-------------|
+| `daoDistributionRatio` | d | DAO distribution ratio |
+| `minStakingRatio` | θ | Minimum staking ratio |
+| `validatorDistributionRatio` | α | Validator distribution ratio |
+| `halfSaturationPoint` | k | Half-saturation point |
+| `ratTriggerProbability` | π_a | RAT trigger probability |
+| `slashingPenalty` | C_off | Validator slashing penalty |
+| `evidenceSubmissionPeriod` | - | Evidence submission period |
 
-## 관련 문서
+## Related Documents
 
-- [deployment-guide.md](../deployment-guide.md): 배포 가이드
-- [for-llm-kr/](../for-llm-kr/): LLM용 상세 명세서
+- [deployment-guide.md](../deployment-guide.md): Deployment guide
+- [for-llm-kr/](../for-llm-kr/): Detailed specifications for LLM
