@@ -49,10 +49,12 @@ function slashingCandidate(
     if (status != GameStatus.CHALLENGER_WINS) revert StatusError();
     ```
 
-**Step 4: Slashing 실행 (DepositManager 호출)**
-*   모든 검증이 통과되면 `DepositManager`의 `slash` 함수를 호출하여 Operator의 자산을 삭감합니다.
+**Step 4: Challenger 주소 추출 및 Slashing 실행 (DepositManager 호출)**
+*   `FaultDisputeGame`의 `claimData(0).counteredBy`를 조회하여 이의 제기에서 최종 승리한 Challenger의 주소를 가져옵니다.
+*   모든 검증이 통과되면 `DepositManager`의 `slash` 함수를 호출하여 Operator의 자산을 삭감하고 Challenger 주소를 전달합니다.
     ```solidity
-    if (!IIDepositManager(depositManager).slash(operatorInfo[_operator].candidateAddOn, _operator)) revert SlashingError();
+    address challenger = _getWinningChallenger(_disputeGame);
+    if (!IIDepositManager(depositManager).slash(operatorInfo[_operator].candidateAddOn, _operator, challenger)) revert SlashingError();
     ```
 
 ---
@@ -63,7 +65,7 @@ function slashingCandidate(
 
 ### 함수 시그니처
 ```solidity
-function slash(address layer2, address operator) external onlyLayer2Manager returns (bool)
+function slash(address layer2, address operator, address challenger) external onlyLayer2Manager returns (bool)
 ```
 
 ### 상세 실행 단계
@@ -84,6 +86,16 @@ function slash(address layer2, address operator) external onlyLayer2Manager retu
 *   실제 토큰(Coinage) 소각을 위해 `SeigManager`의 `onSlash` 함수를 호출합니다.
     ```solidity
     require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+    ```
+
+**Step 4: Challenger에게 보상 지급**
+*   슬래싱된 금액 중 일부(`slashingRewardRate` 기반)를 보상으로 계산하여 Challenger에게 WTON을 직접 전송합니다.
+*   전송 후 `ChallengerRewarded` 이벤트를 발생시킵니다.
+    ```solidity
+    if (rewardAmount > 0) {
+        IERC20(_wton).safeTransfer(challenger, rewardAmount);
+        emit ChallengerRewarded(layer2, challenger, rewardAmount);
+    }
     ```
 
 ---
@@ -134,9 +146,11 @@ Slashing이 발생하면 정당한 이의를 제기한 Challenger에게 보상�
 Layer2Manager.slashingCandidate()
     ↓ (Challenger 주소 추출)
 DepositManager.slash(layer2, operator, challenger)
-    ↓ (보상 계산 및 WTON 전송)
-SeigManager.onSlash() (Operator 자산 소각)
-    ↓
+    ↓ (보상 계산 및 SeigManager의 onSlash 호출)
+SeigManager.onSlash() 
+    ↓ (Operator 자산 소각)
+DepositManager.slash(layer2, operator, challenger)
+    ↓ (WTON 전송)
 Challenger에게 WTON 보상 지급 완료
 ```
 
@@ -168,8 +182,8 @@ function slash(address layer2, address operator, address challenger) external on
     // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
     uint256 rewardAmount = 0;
     if (slashingRewardRate > 0) {
-        // RAY 단위로 계산: slashedAmount * slashingRewardRate / RAY
-        rewardAmount = (slashedAmount * slashingRewardRate) / 1e27;
+        // 100% = 10000 단위로 계산: slashedAmount * slashingRewardRate / 10000
+        rewardAmount = (slashedAmount * slashingRewardRate) / 10000;
     }
     
     // 회계 장부 초기화
@@ -178,11 +192,12 @@ function slash(address layer2, address operator, address challenger) external on
     _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
     
     // SeigManager에 슬래싱 처리 요청
-    require(ISeigManager(_seigManager).onSlash(layer2, operator, challenger), "fail onSlash");
+    require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
     
     // Challenger에게 보상 지급 (WTON 직접 전송)
     if (rewardAmount > 0) {
         IERC20(_wton).safeTransfer(challenger, rewardAmount);
+        emit ChallengerRewarded(layer2, challenger, rewardAmount);
     }
     
     emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);
@@ -190,8 +205,8 @@ function slash(address layer2, address operator, address challenger) external on
 ```
 
 **보상 비율 (slashingRewardRate):**
-- RAY 단위 (1e27 = 100%)
-- 기본값 예시: 0.1e27 = 10%
+- 100% = 10000 단위 (1 bp = 0.01%)
+- 기본값 예시: 1000 = 10%
 - Owner가 `setSlashingRewardRate()` 함수로 조정 가능
 
 **중요:** DepositManager는 WTON을 보유하고 있어야 하며, 보상은 **기존 WTON을 전송**하는 방식입니다. 새로운 WTON을 민팅하지 않습니다.
@@ -202,16 +217,17 @@ Owner는 `DepositManager`의 `setSlashingRewardRate` 함수를 통해 보상 비
 
 ```solidity
 function setSlashingRewardRate(uint256 newRate) external onlyOwner {
-    require(newRate <= RAY, "rate exceeds 100%");
+    require(newRate <= 10000, "rate exceeds 100%");
     slashingRewardRate = newRate;
     emit SlashingRewardRateSet(newRate);
 }
 ```
 
 **예시:**
-- 10% 보상: `setSlashingRewardRate(100000000000000000000000000)` (0.1e27)
-- 5% 보상: `setSlashingRewardRate(50000000000000000000000000)` (0.05e27)
-- 20% 보상: `setSlashingRewardRate(200000000000000000000000000)` (0.2e27)
+- 10% 보상: `setSlashingRewardRate(1000)`
+- 5% 보상: `setSlashingRewardRate(500)`
+- 15.55% 보상: `setSlashingRewardRate(1555)`
+- 20% 보상: `setSlashingRewardRate(2000)`
 
 ### 5.5 이벤트
 
@@ -223,10 +239,11 @@ event CandidateSlashed(address indexed operator, address indexed challenger, add
 
 // DepositManager
 event Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashedAmount, uint256 rewardAmount);
+event ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount);
 event SlashingRewardRateSet(uint256 newRate);
 
 // SeigManager
-event Slashed(address layer2, address challenger);
+event Slashed(address layer2, address operator);
 ```
 
 ### 5.6 보상 메커니즘 요약
@@ -272,7 +289,7 @@ sequenceDiagram
     
     L2M->>DM: slash(layer2, operator, challenger)
     DM->>DM: 보상 계산 (slashingRewardRate)
-    DM->>SM: onSlash(layer2, operator, challenger)
+    DM->>SM: onSlash(layer2, operator)
     SM->>SM: Operator Coinage & Tot 소각
     SM-->>DM: 소각 완료
     
