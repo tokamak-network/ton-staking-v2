@@ -298,4 +298,44 @@ sequenceDiagram
     DM-->>L2M: 슬래싱 완료
 ```
 
+---
+
+## 7. Slashing & Reward 테스트 안내
+
+복잡한 레이어 2 등록 과정 없이 핵심 로직만 빠르게 검증하기 위해 Foundry의 **Integrated Test** 방식을 권장합니다.
+
+### 7.1 테스트 핵심 전략
+1.  **실제 토큰 활용**: `deployCode("abis/WTON.json", args)`를 통해 실제 WTON 로직으로 테스트합니다.
+2.  **스토리지 주입 (vm.store)**: 복잡한 초기화 거래 대신, `operatorInfo`나 스테이킹 잔액(`_accStaked`)을 특정 슬롯에 직접 주입하여 Slashing 직전 상태를 즉시 만듭니다.
+3.  **의존성 Mocking (vm.mockCall)**: `SeigManager` 등 보조 컨트랙트는 특정 호출에 대해 `true`를 반환하도록 Mocking 하여 테스트 범위를 좁힙니다.
+
+### 7.2 테스트 코드 예시 (`test/SlashingMechanismTest.t.sol`)
+
+```solidity
+function test_FullSlashingAndRewardFlow() public {
+    // 1. 상태 주입: Operator가 100 WTON 스테이킹 상태로 설정
+    uint256 initialStake = 100 * 1e27; // RAY 단위
+    bytes32 finalSlot = keccak256(abi.encode(operator, keccak256(abi.encode(address(mockLayer2), uint256(10)))));
+    vm.store(address(depositManager), finalSlot, bytes32(initialStake));
+
+    // 2. 상황 연출: Dispute Game에서 Challenger 승리
+    game.initialize();
+    vm.prank(challenger);
+    game.step(); 
+    game.resolve(); 
+
+    // 3. 실행: slashingCandidate 호출
+    l2Manager.slashingCandidate(operator, gameType, rootClaim, extraData, address(game));
+    
+    // 4. 검증: 자산 삭감 및 보상 전송 확인
+    assertEq(uint256(vm.load(address(depositManager), finalSlot)), 0);
+    assertEq(IERC20(wton).balanceOf(challenger), 10 * 1e27); // 10% 보상
+}
+```
+
+### 7.3 실행 방법
+```bash
+forge test --match-path test/SlashingMechanismTest.t.sol -vvv
+```
+
 
