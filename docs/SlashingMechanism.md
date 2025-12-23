@@ -134,10 +134,10 @@ Slashing이 발생하면 정당한 이의를 제기한 Challenger에게 보상�
 Layer2Manager.slashingCandidate()
     ↓ (Challenger 주소 추출)
 DepositManager.slash(layer2, operator, challenger)
-    ↓ (보상 계산)
-SeigManager.onSlash() + SeigManager.rewardChallenger()
-    ↓ (WTON 민팅)
-Challenger에게 보상 지급
+    ↓ (보상 계산 및 WTON 전송)
+SeigManager.onSlash() (Operator 자산 소각)
+    ↓
+Challenger에게 WTON 보상 지급 완료
 ```
 
 ### 5.2 Challenger 주소 추출 (Layer2Manager)
@@ -157,9 +157,9 @@ function _getWinningChallenger(address disputeGame) internal view returns (addre
 - `claimData(0).counteredBy`: 루트 클레임을 최종적으로 격파한 Challenger의 주소
 - 여러 명의 Challenger가 있더라도, 최종 승리자는 `counteredBy`에 기록됨
 
-### 5.3 보상 계산 (DepositManager)
+### 5.3 보상 계산 및 지급 (DepositManager)
 
-`slash` 함수는 슬래싱된 금액 중 일부를 Challenger 보상으로 계산합니다.
+`slash` 함수는 슬래싱된 금액 중 일부를 Challenger 보상으로 계산하고, **WTON을 직접 전송**합니다.
 
 ```solidity
 function slash(address layer2, address operator, address challenger) external onlyLayer2Manager returns (bool) {
@@ -177,12 +177,12 @@ function slash(address layer2, address operator, address challenger) external on
     _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
     _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
     
-    // SeigManager에 슬래싱 및 보상 처리 요청
+    // SeigManager에 슬래싱 처리 요청
     require(ISeigManager(_seigManager).onSlash(layer2, operator, challenger), "fail onSlash");
     
-    // Challenger에게 보상 지급
+    // Challenger에게 보상 지급 (WTON 직접 전송)
     if (rewardAmount > 0) {
-        require(ISeigManager(_seigManager).rewardChallenger(layer2, challenger, rewardAmount), "fail reward");
+        IERC20(_wton).safeTransfer(challenger, rewardAmount);
     }
     
     emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);
@@ -194,25 +194,9 @@ function slash(address layer2, address operator, address challenger) external on
 - 기본값 예시: 0.1e27 = 10%
 - Owner가 `setSlashingRewardRate()` 함수로 조정 가능
 
-### 5.4 보상 지급 (SeigManager)
+**중요:** DepositManager는 WTON을 보유하고 있어야 하며, 보상은 **기존 WTON을 전송**하는 방식입니다. 새로운 WTON을 민팅하지 않습니다.
 
-`rewardChallenger` 함수는 WTON을 민팅하여 Challenger에게 직접 지급합니다.
-
-```solidity
-function rewardChallenger(address layer2, address challenger, uint256 amount) external onlyDepositManager returns (bool) {
-    require(challenger != address(0), "invalid challenger");
-    require(amount > 0, "invalid amount");
-    
-    // WTON을 민팅하여 Challenger에게 지급
-    IWTON(_wton).mint(challenger, amount);
-    
-    emit ChallengerRewarded(layer2, challenger, amount);
-    
-    return true;
-}
-```
-
-### 5.5 보상 비율 설정
+### 5.4 보상 비율 설정
 
 Owner는 `DepositManager`의 `setSlashingRewardRate` 함수를 통해 보상 비율을 조정할 수 있습니다.
 
@@ -229,7 +213,7 @@ function setSlashingRewardRate(uint256 newRate) external onlyOwner {
 - 5% 보상: `setSlashingRewardRate(50000000000000000000000000)` (0.05e27)
 - 20% 보상: `setSlashingRewardRate(200000000000000000000000000)` (0.2e27)
 
-### 5.6 이벤트
+### 5.5 이벤트
 
 Slashing 및 보상 과정에서 다음 이벤트들이 발생합니다:
 
@@ -242,23 +226,27 @@ event Slashed(address indexed layer2, address indexed operator, address indexed 
 event SlashingRewardRateSet(uint256 newRate);
 
 // SeigManager
-event ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 rewardAmount);
+event Slashed(address layer2, address challenger);
 ```
 
-### 5.7 보상 메커니즘 요약
+### 5.6 보상 메커니즘 요약
 
 | 단계 | 컨트랙트 | 주요 동작 |
 |------|----------|-----------|
 | 1 | Layer2Manager | DisputeGame 검증 및 Challenger 주소 추출 |
-| 2 | DepositManager | 슬래싱 금액 계산 및 보상 비율 적용 |
-| 3 | SeigManager | Operator 자산 소각 |
-| 4 | SeigManager | Challenger에게 WTON 민팅 및 지급 |
+| 2 | DepositManager | 슬래싱 금액 계산, 보상 비율 적용, **WTON 직접 전송** |
+| 3 | SeigManager | Operator 자산 소각 (Coinage + Tot) |
 
 **보상 계산 예시:**
 - Operator 스테이킹 금액: 1,000 WTON
 - 보상 비율: 10%
-- Challenger 보상: 100 WTON (민팅)
-- 소각 금액: 900 WTON + 누적 Seigniorage
+- Challenger 보상: 100 WTON (**DepositManager가 보유한 WTON에서 전송**)
+- 소각 금액: 1,000 WTON (원금) + 누적 Seigniorage
+
+**주의사항:**
+- DepositManager는 충분한 WTON 잔액을 보유해야 합니다
+- 보상은 새로운 WTON 민팅이 아닌 기존 WTON 전송입니다
+- 보상 비율이 0이면 보상 없이 전액 소각됩니다
 
 ---
 
@@ -271,6 +259,7 @@ sequenceDiagram
     participant DG as DisputeGame
     participant DM as DepositManager
     participant SM as SeigManager
+    participant WTON as WTON Contract
     
     C->>DG: step() - 이의 제기
     C->>DG: resolve() - 게임 종료
@@ -285,9 +274,11 @@ sequenceDiagram
     DM->>DM: 보상 계산 (slashingRewardRate)
     DM->>SM: onSlash(layer2, operator, challenger)
     SM->>SM: Operator Coinage & Tot 소각
+    SM-->>DM: 소각 완료
     
-    DM->>SM: rewardChallenger(layer2, challenger, amount)
-    SM->>SM: WTON 민팅
-    SM->>C: WTON 전송 (보상)
+    DM->>WTON: safeTransfer(challenger, rewardAmount)
+    WTON-->>C: WTON 전송 (보상)
+    DM-->>L2M: 슬래싱 완료
 ```
+
 
