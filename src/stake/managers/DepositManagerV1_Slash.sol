@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ISeigManager} from '../interfaces/ISeigManager.sol';
 import {ILayer2Registry} from '../../dao/interfaces/ILayer2Registry.sol';
 import {ILayer2} from '../../dao/interfaces/ILayer2.sol';
@@ -61,6 +62,7 @@ contract DepositManagerV1_1 is
     DepositManagerV1_1Storage
 {
     using SafeERC20 for ITON;
+    using SafeERC20 for IERC20;
 
     uint256 internal constant GWEI_UNIT = 1e9;
     uint256 internal constant RAY = 1e27;
@@ -128,12 +130,12 @@ contract DepositManagerV1_1 is
         _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
         _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
         
-        // SeigManager에 슬래싱 및 보상 처리 요청
+        // SeigManager에 슬래싱 처리 요청
         require(ISeigManager(_seigManager).onSlash(layer2, operator, challenger), "fail onSlash");
         
-        // Challenger에게 보상 지급
+        // Challenger에게 보상 지급 (WTON 직접 전송)
         if (rewardAmount > 0) {
-            require(ISeigManager(_seigManager).rewardChallenger(layer2, challenger, rewardAmount), "fail reward");
+            IERC20(_wton).safeTransfer(challenger, rewardAmount);
         }
         
         emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);

@@ -109,7 +109,6 @@ contract SeigManagerV1_Slashing is ProxyStorage, AuthControlSeigManager, SeigMan
   event SetBurntAmountAtDAO(uint256 _burntAmountAtDAO);
 
   event Slashed(address layer2, address challenger);
-  event ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 rewardAmount);
   event SetL1BridgeRegistry (address l1BridgeRegistry_);
   event SetLayer2StartBlock (uint256 startBlock_);
   event SetLayer2Manager (address layer2Manager_);
@@ -426,24 +425,6 @@ contract SeigManagerV1_Slashing is ProxyStorage, AuthControlSeigManager, SeigMan
     
     emit Slashed(layer2, challenger);
 
-    return true;
-  }
-
-  /**
-   * @notice Challenger에게 보상을 지급하는 함수. WTON을 민팅하여 지급
-   * @param layer2 The layer2 address
-   * @param challenger The challenger address to receive reward
-   * @param amount The reward amount in WTON (RAY units)
-   */
-  function rewardChallenger(address layer2, address challenger, uint256 amount) external onlyDepositManager returns (bool) {
-    require(challenger != address(0), "invalid challenger");
-    require(amount > 0, "invalid amount");
-    
-    // WTON을 민팅하여 Challenger에게 지급
-    IWTON(_wton).mint(challenger, amount);
-    
-    emit ChallengerRewarded(layer2, challenger, amount);
-    
     return true;
   }
 
