@@ -146,4 +146,10 @@ contract MockSystemConfig is Ownable {
         addr_ = addresses.optimismMintableERC20Factory;
     }
 
+    address public disputeGameFactory;
+
+    function setDisputeGameFactory(address _disputeGameFactory) external {
+        disputeGameFactory = _disputeGameFactory;
+    }
+
 }

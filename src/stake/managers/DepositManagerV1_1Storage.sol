@@ -9,8 +9,8 @@ contract DepositManagerV1_1Storage {
     address public l1BridgeRegistry;
     address public layer2Manager;
     
-    /// @notice Percentage of slashed amount given to challenger as reward (in RAY, 1e27 = 100%)
-    /// @dev Default 10% = 0.1e27 = 100000000000000000000000000
+    /// @notice Percentage of slashed amount given to challenger as reward (100% = 10000)
+    /// @dev Example 10% = 1000
     uint256 public slashingRewardRate;
 
     bool internal _lock;
