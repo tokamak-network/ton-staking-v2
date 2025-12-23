@@ -103,10 +103,11 @@ contract DepositManagerV1_1 is
     event SetMinDepositGasLimit(uint32 gasLimit_);
 
     event Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashedAmount, uint256 rewardAmount);
+    event ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount);
     event SlashingRewardRateSet(uint256 newRate);
 
     function setSlashingRewardRate(uint256 newRate) external onlyOwner {
-        require(newRate <= RAY, "rate exceeds 100%");
+        require(newRate <= 10000, "rate exceeds 100%");
         slashingRewardRate = newRate;
         emit SlashingRewardRateSet(newRate);
     }
@@ -121,8 +122,8 @@ contract DepositManagerV1_1 is
         // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
         uint256 rewardAmount = 0;
         if (slashingRewardRate > 0) {
-            // RAY 단위로 계산: slashedAmount * slashingRewardRate / RAY
-            rewardAmount = (slashedAmount * slashingRewardRate) / 1e27;
+            // 100% = 10000 단위로 계산: slashedAmount * slashingRewardRate / 10000
+            rewardAmount = (slashedAmount * slashingRewardRate) / 10000;
         }
         
         // 회계 장부 초기화
@@ -131,11 +132,12 @@ contract DepositManagerV1_1 is
         _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
         
         // SeigManager에 슬래싱 처리 요청
-        require(ISeigManager(_seigManager).onSlash(layer2, operator, challenger), "fail onSlash");
+        require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
         
         // Challenger에게 보상 지급 (WTON 직접 전송)
         if (rewardAmount > 0) {
             IERC20(_wton).safeTransfer(challenger, rewardAmount);
+            emit ChallengerRewarded(layer2, challenger, rewardAmount);
         }
         
         emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);

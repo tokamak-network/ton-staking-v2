@@ -108,7 +108,7 @@ contract SeigManagerV1_Slashing is ProxyStorage, AuthControlSeigManager, SeigMan
   event SetInitialTotalSupply(uint256 _initialTotalSupply);
   event SetBurntAmountAtDAO(uint256 _burntAmountAtDAO);
 
-  event Slashed(address layer2, address challenger);
+  event Slashed(address layer2, address operator);
   event SetL1BridgeRegistry (address l1BridgeRegistry_);
   event SetLayer2StartBlock (uint256 startBlock_);
   event SetLayer2Manager (address layer2Manager_);
@@ -411,9 +411,8 @@ contract SeigManagerV1_Slashing is ProxyStorage, AuthControlSeigManager, SeigMan
    * @notice Slashing 시 호출되는 함수. Operator의 Coinage와 Tot 토큰을 소각
    * @param layer2 The layer2 address
    * @param operator The operator address to be slashed
-   * @param challenger The challenger address who won the dispute
    */
-  function onSlash(address layer2, address operator, address challenger) external onlyDepositManager returns (bool) {
+  function onSlash(address layer2, address operator) external onlyDepositManager returns (bool) {
     uint256 operatorAmount = _coinages[layer2].balanceOf(operator); 
     
     // burn {v + ⍺} {tot} tokens to the layer2 contract,
@@ -423,7 +422,7 @@ contract SeigManagerV1_Slashing is ProxyStorage, AuthControlSeigManager, SeigMan
     // burn {v} {coinages[layer2]} tokens to the account
     _coinages[layer2].burnFrom(operator, operatorAmount);
     
-    emit Slashed(layer2, challenger);
+    emit Slashed(layer2, operator);
 
     return true;
   }
