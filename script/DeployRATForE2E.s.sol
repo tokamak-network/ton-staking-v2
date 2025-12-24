@@ -127,13 +127,17 @@ contract DeployRATForE2E is Script {
         proxyAdmin = address(new ProxyAdmin());
         console.log("ProxyAdmin deployed:", proxyAdmin);
 
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
+        uint256 ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory initData = abi.encodeWithSelector(
             RAT.initialize.selector,
             seigManager,
             wton,
             ton,
             layer2Manager,
-            DEPLOYER
+            DEPLOYER,
+            ratTriggerProbability
         );
 
         ratProxy = address(new RATProxy(ratImpl, proxyAdmin, initData));

@@ -94,13 +94,17 @@ contract DeployV3Fork is Script {
         ratImpl = address(new RAT());
 
         // Prepare RAT initialization data (V3: depositManager 제거)
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
+        uint256 ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
-            deployer
+            deployer,
+            ratTriggerProbability
         );
 
         // Deploy RAT proxy with implementation and init data
@@ -112,12 +116,12 @@ contract DeployV3Fork is Script {
         validatorPoolImpl = address(new ValidatorRewardV1());
 
         // Prepare ValidatorReward initialization data
+        // NOTE: treasury 파라미터 제거됨 - 검증자 없는 L2의 보상은 SeigManager.dao()로 전송
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
-            deployer,   // treasury (DAO)
             deployer    // owner
         );
 
@@ -222,16 +226,18 @@ contract DeployV3ForkWithImpersonation is Script {
 
         // Step 2: Deploy V3 contracts
         ratImpl = address(new RAT());
+        uint256 _ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
-            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer
+            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer, _ratTriggerProbability
         );
         ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
         validatorPoolImpl = address(new ValidatorRewardV1());
+        // NOTE: treasury 제거됨 - SeigManager.dao() 사용
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
-            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer
+            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer
         );
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
 
@@ -322,25 +328,27 @@ contract DeployV3ForkSepolia is Script {
         console.log("\n--- Step 2: Deploy V3 Contracts ---");
 
         ratImpl = address(new RAT());
+        uint256 __ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
-            deployer
+            deployer,
+            __ratTriggerProbability
         );
         ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
         console.log("RAT Proxy:", ratProxy);
         console.log("RAT Impl:", ratImpl);
 
         validatorPoolImpl = address(new ValidatorRewardV1());
+        // NOTE: treasury 제거됨 - SeigManager.dao() 사용
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
-            deployer,   // treasury (DAO)
             deployer    // owner
         );
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));

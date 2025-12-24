@@ -487,13 +487,17 @@ contract DeployV3Full is Script {
         console.log("RAT Impl:", ratImpl);
 
         // Prepare RAT initialization data
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
+        uint256 ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
             seigManagerProxy,
             wton,
             ton,
             layer2ManagerProxy,
-            deployer
+            deployer,
+            ratTriggerProbability
         );
 
         // Deploy RAT proxy with ProxyAdmin as admin
@@ -506,12 +510,12 @@ contract DeployV3Full is Script {
         console.log("ValidatorReward Impl:", validatorPoolImpl);
 
         // Prepare ValidatorReward initialization data
+        // NOTE: treasury 파라미터 제거됨 - 검증자 없는 L2의 보상은 SeigManager.dao()로 전송
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
             seigManagerProxy,
             wton,
             ratProxy,   // RAT contract for validator info
-            deployer,   // treasury (initially deployer, should be DAO)
             deployer    // owner
         );
 

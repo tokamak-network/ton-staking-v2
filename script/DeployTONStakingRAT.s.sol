@@ -65,7 +65,8 @@ contract DeployTONStakingRAT is Script {
             wton,
             ton,
             layer2Manager,
-            owner
+            owner,
+            ratTriggerProbability
         );
         console.log("RAT initialized with owner:", owner);
 
@@ -130,12 +131,15 @@ contract DeployTONStakingRATDevnet is Script {
         address mockTon = address(0x1003);
         address mockLayer2Manager = address(0x1005);
 
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
         rat.initialize(
             mockSeigManager,
             mockWton,
             mockTon,
             mockLayer2Manager,
-            DEPLOY_ADDRESS
+            DEPLOY_ADDRESS,
+            RAY / 100 // 1% for devnet testing
         );
 
         // Set default parameters
@@ -194,12 +198,15 @@ contract DeployTONStakingRATForAllocs is Script {
         console.log("RAT deployed at:", address(rat));
 
         // Initialize (V3: depositManager 제거)
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
         rat.initialize(
             seigManager,
             wton,
             ton,
             layer2Manager,
-            msg.sender
+            msg.sender,
+            RAY / 100 // 1% - adjust based on expected N, c_m, C_off
         );
 
         // Configure parameters
