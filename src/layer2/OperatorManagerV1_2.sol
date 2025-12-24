@@ -62,6 +62,19 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     constructor() { }
 
     // ==========================================
+    // Internal Functions
+    // ==========================================
+
+    /// @notice SequencerVault 주소 조회 (fallback to Layer2Manager)
+    /// @dev 로컬 저장소에 없으면 Layer2Manager에서 조회
+    function _getSequencerVault() internal view returns (address _vault) {
+        _vault = sequencerVault();
+        if (_vault == address(0)) {
+            _vault = ILayer2Manager(layer2Manager()).sequencerVault();
+        }
+    }
+
+    // ==========================================
     // Modifiers
     // ==========================================
 
@@ -96,11 +109,14 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
         emit SetAddresses(_layer2Manager, _depositManager, _ton, _wton);
     }
 
-    /// @notice SequencerVault 주소 설정 (V3)
-    /// @param _sequencerVault SequencerVault 컨트랙트 주소
-    function setSequencerVault(address _sequencerVault) external nonZeroAddress(_sequencerVault) onlyOwner {
-        _setStorageAddress(_SEQUENCER_VAULT_SLOT, _sequencerVault);
-        emit SequencerVaultSet(_sequencerVault);
+    /// @notice Layer2Manager에서 SequencerVault 주소를 조회하여 로컬에 설정
+    /// @dev 누구나 호출 가능, Layer2Manager의 sequencerVault를 로컬 스토리지에 동기화
+    function syncSequencerVault() external {
+        address _newVault = ILayer2Manager(layer2Manager()).sequencerVault();
+        if (_newVault == address(0)) revert ZeroAddressError();
+        if (_newVault == sequencerVault()) revert SameAddressError();
+        _setStorageAddress(_SEQUENCER_VAULT_SLOT, _newVault);
+        emit SequencerVaultSet(_newVault);
     }
 
     // ==========================================
@@ -153,7 +169,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     /// @dev OperatorManager 주소가 시퀀서로 등록됨
     /// @param amount 예치할 TON 양
     function registerSequencer(uint256 amount) external onlyOwnerOrManager {
-        address _sequencerVault = sequencerVault();
+        address _sequencerVault = _getSequencerVault();
         if (_sequencerVault == address(0)) revert SequencerVaultNotSetError();
 
         address _ton = ton();
@@ -171,7 +187,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     /// @notice SequencerVault에서 시퀀서 탈퇴 및 출금
     /// @dev 담보금 전액이 OperatorManager로 반환됨
     function deactivateSequencer() external onlyOwnerOrManager {
-        address _sequencerVault = sequencerVault();
+        address _sequencerVault = _getSequencerVault();
         if (_sequencerVault == address(0)) revert SequencerVaultNotSetError();
 
         address _rollupConfig = rollupConfig();
@@ -188,7 +204,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     /// @notice SequencerVault에 담보금 추가
     /// @param amount 추가 예치할 TON 양
     function addSequencerDeposit(uint256 amount) external onlyOwnerOrManager {
-        address _sequencerVault = sequencerVault();
+        address _sequencerVault = _getSequencerVault();
         if (_sequencerVault == address(0)) revert SequencerVaultNotSetError();
 
         address _ton = ton();
@@ -206,7 +222,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     /// @notice SequencerVault의 시퀀서 담보금 조회
     /// @return 현재 담보금
     function getSequencerDeposit() external view returns (uint256) {
-        address _sequencerVault = sequencerVault();
+        address _sequencerVault = _getSequencerVault();
         if (_sequencerVault == address(0)) return 0;
 
         return ISequencerVault(_sequencerVault).getSequencerDeposit(rollupConfig());
@@ -215,7 +231,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     /// @notice SequencerVault의 시퀀서 활성 상태 확인
     /// @return 활성 상태 여부
     function isSequencerActive() external view returns (bool) {
-        address _sequencerVault = sequencerVault();
+        address _sequencerVault = _getSequencerVault();
         if (_sequencerVault == address(0)) return false;
 
         return ISequencerVault(_sequencerVault).isSequencerActive(rollupConfig());
