@@ -669,9 +669,108 @@ function getSequencerInfo(address systemConfig)
 
 ---
 
-## 8. 거버넌스 파라미터 요약
+## 8. OperatorManagerFactory 함수
 
-### 8.1 SeigManager 파라미터
+### 8.1 createOperatorManager
+
+오퍼레이터 매니저를 생성합니다.
+
+```solidity
+function createOperatorManager(address rollupConfig) external returns (address operatorManager)
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | Layer2Manager만 |
+| **구현체** | V1_1 (기본, TYPE 3 업그레이드시 V1_2로 수동 업그레이드) |
+
+**동작 흐름**:
+```
+1. msg.sender == layer2Manager 확인
+2. rollupConfig의 unsafeBlockSigner() → sManager 조회
+3. CREATE2로 OperatorManagerProxy 생성
+4. upgradeTo(operatorManagerImp), setAddresses() 호출
+5. transferManager(sManager), transferOwnership(sOwner)
+```
+
+---
+
+### 8.2 getAddress
+
+오퍼레이터 매니저 주소를 계산합니다.
+
+```solidity
+function getAddress(address rollupConfig) public view returns (address)
+```
+
+| 항목 | 내용 |
+|------|------|
+| **용도** | CREATE2 주소 계산 |
+
+---
+
+### 8.3 설정 함수
+
+```solidity
+// 구현체 변경
+function changeOperatorManagerImp(address newOperatorManagerImp) external onlyOwner
+
+// 주소 설정
+function setAddresses(address _depositManager, address _ton, address _wton, address _layer2Manager) external onlyOwner
+```
+
+---
+
+### 8.4 syncSequencerVault
+
+Layer2Manager에서 SequencerVault 주소를 조회하여 로컬에 설정합니다.
+
+```solidity
+function syncSequencerVault() external
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | 누구나 |
+| **조건** | Layer2Manager.sequencerVault()가 address(0)이 아니어야 함 |
+| **조건** | 현재 저장된 값과 다른 값이어야 함 |
+
+**동작 흐름**:
+```
+1. Layer2Manager.sequencerVault() 조회
+2. address(0) 체크 → ZeroAddressError
+3. 현재 값과 동일 체크 → SameAddressError
+4. 로컬 스토리지에 저장
+5. 이벤트: SequencerVaultSet
+```
+
+---
+
+### 8.5 TYPE 3 업그레이드 절차
+
+TYPE 1/2 롤업이 DisputeGame을 도입하여 TYPE 3로 업그레이드하려면:
+
+```
+1. L1BridgeRegistry.upgradeToType3(rollupConfig)
+   └── DisputeGameFactory 확인 및 등록
+   └── rollupType = 3으로 변경
+
+2. OperatorManagerProxy.upgradeTo(V1_2 impl)
+   └── owner가 직접 호출
+   └── SequencerVault 연동 기능 활성화
+
+3. OperatorManagerV1_2.syncSequencerVault()
+   └── 누구나 호출 가능
+   └── Layer2Manager에서 SequencerVault 주소 자동 조회
+```
+
+> **참고**: `_getSequencerVault()` 내부 함수는 로컬 스토리지에 값이 없으면 Layer2Manager에서 자동으로 조회하므로, `syncSequencerVault()` 호출은 선택사항입니다.
+
+---
+
+## 9. 거버넌스 파라미터 요약
+
+### 9.1 SeigManager 파라미터
 
 | 파라미터 | 함수 | 범위 | 단위 |
 |---------|------|------|------|
@@ -680,7 +779,7 @@ function getSequencerInfo(address systemConfig)
 | `validatorDistributionRatio` | `setValidatorDistributionRatio(α)` | 0 < α < 1 | RAY |
 | `halfSaturationPoint` | `setHalfSaturationPoint(k)` | k > 0 | RAY (TON) |
 
-### 8.2 RAT 파라미터
+### 9.2 RAT 파라미터
 
 | 파라미터 | 함수 | 범위 | 단위 |
 |---------|------|------|------|
@@ -690,7 +789,7 @@ function getSequencerInfo(address systemConfig)
 | `minimumThreshold` | `setMinimumThreshold(D_min)` | D_min > 0 | TON |
 | `evidenceSubmissionPeriod` | `setEvidenceSubmissionPeriod(t)` | t > 0 | 초 |
 
-### 8.3 SequencerVault 파라미터
+### 9.3 SequencerVault 파라미터
 
 | 파라미터 | 함수 | 범위 | 단위 |
 |---------|------|------|------|
@@ -701,9 +800,9 @@ function getSequencerInfo(address systemConfig)
 
 ---
 
-## 9. 이벤트 목록
+## 10. 이벤트 목록
 
-### 9.1 SeigManager 이벤트
+### 10.1 SeigManager 이벤트
 
 ```solidity
 event V3SeigniorageDistributed(uint256 totalSeigniorage, uint256 l2MaxAllocation, uint256 totalDistributed, uint256 daoAmount, uint256 validatorPoolAmount);
@@ -712,7 +811,7 @@ event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
 event SeigGiven2(address indexed layer2, uint256 totalSeig, uint256 stakedSeig, uint256 unstakedSeig, uint256 powertonSeig, uint256 daoSeig, uint256 pseig, uint256 l2TotalSeigs, uint256 layer2Seigs);
 ```
 
-### 9.2 RAT 이벤트
+### 10.2 RAT 이벤트
 
 ```solidity
 event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId);
@@ -723,7 +822,7 @@ event ValidatorSlashed(bytes32 indexed testId, address indexed validator, addres
 event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount);
 ```
 
-### 9.3 ValidatorReward 이벤트
+### 10.3 ValidatorReward 이벤트
 
 ```solidity
 event L2RewardDistributed(address indexed systemConfig, uint256 distributed, uint256 validatorCount);
@@ -732,7 +831,7 @@ event RewardToTreasury(address indexed systemConfig, uint256 amount);
 event RewardsClaimed(address indexed validator, uint256 amount);
 ```
 
-### 9.4 SequencerVault 이벤트
+### 10.4 SequencerVault 이벤트
 
 ```solidity
 event SequencerRegistered(address indexed operator, address indexed systemConfig, address layer2, uint256 depositAmount);
@@ -745,7 +844,7 @@ event ChallengerRewardClaimed(address indexed challenger, uint256 amount);
 
 ---
 
-## 10. 관련 문서
+## 11. 관련 문서
 
 - [01-system-overview.md](./01-system-overview.md): 시스템 개요
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처

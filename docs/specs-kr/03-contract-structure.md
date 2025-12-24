@@ -22,6 +22,12 @@ src/
 │   ├── Layer2ManagerV1_2.sol              # L2 관리 (V3)
 │   ├── Layer2ManagerStorage.sol
 │   ├── L1BridgeRegistryV1_2.sol           # 브릿지 레지스트리
+│   ├── OperatorManagerV1_1.sol            # 오퍼레이터 매니저 (TYPE 1,2용)
+│   ├── OperatorManagerV1_2.sol            # 오퍼레이터 매니저 (TYPE 3용)
+│   ├── OperatorManagerStorage.sol
+│   ├── OperatorManagerProxy.sol
+│   ├── factory/                           # 팩토리
+│   │   └── OperatorManagerFactory.sol     # 오퍼레이터 팩토리
 │   └── interfaces/
 │       ├── ILayer2Manager.sol
 │       ├── IL1BridgeRegistry.sol
