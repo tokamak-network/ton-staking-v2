@@ -582,7 +582,7 @@ function registerSequencer(address systemConfig, uint256 depositAmount) external
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 누구나 (제3자 펀딩 가능) |
-| **최소 담보금** | θ × B_i (자격 조건 충족용) |
+| **최소 담보금** | max(θ × B_i, H_max × C_max + Δ_sequencer) |
 
 **동작 흐름**:
 ```
@@ -658,9 +658,9 @@ function getSequencerDepositByLayer2(address layer2) external view returns (uint
 function isSequencerActive(address systemConfig) external view returns (bool)
 function isSequencerActiveByLayer2(address layer2) external view returns (bool)
 
-// 최소 담보금 계산
+// 최소 담보금 계산 (백서 기반 해석)
 function getMinimumCollateral(uint256 bridgedTON) external view returns (uint256)
-// 반환: θ × bridgedTON
+// 반환: max(θ × bridgedTON, H_max × C_max + Δ_sequencer)
 
 // 시퀀서 정보 조회
 function getSequencerInfo(address systemConfig)
