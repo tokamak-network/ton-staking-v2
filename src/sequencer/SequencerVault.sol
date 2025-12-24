@@ -135,17 +135,21 @@ contract SequencerVault is SequencerVaultStorage, ISequencerVault, IOnApprove {
     }
 
     /// @inheritdoc ISequencerVault
-    /// @dev 백서: S_i >= θ · B_i + H_max · (C_max + Δ_sequencer)
+    /// @dev 백서 기반 해석: max(θ · B_i, H_max · C_max + Δ_sequencer)
+    ///      - θ · B_i: 시뇨리지 자격 조건 (Rule 4, p.15)
+    ///      - H_max · C_max + Δ_sequencer: Fraud Proof 비용 커버 (Formula 1, p.10)
+    ///      두 조건을 모두 충족해야 하므로 max 사용
     function getMinimumCollateral(uint256 bridgedTON)
         public view returns (uint256)
     {
-        // θ · B_i (Bridged TON 대비 최소 담보금)
-        uint256 minFromBridgedTON = (bridgedTON * minimumStakingRatio) / RAY;
+        // θ · B_i (시뇨리지 자격 조건)
+        uint256 minForSeigniorage = (bridgedTON * minimumStakingRatio) / RAY;
 
-        // H_max · (C_max + Δ_sequencer) (동시 fraud proof 대응 비용)
-        uint256 fraudProofBuffer = maxChallengers * (maxFraudProofCost + sequencerAdditionalReward);
+        // H_max · C_max + Δ_sequencer (Fraud Proof 비용 커버 - 백서 공식 1)
+        uint256 minForFraudProof = maxChallengers * maxFraudProofCost + sequencerAdditionalReward;
 
-        return minFromBridgedTON + fraudProofBuffer;
+        // max(θ · B_i, H_max · C_max + Δ_sequencer)
+        return minForSeigniorage > minForFraudProof ? minForSeigniorage : minForFraudProof;
     }
 
     // ==========================================
