@@ -27,9 +27,8 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     DepositManager public depositManager;
     RAT public rat;
 
-    // SequencerVault (별도 배포)
+    // SequencerVault (DeployV3Full에서 상속)
     SequencerVault public sequencerVault;
-    address public sequencerVaultProxy;
 
     // ==========================================
     // Mock Contracts for TYPE 3
