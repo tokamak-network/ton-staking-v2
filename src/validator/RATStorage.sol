@@ -114,6 +114,11 @@ contract RATStorage {
     /// @dev 잔액이 D_min 미만이면 활성 검증자 세트에서 제거
     uint256 public minimumThreshold;
 
+    /// @notice N_max: L2별 최대 검증자 수
+    /// @dev 백서 공식 C_off ≥ (c_m × N) / π_a 에서 N의 상한
+    ///      Δ_validator는 이 값을 기준으로 충분한 마진 설정 필요
+    uint256 public maxValidatorsPerL2;
+
     /// @notice 증거 제출 기간 (초)
     uint256 public evidenceSubmissionPeriod;
 

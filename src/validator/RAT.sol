@@ -24,6 +24,7 @@ error ZeroAmountError();
 error InvalidParameterError();
 error NotSelectedValidatorError();
 error InvalidFactoryError();
+error MaxValidatorsReachedError();
 
 /**
  * @title RAT (Randomized Attention Test)
@@ -76,14 +77,24 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     // Constructor / Initializer
     // ==========================================
 
+    /// @notice RAT 컨트랙트 초기화
+    /// @param _seigManager SeigManager 주소
+    /// @param _wton WTON 주소
+    /// @param _ton TON 주소
+    /// @param _layer2Manager Layer2Manager 주소
+    /// @param _owner Owner 주소
+    /// @param _ratTriggerProbability RAT 트리거 확률 (RAY 단위, 백서 공식 기반으로 결정)
+    /// @dev π_a는 백서 공식 C_off ≥ (c_m · N) / π_a 를 만족하도록 설정해야 함
     function initialize(
         address _seigManager,
         address _wton,
         address _ton,
         address _layer2Manager,
-        address _owner
+        address _owner,
+        uint256 _ratTriggerProbability
     ) external {
         require(seigManager == address(0), "already initialized");
+        require(_ratTriggerProbability > 0 && _ratTriggerProbability <= RAY, "invalid probability");
 
         seigManager = _seigManager;
         wton = _wton;
@@ -91,13 +102,26 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         layer2Manager = _layer2Manager;
         owner = _owner;
 
+        // 게임 이론 기반 파라미터 (배포 시 지정)
+        // 백서 공식: C_off ≥ (c_m × N) / π_a
+        // - 공식은 이론적 근거이며, 실시간 동적 업데이트 규칙이 아님
+        // - N = L2별 검증자 수 (|V_i|)
+        ratTriggerProbability = _ratTriggerProbability;
+
         // 기본값 설정
-        ratTriggerProbability = 0.01e27;    // π_a = 1%
         evidenceSubmissionPeriod = 1 hours; // 1시간
+
         // V3: TON 직접 사용, WEI_UNIT (18 decimals) 단위
-        minimumThreshold = 1000 * WEI_UNIT;  // D_min = 1000 TON
+        // D_validator = C_off + Δ_validator
+        // Δ_validator는 N 증가에 대비하여 충분한 마진 설정 필요
         slashingPenalty = 100 * WEI_UNIT;    // C_off = 100 TON
-        validatorBuffer = 100 * WEI_UNIT;    // Δ_validator = 100 TON
+        validatorBuffer = 100 * WEI_UNIT;    // Δ_validator = 100 TON (N_max 고려한 마진)
+        minimumThreshold = 1000 * WEI_UNIT;  // D_min = 1000 TON (≥ C_off + Δ_validator)
+
+        // N_max: L2별 최대 검증자 수
+        // - 백서 공식 C_off ≥ (c_m × N) / π_a 에서 N의 상한
+        // - 시뇨리지 분배 시 가스 한도 고려 (각 검증자당 ~25K gas)
+        maxValidatorsPerL2 = 100;
     }
 
     // ==========================================
@@ -337,6 +361,14 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         } else {
             // 신규 등록
             uint256 index = pool.validators.length;
+
+            // N_max 체크: L2별 최대 검증자 수 제한
+            // - 백서 공식 C_off ≥ (c_m × N) / π_a 에서 N의 상한 보장
+            // - 시뇨리지 분배 시 가스 한도 문제 방지
+            if (maxValidatorsPerL2 > 0 && index >= maxValidatorsPerL2) {
+                revert MaxValidatorsReachedError();
+            }
+
             pool.validators.push(validator);
             pool.activeCount++;
             pool.totalDeposited += totalDeposit;
@@ -605,6 +637,12 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     /// @inheritdoc IRAT
     function setMinimumThreshold(uint256 threshold) external onlyOwner {
         minimumThreshold = threshold;
+    }
+
+    /// @inheritdoc IRAT
+    function setMaxValidatorsPerL2(uint256 maxValidators) external onlyOwner {
+        maxValidatorsPerL2 = maxValidators;
+        emit MaxValidatorsPerL2Updated(maxValidators);
     }
 
     /// @inheritdoc IRAT

@@ -57,6 +57,9 @@ interface IRAT {
         bool removedFromSet
     );
 
+    /// @notice L2별 최대 검증자 수 변경 이벤트
+    event MaxValidatorsPerL2Updated(uint256 newMaxValidators);
+
     // V3: RewardsClaimed, RewardsClaimedBatch 이벤트 제거 - ValidatorReward로 이동
 
     /// @notice 담보금 추가 이벤트
@@ -200,20 +203,44 @@ interface IRAT {
     // ==========================================
     // External Functions - Governance
     // ==========================================
+    //
+    // 백서 공식 (이론적 근거, 실시간 동적 업데이트 규칙이 아님):
+    //   C_off ≥ (c_m × N) / π_a
+    //   D_validator = C_off + Δ_validator
+    //
+    // 여기서 N = L2별 검증자 수 (|V_i|)
+    //
+    // 권장 구현 방식:
+    // - Δ_validator에 충분한 마진을 설정하여 실질적인 N_max 고려
+    // - 검증자는 ValidatorRegistered 이벤트를 모니터링하여 자격 상태 확인
+    // - 담보금 부족 시 충분한 유예 기간 제공 또는 소급 적용하지 않는 방식 적용
+    // ==========================================
 
-    /// @notice Attention Cost 설정 (c_m)
+    /// @notice Attention Cost 설정 (c_m) - 모니터링 비용
     function setAttentionCost(uint256 cost) external;
 
     /// @notice 슬래싱 페널티 설정 (C_off)
+    /// @dev 백서 공식 C_off ≥ (c_m × N) / π_a 를 만족하도록 설정
+    ///      N은 L2별 예상 최대 검증자 수를 고려하여 충분히 크게 설정
     function setSlashingPenalty(uint256 penalty) external;
 
     /// @notice 검증자 버퍼 설정 (Δ_validator)
+    /// @dev N 증가에 대비하여 충분한 마진 설정 권장
+    ///      D_validator = C_off + Δ_validator
     function setValidatorBuffer(uint256 buffer) external;
 
     /// @notice 최소 임계값 설정 (D_min)
+    /// @dev D_min ≥ C_off + Δ_validator 관계 유지 필요
     function setMinimumThreshold(uint256 threshold) external;
 
+    /// @notice L2별 최대 검증자 수 설정 (N_max)
+    /// @dev 백서 공식 C_off ≥ (c_m × N) / π_a 에서 N의 상한
+    ///      시뇨리지 분배 시 가스 한도 고려 (각 검증자당 ~25K gas)
+    ///      0으로 설정하면 제한 없음
+    function setMaxValidatorsPerL2(uint256 maxValidators) external;
+
     /// @notice RAT 트리거 확률 설정 (π_a)
+    /// @dev 백서 공식 C_off ≥ (c_m × N) / π_a 참조
     function setRatTriggerProbability(uint256 probability) external;
 
     /// @notice 증거 제출 기간 설정
