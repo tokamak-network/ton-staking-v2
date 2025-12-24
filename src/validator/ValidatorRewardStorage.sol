@@ -42,7 +42,8 @@ contract ValidatorRewardStorage {
     /// @notice RAT 컨트랙트 주소 (L2별 검증자 조회용)
     address public ratContract;
 
-    /// @notice Treasury 주소 (검증자 없을 때 보상 귀속)
+    /// @notice Treasury 주소 (DEPRECATED - seigManager.dao() 사용)
+    /// @dev 프록시 스토리지 호환성을 위해 슬롯 유지, 실제로는 사용하지 않음
     address public treasury;
 
     /// @notice Owner 주소

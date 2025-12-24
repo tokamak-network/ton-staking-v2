@@ -7,6 +7,11 @@ import {ValidatorRewardStorage} from "./ValidatorRewardStorage.sol";
 import {IValidatorReward} from "./IValidatorReward.sol";
 import {IRAT} from "./IRAT.sol";
 
+/// @notice SeigManager의 dao 주소 조회용 인터페이스
+interface ISeigManagerDAO {
+    function dao() external view returns (address);
+}
+
 // Custom Errors
 error NotSeigManagerError();
 error NoRewardsError();
@@ -46,11 +51,15 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
     // Initializer
     // ==========================================
 
+    /// @notice 초기화 (V1.1: treasury 파라미터 제거 - seigManager.dao() 사용)
+    /// @param _seigManager SeigManager 주소 (dao 주소 조회용)
+    /// @param _wton WTON 주소
+    /// @param _ratContract RAT 컨트랙트 주소
+    /// @param _owner Owner 주소
     function initialize(
         address _seigManager,
         address _wton,
         address _ratContract,
-        address _treasury,
         address _owner
     ) external {
         require(seigManager == address(0), "already initialized");
@@ -58,7 +67,6 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
         seigManager = _seigManager;
         wton = _wton;
         ratContract = _ratContract;
-        treasury = _treasury;
         owner = _owner;
     }
 
@@ -92,11 +100,12 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
         // RAT에서 해당 L2의 활성 검증자 수 조회
         uint256 activeCount = IRAT(ratContract).getActiveValidatorCount(systemConfig);
 
-        // |V_i| = 0이면 Treasury로 귀속 (백서 V3)
+        // |V_i| = 0이면 DAO(daoVault)로 귀속 (백서 V3)
         if (activeCount == 0) {
-            if (treasury != address(0)) {
-                IERC20(wton).safeTransfer(treasury, amount);
-                emit RewardToTreasury(systemConfig, amount);
+            address daoAddr = ISeigManagerDAO(seigManager).dao();
+            if (daoAddr != address(0)) {
+                IERC20(wton).safeTransfer(daoAddr, amount);
+                emit RewardToDAO(systemConfig, amount);
             }
             return;
         }
@@ -153,9 +162,10 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
         ratContract = rat;
     }
 
-    /// @inheritdoc IValidatorReward
-    function setTreasury(address _treasury) external onlyOwner {
-        treasury = _treasury;
+    /// @notice DEPRECATED - treasury는 더 이상 사용되지 않음
+    /// @dev 검증자 없는 L2의 보상은 SeigManager.dao()로 전송됨
+    function setTreasury(address) external pure {
+        revert("deprecated: use SeigManager.dao()");
     }
 
     /// @inheritdoc IValidatorReward

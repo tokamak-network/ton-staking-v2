@@ -26,7 +26,13 @@ interface IValidatorReward {
         uint256 amount
     );
 
-    /// @notice 검증자 없을 때 Treasury 귀속 이벤트
+    /// @notice 검증자 없을 때 DAO(daoVault) 귀속 이벤트
+    event RewardToDAO(
+        address indexed systemConfig,
+        uint256 amount
+    );
+
+    /// @notice DEPRECATED - RewardToDAO 사용
     event RewardToTreasury(
         address indexed systemConfig,
         uint256 amount
@@ -60,7 +66,7 @@ interface IValidatorReward {
     /// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
     /// @dev 백서 V3 공식 (13): v_j = (α · S_i) / |V_i|
     /// @dev RAT에서 해당 L2의 검증자 목록을 조회하여 분배
-    /// @dev |V_i| = 0이면 Treasury로 귀속
+    /// @dev |V_i| = 0이면 DAO(SeigManager.dao())로 귀속
     /// @param systemConfig L2의 SystemConfig 주소
     /// @param amount 분배할 보상 금액 (α · S_i)
     function distributeL2Rewards(address systemConfig, uint256 amount) external;
@@ -75,7 +81,8 @@ interface IValidatorReward {
     /// @notice RAT 컨트랙트 주소 설정
     function setRatContract(address rat) external;
 
-    /// @notice Treasury 주소 설정
+    /// @notice DEPRECATED - treasury는 더 이상 사용되지 않음
+    /// @dev 검증자 없는 L2의 보상은 SeigManager.dao()로 전송됨
     function setTreasury(address _treasury) external;
 
     /// @notice SeigManager 주소 설정
