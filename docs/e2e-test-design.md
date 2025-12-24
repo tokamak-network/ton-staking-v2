@@ -529,19 +529,21 @@ contract DeployTONStakingRAT is Script {
         vm.startBroadcast();
 
         RAT rat = new RAT();
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
         rat.initialize(
             seigManager,           // SeigManager address
             wton,                  // WTON address
             ton,                   // TON address
-            depositManager,        // DepositManager address
-            owner                  // Owner address
+            layer2Manager,         // Layer2Manager address (V3: replaced depositManager)
+            owner,                 // Owner address
+            0.01e27                // ratTriggerProbability (π_a) - adjust based on game theory
         );
 
-        // Set RAT parameters
+        // Set RAT parameters (ratTriggerProbability is now set in initialize)
         rat.setSlashingPenalty(100e27);           // C_off = 100 WTON
         rat.setValidatorBuffer(100e27);           // Δ_validator = 100 WTON
         rat.setMinimumThreshold(200e27);          // D_min = 200 WTON (C_off + Δ)
-        rat.setRatTriggerProbability(0.01e27);    // π_a = 1%
         rat.setEvidenceSubmissionPeriod(1 hours); // 1 hour
         rat.setAuthorizedTrigger(disputeGameFactory);
 

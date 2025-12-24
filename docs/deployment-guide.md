@@ -503,7 +503,7 @@ ValidatorPoolProxy(validatorPoolProxy).transferOwnership(daoCommitteeProxy);
 ```
 26. RAT (Proxy + Implementation)
     └── RATProxy + RAT
-    └── RAT.initialize(seigManager, wton, ton, depositManager, owner)
+    └── RAT.initialize(seigManager, wton, ton, layer2Manager, owner, ratTriggerProbability)
     └── RAT 파라미터 설정
 
 27. ValidatorPool (Proxy + Implementation)
@@ -597,6 +597,7 @@ factory.setAutoCoinageLogic(address(coinageLogic));
 ##### SeigManagerV1_3 등록 함수 목록
 
 > **메인넷 상태**: 등록됨 (0xce18C6F84F10881eA47A43AF7311A29bb116F628)
+> **등록 트랜잭션**: [0x4b51009dbba5e17e6f956618ce24d323a1864e12c7cd2d7b46a44ecf56723f31](https://etherscan.io/tx/0x4b51009dbba5e17e6f956618ce24d323a1864e12c7cd2d7b46a44ecf56723f31)
 > **참고**: V3 업그레이드시 `pause`, `unpause`, `updateSeigniorage`, `updateSeigniorageLayer`는 V1_4로 재라우팅 권장
 
 | 함수 시그니처 | Selector | 설명 |
@@ -1146,16 +1147,18 @@ factory.setAddresses(
 | 🆕 V3 신규 | DisputeGame 생성시 검증자 선택 및 테스트 |
 
 ```solidity
+// NOTE: ratTriggerProbability는 게임 이론 공식에 기반하여 결정:
+// C_off ≥ (c_m · N) / π_a
 RAT.initialize(
-    seigManager_,    // SeigManager 주소
-    wton_,           // WTON 주소
-    ton_,            // TON 주소
-    depositManager_, // DepositManager 주소
-    owner_           // 관리자 주소
+    seigManager_,          // SeigManager 주소
+    wton_,                 // WTON 주소
+    ton_,                  // TON 주소
+    layer2Manager_,        // Layer2Manager 주소 (V3에서 depositManager 대체)
+    owner_,                // 관리자 주소
+    ratTriggerProbability_ // RAT 트리거 확률 (RAY 단위)
 );
 
-// 파라미터 설정
-RAT.setRatTriggerProbability(0.01e27);   // 1% (RAY)
+// 파라미터 설정 (ratTriggerProbability는 이미 initialize에서 설정됨)
 RAT.setSlashingPenalty(100e27);          // 100 WTON
 RAT.setValidatorBuffer(100e27);          // 100 WTON
 RAT.setMinimumThreshold(1000e27);        // 1000 WTON
