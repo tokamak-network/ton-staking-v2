@@ -101,12 +101,19 @@ L2 롤업의 트랜잭션 순서를 결정하고 배치를 제출하는 운영�
 ### 3.5 자격 조건
 
 ```
-S_i ≥ θ · B_i
+S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
 
 여기서:
 - S_i = SequencerVault 담보금
+- θ · B_i = 시뇨리지 자격 조건 (백서 Rule 4)
+- H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 Formula 1)
+
+파라미터:
 - θ = 최소 스테이킹 비율 (예: 10%)
 - B_i = Bridged TON
+- H_max = 최대 동시 챌린저 수
+- C_max = 단일 Fraud Proof 최대 비용
+- Δ_sequencer = 시퀀서 추가 보상
 ```
 
 ### 3.6 상호작용
@@ -322,10 +329,20 @@ Tokamak Network의 거버넌스 주체입니다 (DAOCommittee).
 DAO 보상 = d · A + (L - y(x)) + Σ(검증자 없는 L2의 α·S_i)
 
 여기서:
-- d · A = 고정 분배
-- L - y(x) = 미분배분
-- α·S_i (|V_i|=0) = 검증자 없는 L2의 검증자 몫
+- d · A = 고정 분배 (SeigManagerV1_4에서 처리)
+- L - y(x) = 미분배분 (SeigManagerV1_4에서 처리)
+- α·S_i (|V_i|=0) = 검증자 없는 L2의 검증자 몫 (ValidatorRewardV1에서 처리)
 ```
+
+#### 구현 세부사항
+
+| 보상 출처 | 처리 컨트랙트 | 대상 주소 |
+|-----------|---------------|-----------|
+| 고정 분배 (d · A) | `SeigManagerV1_4._distributeV3Seigniorage()` | `SeigManager.dao` (daoVault) |
+| 미분배분 (L - y(x)) | `SeigManagerV1_4._distributeV3Seigniorage()` | `SeigManager.dao` (daoVault) |
+| 검증자 없는 L2 (α·S_i) | `ValidatorRewardV1.distributeL2Rewards()` | `SeigManager.dao` (daoVault) |
+
+> **참고**: `SeigManager.dao`는 daoVault 주소를 저장합니다. ValidatorRewardV1은 `seigManager.dao()`를 호출하여 동일한 주소로 보상을 전송합니다.
 
 ### 6.4 권한
 
@@ -427,7 +444,7 @@ L2의 상태(Output Root)를 L1에 제출하는 운영 주체입니다. 보통 �
 
 | 액터 | 최소 담보금 | 보상 예상 | ROI |
 |------|------------|----------|-----|
-| 시퀀서 | H_max·C_max + Δ | (1-α)·S_i | 변동 |
+| 시퀀서 | max(θ·B_i, H_max·C_max + Δ) | (1-α)·S_i | 변동 |
 | 검증자 | C_off + Δ_val | α·S_i/\|V_i\| | 변동 |
 | 챌린저 | 가스비 | C_max + Δ/n | 변동 |
 

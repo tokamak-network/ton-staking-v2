@@ -69,15 +69,22 @@ B̃_i = 1_i · B_i
 
 ### 3.3 자격 조건
 
-L2가 시뇨리지를 받으려면 최소 스테이킹 비율을 충족해야 합니다:
+L2가 시뇨리지를 받으려면 최소 담보금 요건을 충족해야 합니다:
 
 ```
-S_i ≥ θ · B_i
+S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
 
 여기서:
 S_i = L2의 시퀀서 담보금 (SequencerVault)
+θ · B_i = 시뇨리지 자격 조건 (백서 Rule 4)
+H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 Formula 1)
+
+파라미터:
 θ = 최소 스테이킹 비율 (예: 10%)
 B_i = L2의 Bridged TON
+H_max = 최대 동시 챌린저 수
+C_max = 단일 Fraud Proof 최대 비용
+Δ_sequencer = 시퀀서 추가 보상
 ```
 
 ### 3.4 쌍곡선 포화 함수
@@ -97,7 +104,7 @@ k = 반포화점 (halfSaturationPoint)
 
 검증자가 네트워크를 실제로 모니터링하고 있는지 확인하는 무작위 테스트입니다.
 
-- **트리거 시점**: DisputeGame 생성 시 확률적으로 발생 (π_a = 1%)
+- **트리거 시점**: DisputeGame 생성 시 확률적으로 발생 (π_a)
 - **응답 기간**: ~24시간
 - **미응답 시**: C_off 슬래싱 (담보금 일부 몰수)
 
@@ -122,7 +129,7 @@ k = 반포화점 (halfSaturationPoint)
 | 토큰 | 역할 |
 |------|------|
 | **TON** | 네이티브 토큰 (18 decimals) |
-| **WTON** | Wrapped TON (27 decimals, 1 TON = 1e9 WTON) |
+| **WTON** | Wrapped TON (27 decimals, 1 TON(wei) = 1e9 WTON(ray)) |
 | **Coinage** | 스테이킹 영수증 토큰 (L2별 생성) |
 
 ### 4.3 외부 시스템
@@ -176,7 +183,7 @@ k = 반포화점 (halfSaturationPoint)
    │
 2. RAT.triggerAttentionTest() 호출
    │
-3. 확률 체크 (π_a = 1%)
+3. 확률 체크 (π_a)
    │
 4. 검증자 랜덤 선택
    │
@@ -213,15 +220,29 @@ k = 반포화점 (halfSaturationPoint)
 
 | 파라미터 | 기호 | 설명 | 권장값 |
 |---------|------|------|--------|
+| `seigPerBlock` | A/블록 | 블록당 시뇨리지 발행량 | 3.92e18 (3.92 TON) |
 | `daoDistributionRatio` | d | DAO 고정 분배 비율 | 0.2e27 (20%) |
 | `minStakingRatio` | θ | 최소 스테이킹 비율 | 0.1e27 (10%) |
 | `validatorDistributionRatio` | α | 검증자 분배 비율 | 0.2e27 (20%) |
 | `halfSaturationPoint` | k | 반포화점 | 10,000,000e27 TON |
-| `ratTriggerProbability` | π_a | RAT 트리거 확률 | 0.01e27 (1%) |
+| `ratTriggerProbability` | π_a | RAT 트리거 확률 | 게임 이론 기반 결정 * |
 | `slashingPenalty` | C_off | 슬래싱 페널티 | 100e27 WTON |
 | `minimumThreshold` | D_min | 최소 담보금 임계값 | 1,000e27 WTON |
+| `maxValidatorsPerL2` | N_max | L2별 최대 검증자 수 | 100 |
 
 > **RAY 단위**: 모든 비율 파라미터는 RAY(10^27) 단위로 표현됩니다.
+>
+> **\* 게임 이론 기반 결정**: π_a, C_off, c_m(모니터링 비용), N(검증자 수)은 백서 공식 `C_off ≥ (c_m · N) / π_a`를 만족하도록 함께 결정되어야 합니다.
+>
+> **백서 작성자(Bernard) 확인사항**:
+> - N = L2별 검증자 수 (|V_i|), 시스템 전체가 아님
+> - 공식은 **이론적 근거**이며, 실시간 동적 업데이트 규칙이 아님
+> - `Δ_validator`에 충분한 마진을 설정 + **실질적인 N_max 고려 필요**
+> - 검증자는 `ValidatorRegistered` 이벤트를 모니터링하여 자격 상태 확인
+> - 담보금 부족 시: 유예 기간 제공 또는 소급 적용 안함
+>
+> **구현 결정사항** (버나드 지침 외):
+> - N_max 기본값: 100 (시뇨리지 분배 시 가스 한도 고려, 각 검증자당 ~25K gas)
 
 ---
 

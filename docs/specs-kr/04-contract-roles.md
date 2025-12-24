@@ -202,10 +202,10 @@ L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다.
 │  │ Layer2Manager  │◄── layer2TVL()                                     │
 │  └─────────────────┘                                                    │
 │                                                                          │
-│  TVL 조회 대상:                                                          │
+│  TVL 조회 방식: TON.balanceOf(address)                                  │
 │  ┌─────────────────┐                                                    │
-│  │ L1StandardBridge│◄── TON 잔액 (Type 1)                              │
-│  │ OptimismPortal │◄── TON 잔액 (Type 2, 3)                            │
+│  │ L1StandardBridge│◄── TON.balanceOf(bridge) (Type 1)                 │
+│  │ OptimismPortal │◄── TON.balanceOf(portal) (Type 2, 3)               │
 │  └─────────────────┘                                                    │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
