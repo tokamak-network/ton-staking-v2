@@ -30,4 +30,8 @@ interface ILayer2Manager {
     /// @param layer2 L2 주소 (candidate)
     /// @return bridgedTON Bridged TON 양 (TON 단위)
     function getBridgedTONByLayer(address layer2) external view returns (uint256 bridgedTON);
+
+    /// @notice SequencerVault 주소 조회
+    /// @return SequencerVault 컨트랙트 주소
+    function sequencerVault() external view returns (address);
 }

@@ -19,7 +19,6 @@ import "./L1BridgeRegistryV1_2Storage.sol";
  */
 error RegisterError(uint x);
 error NonRejectedError();
-error OnlyRejectedError();
 error BridgeError();
 error PortalError();
 error DisputeGameFactoryError();
@@ -47,15 +46,6 @@ contract L1BridgeRegistryV1_2 is
     }
 
     // ==========================================
-    // Modifiers
-    // ==========================================
-
-    modifier onlySeigniorageCommittee() {
-        require(msg.sender == seigniorageCommittee, "not seigniorageCommittee");
-        _;
-    }
-
-    // ==========================================
     // Events
     // ==========================================
      /**
@@ -66,22 +56,6 @@ contract L1BridgeRegistryV1_2 is
      * @param   name         the candidate name
      */
     event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2TON, string name);
-
-    /**
-     * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
-     *          to the layer 2 sequencer of a specific rollupConfig.
-     * @param   rollupConfig  the rollupConfig address
-     */
-    event RejectedCandidateAddOn(address rollupConfig);
-
-
-    /**
-     * @notice  Event occurs when onlySeigniorageCommittee cancels stopping issuing seigniorage
-     *          to the layer 2 sequencer of a specific rollupConfig.
-     * @param   rollupConfig  the rollupConfig address
-     */
-    event RestoredCandidateAddOn(address rollupConfig);
-
 
     /**
      * @notice  Event occurs when a bridge address is registered during system configuration registration.
@@ -104,51 +78,22 @@ contract L1BridgeRegistryV1_2 is
      */
     event AddedDisputeGameFactory(address rollupConfig, address disputeGameFactory);
 
-    /// @notice DisputeGameFactory 등록 이벤트
-    event DisputeGameFactorySet(
-        address indexed rollupConfig,
-        address indexed factory
-    );
-
-
-     /* ========== onlySeigniorageCommittee ========== */
+    /**
+     * @notice  Event occurs when upgrading rollup type to TYPE 3
+     * @param rollupConfig      the rollupConfig address
+     * @param previousType      the previous rollup type (1 or 2)
+     * @param disputeGameFactory the disputeGameFactory address
+     */
+    event UpgradedToType3(address rollupConfig, uint8 previousType, address disputeGameFactory);
 
     /**
-     * @notice Stop issuing seigniorage to the layer 2 sequencer of a specific rollupConfig.
-     *         Unsettled seigniorage to the layer 2 sequencer can no longer be settled.
-     * @param rollupConfig the rollupConfig address
+     * @notice  Error when upgrading rollup type
+     * @param x 1: not registered
+     *          2: already TYPE 3
+     *          3: DisputeGameFactory not available
+     *          4: Portal not available
      */
-    function rejectCandidateAddOn(address rollupConfig) external onlySeigniorageCommittee {
-        _nonRejected(rollupConfig);
-
-        ROLLUP_INFO storage info = rollupInfo[rollupConfig];
-        require (info.rollupType != 0, "NonRegistered");
-        info.rejectedSeigs = true;
-        info.rejectedL2Deposit = true;
-
-        ILayer2Manager(layer2Manager).pauseCandidateAddOn(rollupConfig);
-        emit RejectedCandidateAddOn(rollupConfig);
-    }
-
-    /**
-     * Start to issue seigniorage to the layer 2 sequencer of a specific rollupConfig from now on.
-     * @param rollupConfig          the rollupConfig address
-     * @param rejectedL2Deposit     if it is true, allow the withdrawDepositL2 function.
-     */
-    function restoreCandidateAddOn(
-        address rollupConfig,
-        bool rejectedL2Deposit
-    ) external onlySeigniorageCommittee {
-        _onlyRejectedRollupConfig(rollupConfig);
-
-        ROLLUP_INFO storage info = rollupInfo[rollupConfig];
-        info.rejectedSeigs = false;
-        info.rejectedL2Deposit = rejectedL2Deposit;
-
-        ILayer2Manager(layer2Manager).unpauseCandidateAddOn(rollupConfig);
-        emit RestoredCandidateAddOn(rollupConfig);
-    }
-
+    error UpgradeError(uint x);
 
     /* ========== onlyManager ========== */
 
@@ -174,6 +119,48 @@ contract L1BridgeRegistryV1_2 is
     ) external onlyManager {
         _nonRejected(rollupConfig);
         _registerRollupConfig(rollupConfig, _type, _l2TON, '');
+    }
+
+    /**
+     * @notice Upgrade rollup type from TYPE 1 or 2 to TYPE 3
+     *         Requires the rollup to have deployed DisputeGameFactory
+     * @param rollupConfig the rollupConfig address
+     */
+    function upgradeToType3(address rollupConfig) external onlyManager {
+        _nonRejected(rollupConfig);
+
+        ROLLUP_INFO storage info = rollupInfo[rollupConfig];
+        uint8 currentType = info.rollupType;
+
+        // Must be registered (TYPE 1 or 2)
+        if (currentType == 0) revert UpgradeError(1);
+        // Already TYPE 3
+        if (currentType == 3) revert UpgradeError(2);
+
+        // Check DisputeGameFactory is available
+        address disputeGameFactory_ = IOptimismSystemConfig(rollupConfig).disputeGameFactory();
+        if (disputeGameFactory_ == address(0)) revert UpgradeError(3);
+
+        // Check Portal is available
+        address portal_ = IOptimismSystemConfig(rollupConfig).optimismPortal();
+        if (portal_ == address(0)) revert UpgradeError(4);
+
+        // Register portal if not already registered (TYPE 1 case)
+        if (!portal[portal_]) {
+            portal[portal_] = true;
+            rollupConfigWithPortal[portal_] = rollupConfig;
+            emit AddedPortal(rollupConfig, portal_);
+        }
+
+        // Register DisputeGameFactory
+        disputeGameFactory[rollupConfig] = true;
+        rollupConfigWithDisputeGameFactory[disputeGameFactory_] = rollupConfig;
+
+        // Update type to 3
+        info.rollupType = 3;
+
+        emit AddedDisputeGameFactory(rollupConfig, disputeGameFactory_);
+        emit UpgradedToType3(rollupConfig, currentType, disputeGameFactory_);
     }
 
     /* ========== onlyRegistrant ========== */
@@ -225,10 +212,6 @@ contract L1BridgeRegistryV1_2 is
 
     function _nonRejected(address rollupConfig) internal view {
         if (rollupInfo[rollupConfig].rejectedSeigs) revert NonRejectedError();
-    }
-
-    function _onlyRejectedRollupConfig(address rollupConfig) internal view {
-        if (!rollupInfo[rollupConfig].rejectedSeigs) revert OnlyRejectedError();
     }
 
     function _registerRollupConfig(

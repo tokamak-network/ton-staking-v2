@@ -24,12 +24,31 @@ import {SafeERC20} from "../libraries/SafeERC20.sol";
 
 /**
  * @title Layer2ManagerV1_2
- * @notice TON Staking V3 Layer2 Manager - Bridged TON 조회 기능 추가
+ * @notice TON Staking V3 Layer2 Manager - Bridged TON 조회 및 SequencerVault 관리
  * @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
  *      다중 구현체 패턴 - V1_1의 추가 함수만 포함 (Selector Routing)
  */
 contract Layer2ManagerV1_2 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage, Layer2ManagerV1_2Storage {
     using SafeERC20 for IERC20;
+
+    // ==========================================
+    // Events
+    // ==========================================
+
+    /// @notice SequencerVault 주소 설정 이벤트
+    event SequencerVaultSet(address indexed sequencerVault);
+
+    // ==========================================
+    // V3 신규: SequencerVault 설정
+    // ==========================================
+
+    /// @notice SequencerVault 주소 설정 (onlyOwner)
+    /// @param _sequencerVault SequencerVault 컨트랙트 주소
+    function setSequencerVault(address _sequencerVault) external onlyOwner {
+        require(_sequencerVault != address(0), "zero address");
+        sequencerVault = _sequencerVault;
+        emit SequencerVaultSet(_sequencerVault);
+    }
 
     // ==========================================
     // V3 신규: Bridged TON 조회
