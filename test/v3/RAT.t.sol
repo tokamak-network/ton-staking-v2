@@ -84,7 +84,8 @@ contract RATTest is Test {
             address(wton),
             address(ton),
             address(0), // layer2Manager (not used in tests)
-            owner
+            owner,
+            0.01e27 // ratTriggerProbability (테스트용 1%)
         );
 
         // 백서 V2 파라미터 설정

@@ -53,7 +53,7 @@ contract ValidatorRewardV1Test is Test {
 
     address public owner = address(this);
     address public seigManager = address(0x1);
-    address public treasury = address(0x4);
+    address public dao = address(0x4); // DAO = daoVault (SeigManager.dao() 반환값)
 
     address public systemConfig1 = address(0x10);
     address public systemConfig2 = address(0x20);
@@ -74,12 +74,19 @@ contract ValidatorRewardV1Test is Test {
         // Deploy ValidatorReward directly (without proxy for unit testing)
         // Proxy integration is tested separately in DeployV3Fork.t.sol
         validatorReward = new ValidatorRewardV1();
+        // NOTE: treasury 파라미터 제거됨 - SeigManager.dao() 사용
         validatorReward.initialize(
             seigManager,
             address(wton),
             address(mockRat),
-            treasury,
             owner
+        );
+
+        // Mock SeigManager.dao() to return dao address
+        vm.mockCall(
+            seigManager,
+            abi.encodeWithSignature("dao()"),
+            abi.encode(dao)
         );
 
         // Mint WTON to seigManager for distribution
@@ -100,13 +107,13 @@ contract ValidatorRewardV1Test is Test {
         assertEq(validatorReward.seigManager(), seigManager, "SeigManager should be set");
         assertEq(validatorReward.wton(), address(wton), "WTON should be set");
         assertEq(validatorReward.ratContract(), address(mockRat), "RAT should be set");
-        assertEq(validatorReward.treasury(), treasury, "Treasury should be set");
+        // treasury는 더 이상 initialize에서 설정되지 않음 (SeigManager.dao() 사용)
         assertEq(validatorReward.owner(), owner, "Owner should be set");
     }
 
     function test_initialize_cannotReinitialize() public {
         vm.expectRevert("already initialized");
-        validatorReward.initialize(seigManager, address(wton), address(mockRat), treasury, owner);
+        validatorReward.initialize(seigManager, address(wton), address(mockRat), owner);
     }
 
     // ==========================================
@@ -152,20 +159,20 @@ contract ValidatorRewardV1Test is Test {
         assertEq(validatorReward.getPendingRewards(validator3), expectedPerValidator, "Validator3 reward");
     }
 
-    /// @notice 검증자 없을 때 Treasury로 전송
-    function test_distributeL2Rewards_noValidators_toTreasury() public {
+    /// @notice 검증자 없을 때 DAO(daoVault)로 전송
+    function test_distributeL2Rewards_noValidators_toDAO() public {
         // No validators registered
         uint256 rewardAmount = 1000 * RAY;
-        uint256 treasuryBefore = wton.balanceOf(treasury);
+        uint256 daoBefore = wton.balanceOf(dao);
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
 
-        // Verify treasury received the reward
+        // Verify DAO received the reward
         assertEq(
-            wton.balanceOf(treasury),
-            treasuryBefore + rewardAmount,
-            "Treasury should receive reward when no validators"
+            wton.balanceOf(dao),
+            daoBefore + rewardAmount,
+            "DAO should receive reward when no validators"
         );
     }
 
@@ -443,12 +450,11 @@ contract ValidatorRewardV1Test is Test {
         validatorReward.setRatContract(address(0));
     }
 
-    /// @notice Treasury 설정
-    function test_setTreasury() public {
-        address newTreasury = address(0x888);
-
-        validatorReward.setTreasury(newTreasury);
-        assertEq(validatorReward.treasury(), newTreasury, "Treasury should be updated");
+    /// @notice Treasury 설정 - DEPRECATED
+    /// @dev treasury는 더 이상 사용되지 않음, SeigManager.dao() 사용
+    function test_setTreasury_deprecated_reverts() public {
+        vm.expectRevert("deprecated: use SeigManager.dao()");
+        validatorReward.setTreasury(address(0x888));
     }
 
     /// @notice SeigManager 설정
@@ -486,8 +492,8 @@ contract ValidatorRewardV1Test is Test {
         vm.expectRevert("not owner");
         validatorReward.setRatContract(address(0x999));
 
-        vm.expectRevert("not owner");
-        validatorReward.setTreasury(address(0x888));
+        // setTreasury는 deprecated - onlyOwner 체크 없이 항상 revert
+        // 별도의 test_setTreasury_deprecated_reverts에서 테스트
 
         vm.expectRevert("not owner");
         validatorReward.setSeigManager(address(0x777));
@@ -565,12 +571,12 @@ contract ValidatorRewardV1Test is Test {
         validatorReward.claimAllRewards();
     }
 
-    /// @notice RewardToTreasury 이벤트
-    function test_event_RewardToTreasury() public {
+    /// @notice RewardToDAO 이벤트
+    function test_event_RewardToDAO() public {
         uint256 rewardAmount = 1000 * RAY;
 
         vm.expectEmit(true, false, false, true);
-        emit IValidatorReward.RewardToTreasury(systemConfig1, rewardAmount);
+        emit IValidatorReward.RewardToDAO(systemConfig1, rewardAmount);
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);

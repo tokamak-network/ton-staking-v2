@@ -168,24 +168,27 @@ contract DeployV3ForkTest is Test {
 
         // Deploy RAT
         ratImpl = address(new RAT());
+        // NOTE: ratTriggerProbability should be determined based on game theory formula:
+        // C_off ≥ (c_m · N) / π_a
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             TON,
             LAYER2_MANAGER_PROXY,
-            deployer
+            deployer,
+            0.01e27 // 1% for testing
         );
         ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
         // Deploy ValidatorReward
+        // NOTE: treasury 제거됨 - SeigManager.dao() 사용
         validatorPoolImpl = address(new ValidatorRewardV1());
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
             SEIG_MANAGER_PROXY,
             WTON,
             ratProxy,   // RAT contract for validator info
-            deployer,   // treasury (DAO)
             deployer    // owner
         );
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
@@ -270,16 +273,18 @@ contract DeployV3ForkTest is Test {
 
         // Step 2: Deploy V3 contracts
         ratImpl = address(new RAT());
+        // NOTE: ratTriggerProbability - determined by game theory formula C_off ≥ (c_m · N) / π_a
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
-            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer
+            SEIG_MANAGER_PROXY, WTON, TON, LAYER2_MANAGER_PROXY, deployer, 0.01e27 // 1% for testing
         );
         ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
 
+        // NOTE: treasury 제거됨 - SeigManager.dao() 사용
         validatorPoolImpl = address(new ValidatorRewardV1());
         bytes memory validatorRewardInitData = abi.encodeWithSelector(
             ValidatorRewardV1.initialize.selector,
-            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer, deployer
+            SEIG_MANAGER_PROXY, WTON, ratProxy, deployer
         );
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
 
