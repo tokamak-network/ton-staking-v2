@@ -151,34 +151,102 @@
 
 ## 3. 프록시 패턴
 
-### 3.1 업그레이드 구조
+시스템에서 두 가지 프록시 패턴이 사용됩니다.
 
-모든 핵심 컨트랙트는 Transparent Proxy 패턴을 사용합니다:
+### 3.1 다중 구현체 패턴 (Selector Routing) - 기존 핵심 컨트랙트
+
+기존 핵심 컨트랙트는 **함수별 라우팅(Selector Routing)** 방식의 다중 구현체 패턴을 사용합니다:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        Proxy Pattern                                 │
+│            Multi-Implementation Proxy (Selector Routing)             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  ┌───────────────────┐      ┌───────────────────────────────┐      │
-│  │ TransparentProxy  │─────►│      Implementation           │      │
-│  │                   │      │                               │      │
-│  │ - ProxyStorage    │      │ - SeigManagerV1_4             │      │
-│  │ - _implementation │      │ - DepositManagerV1_2          │      │
-│  │                   │      │ - Layer2ManagerV1_2           │      │
-│  └───────────────────┘      │ - ValidatorRewardV1           │      │
-│          │                   │ - RAT                         │      │
-│          │                   │ - SequencerVault              │      │
-│          ▼                   └───────────────────────────────┘      │
-│  ┌───────────────────┐                                              │
-│  │   ProxyAdmin      │                                              │
-│  │   (DAO 관리)      │                                              │
-│  └───────────────────┘                                              │
+│  호출 흐름:                                                           │
+│  1. 함수 호출 → Proxy fallback()                                     │
+│  2. selectorImplementation[selector] 조회                            │
+│  3-A. selector 등록됨 → 해당 구현체로 delegatecall                    │
+│  3-B. selector 미등록 → 기본 구현체(index 0)로 delegatecall           │
 │                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  예시: SeigManagerProxy                                       │   │
+│  │                                                               │   │
+│  │  initialize()  → selectorImpl 없음 → V1_2 (기본 구현체)       │   │
+│  │  pause()       → selectorImpl[0x8456cb59] = V1_3 → V1_3      │   │
+│  │  setRAT()      → selectorImpl[0x...] = V1_4 → V1_4           │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  적용 컨트랙트:                                                       │
+│  - SeigManager (V1_2 기본, V1_3/V1_4 라우팅)                         │
+│  - DepositManager (Base 기본, SetDelay/V1_1/V1_2 라우팅)             │
+│  - Layer2Manager (V1_1 기본, V1_2 라우팅)                            │
+│  - L1BridgeRegistry (V1_2 단독 - V1_1 함수 모두 포함)               │
+│  - SequencerVault (단일 구현체)                                       │
+│                                                                      │
+│  관리: DAOCommittee (upgradeTo, setSelectorImplementations2)         │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 스토리지 상속 체인
+### 3.2 OpenZeppelin TransparentUpgradeableProxy - V3 신규 컨트랙트
+
+V3에서 신규 추가된 컨트랙트는 OpenZeppelin의 TransparentUpgradeableProxy (ERC1967)를 사용합니다:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              TransparentUpgradeableProxy (ERC1967)                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌───────────────────┐      ┌───────────────────────────────┐      │
+│  │  RATProxy         │─────►│  RAT (단일 구현체)             │      │
+│  │                   │      └───────────────────────────────┘      │
+│  │  ERC1967 Slot:    │                                              │
+│  │  - _IMPL_SLOT     │      ┌───────────────────────────────┐      │
+│  │  - _ADMIN_SLOT    │      │  ValidatorRewardV1            │      │
+│  └───────────────────┘      │  (단일 구현체)                 │      │
+│          │                   └───────────────────────────────┘      │
+│          ▼                                                          │
+│  ┌───────────────────┐                                              │
+│  │   ProxyAdmin      │  ← 배포 시 자동 생성                          │
+│  │   (DAO 관리)      │                                              │
+│  └───────────────────┘                                              │
+│                                                                      │
+│  적용 컨트랙트:                                                       │
+│  - RAT (RATProxy)                                                    │
+│  - ValidatorReward (ValidatorRewardProxy)                            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 ERC1967Proxy 커스텀 - OperatorManager
+
+OperatorManager는 ERC1967Upgrade 기반의 커스텀 프록시를 사용합니다:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  OperatorManagerProxy (ERC1967 기반)                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌───────────────────┐      ┌───────────────────────────────┐      │
+│  │OperatorMgrProxy   │─────►│  OperatorManagerV1_2 (기본) 🆕 │      │
+│  │                   │      └───────────────────────────────┘      │
+│  │ - Ownable         │                                              │
+│  │ - ERC1967Upgrade  │                                              │
+│  └───────────────────┘                                              │
+│                                                                      │
+│  특징: Factory에서 L2별로 프록시 생성, Owner가 업그레이드 관리        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**V3 변경사항:**
+- OperatorManagerFactory가 **V1_2 로직**으로 신규 프록시 생성
+- TYPE 0/1 롤업도 V1_2로 생성 (향후 TYPE 3 업그레이드 대비)
+- 기존 배포된 TYPE 0/1 OperatorManager는 **수동으로 V1_2 로직 업그레이드 필요**
+
+```solidity
+// 기존 OperatorManager V1_2 업그레이드 (수동)
+OperatorManagerProxy(operatorManager).upgradeTo(address(operatorManagerV1_2Impl));
+```
+
+### 3.4 스토리지 상속 체인
 
 ```solidity
 // SeigManager 스토리지 상속
@@ -341,10 +409,63 @@ contract SeigManagerV1_4 is
 │                                                                             │
 │  시퀀서 클라이언트:                                                          │
 │                                                                             │
-│  1. FaultDisputeGame 모니터링                                               │
-│     │                                                                       │
-│     ▼                                                                       │
-│  2. 게임 패배 시 SequencerVault 담보금 상태 확인                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ 모니터링 대상                                                        │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │ 1. SeigManager.EligibilityChanged 이벤트                            │   │
+│  │    → 자격 상태(eligible) 변경 감지                                   │   │
+│  │    → eligible=false 시 담보금 추가 필요                              │   │
+│  │                                                                      │   │
+│  │ 2. SequencerVault.SequencerSlashed 이벤트                           │   │
+│  │    → 슬래싱 발생, isActive=false 됨                                  │   │
+│  │    → 재등록 필요                                                     │   │
+│  │                                                                      │   │
+│  │ 3. Bridged TON 변화 (TYPE 1/2는 직접 체크 필요)                      │   │
+│  │    → SeigManager.checkCurrentEligibility(layer2) 호출               │   │
+│  │    → eligible=false 시 담보금 추가 필요                              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ 시퀀서 상태 구분                                                     │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │ 1. 시퀀서 등록상태 (isActive)                                        │   │
+│  │    - 슬래싱/탈퇴 시 false                                            │   │
+│  │    - 시퀀서로 등록되어 있는지 여부                                    │   │
+│  │                                                                      │   │
+│  │ 2. 시뇨리지 자격상태 (eligible)                                      │   │
+│  │    - S_i < θ·B_i 시 false                                           │   │
+│  │    - 담보금 조건 충족 여부                                            │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │ isActive │ eligible │ 상태                                          │   │
+│  │──────────┼──────────┼───────────────────────────────────────────────│   │
+│  │   true   │   true   │ 시뇨리지 받음                                  │   │
+│  │   true   │  false   │ 등록됨, 담보금 부족으로 시뇨리지 못 받음        │   │
+│  │  false   │    -     │ 등록 해제됨 (슬래싱/탈퇴)                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ 시퀀서 등록상태 (isActive) 변경 함수                                 │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │ registerSequencer(systemConfig, amount)                             │   │
+│  │   → isActive = true (등록)                                          │   │
+│  │                                                                      │   │
+│  │ deactivateSequencer(systemConfig)                                   │   │
+│  │   → isActive = false (탈퇴, 담보금 반환)                             │   │
+│  │                                                                      │   │
+│  │ slashSequencerByGame(gameAddress)                                   │   │
+│  │   → isActive = false (슬래싱, 담보금 몰수)                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ 시뇨리지 자격상태 (eligible) 변경 함수                               │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │ addDeposit(systemConfig, amount)                                    │   │
+│  │   → 담보금 추가, eligible 회복 가능                                  │   │
+│  │                                                                      │   │
+│  │ onBridgedTONChange() [TYPE 3 자동 호출]                             │   │
+│  │   → Bridged TON 변경 시 자격 재평가                                  │   │
+│  │   → eligible 상태 자동 갱신                                          │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -374,14 +495,19 @@ contract SeigManagerV1_4 is
 │  onlySeigManager:                                                           │
 │  - ValidatorReward.distributeL2Rewards()                                   │
 │                                                                             │
-│  onlyMigrated (+ 내부 포탈 검증):                                           │
+│  whenV3Active + 내부 포탈 검증:                                             │
 │  - SeigManager.onBridgedTONChange()                                        │
+│    → whenV3Active: V3 마이그레이션 후에만 호출 가능                         │
+│    → 내부 검증: msg.sender가 등록된 OptimismPortal인지 확인                 │
+│                                                                             │
+│  onlySelectedValidator:                                                     │
+│  - RAT.submitEvidence()                                                    │
+│    → 선택된 검증자(test.validatorAddress)만 호출 가능                       │
 │                                                                             │
 │  Permissionless:                                                            │
 │  - SeigManager.updateSeigniorage()                                         │
 │  - SequencerVault.slashSequencerByGame()                                   │
 │  - SequencerVault.registerSequencer()                                      │
-│  - RAT.submitEvidence()                                                    │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

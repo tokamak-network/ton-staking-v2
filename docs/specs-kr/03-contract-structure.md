@@ -4,63 +4,166 @@
 
 ```
 src/
-├── stake/                          # 스테이킹 관련
+├── stake/                              # 스테이킹 관련
 │   ├── managers/
-│   │   ├── SeigManagerV1_4.sol            # 시뇨리지 분배 (V3 핵심)
-│   │   ├── SeigManagerV1_4Storage.sol     # V3 스토리지
-│   │   ├── SeigManagerV1_3Storage.sol     # V1.3 스토리지
-│   │   ├── SeigManagerStorage.sol         # 기본 스토리지
-│   │   ├── DepositManagerV1_2.sol         # 스테이킹 관리
-│   │   └── DepositManagerStorage.sol      # 스토리지
+│   │   ├── SeigManager.sol                    # 시뇨리지 분배 (기본 구현체)
+│   │   ├── SeigManagerV1_1.sol                # V1.1 구현체
+│   │   ├── SeigManagerV1_2.sol                # V1.2 구현체 (기본 프록시 구현체)
+│   │   ├── SeigManagerV1_3.sol                # V1.3 구현체 (pause/unpause 등)
+│   │   ├── SeigManagerV1_4.sol                # V1.4 구현체 (V3 핵심) 🆕
+│   │   ├── SeigManagerStorage.sol             # 기본 스토리지
+│   │   ├── SeigManagerV1_1Storage.sol         # V1.1 스토리지
+│   │   ├── SeigManagerV1_3Storage.sol         # V1.3 스토리지
+│   │   ├── SeigManagerV1_4Storage.sol         # V1.4 스토리지 (V3) 🆕
+│   │   ├── SeigManagerProxy.sol               # 프록시
+│   │   │
+│   │   ├── DepositManager.sol                 # 스테이킹 관리 (기본 구현체)
+│   │   ├── DepositManager_setWithdrawalDelay.sol  # 출금 지연 설정
+│   │   ├── DepositManagerV1_1.sol             # V1.1 구현체 (L2 출금)
+│   │   ├── DepositManagerV1_2.sol             # V1.2 구현체 (V3 콜백) 🆕
+│   │   ├── DepositManagerStorage.sol          # 기본 스토리지
+│   │   ├── DepositManagerV1_1Storage.sol      # V1.1 스토리지
+│   │   └── DepositManagerProxy.sol            # 프록시
+│   │
+│   ├── tokens/                            # 코이니지 토큰
+│   │   ├── RefactorCoinageSnapshot.sol        # 코이니지 구현체
+│   │   ├── RefactorCoinageSnapshotProxy.sol   # 프록시
+│   │   ├── RefactorCoinageSnapshotStorage.sol # 스토리지
+│   │   ├── AutoRefactorCoinage.sol            # 자동 리팩터 코이니지
+│   │   ├── AutoRefactorCoinageProxy.sol       # 프록시
+│   │   └── AutoRefactorCoinageStorage.sol     # 스토리지
+│   │
+│   ├── factory/                           # 팩토리
+│   │   ├── CoinageFactory.sol                 # 코이니지 생성 팩토리
+│   │   └── AutoRefactorCoinageFactory.sol     # 자동 리팩터 코이니지 팩토리
+│   │
+│   ├── Layer2Registry.sol                 # L2 레지스트리 (레거시)
+│   ├── Layer2RegistryProxy.sol            # 프록시
+│   ├── Layer2RegistryStorage.sol          # 스토리지
 │   │
 │   └── interfaces/
-│       ├── ISeigManager.sol               # 기본 인터페이스
-│       ├── ISeigManagerV3.sol             # V3 인터페이스
-│       └── ITON.sol                       # TON 인터페이스
+│       ├── ISeigManager.sol                   # 기본 인터페이스
+│       ├── ISeigManagerV3.sol                 # V3 인터페이스 🆕
+│       ├── IDepositManager.sol                # DepositManager 인터페이스
+│       ├── ITON.sol                           # TON 인터페이스
+│       ├── IWTON.sol                          # WTON 인터페이스
+│       ├── IOnApprove.sol                     # approveAndCall 콜백
+│       └── IAutoCoinageSnapshot.sol           # 코이니지 스냅샷
 │
-├── layer2/                         # L2 관리
-│   ├── Layer2ManagerV1_2.sol              # L2 관리 (V3)
-│   ├── Layer2ManagerStorage.sol
-│   ├── L1BridgeRegistryV1_2.sol           # 브릿지 레지스트리
-│   ├── OperatorManagerV1_1.sol            # 오퍼레이터 매니저 (TYPE 1,2용)
-│   ├── OperatorManagerV1_2.sol            # 오퍼레이터 매니저 (TYPE 3용)
-│   ├── OperatorManagerStorage.sol
-│   ├── OperatorManagerProxy.sol
-│   ├── factory/                           # 팩토리
-│   │   └── OperatorManagerFactory.sol     # 오퍼레이터 팩토리
+├── layer2/                             # L2 관리
+│   ├── Layer2ManagerV1_1.sol                  # L2 관리 (기본 구현체)
+│   ├── Layer2ManagerV1_2.sol                  # L2 관리 (V3) 🆕
+│   ├── Layer2ManagerStorage.sol               # 기본 스토리지
+│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 🆕
+│   ├── Layer2ManagerProxy.sol                 # 프록시
+│   │
+│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
+│   ├── L1BridgeRegistryV1_2.sol               # 브릿지 레지스트리 (TYPE 3) 🆕
+│   ├── L1BridgeRegistryStorage.sol            # 기본 스토리지
+│   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 스토리지 🆕
+│   ├── L1BridgeRegistryProxy.sol              # 프록시
+│   │
+│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저 (TYPE 1,2)
+│   ├── OperatorManagerV1_2.sol                # 오퍼레이터 매니저 (TYPE 3) 🆕
+│   ├── OperatorManagerStorage.sol             # 스토리지
+│   ├── OperatorManagerProxy.sol               # 프록시 (ERC1967 기반)
+│   │
+│   ├── LegacySystemConfig.sol                 # 레거시 SystemConfig 래퍼
+│   ├── LegacySystemConfigProxy.sol            # 프록시
+│   ├── LegacySystemConfigStorage.sol          # 스토리지
+│   │
+│   ├── factory/
+│   │   └── OperatorManagerFactory.sol         # 오퍼레이터 팩토리
+│   │
 │   └── interfaces/
-│       ├── ILayer2Manager.sol
-│       ├── IL1BridgeRegistry.sol
-│       └── IOptimismSystemConfig.sol
+│       ├── ILayer2Manager.sol                 # Layer2Manager 인터페이스
+│       ├── IL1BridgeRegistry.sol              # L1BridgeRegistry 인터페이스
+│       ├── IOperatorManagerFactory.sol        # 팩토리 인터페이스
+│       ├── IOperator.sol                      # 오퍼레이터 인터페이스
+│       ├── IOptimismPortal.sol                # OptimismPortal 인터페이스
+│       ├── IOptimismSystemConfig.sol          # SystemConfig 인터페이스
+│       ├── IRollupConfig.sol                  # RollupConfig 인터페이스
+│       ├── IL1Bridge.sol                      # L1Bridge 인터페이스
+│       └── IStandardBridge.sol                # StandardBridge 인터페이스
 │
-├── validator/                      # 검증자 시스템 (V3 신규)
-│   ├── RAT.sol                            # 검증자 등록/RAT/슬래싱
-│   ├── RATStorage.sol
-│   ├── ValidatorRewardV1.sol              # 검증자 보상 분배
-│   ├── ValidatorRewardStorage.sol
-│   ├── IRAT.sol                           # 인터페이스
-│   └── IValidatorReward.sol
+├── validator/                          # 검증자 시스템 (V3 신규) 🆕
+│   ├── RAT.sol                                # 검증자 등록/RAT/슬래싱
+│   ├── RATStorage.sol                         # 스토리지
+│   ├── RATProxy.sol                           # 프록시 (TransparentUpgradeableProxy)
+│   ├── IRAT.sol                               # 인터페이스
+│   │
+│   ├── ValidatorRewardV1.sol                  # 검증자 보상 분배
+│   ├── ValidatorRewardStorage.sol             # 스토리지
+│   ├── ValidatorRewardProxy.sol               # 프록시 (TransparentUpgradeableProxy)
+│   └── IValidatorReward.sol                   # 인터페이스
 │
-├── sequencer/                      # 시퀀서 시스템 (V3 신규)
-│   ├── SequencerVault.sol                 # 시퀀서 담보금/슬래싱
-│   ├── SequencerVaultStorage.sol
-│   └── ISequencerVault.sol
+├── sequencer/                          # 시퀀서 시스템 (V3 신규) 🆕
+│   ├── SequencerVault.sol                     # 시퀀서 담보금/슬래싱
+│   ├── SequencerVaultStorage.sol              # 스토리지
+│   ├── SequencerVaultProxy.sol                # 프록시 (Selector Routing)
+│   └── ISequencerVault.sol                    # 인터페이스
 │
-├── dao/                            # DAO/거버넌스
+├── dao/                                # DAO/거버넌스
+│   ├── DAOCommittee_V1.sol                    # DAO 커미티 구현체
+│   ├── DAOCommitteeOwner.sol                  # Owner 권한 관리
+│   ├── StorageStateCommittee.sol              # 스토리지
+│   ├── StorageStateCommitteeV2.sol            # V2 스토리지
+│   │
+│   ├── Candidate.sol                          # 후보자 컨트랙트
+│   ├── CandidateProxy.sol                     # 프록시
+│   ├── CandidateStorage.sol                   # 스토리지
+│   │
+│   ├── CandidateAddOnV1_1.sol                 # 후보자 애드온 (V1.1)
+│   ├── CandidateAddOnProxy.sol                # 프록시
+│   ├── CandidateAddOnStorage.sol              # 스토리지
+│   ├── CandidateAddOnStorage1.sol             # 추가 스토리지
+│   │
+│   ├── factory/
+│   │   ├── CandidateFactory.sol               # 후보자 팩토리
+│   │   ├── CandidateFactoryProxy.sol          # 프록시
+│   │   ├── CandidateFactoryStorage.sol        # 스토리지
+│   │   ├── CandidateAddOnFactory.sol          # 애드온 팩토리
+│   │   ├── CandidateAddOnFactoryProxy.sol     # 프록시
+│   │   └── CandidateAddOnFactoryStorage.sol   # 스토리지
+│   │
+│   ├── lib/
+│   │   ├── Agenda.sol                         # 의제 라이브러리
+│   │   └── BytesLib.sol                       # 바이트 유틸리티
+│   │
 │   └── interfaces/
-│       ├── IWTON.sol
-│       └── IIDAOCommittee.sol
+│       ├── ICoinage.sol                       # 코이니지 인터페이스
+│       └── ICandidateAddOn.sol                # 애드온 인터페이스
 │
-├── proxy/                          # 프록시 관련
-│   └── ProxyStorage.sol
+├── proxy/                              # 프록시 관련
+│   ├── Proxy.sol                              # 기본 프록시 (Selector Routing)
+│   ├── ProxyStorage.sol                       # 프록시 스토리지
+│   ├── ProxyStorage2.sol                      # 프록시 스토리지 V2
+│   ├── ProxySeigManager.sol                   # SeigManager 전용 프록시
+│   ├── ProxyLayer2Manager.sol                 # Layer2Manager 전용 프록시
+│   ├── ProxyL1BridgeRegistry.sol              # L1BridgeRegistry 전용 프록시
+│   ├── ProxyCoinage.sol                       # 코이니지 전용 프록시
+│   └── DAOCommitteeProxy2.sol                 # DAO 커미티 프록시
 │
-├── common/                         # 공통 유틸리티
-│   ├── AccessibleCommon.sol
-│   └── AuthControlSeigManager.sol
+├── common/                             # 공통 유틸리티
+│   ├── AccessibleCommon.sol                   # 기본 접근 제어
+│   ├── AuthRole.sol                           # 역할 정의
+│   ├── AuthControlSeigManager.sol             # SeigManager 권한 관리
+│   ├── AuthControlCoinage.sol                 # 코이니지 권한 관리
+│   ├── AuthControlLayer2Manager.sol           # Layer2Manager 권한 관리
+│   └── AuthControlL1BridgeRegistry.sol        # L1BridgeRegistry 권한 관리
 │
-└── libraries/                      # 라이브러리
-    ├── DSMath.sol                         # RAY 수학
-    └── SafeERC20.sol
+├── accessControl/                      # OpenZeppelin 접근 제어 (로컬 복사본)
+│   ├── AccessControl.sol                      # 접근 제어
+│   ├── Context.sol                            # 컨텍스트
+│   ├── Address.sol                            # 주소 유틸리티
+│   ├── EnumerableSet.sol                      # 열거 가능 집합
+│   ├── ERC165A.sol                            # ERC165 인터페이스 감지
+│   └── IERC165.sol                            # 인터페이스
+│
+└── mocks/                              # 테스트용 목업
+    ├── MockSystemConfig.sol                   # SystemConfig 목업
+    ├── MockSystemConfigFactory.sol            # 팩토리 목업
+    └── InvalidCandidateAddOn.sol              # 잘못된 애드온 (테스트용)
 ```
 
 ---
@@ -131,26 +234,83 @@ contract Layer2ManagerV1_2 is
 **핵심 기능**:
 - `getBridgedTON()`: Bridged TON 조회
 - `getLayer2BySystemConfig()`: SystemConfig → Layer2 조회
-- `transferL2Seigniorage()`: 시뇨리지 전송
+- `transferL2Seigniorage(layer2, amount)`: L2 시뇨리지를 Operator에게 전송
+  - 호출자: SeigManager (`onlySeigManger`)
+  - L2의 Operator(OperatorManager)에게 WTON 전송
 
 ### 2.4 L1BridgeRegistryV1_2
 
-브릿지/포탈 등록 및 TVL 조회를 담당합니다.
+브릿지/포탈 등록 및 TVL 조회를 담당합니다. **V1_2는 V1_1의 모든 함수를 포함**하며, TYPE 3 (DisputeGame) 지원과 타입별 권한 관리 시스템을 제공합니다.
 
 ```solidity
 contract L1BridgeRegistryV1_2 is
     ProxyStorage,
-    AccessibleCommon,
-    L1BridgeRegistryStorage
+    AuthControlL1BridgeRegistry,
+    L1BridgeRegistryStorage,
+    L1BridgeRegistryV1_2Storage
 {
-    // ...
+    // V1_1 + V1_2 모든 함수 포함
 }
 ```
 
-**핵심 기능**:
-- `layer2TVL()`: L2별 TVL 조회
-- `rollupType()`: 롤업 타입 조회
-- `rollupConfigWithPortal()`: 포탈 → rollupConfig 역조회
+**롤업 타입**:
+- TYPE 1: Legacy (L1StandardBridge)
+- TYPE 2: Optimism Bedrock (OptimismPortal)
+- TYPE 3: Optimism Bedrock + DisputeGame (OptimismPortal + DisputeGameFactory) 🆕
+
+**권한 계층**:
+```
+Owner
+└── setAddresses, setSeigniorageCommittee
+
+Manager (슈퍼 권한)
+├── 모든 타입 등록/업그레이드 가능
+├── setTypeRegistrant
+└── upgradeToType3
+
+SeigniorageCommittee
+├── rejectCandidateAddOn
+└── restoreCandidateAddOn
+
+Registrant (기존 호환)
+└── registerRollupConfig (TYPE 1, 2, 3)
+
+typeRegistrant[n] (위임 권한)
+└── registerRollupConfigByType (TYPE n만)
+```
+
+**onlyOwner 함수**:
+- `setAddresses(layer2Manager, seigManager, ton)`: 초기 설정
+- `setSeigniorageCommittee(addr)`: SeigniorageCommittee 설정
+
+**onlySeigniorageCommittee 함수**:
+- `rejectCandidateAddOn(rollupConfig)`: 시뇨리지 발행 중지
+- `restoreCandidateAddOn(rollupConfig, rejectedL2Deposit)`: 시뇨리지 발행 복원
+
+**onlyRegistrant 함수**:
+- `registerRollupConfig(rollupConfig, type, l2TON, name)`: 롤업 등록
+
+**onlyManager 함수**:
+- `setTypeRegistrant(type, addr)`: 타입별 등록 권한자 설정
+- `upgradeToType3(rollupConfig)`: TYPE 1/2 → TYPE 3 업그레이드
+
+**onlyTypeRegistrant 함수**:
+- `registerRollupConfigByType(rollupConfig, type, l2TON, name)`: 타입별 권한 체크 등록
+
+**View 함수**:
+- `rollupType(rollupConfig)`: 롤업 타입 조회
+- `l2TON(rollupConfig)`: L2 TON 주소 조회
+- `getRollupInfo(rollupConfig)`: 롤업 정보 조회
+- `isRejectedSeigs(rollupConfig)`: 시뇨리지 중지 여부
+- `isRejectedL2Deposit(rollupConfig)`: L2 예치 중지 여부
+- `layer2TVL(rollupConfig)`: L2별 TVL 조회
+- `availableForRegistration(rollupConfig, type)`: 등록 가능 여부
+
+**스토리지 조회**:
+- `disputeGameFactory(rollupConfig)`: DisputeGameFactory 등록 여부
+- `rollupConfigWithDisputeGameFactory(factory)`: factory → rollupConfig 역조회
+- `rollupConfigWithPortal(portal)`: portal → rollupConfig 역조회
+- `typeRegistrant(type)`: 타입별 등록 권한자 조회
 
 ### 2.5 RAT (Randomized Attention Test)
 
@@ -188,7 +348,12 @@ contract ValidatorRewardV1 is
 ```
 
 **핵심 기능**:
-- `distributeL2Rewards()`: L2별 검증자 보상 분배
+- `distributeL2Rewards(systemConfig, amount)`: L2별 검증자 보상 분배
+  - 호출자: SeigManager (`onlySeigManager`)
+  - 호출 시점: `updateSeigniorage()` 실행 시 검증자 분배 비율(α · S_i) 만큼
+  - 역할: L2에 등록된 활성 검증자들에게 보상을 균등 분배
+  - 분배 공식: `v_j = (α · S_i) / |V_i|` (검증자당 보상)
+  - 검증자 없음: 보상을 DAO Treasury로 전송
 - `claimAllRewards()`: 보상 청구
 - `getPendingRewardsByL2()`: L2별 미청구 보상 조회
 
@@ -240,9 +405,12 @@ contract SeigManagerV1_4Storage {
     uint256 public totalEffectiveBridgedTON;  // x: 전체 유효 Bridged TON
 
     struct BridgedTONInfo {
-        uint256 bridgedTON;         // B_i
-        uint256 effectiveBridgedTON; // B̃_i
-        bool isEligible;            // 자격 여부
+        uint256 currentBridgedTON;    // B_i: 현재 Bridged TON
+        uint256 effectiveBridgedTON;  // B̃_i: 유효 Bridged TON (자격 없으면 0)
+        uint256 initialDebt;          // 초기부채 (V2 패턴 동일)
+        uint256 startBlock;           // 참여 시작 블록
+        uint256 lastUpdateTime;       // 마지막 업데이트 타임스탬프
+        bool isEligible;              // 자격 여부 (S_i ≥ θ·B_i)
     }
 }
 ```
@@ -422,12 +590,17 @@ interface IValidatorReward {
     function distributeL2Rewards(address systemConfig, uint256 amount) external;
     function claimAllRewards() external;
     function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256);
-    function getTotalPendingRewards(address validator) external view returns (uint256);
+    function getPendingRewards(address validator) external view returns (uint256);
 
     // 이벤트
-    event L2RewardDistributed(address indexed systemConfig, uint256 distributed, uint256 validatorCount);
+    event L2RewardDistributed(
+        address indexed systemConfig,
+        uint256 totalAmount,
+        uint256 activeValidatorCount,
+        uint256 perValidator
+    );
     event ValidatorRewardReceived(address indexed validator, address indexed systemConfig, uint256 amount);
-    event RewardToTreasury(address indexed systemConfig, uint256 amount);
+    event RewardToDAO(address indexed systemConfig, uint256 amount);  // V3: 검증자 없을 때 DAO로 전송
     event RewardsClaimed(address indexed validator, uint256 amount);
 }
 ```

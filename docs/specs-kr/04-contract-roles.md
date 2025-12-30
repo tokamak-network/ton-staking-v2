@@ -173,16 +173,18 @@ L2 롤업의 **등록 및 관리**를 담당합니다.
 
 ### 5.1 역할
 
-L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다.
+L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다. V1_2는 V1_1의 모든 함수를 포함합니다.
 
 ### 5.2 책임
 
 | 책임 | 설명 |
 |------|------|
-| **브릿지 등록** | L1StandardBridge, OptimismPortal 등록 |
-| **롤업 타입 관리** | Type 1/2/3 구분 |
+| **브릿지 등록** | L1StandardBridge, OptimismPortal, DisputeGameFactory 등록 |
+| **롤업 타입 관리** | Type 1/2/3 구분, TYPE 1/2 → 3 업그레이드 |
 | **TVL 조회** | L2별 Bridged TON 잔액 조회 |
 | **포탈 역조회** | Portal → rollupConfig 매핑 |
+| **시뇨리지 관리** | 롤업별 시뇨리지 발행 중지/복원 |
+| **타입별 권한 관리** | typeRegistrant[n]으로 위임 등록 |
 
 ### 5.3 상호작용
 
@@ -193,13 +195,18 @@ L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다.
 │                                                                          │
 │  입력:                                                                   │
 │  ┌─────────────────┐                                                    │
-│  │ DAO/Admin      │──► registerBridge(), setRollupType()               │
+│  │ Owner          │──► setAddresses(), setSeigniorageCommittee()       │
+│  │ Manager        │──► registerRollupConfigByManager(), upgradeToType3()│
+│  │ SeigniorageCmt │──► rejectCandidateAddOn(), restoreCandidateAddOn()  │
+│  │ Registrant     │──► registerRollupConfig()                           │
+│  │ typeRegistrant │──► registerRollupConfigByType()                     │
 │  └─────────────────┘                                                    │
 │                                                                          │
 │  조회 제공:                                                              │
 │  ┌─────────────────┐                                                    │
 │  │ SeigManager    │◄── layer2TVL(), rollupType()                       │
 │  │ Layer2Manager  │◄── layer2TVL()                                     │
+│  │ RAT            │◄── rollupConfigWithDisputeGameFactory()            │
 │  └─────────────────┘                                                    │
 │                                                                          │
 │  TVL 조회 방식: TON.balanceOf(address)                                  │
@@ -213,10 +220,16 @@ L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다.
 
 ### 5.4 핵심 상태
 
-- `rollupType[rollupConfig]`: 롤업 타입 (1/2/3)
-- `l1Bridge[rollupConfig]`: L1StandardBridge 주소
-- `portal[rollupConfig]`: OptimismPortal 주소
+**V1 스토리지**:
+- `rollupInfo[rollupConfig]`: 롤업 정보 (type, l2TON, rejectedSeigs 등)
+- `l1Bridge[bridge]`: L1StandardBridge 등록 여부
+- `portal[portal]`: OptimismPortal 등록 여부
+
+**V1_2 스토리지**:
+- `disputeGameFactory[rollupConfig]`: DisputeGameFactory 등록 여부
+- `rollupConfigWithDisputeGameFactory[factory]`: Factory → rollupConfig 역매핑
 - `rollupConfigWithPortal[portal]`: Portal → rollupConfig 역매핑
+- `typeRegistrant[type]`: 타입별 등록 권한자
 
 ---
 
