@@ -105,7 +105,7 @@ k = 반포화점 (halfSaturationPoint)
 검증자가 네트워크를 실제로 모니터링하고 있는지 확인하는 무작위 테스트입니다.
 
 - **트리거 시점**: DisputeGame 생성 시 확률적으로 발생 (π_a)
-- **응답 기간**: ~24시간
+- **응답 기간**: `evidenceSubmissionPeriod` (기본값: 1시간)
 - **미응답 시**: C_off 슬래싱 (담보금 일부 몰수)
 
 ---
@@ -187,13 +187,13 @@ k = 반포화점 (halfSaturationPoint)
    │
 4. 검증자 랜덤 선택
    │
-5. C_off 선차감
+5. C_off 선차감 (D_min 미만 시 검증자 제거)
    │
-6. 검증자 응답 대기 (~24시간)
+6. 검증자 응답 대기 (evidenceSubmissionPeriod)
    │
-   ├─ 증거 제출: C_off 복구
+   ├─ 증거 제출: C_off 복구 (D_min 체크여 검증자 상태 갱신)
    │
-   └─ 미응답: C_off 몰수 (D_min 미만 시 검증자 제거)
+   └─ 미응답: C_off 몰수
 ```
 
 ### 5.3 시퀀서 슬래싱 흐름
@@ -229,6 +229,7 @@ k = 반포화점 (halfSaturationPoint)
 | `slashingPenalty` | C_off | 슬래싱 페널티 | 100e27 WTON |
 | `minimumThreshold` | D_min | 최소 담보금 임계값 | 1,000e27 WTON |
 | `maxValidatorsPerL2` | N_max | L2별 최대 검증자 수 | 100 |
+| `evidenceSubmissionPeriod` | T_response | RAT 응답 제출 기간 | 1 hours |
 
 > **RAY 단위**: 모든 비율 파라미터는 RAY(10^27) 단위로 표현됩니다.
 >
@@ -242,7 +243,7 @@ k = 반포화점 (halfSaturationPoint)
 > - 담보금 부족 시: 유예 기간 제공 또는 소급 적용 안함
 >
 > **구현 결정사항** (버나드 지침 외):
-> - N_max 기본값: 100 (시뇨리지 분배 시 가스 한도 고려, 각 검증자당 ~25K gas)
+> - N_max 기본값: 정해야함 (시뇨리지 분배 시 가스 한도 고려, 각 검증자당 ~25K gas)
 
 ---
 
