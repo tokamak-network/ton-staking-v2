@@ -21,7 +21,7 @@ import {DepositManagerV1_1} from "../src/stake/managers/DepositManagerV1_1.sol";
 import {DepositManagerV1_2} from "../src/stake/managers/DepositManagerV1_2.sol";
 import {Layer2ManagerV1_1} from "../src/layer2/Layer2ManagerV1_1.sol";
 import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
-import {L1BridgeRegistryV1_1} from "../src/layer2/L1BridgeRegistryV1_1.sol";
+// L1BridgeRegistryV1_1 import removed - V1_2 has all V1_1 functions
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
 
 // Manager Proxies (ProxySeigManager has setAliveImplementation2, setSelectorImplementations2)
@@ -32,7 +32,6 @@ import {L1BridgeRegistryProxy} from "../src/layer2/L1BridgeRegistryProxy.sol";
 
 // Operator Manager
 import {OperatorManagerFactory} from "../src/layer2/factory/OperatorManagerFactory.sol";
-import {OperatorManagerV1_1} from "../src/layer2/OperatorManagerV1_1.sol";
 import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 
 // V3 New Contracts
@@ -122,7 +121,7 @@ contract DeployV3Full is Script {
     address public layer2ManagerImpl;             // Index 1: V1_2 (V3 functions)
 
     // L1BridgeRegistry 다중 구현체
-    address public l1BridgeRegistryV1_1Impl;      // Index 0: V1_1 (base - setAddresses with guard)
+    // l1BridgeRegistryV1_1Impl removed - V1_2 has all V1_1 functions
     address public l1BridgeRegistryImpl;          // Index 1: V1_2 (DisputeGame support)
 
     // Operator Manager
@@ -285,15 +284,10 @@ contract DeployV3Full is Script {
         layer2ManagerImpl = address(new Layer2ManagerV1_2());
         console.log("Layer2ManagerV1_2 Impl (Index 1):", layer2ManagerImpl);
 
-        // L1BridgeRegistry: 다중 구현체 패턴
-        // Index 0: L1BridgeRegistryV1_1 (base - setAddresses with guard)
-        // Index 1: L1BridgeRegistryV1_2 (DisputeGame support - TYPE 3)
-        l1BridgeRegistryV1_1Impl = address(new L1BridgeRegistryV1_1());
-        console.log("L1BridgeRegistryV1_1 Impl (Index 0):", l1BridgeRegistryV1_1Impl);
-        IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryV1_1Impl);
-
+        // L1BridgeRegistry: V1_2 only (V1_2 has all V1_1 functions + TYPE 3 support)
         l1BridgeRegistryImpl = address(new L1BridgeRegistryV1_2());
-        console.log("L1BridgeRegistryV1_2 Impl (Index 1):", l1BridgeRegistryImpl);
+        console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
+        IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryImpl);
         console.log("");
     }
 
@@ -467,15 +461,12 @@ contract DeployV3Full is Script {
     function _deployOperatorManagerFactory(address deployer) internal {
         console.log("--- Step 7: Deploy OperatorManagerFactory ---");
 
-        // OperatorManager 구현체 배포 (V1_1 - 기본)
-        operatorManagerImpl = address(new OperatorManagerV1_1());
-        console.log("OperatorManagerV1_1 Impl:", operatorManagerImpl);
+        // OperatorManager V1_2 구현체 배포 (V3 기본 - 모든 TYPE에서 사용)
+        // V1_2를 기본으로 사용하여 향후 TYPE 3 업그레이드 지원
+        operatorManagerImpl = address(new OperatorManagerV1_2());
+        console.log("OperatorManagerV1_2 Impl:", operatorManagerImpl);
 
-        // OperatorManager V1_2 구현체 배포 (TYPE 3 업그레이드용)
-        address operatorManagerV1_2Impl = address(new OperatorManagerV1_2());
-        console.log("OperatorManagerV1_2 Impl (for TYPE 3 upgrade):", operatorManagerV1_2Impl);
-
-        // Factory 배포 (V1_1을 기본 구현체로 사용)
+        // Factory 배포 (V1_2를 기본 구현체로 사용)
         operatorManagerFactory = address(new OperatorManagerFactory(operatorManagerImpl));
         console.log("OperatorManagerFactory:", operatorManagerFactory);
         console.log("");
@@ -631,43 +622,13 @@ contract DeployV3Full is Script {
         console.log("Layer2Manager.setSequencerVault done");
 
         // L1BridgeRegistry.setAddresses (using V1_1 interface - Index 0)
-        L1BridgeRegistryV1_1(l1BridgeRegistryProxy).setAddresses(
+        // L1BridgeRegistry uses V1_2 only (has all V1_1 functions + TYPE 3 support)
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
             layer2ManagerProxy,
             seigManagerProxy,
             ton
         );
         console.log("L1BridgeRegistry.setAddresses done");
-
-        // =====================================================
-        // L1BridgeRegistry 다중 구현체 설정 (메인넷과 동일한 패턴)
-        // =====================================================
-        // Index 0: V1_1 (이미 기본으로 설정됨 - setAddresses 포함)
-        // Index 1: V1_2 (DisputeGame TYPE 3 지원)
-
-        // V1_2를 alive 상태로 설정
-        L1BridgeRegistryProxy(payable(l1BridgeRegistryProxy)).setAliveImplementation2(l1BridgeRegistryImpl, true);
-        console.log("L1BridgeRegistry V1_2 implementation set alive");
-
-        // V1_2 함수 selectors 등록 (TYPE 3 DisputeGame 지원 함수들)
-        // registerRollupConfig, registerRollupConfigByManager - TYPE 3 지원을 위해 V1_2로 라우팅
-        // 참고: rejectCandidateAddOn, restoreCandidateAddOn은 V1_1에 있으므로 라우팅 불필요
-        bytes4[] memory l1brV1_2Selectors = new bytes4[](8);
-        // registerRollupConfig(address,uint8,address,string)
-        l1brV1_2Selectors[0] = bytes4(keccak256("registerRollupConfig(address,uint8,address,string)"));
-        // registerRollupConfig(address,uint8,address)
-        l1brV1_2Selectors[1] = bytes4(keccak256("registerRollupConfig(address,uint8,address)"));
-        // registerRollupConfigByManager(address,uint8,address,string)
-        l1brV1_2Selectors[2] = bytes4(keccak256("registerRollupConfigByManager(address,uint8,address,string)"));
-        // registerRollupConfigByManager(address,uint8,address)
-        l1brV1_2Selectors[3] = bytes4(keccak256("registerRollupConfigByManager(address,uint8,address)"));
-        // layer2TVL - TYPE 3 지원
-        l1brV1_2Selectors[4] = L1BridgeRegistryV1_2.layer2TVL.selector;
-        // V1_2 Storage getters (DisputeGame 관련)
-        l1brV1_2Selectors[5] = bytes4(keccak256("rollupConfigWithDisputeGameFactory(address)"));
-        l1brV1_2Selectors[6] = bytes4(keccak256("disputeGameFactory(address)"));
-        l1brV1_2Selectors[7] = bytes4(keccak256("rollupConfigWithPortal(address)"));
-        L1BridgeRegistryProxy(payable(l1BridgeRegistryProxy)).setSelectorImplementations2(l1brV1_2Selectors, l1BridgeRegistryImpl);
-        console.log("L1BridgeRegistry V1_2 selectors registered (8 functions)");
 
         // OperatorManagerFactory.setAddresses
         OperatorManagerFactory(operatorManagerFactory).setAddresses(
