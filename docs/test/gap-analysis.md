@@ -39,7 +39,22 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 - Emergency withdraw tests
 - Event emission tests (L2RewardDistributed, ValidatorRewardReceived, RewardsClaimed)
 
-### 2. Bridge Integration (Priority: Medium)
+### 2. L1BridgeRegistry V1_2 (Priority: Medium)
+
+**Current Status**: Only 2 basic tests exist. L1BridgeRegistryV1_2 now contains all functions (V1_1 + TYPE 3 support).
+
+**Missing Tests**:
+- TYPE 1, 2, 3 registration via `registerRollupConfigType1/2/3`
+- `upgradeToType3` function (TYPE 2 → TYPE 3 upgrade)
+- `setTypeRegistrant` permission delegation
+- `rejectCandidateAddOn` / `restoreCandidateAddOn`
+- `availableForRegistration` validation
+- View functions: `rollupType`, `l2TON`, `getRollupInfo`, `isRejectedSeigs`, `isRejectedL2Deposit`
+- Permission checks (onlyOwner, onlyRegistrant, onlySeigniorageCommittee, typeRegistrant)
+
+**Recommendation**: Expand `L1BridgeRegistryV1_2Real.t.sol`.
+
+### 3. Bridge Integration (Priority: Medium)
 
 **Current Status**: Only 6 basic connectivity tests exist.
 
@@ -49,9 +64,9 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 - Cross-chain message handling
 - Bridge pause/unpause scenarios
 
-**Recommendation**: Expand `Layer2ManagerV1_2Real.t.sol` and `L1BridgeRegistryV1_2Real.t.sol`.
+**Recommendation**: Expand `Layer2ManagerV1_2Real.t.sol`.
 
-### 3. Emergency Scenarios (Priority: Medium)
+### 4. Emergency Scenarios (Priority: Medium)
 
 **Current Status**: Partial - Emergency tests require complex coinage/tot setup in test environment.
 
@@ -69,7 +84,7 @@ The V3/V4 test suite provides comprehensive coverage for core staking, seigniora
 
 **Recommendation**: Create `test/v3/EmergencyScenarios.t.sol` using mainnet fork to inherit coinage setup.
 
-### 4. Access Control (Priority: Low)
+### 5. Access Control (Priority: Low)
 
 **Current Status**: Basic owner checks exist, but comprehensive RBAC testing is missing.
 
