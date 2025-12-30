@@ -62,38 +62,34 @@ brew install just
 curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 ```
 
-## Quick Start
-
-### Terminal 1: Start L1 Devnet (lib/optimism)
+## Quick Start (Single Terminal - like Asterisc)
 
 ```bash
-cd lib/optimism
-
-# Build contracts (first time only)
-just forge-build
-
-# Generate allocs and start L1
-just devnet-allocs
-just devnet-l1
-```
-
-### Terminal 2: Deploy RAT and Run Tests (ton-staking-v2)
-
-```bash
-# Deploy RAT contract on top of Optimism devnet
-make deploy-rat-devnet
+# Set up devnet (build lib/optimism + start L1 + deploy RAT)
+make devnet-allocs
 
 # Run E2E tests
 make test-e2e
+
+# Stop L1 when done
+make devnet-down
 ```
 
-### Cleanup
+### Full Cleanup
 
 ```bash
-# Terminal 1: Stop L1 (Ctrl+C)
+make devnet-clean   # Stop L1 + clean all devnet state
+```
 
-# Clean up
-cd lib/optimism && just devnet-clean
+### Rebuild After Code Changes
+
+```bash
+# If RAT contract changed:
+make devnet-down
+make devnet-allocs   # Rebuilds everything
+
+# If only tests changed:
+make test-e2e        # Just re-run tests (L1 stays running)
 ```
 
 ## Detailed Setup

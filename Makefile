@@ -1,4 +1,6 @@
-.PHONY: all build test clean devnet-allocs devnet-clean devnet-up devnet-down test-e2e test-e2e-unit test-e2e-integration help
+.PHONY: all build test clean help
+.PHONY: devnet-allocs devnet-allocs-optimism devnet-up devnet-down devnet-clean devnet-status
+.PHONY: test-e2e test-e2e-unit test-e2e-integration
 
 # Default target
 all: build
@@ -23,42 +25,74 @@ clean:
 # ==========================================
 # Devnet Commands (for E2E testing)
 # ==========================================
+# Single-terminal setup (like Asterisc):
+#   make devnet-allocs   # Generate allocs + start L1 + deploy RAT
+#   make test-e2e        # Run E2E tests
+#   make devnet-down     # Stop L1
+# ==========================================
 
-# Create devnet allocations (deploy contracts to local Anvil)
-devnet-allocs: devnet-clean
-	@echo "=== Setting up devnet for E2E tests ==="
-	@mkdir -p .devnet
-	@./scripts/devnet-allocs.sh
-	@echo "=== Devnet setup complete ==="
-	@echo "Run 'make test-e2e' to execute E2E tests"
+OPTIMISM_DIR := lib/optimism
 
-# Clean devnet state
-devnet-clean:
-	@echo "Cleaning devnet state..."
-	@rm -rf .devnet
-	@-pkill -f "anvil.*31337" 2>/dev/null || true
-	@echo "Devnet cleaned"
+# Generate lib/optimism devnet allocs (prerequisite)
+devnet-allocs-optimism:
+	@echo "=== Building lib/optimism devnet allocs ==="
+	@if [ ! -f $(OPTIMISM_DIR)/packages/contracts-bedrock/forge-artifacts/DisputeGameFactory.sol/DisputeGameFactory.json ]; then \
+		echo "Building Optimism contracts (first time)..."; \
+		cd $(OPTIMISM_DIR) && just forge-build; \
+	fi
+	@echo "Generating devnet allocs..."
+	cd $(OPTIMISM_DIR) && just devnet-allocs
 
-# Start devnet (Anvil in background)
+# Full devnet setup: generate allocs + start L1 + deploy RAT
+devnet-allocs: devnet-allocs-optimism
+	@echo ""
+	@echo "=== Setting up TON Staking V3 Devnet ==="
+	./scripts/devnet-allocs.sh
+
+# Start L1 devnet (if not running)
 devnet-up:
-	@if [ -f .devnet/anvil.pid ]; then \
-		echo "Devnet already running (PID: $$(cat .devnet/anvil.pid))"; \
+	@if curl -s http://localhost:8545 > /dev/null 2>&1; then \
+		echo "L1 devnet already running on localhost:8545"; \
 	else \
-		mkdir -p .devnet; \
-		anvil --chain-id 31337 --port 8545 --block-time 1 > .devnet/anvil.log 2>&1 & \
-		echo $$! > .devnet/anvil.pid; \
-		sleep 2; \
-		echo "Devnet started (PID: $$(cat .devnet/anvil.pid))"; \
+		echo "Starting L1 devnet..."; \
+		./scripts/devnet-up.sh; \
 	fi
 
-# Stop devnet
+# Stop L1 devnet
 devnet-down:
-	@if [ -f .devnet/anvil.pid ]; then \
-		kill $$(cat .devnet/anvil.pid) 2>/dev/null || true; \
-		rm -f .devnet/anvil.pid; \
-		echo "Devnet stopped"; \
+	@echo "Stopping L1 devnet..."
+	@-pkill -f "anvil.*8545" 2>/dev/null || true
+	@rm -f .devnet/anvil.pid
+	@echo "L1 devnet stopped"
+
+# Clean all devnet state
+devnet-clean: devnet-down
+	@echo "Cleaning devnet state..."
+	@rm -rf .devnet
+	@echo "Cleaning lib/optimism devnet state..."
+	@rm -rf $(OPTIMISM_DIR)/.devnet
+	@echo "Devnet cleaned"
+
+# Show devnet status
+devnet-status:
+	@echo "=== Devnet Status ==="
+	@echo ""
+	@echo "L1 RPC (localhost:8545):"
+	@if curl -s -X POST -H "Content-Type: application/json" \
+		--data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+		http://localhost:8545 2>/dev/null | grep -q "0x384"; then \
+		echo "  ✓ Running (Chain ID: 900)"; \
 	else \
-		echo "Devnet not running"; \
+		echo "  ✗ Not running"; \
+	fi
+	@echo ""
+	@echo "RAT Deployment:"
+	@if [ -f .devnet/addresses.json ]; then \
+		echo "  ✓ Deployed"; \
+		echo "  RAT: $$(jq -r '.rat' .devnet/addresses.json 2>/dev/null || echo 'N/A')"; \
+		echo "  DisputeGameFactory: $$(jq -r '.disputeGameFactory' .devnet/addresses.json 2>/dev/null || echo 'N/A')"; \
+	else \
+		echo "  ✗ Not deployed"; \
 	fi
 
 # ==========================================
@@ -71,6 +105,10 @@ test-e2e:
 		echo "Error: Devnet not set up. Run 'make devnet-allocs' first."; \
 		exit 1; \
 	fi
+	@if ! curl -s http://localhost:8545 > /dev/null 2>&1; then \
+		echo "Error: L1 devnet not running. Run 'make devnet-up' first."; \
+		exit 1; \
+	fi
 	@echo "Running E2E tests..."
 	cd op-e2e && go test -v ./faultproofs/... -timeout 300s
 
@@ -78,7 +116,7 @@ test-e2e:
 test-e2e-unit:
 	cd op-e2e && go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
 
-# Run E2E integration tests (requires devnet-allocs)
+# Run E2E integration tests (requires devnet-allocs first)
 test-e2e-integration:
 	@if [ ! -f .devnet/addresses.json ]; then \
 		echo "Error: Devnet not set up. Run 'make devnet-allocs' first."; \
@@ -99,14 +137,24 @@ help:
 	@echo "  make test-v3            Run V3 tests only"
 	@echo "  make clean              Clean build artifacts"
 	@echo ""
-	@echo "E2E Testing:"
-	@echo "  make devnet-allocs      Set up devnet and deploy contracts"
-	@echo "  make devnet-clean       Clean devnet state and stop Anvil"
-	@echo "  make devnet-up          Start Anvil devnet"
-	@echo "  make devnet-down        Stop Anvil devnet"
+	@echo "E2E Testing (Single Terminal - like Asterisc):"
+	@echo ""
+	@echo "  Quick Start:"
+	@echo "    make devnet-allocs    # Set up devnet (build + start L1 + deploy RAT)"
+	@echo "    make test-e2e         # Run E2E tests"
+	@echo "    make devnet-down      # Stop L1 when done"
+	@echo ""
+	@echo "  Full Cleanup:"
+	@echo "    make devnet-clean     # Stop L1 + clean all state"
+	@echo ""
+	@echo "Devnet Management:"
+	@echo "  make devnet-allocs      Set up complete devnet environment"
+	@echo "  make devnet-up          Start L1 devnet (if stopped)"
+	@echo "  make devnet-down        Stop L1 devnet"
+	@echo "  make devnet-clean       Stop L1 + clean all devnet state"
+	@echo "  make devnet-status      Show devnet status"
+	@echo ""
+	@echo "Test Commands:"
 	@echo "  make test-e2e           Run all E2E tests"
 	@echo "  make test-e2e-unit      Run E2E unit tests (no devnet)"
 	@echo "  make test-e2e-integration  Run E2E integration tests"
-	@echo ""
-	@echo "Quick Start for E2E:"
-	@echo "  make devnet-allocs && make test-e2e"

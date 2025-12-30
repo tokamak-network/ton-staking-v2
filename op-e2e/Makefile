@@ -11,6 +11,13 @@ build:
 help:
 	@echo "TON Staking V3 E2E Test Commands"
 	@echo ""
+	@echo "Prerequisites (Single Terminal - like Asterisc):"
+	@echo ""
+	@echo "  cd .."
+	@echo "  make devnet-allocs    # Build + start L1 + deploy RAT"
+	@echo "  make test-e2e         # Run E2E tests"
+	@echo "  make devnet-down      # Stop L1 when done"
+	@echo ""
 	@echo "Usage:"
 	@echo "  make build              Build all packages"
 	@echo "  make test               Run all E2E tests"
@@ -26,11 +33,13 @@ help:
 	@echo "  make lint               Lint Go code"
 	@echo "  make info               Show environment info"
 	@echo ""
-	@echo "Environment variables for integration tests:"
+	@echo "Environment variables (set automatically by make deploy-rat-devnet):"
 	@echo "  RAT_ADDRESS             Deployed RAT contract address"
+	@echo "  DISPUTE_GAME_FACTORY    DisputeGameFactory address"
 	@echo "  SYSTEM_CONFIG_ADDRESS   SystemConfig address"
 	@echo "  E2E_PRIVATE_KEY         Test account private key"
 	@echo "  E2E_RPC_URL             RPC endpoint (default: http://localhost:8545)"
+	@echo "  E2E_CHAIN_ID            Chain ID (900 for Optimism devnet)"
 	@echo ""
 
 # Run all E2E tests
@@ -45,16 +54,14 @@ test-rat:
 test-rat-unit:
 	go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
 
-# Run integration tests (requires local devnet)
+# Run integration tests (requires devnet-allocs first)
 test-rat-integration:
-	@if [ -z "$$RAT_ADDRESS" ]; then \
-		echo "Error: RAT_ADDRESS environment variable not set"; \
+	@if [ ! -f "../.devnet/addresses.json" ]; then \
+		echo "Error: Devnet not set up"; \
 		echo ""; \
-		echo "To run integration tests:"; \
-		echo "1. Start Anvil: anvil --chain-id 31337"; \
-		echo "2. Deploy contracts: forge script script/DeployRATForE2E.s.sol --rpc-url http://localhost:8545 --broadcast"; \
-		echo "3. Export RAT_ADDRESS, SYSTEM_CONFIG_ADDRESS, E2E_PRIVATE_KEY"; \
-		echo "4. Run: make test-rat-integration"; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs"; \
+		echo "  make test-e2e-integration"; \
 		exit 1; \
 	fi
 	go test -v -run "TestRATIntegration" ./faultproofs/...
