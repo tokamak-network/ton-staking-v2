@@ -13,4 +13,9 @@ contract L1BridgeRegistryV1_2Storage {
 
     /// @notice portal => rollupConfig
     mapping(address => address) public rollupConfigWithPortal;
+
+    /// @notice 타입별 등록 권한자
+    /// @dev typeRegistrant[1] = TYPE 1 등록자, typeRegistrant[2] = TYPE 2 등록자, ...
+    /// @dev address(0)이면 Manager만 등록 가능
+    mapping(uint8 => address) public typeRegistrant;
 }
