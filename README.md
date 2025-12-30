@@ -13,7 +13,7 @@
 - [What is TON Staking Contracts?](#what-is-ton-staking-contracts)
 - [Documentation](#documentation)
 - [Repository](#repository)
-- [Deployed Contracts Addresses](#deployed-contracts-addresses)
+- [Deployed Contracts Addresses](#deployed-contract-addresses)
 
 
 ## What is TON Staking Contracts?
