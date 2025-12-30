@@ -11,20 +11,16 @@ go version
 # Anvil (for local devnet)
 anvil --version
 
-# abigen (for regenerating bindings)
-abigen --version
+# Foundry
+forge --version
 ```
 
 ## Quick Start
 
 ```bash
-cd op-e2e
-
-# Unit tests (no devnet required)
-make test-rat-unit
-
-# All tests
-make test
+# From project root
+make devnet-allocs   # Set up devnet
+make test-e2e        # Run all E2E tests
 ```
 
 ## Test Categories
@@ -37,38 +33,67 @@ make test
 
 ## Running Tests
 
-### Unit Tests
+### Unit Tests (No Devnet)
 
 ```bash
-cd op-e2e
-make test-rat-unit
+make test-e2e-unit
 
 # Or directly
+cd op-e2e
 go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
 ```
 
-### Integration Tests
+### Integration Tests (With Devnet)
 
 ```bash
-# Terminal 1: Start Anvil
-anvil --chain-id 31337
+# Step 1: Set up devnet (one command)
+make devnet-allocs
 
-# Terminal 2: Deploy & Test
-export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-forge script script/DeployRATForE2E.s.sol --rpc-url http://localhost:8545 --broadcast
+# Step 2: Run tests
+make test-e2e-integration
 
-export RAT_ADDRESS=<deployed address>
-export SYSTEM_CONFIG_ADDRESS=<deployed address>
-export E2E_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-
-cd op-e2e && make test-rat-integration
+# Or all E2E tests
+make test-e2e
 ```
 
-### Full E2E Tests
+### Cleanup
 
 ```bash
-# Requires Optimism devnet with RAT contracts
-cd op-e2e && make test-rat-e2e
+make devnet-clean
+```
+
+## What `devnet-allocs` Does
+
+1. Starts Anvil on port 8545 (chain ID 31337)
+2. Deploys contracts via `DeployRATForE2E.s.sol`:
+   - MockTON, MockWTON
+   - MockSeigManager, MockLayer2Manager
+   - MockL1BridgeRegistry, MockSystemConfig
+   - RAT (with proxy)
+3. Saves addresses to `.devnet/addresses.json`
+4. Creates `.devnet/.env` for shell sourcing
+
+## Configuration
+
+Tests automatically load from `.devnet/addresses.json`:
+
+```json
+{
+  "chainId": 31337,
+  "rpcUrl": "http://localhost:8545",
+  "rat": "0x...",
+  "ton": "0x...",
+  "wton": "0x...",
+  "systemConfig": "0x...",
+  "accounts": {
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "validator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+  },
+  "privateKeys": {
+    "deployer": "ac0974...",
+    "validator": "59c699..."
+  }
+}
 ```
 
 ## Test List
@@ -92,41 +117,74 @@ cd op-e2e && make test-rat-e2e
 | `TestRATUnsafeProposal` | E2E | Unsafe proposal |
 | `TestRATFutureBlockProposal` | E2E | Future block |
 
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `RAT_ADDRESS` | Integration/E2E | RAT contract address |
-| `SYSTEM_CONFIG_ADDRESS` | Integration/E2E | SystemConfig address |
-| `E2E_PRIVATE_KEY` | Integration/E2E | Test account key |
-| `E2E_RPC_URL` | Optional | RPC endpoint |
-
-## Regenerating Bindings
+## Makefile Commands
 
 ```bash
-cd op-e2e
-make bindings
+make help              # Show all commands
+make devnet-allocs     # Set up devnet and deploy contracts
+make devnet-clean      # Stop Anvil and clean .devnet
+make devnet-up         # Start Anvil only
+make devnet-down       # Stop Anvil only
+make test-e2e          # Run all E2E tests
+make test-e2e-unit     # Run unit tests only
+make test-e2e-integration  # Run integration tests
 ```
 
 ## Directory Structure
 
 ```
-op-e2e/
-├── bindings/rat_generated.go
-├── e2eutils/rat/
-│   ├── helper.go
-│   ├── factory_helper.go
-│   ├── devnet.go
-│   └── deploy.go
-├── faultproofs/
-│   ├── rat_ton_staking_test.go
-│   ├── rat_integration_test.go
-│   └── util.go
-├── go.mod
-└── Makefile
+ton-staking-v2/
+├── Makefile              # Main Makefile with devnet commands
+├── scripts/
+│   └── devnet-allocs.sh  # Devnet setup script
+├── .devnet/              # Created by devnet-allocs
+│   ├── addresses.json    # Deployed contract addresses
+│   ├── .env              # Environment variables
+│   ├── anvil.log         # Anvil logs
+│   └── anvil.pid         # Anvil process ID
+└── op-e2e/
+    ├── bindings/
+    ├── e2eutils/rat/
+    ├── faultproofs/
+    │   ├── devnet_config.go
+    │   ├── rat_integration_test.go
+    │   ├── rat_ton_staking_test.go
+    │   └── util.go
+    └── Makefile
+```
+
+## Troubleshooting
+
+### Anvil already running
+
+```bash
+make devnet-clean
+make devnet-allocs
+```
+
+### Tests skip with "devnet not configured"
+
+```bash
+# Ensure devnet is set up
+make devnet-allocs
+
+# Check .devnet/addresses.json exists
+cat .devnet/addresses.json
+```
+
+### Connection refused
+
+```bash
+# Check Anvil is running
+curl http://localhost:8545
+
+# If not, restart devnet
+make devnet-clean
+make devnet-allocs
 ```
 
 ## See Also
 
 - [op-e2e/README.md](../../op-e2e/README.md)
-- [E2E Test Design](../e2e-test-design.md)
+- [Test Coverage Matrix](coverage-matrix.md)
+- [Gap Analysis](gap-analysis.md)

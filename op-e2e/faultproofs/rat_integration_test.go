@@ -25,19 +25,50 @@ const (
 	EnvPrivateKey    = "E2E_PRIVATE_KEY"
 )
 
-// getEnvOrSkip returns an environment variable or skips the test
-func getEnvOrSkip(t *testing.T, key string) string {
-	value := os.Getenv(key)
+// Cached devnet config
+var cachedDevnetConfig *DevnetConfig
+
+// loadDevnetConfigOnce loads devnet config once and caches it
+func loadDevnetConfigOnce() *DevnetConfig {
+	if cachedDevnetConfig == nil {
+		config, err := LoadDevnetConfig()
+		if err == nil {
+			cachedDevnetConfig = config
+		}
+	}
+	return cachedDevnetConfig
+}
+
+// getConfigValue returns value from devnet config or environment variable
+func getConfigValue(t *testing.T, envKey string, configValue string) string {
+	// First try devnet config
+	if configValue != "" {
+		return configValue
+	}
+	// Fall back to environment variable
+	value := os.Getenv(envKey)
 	if value == "" {
-		t.Skipf("Environment variable %s not set - skipping integration test", key)
+		t.Skipf("Neither devnet config nor environment variable %s set - skipping integration test. Run 'make devnet-allocs' first.", envKey)
 	}
 	return value
 }
 
 // setupIntegrationTest sets up the integration test environment
+// It first tries to load from .devnet/addresses.json, then falls back to env vars
 func setupIntegrationTest(t *testing.T) (*rat.RATHelper, *ethclient.Client, context.Context) {
-	ratAddr := getEnvOrSkip(t, EnvRATAddress)
-	rpcURL := os.Getenv(EnvRPCURL)
+	config := loadDevnetConfigOnce()
+
+	var ratAddr, rpcURL string
+	if config != nil {
+		ratAddr = config.RAT.Hex()
+		rpcURL = config.RPCURL
+		t.Log("Using devnet config from .devnet/addresses.json")
+	} else {
+		ratAddr = getConfigValue(t, EnvRATAddress, "")
+		rpcURL = os.Getenv(EnvRPCURL)
+		t.Log("Using environment variables for config")
+	}
+
 	if rpcURL == "" {
 		rpcURL = "http://localhost:8545"
 	}
@@ -50,18 +81,43 @@ func setupIntegrationTest(t *testing.T) (*rat.RATHelper, *ethclient.Client, cont
 	return helper, client, ctx
 }
 
+// getSystemConfig returns system config address from devnet config or env var
+func getSystemConfig(t *testing.T) common.Address {
+	config := loadDevnetConfigOnce()
+	if config != nil {
+		return config.SystemConfig
+	}
+	addr := os.Getenv(EnvSystemConfig)
+	if addr == "" {
+		t.Skip("SystemConfig not configured - run 'make devnet-allocs' first")
+	}
+	return common.HexToAddress(addr)
+}
+
+// getValidatorPrivateKey returns validator private key from devnet config or env var
+func getValidatorPrivateKey(t *testing.T) string {
+	config := loadDevnetConfigOnce()
+	if config != nil {
+		return config.PrivateKeys.Validator
+	}
+	key := os.Getenv(EnvPrivateKey)
+	if key == "" {
+		t.Skip("Private key not configured - run 'make devnet-allocs' first")
+	}
+	return key
+}
+
 // TestRATIntegration_ValidatorRegistration tests validator registration on devnet
 func TestRATIntegration_ValidatorRegistration(t *testing.T) {
 	helper, client, ctx := setupIntegrationTest(t)
 
-	privateKeyHex := getEnvOrSkip(t, EnvPrivateKey)
-	systemConfigAddr := getEnvOrSkip(t, EnvSystemConfig)
+	privateKeyHex := getValidatorPrivateKey(t)
+	systemConfig := getSystemConfig(t)
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	require.NoError(t, err, "Failed to parse private key")
 
 	validatorAddr := crypto.PubkeyToAddress(privateKey.PublicKey)
-	systemConfig := common.HexToAddress(systemConfigAddr)
 
 	chainID, err := client.ChainID(ctx)
 	require.NoError(t, err, "Failed to get chain ID")
@@ -130,8 +186,7 @@ func TestRATIntegration_GetContractParameters(t *testing.T) {
 func TestRATIntegration_ValidatorCount(t *testing.T) {
 	helper, _, ctx := setupIntegrationTest(t)
 
-	systemConfigAddr := getEnvOrSkip(t, EnvSystemConfig)
-	systemConfig := common.HexToAddress(systemConfigAddr)
+	systemConfig := getSystemConfig(t)
 
 	t.Log("=== Validator Count ===")
 
@@ -150,8 +205,7 @@ func TestRATIntegration_ValidatorCount(t *testing.T) {
 func TestRATIntegration_GetL2Validators(t *testing.T) {
 	helper, _, ctx := setupIntegrationTest(t)
 
-	systemConfigAddr := getEnvOrSkip(t, EnvSystemConfig)
-	systemConfig := common.HexToAddress(systemConfigAddr)
+	systemConfig := getSystemConfig(t)
 
 	t.Log("=== L2 Validators ===")
 
@@ -169,14 +223,13 @@ func TestRATIntegration_GetL2Validators(t *testing.T) {
 func TestRATIntegration_FullFlow(t *testing.T) {
 	helper, client, ctx := setupIntegrationTest(t)
 
-	privateKeyHex := getEnvOrSkip(t, EnvPrivateKey)
-	systemConfigAddr := getEnvOrSkip(t, EnvSystemConfig)
+	privateKeyHex := getValidatorPrivateKey(t)
+	systemConfig := getSystemConfig(t)
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	require.NoError(t, err, "Failed to parse private key")
 
 	validatorAddr := crypto.PubkeyToAddress(privateKey.PublicKey)
-	systemConfig := common.HexToAddress(systemConfigAddr)
 
 	chainID, err := client.ChainID(ctx)
 	require.NoError(t, err, "Failed to get chain ID")

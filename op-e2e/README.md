@@ -1,214 +1,109 @@
-# TON Staking V3 E2E Tests
+# op-e2e
 
-This directory contains End-to-End (E2E) tests for TON Staking V3 RAT (Randomized Attention Test) integration with Optimism.
+End-to-end tests for TON Staking V3 RAT (Randomized Attention Test) integration.
+
+## Quick Start
+
+```bash
+# From project root
+make devnet-allocs   # Set up devnet and deploy contracts
+make test-e2e        # Run all E2E tests
+```
+
+Or run tests individually:
+
+```bash
+# Unit tests (no devnet required)
+make test-e2e-unit
+
+# Integration tests (requires devnet-allocs)
+make test-e2e-integration
+```
+
+## Running Tests
+
+### Unit Tests (No Devnet)
+
+```bash
+cd op-e2e
+go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
+```
+
+### Integration Tests (With Devnet)
+
+```bash
+# Step 1: Set up devnet (from project root)
+make devnet-allocs
+
+# Step 2: Run tests
+make test-e2e
+```
+
+The `devnet-allocs` command:
+1. Starts Anvil on port 8545
+2. Deploys all required contracts
+3. Saves addresses to `.devnet/addresses.json`
+4. Creates environment file at `.devnet/.env`
+
+### Clean Up
+
+```bash
+make devnet-clean   # Stop Anvil and remove .devnet
+```
 
 ## Directory Structure
 
 ```
 op-e2e/
 ├── bindings/           # Go bindings for smart contracts
-│   └── rat_generated.go    # Auto-generated RAT contract binding
-├── e2eutils/           # E2E test utilities
-│   └── rat/
-│       ├── helper.go         # RAT helper functions
-│       ├── factory_helper.go # RAT factory helper
-│       ├── devnet.go         # Devnet configuration
-│       └── deploy.go         # Contract deployment helpers
-├── faultproofs/        # Fault proof related E2E tests
-│   ├── rat_ton_staking_test.go     # RAT E2E test cases
-│   ├── rat_integration_test.go     # Integration tests for devnet
-│   └── util.go                      # Test utilities
-├── go.mod              # Go module definition
-├── Makefile            # Test commands
-└── README.md           # This file
+├── e2eutils/rat/       # RAT helper functions
+├── faultproofs/        # Test files
+│   ├── devnet_config.go        # Devnet config loader
+│   ├── rat_integration_test.go # Integration tests
+│   ├── rat_ton_staking_test.go # E2E tests
+│   └── util.go
+├── go.mod
+└── Makefile
 ```
 
-## Prerequisites
+## Test Categories
 
-- Go 1.22+
-- Foundry (for contract compilation and local testnet)
-- Anvil (for local devnet testing)
-
-## Quick Start
-
-### 1. Run Unit Tests (No Devnet Required)
-
-```bash
-# Run RAT helper function tests
-make test-rat-unit
-
-# Or directly with go test
-cd op-e2e
-go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
-```
-
-### 2. Run Integration Tests with Local Devnet
-
-#### Step 1: Start Anvil
-```bash
-# Start local Anvil instance
-anvil --chain-id 31337
-```
-
-#### Step 2: Deploy Contracts
-```bash
-# From project root
-export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-
-# Deploy RAT and required contracts
-forge script script/DeployRATForE2E.s.sol --rpc-url http://localhost:8545 --broadcast
-```
-
-#### Step 3: Run Integration Tests
-```bash
-# Set environment variables (use addresses from deployment output)
-export RAT_ADDRESS=<deployed RAT address>
-export SYSTEM_CONFIG_ADDRESS=<deployed SystemConfig address>
-export E2E_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-export E2E_RPC_URL=http://localhost:8545
-
-# Run integration tests
-cd op-e2e
-go test -v -run "TestRATIntegration" ./faultproofs/...
-```
-
-### 3. Run All E2E Tests
-
-```bash
-# Requires Optimism devnet with RAT contracts deployed
-make test-rat
-
-# Or directly with go test
-go test -v ./faultproofs/...
-```
-
-## Test Scenarios
-
-### Unit Tests (Always Run)
-
-| Test | Description |
-|------|-------------|
-| TestRATHelperFunctions | Tests RAT helper utility functions |
-| TestRATConstants | Verifies RAT constants are correctly defined |
-
-### Integration Tests (Requires Devnet)
-
-| Test | Description |
-|------|-------------|
-| TestRATIntegration_ValidatorRegistration | Tests validator registration flow |
-| TestRATIntegration_GetContractParameters | Reads and verifies contract parameters |
-| TestRATIntegration_ValidatorCount | Tests validator counting functions |
-| TestRATIntegration_GetL2Validators | Tests getting validator list |
-| TestRATIntegration_FullFlow | Tests complete validator lifecycle |
-
-### E2E Tests (Requires Full Optimism Devnet)
-
-| Test | Description |
-|------|-------------|
-| TestRATTriggerOnGameCreation | RAT trigger when DisputeGame created |
-| TestRATEvidenceSubmission | Validator evidence submission |
-| TestRATResolveClaimBondRefund | Bond refund on challenger win |
-| TestRATEvidenceSubmissionExpiry | Slashing on evidence timeout |
-| TestRATMultiL2Identification | Multi-L2 chain identification |
-| TestRATValidatorStaking | Validator staking management |
-| TestRATValidOutputRootDefense | Valid output root defense |
-| TestRATUnsafeProposal | Unsafe proposal handling |
-| TestRATFutureBlockProposal | Future block proposal handling |
+| Category | Tests | Devnet Required | Command |
+|----------|-------|-----------------|---------|
+| Unit | 2 | No | `make test-e2e-unit` |
+| Integration | 5 | Local Anvil | `make test-e2e-integration` |
+| E2E | 9 | Optimism Devnet | `make test-e2e` |
 
 ## Configuration
 
-### RAT Parameters
+Tests automatically load configuration from `.devnet/addresses.json`:
 
-| Parameter | Default Value | Description |
-|-----------|---------------|-------------|
-| SlashingPenalty (C_off) | 100 WTON | Amount deducted on RAT trigger |
-| ValidatorBuffer (Δ) | 100 WTON | Extra buffer for validators |
-| MinimumThreshold (D_min) | 200 WTON | Minimum deposit to be active |
-| EvidenceSubmissionPeriod | 1 hour | Time to submit evidence |
-| RatTriggerProbability (π_a) | 1% | Probability of RAT trigger |
+```json
+{
+  "chainId": 31337,
+  "rpcUrl": "http://localhost:8545",
+  "rat": "0x...",
+  "ton": "0x...",
+  "wton": "0x...",
+  "systemConfig": "0x...",
+  "privateKeys": {
+    "validator": "..."
+  }
+}
+```
 
-### Environment Variables
+If `.devnet/addresses.json` doesn't exist, tests will fall back to environment variables.
+
+## Environment Variables (Alternative)
 
 ```bash
-# Required for integration tests
-export RAT_ADDRESS="0x..."           # Deployed RAT contract address
-export SYSTEM_CONFIG_ADDRESS="0x..." # SystemConfig address
-export E2E_PRIVATE_KEY="..."         # Test account private key (without 0x)
-export E2E_RPC_URL="http://..."      # RPC endpoint (default: http://localhost:8545)
-
-# Optional
-export TON_ADDRESS="0x..."           # TON token address
-export WTON_ADDRESS="0x..."          # WTON token address
+export RAT_ADDRESS="0x..."
+export SYSTEM_CONFIG_ADDRESS="0x..."
+export E2E_PRIVATE_KEY="..."
+export E2E_RPC_URL="http://localhost:8545"
 ```
 
-## Regenerating Go Bindings
+## See Also
 
-If the RAT contract changes, regenerate the Go bindings:
-
-```bash
-# Build contracts first
-forge build
-
-# Extract ABI and generate bindings
-python3 -c "
-import json
-with open('out/RAT.sol/RAT.json') as f:
-    d = json.load(f)
-abi = [item for item in d['abi'] if item.get('type') != 'error']
-with open('/tmp/rat_abi.json', 'w') as f:
-    json.dump(abi, f)
-"
-
-# Generate Go bindings
-abigen --abi=/tmp/rat_abi.json --pkg=bindings --type=RAT --out=op-e2e/bindings/rat_generated.go
-```
-
-## Event Flow Diagram
-
-```
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│     User/       │      │ DisputeGame     │      │   TON Staking   │
-│   Sequencer     │      │    Factory      │      │    V3 RAT       │
-└────────┬────────┘      └────────┬────────┘      └────────┬────────┘
-         │                        │                        │
-         │ create(...)            │                        │
-         │───────────────────────►│                        │
-         │                        │                        │
-         │                        │ triggerAttentionTest() │
-         │                        │───────────────────────►│
-         │                        │                        │
-         │                        │                        │ Select validator
-         │                        │                        │ Lock bond (C_off)
-         │                        │                        │
-         │                        │◄──────────────────────│
-         │                        │                        │
-         │◄───────────────────────│                        │ emit AttentionTestTriggered
-         │                        │                        │
-┌────────┴────────┐      ┌────────┴────────┐      ┌────────┴────────┐
-│    Validator    │      │ FaultDispute    │      │   TON Staking   │
-│                 │      │     Game        │      │    V3 RAT       │
-└────────┬────────┘      └────────┬────────┘      └────────┬────────┘
-         │                        │                        │
-         │ submitEvidence()       │                        │
-         │────────────────────────────────────────────────►│
-         │                        │                        │
-         │                        │                        │ Verify evidence
-         │                        │                        │ Restore bond
-         │                        │                        │
-         │◄───────────────────────────────────────────────│
-         │                        │                        │ emit EvidenceSubmitted
-```
-
-## Next Steps
-
-1. **Full Optimism Devnet**: Implement complete devnet setup with DisputeGameFactory integration
-2. **Evidence Generation**: Implement actual evidence generation logic from batch data
-3. **Multi-L2 Support**: Add support for testing across multiple L2 chains
-4. **CI/CD Integration**: Add to GitHub Actions workflow
-
-## Related Documentation
-
-- [E2E Test Design Document](../docs/e2e-test-design.md)
-- [RAT Contract Source](../src/validator/RAT.sol)
-- [IRAT Interface](../src/validator/IRAT.sol)
+- [Go E2E Test Guide](../docs/test/go-e2e-test-guide.md)
 - [Test Coverage Matrix](../docs/test/coverage-matrix.md)

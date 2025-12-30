@@ -8,5 +8,8 @@ broadcast/
 # claude files
 .claude/
 
+# devnet files
+.devnet/
+
 paper/
 docs/for-llm-kr-v2/

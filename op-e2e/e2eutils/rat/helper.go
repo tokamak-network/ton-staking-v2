@@ -356,7 +356,7 @@ func (h *RATHelper) RegisterValidatorWithApproval(ctx context.Context, privateKe
 		return nil, err
 	}
 
-	tx := types.NewTransaction(nonce, tonAddr, big.NewInt(0), 300000, gasPrice, callData)
+	tx := types.NewTransaction(nonce, tonAddr, big.NewInt(0), 500000, gasPrice, callData)
 	signedTx, err := opts.Signer(opts.From, tx)
 	if err != nil {
 		return nil, err
