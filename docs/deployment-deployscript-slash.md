@@ -190,6 +190,12 @@ v1_SlashingSelectors[7] = SeigManagerV1_Slashing.includeFromL2Seigniorage.select
 v1_SlashingSelectors[8] = SeigManagerV1_Slashing.onSlash.selector;
 
 proxy.setSelectorImplementations2(v1_SlashingSelectors, address(seigManagerV1_Slashing));
+
+// ==========================================
+// Step 6: SlashingRewardRate를 세팅
+// ==========================================
+// 1000 = 10%, 10000 = 100%
+SeigManagerV1_Slashing(address(proxy)).setSlashingRewardRate(1000);
 ```
 
 ---
