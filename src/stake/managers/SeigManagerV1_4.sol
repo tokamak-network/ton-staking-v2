@@ -85,7 +85,7 @@ contract SeigManagerV1_4 is
         _;
     }
 
-    modifier onlyMigrated() {
+    modifier whenV3Active() {
         if (!v3Migrated) revert NotMigratedError();
         _;
     }
@@ -241,7 +241,7 @@ contract SeigManagerV1_4 is
     ///      트리거 함수이므로 조건 불충족 시 revert 대신 early return
     function onBridgedTONChange()
         external
-        onlyMigrated
+        whenV3Active
     {
         // 1. 호출자(포탈)로부터 rollupConfig 역방향 조회
         address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithPortal(msg.sender);
@@ -265,7 +265,7 @@ contract SeigManagerV1_4 is
     function onStakingChange(address layer2)
         external
         onlyDepositManager
-        onlyMigrated
+        whenV3Active
     {
         _updateEligibilityInternal(layer2);
     }
