@@ -39,13 +39,58 @@ contract MockLayer2Manager {
 /// @notice Mock L1BridgeRegistry for E2E testing
 contract MockL1BridgeRegistry {
     mapping(address => address) public disputeGameFactoryForSystemConfig;
+    mapping(address => address) public rollupConfigByFactory;
 
     function setDisputeGameFactory(address systemConfig, address factory) external {
         disputeGameFactoryForSystemConfig[systemConfig] = factory;
+        rollupConfigByFactory[factory] = systemConfig;
     }
 
     function getDisputeGameFactory(address systemConfig) external view returns (address) {
         return disputeGameFactoryForSystemConfig[systemConfig];
+    }
+
+    /// @notice Required by RAT.onlyValidFactory modifier
+    function rollupConfigWithDisputeGameFactory(address factory) external view returns (address) {
+        return rollupConfigByFactory[factory];
+    }
+}
+
+/// @notice Mock DisputeGameFactory for E2E testing
+/// @dev Allows triggering RAT attention tests without full Optimism stack
+interface IRAT {
+    function triggerAttentionTest(
+        address gameAddress,
+        address systemConfig,
+        uint32 batchIndex,
+        bytes32 batchHash,
+        bytes32 blockHash
+    ) external;
+}
+
+contract MockDisputeGameFactory {
+    address public rat;
+    address public systemConfig;
+    uint256 public gameCount;
+
+    event GameCreated(address indexed gameAddress, uint32 batchIndex, bytes32 batchHash);
+
+    constructor(address _rat, address _systemConfig) {
+        rat = _rat;
+        systemConfig = _systemConfig;
+    }
+
+    /// @notice Creates a mock dispute game and triggers RAT attention test
+    function createGame(uint32 batchIndex, bytes32 batchHash, bytes32 blockHash) external returns (address) {
+        gameCount++;
+        // Use a deterministic address based on gameCount
+        address gameAddress = address(uint160(uint256(keccak256(abi.encodePacked(address(this), gameCount)))));
+
+        // Trigger RAT attention test
+        IRAT(rat).triggerAttentionTest(gameAddress, systemConfig, batchIndex, batchHash, blockHash);
+
+        emit GameCreated(gameAddress, batchIndex, batchHash);
+        return gameAddress;
     }
 }
 
@@ -80,9 +125,12 @@ contract DeployRATForE2E is Script {
     address public layer2Manager;
     address public l1BridgeRegistry;
     address public systemConfig;
+    address public systemConfig2;  // Second L2 for multi-L2 tests
     address public ratProxy;
     address public ratImpl;
     address public proxyAdmin;
+    address public disputeGameFactory;
+    address public disputeGameFactory2;  // For second L2
 
     function run() external {
         console.log("=== RAT E2E Deployment ===");
@@ -114,11 +162,17 @@ contract DeployRATForE2E is Script {
         l1BridgeRegistry = address(mockBridgeReg);
         console.log("L1BridgeRegistry deployed:", l1BridgeRegistry);
 
-        // 3. Deploy mock SystemConfig for test L2
+        // 3. Deploy mock SystemConfigs for test L2s
         MockSystemConfig mockSysConfig = new MockSystemConfig(901); // Test chain ID
         systemConfig = address(mockSysConfig);
         mockL2Manager.registerL2(systemConfig);
         console.log("SystemConfig deployed:", systemConfig);
+
+        // Second L2 for multi-L2 tests
+        MockSystemConfig mockSysConfig2 = new MockSystemConfig(902);
+        systemConfig2 = address(mockSysConfig2);
+        mockL2Manager.registerL2(systemConfig2);
+        console.log("SystemConfig2 deployed:", systemConfig2);
 
         // 4. Deploy RAT with proxy
         ratImpl = address(new RAT());
