@@ -75,4 +75,35 @@ contract MockWTON is ERC20 {
         _approve(address(this), depositManager, wtonAmount);
         IDepositManager(depositManager).deposit(layer2, from, wtonAmount);
     }
+
+    /// @notice onApprove callback from TON.approveAndCall
+    /// @dev Converts TON to WTON and deposits to DepositManager
+    /// @param owner User who initiated the approveAndCall
+    /// @param spender This contract (WTON)
+    /// @param amount TON amount (18 decimals)
+    /// @param data abi.encode(depositManager, layer2)
+    function onApprove(
+        address owner,
+        address spender,
+        uint256 amount,
+        bytes calldata data
+    ) external returns (bool) {
+        require(msg.sender == ton, "only TON");
+
+        // TON is already transferred to this contract by approveAndCall
+        // Convert TON to WTON (1 TON = 1e9 WTON in RAY)
+        uint256 wtonAmount = amount * 1e9;
+
+        // Decode data to get depositManager and layer2
+        (address depositManager, address layer2) = abi.decode(data, (address, address));
+
+        // Mint WTON to this contract
+        _mint(address(this), wtonAmount);
+
+        // Approve depositManager and deposit
+        _approve(address(this), depositManager, wtonAmount);
+        IDepositManager(depositManager).deposit(layer2, owner, wtonAmount);
+
+        return true;
+    }
 }
