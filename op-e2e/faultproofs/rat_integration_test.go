@@ -79,7 +79,7 @@ func TestRATIntegration_ValidatorRegistration(t *testing.T) {
 	t.Logf("Minimum collateral: %s", minCollateral.String())
 
 	// Register validator with minimum deposit (TON units, 18 decimals)
-	buffer := big.NewInt(10 * 1e18) // 10 TON buffer
+	buffer := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18)) // 10 TON buffer
 	depositAmount := new(big.Int).Add(minCollateral, buffer) // D_min + 10 TON buffer
 	t.Logf("Deposit amount: %s", depositAmount.String())
 
