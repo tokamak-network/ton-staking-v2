@@ -57,7 +57,7 @@ error OnApproveError(uint x);
 error SlashingError();
 
 
-contract Layer2ManagerV1_1 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
+contract Layer2ManagerV1_Slashing is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
 
     /* ========== DEPENDENCIES ========== */
     using SafeERC20 for IERC20;
