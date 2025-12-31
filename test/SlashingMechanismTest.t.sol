@@ -2,8 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
-import { Layer2ManagerV1_1 } from "../src/layer2/Layer2ManagerV1_Slashing.sol";
-import { DepositManagerV1_1 } from "../src/stake/managers/DepositManagerV1_Slash.sol";
+import { Layer2ManagerV1_Slashing } from "../src/layer2/Layer2ManagerV1_Slashing.sol";
+import { DepositManagerV1_Slashing } from "../src/stake/managers/DepositManagerV1_Slashing.sol";
 import { MockDisputeGameFactory } from "../src/mocks/MockDisputeGameFactory.sol";
 import { MockFaultDisputeGame } from "../src/mocks/MockFaultDisputeGame.sol";
 import { MockSystemConfig } from "../src/mocks/MockSystemConfig.sol";
@@ -14,8 +14,8 @@ import { GameStatus } from "../src/layer2/lib/Types.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SlashingMechanismTest is Test {
-    Layer2ManagerV1_1 l2Manager;
-    DepositManagerV1_1 depositManager;
+    Layer2ManagerV1_Slashing l2Manager;
+    DepositManagerV1_Slashing depositManager;
     
     MockDisputeGameFactory gameFactory;
     MockSystemConfig systemConfig;
@@ -30,8 +30,8 @@ contract SlashingMechanismTest is Test {
     address seigManager = address(0x555);
 
     function setUp() public {
-        l2Manager = new Layer2ManagerV1_1();
-        depositManager = new DepositManagerV1_1();
+        l2Manager = new Layer2ManagerV1_Slashing();
+        depositManager = new DepositManagerV1_Slashing();
         gameFactory = new MockDisputeGameFactory();
         systemConfig = new MockSystemConfig();
         systemConfig.setDisputeGameFactory(address(gameFactory));
@@ -114,7 +114,7 @@ contract SlashingMechanismTest is Test {
         // 예상 이벤트: 10% 보상 (10 WTON = 10 * 1e27)
         uint256 expectedReward = 10 * 1e27;
         vm.expectEmit(true, true, true, true);
-        emit DepositManagerV1_1.ChallengerRewarded(address(mockLayer2), challenger, expectedReward); 
+        emit DepositManagerV1_Slashing.ChallengerRewarded(address(mockLayer2), challenger, expectedReward); 
         
         l2Manager.slashingCandidate(operator, gameType, rootClaim, extraData, address(game));
         
