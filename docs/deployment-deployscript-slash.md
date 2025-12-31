@@ -111,7 +111,7 @@ proxy.upgradeTo(address(layer2RegistryBase));
 | 항목 | 설명 |
 |------|------|
 | 역할 | 시뇨리지 계산 및 분배의 핵심 |
-| 버전 | Base, V1_1, V1_2, V1_Slashing (다중 구현체) |
+| 버전 | Base, V1_1, V1_Slashing, V1_3 (다중 구현체) |
 | 주요 기능 | 블록당 시뇨리지 계산, Layer2별 분배 |
 
 **중요**: SeigManager는 **다중 구현체 패턴**을 사용합니다. 단순 프록시 업그레이드가 아닌 **함수별 라우팅(Selector Routing)**으로 여러 구현체가 동시에 활성화됩니다.
@@ -120,8 +120,8 @@ proxy.upgradeTo(address(layer2RegistryBase));
 
 | 버전 | 역할 | 비고 | 
 |------|------|------|
-| **SeigManagerV1_2** | 기본 구현체 (Index 0) - initialize, setData, deployCoinage 등 | `upgradeTo()`로 설정 |
-| **SeigManagerV1_Slashing** | pause/unpause, L2 시뇨리지 제외/포함 | Selector routing 필요 | 
+| **SeigManagerV1_Slashing** | 기본 구현체 (Index 0) - initialize, setData, deployCoinage 등 | `upgradeTo()`로 설정 |
+| **SeigManagerV1_3** | pause/unpause, L2 시뇨리지 제외/포함 | Selector routing 필요 | 
 
 ### SeigManagerV1_3 등록 함수 목록
 
@@ -137,7 +137,6 @@ proxy.upgradeTo(address(layer2RegistryBase));
 | `claimableL2Seigniorage(address)` | `0xd732785e` | Layer2 청구 가능 시뇨리지 조회 (view) |
 | `excludeFromL2Seigniorage(address)` | `0x2c1e0156` | L2 시뇨리지 분배 제외 |
 | `includeFromL2Seigniorage(address)` | `0x54798b55` | L2 시뇨리지 분배 포함 |
-| `onSlash(address,address)` | `0x453260d7` | L2의 Operator에 대한 슬래시 발생 |
 
 
 ### 상세 배포 절차 (Selector Routing 방식)
@@ -146,21 +145,21 @@ proxy.upgradeTo(address(layer2RegistryBase));
 // ==========================================
 // Step 1: 모든 구현체 배포
 // ==========================================
-SeigManagerV1_2 seigManagerV1_2 = new SeigManagerV1_2();
 SeigManagerV1_Slashing seigManagerV1_Slashing = new SeigManagerV1_Slashing();
+SeigManagerV1_3 seigManagerV1_3 = new SeigManagerV1_3();
 
 // ==========================================
 // Step 2: 프록시 배포 및 기본 구현체 설정
 // ==========================================
 // 프록시는 3번 과정에서 배포한 seigManagerProxy를 사용
 SeigManagerProxy proxy = new SeigManagerProxy();
-proxy.upgradeTo(address(seigManagerV1_2));
+proxy.upgradeTo(address(seigManagerV1_Slashing));
 
 // ==========================================
 // Step 3: 초기화 (기본 구현체 함수 사용)
 // ==========================================
 //registry, seigPerBlock, factory 값 찾아오기
-SeigManagerV1_2(address(proxy)).initialize(
+SeigManagerV1_Slashing(address(proxy)).initialize(
     ton, wton, registry_, depositManagerProxy,
     seigPerBlock_, factory_, block.number
 );
@@ -171,31 +170,24 @@ SeigManagerV1_2(address(proxy)).initialize(
 // );
 
 // ==========================================
-// Step 4: V1_Slashing 구현체 활성화
+// Step 4: V1_3 구현체 활성화
 // ==========================================
-proxy.setAliveImplementation2(address(seigManagerV1_Slashing), true);
+proxy.setAliveImplementation2(address(seigManagerV1_3), true);
 
 // ==========================================
-// Step 5: V1_Slashing 함수들을 V1_Slashing 구현체로 라우팅
+// Step 5: V1_3 함수들을 V1_3 구현체로 라우팅
 // ==========================================
-bytes4[] memory v1_SlashingSelectors = new bytes4[](N);
-v1_SlashingSelectors[0] = SeigManagerV1_Slashing.pause.selector;
-v1_SlashingSelectors[1] = SeigManagerV1_Slashing.unpause.selector;
-v1_SlashingSelectors[2] = SeigManagerV1_Slashing.updateSeigniorage.selector;
-v1_SlashingSelectors[3] = SeigManagerV1_Slashing.updateSeigniorageLayer.selector;
-v1_SlashingSelectors[4] = SeigManagerV1_Slashing.estimatedDistribute.selector;
-v1_SlashingSelectors[5] = SeigManagerV1_Slashing.claimableL2Seigniorage.selector;
-v1_SlashingSelectors[6] = SeigManagerV1_Slashing.excludeFromL2Seigniorage.selector;
-v1_SlashingSelectors[7] = SeigManagerV1_Slashing.includeFromL2Seigniorage.selector;
-v1_SlashingSelectors[8] = SeigManagerV1_Slashing.onSlash.selector;
+bytes4[] memory v1_3Selectors = new bytes4[](N);
+v1_3Selectors[0] = SeigManagerV1_3.pause.selector;
+v1_3Selectors[1] = SeigManagerV1_3.unpause.selector;
+v1_3Selectors[2] = SeigManagerV1_3.updateSeigniorage.selector;
+v1_3Selectors[3] = SeigManagerV1_3.updateSeigniorageLayer.selector;
+v1_3Selectors[4] = SeigManagerV1_3.estimatedDistribute.selector;
+v1_3Selectors[5] = SeigManagerV1_3.claimableL2Seigniorage.selector;
+v1_3Selectors[6] = SeigManagerV1_3.excludeFromL2Seigniorage.selector;
+v1_3Selectors[7] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
 
-proxy.setSelectorImplementations2(v1_SlashingSelectors, address(seigManagerV1_Slashing));
-
-// ==========================================
-// Step 6: SlashingRewardRate를 세팅
-// ==========================================
-// 1000 = 10%, 10000 = 100%
-SeigManagerV1_Slashing(address(proxy)).setSlashingRewardRate(1000);
+proxy.setSelectorImplementations2(v1_3Selectors, address(seigManagerV1_3));
 ```
 
 ---
@@ -271,6 +263,12 @@ v1_SlashingSelectors[0] = Deposit   ManagerV1_Slashing.setMinDepositGasLimit.sel
 v1_SlashingSelectors[1] = DepositManagerV1_Slashing.setAddresses.selector;
 v1_SlashingSelectors[2] = DepositManagerV1_Slashing.withdrawAndDepositL2.selector;
 proxy.setSelectorImplementations2(v1_SlashingSelectors, address(depositManagerV1_Slashing));
+
+// ==========================================
+// Step 7: SlashingRewardRate를 세팅
+// ==========================================
+// 1000 = 10%, 10000 = 100%
+DepositManagerV1_Slashing(address(proxy)).setSlashingRewardRate(1000);
 ```
 
 ---
