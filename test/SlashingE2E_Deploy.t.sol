@@ -120,7 +120,7 @@ contract SlashingE2E_Deploy is Test {
     uint256 public constant GLOBAL_WITHDRAWAL_DELAY = 93046; // ~2 weeks in blocks
     uint256 public constant SLASHING_REWARD_RATE = 1000; // 10%
 
-    function setUp() public {
+    function setUp() public virtual {
         deployer = address(this);
         operator = makeAddr("operator");
         challenger = makeAddr("challenger");
@@ -522,6 +522,10 @@ contract SlashingE2E_Deploy is Test {
         // SeigManager가 코이니지 생성 가능하도록
         Layer2Registry(address(layer2RegistryProxy)).addMinter(address(seigManagerProxy));
         console.log("SeigManager added as minter to Layer2Registry");
+
+        // DAOCommittee가 레이어2 등록 대행 가능하도록
+        Layer2Registry(address(layer2RegistryProxy)).addMinter(daoCommitteeProxy);
+        console.log("DAOCommitteeProxy added as minter to Layer2Registry");
 
         // SeigManager가 시뇨리지(WTON) 발행 가능하도록
         IWTON(wton).addMinter(address(seigManagerProxy));
