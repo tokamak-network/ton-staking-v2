@@ -55,7 +55,7 @@ interface IL1Bridge {
  * @dev DepositManager manages WTON deposit and withdrawal from operator and WTON holders.
  */
 //ERC165
-contract DepositManagerV1_1 is
+contract DepositManagerV1_Slashing is
     ProxyStorage,
     AccessibleCommon,
     DepositManagerStorage,
