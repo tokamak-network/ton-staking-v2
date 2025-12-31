@@ -21,12 +21,10 @@
 10. [DAOVault](#10-daovault)
 11. [DAOAgendaManager](#11-daoagendamanager)
 12. [DAOCommittee (다중 구현체)](#12-daocommittee)
-13. [CandidateFactory](#13-candidatefactory)
-14. [CandidateAddOnFactory](#14-candidateaddonfactory)
-15. [DAOContract 설정](#15-daocontract-설정)
-16. [Contract Owner 설정](#16-contract-owner-설정)
-17. [Mint 권한 설정](#17-mint-권한-설정)
-
+13. [Mint 권한 설정](#13-mint-권한-설정)
+14. [DAOContract 설정](#14-daocontract-설정)
+15. [Contract Owner 설정](#15-contract-owner-설정)
+16. [Deploy 테스트 실행 방법](#16-deploy-테스트-실행-방법)
 
 ---
 
@@ -158,16 +156,15 @@ proxy.upgradeTo(address(seigManagerV1_Slashing));
 // ==========================================
 // Step 3: 초기화 (기본 구현체 함수 사용)
 // ==========================================
-//registry, seigPerBlock, factory 값 찾아오기
 SeigManagerV1_Slashing(address(proxy)).initialize(
-    ton, wton, registry_, depositManagerProxy,
-    seigPerBlock_, factory_, block.number
+    ton, 
+    wton, 
+    layer2Registry_, 
+    depositManagerProxy,
+    seigPerBlock_, 
+    coinageFactory_, 
+    block.number
 );
-
-//아직 DAO가 배포되기 전이니 DAO 배포 후 세팅
-// SeigManagerV1_2(address(proxy)).setData(
-//     powerton_, daoAddress_, 0, 0.5e27, 0.5e27, 93096, 1000.1e27
-// );
 
 // ==========================================
 // Step 4: V1_3 구현체 활성화
@@ -240,7 +237,7 @@ proxy.upgradeTo(address(depositManagerBase));
 // Step 3: 초기화
 // registry_ 값찾기
 DepositManager(address(proxy)).initialize(
-    wton, registry_, seigManagerProxy, globalWithdrawalDelay_, address(0)
+    wton, layer2RegistryProxy, seigManagerProxy, globalWithdrawalDelay_, address(0)
 );
 
 // Step 4: Index 1, 2구현체 활성화
@@ -262,6 +259,8 @@ bytes4[] memory v1_SlashingSelectors = new bytes4[](3);
 v1_SlashingSelectors[0] = Deposit   ManagerV1_Slashing.setMinDepositGasLimit.selector;
 v1_SlashingSelectors[1] = DepositManagerV1_Slashing.setAddresses.selector;
 v1_SlashingSelectors[2] = DepositManagerV1_Slashing.withdrawAndDepositL2.selector;
+v1_SlashingSelectors[3] = DepositManagerV1_Slashing.slash.selector;
+v1_SlashingSelectors[4] = DepositManagerV1_Slashing.setSlashingRewardRate.selector;
 proxy.setSelectorImplementations2(v1_SlashingSelectors, address(depositManagerV1_Slashing));
 
 // ==========================================
@@ -273,100 +272,7 @@ DepositManagerV1_Slashing(address(proxy)).setSlashingRewardRate(1000);
 
 ---
 
-## 7. Layer2Manager (Proxy 패턴) 
-
-| 항목 | 설명 |
-|------|------|
-| 역할 | Layer2 등록 및 관리 |
-| 버전 | V1_1 |
-
-### 버전별 함수 분포
-
-| 버전 | Index | 주요 함수 |
-|------|-------|----------|
-| **Layer2ManagerV1_Slashing** | 0 | `setAddresses()`, `registerCandidateAddOn()`, `transferL2Seigniorage()`, `slashingCandidate()` |
-
-
-### 배포 절차
-
-```solidity
-// Step 1: 구현체 배포
-Layer2ManagerV1_Slashing layer2ManagerV1_Slashing = new Layer2ManagerV1_Slashing();
-
-// Step 2: 프록시 배포 및 V1_1을 기본 구현체로 설정
-// 프록시는 3번 과정에서 배포한 layer2ManagerProxy를 사용
-Layer2ManagerProxy proxy = new Layer2ManagerProxy();
-proxy.upgradeTo(address(layer2ManagerV1_Slashing));
-
-// Step 3: 초기화
-// swapProxy는 address(0으로 설정해도 괜찮음
-Layer2ManagerV1_Slashing(address(proxy)).setAddresses(
-    l1BridgeRegistry_, operatorManagerFactory_, ton_, wton_,
-    dao_, depositManager_, seigManager_, swapProxy_
-);
-```
-
----
-
-## 8. L1BridgeRegistry (Proxy 패턴) 
-
-| 항목 | 설명 |
-|------|------|
-| 역할 | Optimism SystemConfig 등록 및 관리 |
-| 버전 | V1_1 |
-
-### 버전별 함수 분포
-
-| 버전 | Index | 주요 함수 | 
-|------|-------|----------|
-| **L1BridgeRegistryV1_1** | 0 | `setAddresses()`, `rejectCandidateAddOn()`, `restoreCandidateAddOn()` |
-
-### 배포 절차
-
-```solidity
-// Step 1: 구현체 배포
-L1BridgeRegistryV1_1 l1BridgeRegistryV1_1 = new L1BridgeRegistryV1_1();
-
-// Step 2: 프록시 배포 및 V1_1을 기본 구현체로 설정
-// 프록시는 3번 과정에서 배포한 l1BridgeRegistryProxy를 사용
-L1BridgeRegistryProxy proxy = new L1BridgeRegistryProxy();
-proxy.upgradeTo(address(l1BridgeRegistryV1_1));
-
-// Step 3: 초기화
-// swapProxy는 address(0으로 설정해도 괜찮음
-L1BridgeRegistryV1_1(address(proxy)).setAddresses(
-    l1BridgeRegistry_, operatorManagerFactory_, ton_, wton_,
-    dao_, depositManager_, seigManager_, swapProxy_
-);
-```
-
----
-
-
-## 9. OperatorManagerFactory
-
-| 항목 | 설명 |
-|------|------|
-| 역할 | Layer2 오퍼레이터 관리 | 
-| 배포 방식 | OperatorManagerFactory가 프록시 생성 | 
-| 구현체 | OperatorManagerV1_1 (기본) |
-
-### 배포 절차
-
-```solidity
-// 1. OperatorManager 구현체 배포
-OperatorManagerV1_1 operatorManagerV1_1Impl = new OperatorManagerV1_1();
-
-// 2. Factory 배포 (V1_1을 기본 구현체로 사용)
-OperatorManagerFactory factory = new OperatorManagerFactory(address(operatorManagerV1_1Impl));
-
-// 3. 주소 설정
-factory.setAddresses(depositManagerProxy, ton, wton, layer2ManagerProxy);
-```
-
----
-
-## 10. DAOVault
+## 7. DAOVault
 
 | 항목 | 설명 |
 |------|------|
@@ -383,7 +289,7 @@ daoVault = deployCode("abis/DAOVault.json", daovaultArgs);
 
 ---
 
-## 11. DAOAgendaManager
+## 8. DAOAgendaManager
 
 | 항목 | 설명 |
 |------|------|
@@ -395,10 +301,9 @@ daoVault = deployCode("abis/DAOVault.json", daovaultArgs);
 daoAgendaManager = deployCode("abis/DAOAgendaManager.json");
 ```
 
-
 ---
 
-## 12. DAOCommittee (다중 구현체 패턴)
+## 9. DAOCommittee (다중 구현체 패턴)
 
 | 항목 | 설명 |
 |------|------|
@@ -517,23 +422,22 @@ daoAgendaManager = deployCode("abis/DAOAgendaManager.json");
 
 ```solidity
 // ==========================================
-// Step 1: DAOCommitteeProxy 배포 (tokamak-dao-contracts)
+// Step 1: DAOCommitteeProxy2 배포 
+// ==========================================
+DAOCommitteeProxy2 daoCommitteeProxy2 = new DAOCommitteeProxy2();
+
+// ==========================================
+// Step 2: DAOCommitteeProxy 배포 
 // ==========================================
 DAOCommitteeProxy daoCommitteeProxy = new DAOCommitteeProxy(
     ton_,                    // TON 토큰 주소
-    address(0),              // impl (Step 2에서 DAOCommitteeProxy2로 설정)
+    address(daoCommitteeProxy2),              // impl (Step 2에서 DAOCommitteeProxy2로 설정)
     seigManagerProxy_,       // SeigManager 프록시
     layer2RegistryProxy_,    // Layer2Registry 프록시
     agendaManagerProxy_,     // AgendaManager 프록시 (별도 배포 필요)
     address(0),              // candidateFactory (나중에 설정)
     daoVaultProxy_           // DAOVault 프록시 (별도 배포 필요)
 );
-
-// ==========================================
-// Step 2: DAOCommitteeProxy2 배포 및 설정 (ton-staking-v2)
-// ==========================================
-DAOCommitteeProxy2 daoCommitteeProxy2 = new DAOCommitteeProxy2();
-daoCommitteeProxy.upgradeTo(address(daoCommitteeProxy2));
 
 // ==========================================
 // Step 3: DAOCommittee_V1 구현체 배포 및 설정
@@ -609,124 +513,114 @@ CandidateAddOnFactory(address(candidateAddOnFactoryProxy)).setAddresses(
 // Step 8: DAOCommittee 설정
 // ==========================================
 DAOCommitteeOwner(address(daoCommitteeProxy)).setCandidateFactory(address(candidateFactoryProxy));
-DAOCommitteeOwner(address(daoCommitteeProxy)).setSeigManager(seigManagerProxy_);
 DAOCommitteeOwner(address(daoCommitteeProxy)).setCandidateAddOnFactory(address(candidateAddOnFactoryProxy));
 DAOCommitteeOwner(address(daoCommitteeProxy)).setLayer2Manager(layer2ManagerProxy_);
+DAOCommitteeOwner(address(daoCommitteeProxy)).setWton(wton_);
 ```
 
 ---
 
-## 13. CandidateFactory
+## 10. L1BridgeRegistry (Proxy 패턴) 
 
 | 항목 | 설명 |
 |------|------|
-| 역할 | 후보자 생성 | 
-| 배포 방식 | CandidateFactoryProxy가 프록시 생성 | 
-| 구현체 | Candidate (기본) |
+| 역할 | Optimism SystemConfig 등록 및 관리 |
+| 버전 | V1_1 |
+
+### 버전별 함수 분포
+
+| 버전 | Index | 주요 함수 | 
+|------|-------|----------|
+| **L1BridgeRegistryV1_1** | 0 | `setAddresses()`, `rejectCandidateAddOn()`, `restoreCandidateAddOn()` |
 
 ### 배포 절차
 
 ```solidity
-// ==========================================
-// Step 1: Candidate 구현체 배포
-// ==========================================
-Candidate candidateImpl = new Candidate();
+// Step 1: 구현체 배포
+L1BridgeRegistryV1_1 l1BridgeRegistryV1_1 = new L1BridgeRegistryV1_1();
 
-// ==========================================
-// Step 2: CandidateFactory 배포 및 설정
-// ==========================================
-CandidateFactory candidateFactoryLogic = new CandidateFactory();
-CandidateFactoryProxy candidateFactoryProxy = new CandidateFactoryProxy();
-candidateFactoryProxy.upgradeTo(address(candidateFactoryLogic));
+// Step 2: 프록시 배포 및 V1_1을 기본 구현체로 설정
+// 프록시는 3번 과정에서 배포한 l1BridgeRegistryProxy를 사용
+L1BridgeRegistryProxy proxy = new L1BridgeRegistryProxy();
+proxy.upgradeTo(address(l1BridgeRegistryV1_1));
 
-CandidateFactory(address(candidateFactoryProxy)).setAddress(
-    depositManagerProxy_,
-    address(daoCommitteeProxy),
-    address(candidateImpl),
-    ton_,
-    wton_
+// Step 3: 초기화
+// swapProxy는 address(0으로 설정해도 괜찮음
+L1BridgeRegistryV1_1(address(proxy)).setAddresses(
+    layer2ManagerProxy,
+    seigManagerProxy,
+    ton
 );
 ```
 
 ---
 
-## 14. CandidateAddOnFactory
+## 11. OperatorManagerFactory
 
 | 항목 | 설명 |
 |------|------|
-| 역할 | L2 후보자 생성 | 
-| 배포 방식 | CandidateAddOnFactoryProxy가 프록시 생성 | 
-| 구현체 | CandidateAddOnV1_1 (기본) |
+| 역할 | Layer2 오퍼레이터 관리 | 
+| 배포 방식 | OperatorManagerFactory가 프록시 생성 | 
+| 구현체 | OperatorManagerV1_1 (기본) |
 
 ### 배포 절차
 
 ```solidity
-// ==========================================
-// Step 1: CandidateAddOn 배포 및 설정
-// ==========================================
-CandidateAddOnV1_1 candidateAddOnImpl = new CandidateAddOnV1_1();
+// 1. OperatorManager 구현체 배포
+OperatorManagerV1_1 operatorManagerV1_1Impl = new OperatorManagerV1_1();
 
-CandidateAddOnFactory candidateAddOnFactoryLogic = new CandidateAddOnFactory();
-CandidateAddOnFactoryProxy candidateAddOnFactoryProxy = new CandidateAddOnFactoryProxy();
-candidateAddOnFactoryProxy.upgradeTo(address(candidateAddOnFactoryLogic));
+// 2. Factory 배포 (V1_1을 기본 구현체로 사용)
+OperatorManagerFactory factory = new OperatorManagerFactory(address(operatorManagerV1_1Impl));
 
-CandidateAddOnFactory(address(candidateAddOnFactoryProxy)).setAddresses(
-    address(candidateAddOnImpl),
-    address(daoCommitteeProxy),
-    seigManagerProxy_,
-    ton_,
-    wton_
+// 3. 주소 설정
+factory.setAddresses(depositManagerProxy, ton, wton, layer2ManagerProxy);
+```
+
+---
+
+
+## 12. Layer2Manager (Proxy 패턴) 
+
+| 항목 | 설명 |
+|------|------|
+| 역할 | Layer2 등록 및 관리 |
+| 버전 | V1_1 |
+
+### 버전별 함수 분포
+
+| 버전 | Index | 주요 함수 |
+|------|-------|----------|
+| **Layer2ManagerV1_Slashing** | 0 | `setAddresses()`, `registerCandidateAddOn()`, `transferL2Seigniorage()`, `slashingCandidate()` |
+
+
+### 배포 절차
+
+```solidity
+// Step 1: 구현체 배포
+Layer2ManagerV1_Slashing layer2ManagerV1_Slashing = new Layer2ManagerV1_Slashing();
+
+// Step 2: 프록시 배포 및 V1_1을 기본 구현체로 설정
+// 프록시는 3번 과정에서 배포한 layer2ManagerProxy를 사용
+Layer2ManagerProxy proxy = new Layer2ManagerProxy();
+proxy.upgradeTo(address(layer2ManagerV1_Slashing));
+
+// Step 3: 초기화
+// swapProxy는 address(0으로 설정해도 괜찮음
+Layer2ManagerV1_Slashing(address(proxy)).setAddresses(
+    l1BridgeRegistry_, 
+    operatorManagerFactory_, 
+    ton_, 
+    wton_,
+    dao_, 
+    depositManager_, 
+    seigManager_, 
+    swapProxy_
 );
 ```
 
 ---
 
-## 15. DAOContract 설정
-| 항목 | 설명 |
-|------|------|
-| 역할 | DAOContract 설정 | 
-
-### 설정 절차
-
-```solidity
-// ==========================================
-// Step 8: DAOCommittee 설정
-// ==========================================
-DAOCommitteeOwner(address(daoCommitteeProxy)).setCandidateFactory(address(candidateFactoryProxy));
-DAOCommitteeOwner(address(daoCommitteeProxy)).setSeigManager(seigManagerProxy_);
-DAOCommitteeOwner(address(daoCommitteeProxy)).setCandidateAddOnFactory(address(candidateAddOnFactoryProxy));
-DAOCommitteeOwner(address(daoCommitteeProxy)).setLayer2Manager(layer2ManagerProxy_);
-```
----
-
-## 16. Contract Owner 설정
-| 항목 | 설명 |
-|------|------|
-| 역할 | 컨트랙트의 Owner 설정 | 
-
-### 설정 절차
-
-```solidity
-// 배포 완료 후 owner를 DAO로 이전
-
-// 핵심 매니저
-SeigManagerProxy(seigManagerProxy).transferOwnership(daoCommitteeProxy);
-DepositManagerProxy(depositManagerProxy).transferOwnership(daoCommitteeProxy);
-Layer2RegistryProxy(layer2RegistryProxy).transferOwnership(daoCommitteeProxy);
-Layer2ManagerProxy(layer2ManagerProxy).transferOwnership(daoCommitteeProxy);
-L1BridgeRegistryProxy(l1BridgeRegistryProxy).transferOwnership(daoCommitteeProxy);
-
-// DAO 관련
-CandidateFactoryProxy(candidateFactoryProxy).transferOwnership(daoCommitteeProxy);
-CandidateAddOnFactoryProxy(candidateAddOnFactoryProxy).transferOwnership(daoCommitteeProxy);
-
-// V3 신규
-RATProxy(ratProxy).transferOwnership(daoCommitteeProxy);
-ValidatorRewardProxy(validatorRewardProxy).transferOwnership(daoCommitteeProxy);
-SequencerVaultProxy(sequencerVaultProxy).transferOwnership(daoCommitteeProxy);
-```
-
-## 17. Mint 권한 설정
+## 13. Mint 권한 설정
 | 항목 | 설명 |
 |------|------|
 | 역할 | Mint 권한 설정 | 
@@ -738,4 +632,59 @@ SequencerVaultProxy(sequencerVaultProxy).transferOwnership(daoCommitteeProxy);
 layer2Registry.addMinter(seigManagerProxy)
 //SeigManager가 시뇨리지(WTON) 발행 가능하도록
 wton.addMinter(seigManagerProxy)
+```
+
+---
+
+## 14. SeigManager setData 호출
+
+| 항목 | 설명 |
+|------|------|
+| 역할 | setData 호출 | 
+
+### 설정 절차
+
+```solidity
+SeigManagerV1_Slashing(address(seigManagerProxy)).setData(
+    powerTON,
+    daoCommitteeProxy,
+    0, // powerTONSeigRate_
+    0.5e27, //daoSeigRate_
+    0.5e27, //relativeSeigRate_
+    93096, //adjustDelay_
+    1000.1e27 //minimumAmount_
+)
+```
+
+---
+
+## 15. Contract Owner 설정
+| 항목 | 설명 |
+|------|------|
+| 역할 | 컨트랙트의 Owner 설정 | 
+
+### 설정 절차
+
+```solidity
+// 배포 완료 후 owner를 DAO로 이전
+
+// 핵심 매니저
+SeigManagerProxy(seigManagerProxy).transferAdmin(daoCommitteeProxy);
+DepositManagerProxy(depositManagerProxy).transferOwnership(daoCommitteeProxy);
+Layer2RegistryProxy(layer2RegistryProxy).transferOwnership(daoCommitteeProxy);
+Layer2ManagerProxy(layer2ManagerProxy).transferOwnership(daoCommitteeProxy);
+L1BridgeRegistryProxy(l1BridgeRegistryProxy).transferAdmin(daoCommitteeProxy);
+
+// DAO 관련
+CandidateFactoryProxy(candidateFactoryProxy).transferOwnership(daoCommitteeProxy);
+CandidateAddOnFactoryProxy(candidateAddOnFactoryProxy).transferOwnership(daoCommitteeProxy);
+```
+
+---
+
+
+
+## 16. Deploy 테스트 실행 방법
+```bash
+forge test --match-path test/SlashingE2E_Deploy.t.sol -vvv
 ```
