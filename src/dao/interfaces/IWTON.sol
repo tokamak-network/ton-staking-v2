@@ -19,4 +19,6 @@ interface IWTON {
     function renounceMinter() external ;
     function mint(address account, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256 amount);
+    function addMinter(address minter) external;
+    function isMinter(address minter) external view returns (bool);
 }
