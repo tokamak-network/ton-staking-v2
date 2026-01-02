@@ -513,6 +513,13 @@ contract SlashingE2E_Deploy is Test {
             address(0)  // swapProxy (not used)
         );
         console.log("Layer2Manager addresses set");
+
+        // DepositManager에 Layer2Manager 주소 설정 (Slash 권한 위해 필요)
+        DepositManagerV1_Slashing(address(depositManagerProxy)).setAddresses(
+            address(l1BridgeRegistryProxy),
+            address(layer2ManagerProxy)
+        );
+        console.log("DepositManagerV1_Slashing addresses set");
     }
 
     /// @notice 13. Mint 권한 설정
@@ -523,13 +530,14 @@ contract SlashingE2E_Deploy is Test {
         Layer2Registry(address(layer2RegistryProxy)).addMinter(address(seigManagerProxy));
         console.log("SeigManager added as minter to Layer2Registry");
 
-        // DAOCommittee가 레이어2 등록 대행 가능하도록
-        Layer2Registry(address(layer2RegistryProxy)).addMinter(daoCommitteeProxy);
-        console.log("DAOCommitteeProxy added as minter to Layer2Registry");
-
         // SeigManager가 시뇨리지(WTON) 발행 가능하도록
         IWTON(wton).addMinter(address(seigManagerProxy));
         console.log("SeigManager added as minter to WTON");
+
+        // DAOCommittee가 레이어2 등록 대행 가능하도록
+        // ============== 이부분은 추가로 고민해봐야함 ==================
+        Layer2Registry(address(layer2RegistryProxy)).addMinter(daoCommitteeProxy);
+        console.log("DAOCommitteeProxy added as minter to Layer2Registry");
     }
 
     /// @notice 14. SeigManager setData
