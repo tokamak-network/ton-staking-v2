@@ -688,3 +688,9 @@ CandidateAddOnFactoryProxy(candidateAddOnFactoryProxy).transferOwnership(daoComm
 ```bash
 forge test --match-path test/SlashingE2E_Deploy.t.sol -vvv
 ```
+
+
+## 17. Slahsing 테스트 실행 방법
+```bash
+forge test --match-path test/SlashingE2E_Functional.t.sol -vv
+```
