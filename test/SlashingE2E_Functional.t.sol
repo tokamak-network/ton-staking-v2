@@ -7,6 +7,9 @@ import "./SlashingE2E_Deploy.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { GameType, Claim } from "../src/layer2/lib/LibUDT.sol";
 
+import { MockDisputeGameFactory } from "../src/mocks/MockDisputeGameFactory.sol";
+import { MockFaultDisputeGame } from "../src/mocks/MockFaultDisputeGame.sol";
+
 interface ITON_Mint is ITON {
     function mint(address to, uint256 amount) external returns (bool);
 }
@@ -107,48 +110,38 @@ contract SlashingE2E_Functional is SlashingE2E_Deploy {
         uint256 initialStake = DepositManager(address(depositManagerProxy)).accStaked(candidateAddOn, operatorManager);
         assertEq(initialStake, 10000 * 1e18 * 1e9, "Initial stake mismatch");
 
-        // 2. Slashing 준비 (Mock Dispute Game)
-        address mockDisputeGameFactory = makeAddr("mockDisputeGameFactory");
-        address mockDisputeGame = makeAddr("mockDisputeGame");
+        // 2. Slashing 준비 (Mock Dispute Game 컨트랙트 실제 배포)
+        MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
         
-        // SystemConfig.disputeGameFactory() 모킹
+        // SystemConfig.disputeGameFactory() 모킹 (실제 배포된 gameFactory 주소를 리턴하도록)
         vm.mockCall(
             rollupConfig,
             abi.encodeWithSignature("disputeGameFactory()"),
-            abi.encode(mockDisputeGameFactory)
+            abi.encode(address(gameFactory))
         );
 
-        // DisputeGameFactory.games(...) 모킹
-        vm.mockCall(
-            mockDisputeGameFactory,
-            abi.encodeWithSignature("games(uint32,bytes32,bytes)"),
-            abi.encode(mockDisputeGame, 0) 
-        );
+        GameType gameType = GameType.wrap(0);
+        Claim rootClaim = Claim.wrap(bytes32(uint256(1)));
+        bytes memory extraData = hex"1234";
 
-        // DisputeGame.status() -> CHALLENGER_WINS (1)
-        // Optimism's GameStatus: IN_PROGRESS (0), CHALLENGER_WINS (1), DEFENDER_WINS (2)
-        vm.mockCall(
-            mockDisputeGame,
-            abi.encodeWithSignature("status()"),
-            abi.encode(uint8(1)) 
-        );
-
-        // DisputeGame.claimData(0) -> counteredBy
-        vm.mockCall(
-            mockDisputeGame,
-            abi.encodeWithSignature("claimData(uint256)"),
-            abi.encode(uint32(0), challenger, address(0), uint128(0), uint128(0), uint128(0), bytes32(0))
-        );
+        // Dispute Game 생성 및 상태 설정
+        MockFaultDisputeGame game = MockFaultDisputeGame(address(gameFactory.create(gameType, rootClaim, extraData)));
+        game.initialize(); // claimData[0] 설정을 위해 초기화 필요
+        
+        // Challenger 승리 시뮬레이션
+        vm.prank(challenger);
+        game.step(); // 챌린저가 대응(step)함
+        game.resolve(); // 게임 종료 -> CHALLENGER_WINS 상태가 됨
 
         // 3. Slashing 실행
         uint256 challengerInitialWton = IERC20(wton).balanceOf(challenger);
         
         Layer2ManagerV1_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
-            GameType.wrap(0), // GameType
-            Claim.wrap(bytes32(0)), // rootClaim
-            "", // extraData
-            mockDisputeGame
+            gameType,
+            rootClaim,
+            extraData,
+            address(game)
         );
 
         // 4. 결과 검증
