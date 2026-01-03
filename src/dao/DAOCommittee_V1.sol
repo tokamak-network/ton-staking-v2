@@ -525,7 +525,7 @@ contract DAOCommittee_V1 is
         } else if (block.timestamp < noticeEndTime) {
             //Notice Time
             return (0, 1);
-        } else if (noticeEndTime < block.timestamp) {
+        } else {
             (uint256 yes, uint256 no, uint256 abstain) = agendaManager.getVotingCount(_agendaID);
             if (quorum <= yes) {
                 // yes
@@ -548,13 +548,18 @@ contract DAOCommittee_V1 is
                 agendaStatus = 5;
                 return (agendaResult, agendaStatus);
             } else {
-                // (NO CONSENSUS, ENDED)
-                agendaResult = 4;
-                agendaStatus = 5;
+                if (block.timestamp < votingEndTime) {
+                    // (PENDING, VOTING)
+                    agendaResult = 0;
+                    agendaStatus = 2;
+                } else {
+                    // (NO CONSENSUS, ENDED)
+                    agendaResult = 4;
+                    agendaStatus = 5;
+                }
                 return (agendaResult, agendaStatus);
             }
         }
-
     }
 
     /// @notice Execute the accepted agenda
