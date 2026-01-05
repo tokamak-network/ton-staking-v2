@@ -42,8 +42,8 @@ contract MockFaultDisputeGame {
         systemConfigAddr = _systemConfig;
     }
 
-    function addChallenger(address challenger) external {
-        challengers.push(challenger);
+    function addChallenger(address _challenger) external {
+        challengers.push(_challenger);
     }
 
     function addClaim(

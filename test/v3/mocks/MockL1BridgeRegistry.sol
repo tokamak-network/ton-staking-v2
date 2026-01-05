@@ -51,7 +51,7 @@ contract MockL1BridgeRegistry {
         external
         view
         returns (
-            uint8 rollupType,
+            uint8 _rollupType,
             uint8 status,
             bool rejectedSeigs,
             bool rejectedL2Deposit,

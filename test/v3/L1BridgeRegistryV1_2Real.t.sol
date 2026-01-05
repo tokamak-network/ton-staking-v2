@@ -17,6 +17,11 @@ import {
 /// @dev Tests for TYPE 1/2/3 registration, upgradeToType3, typeRegistrant, reject/restore
 
 contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
+    // Event declarations for testing
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2TON, string name);
+    event TypeRegistrantSet(uint8 indexed rollupType, address indexed registrant);
+    event UpgradedToType3(address rollupConfig, uint8 previousType, address portal, address disputeGameFactory);
+
     L1BridgeRegistryV1_2 public l1BridgeRegistry;
 
     address public owner;
