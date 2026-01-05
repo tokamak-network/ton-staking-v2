@@ -4,6 +4,8 @@ out = "out"
 libs = ["lib"]
 test = "test"
 via_ir = true
+optimizer = true
+optimizer_runs = 1
 
 remappings = [
   '@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/',
@@ -11,7 +13,7 @@ remappings = [
   '@optimism/=lib/optimism/packages/contracts-bedrock/',
   '@optimism-bedrock/=lib/optimism/packages/contracts-bedrock/src/',
   'interfaces/=lib/optimism/packages/contracts-bedrock/interfaces/',
-  'src/=lib/optimism/packages/contracts-bedrock/src/',
+  '@optimism-src/=lib/optimism/packages/contracts-bedrock/src/',
   '@rari-capital/solmate/=lib/optimism/packages/contracts-bedrock/lib/solmate/',
   '@solady/=lib/optimism/packages/contracts-bedrock/lib/solady/src/',
   'safe-contracts/=lib/optimism/packages/contracts-bedrock/lib/safe-contracts/contracts/',
@@ -24,4 +26,8 @@ remappings = [
 runs = 256
 
 # Allow script to write deployment files
-fs_permissions = [{ access = "read-write", path = "./deployments" }]
+fs_permissions = [
+    { access = "read-write", path = "./deployments" },
+    { access = "read-write", path = ".devnet" },
+    { access = "read-write", path = "./" }
+]
