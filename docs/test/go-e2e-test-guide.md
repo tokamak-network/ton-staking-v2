@@ -136,20 +136,24 @@ This starts Anvil with:
 - **Block Time**: 2 seconds
 - Optimism contracts pre-deployed
 
-### Step 4: Deploy RAT Contract
+### Step 4: Deploy TON Staking V3 Full System
 
 ```bash
 cd /path/to/ton-staking-v2
 
-# Deploy RAT and connect to DisputeGameFactory
-make deploy-rat-devnet
+# Note: This is automatically done by `make devnet-allocs` in the Quick Start workflow
+# If running manually, the script will be executed by devnet-allocs.sh
 ```
 
-This script:
-1. Deploys TON, WTON tokens (mock)
-2. Deploys RAT contract with proxy
-3. Calls `DisputeGameFactory.setRAT(ratAddress)`
-4. Saves addresses to `.devnet/addresses.json`
+The deployment script (`DeployV3FullForDevnet.s.sol`):
+1. Deploys TON, WTON tokens
+2. Deploys core infrastructure (CoinageFactory, Layer2Registry)
+3. Deploys all managers (SeigManager, DepositManager, Layer2Manager, L1BridgeRegistry)
+4. Deploys V3 contracts (RAT, ValidatorReward, SequencerVault)
+5. Configures multi-implementation routing
+6. Connects RAT to DisputeGameFactory
+7. Mints 100k TON/WTON to test accounts
+8. Saves addresses to `.devnet/addresses.json`
 
 ### Step 5: Run E2E Tests
 
@@ -181,14 +185,25 @@ Located at `.devnet/addresses.json`:
 {
   "chainId": 900,
   "rpcUrl": "http://localhost:8545",
-  "rat": "0x...",
   "ton": "0x...",
   "wton": "0x...",
+  "coinageFactory": "0x...",
+  "layer2RegistryProxy": "0x...",
+  "seigManagerProxy": "0x...",
+  "depositManagerProxy": "0x...",
+  "layer2ManagerProxy": "0x...",
+  "l1BridgeRegistryProxy": "0x...",
+  "operatorManagerFactory": "0x...",
+  "ratProxy": "0x...",
+  "validatorRewardProxy": "0x...",
+  "sequencerVaultProxy": "0x...",
   "disputeGameFactory": "0x22b82825a3d88cabf27fc4d21a859306b22324fa",
   "systemConfig": "0xaeff771968785e279632dd6ed0af1f6c1bfedced",
   "accounts": {
     "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "validator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    "validator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "proposer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "challenger": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
   }
 }
 ```
@@ -312,11 +327,12 @@ ton-staking-v2/
 ## Makefile Commands
 
 ```bash
-# Devnet management
-make devnet-up              # Start lib/optimism L1
+# Devnet management (Single-terminal workflow)
+make devnet-allocs          # Build Optimism + Start L1 + Deploy V3 Full System
+make devnet-up              # Restart L1 (if stopped)
 make devnet-down            # Stop L1
 make devnet-clean           # Clean all devnet files
-make deploy-rat-devnet      # Deploy RAT to devnet
+make devnet-status          # Show devnet status
 
 # Testing
 make test-e2e               # Run all E2E tests
@@ -356,28 +372,45 @@ cd lib/optimism
 just devnet-l1
 ```
 
-### "RAT address not set"
+### "RAT address not set" or "System not deployed"
 
-Deploy RAT contract:
+Deploy complete V3 system:
 
 ```bash
-make deploy-rat-devnet
+make devnet-clean      # Clean previous state
+make devnet-allocs     # Full setup
 ```
 
 ### Tests skip with "devnet not configured"
 
-1. Ensure lib/optimism L1 is running
-2. Ensure RAT is deployed
-3. Check `.devnet/addresses.json` exists
+1. Ensure lib/optimism L1 is running (`make devnet-status`)
+2. Ensure V3 system is deployed (check `.devnet/addresses.json` exists)
+3. Verify addresses.json contains all required contracts:
+   ```bash
+   cat .devnet/addresses.json | jq 'keys'
+   # Should show: ton, wton, ratProxy, seigManagerProxy, etc.
+   ```
 
-### DisputeGameFactory.setRAT fails
+### DisputeGameFactory connection issues
 
-Ensure you're using the deployer account (owner):
+The deployment script automatically connects RAT to DisputeGameFactory.
+If connection fails:
 
-```bash
-# Deployer private key (Anvil account 0)
-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-```
+1. Check Optimism addresses are loaded:
+   ```bash
+   cat lib/optimism/.devnet/addresses.json | jq '.DisputeGameFactoryProxy'
+   ```
+
+2. Verify RAT is connected:
+   ```bash
+   cast call $DISPUTE_GAME_FACTORY "rat()(address)" --rpc-url http://localhost:8545
+   ```
+
+3. If needed, redeploy:
+   ```bash
+   make devnet-clean
+   make devnet-allocs
+   ```
 
 ## Network Configuration
 

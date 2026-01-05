@@ -68,11 +68,14 @@ ton-staking-v2/
 │   └── RATProxy.sol                     # RAT proxy
 │
 ├── script/
-│   └── DeployRATForDevnet.s.sol         # RAT deployment for devnet
+│   ├── DeployV3Full.s.sol               # Full V3 deployment (production)
+│   └── DeployV3FullForDevnet.s.sol      # Full V3 deployment (E2E testing)
 │
 ├── .devnet/                             # Local devnet state
-│   ├── addresses.json                   # RAT + Optimism addresses
-│   └── .env                             # Environment variables
+│   ├── addresses.json                   # All V3 + Optimism contract addresses
+│   ├── .env                             # Environment variables
+│   ├── optimism-addresses.json          # Optimism contract addresses (copy)
+│   └── allocs-l1.json                   # L1 genesis state (copy)
 │
 └── op-e2e/
     ├── bindings/
@@ -107,10 +110,10 @@ just devnet-allocs  # Generate allocs
 just devnet-l1      # Start L1
 ```
 
-**Terminal 2: Deploy RAT and Run Tests**
+**Terminal 2: Deploy TON Staking V3 and Run Tests**
 ```bash
-# Deploy RAT contract
-make deploy-rat-devnet
+# Deploy complete TON Staking V3 system (includes RAT, SeigManager, DepositManager, etc.)
+# Note: This is automatically done by `make devnet-allocs` in the single-terminal workflow
 
 # Run E2E tests
 make test-e2e
@@ -355,64 +358,68 @@ func LoadDevnetConfig(t *testing.T) *DevnetConfig
 
 ## Deployment Script
 
-### RAT Deployment (`script/DeployRATForDevnet.s.sol`)
+### TON Staking V3 Full Deployment (`script/DeployV3FullForDevnet.s.sol`)
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
 import {Script} from "forge-std/Script.sol";
-import {RAT} from "../src/validator/RAT.sol";
-import {RATProxy} from "../src/validator/RATProxy.sol";
-import {IDisputeGameFactory} from "@optimism/interfaces/dispute/IDisputeGameFactory.sol";
+// ... imports for all V3 contracts ...
 
-contract DeployRATForDevnet is Script {
+/**
+ * @title DeployV3FullForDevnet
+ * @notice Deploys complete TON Staking V3 system for E2E testing
+ * @dev Deploys:
+ *   - TON/WTON tokens
+ *   - Core infrastructure (CoinageFactory, Layer2Registry)
+ *   - Managers (SeigManager, DepositManager, Layer2Manager, L1BridgeRegistry)
+ *   - V3 Contracts (RAT, ValidatorReward, SequencerVault)
+ *   - Connects RAT to Optimism DisputeGameFactory
+ */
+contract DeployV3FullForDevnet is Script {
     function run() external {
-        // Load Optimism addresses from lib/optimism/.devnet/addresses.json
+        // Load Optimism addresses from environment
         address disputeGameFactory = vm.envAddress("DISPUTE_GAME_FACTORY_PROXY");
         address systemConfig = vm.envAddress("SYSTEM_CONFIG_PROXY");
 
         vm.startBroadcast();
 
-        // Deploy mock tokens
-        MockTON ton = new MockTON();
-        MockWTON wton = new MockWTON();
+        // Step 1: Deploy tokens (TON, WTON)
+        _deployTokens();
 
-        // Deploy RAT
-        RAT ratImpl = new RAT();
-        ProxyAdmin proxyAdmin = new ProxyAdmin();
+        // Step 2-7: Deploy core infrastructure
+        _deployCoinageInfrastructure();
+        _deployLayer2Registry();
+        _deployManagerProxies();
+        _deployManagerImplementations();
+        _initializeManagers();
+        _setupMinterPermissions();
 
-        bytes memory initData = abi.encodeWithSelector(
-            RAT.initialize.selector,
-            address(0), // seigManager (mock)
-            address(wton),
-            address(ton),
-            address(0), // layer2Manager (mock)
-            msg.sender,
-            1e27 // 100% trigger probability for testing
-        );
+        // Step 8-9: Deploy V3 contracts
+        _deployV3Contracts();  // RAT, ValidatorReward, SequencerVault
+        _configureV3Contracts();
 
-        RATProxy ratProxy = new RATProxy(address(ratImpl), address(proxyAdmin), initData);
-        RAT rat = RAT(address(ratProxy));
+        // Step 10-11: Setup cross-references and connect to Optimism
+        _setupCrossReferences();
+        _connectToOptimism();  // Connect RAT to DisputeGameFactory
 
-        // Configure RAT
-        rat.setSlashingPenalty(100 * 1e18);      // 100 TON
-        rat.setValidatorBuffer(100 * 1e18);       // 100 TON
-        rat.setMinimumThreshold(200 * 1e18);      // 200 TON
-        rat.setEvidenceSubmissionPeriod(1 hours);
-        rat.setL1BridgeRegistry(msg.sender);      // Simplified for testing
-
-        // Connect RAT to DisputeGameFactory
-        IDisputeGameFactory(disputeGameFactory).setRAT(address(rat));
-        IDisputeGameFactory(disputeGameFactory).setSystemConfigForRAT(systemConfig);
+        // Step 12: Mint test tokens
+        _mintTestTokens();  // 100k TON + 100k WTON to test accounts
 
         vm.stopBroadcast();
 
         // Save addresses to .devnet/addresses.json
-        // ...
+        _saveDeployment();
     }
 }
 ```
+
+Key differences from production deployment:
+- **100% RAT trigger probability** (always triggers for testing)
+- **Fast withdrawal delay** (10 blocks instead of 2 weeks)
+- **Test token minting** (100k TON/WTON to all test accounts)
+- **Optimism integration** (automatic RAT connection to DisputeGameFactory)
 
 ## RAT Integration Flow
 
@@ -526,11 +533,12 @@ Full interface available at: `lib/optimism/packages/contracts-bedrock/interfaces
 ## Makefile Commands
 
 ```bash
-# Devnet management
-make devnet-up              # Start lib/optimism L1
+# Devnet management (Single-terminal workflow)
+make devnet-allocs          # Build Optimism + Start L1 + Deploy V3 Full System
+make devnet-up              # Restart L1 (if stopped)
 make devnet-down            # Stop L1
 make devnet-clean           # Clean all devnet files
-make deploy-rat-devnet      # Deploy RAT to devnet
+make devnet-status          # Show devnet status
 
 # Testing
 make test-e2e               # Run all E2E tests
