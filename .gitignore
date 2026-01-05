@@ -5,11 +5,28 @@ cache
 out
 broadcast/
 
+# hardhat files
+cache_hardhat/
+artifacts/
+dist/
+node_modules/
+
+# typescript
+*.tsbuildinfo
+
+# logs
+*.log
+log-*.log
+
 # claude files
 .claude/
 
 # devnet files
 .devnet/
+
+# OS files
+.DS_Store
+Thumbs.db
 
 paper/
 docs/for-llm-kr-v2/
