@@ -96,6 +96,18 @@ devnet-status:
 	fi
 
 # ==========================================
+# Devnet Verification Commands
+# ==========================================
+
+# Verify Optimism L1 contracts in allocs-l1.json
+devnet-verify-allocs:
+	@bash scripts/verify-optimism-deployment.sh
+
+# Verify Optimism L1 contracts on running Anvil
+devnet-verify-runtime:
+	@bash scripts/verify-runtime-deployment.sh http://localhost:8545
+
+# ==========================================
 # E2E Test Commands
 # ==========================================
 
@@ -153,6 +165,10 @@ help:
 	@echo "  make devnet-down        Stop L1 devnet"
 	@echo "  make devnet-clean       Stop L1 + clean all devnet state"
 	@echo "  make devnet-status      Show devnet status"
+	@echo ""
+	@echo "Devnet Verification:"
+	@echo "  make devnet-verify-allocs    Verify Optimism contracts in allocs"
+	@echo "  make devnet-verify-runtime   Verify Optimism contracts on running Anvil"
 	@echo ""
 	@echo "Test Commands:"
 	@echo "  make test-e2e           Run all E2E tests"
