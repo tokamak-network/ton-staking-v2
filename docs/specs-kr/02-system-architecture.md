@@ -10,16 +10,16 @@
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
 │  │                            Core Staking System                                   │ │
 │  │                                                                                  │ │
-│  │  ┌──────────────┐     ┌──────────────────┐     ┌─────────────────┐             │ │
-│  │  │   TON/WTON   │────►│  DepositManager  │◄────│    Coinage      │             │ │
-│  │  │   (Tokens)   │     │  (스테이킹 관리)   │     │  (영수증 토큰)    │             │ │
-│  │  └──────────────┘     └────────┬─────────┘     └─────────────────┘             │ │
+│  │  ┌──────────────┐     ┌──────────────────┐                                      │ │
+│  │  │   TON/WTON   │────►│  DepositManager  │                                      │ │
+│  │  │   (Tokens)   │     │  (스테이킹 관리)   │                                      │ │
+│  │  └──────────────┘     └────────┬─────────┘                                      │ │
 │  │                                │                                                │ │
 │  │                                ▼                                                │ │
-│  │                        ┌──────────────────┐                                    │ │
-│  │                        │   SeigManager    │                                    │ │
-│  │                        │ (시뇨리지 분배)   │                                    │ │
-│  │                        └────────┬─────────┘                                    │ │
+│  │                        ┌──────────────────┐     ┌─────────────────┐             │ │
+│  │                        │   SeigManager    │◄───►│    Coinage      │             │ │
+│  │                        │ (시뇨리지 분배)   │     │  (영수증 토큰)    │             │ │
+│  │                        └────────┬─────────┘     └─────────────────┘             │ │
 │  │                                │                                                │ │
 │  │           ┌────────────────────┼────────────────────┐                          │ │
 │  │           │                    │                    │                          │ │
@@ -238,8 +238,8 @@ OperatorManager는 ERC1967Upgrade 기반의 커스텀 프록시를 사용합니�
 
 **V3 변경사항:**
 - OperatorManagerFactory가 **V1_2 로직**으로 신규 프록시 생성
-- TYPE 0/1 롤업도 V1_2로 생성 (향후 TYPE 3 업그레이드 대비)
-- 기존 배포된 TYPE 0/1 OperatorManager는 **수동으로 V1_2 로직 업그레이드 필요**
+- TYPE 1/2 롤업도 V1_2로 생성 (향후 TYPE 3 업그레이드 대비)
+- 기존 배포된 TYPE 1/2 OperatorManager는 **수동으로 V1_2 로직 업그레이드 필요**
 
 ```solidity
 // 기존 OperatorManager V1_2 업그레이드 (수동)
@@ -321,7 +321,7 @@ contract SeigManagerV1_4 is
 │  2. L1BridgeRegistry.layer2TVL() ──► Bridged TON 조회                      │
 │     │                                                                       │
 │     ▼                                                                       │
-│  3. SequencerVault.getSequencerDepositByLayer2() ──► 스테이킹 조회         │
+│  3. SequencerVault.getSequencerDepositByLayer2() ──► 예치금 조회               │
 │     │                                                                       │
 │     ▼                                                                       │
 │  4. 자격 확인: S_i ≥ θ · B_i                                               │
@@ -350,22 +350,34 @@ contract SeigManagerV1_4 is
 │                           검증자 등록 흐름                                   │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  1. 검증자가 TON.approveAndCall(wton, amount, data) 호출                   │
+│  방법 1: approveAndCall 사용                                                │
+│  1. 검증자가 TON.approveAndCall(RAT, amount, data) 호출                    │
 │     │                                                                       │
-│     │ data = [RAT 주소][SystemConfig 주소]                                 │
+│     │ data = [SystemConfig 주소] (32바이트)                                │
 │     ▼                                                                       │
-│  2. WTON 컨트랙트가 TON → WTON 변환                                        │
-│     │                                                                       │
-│     ▼                                                                       │
-│  3. WTON이 RAT.onApprove() 호출                                            │
+│  2. TON 컨트랙트가 RAT로 TON 전송 + RAT.onApprove() 호출                   │
 │     │                                                                       │
 │     ▼                                                                       │
-│  4. RAT가 담보금 저장 + 검증자 활성화                                       │
+│  3. RAT가 담보금 저장 + 검증자 활성화                                       │
 │     │                                                                       │
 │     │ - validatorRegistrations[systemConfig][validator]                    │
 │     │ - validatorPools[systemConfig].validators.push()                     │
 │     ▼                                                                       │
-│  5. 이벤트 발생: ValidatorRegistered                                        │
+│  4. 이벤트 발생: ValidatorRegistered                                        │
+│                                                                             │
+│  방법 2: approve + registerValidator 사용                                   │
+│  1. 검증자가 TON.approve(RAT, amount) 호출                                 │
+│     ▼                                                                       │
+│  2. 검증자가 RAT.registerValidator(systemConfig, amount) 호출               │
+│     ▼                                                                       │
+│  3. RAT가 TON을 transferFrom으로 받음                                      │
+│     ▼                                                                       │
+│  4. RAT가 담보금 저장 + 검증자 활성화                                       │
+│                                                                             │
+│  주요 특징:                                                                 │
+│  - V3: TON 직접 사용 (18 decimals), WTON 변환 없음                         │
+│  - RAT에서 TON 직접 보관 (DepositManager 미사용)                           │
+│  - 즉시 출금 가능 (2주 대기 불필요)                                         │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

@@ -260,22 +260,27 @@ contract L1BridgeRegistryV1_2 is
 
 **권한 계층**:
 ```
-Owner
-└── setAddresses, setSeigniorageCommittee
+Owner (Admin, DEFAULT_ADMIN_ROLE)
+├── setAddresses, setSeigniorageCommittee
+├── addAdmin, removeAdmin
+├── addManager, removeManager
+└── 최고 권한 (시스템 초기 설정)
 
-Manager (슈퍼 권한)
+Manager (MANAGER_ROLE, Owner가 부여)
 ├── 모든 타입 등록/업그레이드 가능
-├── setTypeRegistrant
-└── upgradeToType3
+├── setTypeRegistrant (타입별 등록자 설정)
+├── upgradeToType3 (TYPE 1/2 → TYPE 3 업그레이드)
+├── addRegistrant, removeRegistrant
+└── L2 등록 관련 슈퍼 권한
 
-SeigniorageCommittee
-├── rejectCandidateAddOn
-└── restoreCandidateAddOn
+SeigniorageCommittee (Owner가 지정)
+├── rejectCandidateAddOn (시뇨리지 중지)
+└── restoreCandidateAddOn (시뇨리지 복원)
 
-Registrant (기존 호환)
-└── registerRollupConfig (TYPE 1, 2, 3)
+Registrant (REGISTRANT_ROLE, Manager가 부여)
+└── registerRollupConfig (TYPE 1, 2, 3 모두)
 
-typeRegistrant[n] (위임 권한)
+typeRegistrant[n] (Manager가 지정, 타입별 위임)
 └── registerRollupConfigByType (TYPE n만)
 ```
 
