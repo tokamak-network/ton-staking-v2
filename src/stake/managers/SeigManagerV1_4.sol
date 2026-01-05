@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import {FullMath} from "../../libraries/FullMath.sol";
 import {DSMath} from "../../libraries/DSMath.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -276,8 +277,9 @@ contract SeigManagerV1_4 is
         SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
         bool oldEligible = info.isEligible;
 
-        // 새로운 자격 상태 확인
-        (bool newEligible, , ) = checkCurrentEligibility(layer2);
+        // 새로운 자격 상태 확인 (스택 깊이 문제 해결: 튜플 할당을 단계별로 분리)
+        bool newEligible;
+        (newEligible, , ) = checkCurrentEligibility(layer2);
 
         // 상태 변경 없으면 리턴
         if (oldEligible == newEligible) return;
@@ -330,7 +332,8 @@ contract SeigManagerV1_4 is
 
         // θ·B_i 계산
          // Todo. 브릿지된 톤은 톤기준, 필요한 스테이킹양은 WTON 이므로, 고려해서 변환해줘야한다.
-        requiredStake = rmul(bridgedTON, minStakingRatio);
+        // rmul(x, y) = (x * y) / RAY
+        requiredStake = (bridgedTON * minStakingRatio) / RAY_UNIT;
 
         // S_i: 시퀀서의 현재 담보금 (SequencerVault에서 조회)
         currentStake = _getSequencerCollateral(layer2);
@@ -361,7 +364,10 @@ contract SeigManagerV1_4 is
 
         // y(x) = L · (x / (k + x))
         // = (L * x) / (k + x)
-        y = rdiv(rmul(maxL2Allocation, x), halfSaturationPoint + x);
+        // DSMath 제거: rmul과 rdiv가 약분되어 직접 계산
+        uint256 numerator = maxL2Allocation * x;
+        uint256 denominator = halfSaturationPoint + x;
+        y = numerator / denominator;
     }
 
     /// @inheritdoc ISeigManagerV3
@@ -376,7 +382,8 @@ contract SeigManagerV1_4 is
         if (effectiveBridged == 0) return 0;
 
         // Seig_i = y(x) · (B̃_i / x)
-        seigniorage = rmul(totalY, rdiv(effectiveBridged, totalX));
+        // DSMath 제거: rmul(totalY, rdiv(effectiveBridged, totalX)) = (totalY * effectiveBridged) / totalX
+        seigniorage = (totalY * effectiveBridged) / totalX;
     }
 
     /// @inheritdoc ISeigManagerV3
@@ -386,7 +393,8 @@ contract SeigManagerV1_4 is
         returns (uint256)
     {
         // o_i = (1 - α) · Seig_i
-        return rmul(l2Seigniorage, RAY - validatorDistributionRatio);
+        // rmul(x, y) = (x * y) / RAY
+        return (l2Seigniorage * (RAY_UNIT - validatorDistributionRatio)) / RAY_UNIT;
     }
 
     /// @inheritdoc ISeigManagerV3
@@ -406,7 +414,8 @@ contract SeigManagerV1_4 is
         uint256 A = blockDelta * _seigPerBlock;
 
         // L = (1 - d) · A
-        uint256 L = rmul(A, RAY - daoDistributionRatio);
+        // rmul(x, y) = (x * y) / RAY
+        uint256 L = (A * (RAY_UNIT - daoDistributionRatio)) / RAY_UNIT;
 
         // y(x) = L · (x / (k + x))
         uint256 x = totalEffectiveBridgedTON;
@@ -426,6 +435,7 @@ contract SeigManagerV1_4 is
             return _updateSeigniorageV3();
         } else {
             return _updateSeigniorageV2();
+            // return false;
         }
     }
 
@@ -478,25 +488,34 @@ contract SeigManagerV1_4 is
         return true;
     }
 
+
     /// @notice V2 시뇨리지 분배 (스테이커 시뇨리지 포함)
     /// @dev V2: 기존 V1_3 로직 유지
     function _updateSeigniorageV2() internal ifFree returns (bool) {
-        if (paused) return true;
+        // short circuit if paused
+        if (paused) {
+            return true;
+        }
 
         RefactorCoinageSnapshotI coinage = _coinages[msg.sender];
         _checkCoinage(address(coinage));
 
+        // require(block.number > _lastSeigBlock, "last seig block is not past");
         if (block.number <= _lastSeigBlock) revert LastSeigBlockError();
 
         address operator = Layer2I(msg.sender).operator();
+        uint256 operatorAmount = coinage.balanceOf(operator);
 
-        if (!_increaseTotV2()) revert IncreaseTotError();
+        if (operatorAmount < minimumAmount) revert MinimumAmountError();
+        if (!_increaseTot()) revert IncreaseTotError();
 
         _lastCommitBlock[msg.sender] = block.number;
 
+        // 2. increase total supply of {coinages[layer2]}
         uint256 prevTotalSupply = coinage.totalSupply();
         uint256 nextTotalSupply = _tot.balanceOf(msg.sender);
 
+        // short circuit if there is no seigs for the layer2
         if (prevTotalSupply >= nextTotalSupply) {
             emit Comitted(msg.sender);
             return true;
@@ -514,99 +533,72 @@ contract SeigManagerV1_4 is
             operator
         );
 
+        // gives seigniorages to the layer2 as coinage
         require(
-            coinage.setFactor(
-                _calcNewFactor(prevTotalSupply, nextTotalSupply, coinage.factor())
-            ),
-            "fail setFactor"
+            coinage.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, coinage.factor())),
+            'fail setFactor'
         );
 
+        // give commission to operator or delegators
         if (operatorSeigs != 0) {
             if (isCommissionRateNegative_) {
+                // TODO: adjust arithmetic error
+                // burn by 𝜸
                 coinage.burnFrom(operator, operatorSeigs);
             } else {
                 coinage.mint(operator, operatorSeigs);
             }
         }
 
-        IWTON(_wton).mint(address(_depositManager), seigs);
+        if (seigs != 0) IWTON(_wton).mint(address(_depositManager), seigs);
 
         emit Comitted(msg.sender);
         emit AddedSeigAtLayer(msg.sender, seigs, operatorSeigs, nextTotalSupply, prevTotalSupply);
 
         return true;
     }
-
-    /// @notice V3 증가 로직 (백서 공식 적용)
-    /// @dev V3: 스테이커 시뇨리지 없음, 시퀀서/검증자/DAO만 분배
-    function _increaseTotV3() internal returns (bool result) {
+    function _increaseTot() internal returns (bool result) {
         if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
             _lastSeigBlock = block.number;
             return false;
         }
 
+        // 1. increase total supply of {tot} by maximum seigniorages * staked rate
+        //    staked rate = total staked amount / total supply of (W)TON
         uint256 prevTotalSupply = _tot.totalSupply();
+
         uint256 span = block.number - _lastSeigBlock;
-        if (_unpausedBlock > _lastSeigBlock)
-            span -= (_unpausedBlock - _pausedBlock);
+        if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
 
-        uint256 A = span * _seigPerBlock;
+        // maximum seigniorages
+        uint256 maxSeig = span * _seigPerBlock;
+
+        // total supply of (W)TON , https://github.com/tokamak-network/TON-total-supply
         uint256 tos = _totalSupplyOfTon(block.number);
-        uint256 l2TotalSeigs = 0;
-        uint256 layer2Seigs = 0;
 
-        _lastSeigBlock = block.number;
+        // maximum seigniorages * staked rate
+        uint256 stakedSeig = FullMath.rdiv(
+            FullMath.rmul(
+                maxSeig,
+                // total staked amount
+                prevTotalSupply
+            ),
+            tos
+        );
+        // uint256 stakedSeig = maxSeig.mulDivRoundingUp(prevTotalSupply, RAY).mulDivRoundingUp(RAY, tos);
 
-        // V3: 스테이커 시뇨리지 없음
-        // A₂ = A (전체 시뇨리지가 V3 분배 재원)
-        emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, prevTotalSupply);
-
-        if (A > 0) {
-            (l2TotalSeigs, layer2Seigs) = _distributeV3Seigniorage(A);
-        }
-
-        emit SeigGiven2(msg.sender, A, 0, 0, 0, 0, 0, l2TotalSeigs, layer2Seigs);
-
-        result = true;
-    }
-
-    /// @notice V2 증가 로직 (V1_3과 동일)
-    /// @dev V2: 스테이커 시뇨리지 포함
-    function _increaseTotV2() internal returns (bool result) {
-        if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
-            _lastSeigBlock = block.number;
-            return false;
-        }
-
-        uint256 prevTotalSupply = _tot.totalSupply();
-        uint256 span = block.number - _lastSeigBlock;
-        if (_unpausedBlock > _lastSeigBlock)
-            span -= (_unpausedBlock - _pausedBlock);
-
-        uint256 A = span * _seigPerBlock;
-        uint256 tos = _totalSupplyOfTon(block.number);
-        uint256 l2TotalSeigs = 0;
-        uint256 layer2Seigs = 0;
-        uint256 S_staked = 0;
-        uint256 S_relative = 0;
-        uint256 unstakedSeig = 0;
-        uint256 powertonSeig = 0;
-        uint256 daoSeig = 0;
-        address wton_ = _wton;
-
-        _lastSeigBlock = block.number;
-
-        // 1. stakedSeig 계산
-        S_staked = rdiv(rmul(A, prevTotalSupply), tos);
-
-        // 2. Layer2 TVL 시뇨리지 계산
+        // If layer2StartBlock is not set, set it to the previous block so that the signiorge will be accumulated to layer2 immediately.
         if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
+
+        address wton_ = _wton;
+        uint256 l2TotalSeigs;
+        uint256 layer2Seigs;
 
         if (layer2Manager != address(0) && layer2StartBlock != 1) {
             if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos - prevTotalSupply);
+                uint256 tempTotalLayer2TVL = Math.min(totalLayer2TVL * GWEI_UNIT, tos-prevTotalSupply);
                 if (tempTotalLayer2TVL < RAY_UNIT) tempTotalLayer2TVL = 0;
-                l2TotalSeigs = rdiv(rmul(A, tempTotalLayer2TVL), tos);
+                l2TotalSeigs = FullMath.rdiv(FullMath.rmul(maxSeig, tempTotalLayer2TVL), tos);
                 l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
                 if (l2TotalSeigs != 0) IWTON(wton_).mint(layer2Manager, l2TotalSeigs);
             }
@@ -618,16 +610,24 @@ contract SeigManagerV1_4 is
                 Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
                 Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
 
+                // update layer2 tvl if it has changed
+                // Because the previous information(oldLayer2Info) was loaded into memory, the storage immediately reflects the latest information.
                 if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
                     newLayer2Info.layer2Tvl = curLayer2Tvl;
                     totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
                 }
 
+                // If this the first commit, set up an initial debt
                 if (oldLayer2Info.startBlock == 0) {
                     newLayer2Info.startBlock = block.number;
                 } else {
+                    // distribute seigniorage to layer2 based on previous layer2 tvl
+                    // layer2Tvl would be 0 when layer2 has been paused
                     if (oldLayer2Info.layer2Tvl > 0) {
-                        layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UNIT) - oldLayer2Info.initialDebt;
+                        layer2Seigs =
+                            ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UNIT) -
+                            oldLayer2Info.initialDebt;
+                        // rewards just increase higher than layer2Debt because it is calculated based on previous layer2 tvl
                         if (layer2Seigs != 0) ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
                     }
                 }
@@ -635,41 +635,42 @@ contract SeigManagerV1_4 is
             }
         }
 
-        // 3. unstakedSeig, totalPseig 계산
-        unstakedSeig = A - S_staked - l2TotalSeigs;
-        uint256 totalPseig = rmul(unstakedSeig, relativeSeigRate);
-        uint256 nextTotalSupply = prevTotalSupply + S_staked + totalPseig;
+        uint256 unstakedSeig = maxSeig - stakedSeig - l2TotalSeigs;
+        uint256 totalPseig = FullMath.rmul(unstakedSeig, relativeSeigRate);
+        uint256 nextTotalSupply = prevTotalSupply + stakedSeig + totalPseig;
+        _lastSeigBlock = block.number;
 
-        // 4. Coinage factor 업데이트
         _tot.setFactor(_calcNewFactor(prevTotalSupply, nextTotalSupply, _tot.factor()));
 
         emit CommitLog1(_tot.totalSupply(), tos, prevTotalSupply, nextTotalSupply);
 
-        // 5. PowerTON, DAO 분배
+        uint256 powertonSeig;
+        uint256 daoSeig;
+        uint256 relativeSeig;
+
         if (_powerton != address(0)) {
-            powertonSeig = rmul(unstakedSeig, powerTONSeigRate);
+            powertonSeig = FullMath.rmul(unstakedSeig, powerTONSeigRate);
             if (powertonSeig != 0) IWTON(wton_).mint(_powerton, powertonSeig);
         }
 
         if (dao != address(0)) {
-            daoSeig = rmul(unstakedSeig, daoSeigRate);
+            daoSeig = FullMath.rmul(unstakedSeig, daoSeigRate);
             if (daoSeig != 0) IWTON(wton_).mint(dao, daoSeig);
         }
 
-        // 6. relativeSeig 누적
         if (relativeSeigRate != 0) {
-            S_relative = totalPseig;
-            accRelativeSeig += S_relative;
+            relativeSeig = totalPseig;
+            accRelativeSeig += relativeSeig;
         }
 
         emit SeigGiven2(
             msg.sender,
-            A,
-            S_staked,
+            maxSeig,
+            stakedSeig,
             unstakedSeig,
             powertonSeig,
             daoSeig,
-            S_relative,
+            relativeSeig,
             l2TotalSeigs,
             layer2Seigs
         );
@@ -677,123 +678,225 @@ contract SeigManagerV1_4 is
         result = true;
     }
 
-    /// @notice V3 시뇨리지 분배 (백서 공식 적용)
-    /// @param A2 V3 분배 재원 (스테이커 분배 후 잔여)
-    function _distributeV3Seigniorage(uint256 A2) internal returns (uint256 l2TotalSeigs, uint256 layer2Seigs) {
-        // ========================================
-        // DAO 고정 분배 (백서 공식 7)
-        // S_DAO = d · A₂
-        // ========================================
-        uint256 S_DAO = rmul(A2, daoDistributionRatio);
 
-        // ========================================
-        // L2 분배 가능량
-        // L = (1 - d) · A₂
-        // ========================================
-        uint256 L = A2 - S_DAO;
-
-        // ========================================
-        // 쌍곡선 포화 함수 (백서 공식 11)
-        // y(x) = L · (x / (k + x))
-        // ========================================
-        uint256 x = totalEffectiveBridgedTON;
-        uint256 y = 0;
-        uint256 totalValidatorReward = 0;
-
-        if (x > 0) {
-            // y(x) = L · (x / (k + x))
-            y = hyperbolicSaturation(x, L);
-            l2TotalSeigs = y;
-
-            // 개별 L2 보상 정산
-            (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
-            if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
-                // 호출자의 effectiveBridgedTON 동기화 (isEligible 기반)
-                _syncEffectiveBridgedTON(msg.sender);
-
-                BridgedTONInfo storage info = bridgedTONInfo[msg.sender];
-                if (info.isEligible && info.effectiveBridgedTON > 0) {
-                    // ========================================
-                    // Per-L2 시뇨리지 계산 (백서 V3 공식)
-                    // S_i = y(x) · (B̃_i / x)
-                    // ========================================
-                    uint256 l2TotalSeigniorage = rmul(y, rdiv(info.effectiveBridgedTON, x));
-
-                    // 검증자 몫: α · S_i (백서 공식 13)
-                    uint256 l2ValidatorReward = rmul(l2TotalSeigniorage, validatorDistributionRatio);
-
-                    // 시퀀서 몫: (1 - α) · S_i (백서 공식 14)
-                    layer2Seigs = l2TotalSeigniorage - l2ValidatorReward;
-
-                    // 시퀀서 보상 전송
-                    if (layer2Seigs > 0) {
-                        IWTON(_wton).mint(layer2Manager, layer2Seigs);
-                        ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
-                    }
-
-                    // 검증자 보상 분배 (Per-L2)
-                    if (l2ValidatorReward > 0 && validatorReward != address(0)) {
-                        IWTON(_wton).mint(validatorReward, l2ValidatorReward);
-                        IValidatorReward(validatorReward).distributeL2Rewards(rollupConfig, l2ValidatorReward);
-                        totalValidatorReward += l2ValidatorReward;
-                    }
-                }
-            }
+    /// @notice V3 증가 로직 (백서 공식 적용)
+    /// @dev V3: 스테이커 시뇨리지 없음, 시퀀서/검증자/DAO만 분배
+    function _increaseTotV3() internal returns (bool) {
+        if (RefactorCoinageSnapshotI(_tot).totalSupply() == 0) {
+            _lastSeigBlock = block.number;
+            return false;
         }
 
-        // ========================================
-        // 미분배분 DAO 귀속
-        // totalDAO = S_DAO + (L - y(x))
-        // ========================================
-        uint256 undistributed = L - y;
-        uint256 totalDAO = S_DAO + undistributed;
+        // 시뇨리지 계산
+        uint256 span = block.number - _lastSeigBlock;
+        if (_unpausedBlock > _lastSeigBlock)
+            span -= (_unpausedBlock - _pausedBlock);
 
-        if (totalDAO > 0 && dao != address(0)) {
-            IWTON(_wton).mint(dao, totalDAO);
+        uint256 A = span * _seigPerBlock;
+
+        // 상태 업데이트
+        uint256 prevTotalSupply = _tot.totalSupply();
+        _lastSeigBlock = block.number;
+
+        // 이벤트
+        emit CommitLog1(_tot.totalSupply(), _totalSupplyOfTon(block.number), prevTotalSupply, prevTotalSupply);
+
+        // 분배 실행
+        uint256 l2TotalSeigs = 0;
+        uint256 layer2Seigs = 0;
+
+        if (A > 0) {
+            (l2TotalSeigs, layer2Seigs) = _distributeV3SeigniorageCompletely(A);
         }
 
-        emit V3SeigniorageDistributed(A2, L, y, totalDAO, totalValidatorReward);
+        emit SeigGiven2(msg.sender, A, 0, 0, 0, 0, 0, l2TotalSeigs, layer2Seigs);
+        return true;
     }
 
-    /// @notice V2 시뇨리지 분배 (마이그레이션 전 호환)
-    function _distributeV2Seigniorage(uint256 maxSeig, uint256 tos, uint256 prevTotalSupply)
-        internal
-        returns (uint256 l2TotalSeigs, uint256 layer2Seigs)
-    {
-        if (layer2StartBlock == 0) layer2StartBlock = block.number - 1;
+    /// @notice V3 시뇨리지 분배 완전 분리 버전
+    /// @param A2 V3 분배 재원
+    /// @return l2TotalSeigs 총 L2 시뇨리지
+    /// @return layer2Seigs 개별 L2 시퀀서 보상
+    function _distributeV3SeigniorageCompletely(uint256 A2) internal returns (uint256 l2TotalSeigs, uint256 layer2Seigs) {
+        // DAO 분배 계산
+        uint256 S_DAO = (A2 * daoDistributionRatio) / RAY_UNIT;
+        uint256 L = A2 - S_DAO;
 
-        if (layer2StartBlock <= block.number && totalLayer2TVL > 0) {
-            uint256 tempTotalLayer2TVL = Math.min(
-                totalLayer2TVL * 1e9,
-                tos - prevTotalSupply
-            );
-            l2TotalSeigs = rdiv(rmul(maxSeig, tempTotalLayer2TVL), tos);
-            l2RewardPerUint += (l2TotalSeigs * WEI_UNIT) / totalLayer2TVL;
-            IWTON(_wton).mint(layer2Manager, l2TotalSeigs);
+        if (totalEffectiveBridgedTON > 0) {
+            // 쌍곡선 포화 함수 인라인 계산: y = L * x / (k + x)
+            uint256 y = (L * totalEffectiveBridgedTON) / (halfSaturationPoint + totalEffectiveBridgedTON);
+            l2TotalSeigs = y;
+
+            // L2 보상 분배
+            layer2Seigs = _distributeL2RewardsSimpleSafe(y, totalEffectiveBridgedTON);
+
+            // DAO 보상 전송
+            _mintDAOReward(S_DAO, L, y);
+            emit V3SeigniorageDistributed(A2, L, y, S_DAO + (L - y), 0);
+        } else {
+            _mintDAOReward(S_DAO, L, 0);
+            emit V3SeigniorageDistributed(A2, L, 0, S_DAO + L, 0);
+        }
+    }
+
+    /// @notice 쌍곡선 포화 함수 계산 (스택 깊이 문제 해결)
+    function _calculateHyperbolicSaturationSafe(uint256 L) internal view returns (uint256 y) {
+        uint256 x = totalEffectiveBridgedTON;
+        if (x == 0) return 0;
+
+        uint256 k = halfSaturationPoint;
+        // DSMath 제거: rmul과 rdiv가 약분되어 직접 계산
+        uint256 numerator = L * x;
+        uint256 denominator = k + x;
+        y = numerator / denominator;
+    }
+
+    /// @notice V3 시뇨리지 분배 (백서 공식 적용) - 스택 깊이 문제 해결을 위해 배열 반환
+    /// @param A2 V3 분배 재원 (스테이커 분배 후 잔여)
+    /// @return rewards [0] = l2TotalSeigs, [1] = layer2Seigs
+    function _distributeV3SeigniorageSplit(uint256 A2) internal returns (uint256[2] memory rewards) {
+        // DAO 분배 계산을 별도로 분리
+        uint256 daoRatio = daoDistributionRatio;
+        // rmul(x, y) = (x * y) / RAY
+        uint256 S_DAO = (A2 * daoRatio) / RAY_UNIT;
+        uint256 L = A2 - S_DAO;
+
+        // L2 분배 계산을 별도로 분리
+        uint256 l2TotalSeigs = 0;
+        uint256 layer2Seigs = 0;
+
+        if (totalEffectiveBridgedTON > 0) {
+            uint256 y = hyperbolicSaturation(totalEffectiveBridgedTON, L);
+            l2TotalSeigs = y;
+
+            uint256[2] memory l2Rewards = _distributeL2RewardsSplit(y, totalEffectiveBridgedTON);
+            layer2Seigs = l2Rewards[0];
+            uint256 totalValidatorReward = l2Rewards[1];
+
+            _mintDAOReward(S_DAO, L, y);
+            emit V3SeigniorageDistributed(A2, L, y, S_DAO + (L - y), totalValidatorReward);
+        } else {
+            _mintDAOReward(S_DAO, L, 0);
+            emit V3SeigniorageDistributed(A2, L, 0, S_DAO + L, 0);
         }
 
-        (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
-        if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
-            uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
-            Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
-            Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
+        rewards[0] = l2TotalSeigs;
+        rewards[1] = layer2Seigs;
+    }
 
-            if (oldLayer2Info.layer2Tvl != curLayer2Tvl) {
-                newLayer2Info.layer2Tvl = curLayer2Tvl;
-                totalLayer2TVL = totalLayer2TVL + curLayer2Tvl - oldLayer2Info.layer2Tvl;
+    /// @notice L2 보상 분배 안전 버전
+    /// @param y 총 L2 시뇨리지
+    /// @param totalEffective 총 유효 브릿지 TON
+    /// @return layer2Seigs 개별 L2 시퀀서 보상
+    function _distributeL2RewardsSimpleSafe(uint256 y, uint256 totalEffective) internal returns (uint256 layer2Seigs) {
+        // 조건 체크
+        address rollupConfig;
+        bool allowed;
+        (rollupConfig, allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+
+        if (!allowed || _isPauseL2Seigniorage(msg.sender)) {
+            return 0;
+        }
+
+        // 유효 브릿지 TON 동기화
+        _syncEffectiveBridgedTON(msg.sender);
+
+        // BridgedTONInfo 접근
+        BridgedTONInfo storage info = bridgedTONInfo[msg.sender];
+        if (!info.isEligible || info.effectiveBridgedTON == 0) {
+            return 0;
+        }
+
+        // 직접 계산
+        uint256 l2Total = (y * info.effectiveBridgedTON) / totalEffective;
+        uint256 totalValReward = (l2Total * validatorDistributionRatio) / RAY_UNIT;
+        layer2Seigs = l2Total - totalValReward;
+
+        // 보상 전송
+        _transferL2RewardsSafe(layer2Seigs, totalValReward, rollupConfig);
+    }
+
+    /// @notice L2 보상 전송 (스택 깊이 문제 해결)
+    function _transferL2RewardsSafe(uint256 layer2Seigs, uint256 totalValReward, address rollupConfig) internal {
+        if (layer2Seigs > 0) {
+            IWTON(_wton).mint(layer2Manager, layer2Seigs);
+            ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
+        }
+
+        if (totalValReward > 0 && validatorReward != address(0)) {
+            IWTON(_wton).mint(validatorReward, totalValReward);
+            IValidatorReward(validatorReward).distributeL2Rewards(rollupConfig, totalValReward);
+        }
+    }
+
+    /// @notice V3 시뇨리지 분배 (백서 공식 적용) - 기존 함수 (호환성 유지)
+    /// @param A2 V3 분배 재원 (스테이커 분배 후 잔여)
+    function _distributeV3Seigniorage(uint256 A2) internal returns (uint256 l2TotalSeigs, uint256 layer2Seigs) {
+        uint256[2] memory rewards = _distributeV3SeigniorageSplit(A2);
+        l2TotalSeigs = rewards[0];
+        layer2Seigs = rewards[1];
+    }
+
+    /// @notice L2 보상 분배 - 스택 깊이 문제 해결을 위해 배열 반환
+    /// @param y 총 L2 시뇨리지
+    /// @param totalEffective 총 유효 브릿지 TON
+    /// @return rewards [0] = layer2Seigs, [1] = totalValReward
+    function _distributeL2RewardsSplit(uint256 y, uint256 totalEffective)
+        internal
+        returns (uint256[2] memory rewards)
+    {
+        // 스택 깊이 문제 해결: 스코프 블록으로 변수 격리
+        {
+            address rollupConfig;
+            bool allowed;
+            (rollupConfig, allowed) = _allowIssuanceLayer2Seigs(msg.sender);
+            if (!allowed || _isPauseL2Seigniorage(msg.sender)) {
+                return rewards; // [0, 0]
             }
 
-            if (oldLayer2Info.startBlock == 0) {
-                newLayer2Info.startBlock = block.number;
-            } else {
-                if (oldLayer2Info.layer2Tvl > 0) {
-                    layer2Seigs = ((l2RewardPerUint * oldLayer2Info.layer2Tvl) / WEI_UNIT) - oldLayer2Info.initialDebt;
-                    if (layer2Seigs != 0) {
-                        ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
-                    }
-                }
+            _syncEffectiveBridgedTON(msg.sender);
+
+            uint256 effectiveBridged = bridgedTONInfo[msg.sender].effectiveBridgedTON;
+            if (!bridgedTONInfo[msg.sender].isEligible || effectiveBridged == 0) {
+                return rewards; // [0, 0]
             }
-            newLayer2Info.initialDebt = (l2RewardPerUint * curLayer2Tvl) / WEI_UNIT;
+
+            // 인라인 계산으로 변수 줄이기 - DSMath 제거
+            // rmul(y, rdiv(a, b)) = (y * a) / b (RAY 약분)
+            uint256 l2Total = (y * effectiveBridged) / totalEffective;
+            // rmul(x, y) = (x * y) / RAY
+            uint256 totalValReward = (l2Total * validatorDistributionRatio) / RAY_UNIT;
+            uint256 layer2Seigs = l2Total - totalValReward;
+
+            if (layer2Seigs > 0) {
+                IWTON(_wton).mint(layer2Manager, layer2Seigs);
+                ILayer2Manager(layer2Manager).transferL2Seigniorage(msg.sender, layer2Seigs);
+            }
+
+            if (totalValReward > 0 && validatorReward != address(0)) {
+                IWTON(_wton).mint(validatorReward, totalValReward);
+                IValidatorReward(validatorReward).distributeL2Rewards(rollupConfig, totalValReward);
+            }
+
+            rewards[0] = layer2Seigs;
+            rewards[1] = totalValReward;
+        }
+    }
+
+    /// @notice L2 보상 분배 - 기존 함수 (호환성 유지)
+    function _distributeL2Rewards(uint256 y, uint256 totalEffective)
+        internal
+        returns (uint256 layer2Seigs, uint256 totalValReward)
+    {
+        uint256[2] memory rewards = _distributeL2RewardsSplit(y, totalEffective);
+        layer2Seigs = rewards[0];
+        totalValReward = rewards[1];
+    }
+
+    function _mintDAOReward(uint256 S_DAO, uint256 L, uint256 y) internal {
+        uint256 totalDAO = S_DAO + (L - y);
+        if (totalDAO > 0 && dao != address(0)) {
+            IWTON(_wton).mint(dao, totalDAO);
         }
     }
 
@@ -832,12 +935,15 @@ contract SeigManagerV1_4 is
             bool isCommissionRateNegative_
         )
     {
-        uint256 _delayedCommissionBlock = delayedCommissionBlock[layer2];
+        // 스택 깊이 문제 해결: 스코프 블록으로 변수 격리
+        {
+            uint256 _delayedCommissionBlock = delayedCommissionBlock[layer2];
 
-        if (_delayedCommissionBlock != 0 && block.number >= _delayedCommissionBlock) {
-            _commissionRates[layer2] = delayedCommissionRate[layer2];
-            _isCommissionRateNegative[layer2] = delayedCommissionRateNegative[layer2];
-            delayedCommissionBlock[layer2] = 0;
+            if (_delayedCommissionBlock != 0 && block.number >= _delayedCommissionBlock) {
+                _commissionRates[layer2] = delayedCommissionRate[layer2];
+                _isCommissionRateNegative[layer2] = delayedCommissionRateNegative[layer2];
+                delayedCommissionBlock[layer2] = 0;
+            }
         }
 
         isCommissionRateNegative_ = _isCommissionRateNegative[layer2];
@@ -849,7 +955,8 @@ contract SeigManagerV1_4 is
             return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
         if (!isCommissionRateNegative_) {
-            operatorSeigs = rmul(seigs, commissionRate);
+            // rmul(x, y) = (x * y) / RAY
+            operatorSeigs = (seigs * commissionRate) / RAY_UNIT;
             nextTotalSupply -= operatorSeigs;
             return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
         }
@@ -862,18 +969,38 @@ contract SeigManagerV1_4 is
         if (operatorBalance == 0)
             return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
 
-        uint256 operatorRate = rdiv(operatorBalance, prevTotalSupply);
-
-        operatorSeigs = rmul(rmul(seigs, operatorRate), commissionRate);
-
-        uint256 delegatorSeigs = operatorRate == RAY
-            ? operatorSeigs
-            : rdiv(operatorSeigs, RAY - operatorRate);
-
-        operatorSeigs = delegatorSeigs;
-        nextTotalSupply += delegatorSeigs;
+        // 네거티브 커미션 계산 (별도 함수로 분리하여 스택 깊이 줄이기)
+        (operatorSeigs, nextTotalSupply) = _calcNegativeCommission(
+            seigs,
+            operatorBalance,
+            prevTotalSupply,
+            commissionRate,
+            nextTotalSupply
+        );
 
         return (nextTotalSupply, operatorSeigs, isCommissionRateNegative_);
+    }
+
+    /// @notice 네거티브 커미션 계산 (스택 깊이 문제 해결)
+    function _calcNegativeCommission(
+        uint256 seigs,
+        uint256 operatorBalance,
+        uint256 prevTotalSupply,
+        uint256 commissionRate,
+        uint256 nextTotalSupply
+    ) internal pure returns (uint256 operatorSeigs, uint256 newNextTotalSupply) {
+        // rdiv(x, y) = (x * RAY) / y
+        uint256 operatorRate = (operatorBalance * RAY_UNIT) / prevTotalSupply;
+        // rmul(rmul(x, y), z) = (x * y * z) / (RAY * RAY)
+        operatorSeigs = (seigs * operatorRate * commissionRate) / (RAY_UNIT * RAY_UNIT);
+
+        // rdiv(x, y) = (x * RAY) / y
+        uint256 delegatorSeigs = (operatorRate == RAY_UNIT)
+            ? operatorSeigs
+            : (operatorSeigs * RAY_UNIT) / (RAY_UNIT - operatorRate);
+
+        operatorSeigs = delegatorSeigs;
+        newNextTotalSupply = nextTotalSupply + delegatorSeigs;
     }
 
     function _calcNewFactor(
@@ -881,7 +1008,8 @@ contract SeigManagerV1_4 is
         uint256 target,
         uint256 oldFactor
     ) internal pure returns (uint256) {
-        return rdiv(rmul(target, oldFactor), source);
+        // rdiv(rmul(target, oldFactor), source) = (target * oldFactor) / source (RAY 약분)
+        return (target * oldFactor) / source;
     }
 
     function _pauseLayer2Tvl(address layer2) internal {
@@ -909,7 +1037,9 @@ contract SeigManagerV1_4 is
     }
 
     function _unpauseLayer2Tvl(address layer2) internal {
-        (, bool allowed) = _allowIssuanceLayer2Seigs(layer2);
+        // 스택 깊이 문제 해결: 튜플 할당을 단계별로 분리
+        bool allowed;
+        (, allowed) = _allowIssuanceLayer2Seigs(layer2);
         require(allowed, "not allowed");
         require(_isPauseL2Seigniorage(layer2), "not paused");
 
@@ -927,14 +1057,11 @@ contract SeigManagerV1_4 is
     }
 
     function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
-        uint256 startBlock = (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock);
-        uint256 initial = (initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply);
-        uint256 burntAmount = (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
-
-        tos = initial +
-            (_seigPerBlock * (blockNumber - startBlock)) -
+        // 인라인 계산으로 로컬 변수 제거
+        tos = (initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply) +
+            (_seigPerBlock * (blockNumber - (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock))) -
             (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
-            burntAmount;
+            (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
     }
 
     function _isPauseL2Seigniorage(address layer2) internal view returns (bool) {
@@ -950,7 +1077,10 @@ contract SeigManagerV1_4 is
     function _allowIssuanceLayer2Seigs(
         address layer2
     ) internal view returns (address rollupConfig, bool allowed) {
-        (rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+        // 스택 깊이 문제 해결: 튜플 할당을 단계별로 분리
+        address tempRollupConfig;
+        (tempRollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+        rollupConfig = tempRollupConfig;
         if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
     }
 }
