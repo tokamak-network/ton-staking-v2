@@ -107,5 +107,4 @@ contract SeigManagerV1_4Storage {
     /// @dev V3: 시퀀서 자격 조건(S_i ≥ θ·B_i)을 SequencerVault 담보금으로 확인
     address public sequencerVault;
 
-
 }
