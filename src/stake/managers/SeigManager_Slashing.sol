@@ -8,7 +8,6 @@ import '../../proxy/ProxyStorage.sol';
 import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
 import {SeigManagerStorage} from './SeigManagerStorage.sol';
 import {SeigManagerV1_1Storage} from './SeigManagerV1_1Storage.sol';
-import {SeigManagerV1I} from '../interfaces/SeigManagerV1I.sol';
 import {SeigManagerV1_3Storage} from './SeigManagerV1_3Storage.sol';
 
 /**
@@ -37,7 +36,6 @@ contract SeigManager_Slashing is
     AuthControlSeigManager,
     SeigManagerStorage,
     SeigManagerV1_1Storage,
-    SeigManagerV1I,
     SeigManagerV1_3Storage
 {
     uint256 internal constant WEI_UNIT = 1e18;
@@ -105,9 +103,5 @@ contract SeigManager_Slashing is
                 FullMath.rmul(totBalalnce - coinageTotalSupply, amount),
                 coinageTotalSupply
             );
-    }
-
-    function _isOperator(address layer2, address operator) internal view returns (bool) {
-        return operator == Layer2I(layer2).operator();
     }
 }
