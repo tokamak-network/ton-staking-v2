@@ -695,7 +695,7 @@ wton.addMinter(seigManagerProxy)
 ### 설정 절차
 
 ```solidity
-SeigManagerV1_Slashing(address(seigManagerProxy)).setData(
+SeigManagerV1_2(address(seigManagerProxy)).setData(
     powerTON,
     daoCommitteeProxy,
     0, // powerTONSeigRate_
@@ -736,7 +736,7 @@ CandidateAddOnFactoryProxy(candidateAddOnFactoryProxy).transferOwnership(daoComm
 
 ## 16. Deploy 테스트 실행 방법
 ```bash
-forge test --match-path test/SlashingE2E_Deploy.t.sol -vvv
+forge test --match-path test/SlashingE2E_improved_Deploy.t.sol -vvv
 ```
 
 
