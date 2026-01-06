@@ -216,7 +216,7 @@ proxy.setSelectorImplementations2(slashingSelectors, address(seigManagerSlashing
 | 항목 | 설명 |
 |------|------|
 | 역할 | 스테이킹 예치/출금 관리 |
-| 버전 | Base, _setWithdrawalDelay, V1_Slashing (다중 구현체) |
+| 버전 | Base, _setWithdrawalDelay, V1_1, Slashing (다중 구현체) |
 | 패턴 | SeigManager와 동일한 Selector Routing 방식 |
 
 ### 버전별 함수 분포
@@ -243,9 +243,11 @@ proxy.setSelectorImplementations2(slashingSelectors, address(seigManagerSlashing
 | `setAddresses(address,address)` | `0x90107afe` | L1BridgeRegistry, Layer2Manager 주소 설정 |
 | `withdrawAndDepositL2(address,uint256)` | `0x9f382d11` | 출금 후 L2 예치 |
 
-### DepositManagerV1_1 (Index 2) 등록 함수 목록
+### DepositManager_Slashing (Index 3) 등록 함수 목록
 | 함수 시그니처 | Selector | 설명 |
+|--------------|----------|------|
 | `slash(address,address,address)` | `0x563bf264` | Operator에 대한 슬래싱 진행 및 Challenger에게 reward 지급 |
+| `setSlashingRewardRate(uint256)` | `0x5c1f2454` | 슬래싱 reward rate 설정 |
 
 ### 상세 배포 절차
 
@@ -253,7 +255,8 @@ proxy.setSelectorImplementations2(slashingSelectors, address(seigManagerSlashing
 // Step 1: 모든 구현체 배포
 DepositManager depositManagerBase = new DepositManager();
 DepositManager_setWithdrawalDelay depositManagerSetDelay = new DepositManager_setWithdrawalDelay();
-DepositManagerV1_Slashing depositManagerV1_Slashing = new DepositManagerV1_Slashing();
+DepositManagerV1_1 depositManagerV1_1 = new DepositManagerV1_1();
+DepositManager_Slashing depositManagerSlashing = new DepositManager_Slashing();
 
 // Step 2: 프록시 배포 및 기본 구현체 설정
 // 프록시는 3번 과정에서 배포한 depositManagerProxy를 사용
@@ -268,7 +271,8 @@ DepositManager(address(proxy)).initialize(
 
 // Step 4: Index 1, 2구현체 활성화
 proxy.setAliveImplementation2(address(depositManagerSetDelay), true);
-proxy.setAliveImplementation2(address(depositManagerV1_Slashing), true);
+proxy.setAliveImplementation2(address(depositManagerV1_1), true);
+proxy.setAliveImplementation2(address(depositManagerSlashing), true);
 
 // ==========================================
 // Step 5: setWithdrawalDelay 함수들을 setWithdrawalDelay 구현체로 라우팅
@@ -279,18 +283,24 @@ setWithdrawalDelaySelectors[1] = DepositManager_setWithdrawalDelay.setWithdrawal
 proxy.setSelectorImplementations2(setWithdrawalDelaySelectors, address(depositManagerSetDelay));
 
 // ==========================================
-// Step 6: V1_Slashing 함수들을 V1_Slashing 구현체로 라우팅
+// Step 6: V1_1 함수들을 V1_1 구현체로 라우팅
 // ==========================================
-bytes4[] memory v1_SlashingSelectors = new bytes4[](3);
-v1_SlashingSelectors[0] = Deposit   ManagerV1_Slashing.setMinDepositGasLimit.selector;
-v1_SlashingSelectors[1] = DepositManagerV1_Slashing.setAddresses.selector;
-v1_SlashingSelectors[2] = DepositManagerV1_Slashing.withdrawAndDepositL2.selector;
-v1_SlashingSelectors[3] = DepositManagerV1_Slashing.slash.selector;
-v1_SlashingSelectors[4] = DepositManagerV1_Slashing.setSlashingRewardRate.selector;
-proxy.setSelectorImplementations2(v1_SlashingSelectors, address(depositManagerV1_Slashing));
+bytes4[] memory v1_1Selectors = new bytes4[](3);
+v1_1Selectors[0] = DepositManagerV1_1.setMinDepositGasLimit.selector;
+v1_1Selectors[1] = DepositManagerV1_1.setAddresses.selector;
+v1_1Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
+proxy.setSelectorImplementations2(v1_1Selectors, address(depositManagerV1_1));
 
 // ==========================================
-// Step 7: SlashingRewardRate를 세팅
+// Step 7: Slashing 함수들을 Slashing 구현체로 라우팅
+// ==========================================
+bytes4[] memory slashingSelectors = new bytes4[](1);
+slashingSelectors[0] = DepositManager_Slashing.slash.selector;
+slashingSelectors[0] = DepositManager_Slashing.setSlashingRewardRate.selector;
+proxy.setSelectorImplementations2(slashingSelectors, address(depositManagerSlashing));
+
+// ==========================================
+// Step 8: SlashingRewardRate를 세팅
 // ==========================================
 // 1000 = 10%, 10000 = 100%
 DepositManagerV1_Slashing(address(proxy)).setSlashingRewardRate(1000);
@@ -610,25 +620,33 @@ factory.setAddresses(depositManagerProxy, ton, wton, layer2ManagerProxy);
 | 항목 | 설명 |
 |------|------|
 | 역할 | Layer2 등록 및 관리 |
-| 버전 | V1_1 |
+| 버전 | V1_1, Slashing |
 
 ### 버전별 함수 분포
 
 | 버전 | Index | 주요 함수 |
 |------|-------|----------|
-| **Layer2ManagerV1_Slashing** | 0 | `setAddresses()`, `registerCandidateAddOn()`, `transferL2Seigniorage()`, `slashingCandidate()` |
+| **Layer2ManagerV1_1** | 0 | `setAddresses()`, `registerCandidateAddOn()`, `transferL2Seigniorage()` |
+| **Layer2Manager_Slashing** | 1 | `slashingCandidate()` |
+
+### Layer2Manager_Slashing (Index 1) 등록 함수 목록
+
+| 함수 시그니처 | Selector | 설명 |
+|--------------|----------|------|
+| `slashingCandidate(address,uint256)` | `0x25f580c7` | Operator의 DisputeGame에서 Challenger가 이겼을 경우 호출 (누구나 호출 가능) |
 
 
 ### 배포 절차
 
 ```solidity
 // Step 1: 구현체 배포
-Layer2ManagerV1_Slashing layer2ManagerV1_Slashing = new Layer2ManagerV1_Slashing();
+Layer2ManagerV1_1 layer2ManagerV1_1 = new Layer2ManagerV1_1();
+Layer2Manager_Slashing layer2ManagerSlashing = new Layer2Manager_Slashing();
 
 // Step 2: 프록시 배포 및 V1_1을 기본 구현체로 설정
 // 프록시는 3번 과정에서 배포한 layer2ManagerProxy를 사용
 Layer2ManagerProxy proxy = new Layer2ManagerProxy();
-proxy.upgradeTo(address(layer2ManagerV1_Slashing));
+proxy.upgradeTo(address(layer2ManagerV1_1));
 
 // Step 3: 초기화
 // swapProxy는 address(0으로 설정해도 괜찮음
@@ -642,6 +660,11 @@ Layer2ManagerV1_Slashing(address(proxy)).setAddresses(
     seigManager_, 
     swapProxy_
 );
+
+// Step 4: Slashing 구현체로 라우팅
+bytes4[] memory slashingSelectors = new bytes4[](1);
+slashingSelectors[0] = Layer2Manager_Slashing.slashingCandidate.selector;
+proxy.setSelectorImplementations2(slashingSelectors, address(layer2ManagerSlashing));
 ```
 
 ---
