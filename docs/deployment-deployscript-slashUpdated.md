@@ -120,6 +120,7 @@ proxy.upgradeTo(address(layer2RegistryBase));
 |------|------|------|
 | **SeigManagerV1_2** | 기본 구현체 (Index 0) - initialize, setData, deployCoinage 등 | `upgradeTo()`로 설정 |
 | **SeigManagerV1_3** | pause/unpause, L2 시뇨리지 제외/포함 | Selector routing 필요 | 
+| **SeigManager_Slashing** | Slashing 기능 | Selector routing 필요 | 
 
 
 ### SeigManagerV1_3 등록 함수 목록
