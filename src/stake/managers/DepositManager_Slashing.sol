@@ -29,9 +29,6 @@ contract DepositManager_Slashing is
 {
     using SafeERC20 for IERC20;
 
-    uint256 internal constant GWEI_UNIT = 1e9;
-    uint256 internal constant RAY = 1e27;
-
     modifier onlyLayer2Manager() {
         require(msg.sender == layer2Manager, 'not layer2Manager');
         _;
