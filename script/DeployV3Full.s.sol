@@ -41,7 +41,6 @@ import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 // Mocks for testing
 import {MockTON} from "../test/v3/mocks/MockTON.sol";
@@ -140,10 +139,10 @@ contract DeployV3Full is Script {
         uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
         address deployer = vm.addr(deployerPrivateKey);
 
-        console.log("=== TON Staking V3 Full Deployment ===");
-        console.log("Deployer:", deployer);
-        console.log("Chain ID:", block.chainid);
-        console.log("");
+        // console.log("=== TON Staking V3 Full Deployment ===");
+        // console.log("Deployer:", deployer);
+        // console.log("Chain ID:", block.chainid);
+        // console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -169,92 +168,92 @@ contract DeployV3Full is Script {
     // Step 1: Deploy Tokens
     // ==========================================
     function _deployTokens() internal {
-        console.log("--- Step 1: Deploy Tokens ---");
+        // console.log("--- Step 1: Deploy Tokens ---");
 
         ton = address(new MockTON());
-        console.log("TON:", ton);
+        // console.log("TON:", ton);
 
         MockWTON wtonContract = new MockWTON();
         wtonContract.setTON(ton);
         wton = address(wtonContract);
-        console.log("WTON:", wton);
-        console.log("");
+        // console.log("WTON:", wton);
+        // console.log("");
     }
 
     // ==========================================
     // Step 2: Deploy Coinage Infrastructure
     // ==========================================
     function _deployCoinageInfrastructure(address deployer) internal {
-        console.log("--- Step 2: Deploy Coinage Infrastructure ---");
+        // console.log("--- Step 2: Deploy Coinage Infrastructure ---");
 
         // Deploy RefactorCoinageSnapshot logic
         coinageLogic = address(new RefactorCoinageSnapshot());
-        console.log("RefactorCoinageSnapshot Logic:", coinageLogic);
+        // console.log("RefactorCoinageSnapshot Logic:", coinageLogic);
 
         // Deploy CoinageFactory
         CoinageFactory factory = new CoinageFactory();
         factory.setAutoCoinageLogic(coinageLogic);
         coinageFactory = address(factory);
-        console.log("CoinageFactory:", coinageFactory);
-        console.log("");
+        // console.log("CoinageFactory:", coinageFactory);
+        // console.log("");
     }
 
     // ==========================================
     // Step 3: Deploy Layer2Registry
     // ==========================================
     function _deployLayer2Registry(address deployer) internal {
-        console.log("--- Step 3: Deploy Layer2Registry ---");
+        // console.log("--- Step 3: Deploy Layer2Registry ---");
 
         layer2RegistryImpl = address(new Layer2Registry());
-        console.log("Layer2Registry Impl:", layer2RegistryImpl);
+        // console.log("Layer2Registry Impl:", layer2RegistryImpl);
 
         Layer2RegistryProxy registryProxy = new Layer2RegistryProxy();
         IProxy(address(registryProxy)).upgradeTo(layer2RegistryImpl);
         layer2RegistryProxy = address(registryProxy);
-        console.log("Layer2Registry Proxy:", layer2RegistryProxy);
-        console.log("");
+        // console.log("Layer2Registry Proxy:", layer2RegistryProxy);
+        // console.log("");
     }
 
     // ==========================================
     // Step 4: Deploy Manager Proxies
     // ==========================================
     function _deployManagerProxies() internal {
-        console.log("--- Step 4: Deploy Manager Proxies ---");
+        // console.log("--- Step 4: Deploy Manager Proxies ---");
 
         seigManagerProxy = address(new SeigManagerProxy());
-        console.log("SeigManager Proxy:", seigManagerProxy);
+        // console.log("SeigManager Proxy:", seigManagerProxy);
 
         depositManagerProxy = address(new DepositManagerProxy());
-        console.log("DepositManager Proxy:", depositManagerProxy);
+        // console.log("DepositManager Proxy:", depositManagerProxy);
 
         layer2ManagerProxy = address(new Layer2ManagerProxy());
-        console.log("Layer2Manager Proxy:", layer2ManagerProxy);
+        // console.log("Layer2Manager Proxy:", layer2ManagerProxy);
 
         l1BridgeRegistryProxy = address(new L1BridgeRegistryProxy());
-        console.log("L1BridgeRegistry Proxy:", l1BridgeRegistryProxy);
-        console.log("");
+        // console.log("L1BridgeRegistry Proxy:", l1BridgeRegistryProxy);
+        // console.log("");
     }
 
     // ==========================================
     // Step 5: Deploy Manager Implementations
     // ==========================================
     function _deployManagerImplementations() internal {
-        console.log("--- Step 5: Deploy Manager Implementations ---");
+        // console.log("--- Step 5: Deploy Manager Implementations ---");
 
         // SeigManager: 메인넷처럼 V1_2를 기본 구현체로 사용
         // Index 0: SeigManagerV1_2 (base - initialize, setData 포함)
         // Index 1: SeigManagerV1_3 (pause/unpause)
         // Index 2: SeigManagerV1_4 (V3 신규 함수)
         address seigManagerV1_2Impl = address(new SeigManagerV1_2());
-        console.log("SeigManagerV1_2 Impl:", seigManagerV1_2Impl);
+        // console.log("SeigManagerV1_2 Impl:", seigManagerV1_2Impl);
         IProxy(seigManagerProxy).upgradeTo(seigManagerV1_2Impl);
 
         // V1_3, V1_4는 selector routing으로 추가 예정
         seigManagerV1_3Impl = address(new SeigManagerV1_3());
-        console.log("SeigManagerV1_3 Impl:", seigManagerV1_3Impl);
+        // console.log("SeigManagerV1_3 Impl:", seigManagerV1_3Impl);
 
         seigManagerImpl = address(new SeigManagerV1_4());
-        console.log("SeigManagerV1_4 Impl:", seigManagerImpl);
+        // console.log("SeigManagerV1_4 Impl:", seigManagerImpl);
 
         // DepositManager: 다중 구현체 패턴 (SeigManager와 동일)
         // Index 0: DepositManager (Base)
@@ -262,40 +261,40 @@ contract DeployV3Full is Script {
         // Index 2: DepositManagerV1_1
         // Index 3: DepositManagerV1_2
         depositManagerBaseImpl = address(new DepositManager());
-        console.log("DepositManager Base Impl (Index 0):", depositManagerBaseImpl);
+        // console.log("DepositManager Base Impl (Index 0):", depositManagerBaseImpl);
         IProxy(depositManagerProxy).upgradeTo(depositManagerBaseImpl);
 
         depositManagerSetDelayImpl = address(new DepositManager_setWithdrawalDelay());
-        console.log("DepositManager_setWithdrawalDelay Impl (Index 1):", depositManagerSetDelayImpl);
+        // console.log("DepositManager_setWithdrawalDelay Impl (Index 1):", depositManagerSetDelayImpl);
 
         depositManagerV1_1Impl = address(new DepositManagerV1_1());
-        console.log("DepositManagerV1_1 Impl (Index 2):", depositManagerV1_1Impl);
+        // console.log("DepositManagerV1_1 Impl (Index 2):", depositManagerV1_1Impl);
 
         depositManagerV1_2Impl = address(new DepositManagerV1_2());
-        console.log("DepositManagerV1_2 Impl (Index 3):", depositManagerV1_2Impl);
+        // console.log("DepositManagerV1_2 Impl (Index 3):", depositManagerV1_2Impl);
 
         // Layer2Manager: 다중 구현체 패턴
         // Index 0: Layer2ManagerV1_1 (base - setAddresses with guard)
         // Index 1: Layer2ManagerV1_2 (V3 functions - BridgedTON)
         layer2ManagerV1_1Impl = address(new Layer2ManagerV1_1());
-        console.log("Layer2ManagerV1_1 Impl (Index 0):", layer2ManagerV1_1Impl);
+        // console.log("Layer2ManagerV1_1 Impl (Index 0):", layer2ManagerV1_1Impl);
         IProxy(layer2ManagerProxy).upgradeTo(layer2ManagerV1_1Impl);
 
         layer2ManagerImpl = address(new Layer2ManagerV1_2());
-        console.log("Layer2ManagerV1_2 Impl (Index 1):", layer2ManagerImpl);
+        // console.log("Layer2ManagerV1_2 Impl (Index 1):", layer2ManagerImpl);
 
         // L1BridgeRegistry: V1_2 only (V1_2 has all V1_1 functions + TYPE 3 support)
         l1BridgeRegistryImpl = address(new L1BridgeRegistryV1_2());
-        console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
+        // console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
         IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryImpl);
-        console.log("");
+        // console.log("");
     }
 
     // ==========================================
     // Step 6: Initialize Managers
     // ==========================================
     function _initializeManagers(address deployer) internal {
-        console.log("--- Step 6: Initialize Managers ---");
+        // console.log("--- Step 6: Initialize Managers ---");
 
         // Initialize SeigManager (using V1_2 - 메인넷과 동일하게)
         SeigManagerV1_2(seigManagerProxy).initialize(
@@ -307,7 +306,7 @@ contract DeployV3Full is Script {
             coinageFactory,
             block.number // lastSeigBlock = current block
         );
-        console.log("SeigManager initialized");
+        // console.log("SeigManager initialized");
 
         // setData: 시뇨리지 분배 비율 설정 (V1_2 함수)
         SeigManagerV1_2(seigManagerProxy).setData(
@@ -319,7 +318,7 @@ contract DeployV3Full is Script {
             93096,          // adjustCommissionDelay
             1000.1e27       // minimumAmount: 1000.1 WTON
         );
-        console.log("SeigManager setData done");
+        // console.log("SeigManager setData done");
 
         // =====================================================
         // SeigManager 다중 구현체 설정 (메인넷과 동일한 패턴)
@@ -334,7 +333,7 @@ contract DeployV3Full is Script {
         // 먼저 V1_3, V1_4를 alive 상태로 설정
         SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV1_3Impl, true);
         SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerImpl, true);
-        console.log("SeigManager V1_3, V1_4 implementations set alive");
+        // console.log("SeigManager V1_3, V1_4 implementations set alive");
 
         // V1_3 함수 selectors 등록 (6개)
         // pause/unpause, excludeFromL2Seigniorage, includeFromL2Seigniorage, claimableL2Seigniorage, estimatedDistribute
@@ -346,7 +345,7 @@ contract DeployV3Full is Script {
         v1_3Selectors[4] = SeigManagerV1_3.claimableL2Seigniorage.selector;
         v1_3Selectors[5] = SeigManagerV1_3.estimatedDistribute.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_3Selectors, seigManagerV1_3Impl);
-        console.log("SeigManager V1_3 selectors registered (6 functions)");
+        // console.log("SeigManager V1_3 selectors registered (6 functions)");
 
         // V1_4 함수 selectors 등록 (31개)
         bytes4[] memory v1_4Selectors = new bytes4[](31);
@@ -387,7 +386,7 @@ contract DeployV3Full is Script {
         v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
 
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
-        console.log("SeigManager V1_4 selectors registered (31 functions)");
+        // console.log("SeigManager V1_4 selectors registered (31 functions)");
 
         // 나머지 함수들은 V1_2 (기본 구현체)가 처리
 
@@ -399,7 +398,7 @@ contract DeployV3Full is Script {
             GLOBAL_WITHDRAWAL_DELAY,
             address(0) // no old deposit manager
         );
-        console.log("DepositManager initialized");
+        // console.log("DepositManager initialized");
 
         // =====================================================
         // DepositManager 다중 구현체 설정 (메인넷과 동일한 패턴)
@@ -408,14 +407,14 @@ contract DeployV3Full is Script {
         DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerSetDelayImpl, true);
         DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_1Impl, true);
         DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_2Impl, true);
-        console.log("DepositManager Index 1,2,3 implementations set alive");
+        // console.log("DepositManager Index 1,2,3 implementations set alive");
 
         // Index 1: setWithdrawalDelay 함수 라우팅
         bytes4[] memory dmIndex1Selectors = new bytes4[](2);
         dmIndex1Selectors[0] = DepositManager_setWithdrawalDelay.setWithdrawalDelay.selector;
         dmIndex1Selectors[1] = DepositManager_setWithdrawalDelay.setWithdrawalDelayByOwner.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex1Selectors, depositManagerSetDelayImpl);
-        console.log("DepositManager Index 1 selectors registered");
+        // console.log("DepositManager Index 1 selectors registered");
 
         // Index 2: V1_1 함수 라우팅
         bytes4[] memory dmIndex2Selectors = new bytes4[](3);
@@ -423,7 +422,7 @@ contract DeployV3Full is Script {
         dmIndex2Selectors[1] = DepositManagerV1_1.setAddresses.selector;
         dmIndex2Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex2Selectors, depositManagerV1_1Impl);
-        console.log("DepositManager Index 2 (V1_1) selectors registered");
+        // console.log("DepositManager Index 2 (V1_1) selectors registered");
 
         // Index 3: V1_2 함수 라우팅 (V3 콜백 포함, V1_1 오버라이드)
         // V1_2에 정의된 함수만 라우팅: deposit, withdrawAndDepositL2, requestWithdrawal
@@ -433,59 +432,54 @@ contract DeployV3Full is Script {
         dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
         dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
-        console.log("DepositManager Index 3 (V1_2) selectors registered (3 functions)");
-        console.log("");
+        // console.log("DepositManager Index 3 (V1_2) selectors registered (3 functions)");
+        // console.log("");
     }
 
     // ==========================================
     // Step 6.5: Setup Minter Permissions (Phase 5.5)
     // ==========================================
     function _setupMinterPermissions() internal {
-        console.log("--- Step 6.5: Setup Minter Permissions ---");
+        // console.log("--- Step 6.5: Setup Minter Permissions ---");
 
         // Layer2Registry.addMinter(seigManagerProxy)
         // SeigManager가 코이니지 생성 가능하도록
         Layer2Registry(layer2RegistryProxy).addMinter(seigManagerProxy);
-        console.log("Layer2Registry.addMinter(seigManagerProxy) done");
+        // console.log("Layer2Registry.addMinter(seigManagerProxy) done");
 
         // WTON.addMinter(seigManagerProxy)
         // SeigManager가 시뇨리지(WTON) 발행 가능하도록
         MockWTON(wton).addMinter(seigManagerProxy);
-        console.log("WTON.addMinter(seigManagerProxy) done");
-        console.log("");
+        // console.log("WTON.addMinter(seigManagerProxy) done");
+        // console.log("");
     }
 
     // ==========================================
     // Step 7: Deploy OperatorManagerFactory
     // ==========================================
     function _deployOperatorManagerFactory(address deployer) internal {
-        console.log("--- Step 7: Deploy OperatorManagerFactory ---");
+        // console.log("--- Step 7: Deploy OperatorManagerFactory ---");
 
         // OperatorManager V1_2 구현체 배포 (V3 기본 - 모든 TYPE에서 사용)
         // V1_2를 기본으로 사용하여 향후 TYPE 3 업그레이드 지원
         operatorManagerImpl = address(new OperatorManagerV1_2());
-        console.log("OperatorManagerV1_2 Impl:", operatorManagerImpl);
+        // console.log("OperatorManagerV1_2 Impl:", operatorManagerImpl);
 
         // Factory 배포 (V1_2를 기본 구현체로 사용)
         operatorManagerFactory = address(new OperatorManagerFactory(operatorManagerImpl));
-        console.log("OperatorManagerFactory:", operatorManagerFactory);
-        console.log("");
+        // console.log("OperatorManagerFactory:", operatorManagerFactory);
+        // console.log("");
     }
 
     // ==========================================
     // Step 8: Deploy V3 Contracts (RAT, ValidatorReward)
     // ==========================================
     function _deployV3Contracts(address deployer) internal {
-        console.log("--- Step 8: Deploy V3 Contracts ---");
-
-        // Deploy ProxyAdmin for RAT and ValidatorReward
-        // This separates proxy admin from deployer to avoid TransparentProxy admin fallback restriction
-        address proxyAdmin = address(new ProxyAdmin());
-        console.log("V3 ProxyAdmin:", proxyAdmin);
+        // console.log("--- Step 8: Deploy V3 Contracts ---");
 
         // Deploy RAT implementation
         ratImpl = address(new RAT());
-        console.log("RAT Impl:", ratImpl);
+        // console.log("RAT Impl:", ratImpl);
 
         // Prepare RAT initialization data
         // NOTE: ratTriggerProbability should be determined based on game theory formula:
@@ -501,14 +495,14 @@ contract DeployV3Full is Script {
             ratTriggerProbability
         );
 
-        // Deploy RAT proxy with ProxyAdmin as admin
-        ratProxy = address(new RATProxy(ratImpl, proxyAdmin, ratInitData));
-        console.log("RAT Proxy:", ratProxy);
-        console.log("RAT initialized");
+        // Deploy RAT proxy with deployer as admin
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
+        // console.log("RAT Proxy:", ratProxy);
+        // console.log("RAT initialized");
 
         // Deploy ValidatorReward implementation
         validatorPoolImpl = address(new ValidatorRewardV1());
-        console.log("ValidatorReward Impl:", validatorPoolImpl);
+        // console.log("ValidatorReward Impl:", validatorPoolImpl);
 
         // Prepare ValidatorReward initialization data
         // NOTE: treasury 파라미터 제거됨 - 검증자 없는 L2의 보상은 SeigManager.dao()로 전송
@@ -520,19 +514,19 @@ contract DeployV3Full is Script {
             deployer    // owner
         );
 
-        // Deploy ValidatorReward proxy with ProxyAdmin as admin
-        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, proxyAdmin, validatorRewardInitData));
-        console.log("ValidatorReward Proxy:", validatorPoolProxy);
-        console.log("ValidatorReward initialized");
+        // Deploy ValidatorReward proxy with deployer as admin
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
+        // console.log("ValidatorReward Proxy:", validatorPoolProxy);
+        // console.log("ValidatorReward initialized");
 
         // Deploy SequencerVault (Proxy + Implementation 패턴 - RAT/ValidatorReward와 다름)
         // SequencerVaultProxy는 Proxy 상속으로 upgradeTo() 후 initialize() 호출
         sequencerVaultImpl = address(new SequencerVault());
-        console.log("SequencerVault Impl:", sequencerVaultImpl);
+        // console.log("SequencerVault Impl:", sequencerVaultImpl);
 
         SequencerVaultProxy svProxy = new SequencerVaultProxy();
         sequencerVaultProxy = address(svProxy);
-        console.log("SequencerVault Proxy:", sequencerVaultProxy);
+        // console.log("SequencerVault Proxy:", sequencerVaultProxy);
 
         // upgradeTo (Proxy 패턴)
         IProxy(sequencerVaultProxy).upgradeTo(sequencerVaultImpl);
@@ -546,15 +540,15 @@ contract DeployV3Full is Script {
             l1BridgeRegistryProxy,
             deployer
         );
-        console.log("SequencerVault initialized");
-        console.log("");
+        // console.log("SequencerVault initialized");
+        // console.log("");
     }
 
     // ==========================================
     // Step 9: Configure V3 Contracts
     // ==========================================
     function _configureV3Contracts(address deployer) internal {
-        console.log("--- Step 9: Configure V3 Parameters ---");
+        // console.log("--- Step 9: Configure V3 Parameters ---");
 
         // RAT parameters
         RAT(ratProxy).setRatTriggerProbability(RAT_TRIGGER_PROBABILITY);
@@ -562,27 +556,27 @@ contract DeployV3Full is Script {
         RAT(ratProxy).setValidatorBuffer(RAT_VALIDATOR_BUFFER);
         RAT(ratProxy).setMinimumThreshold(RAT_MINIMUM_THRESHOLD);
         RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
-        console.log("RAT parameters configured");
+        // console.log("RAT parameters configured");
 
         // ValidatorReward는 별도 파라미터 설정 불필요
         // (RAT에서 검증자 정보를 조회하고 SeigManager에서 호출)
-        console.log("ValidatorReward ready");
-        console.log("");
+        // console.log("ValidatorReward ready");
+        // console.log("");
     }
 
     // ==========================================
     // Step 10: Setup Cross-References
     // ==========================================
     function _setupCrossReferences(address deployer) internal {
-        console.log("--- Step 10: Setup Cross-References ---");
+        // console.log("--- Step 10: Setup Cross-References ---");
 
         // SeigManager -> Layer2Manager (V1_2에 정의됨)
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
-        console.log("SeigManager.setLayer2Manager done");
+        // console.log("SeigManager.setLayer2Manager done");
 
         // SeigManager -> ValidatorReward
         SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
-        console.log("SeigManager.setValidatorReward done");
+        // console.log("SeigManager.setValidatorReward done");
 
         // Layer2Manager.setAddresses (using V1_1 interface - Index 0)
         Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
@@ -595,7 +589,7 @@ contract DeployV3Full is Script {
             seigManagerProxy,
             address(0) // swapProxy (not needed for testing)
         );
-        console.log("Layer2Manager.setAddresses done");
+        // console.log("Layer2Manager.setAddresses done");
 
         // =====================================================
         // Layer2Manager 다중 구현체 설정 (메인넷과 동일한 패턴)
@@ -605,7 +599,7 @@ contract DeployV3Full is Script {
 
         // V1_2를 alive 상태로 설정
         Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(layer2ManagerImpl, true);
-        console.log("Layer2Manager V1_2 implementation set alive");
+        // console.log("Layer2Manager V1_2 implementation set alive");
 
         // V1_2 함수 selectors 등록 (V3 신규 함수들)
         bytes4[] memory l2mV1_2Selectors = new bytes4[](5);
@@ -615,11 +609,11 @@ contract DeployV3Full is Script {
         l2mV1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
         l2mV1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
         Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
-        console.log("Layer2Manager V1_2 selectors registered (5 functions)");
+        // console.log("Layer2Manager V1_2 selectors registered (5 functions)");
 
         // Layer2Manager.setSequencerVault (V3 - OperatorManager가 자동 조회)
         Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
-        console.log("Layer2Manager.setSequencerVault done");
+        // console.log("Layer2Manager.setSequencerVault done");
 
         // L1BridgeRegistry.setAddresses (using V1_1 interface - Index 0)
         // L1BridgeRegistry uses V1_2 only (has all V1_1 functions + TYPE 3 support)
@@ -628,7 +622,7 @@ contract DeployV3Full is Script {
             seigManagerProxy,
             ton
         );
-        console.log("L1BridgeRegistry.setAddresses done");
+        // console.log("L1BridgeRegistry.setAddresses done");
 
         // OperatorManagerFactory.setAddresses
         OperatorManagerFactory(operatorManagerFactory).setAddresses(
@@ -637,15 +631,15 @@ contract DeployV3Full is Script {
             wton,
             layer2ManagerProxy
         );
-        console.log("OperatorManagerFactory.setAddresses done");
+        // console.log("OperatorManagerFactory.setAddresses done");
 
         // DepositManager.setAddresses (V1_1 - Index 2로 라우팅됨)
         DepositManagerV1_1(depositManagerProxy).setAddresses(
             l1BridgeRegistryProxy,
             layer2ManagerProxy
         );
-        console.log("DepositManager.setAddresses done");
-        console.log("");
+        // console.log("DepositManager.setAddresses done");
+        // console.log("");
     }
 
     // ==========================================
@@ -696,7 +690,7 @@ contract DeployV3Full is Script {
         ));
 
         vm.writeFile("deployments/v3-full.json", output);
-        console.log("\nDeployment saved to deployments/v3-full.json");
+        // console.log("\nDeployment saved to deployments/v3-full.json");
     }
 }
 
@@ -711,9 +705,9 @@ contract DeployV3FullLocal is DeployV3Full {
         uint256 deployerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
         address deployer = vm.addr(deployerPrivateKey);
 
-        console.log("=== V3 Local Deployment ===");
-        console.log("Deployer:", deployer);
-        console.log("");
+        // console.log("=== V3 Local Deployment ===");
+        // console.log("Deployer:", deployer);
+        // console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 

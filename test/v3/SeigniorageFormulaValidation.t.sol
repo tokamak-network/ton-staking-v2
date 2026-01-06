@@ -483,9 +483,9 @@ contract SimpleSeigManagerV3 {
     }
 }
 
-/// @title EndToEndSeigniorageTest
+/// @title SeigniorageFormulaValidation
 /// @notice 전체 시뇨리지 분배 사이클 테스트
-contract EndToEndSeigniorageTest is Test {
+contract SeigniorageFormulaValidation is Test {
     SimpleSeigManagerV3 public seigManager;
     MockTON public ton;
     MockWTON public wton;

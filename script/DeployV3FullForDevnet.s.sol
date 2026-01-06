@@ -40,7 +40,6 @@ import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 // Mocks for testing
 import {MockTON} from "../test/v3/mocks/MockTON.sol";
@@ -485,9 +484,6 @@ contract DeployV3FullForDevnet is Script {
     function _deployV3Contracts(address deployer) internal {
         console.log("--- Step 8: Deploy V3 Contracts ---");
 
-        address proxyAdmin = address(new ProxyAdmin());
-        console.log("V3 ProxyAdmin:", proxyAdmin);
-
         // Deploy RAT
         ratImpl = address(new RAT());
         console.log("RAT Impl:", ratImpl);
@@ -502,7 +498,8 @@ contract DeployV3FullForDevnet is Script {
             RAT_TRIGGER_PROBABILITY
         );
 
-        ratProxy = address(new RATProxy(ratImpl, proxyAdmin, ratInitData));
+        // Deploy RAT proxy with deployer as admin
+        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
         console.log("RAT Proxy:", ratProxy);
 
         // Deploy ValidatorReward
@@ -517,7 +514,8 @@ contract DeployV3FullForDevnet is Script {
             deployer
         );
 
-        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, proxyAdmin, validatorRewardInitData));
+        // Deploy ValidatorReward proxy with deployer as admin
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
         // Deploy SequencerVault

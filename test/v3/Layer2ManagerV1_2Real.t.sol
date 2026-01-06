@@ -13,15 +13,23 @@ contract Layer2ManagerV1_2RealTest is Test, DeployV3Full {
     Layer2ManagerV1_2 public layer2Manager;
     L1BridgeRegistryV1_2 public l1BridgeRegistry;
 
-    address public owner;
+    address public admin;  // TransparentUpgradeableProxy의 admin (관리 함수만 호출)
+    address public owner;  // 비즈니스 로직 owner (구현체 함수 호출)
     address public rollupConfig1 = address(0x3001);
     address public layer2_1 = address(0x5001);
     address public operator1 = address(0x4001);
 
     function setUp() public {
-        owner = address(this);
+        // TransparentUpgradeableProxy 패턴:
+        // - admin: upgradeTo(), changeAdmin() 같은 관리 함수만 호출 가능
+        // - non-admin: 구현체의 비즈니스 로직 함수 호출 가능
+        admin = address(0x9999);  // Proxy admin 전용
+        owner = address(this);    // 비즈니스 로직 owner (구현체 함수 호출)
 
-        // 직접 배포 (this가 owner가 됨)
+        // owner 컨텍스트에서 배포 시작
+        vm.startPrank(owner);
+
+        // 전체 시스템 배포
         _deployTokens();
         _deployCoinageInfrastructure(owner);
         _deployLayer2Registry(owner);
@@ -30,13 +38,23 @@ contract Layer2ManagerV1_2RealTest is Test, DeployV3Full {
         _initializeManagers(owner);
         _setupMinterPermissions();
         _deployOperatorManagerFactory(owner);
+
+        // RAT, ValidatorReward를 owner로 배포 (임시로 owner가 proxy admin + contract owner)
         _deployV3Contracts(owner);
+
+        // RAT, ValidatorReward의 proxy admin만 admin으로 변경 (contract owner는 owner 유지)
+        RATProxy(payable(ratProxy)).changeAdmin(admin);
+        ValidatorRewardProxy(payable(validatorPoolProxy)).changeAdmin(admin);
+
+        // 이제 admin = proxy admin, owner = contract owner로 분리됨
         _configureV3Contracts(owner);
         _setupCrossReferences(owner);
 
         // 주요 컨트랙트 참조
         layer2Manager = Layer2ManagerV1_2(layer2ManagerProxy);
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
+
+        vm.stopPrank();
     }
 
     // ==========================================

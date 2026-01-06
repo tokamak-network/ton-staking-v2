@@ -234,6 +234,7 @@ contract DepositManagerV1_2 is
     ) internal onlyLayer2(layer2) returns (bool) {
         require(amount > 0, "DepositManager: amount must not be zero");
         require(amount < type(uint128).max, "Out of range");
+        require(block.number + delay < type(uint128).max, "Block number overflow");
 
         _withdrawalRequests[layer2][msg.sender].push(
             WithdrawalReqeust({

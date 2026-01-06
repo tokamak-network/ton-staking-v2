@@ -46,6 +46,27 @@ contract MockRAT {
 /// @dev Tokamak Economics Whitepaper V3 (December 16, 2025) 기준
 /// gap-analysis.md Priority 1 항목
 contract ValidatorRewardV1Test is Test {
+    // Event declarations for testing
+    event L2RewardDistributed(
+        address indexed systemConfig,
+        uint256 totalAmount,
+        uint256 activeValidatorCount,
+        uint256 perValidator
+    );
+    event ValidatorRewardReceived(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 amount
+    );
+    event RewardsClaimed(
+        address indexed validator,
+        uint256 amount
+    );
+    event RewardToDAO(
+        address indexed systemConfig,
+        uint256 amount
+    );
+
     ValidatorRewardV1 public validatorReward;
     MockWTON public wton;
     MockTON public ton;
@@ -538,7 +559,7 @@ contract ValidatorRewardV1Test is Test {
         uint256 rewardAmount = 2000 * RAY;
 
         vm.expectEmit(true, false, false, true);
-        emit IValidatorReward.L2RewardDistributed(systemConfig1, rewardAmount, 2, rewardAmount / 2);
+        emit L2RewardDistributed(systemConfig1, rewardAmount, 2, rewardAmount / 2);
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
@@ -551,7 +572,7 @@ contract ValidatorRewardV1Test is Test {
         uint256 rewardAmount = 1000 * RAY;
 
         vm.expectEmit(true, true, false, true);
-        emit IValidatorReward.ValidatorRewardReceived(validator1, systemConfig1, rewardAmount);
+        emit ValidatorRewardReceived(validator1, systemConfig1, rewardAmount);
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
@@ -565,7 +586,7 @@ contract ValidatorRewardV1Test is Test {
         validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
 
         vm.expectEmit(true, false, false, true);
-        emit IValidatorReward.RewardsClaimed(validator1, 1000 * RAY);
+        emit RewardsClaimed(validator1, 1000 * RAY);
 
         vm.prank(validator1);
         validatorReward.claimAllRewards();
@@ -576,7 +597,7 @@ contract ValidatorRewardV1Test is Test {
         uint256 rewardAmount = 1000 * RAY;
 
         vm.expectEmit(true, false, false, true);
-        emit IValidatorReward.RewardToDAO(systemConfig1, rewardAmount);
+        emit RewardToDAO(systemConfig1, rewardAmount);
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
