@@ -22,18 +22,21 @@ import {L1BridgeRegistryProxy} from '../src/layer2/L1BridgeRegistryProxy.sol';
 import {Layer2Registry} from '../src/stake/Layer2Registry.sol';
 
 // SeigManager Implementations
-import {SeigManagerV1_Slashing} from '../src/stake/managers/SeigManagerV1_Slashing.sol';
+import {SeigManagerV1_2} from '../src/stake/managers/SeigManagerV1_2.sol';
 import {SeigManagerV1_3} from '../src/stake/managers/SeigManagerV1_3.sol';
+import {SeigManager_Slashing} from '../src/stake/managers/SeigManager_Slashing.sol';
 
 // DepositManager Implementations
 import {DepositManager} from '../src/stake/managers/DepositManager.sol';
 import {
     DepositManager_setWithdrawalDelay
 } from '../src/stake/managers/DepositManager_setWithdrawalDelay.sol';
-import {DepositManagerV1_Slashing} from '../src/stake/managers/DepositManagerV1_Slashing.sol';
+import {DepositManagerV1_1} from '../src/stake/managers/DepositManagerV1_1.sol';
+import {DepositManager_Slashing} from '../src/stake/managers/DepositManager_Slashing.sol';
 
 // Layer2Manager
-import {Layer2ManagerV1_Slashing} from '../src/layer2/Layer2ManagerV1_Slashing.sol';
+import {Layer2ManagerV1_1} from '../src/layer2/Layer2ManagerV1_1.sol';
+import {Layer2Manager_Slashing} from '../src/layer2/Layer2Manager_Slashing.sol';
 
 // L1BridgeRegistry
 import {L1BridgeRegistryV1_1} from '../src/layer2/L1BridgeRegistryV1_1.sol';
@@ -78,16 +81,19 @@ contract SlashingE2E_improved_Deploy is Test {
     Layer2Registry public layer2RegistryImpl;
 
     // SeigManager Implementations
-    SeigManagerV1_Slashing public seigManagerV1_Slashing;
+    SeigManagerV1_2 public seigManagerV1_2;
     SeigManagerV1_3 public seigManagerV1_3;
+    SeigManager_Slashing public seigManagerSlashing;
 
     // DepositManager Implementations
     DepositManager public depositManagerBase;
     DepositManager_setWithdrawalDelay public depositManagerSetDelay;
-    DepositManagerV1_Slashing public depositManagerV1_Slashing;
+    DepositManagerV1_1 public depositManagerV1_1;
+    DepositManager_Slashing public depositManagerSlashing;
 
     // Layer2Manager
-    Layer2ManagerV1_Slashing public layer2ManagerV1_Slashing;
+    Layer2ManagerV1_1 public layer2ManagerV1_1;
+    Layer2Manager_Slashing public layer2ManagerSlashing;
 
     // L1BridgeRegistry
     L1BridgeRegistryV1_1 public l1BridgeRegistryV1_1;
@@ -242,18 +248,21 @@ contract SlashingE2E_improved_Deploy is Test {
         console.log('\n=== 5. Deploying SeigManager (Multi-Implementation) ===');
 
         // Step 1: 모든 구현체 배포
-        seigManagerV1_Slashing = new SeigManagerV1_Slashing();
-        console.log('SeigManagerV1_Slashing deployed at:', address(seigManagerV1_Slashing));
+        seigManagerV1_2 = new SeigManagerV1_2();
+        console.log('SeigManagerV1_2 deployed at:', address(seigManagerV1_2));
 
         seigManagerV1_3 = new SeigManagerV1_3();
         console.log('SeigManagerV1_3 deployed at:', address(seigManagerV1_3));
 
+        seigManagerSlashing = new SeigManager_Slashing();
+        console.log('SeigManager_Slashing deployed at:', address(seigManagerSlashing));
+
         // Step 2: 프록시에 기본 구현체 설정
-        seigManagerProxy.upgradeTo(address(seigManagerV1_Slashing));
-        console.log('SeigManagerProxy upgraded to V1_Slashing');
+        seigManagerProxy.upgradeTo(address(seigManagerV1_2));
+        console.log('SeigManagerProxy upgraded to V1_2');
 
         // Step 3: 초기화
-        SeigManagerV1_Slashing(address(seigManagerProxy)).initialize(
+        SeigManagerV1_2(address(seigManagerProxy)).initialize(
             ton,
             wton,
             address(layer2RegistryProxy),
@@ -269,7 +278,7 @@ contract SlashingE2E_improved_Deploy is Test {
         console.log('SeigManagerV1_3 activated');
 
         // Step 5: V1_3 함수들을 V1_3 구현체로 라우팅
-        bytes4[] memory v1_3Selectors = new bytes4[](9);
+        bytes4[] memory v1_3Selectors = new bytes4[](8);
         v1_3Selectors[0] = SeigManagerV1_3.pause.selector;
         v1_3Selectors[1] = SeigManagerV1_3.unpause.selector;
         v1_3Selectors[2] = SeigManagerV1_3.updateSeigniorage.selector;
@@ -281,6 +290,19 @@ contract SlashingE2E_improved_Deploy is Test {
 
         seigManagerProxy.setSelectorImplementations2(v1_3Selectors, address(seigManagerV1_3));
         console.log('SeigManagerV1_3 selectors routed');
+
+        // Step 6: Slashing 구현체 활성화
+        seigManagerProxy.setAliveImplementation2(address(seigManagerSlashing), true);
+        console.log('SeigManager_Slashing activated');
+
+        // Step 7: Slashing 함수를 Slashing 구현체로 라우팅
+        bytes4[] memory slashingSelectors = new bytes4[](1);
+        slashingSelectors[0] = SeigManager_Slashing.onSlash.selector;
+        seigManagerProxy.setSelectorImplementations2(
+            slashingSelectors,
+            address(seigManagerSlashing)
+        );
+        console.log('SeigManager_Slashing selectors routed');
     }
 
     /// @notice 6. DepositManager 배포 (다중 구현체 패턴)
@@ -297,8 +319,11 @@ contract SlashingE2E_improved_Deploy is Test {
             address(depositManagerSetDelay)
         );
 
-        depositManagerV1_Slashing = new DepositManagerV1_Slashing();
-        console.log('DepositManagerV1_Slashing deployed at:', address(depositManagerV1_Slashing));
+        depositManagerV1_1 = new DepositManagerV1_1();
+        console.log('DepositManagerV1_1 deployed at:', address(depositManagerV1_1));
+
+        depositManagerSlashing = new DepositManager_Slashing();
+        console.log('DepositManager_Slashing deployed at:', address(depositManagerSlashing));
 
         // Step 2: 프록시에 기본 구현체 설정
         depositManagerProxy.upgradeTo(address(depositManagerBase));
@@ -314,9 +339,10 @@ contract SlashingE2E_improved_Deploy is Test {
         );
         console.log('DepositManager initialized');
 
-        // Step 4: Index 1, 2 구현체 활성화
+        // Step 4: Index 1, 2, 3 구현체 활성화
         depositManagerProxy.setAliveImplementation2(address(depositManagerSetDelay), true);
-        depositManagerProxy.setAliveImplementation2(address(depositManagerV1_Slashing), true);
+        depositManagerProxy.setAliveImplementation2(address(depositManagerV1_1), true);
+        depositManagerProxy.setAliveImplementation2(address(depositManagerSlashing), true);
         console.log('DepositManager additional implementations activated');
 
         // Step 5: setWithdrawalDelay 함수들을 setWithdrawalDelay 구현체로 라우팅
@@ -333,21 +359,26 @@ contract SlashingE2E_improved_Deploy is Test {
         );
         console.log('setWithdrawalDelay selectors routed');
 
-        // Step 6: V1_Slashing 함수들을 V1_Slashing 구현체로 라우팅
-        bytes4[] memory v1_SlashingSelectors = new bytes4[](5);
-        v1_SlashingSelectors[0] = DepositManagerV1_Slashing.setMinDepositGasLimit.selector;
-        v1_SlashingSelectors[1] = DepositManagerV1_Slashing.setAddresses.selector;
-        v1_SlashingSelectors[2] = DepositManagerV1_Slashing.withdrawAndDepositL2.selector;
-        v1_SlashingSelectors[3] = DepositManagerV1_Slashing.slash.selector;
-        v1_SlashingSelectors[4] = DepositManagerV1_Slashing.setSlashingRewardRate.selector;
-        depositManagerProxy.setSelectorImplementations2(
-            v1_SlashingSelectors,
-            address(depositManagerV1_Slashing)
-        );
-        console.log('DepositManagerV1_Slashing selectors routed');
+        // Step 6: V1_1 함수들을 V1_1 구현체로 라우팅
+        bytes4[] memory v1_1Selectors = new bytes4[](3);
+        v1_1Selectors[0] = DepositManagerV1_1.setMinDepositGasLimit.selector;
+        v1_1Selectors[1] = DepositManagerV1_1.setAddresses.selector;
+        v1_1Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
+        depositManagerProxy.setSelectorImplementations2(v1_1Selectors, address(depositManagerV1_1));
+        console.log('DepositManagerV1_1 selectors routed');
 
-        // Step 7: SlashingRewardRate 설정
-        DepositManagerV1_Slashing(address(depositManagerProxy)).setSlashingRewardRate(
+        // Step 7: Slashing 함수들을 Slashing 구현체로 라우팅
+        bytes4[] memory slashingSelectors = new bytes4[](2);
+        slashingSelectors[0] = DepositManager_Slashing.slash.selector;
+        slashingSelectors[1] = DepositManager_Slashing.setSlashingRewardRate.selector;
+        depositManagerProxy.setSelectorImplementations2(
+            slashingSelectors,
+            address(depositManagerSlashing)
+        );
+        console.log('DepositManager_Slashing selectors routed');
+
+        // Step 8: SlashingRewardRate 설정
+        DepositManager_Slashing(address(depositManagerProxy)).setSlashingRewardRate(
             SLASHING_REWARD_RATE
         );
         console.log('SlashingRewardRate set to:', SLASHING_REWARD_RATE);
@@ -521,16 +552,19 @@ contract SlashingE2E_improved_Deploy is Test {
     function _deployLayer2Manager() internal {
         console.log('\n=== 12. Deploying Layer2Manager ===');
 
-        // Step 1: 구현체 배포
-        layer2ManagerV1_Slashing = new Layer2ManagerV1_Slashing();
-        console.log('Layer2ManagerV1_Slashing deployed at:', address(layer2ManagerV1_Slashing));
+        // Step 1: 모든 구현체 배포
+        layer2ManagerV1_1 = new Layer2ManagerV1_1();
+        console.log('Layer2ManagerV1_1 deployed at:', address(layer2ManagerV1_1));
 
-        // Step 2: 프록시에 구현체 설정
-        layer2ManagerProxy.upgradeTo(address(layer2ManagerV1_Slashing));
-        console.log('Layer2ManagerProxy upgraded to V1_Slashing');
+        layer2ManagerSlashing = new Layer2Manager_Slashing();
+        console.log('Layer2Manager_Slashing deployed at:', address(layer2ManagerSlashing));
+
+        // Step 2: 프록시에 기본 구현체(V1_1) 설정
+        layer2ManagerProxy.upgradeTo(address(layer2ManagerV1_1));
+        console.log('Layer2ManagerProxy upgraded to V1_1');
 
         // Step 3: 초기화
-        Layer2ManagerV1_Slashing(address(layer2ManagerProxy)).setAddresses(
+        Layer2ManagerV1_1(address(layer2ManagerProxy)).setAddresses(
             address(l1BridgeRegistryProxy),
             address(operatorManagerFactory),
             ton,
@@ -542,12 +576,22 @@ contract SlashingE2E_improved_Deploy is Test {
         );
         console.log('Layer2Manager addresses set');
 
+        // Step 4: Slashing 구현체 활성화 및 라우팅
+        layer2ManagerProxy.setAliveImplementation2(address(layer2ManagerSlashing), true);
+        bytes4[] memory slashingSelectors = new bytes4[](1);
+        slashingSelectors[0] = Layer2Manager_Slashing.slashingCandidate.selector;
+        layer2ManagerProxy.setSelectorImplementations2(
+            slashingSelectors,
+            address(layer2ManagerSlashing)
+        );
+        console.log('Layer2Manager_Slashing selectors routed');
+
         // DepositManager에 Layer2Manager 주소 설정 (Slash 권한 위해 필요)
-        DepositManagerV1_Slashing(address(depositManagerProxy)).setAddresses(
+        DepositManagerV1_1(address(depositManagerProxy)).setAddresses(
             address(l1BridgeRegistryProxy),
             address(layer2ManagerProxy)
         );
-        console.log('DepositManagerV1_Slashing addresses set');
+        console.log('DepositManagerV1_1 addresses set');
     }
 
     /// @notice 13. Mint 권한 설정
@@ -570,10 +614,10 @@ contract SlashingE2E_improved_Deploy is Test {
 
     /// @notice 14. SeigManager setData
     function _setupSeigManager() internal {
-        console.log('\n=== 14. Setting up SeigManagerV1_Slashing ===');
+        console.log('\n=== 14. Setting up SeigManagerV1_2 ===');
 
         // Step 1: setData
-        SeigManagerV1_Slashing(address(seigManagerProxy)).setData(
+        SeigManagerV1_2(address(seigManagerProxy)).setData(
             address(0), //powerTON
             address(daoCommitteeProxy), //DAOCommitteeProxy Address
             0, //powerTONSeigRate_
@@ -582,7 +626,7 @@ contract SlashingE2E_improved_Deploy is Test {
             93096, //adjustDelay_
             1000.1e27 //minimumAmount_
         );
-        console.log('SeigManagerV1_Slashing setData complete');
+        console.log('SeigManagerV1_2 setData complete');
     }
 
     /// @notice 15. Contract Owner 설정
@@ -651,7 +695,7 @@ contract SlashingE2E_improved_Deploy is Test {
         console.log('\n=== Testing SeigManager Configuration ===');
 
         // Verify SeigManager is properly configured
-        SeigManagerV1_Slashing seigManager = SeigManagerV1_Slashing(address(seigManagerProxy));
+        SeigManagerV1_2 seigManager = SeigManagerV1_2(address(seigManagerProxy));
 
         assertEq(seigManager.ton(), ton, 'TON address mismatch');
         assertEq(seigManager.wton(), wton, 'WTON address mismatch');
@@ -669,7 +713,7 @@ contract SlashingE2E_improved_Deploy is Test {
     function test_SeigManagerSetData() public view {
         console.log('\n=== Testing SeigManager setData ===');
 
-        SeigManagerV1_Slashing seigManager = SeigManagerV1_Slashing(address(seigManagerProxy));
+        SeigManagerV1_2 seigManager = SeigManagerV1_2(address(seigManagerProxy));
 
         assertEq(seigManager.powerton(), address(0), 'powerTON mismatch');
         assertEq(seigManager.dao(), address(daoCommitteeProxy), 'DAOCommitteeProxy mismatch');
