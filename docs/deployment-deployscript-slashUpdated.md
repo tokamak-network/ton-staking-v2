@@ -109,7 +109,7 @@ proxy.upgradeTo(address(layer2RegistryBase));
 | 항목 | 설명 |
 |------|------|
 | 역할 | 시뇨리지 계산 및 분배의 핵심 |
-| 버전 | Base, V1_1, V1_Slashing, V1_3 (다중 구현체) |
+| 버전 | Base, V1_1, V1_2, V1_3, Slashing (다중 구현체) |
 | 주요 기능 | 블록당 시뇨리지 계산, Layer2별 분배 |
 
 **중요**: SeigManager는 **다중 구현체 패턴**을 사용합니다. 단순 프록시 업그레이드가 아닌 **함수별 라우팅(Selector Routing)**으로 여러 구현체가 동시에 활성화됩니다.
@@ -118,8 +118,9 @@ proxy.upgradeTo(address(layer2RegistryBase));
 
 | 버전 | 역할 | 비고 | 
 |------|------|------|
-| **SeigManagerV1_Slashing** | 기본 구현체 (Index 0) - initialize, setData, deployCoinage 등 | `upgradeTo()`로 설정 |
+| **SeigManagerV1_2** | 기본 구현체 (Index 0) - initialize, setData, deployCoinage 등 | `upgradeTo()`로 설정 |
 | **SeigManagerV1_3** | pause/unpause, L2 시뇨리지 제외/포함 | Selector routing 필요 | 
+
 
 ### SeigManagerV1_3 등록 함수 목록
 
@@ -136,6 +137,12 @@ proxy.upgradeTo(address(layer2RegistryBase));
 | `excludeFromL2Seigniorage(address)` | `0x2c1e0156` | L2 시뇨리지 분배 제외 |
 | `includeFromL2Seigniorage(address)` | `0x54798b55` | L2 시뇨리지 분배 포함 |
 
+### SeigManager_Slashing 등록 함수 목록
+
+| 함수 시그니처 | Selector | 설명 |
+|--------------|----------|------|
+| `onSlash(address,address)` | `0x453260d7` |  Operator의 Coinage와 Tot 토큰을 소각 |
+
 
 ### 상세 배포 절차 (Selector Routing 방식)
 
@@ -143,20 +150,21 @@ proxy.upgradeTo(address(layer2RegistryBase));
 // ==========================================
 // Step 1: 모든 구현체 배포
 // ==========================================
-SeigManagerV1_Slashing seigManagerV1_Slashing = new SeigManagerV1_Slashing();
+SeigManagerV1_2 seigManagerV1_2 = new SeigManagerV1_2();
 SeigManagerV1_3 seigManagerV1_3 = new SeigManagerV1_3();
+SeigManager_Slashing seigManagerSlashing = new SeigManager_Slashing();
 
 // ==========================================
 // Step 2: 프록시 배포 및 기본 구현체 설정
 // ==========================================
 // 프록시는 3번 과정에서 배포한 seigManagerProxy를 사용
 SeigManagerProxy proxy = new SeigManagerProxy();
-proxy.upgradeTo(address(seigManagerV1_Slashing));
+proxy.upgradeTo(address(seigManagerV1_2));
 
 // ==========================================
 // Step 3: 초기화 (기본 구현체 함수 사용)
 // ==========================================
-SeigManagerV1_Slashing(address(proxy)).initialize(
+SeigManagerV1_2(address(proxy)).initialize(
     ton, 
     wton, 
     layer2Registry_, 
@@ -185,6 +193,20 @@ v1_3Selectors[6] = SeigManagerV1_3.excludeFromL2Seigniorage.selector;
 v1_3Selectors[7] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
 
 proxy.setSelectorImplementations2(v1_3Selectors, address(seigManagerV1_3));
+
+
+// ==========================================
+// Step 6: Slashing 구현체 활성화
+// ==========================================
+proxy.setAliveImplementation2(address(seigManagerSlashing), true);
+
+
+// ==========================================
+// Step 7: Slashing 함수를 Slashing 구현체로 라우팅
+// ==========================================
+bytes4[] memory slashingSelectors = new bytes4[](1);
+slashingSelectors[0] = SeigManager_Slashing.onSlash.selector;
+proxy.setSelectorImplementations2(slashingSelectors, address(seigManagerSlashing));
 ```
 
 ---
@@ -203,7 +225,8 @@ proxy.setSelectorImplementations2(v1_3Selectors, address(seigManagerV1_3));
 |------|-------|------|
 | **DepositManager** | 0 | 기본 구현체 - initialize, deposit, requestWithdrawal 등 | 
 | **DepositManager_setWithdrawalDelay** | 1 | 출금 지연 설정 |
-| **DepositManagerV1_Slashing** | 2 | L2 출금 및 가스 제한 설정 및 슬래싱 기능 추가 | 
+| **DepositManagerV1_1** | 2 | L2 출금 및 가스 제한 설정 | 
+| **DepositManager_Slashing** | 3 | 슬래싱 기능 추가 | 
 
 ### DepositManager_setWithdrawalDelay (Index 1) 등록 함수 목록
 
@@ -212,13 +235,16 @@ proxy.setSelectorImplementations2(v1_3Selectors, address(seigManagerV1_3));
 | `setWithdrawalDelay(address,uint256)` | `0xdc5a709f` | Layer2별 출금 지연 설정 |
 | `setWithdrawalDelayByOwner(address,uint256)` | `0x377db38b` | Owner 전용 출금 지연 설정 |
 
-### DepositManagerV1_Slashing (Index 2) 등록 함수 목록
+### DepositManagerV1_1 (Index 2) 등록 함수 목록
 
 | 함수 시그니처 | Selector | 설명 |
 |--------------|----------|------|
 | `setMinDepositGasLimit(uint256)` | - | 최소 예치 가스 제한 설정 |
 | `setAddresses(address,address)` | `0x90107afe` | L1BridgeRegistry, Layer2Manager 주소 설정 |
 | `withdrawAndDepositL2(address,uint256)` | `0x9f382d11` | 출금 후 L2 예치 |
+
+### DepositManagerV1_1 (Index 2) 등록 함수 목록
+| 함수 시그니처 | Selector | 설명 |
 | `slash(address,address,address)` | `0x563bf264` | Operator에 대한 슬래싱 진행 및 Challenger에게 reward 지급 |
 
 ### 상세 배포 절차
