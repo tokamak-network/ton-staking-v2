@@ -742,5 +742,5 @@ forge test --match-path test/SlashingE2E_improved_Deploy.t.sol -vvv
 
 ## 17. Slahsing 테스트 실행 방법
 ```bash
-forge test --match-path test/SlashingE2E_Functional.t.sol -vv
+forge test --match-path test/SlashingE2E_improved_Functional.t.sol -vv
 ```

@@ -626,7 +626,8 @@ contract SlashingE2E_improved_Deploy is Test {
             93096, //adjustDelay_
             1000.1e27 //minimumAmount_
         );
-        console.log('SeigManagerV1_2 setData complete');
+        SeigManagerV1_2(address(seigManagerProxy)).setSeigStartBlock(1);
+        console.log('SeigManagerV1_2 setData complete and seigStartBlock set to 1');
     }
 
     /// @notice 15. Contract Owner 설정
