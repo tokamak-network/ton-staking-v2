@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
+import "../../src/mocks/MockWTON.sol";
 
 /// @notice End-to-End 시뇨리지 분배 테스트
 /// @dev 전체 시뇨리지 분배 사이클 검증
@@ -11,10 +12,10 @@ import "forge-std/Test.sol";
 /// - 슬래싱 후 분배 제외 확인
 
 // ==========================================
-// Mock Contracts
+// Mock Contracts (for this test only)
 // ==========================================
 
-contract MockTON {
+contract SeigniorageFormulaMockTON {
     uint256 public totalSupply;
     mapping(address => uint256) public balanceOf;
 
@@ -27,47 +28,6 @@ contract MockTON {
     }
 }
 
-contract MockWTON {
-    mapping(address => uint256) public balanceOf;
-    uint256 public totalSupply;
-
-    function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
-        totalSupply += amount;
-    }
-
-    function burn(address from, uint256 amount) external {
-        balanceOf[from] -= amount;
-        totalSupply -= amount;
-    }
-
-    function transfer(address to, uint256 amount) external returns (bool) {
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-}
-
-contract MockCoinage {
-    mapping(address => uint256) public balanceOf;
-    uint256 public totalSupply;
-    uint256 public factor = 1e27;
-
-    function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
-        totalSupply += amount;
-    }
-
-    function burnFrom(address from, uint256 amount) external {
-        balanceOf[from] -= amount;
-        totalSupply -= amount;
-    }
-
-    function setFactor(uint256 _factor) external returns (bool) {
-        factor = _factor;
-        return true;
-    }
-}
 
 contract MockTot {
     mapping(address => uint256) public balanceOf;
@@ -322,7 +282,7 @@ contract SimpleSeigManagerV3 {
         uint256 A = span * seigPerBlock;
 
         // TON/WTON 총 공급량
-        uint256 T = MockTON(ton).totalSupply();
+        uint256 T = SeigniorageFormulaMockTON(ton).totalSupply();
         uint256 S = MockWTON(wton).totalSupply();
 
         if (T == 0) T = 1e27; // 0 나눗셈 방지
@@ -487,7 +447,7 @@ contract SimpleSeigManagerV3 {
 /// @notice 전체 시뇨리지 분배 사이클 테스트
 contract SeigniorageFormulaValidation is Test {
     SimpleSeigManagerV3 public seigManager;
-    MockTON public ton;
+    SeigniorageFormulaMockTON public ton;
     MockWTON public wton;
     MockRegistry public registry;
     MockDepositManager public depositManager;
@@ -505,7 +465,7 @@ contract SeigniorageFormulaValidation is Test {
 
     function setUp() public {
         // Mock 컨트랙트 배포
-        ton = new MockTON(50_000_000e27); // 5천만 TON
+        ton = new SeigniorageFormulaMockTON(50_000_000e27); // 5천만 TON (RAY 단위)
         wton = new MockWTON();
         registry = new MockRegistry();
         depositManager = new MockDepositManager();

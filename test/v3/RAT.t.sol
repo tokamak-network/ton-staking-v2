@@ -4,8 +4,8 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import {RAT} from "../../src/validator/RAT.sol";
 import {RATStorage} from "../../src/validator/RATStorage.sol";
-import {MockWTON} from "./mocks/MockWTON.sol";
-import {MockTON} from "./mocks/MockTON.sol";
+import {MockWTON} from "../../src/mocks/MockWTON.sol";
+import {MockTON} from "../../src/mocks/MockTON.sol";
 
 /// @notice Mock FaultDisputeGame that provides systemConfig() for RAT.resolveClaim()
 contract MockFaultDisputeGame {

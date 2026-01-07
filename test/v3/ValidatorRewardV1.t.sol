@@ -4,8 +4,8 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import {ValidatorRewardV1} from "../../src/validator/ValidatorRewardV1.sol";
 import {IValidatorReward} from "../../src/validator/IValidatorReward.sol";
-import {MockWTON} from "./mocks/MockWTON.sol";
-import {MockTON} from "./mocks/MockTON.sol";
+import {MockWTON} from "../../src/mocks/MockWTON.sol";
+import {MockTON} from "../../src/mocks/MockTON.sol";
 
 /// @notice Mock RAT contract for ValidatorReward tests
 contract MockRAT {

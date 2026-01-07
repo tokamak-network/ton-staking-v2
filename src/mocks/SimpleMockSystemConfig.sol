@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-/// @notice Mock SystemConfig for testing
-contract MockSystemConfig {
+/// @notice Simple Mock SystemConfig for testing (lightweight version)
+contract SimpleMockSystemConfig {
     address public l1StandardBridge;
     address public optimismPortal;
     address public disputeGameFactory;

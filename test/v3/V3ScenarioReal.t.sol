@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "../../script/DeployV3Full.s.sol";
-import {MockSystemConfig} from "./mocks/MockSystemConfig.sol";
+import {SimpleMockSystemConfig} from "../../src/mocks/SimpleMockSystemConfig.sol";
 import {SequencerVault} from "../../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../../src/sequencer/SequencerVaultProxy.sol";
 import {RAT} from "../../src/validator/RAT.sol";
@@ -33,7 +33,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     // ==========================================
     // Mock Contracts for TYPE 3
     // ==========================================
-    MockSystemConfig public mockSystemConfig;
+    SimpleMockSystemConfig public mockSystemConfig;
     address public mockL1Bridge;
     address public mockPortal;
     address public mockDisputeGameFactory;
@@ -154,7 +154,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         mockL2TON = address(0x8004);
 
         // MockSystemConfig 배포
-        mockSystemConfig = new MockSystemConfig();
+        mockSystemConfig = new SimpleMockSystemConfig();
         mockSystemConfig.setL1StandardBridge(mockL1Bridge);
         mockSystemConfig.setOptimismPortal(mockPortal);
         mockSystemConfig.setDisputeGameFactory(mockDisputeGameFactory);

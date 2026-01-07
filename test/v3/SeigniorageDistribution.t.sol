@@ -2,9 +2,9 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
-import {MockWTON} from "./mocks/MockWTON.sol";
-import {MockTON} from "./mocks/MockTON.sol";
-import {MockCoinage} from "./mocks/MockCoinage.sol";
+import {MockWTON} from "../../src/mocks/MockWTON.sol";
+import {MockTON} from "../../src/mocks/MockTON.sol";
+import {MockCoinage} from "../../src/mocks/MockCoinage.sol";
 
 /// @title MockSeigManagerV3Distribution
 /// @notice V3 시뇨리지 분배 테스트를 위한 Mock
