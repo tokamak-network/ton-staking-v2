@@ -1,109 +1,75 @@
-# op-e2e
+# TON Staking V3 - E2E Tests
 
-End-to-end tests for TON Staking V3 RAT (Randomized Attention Test) integration.
+End-to-end tests for TON Staking V3 system using Go tests with isolated Anvil nodes.
 
 ## Quick Start
 
 ```bash
-# From project root
-make devnet-allocs   # Set up devnet and deploy contracts
-make test-e2e        # Run all E2E tests
+# 1. Generate genesis file (once)
+cd .. && make devnet-allocs-offline
+
+# 2. Run E2E tests
+cd op-e2e && make test
 ```
 
-Or run tests individually:
+## What's Here
 
-```bash
-# Unit tests (no devnet required)
-make test-e2e-unit
+- **`faultproofs/rat_system_test.go`** - 3 E2E tests verifying system startup, account balances, and RAT contract calls
+- **`e2eutils/rat/system.go`** - `StartTONStakingSystem()` helper that starts isolated Anvil nodes with genesis state
+- **`Makefile`** - Test commands
 
-# Integration tests (requires devnet-allocs)
-make test-e2e-integration
+## Test Architecture
+
+Each test runs in **parallel** with its own **isolated Anvil node**:
+
 ```
+Test 1 (Port 57340) → Isolated Anvil with genesis
+Test 2 (Port 57341) → Isolated Anvil with genesis
+Test 3 (Port 57342) → Isolated Anvil with genesis
+```
+
+Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-v3.json`).
+
+## Tests
+
+1. **TestTONStakingSystemStartup** - Verify all contracts deployed with code
+2. **TestAccountBalances** - Verify test account balances from genesis
+3. **TestRATContractCall** - Verify RAT contract is callable
 
 ## Running Tests
 
-### Unit Tests (No Devnet)
-
 ```bash
-cd op-e2e
-go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
+# All tests
+make test
+
+# Specific test
+GOWORK=off go test -v -run TestTONStakingSystemStartup ./faultproofs
+
+# With detailed output
+GOWORK=off go test -v ./faultproofs -timeout 300s
 ```
 
-### Integration Tests (With Devnet)
+## Documentation
 
+For detailed documentation, see:
+- **[E2E Test Guide](../docs/test/e2e-tests.md)** - Complete guide with architecture details
+- **[Test Overview](../docs/test/README.md)** - All test categories
+
+## Prerequisites
+
+- Go 1.22+
+- Foundry (for Anvil)
+- Genesis file generated: `make devnet-allocs-offline` (from project root)
+
+## Troubleshooting
+
+### Genesis file not found
 ```bash
-# Step 1: Set up devnet (from project root)
-make devnet-allocs
-
-# Step 2: Run tests
-make test-e2e
+cd .. && make devnet-allocs-offline
 ```
 
-The `devnet-allocs` command:
-1. Starts Anvil on port 8545
-2. Deploys all required contracts
-3. Saves addresses to `.devnet/addresses.json`
-4. Creates environment file at `.devnet/.env`
-
-### Clean Up
-
+### Port conflicts
+Tests use dynamic port allocation. If issues persist:
 ```bash
-make devnet-clean   # Stop Anvil and remove .devnet
+pkill anvil
 ```
-
-## Directory Structure
-
-```
-op-e2e/
-├── bindings/           # Go bindings for smart contracts
-├── e2eutils/rat/       # RAT helper functions
-├── faultproofs/        # Test files
-│   ├── devnet_config.go        # Devnet config loader
-│   ├── rat_integration_test.go # Integration tests
-│   ├── rat_ton_staking_test.go # E2E tests
-│   └── util.go
-├── go.mod
-└── Makefile
-```
-
-## Test Categories
-
-| Category | Tests | Devnet Required | Command |
-|----------|-------|-----------------|---------|
-| Unit | 2 | No | `make test-e2e-unit` |
-| Integration | 5 | Local Anvil | `make test-e2e-integration` |
-| E2E | 9 | Optimism Devnet | `make test-e2e` |
-
-## Configuration
-
-Tests automatically load configuration from `.devnet/addresses.json`:
-
-```json
-{
-  "chainId": 31337,
-  "rpcUrl": "http://localhost:8545",
-  "rat": "0x...",
-  "ton": "0x...",
-  "wton": "0x...",
-  "systemConfig": "0x...",
-  "privateKeys": {
-    "validator": "..."
-  }
-}
-```
-
-If `.devnet/addresses.json` doesn't exist, tests will fall back to environment variables.
-
-## Environment Variables (Alternative)
-
-```bash
-export RAT_ADDRESS="0x..."
-export SYSTEM_CONFIG_ADDRESS="0x..."
-export E2E_PRIVATE_KEY="..."
-export E2E_RPC_URL="http://localhost:8545"
-```
-
-## See Also
-
-- [Go E2E Test Guide](../docs/test/go-e2e-test-guide.md)
-- [Test Coverage Matrix](../docs/test/coverage-matrix.md)
