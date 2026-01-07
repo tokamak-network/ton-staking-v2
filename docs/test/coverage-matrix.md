@@ -33,7 +33,7 @@
 | Hyperbolic Saturation | SeigManagerV1_4Real.t.sol | ✅ Complete | 10+ |
 | Half Saturation Point | SeigManagerV1_4Real.t.sol | ✅ Complete | 1 |
 
-### V4 Validator Collateral (RAT)
+### V3 Validator Collateral (RAT)
 
 | Feature | Test File | Status | Tests |
 |---------|-----------|--------|-------|

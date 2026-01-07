@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The V3/V4 test suite provides comprehensive coverage for core staking, seigniorage distribution, and validator collateral (RAT) functionality. However, several areas require additional testing.
+The V3 test suite provides comprehensive coverage for core staking, seigniorage distribution, and validator collateral (RAT) functionality. However, several areas require additional testing.
 
 ## Current Coverage Status
 
@@ -200,7 +200,7 @@ test/v3/EdgeCases.t.sol               # 15+ tests
 
 ## Conclusion
 
-The current test suite provides **solid coverage** for V3/V4 core functionality:
+The current test suite provides **solid coverage** for V3 core functionality:
 
 - ✅ 175+ tests passing (142 existing + 33 new ValidatorReward tests)
 - ✅ Core staking fully tested
