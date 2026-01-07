@@ -10,33 +10,10 @@ Slashing 테스트를 수행하기 위해서는 먼저 검증 대상이 될 Laye
 
 Slashing 테스트를 수행하기 위해 필요한 핵심 컨트랙트들을 순서대로 배포하고 연결해야 합니다.
 
-### 1.1. Token Deployment
-- **TON**: `abis/TON.json`을 사용하여 배포.
-- **WTON**: `abis/WTON.json`을 사용하여 배포 (생성자에 TON 주소 주입).
-- Token Deployment 테스트 : forge test --match-path test/TONWTONTest.sol
+### 1. Deploy 과정
+Deploy과정은 deployment-deployscript-slashUpdated.md에서 자세히 설명되어 있습니다.
 
-### 1.2. DAOCommitteeProxy Deployment Structure
-DAOCommittee는 복합적인 프록시 구조를 가지고 있으며, 다음과 같은 단계로 구성됩니다.
-
-1.  **Base Proxy 배포 (`DAOCommitteeProxy`)**
-    - 최초의 진입점인 `DAOCommitteeProxy`를 배포합니다. 이는 `abis/DAOCommitteeProxy.json`을 사용하여 배포됩니다.
-    - 생성자인 _ton, _impl, _seigManager, _layer2Registry, _agendaManager, _candidateFactory, _daoVault 주소는 랜덤주소를 넣습니다.
-
-2.  **Upgrade to Proxy2 (`DAOCommitteeProxy2`)**
-    - `DAOCommitteeProxy2` 컨트랙트를 배포합니다.
-    - `DAOCommitteeProxy.upgradeTo(DAOCommitteeProxy2)`를 호출하여 로직을 `DAOCommitteeProxy2`로 위임합니다.
-    - 이제 `DAOCommitteeProxy`를 통해 `DAOCommitteeProxy2`의 기능을 사용할 수 있습니다.
-
-3.  **Logic Implementation 설정 (`DAOCommittee_V1`, `DAOCommitteeOwner`)**
-    - **Main Logic**: `DAOCommittee_V1`을 배포하고, `DAOCommitteeProxy(as Proxy2).upgradeTo2(DAOCommittee_V1)`을 호출하여 메인 로직을 연결합니다.
-    - **Owner Logic**: `DAOCommitteeOwner`를 배포하고, `DAOCommitteeProxy(as Proxy2).setImplementation2(1, DAOCommitteeOwner, true)`를 호출하여 서브 로직으로 등록합니다.
-
-4. **DAOCommitteeProxy Deployment 테스트** 
-    - forge test --match-path test/DAOCommitteeProxy.t.sol
-
-*(이후 Layer2Manager, SeigManager 등의 배포 과정이 이어집니다)*
-
-## 2. Layer2 Candidate Registration (Pre-condition for Slashing)
+### 2. Layer2 Candidate Registration (Pre-condition for Slashing)
 
 Actor(운영자/신청자)는 `Layer2Manager` 컨트랙트를 통해 등록을 시작합니다.
 
@@ -63,7 +40,7 @@ Actor(운영자/신청자)는 `Layer2Manager` 컨트랙트를 통해 등록을 �
         - **SeigManager**에 새로운 Layer2(`candidateAddOn`)를 등록.
     - **SeigManager**는 등록된 Layer2를 위해 `AutoCoinageFactory`를 통해 Coinage(Seigniorage 토큰)를 배포합니다.
 
-### 1.2. 초기 자본금 예치 (Deposit TON)
+### 3. 초기 자본금 예치 (Deposit TON)
 
 Candidate 등록이 완료된 후, 해당 Candidate의 활성화를 위해 TON을 예치해야 합니다.
 
@@ -78,6 +55,56 @@ Candidate 등록이 완료된 후, 해당 Candidate의 활성화를 위해 TON�
 
 ---
 
-## 2. Test Scenario Reference (To be added)
+## 2. Test Scenario Reference 
 
-*이후 Slashing, Challenge 등 추가적인 시나리오에 대한 테스트 절차가 이곳에 작성될 예정입니다.*
+Slashing 메커니즘을 검증하기 위한 주요 테스트 시나리오입니다. 모든 테스트는 `SlashingE2E_improved_Deploy`를 상속받아 동일한 배포 환경에서 실행됩니다.
+
+### 2.1. 정상 시나리오 (Functional Success)
+**테스트 파일**: `test/SlashingE2E_Functional.t.sol`
+
+1. **오퍼레이터 등록 및 스테이킹 성공**
+    - 오퍼레이터가 `Layer2Manager`를 통해 Candidate로 등록하고 10,000 TON을 성공적으로 스테이킹하는지 검증합니다.
+    - `DepositManager` 장부에 해당 금액이 RAY 단위로 정확히 기록되는지 확인합니다.
+
+2. **챌린저 승리 및 슬래싱 실행**
+    - 오퍼레이터가 가짜 상태를 제출하여 분쟁(Dispute)이 발생한 상황을 시뮬레이션합니다.
+    - `MockFaultDisputeGame`을 통해 챌린저가 승리(`CHALLENGER_WINS`)한 상태를 만듭니다.
+    - `Layer2Manager.slashingCandidate`를 호출했을 때:
+        - 오퍼레이터의 스테이킹 원금 및 보상이 전액 소각(Burn)되는지 확인합니다.
+        - 설정된 보상 비율(예: 10%)에 따라 챌린저에게 WTON 보상이 지급되는지 확인합니다.
+
+3. **보상 비율 변경 테스트 (Reward Rate Change)**
+    - 슬래싱 보상 비율을 50% 등 다른 값으로 변경한 후, 챌린저에게 변경된 비율만큼의 보상이 정확히 지급되는지 확인합니다.
+
+4. **시뇨리지 포함 슬래싱 테스트 (Slashing with Seigniorage)**
+    - 일정 시간이 경과하여 스테이킹 이자(Seigniorage)가 쌓인 상태에서 슬래싱을 진행합니다.
+    - 이때 원금뿐만 아니라 그동안 쌓인 이자(Tot 토큰 잔액)까지 모두 소각되어 0이 되는지 검증합니다.
+
+### 2.2. 에러 시나리오 (Revert Cases)
+**테스트 파일**: `test/SlashingE2E_Revert.t.sol`
+
+1. **유효하지 않은 게임 상태 (Invalid Game Status)**
+    - 분쟁 게임이 아직 진행 중(`IN_PROGRESS`)이거나 오퍼레이터(Defender)가 승리(`DEFENDER_WINS`)한 상태에서 슬래싱을 시도할 경우 `StatusError()`와 함께 Revert 되는지 검증합니다.
+
+2. **권한 없는 슬래싱 호출 (Unauthorized Access - DepositManager)**
+    - `DepositManager.slash` 함수는 내부적으로 중요한 자산을 소각하므로 오직 `Layer2Manager`만 호출할 수 있어야 합니다. 
+    - 일반 사용자가 직접 `slash` 함수 호출을 시도할 때 `not layer2Manager` 메시지와 함께 차단되는지 확인합니다.
+
+3. **권한 없는 SeigManager 소각 호출 (Unauthorized Access - SeigManager)**
+    - `SeigManager.onSlash` 함수는 오직 `DepositManager`에 의해서만 호출되어야 합니다.
+    - 일반 사용자나 다른 컨트랙트가 직접 `onSlash`를 호출하여 오퍼레이터의 자산 소각을 시도할 때 `not onlyDepositManager`와 함께 차단되는지 확인합니다.
+
+---
+
+## 3. 테스트 실행 방법
+
+전체 시나리오 테스트를 실행하려면 다음 명령어를 사용합니다.
+
+```bash
+# 기능 테스트 실행 (성공 케이스)
+forge test --match-path test/SlashingE2E_improved_Functional.t.sol -vvv
+
+# 예외 처리 테스트 실행 (실패 케이스)
+forge test --match-path test/SlashingE2E_Revert.t.sol -vvv
+```
+
