@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import './SlashingE2E_Deploy.t.sol';
-import './SlashingE2E_improved_Deploy.t.sol';
 
 // 필요한 인터페이스 추가 임포트
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -15,8 +14,7 @@ interface ITON_Mint is ITON {
     function mint(address to, uint256 amount) external returns (bool);
 }
 
-// contract SlashingE2E_Functional is SlashingE2E_Deploy {
-contract SlashingE2E_Functional is SlashingE2E_improved_Deploy {
+contract SlashingE2E_Functional is SlashingE2E_Deploy {
     address public rollupConfig; // Mock L2 SystemConfig address
 
     function setUp() public override {
