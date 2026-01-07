@@ -60,7 +60,7 @@ Candidate 등록이 완료된 후, 해당 Candidate의 활성화를 위해 TON�
 Slashing 메커니즘을 검증하기 위한 주요 테스트 시나리오입니다. 모든 테스트는 `SlashingE2E_improved_Deploy`를 상속받아 동일한 배포 환경에서 실행됩니다.
 
 ### 2.1. 정상 시나리오 (Functional Success)
-**테스트 파일**: `test/SlashingE2E_Functional.t.sol`
+**테스트 파일**: `test/SlashingE2E_improved_Functional.t.sol`
 
 1. **오퍼레이터 등록 및 스테이킹 성공**
     - 오퍼레이터가 `Layer2Manager`를 통해 Candidate로 등록하고 10,000 TON을 성공적으로 스테이킹하는지 검증합니다.
@@ -79,6 +79,9 @@ Slashing 메커니즘을 검증하기 위한 주요 테스트 시나리오입니
 4. **시뇨리지 포함 슬래싱 테스트 (Slashing with Seigniorage)**
     - 일정 시간이 경과하여 스테이킹 이자(Seigniorage)가 쌓인 상태에서 슬래싱을 진행합니다.
     - 이때 원금뿐만 아니라 그동안 쌓인 이자(Tot 토큰 잔액)까지 모두 소각되어 0이 되는지 검증합니다.
+
+5. **미수령 시뇨리지 포함 슬래싱 테스트 (Slashing with Unchecked Seigniorage)**
+    - 오퍼레이터가 직접 `updateSeigniorage`를 호출하여 이자를 받지(Receive) 않은 상태에서도, 글로벌 시뇨리지 업데이트에 의해 자동으로 계산된 "미수령 이자"까지 모두 누락 없이 소각되는지 검증합니다.
 
 ### 2.2. 에러 시나리오 (Revert Cases)
 **테스트 파일**: `test/SlashingE2E_Revert.t.sol`

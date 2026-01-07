@@ -79,7 +79,7 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
         // - DAOCommittee에 CandidateAddOn 등록
         // - DepositManager에 스테이킹이 한 번에 진행됩니다.
         ITON(ton).approve(address(layer2ManagerProxy), stakeAmount);
-        Layer2ManagerV1_Slashing(address(layer2ManagerProxy)).registerCandidateAddOn(
+        Layer2ManagerV1_1(address(layer2ManagerProxy)).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true, // TON 사용 여부
@@ -89,9 +89,9 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
         vm.stopPrank();
 
         // --- 3. 상태 검증 ---
-        address operatorManager = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address operatorManager = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .operatorOfRollupConfig(rollupConfig);
-        address candidateAddOn = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address candidateAddOn = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .candidateAddOnOfOperator(operatorManager);
         assertTrue(candidateAddOn != address(0), 'CandidateAddOn should be deployed');
 
@@ -111,9 +111,9 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
         // 1. Candidate 등록 및 스테이킹 (10,000 TON)
         test_CandidateRegistrationAndStaking();
 
-        address operatorManager = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address operatorManager = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .operatorOfRollupConfig(rollupConfig);
-        address candidateAddOn = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address candidateAddOn = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .candidateAddOnOfOperator(operatorManager);
 
         uint256 initialStake = DepositManager(address(depositManagerProxy)).accStaked(
@@ -150,7 +150,7 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
         // 3. Slashing 실행
         uint256 challengerInitialWton = IERC20(wton).balanceOf(challenger);
 
-        Layer2ManagerV1_Slashing(address(layer2ManagerProxy)).slashingCandidate(
+        Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
             gameType,
             rootClaim,
@@ -186,9 +186,9 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
     function test_SlashingRewardRateChange() public {
         test_CandidateRegistrationAndStaking();
 
-        address operatorManager = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address operatorManager = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .operatorOfRollupConfig(rollupConfig);
-        address candidateAddOn = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address candidateAddOn = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .candidateAddOnOfOperator(operatorManager);
 
         uint256 initialStake = DepositManager(address(depositManagerProxy)).accStaked(
@@ -221,7 +221,7 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
 
         // 3. Slashing 실행
         uint256 challengerInitialWton = IERC20(wton).balanceOf(challenger);
-        Layer2ManagerV1_Slashing(address(layer2ManagerProxy)).slashingCandidate(
+        Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
             gameType,
             rootClaim,
@@ -247,9 +247,9 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
     function test_SlashingWithSeigniorage() public {
         test_CandidateRegistrationAndStaking();
 
-        address operatorManager = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address operatorManager = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .operatorOfRollupConfig(rollupConfig);
-        address candidateAddOn = Layer2ManagerV1_Slashing(address(layer2ManagerProxy))
+        address candidateAddOn = Layer2ManagerV1_1(address(layer2ManagerProxy))
             .candidateAddOnOfOperator(operatorManager);
 
         // 1. 블록을 100개 뒤로 보내 시뇨리지 발생 환경 조성
@@ -307,5 +307,124 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
 
         console.log('Slashing with seigniorage successful!');
         console.log('Burned Tot Amount (including rewards):', totBalanceBefore);
+    }
+
+    /**
+     * @notice 시나리오: 시뇨리지 업데이트(받기)를 하지 않은 상태(Unreceived)에서도 슬래싱 시
+     * 미지급된 시뇨리지까지 모두 계산되어 소각되는지 확인
+     */
+    function test_SlashingWithUncheckedSeigniorage() public {
+        // 1. 첫 번째 Candidate (슬래싱 대상) 등록 및 스테이킹
+        test_CandidateRegistrationAndStaking();
+        address operatorManager1 = Layer2ManagerV1_1(address(layer2ManagerProxy))
+            .operatorOfRollupConfig(rollupConfig);
+        address candidateAddOn1 = Layer2ManagerV1_1(address(layer2ManagerProxy))
+            .candidateAddOnOfOperator(operatorManager1);
+
+        // 2. 두 번째 Candidate 등록 (글로벌 시뇨리지 업데이트를 트리거하기 위함)
+        address rollupConfig2 = makeAddr('mockRollupConfig2');
+        vm.mockCall(
+            rollupConfig2,
+            abi.encodeWithSignature('l1StandardBridge()'),
+            abi.encode(makeAddr('mockL1Bridge2'))
+        );
+        vm.mockCall(
+            rollupConfig2,
+            abi.encodeWithSignature('optimismPortal()'),
+            abi.encode(makeAddr('mockPortal2'))
+        );
+        vm.mockCall(
+            rollupConfig2,
+            abi.encodeWithSignature('unsafeBlockSigner()'),
+            abi.encode(makeAddr('mockUnsafeBlockSigner2'))
+        );
+        L1BridgeRegistryV1_1(address(l1BridgeRegistryProxy)).registerRollupConfig(
+            rollupConfig2,
+            2,
+            address(0x456),
+            'TestRollup2'
+        );
+
+        address operator2 = makeAddr('operator2');
+        ITON_Mint(ton).mint(operator2, 10000 * 1e18);
+        vm.startPrank(operator2);
+        ITON(ton).approve(address(layer2ManagerProxy), 10000 * 1e18);
+        Layer2ManagerV1_1(address(layer2ManagerProxy)).registerCandidateAddOn(
+            rollupConfig2,
+            10000 * 1e18,
+            true,
+            'SecondCandidate'
+        );
+        vm.stopPrank();
+
+        address operatorManager2 = Layer2ManagerV1_1(address(layer2ManagerProxy))
+            .operatorOfRollupConfig(rollupConfig2);
+        address candidateAddOn2 = Layer2ManagerV1_1(address(layer2ManagerProxy))
+            .candidateAddOnOfOperator(operatorManager2);
+
+        // 3. 시간 경과 (100 블록)
+        vm.roll(block.number + 100);
+
+        // 4. Candidate 2가 시뇨리지 업데이트 호출 (글로벌 Tot pool의 Factor가 업데이트됨)
+        vm.prank(candidateAddOn2);
+        SeigManagerV1_3(address(seigManagerProxy)).updateSeigniorage();
+
+        // 5. 상태 확인: Candidate 1은 업데이트를 안 했으므로 Coinage는 그대로지만, Tot 잔액은 늘어나 있어야 함
+        uint256 principal = 10000 * 1e18 * 1e9;
+        uint256 totBalanceBefore = RefactorCoinageSnapshotI(
+            SeigManagerV1_2(address(seigManagerProxy)).tot()
+        ).balanceOf(candidateAddOn1);
+        uint256 coinageBalanceBefore = RefactorCoinageSnapshotI(
+            SeigManagerV1_2(address(seigManagerProxy)).coinages(candidateAddOn1)
+        ).balanceOf(operatorManager1);
+
+        assertTrue(
+            totBalanceBefore > principal,
+            'Tot balance should increase automatically due to global factor update'
+        );
+        assertEq(
+            coinageBalanceBefore,
+            principal,
+            'Coinage balance should remain at principal (unreceived)'
+        );
+
+        // 6. Slashing 실행 (Candidate 1)
+        MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
+        vm.mockCall(
+            rollupConfig,
+            abi.encodeWithSignature('disputeGameFactory()'),
+            abi.encode(address(gameFactory))
+        );
+        GameType gameType = GameType.wrap(0);
+        Claim rootClaim = Claim.wrap(bytes32(uint256(1)));
+        bytes memory extraData = hex'1234';
+        MockFaultDisputeGame game = MockFaultDisputeGame(
+            address(gameFactory.create(gameType, rootClaim, extraData))
+        );
+        game.initialize();
+        vm.prank(challenger);
+        game.step();
+        game.resolve();
+
+        Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
+            operatorManager1,
+            gameType,
+            rootClaim,
+            extraData,
+            address(game)
+        );
+
+        // 7. 결과 검증
+        uint256 finalCoinage = RefactorCoinageSnapshotI(
+            SeigManagerV1_2(address(seigManagerProxy)).coinages(candidateAddOn1)
+        ).balanceOf(operatorManager1);
+        uint256 finalTot = RefactorCoinageSnapshotI(
+            SeigManagerV1_2(address(seigManagerProxy)).tot()
+        ).balanceOf(candidateAddOn1);
+
+        assertEq(finalCoinage, 0, 'Coinage should be 0');
+        assertTrue(finalTot < 1e9, 'Tot (including hidden seigniorage) should be cleared');
+
+        console.log('Slashing with unchecked seigniorage successful!');
     }
 }
