@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "../../script/DeployV3Full.s.sol";
-import "./mocks/MockSystemConfig.sol";
+import "../../src/mocks/SimpleMockSystemConfig.sol";
 import {
     RegisterError,
     ZeroAddressError,
@@ -44,10 +44,10 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
     address public disputeGameFactory2 = address(0x4002);
 
     // Mock SystemConfigs
-    MockSystemConfig public systemConfigType1;
-    MockSystemConfig public systemConfigType2;
-    MockSystemConfig public systemConfigType3;
-    MockSystemConfig public systemConfigForUpgrade;
+    SimpleMockSystemConfig public systemConfigType1;
+    SimpleMockSystemConfig public systemConfigType2;
+    SimpleMockSystemConfig public systemConfigType3;
+    SimpleMockSystemConfig public systemConfigForUpgrade;
 
     function setUp() public {
         // TransparentUpgradeableProxy 패턴:
@@ -98,20 +98,20 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         l1BridgeRegistry.setSeigniorageCommittee(seigniorageCommittee);
 
         // Create mock SystemConfigs
-        systemConfigType1 = new MockSystemConfig();
+        systemConfigType1 = new SimpleMockSystemConfig();
         systemConfigType1.setL1StandardBridge(bridge1);
 
-        systemConfigType2 = new MockSystemConfig();
+        systemConfigType2 = new SimpleMockSystemConfig();
         systemConfigType2.setL1StandardBridge(bridge2);
         systemConfigType2.setOptimismPortal(portal1);
 
-        systemConfigType3 = new MockSystemConfig();
+        systemConfigType3 = new SimpleMockSystemConfig();
         systemConfigType3.setL1StandardBridge(bridge3);
         systemConfigType3.setOptimismPortal(portal2);
         systemConfigType3.setDisputeGameFactory(disputeGameFactory1);
 
         // For upgrade test
-        systemConfigForUpgrade = new MockSystemConfig();
+        systemConfigForUpgrade = new SimpleMockSystemConfig();
         systemConfigForUpgrade.setL1StandardBridge(address(0x5001));
         systemConfigForUpgrade.setOptimismPortal(portal3);
         systemConfigForUpgrade.setDisputeGameFactory(disputeGameFactory2);
@@ -272,7 +272,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
 
     function test_registerType3_revertNoDisputeGameFactory() public {
         // SystemConfig without DisputeGameFactory
-        MockSystemConfig configNoFactory = new MockSystemConfig();
+        SimpleMockSystemConfig configNoFactory = new SimpleMockSystemConfig();
         configNoFactory.setL1StandardBridge(address(0x6001));
         configNoFactory.setOptimismPortal(address(0x6002));
         // No disputeGameFactory set
@@ -402,7 +402,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
 
     function test_upgradeToType3_fromType1() public {
         // Create TYPE 1 config with all necessary fields for upgrade
-        MockSystemConfig configType1ForUpgrade = new MockSystemConfig();
+        SimpleMockSystemConfig configType1ForUpgrade = new SimpleMockSystemConfig();
         configType1ForUpgrade.setL1StandardBridge(address(0x7001));
         configType1ForUpgrade.setOptimismPortal(address(0x7002));
         configType1ForUpgrade.setDisputeGameFactory(address(0x7003));
@@ -534,7 +534,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         l1BridgeRegistry.registerRollupConfigByManager(address(systemConfigType2), 2, l2TON, "Test");
 
         // New config using same portal should not be available
-        MockSystemConfig newConfig = new MockSystemConfig();
+        SimpleMockSystemConfig newConfig = new SimpleMockSystemConfig();
         newConfig.setL1StandardBridge(address(0x8001));
         newConfig.setOptimismPortal(portal1); // Same portal as systemConfigType2
 

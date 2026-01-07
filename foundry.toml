@@ -5,7 +5,16 @@ libs = ["lib"]
 test = "test"
 via_ir = true
 optimizer = true
-optimizer_runs = 1
+optimizer_runs = 100  # 200에서 100으로 줄여서 컴파일 속도 개선
+solc_version = "0.8.19"
+# Help with artifact mapping for --via-ir
+build_info = true
+extra_output = ["evm.bytecode", "evm.deployedBytecode", "metadata"]
+
+[profile.production]
+via_ir = true
+optimizer = true
+optimizer_runs = 200
 solc_version = "0.8.19"
 
 remappings = [

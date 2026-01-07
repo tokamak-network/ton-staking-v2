@@ -1,5 +1,5 @@
 .PHONY: all build test clean help
-.PHONY: devnet-allocs devnet-allocs-optimism devnet-up devnet-down devnet-clean devnet-status
+.PHONY: devnet-allocs-optimism devnet-allocs-offline devnet-clean devnet-status
 .PHONY: test-e2e test-e2e-unit test-e2e-integration
 
 # Default target
@@ -25,10 +25,9 @@ clean:
 # ==========================================
 # Devnet Commands (for E2E testing)
 # ==========================================
-# Single-terminal setup (like Asterisc):
-#   make devnet-allocs   # Generate allocs + start L1 + deploy RAT
-#   make test-e2e        # Run E2E tests
-#   make devnet-down     # Stop L1
+# Asterisc-style workflow:
+#   make devnet-allocs-offline  # Generate genesis with all contracts
+#   make test-e2e               # E2E tests start their own isolated nodes
 # ==========================================
 
 OPTIMISM_DIR := lib/optimism
@@ -43,30 +42,18 @@ devnet-allocs-optimism:
 	@echo "Generating devnet allocs..."
 	cd $(OPTIMISM_DIR) && just devnet-allocs
 
-# Full devnet setup: generate allocs + start L1 + deploy RAT
-devnet-allocs: devnet-allocs-optimism
+# Generate genesis file with all contracts (Asterisc-style offline generation)
+devnet-allocs-offline: devnet-allocs-optimism
 	@echo ""
-	@echo "=== Setting up TON Staking V3 Devnet ==="
-	./scripts/devnet-allocs.sh
-
-# Start L1 devnet (if not running)
-devnet-up:
-	@if curl -s http://localhost:8545 > /dev/null 2>&1; then \
-		echo "L1 devnet already running on localhost:8545"; \
-	else \
-		echo "Starting L1 devnet..."; \
-		./scripts/devnet-up.sh; \
-	fi
-
-# Stop L1 devnet
-devnet-down:
-	@echo "Stopping L1 devnet..."
-	@-pkill -f "anvil.*8545" 2>/dev/null || true
-	@rm -f .devnet/anvil.pid
-	@echo "L1 devnet stopped"
+	@echo "=== Generating genesis-l1-staking-v3.json (offline) ==="
+	@chmod +x ./scripts/generate-allocs-offline.sh
+	./scripts/generate-allocs-offline.sh
+	@echo ""
+	@echo "Genesis file generated: .devnet/genesis-l1-staking-v3.json"
+	@echo "E2E tests will use this to start isolated L1 nodes"
 
 # Clean all devnet state
-devnet-clean: devnet-down
+devnet-clean:
 	@echo "Cleaning devnet state..."
 	@rm -rf .devnet
 	@echo "Cleaning lib/optimism devnet state..."
@@ -99,42 +86,34 @@ devnet-status:
 # Devnet Verification Commands
 # ==========================================
 
-# Verify Optimism L1 contracts in allocs-l1.json
-devnet-verify-allocs:
+# Verify Optimism L1 contracts in genesis file
+devnet-verify:
 	@bash scripts/verify-optimism-deployment.sh
-
-# Verify Optimism L1 contracts on running Anvil
-devnet-verify-runtime:
-	@bash scripts/verify-runtime-deployment.sh http://localhost:8545
 
 # ==========================================
 # E2E Test Commands
 # ==========================================
 
-# Run all E2E tests (requires devnet-allocs first)
+# Run all E2E tests (requires devnet-allocs-offline first)
 test-e2e:
-	@if [ ! -f .devnet/addresses.json ]; then \
-		echo "Error: Devnet not set up. Run 'make devnet-allocs' first."; \
+	@if [ ! -f .devnet/genesis-l1-staking-v3.json ]; then \
+		echo "Error: Genesis file not found. Run 'make devnet-allocs-offline' first."; \
 		exit 1; \
 	fi
-	@if ! curl -s http://localhost:8545 > /dev/null 2>&1; then \
-		echo "Error: L1 devnet not running. Run 'make devnet-up' first."; \
-		exit 1; \
-	fi
-	@echo "Running E2E tests..."
-	cd op-e2e && go test -v ./faultproofs/... -timeout 300s
+	@echo "Running E2E tests (each test starts its own isolated node)..."
+	cd op-e2e && GOWORK=off go test -v ./faultproofs/... -timeout 300s
 
 # Run E2E unit tests only (no devnet required)
 test-e2e-unit:
 	cd op-e2e && go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
 
-# Run E2E integration tests (requires devnet-allocs first)
+# Run E2E integration tests (requires devnet-allocs-offline first)
 test-e2e-integration:
-	@if [ ! -f .devnet/addresses.json ]; then \
-		echo "Error: Devnet not set up. Run 'make devnet-allocs' first."; \
+	@if [ ! -f .devnet/genesis-l1-staking-v3.json ]; then \
+		echo "Error: Genesis file not found. Run 'make devnet-allocs-offline' first."; \
 		exit 1; \
 	fi
-	cd op-e2e && go test -v -run "TestRATIntegration" ./faultproofs/... -timeout 300s
+	cd op-e2e && GOWORK=off go test -v -run "TestRATIntegration" ./faultproofs/... -timeout 300s
 
 # ==========================================
 # Help
@@ -149,28 +128,13 @@ help:
 	@echo "  make test-v3            Run V3 tests only"
 	@echo "  make clean              Clean build artifacts"
 	@echo ""
-	@echo "E2E Testing (Single Terminal - like Asterisc):"
-	@echo ""
-	@echo "  Quick Start:"
-	@echo "    make devnet-allocs    # Set up devnet (build + start L1 + deploy RAT)"
-	@echo "    make test-e2e         # Run E2E tests"
-	@echo "    make devnet-down      # Stop L1 when done"
-	@echo ""
-	@echo "  Full Cleanup:"
-	@echo "    make devnet-clean     # Stop L1 + clean all state"
+	@echo "E2E Testing (Asterisc-style):"
+	@echo "  make devnet-allocs-offline  Generate genesis with all contracts"
+	@echo "  make test-e2e               Run E2E tests (starts isolated nodes)"
+	@echo "  make test-e2e-unit          Run E2E unit tests (no genesis needed)"
+	@echo "  make test-e2e-integration   Run E2E integration tests"
 	@echo ""
 	@echo "Devnet Management:"
-	@echo "  make devnet-allocs      Set up complete devnet environment"
-	@echo "  make devnet-up          Start L1 devnet (if stopped)"
-	@echo "  make devnet-down        Stop L1 devnet"
-	@echo "  make devnet-clean       Stop L1 + clean all devnet state"
-	@echo "  make devnet-status      Show devnet status"
-	@echo ""
-	@echo "Devnet Verification:"
-	@echo "  make devnet-verify-allocs    Verify Optimism contracts in allocs"
-	@echo "  make devnet-verify-runtime   Verify Optimism contracts on running Anvil"
-	@echo ""
-	@echo "Test Commands:"
-	@echo "  make test-e2e           Run all E2E tests"
-	@echo "  make test-e2e-unit      Run E2E unit tests (no devnet)"
-	@echo "  make test-e2e-integration  Run E2E integration tests"
+	@echo "  make devnet-clean           Clean all devnet state"
+	@echo "  make devnet-status          Show devnet status"
+	@echo "  make devnet-verify          Verify Optimism contracts in genesis"
