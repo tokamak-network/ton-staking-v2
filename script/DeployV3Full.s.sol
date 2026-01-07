@@ -43,8 +43,8 @@ import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
 
 // Mocks for testing
-import {MockTON} from "../test/v3/mocks/MockTON.sol";
-import {MockWTON} from "../test/v3/mocks/MockWTON.sol";
+import {MockTON} from "../src/mocks/MockTON.sol";
+import {MockWTON} from "../src/mocks/MockWTON.sol";
 
 /// @notice Proxy interface
 interface IProxy {
@@ -556,6 +556,8 @@ contract DeployV3Full is Script {
         RAT(ratProxy).setValidatorBuffer(RAT_VALIDATOR_BUFFER);
         RAT(ratProxy).setMinimumThreshold(RAT_MINIMUM_THRESHOLD);
         RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
+        RAT(ratProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
+        RAT(ratProxy).setTreasury(deployer);
         // console.log("RAT parameters configured");
 
         // ValidatorReward는 별도 파라미터 설정 불필요

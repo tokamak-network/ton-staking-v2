@@ -42,8 +42,8 @@ import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
 
 // Mocks for testing
-import {MockTON} from "../test/v3/mocks/MockTON.sol";
-import {MockWTON} from "../test/v3/mocks/MockWTON.sol";
+import {MockTON} from "../src/mocks/MockTON.sol";
+import {MockWTON} from "../src/mocks/MockWTON.sol";
 
 /// @notice Proxy interface
 interface IProxy {
@@ -78,10 +78,16 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
 
     // Anvil default accounts
-    address constant DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-    address constant VALIDATOR = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
-    address constant PROPOSER = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
-    address constant CHALLENGER = 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65;
+    // NOTE: TON Staking uses DIFFERENT deployer from Optimism
+    // - Optimism deployer: Account #0 (0xf39Fd...)
+    // - TON Staking deployer: Account #1 (0x70997...)
+    // This separation avoids nonce collision between deployments
+    address constant OPTIMISM_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Anvil account #0
+    address constant DEPLOYER = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8; // Anvil account #1
+    address constant PROXY_ADMIN = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC; // Anvil account #2
+    address constant VALIDATOR = 0x90F79bf6EB2c4f870365E785982E1f101E93b906; // Anvil account #3
+    address constant PROPOSER = 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65; // Anvil account #4
+    address constant CHALLENGER = 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc; // Anvil account #5
 
     // RAY constant (27 decimals)
     uint256 constant RAY = 1e27;
@@ -148,18 +154,34 @@ contract DeployV3FullForDevnet is Script {
     address public disputeGameFactory;
     address public systemConfig;
 
-    function run() external {
-        uint256 deployerPrivateKey = vm.envOr(
-            "PRIVATE_KEY",
-            uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
+    /// @notice Entry point for generating devnet allocs (without actual broadcast)
+    /// @dev This is used to generate genesis allocs file
+    function runForDevnetAlloc() external {
+        // Load existing L1 allocs (Optimism contracts)
+        string memory allocsPath = vm.envOr(
+            "TARGET_L1_ALLOC",
+            string.concat(vm.projectRoot(), "/.devnet/allocs-l1.json")
         );
-        address deployer = vm.addr(deployerPrivateKey);
+        console.log("Loading existing L1 allocs from:", allocsPath);
+        vm.loadAllocs(allocsPath);
 
-        console.log("=== TON Staking V3 Devnet Deployment ===");
-        console.log("Deployer:", deployer);
-        console.log("Chain ID:", block.chainid);
-        console.log("");
+        // No nonce manipulation needed - different deployers
+        console.log("Optimism deployer:", OPTIMISM_DEPLOYER);
+        console.log("TON Staking deployer:", DEPLOYER);
 
+        // Run deployment (will modify state in memory, no actual broadcast)
+        run();
+
+        // Dump final state to file
+        string memory outputPath = vm.envOr(
+            "STATE_DUMP_PATH",
+            string.concat(vm.projectRoot(), "/.devnet/allocs-l1-staking-v3.json")
+        );
+        console.log("Dumping state to:", outputPath);
+        vm.dumpState(outputPath);
+    }
+
+    function run() public {
         // Read Optimism addresses from environment or use defaults
         _loadOptimismAddresses();
 
@@ -170,7 +192,16 @@ contract DeployV3FullForDevnet is Script {
         console.log("Skipping setupAllocs() - should be run separately");
         console.log("");
 
-        vm.startBroadcast(deployerPrivateKey);
+        // Use startBroadcast() without argument to use CLI --private-key
+        vm.startBroadcast();
+
+        // Get deployer address from msg.sender (set by broadcast)
+        address deployer = msg.sender;
+
+        console.log("=== TON Staking V3 Devnet Deployment ===");
+        console.log("Deployer:", deployer);
+        console.log("Chain ID:", block.chainid);
+        console.log("");
 
         _deployTokens();
         _deployCoinageInfrastructure(deployer);
@@ -225,13 +256,35 @@ contract DeployV3FullForDevnet is Script {
     function _deployTokens() internal {
         console.log("--- Step 1: Deploy Tokens ---");
 
-        ton = address(new MockTON());
-        console.log("TON:", ton);
+        // Deploy tokens with CREATE (not CREATE2) to avoid nonce issues
+        // Environment variables can override if specific addresses are needed
+        address TON_ADDRESS = vm.envOr("TON_ADDRESS", address(0));
+        address WTON_ADDRESS = vm.envOr("WTON_ADDRESS", address(0));
 
-        MockWTON wtonContract = new MockWTON();
-        wtonContract.setTON(ton);
-        wton = address(wtonContract);
-        console.log("WTON:", wton);
+        // Check if TON already exists at known address
+        if (TON_ADDRESS != address(0) && TON_ADDRESS.code.length > 0) {
+            ton = TON_ADDRESS;
+            console.log("Using existing TON:", ton);
+        } else {
+            // Deploy TON using CREATE2 to avoid address collision
+            bytes32 salt = bytes32(uint256(1));
+            ton = address(new MockTON{salt: salt}());
+            console.log("TON deployed at:", ton);
+        }
+
+        // Check if WTON already exists
+        if (WTON_ADDRESS != address(0) && WTON_ADDRESS.code.length > 0) {
+            wton = WTON_ADDRESS;
+            console.log("Using existing WTON:", wton);
+        } else {
+            // Deploy WTON using CREATE2 to avoid address collision
+            bytes32 salt = bytes32(uint256(2));
+            MockWTON wtonContract = new MockWTON{salt: salt}();
+            wtonContract.setTON(ton);
+            wton = address(wtonContract);
+            console.log("WTON deployed at:", wton);
+        }
+
         console.log("");
     }
 
@@ -241,6 +294,7 @@ contract DeployV3FullForDevnet is Script {
     function _deployCoinageInfrastructure(address deployer) internal {
         console.log("--- Step 2: Deploy Coinage Infrastructure ---");
 
+        // Use regular CREATE (different deployer = no collision)
         coinageLogic = address(new RefactorCoinageSnapshot());
         console.log("RefactorCoinageSnapshot Logic:", coinageLogic);
 
@@ -498,8 +552,8 @@ contract DeployV3FullForDevnet is Script {
             RAT_TRIGGER_PROBABILITY
         );
 
-        // Deploy RAT proxy with deployer as admin
-        ratProxy = address(new RATProxy(ratImpl, deployer, ratInitData));
+        // Deploy RAT proxy with separate admin (not deployer to avoid TransparentUpgradeableProxy admin restriction)
+        ratProxy = address(new RATProxy(ratImpl, PROXY_ADMIN, ratInitData));
         console.log("RAT Proxy:", ratProxy);
 
         // Deploy ValidatorReward
@@ -515,7 +569,7 @@ contract DeployV3FullForDevnet is Script {
         );
 
         // Deploy ValidatorReward proxy with deployer as admin
-        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, PROXY_ADMIN, validatorRewardInitData));
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
         // Deploy SequencerVault
@@ -640,12 +694,19 @@ contract DeployV3FullForDevnet is Script {
             return;
         }
 
+        // IMPORTANT: Use Optimism deployer (Account #0) to call setRAT() (onlyOwner)
+        // TON Staking uses Account #1, but DisputeGameFactory owner is Account #0
+        vm.stopBroadcast(); // Stop TON Staking deployer broadcast
+        vm.startBroadcast(OPTIMISM_DEPLOYER); // Start Optimism deployer broadcast
+
         // Set RAT on DisputeGameFactory
         try IDisputeGameFactory(disputeGameFactory).setRAT(ratProxy) {
-            console.log("DisputeGameFactory.setRAT(", ratProxy, ") done");
+            console.log("DisputeGameFactory.setRAT(", ratProxy, ") done (called by Optimism deployer)");
         } catch {
             console.log("Warning: DisputeGameFactory.setRAT() failed");
             console.log("Skipping Optimism integration");
+            vm.stopBroadcast();
+            vm.startBroadcast(); // Resume TON Staking deployer
             console.log("");
             return;
         }
@@ -658,6 +719,9 @@ contract DeployV3FullForDevnet is Script {
                 console.log("Warning: DisputeGameFactory.setSystemConfig() failed");
             }
         }
+
+        vm.stopBroadcast(); // Stop Optimism deployer broadcast
+        vm.startBroadcast(); // Resume TON Staking deployer
 
         // Verify connection
         try IDisputeGameFactory(disputeGameFactory).rat() returns (address ratOnFactory) {
@@ -730,8 +794,11 @@ contract DeployV3FullForDevnet is Script {
         console.log("  DisputeGameFactory:", disputeGameFactory);
         console.log("  SystemConfig:", systemConfig);
         console.log("");
+        console.log("Deployers:");
+        console.log("  Optimism Deployer:", OPTIMISM_DEPLOYER, "(Anvil #0)");
+        console.log("  TON Staking Deployer:", DEPLOYER, "(Anvil #1)");
+        console.log("");
         console.log("Test Accounts (each has 100k TON + 100k WTON):");
-        console.log("  DEPLOYER:", DEPLOYER);
         console.log("  VALIDATOR:", VALIDATOR);
         console.log("  PROPOSER:", PROPOSER);
         console.log("  CHALLENGER:", CHALLENGER);
@@ -773,7 +840,8 @@ contract DeployV3FullForDevnet is Script {
             '  "disputeGameFactory": "', vm.toString(disputeGameFactory), '",\n',
             '  "systemConfig": "', vm.toString(systemConfig), '",\n',
             '  "accounts": {\n',
-            '    "deployer": "', vm.toString(DEPLOYER), '",\n',
+            '    "optimismDeployer": "', vm.toString(OPTIMISM_DEPLOYER), '",\n',
+            '    "tonStakingDeployer": "', vm.toString(DEPLOYER), '",\n',
             '    "validator": "', vm.toString(VALIDATOR), '",\n',
             '    "proposer": "', vm.toString(PROPOSER), '",\n',
             '    "challenger": "', vm.toString(CHALLENGER), '"\n',
