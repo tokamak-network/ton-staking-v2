@@ -55,6 +55,8 @@ interface IProxy {
 interface IDisputeGameFactory {
     function setRAT(address rat) external;
     function setSystemConfig(address systemConfig) external;
+    function setImplementation(uint32 gameType, address impl) external;
+    function setInitBond(uint32 gameType, uint256 bond) external;
     function rat() external view returns (address);
 }
 
@@ -105,6 +107,9 @@ contract DeployV3FullForDevnet is Script {
     uint256 constant RAT_SLASHING_PENALTY = 100 * RAY; // 100 WTON
     uint256 constant RAT_VALIDATOR_BUFFER = 100 * RAY; // 100 WTON
     uint256 constant RAT_MINIMUM_THRESHOLD = 200 * RAY; // 200 WTON (D_min)
+
+    // DisputeGame parameters
+    uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
     uint256 constant RAT_EVIDENCE_PERIOD = 1 hours;
 
     // ==========================================
@@ -720,6 +725,13 @@ contract DeployV3FullForDevnet is Script {
             }
         }
 
+        // Set InitBond for game type 0 (FaultDisputeGame)
+        try IDisputeGameFactory(disputeGameFactory).setInitBond(0, DISPUTE_GAME_INIT_BOND) {
+            console.log("DisputeGameFactory.setInitBond(0,", DISPUTE_GAME_INIT_BOND, ") done");
+        } catch {
+            console.log("Warning: DisputeGameFactory.setInitBond() failed");
+        }
+
         vm.stopBroadcast(); // Stop Optimism deployer broadcast
         vm.startBroadcast(); // Resume TON Staking deployer
 
@@ -735,6 +747,24 @@ contract DeployV3FullForDevnet is Script {
         } catch {
             console.log("Warning: Could not verify RAT connection");
         }
+
+        // Register SystemConfig in L1BridgeRegistry (this also registers DisputeGameFactory)
+        console.log("Registering SystemConfig in L1BridgeRegistry...");
+        vm.stopBroadcast(); // Stop Optimism deployer broadcast
+        vm.startBroadcast(); // Resume TON Staking deployer
+
+        // First, add deployer as manager (required to call registerRollupConfigByManager)
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addManager(msg.sender);
+        console.log("Added deployer as L1BridgeRegistry manager:", msg.sender);
+
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfigByManager(
+            systemConfig,
+            3, // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+            ton // L2 TON address (using L1 TON as placeholder, not actually used for Optimism)
+        );
+        console.log("SystemConfig registered in L1BridgeRegistry");
+        console.log("  This also registered DisputeGameFactory for RAT trigger");
+
         console.log("");
     }
 
