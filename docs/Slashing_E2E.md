@@ -11,7 +11,7 @@ Slashing 테스트를 수행하기 위해서는 먼저 검증 대상이 될 Laye
 Slashing 테스트를 수행하기 위해 필요한 핵심 컨트랙트들을 순서대로 배포하고 연결해야 합니다.
 
 ### 1. Deploy 과정
-Deploy과정은 deployment-deployscript-slashUpdated.md에서 자세히 설명되어 있습니다.
+Deploy과정은 [deployment-deployscript-slashUpdated.md](./deployment-deployscript-slashUpdated.md)에서 자세히 설명되어 있습니다.
 
 ### 2. Layer2 Candidate Registration (Pre-condition for Slashing)
 
