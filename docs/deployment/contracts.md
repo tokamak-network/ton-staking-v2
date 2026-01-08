@@ -18,7 +18,7 @@
 6. [L1BridgeRegistry (다중 구현체)](#6-l1bridgeregistry-다중-구현체-패턴--v3-변경)
 7. [OperatorManager](#7-operatormanager)
 8. [RAT](#8--rat-randomized-attention-test---v3-신규)
-9. [ValidatorPool](#9--validatorpool---v3-신규)
+9. [ValidatorReward](#9--validatorreward---v3-신규)
 10. [SequencerVault](#10--sequencervault---v3-신규)
 
 ---
@@ -415,30 +415,33 @@ RAT.initialize(
     wton_, ton_,           // 토큰 주소
     layer2Manager_,        // Layer2Manager 주소
     owner_,                // 관리자 주소
-    ratTriggerProbability_ // RAT 트리거 확률 (RAY 단위)
+    ratTriggerProbability_ // RAT 트리거 확률 (RAY 단위, 예: 0.01e27 = 1%)
 );
 
 // 파라미터 설정
-RAT.setSlashingPenalty(100e18);          // 100 TON
-RAT.setValidatorBuffer(100e18);          // 100 TON
-RAT.setMinimumThreshold(1000e18);        // 1000 TON
+// 주의: 배포 스크립트(DeployV3Full.s.sol)에서는 RAY 단위(e27) 사용
+// RAT 컨트랙트 내부에서 자동으로 WEI 단위(e18)로 변환됨
+RAT.setSlashingPenalty(100e27);          // 100 TON (RAY 단위 입력)
+RAT.setValidatorBuffer(100e27);          // 100 TON (RAY 단위 입력)
+RAT.setMinimumThreshold(1000e27);        // 1000 TON (RAY 단위 입력)
 RAT.setEvidenceSubmissionPeriod(1 hours);
 ```
 
 ---
 
-## 9. 🆕 ValidatorPool - V3 신규
+## 9. 🆕 ValidatorReward - V3 신규
 
 | 항목 | 설명 |
 |------|------|
 | 역할 | 검증자 보상 분배 |
 | 🆕 V3 신규 | 검증자 등록, 보상 분배 |
+| 컨트랙트 | ValidatorRewardV1 (구현체), ValidatorRewardProxy (프록시) |
 
 ```solidity
 ValidatorRewardV1.initialize(
     seigManager_,  // SeigManager 주소
     wton_,         // WTON 주소
-    ratProxy_,     // RAT 주소
+    ratContract_,  // RAT 주소
     owner_         // 관리자 주소
 );
 ```

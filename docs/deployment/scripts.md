@@ -39,15 +39,17 @@
 | `adjustCommissionDelay` | 93096 | 커미션 조정 지연 블록 (~2주) |
 | `minimumAmount` | 1000.1e27 | 최소 스테이킹 금액 (1000.1 WTON) |
 
-#### RAT/ValidatorPool 파라미터
+#### RAT/ValidatorReward 파라미터
 
 | 파라미터 | 값 | 설명 |
 |----------|-----|------|
 | `ratTriggerProbability` | 0.01e27 | 1% (RAY 단위) |
-| `slashingPenalty` | 100e18 | 100 TON (18 decimals) |
-| `validatorBuffer` | 100e18 | 100 TON (18 decimals) |
-| `minimumThreshold` | 1000e18 | 1000 TON (18 decimals) |
+| `slashingPenalty` | 100e27 | 100 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
+| `validatorBuffer` | 100e27 | 100 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
+| `minimumThreshold` | 1000e27 | 1000 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
 | `evidenceSubmissionPeriod` | 3600 | 1시간 (초) |
+
+> **주의**: 배포 스크립트(DeployV3Full.s.sol)는 RAY 단위(e27)를 사용합니다. RAT 컨트랙트가 내부적으로 WEI 단위(e18)로 변환하므로 입력값은 e27로 제공해야 합니다.
 
 #### SequencerVault 파라미터
 
@@ -113,7 +115,7 @@ cat deployments/v3-full.json
   "l1BridgeRegistryProxy": "0x...",
   "operatorManagerFactory": "0x...",
   "ratProxy": "0x...",
-  "validatorPoolProxy": "0x...",
+  "validatorRewardProxy": "0x...",
   "sequencerVaultProxy": "0x..."
 }
 ```
