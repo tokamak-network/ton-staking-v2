@@ -37,3 +37,27 @@
 |  SeigManagerV1_2      |  0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898 | [link](https://etherscan.io/address/0x1039C6b7C4A5920DCf2aD8BBaaB0fb3F02926898) |
 |  SeigManagerV1_3  |  0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA   | [link](https://etherscan.io/address/0x8C29A0C04a6A3dfee84b602fA13CD4A5a764B3dA) |
 |  DepositManagerV1_1  |  0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06   | [link](https://etherscan.io/address/0xfd0c0AA6505125eFab34A2195F1b9C99AFE8fB06) |
+
+
+## DAO contracts
+
+| Name     | Address | link |
+|----------|------|-------------------------------|
+|  DAOVault |   0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4    | [link](https://sepolia.etherscan.io/address/0xB9F6c9E75418D7E5a536ADe08f0218196BB3eBa4)
+|  DAOAgendaManager        |  0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08    | [link](https://sepolia.etherscan.io/address/0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08)
+|  Candidate        |  0xc462834ea537c23C6aAb31c2564dfE16e7CD37BD    | [link](https://sepolia.etherscan.io/address/0xc462834ea537c23C6aAb31c2564dfE16e7CD37BD)
+|  CandidateFactory        | 0xc004ae9c774A27d6bE6C860d8c414AC697D4dc28     |[link](https://sepolia.etherscan.io/address/0xc004ae9c774A27d6bE6C860d8c414AC697D4dc28)
+|  CandidateFactoryProxy        |  0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f    |[link](https://sepolia.etherscan.io/address/0x04e3C2B720FB8896A7f9Ea59DdcA85fD45189C7f)
+|  DAOCommittee        | 0x79cfbEaCB5470bBe3B8Fe76db2A61Fc59e588C38     | [link](https://sepolia.etherscan.io/address/0x79cfbEaCB5470bBe3B8Fe76db2A61Fc59e588C38)
+|  DAOCommitteeProxy        |  0xA2101482b28E3D99ff6ced517bA41EFf4971a386    |[link](https://sepolia.etherscan.io/address/0xA2101482b28E3D99ff6ced517bA41EFf4971a386)
+|  DAOCommitteeProxy2        |  0xC74b529Ad06E70fA51CDDAD11857D53E6354523d    |[link](https://sepolia.etherscan.io/address/0xC74b529Ad06E70fA51CDDAD11857D53E6354523d)
+|  DAOCommittee_V2        | 0x890cb514BFc112dd4Ca991c30c0ab3e96E65E4d8     | [link](https://sepolia.etherscan.io/address/0x890cb514BFc112dd4Ca991c30c0ab3e96E65E4d8)
+|  DAOCommitteeOwner        | 0xf26D736db6a259AfD93ffDa027b0d7DD9748e3FB     | [link](https://sepolia.etherscan.io/address/0xf26D736db6a259AfD93ffDa027b0d7DD9748e3FB)
+|  Layer2CandidateFactory        | 0x770739A468D9262960ee0669f9Eaf0db6E21F81A     | [link](https://sepolia.etherscan.io/address/0x770739A468D9262960ee0669f9Eaf0db6E21F81A)
+|  Layer2Manager        | 0x0237839A14194085B5145D1d1e1E77dc92aCAF06     | [link](https://sepolia.etherscan.io/address/0x0237839A14194085B5145D1d1e1E77dc92aCAF06)
+
+## MultiSigWallet Contracts
+
+| Name     | Address | link |
+|----------|------|-------------------------------|
+|  MultiSigWallet |   0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C    | [link](https://sepolia.etherscan.io/address/0x82460E7D90e19cF778a2C09DcA75Fc9f79Da877C)

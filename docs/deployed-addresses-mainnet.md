@@ -52,3 +52,26 @@
 | DeSpread | <sub><sup>0x2000fc16911fc044130c29c1aa49d3e0b101716a</sup></sub> |   **<sub><sup>[0xC42cCb12515b52B59c02eEc303c887C8658f5854](https://etherscan.io/address/0xC42cCb12515b52B59c02eEc303c887C8658f5854)</sup></sub>**    |<sub><sup>0xfc9c403993bea576c28ac901bd62640bff8b057a</sup></sub>
 | Danal Fintech |<sub><sup> 0x97d0a5880542ab0e699c67e7f4ff61f2e5200484</sup></sub>|  **<sub><sup>[0xf3CF23D896Ba09d8EcdcD4655d918f71925E3FE5](https://etherscan.io/address/0xf3CF23D896Ba09d8EcdcD4655d918f71925E3FE5) </sup></sub>**    |<sub><sup>0x887af02970781a088962dbaa299a1eba8d573321</sup></sub>
 | Hammer DAO | <sub><sup>0x5d9a0646c46245a8a3b4775afb3c54d07bcb1764</sup></sub>|  **<sub><sup>[0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2](https://etherscan.io/address/0x06D34f65869Ec94B3BA8c0E08BCEb532f65005E2) </sup></sub>**  | <sub><sup>0x42adfaae7db56b294225ddcfebef48b337b34b23</sup></sub>
+
+
+## DAO contracts
+
+| Name     | Address | link |
+|----------|------|-------------------------------|
+|  DAOVault |   0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303    | [link](https://etherscan.io/address/0x2520CD65BAa2cEEe9E6Ad6EBD3F45490C42dd303)
+|  DAOAgendaManager        |  0xcD4421d082752f363E1687544a09d5112cD4f484    | [link](https://etherscan.io/address/0xcD4421d082752f363E1687544a09d5112cD4f484)
+|  Candidate        |  0x1a8f59017e0434efc27e89640ac4b7d7d194c0a3    | [link](https://etherscan.io/address/0x1a8f59017e0434efc27e89640ac4b7d7d194c0a3)
+|  CandidateFactory        | 0xc5eb1c5ce7196bdb49ea7500ca18a1b9f1fa3ffb     |[link](https://etherscan.io/address/0xc5eb1c5ce7196bdb49ea7500ca18a1b9f1fa3ffb)
+|  CandidateFactoryProxy        |  0x9fc7100a16407ee24a79c834a56e6eca555a5d7c    |[link](https://etherscan.io/address/0x9fc7100a16407ee24a79c834a56e6eca555a5d7c)
+|  Layer2Registry        | 0x296ef64487ecfddcdd03eab35c81c9262dab88ba     | [link](https://etherscan.io/address/0x296ef64487ecfddcdd03eab35c81c9262dab88ba)
+|  Layer2RegistryProxy        | 0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b     | [link](https://etherscan.io/address/0x7846c2248a7b4de77e9c2bae7fbb93bfc286837b)
+|  DAOCommitteeProxy        |  0xDD9f0cCc044B0781289Ee318e5971b0139602C26    |[link](https://etherscan.io/address/0xDD9f0cCc044B0781289Ee318e5971b0139602C26)
+|  DAOCommitteeProxy2        | 0xD6175F575F4d32392508Ee2FBbDec9a2E8B3c01a     |[link](https://etherscan.io/address/0xD6175F575F4d32392508Ee2FBbDec9a2E8B3c01a)
+|  DAOCommittee_V1        | 0xcC88dFa531512f24A8a5CbCB88F7B6731807EEFe     | [link](https://etherscan.io/address/0xcC88dFa531512f24A8a5CbCB88F7B6731807EEFe)
+|  DAOCommitteeOwner        | 0x5991Aebb5271522d33C457bf6DF26d83c0dAa221     | [link](https://etherscan.io/address/0x5991Aebb5271522d33C457bf6DF26d83c0dAa221)
+
+
+## MultiSigWallet contracts
+| Name     | Address | link |
+|----------|------|-------------------------------|
+|  MultiSigWallet |   0xE3F72E959834d0A72aFb2ea79F5ec2b4243d2d95    | [link](https://etherscan.io/address/0xE3F72E959834d0A72aFb2ea79F5ec2b4243d2d95)
