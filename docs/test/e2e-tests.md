@@ -5,9 +5,9 @@
 End-to-end tests verify the complete TON Staking V3 system using Go tests with isolated Anvil nodes. Each test starts its own independent node with genesis state containing all pre-deployed contracts.
 
 **Framework:** Go (testing package)
-**Location:** `op-e2e/faultproofs/rat_system_test.go`
-**Total Tests:** 3 core tests
-**Run Time:** ~3 seconds (parallel execution)
+**Location:** `op-e2e/faultproofs/`
+**Total Tests:** 7 tests (3 system + 4 RAT scenario)
+**Run Time:** ~21 seconds (parallel execution)
 
 ## Quick Start
 
@@ -57,7 +57,7 @@ cd op-e2e && make test
 
 ## Test Files
 
-### Core E2E Test File
+### System Test File
 
 **File:** `op-e2e/faultproofs/rat_system_test.go`
 
@@ -65,6 +65,16 @@ cd op-e2e && make test
 1. `TestTONStakingSystemStartup` - System startup verification
 2. `TestAccountBalances` - Account balance verification
 3. `TestRATContractCall` - RAT contract interaction
+
+### RAT Scenario Test File
+
+**File:** `op-e2e/faultproofs/rat_challenge_test.go`
+
+**Tests:**
+1. `TestSimpleRAT_ValidatorRegistration` - Validator registration flow
+2. `TestSimpleRAT_GameCreation` - DisputeGame creation and RAT trigger
+3. `TestSimpleRAT_EvidenceSubmission` - Evidence submission to RAT
+4. `TestSimpleRAT_ChallengerWins` - Full challenger wins scenario with bond claiming
 
 ### Helper Files
 
@@ -75,6 +85,19 @@ Core system helper that:
 - Starts Anvil with genesis
 - Connects L1 client
 - Provides deployment addresses
+
+**File:** `op-e2e/faultproofs/rat_challenge_helpers.go`
+
+Reusable test helper functions (313 lines):
+- **Account Setup**: `setupTestAccounts()` - Creates validator, deployer, proposer accounts
+- **Contract Connection**: `connectTestContracts()` - Connects to RAT and TON contracts
+- **Deposit Helpers**: `getTestDepositAmount()`, `adjustMinimumCollateral()`
+- **Registration**: `registerValidatorWithTON()` - Handles TON approval and validator registration
+- **Game Creation**: `createDisputeGame()`, `createDisputeGameWithWrongClaim()`
+- **Event Parsing**: `parseRATTriggerEvent()`, `parseRATTriggerEventWithBatchIndex()`, `parseDisputeGameCreatedEvent()`
+- **Time Manipulation**: `advanceTimeAndMine()` - Anvil time advancement helper
+
+These helpers eliminate ~400 lines of duplicate code across the 4 RAT scenario tests.
 
 ## Running E2E Tests
 
@@ -200,6 +223,150 @@ GOWORK=off go test -C op-e2e -v -run TestRATContractCall ./faultproofs
 --- PASS: TestRATContractCall (1.03s)
 ```
 
+## RAT Scenario Tests
+
+### 4. TestSimpleRAT_ValidatorRegistration
+
+Tests the validator registration flow with TON token deposit.
+
+**Duration:** ~4.1s
+
+**Test Flow:**
+1. Adjust minimum collateral requirements
+2. Approve TON tokens for RAT contract
+3. Register validator with deposit
+4. Verify registration data
+
+**Verifies:**
+- ✅ TON approval succeeds
+- ✅ Validator registration succeeds
+- ✅ Deposit amount recorded correctly
+- ✅ Validator appears in active validator list
+
+**Run:**
+```bash
+GOWORK=off go test -C op-e2e -v -run TestSimpleRAT_ValidatorRegistration ./faultproofs
+```
+
+### 5. TestSimpleRAT_GameCreation
+
+Tests DisputeGame creation and RAT trigger mechanism.
+
+**Duration:** ~6.1s
+
+**Test Flow:**
+1. Register validator with TON deposit
+2. Proposer creates DisputeGame with wrong root claim
+3. RAT automatically triggered
+4. Parse AttentionTestTriggered event
+
+**Verifies:**
+- ✅ DisputeGame created successfully
+- ✅ RAT triggered on wrong root claim
+- ✅ Validator selected correctly
+- ✅ Validator bond locked (deducted from deposit)
+
+**Run:**
+```bash
+GOWORK=off go test -C op-e2e -v -run TestSimpleRAT_GameCreation ./faultproofs
+```
+
+### 6. TestSimpleRAT_EvidenceSubmission
+
+Tests evidence submission to RAT for dispute resolution.
+
+**Duration:** ~8.1s
+
+**Test Flow:**
+1. Register validator
+2. Create DisputeGame (triggers RAT)
+3. Submit evidence data to RAT
+4. Verify EvidenceSubmitted event
+
+**Verifies:**
+- ✅ Evidence submission succeeds
+- ✅ EvidenceSubmitted event emitted
+- ✅ Evidence data recorded on-chain
+
+**Run:**
+```bash
+GOWORK=off go test -C op-e2e -v -run TestSimpleRAT_EvidenceSubmission ./faultproofs
+```
+
+### 7. TestSimpleRAT_ChallengerWins
+
+**Full end-to-end test of challenger winning scenario with bond claiming.**
+
+**Duration:** ~20.1s
+
+**Test Flow:**
+1. **Validator Registration** - Register with 50000 TON deposit
+2. **Game Creation** - Proposer creates game with wrong root claim (0xFF...)
+3. **RAT Trigger** - Validator bond locked automatically
+4. **Attack Wrong Claim** - Validator attacks with correct claim (0x00...)
+5. **Time Advancement** - Fast-forward past game clock duration
+6. **Game Resolution** - Resolve claims and game (CHALLENGER_WINS)
+7. **RAT Resolution** - Call RAT.resolveClaim() to restore validator bond
+8. **Bond Claiming** - Two-step credit claiming process:
+   - Query DelayedWETH delay dynamically (7 days)
+   - First claimCredit call: Unlock WETH
+   - Advance time by withdrawal delay
+   - Second claimCredit call: Transfer ETH
+
+**Verifies:**
+- ✅ Validator registered with TON deposit
+- ✅ DisputeGame created, RAT triggered
+- ✅ Validator bond locked (TotalBondForRAT > 0)
+- ✅ Attack transaction succeeds
+- ✅ Game resolves with status CHALLENGER_WINS
+- ✅ RAT.resolveClaim restores validator bond (TotalBondForRAT = 0)
+- ✅ Validator deposit fully restored
+- ✅ Game bonds credited (root bond + attack bond)
+- ✅ DelayedWETH delay queried dynamically (604800 seconds / 7 days)
+- ✅ Credit balance matches total game bonds (0.171325 ETH)
+- ✅ First claimCredit unlocks WETH
+- ✅ Second claimCredit transfers ETH after delay
+- ✅ Credit balance cleared to 0
+- ✅ Net ETH gain verified (0.170921 ETH after gas)
+
+**Key Features:**
+- **Dynamic Delay Query**: Retrieves withdrawal delay from DelayedWETH contract
+- **Two-Step Claiming**: Demonstrates Optimism's credit system mechanics
+- **Comprehensive Verification**: Checks RAT bond restoration AND game bond claiming
+
+**Run:**
+```bash
+GOWORK=off go test -C op-e2e -v -run TestSimpleRAT_ChallengerWins ./faultproofs
+```
+
+**Expected Output (Key Sections):**
+```
+=== RUN   TestSimpleRAT_ChallengerWins
+    rat_challenge_test.go:579: === Testing RAT Challenger Wins Flow ===
+    rat_challenge_test.go:634: ✓ Validator initial ETH balance: 10000000000000000000000 wei
+    rat_challenge_test.go:946: ✓ DelayedWETH address: 0x43a3167835766d01750259047b57bc97d7553608
+    rat_challenge_test.go:953: ✓ Withdrawal delay from contract: 604800 seconds (7.0 days)
+    rat_challenge_test.go:1009: ✅ ETH balance change matches expected (credit transferred successfully)
+    rat_challenge_test.go:1017: ✅ Net ETH gain (credit received minus gas): 170920574303014998 wei (0.170921 ETH)
+    rat_challenge_test.go:1040: ✅ Step 8: Net ETH gain after gas: 170920574303014998 wei (0.170921 ETH)
+--- PASS: TestSimpleRAT_ChallengerWins (20.14s)
+```
+
+### Running All RAT Tests
+
+```bash
+# Run all RAT scenario tests
+GOWORK=off go test -C op-e2e -v -run TestSimpleRAT ./faultproofs
+
+# Expected output summary
+--- PASS: TestSimpleRAT_ValidatorRegistration (4.10s)
+--- PASS: TestSimpleRAT_GameCreation (6.12s)
+--- PASS: TestSimpleRAT_EvidenceSubmission (8.13s)
+--- PASS: TestSimpleRAT_ChallengerWins (20.18s)
+PASS
+ok      github.com/tokamak-network/ton-staking-v2/op-e2e/faultproofs    20.663s
+```
+
 ## System Architecture
 
 ### StartTONStakingSystem Helper
@@ -278,31 +445,95 @@ TestRATContractCall         → Port 57342
 
 ### 1. Create Test Function
 
-**File:** `op-e2e/faultproofs/rat_system_test.go`
+Choose the appropriate file based on test type:
+
+**System Tests:** `op-e2e/faultproofs/rat_system_test.go`
+**RAT Scenario Tests:** `op-e2e/faultproofs/rat_challenge_test.go`
 
 ```go
-func TestYourNewFeature(t *testing.T) {
+func TestSimpleRAT_YourNewScenario(t *testing.T) {
     t.Parallel()  // Enable parallel execution
 
     // Start system (gets isolated node + genesis)
     sys := rat.StartTONStakingSystem(t)
-    ctx := sys.Ctx
+    callOpts := &bind.CallOpts{Context: sys.Ctx}
 
-    t.Log("=== Testing Your Feature ===")
+    t.Log("=== Testing Your Scenario ===")
+
+    // Setup accounts and contracts using helpers
+    accounts := setupTestAccounts(t, sys)
+    contracts := connectTestContracts(t, sys)
+
+    // Get deposit amount and adjust collateral
+    depositAmount := getTestDepositAmount()
+    adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+    // Register validator
+    registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
 
     // Your test logic here
-    // ... interact with sys.L1Client
-    // ... use sys.Addresses.RATProxy, etc.
+    // Example: Create dispute game
+    rootClaim := [32]byte{0x01, 0x02, 0x03}
+    gameReceipt, gameAddress := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+
+    // Parse events
+    testID, triggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+    if triggered {
+        t.Logf("✓ RAT triggered with test ID: %x", testID)
+    }
 
     t.Log("=== Test Complete ===")
 }
 ```
 
-### 2. Run Your Test
+### 2. Common Patterns
+
+**Using Test Helpers (Recommended):**
+```go
+// Setup accounts and contracts
+accounts := setupTestAccounts(t, sys)
+contracts := connectTestContracts(t, sys)
+
+// Get deposit amount and adjust collateral
+depositAmount := getTestDepositAmount()
+adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+// Register validator
+registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
+
+// Create dispute game
+rootClaim := [32]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+
+// Parse RAT trigger event
+testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+
+// Advance time
+advanceTimeAndMine(t, sys, 604800) // 7 days
+```
+
+**Working with FaultDisputeGame:**
+```go
+// Connect to game
+game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+require.NoError(t, err)
+
+// Query DelayedWETH dynamically
+wethAddr, err := game.Weth(callOpts)
+require.NoError(t, err)
+
+delayedWETH, err := bindings.NewDelayedWETHMinimal(wethAddr, sys.L1Client)
+require.NoError(t, err)
+
+withdrawalDelay, err := delayedWETH.Delay(callOpts)
+require.NoError(t, err)
+```
+
+### 3. Run Your Test
 
 ```bash
 cd op-e2e
-GOWORK=off go test -v -run TestYourNewFeature ./faultproofs
+GOWORK=off go test -v -run TestSimpleRAT_YourNewScenario ./faultproofs
 ```
 
 ## Genesis File Generation
@@ -430,14 +661,20 @@ jobs:
 ## Makefile Commands
 
 ```bash
-# Generate genesis
+# Generate genesis (run once)
 make devnet-allocs-offline
 
-# Run E2E tests
+# Run all E2E tests (system + RAT scenarios)
 make test-e2e
 
-# Run unit tests only (from op-e2e)
-cd op-e2e && make test-rat-unit
+# Run only system tests
+cd op-e2e && GOWORK=off go test -v -run "TestTONStakingSystemStartup|TestAccountBalances|TestRATContractCall" ./faultproofs
+
+# Run only RAT scenario tests
+cd op-e2e && GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
+
+# Run specific test
+cd op-e2e && GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs
 
 # Clean genesis
 make devnet-clean

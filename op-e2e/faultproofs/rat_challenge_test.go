@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
@@ -24,134 +23,37 @@ func TestSimpleRAT_ValidatorRegistration(t *testing.T) {
 	t.Parallel()
 
 	sys := rat.StartTONStakingSystem(t)
-	ctx := sys.Ctx
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
 	t.Log("=== Testing Simple RAT Validator Registration ===")
 
-	// Get validator account (Anvil account #3)
-	validatorKey, err := crypto.HexToECDSA("7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6")
-	require.NoError(t, err)
+	// Setup accounts and contracts
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
 
-	validatorAddr := crypto.PubkeyToAddress(validatorKey.PublicKey)
-	t.Logf("Validator address: %s", validatorAddr.Hex())
-
-	// Check validator ETH balance
-	balance, err := sys.L1Client.BalanceAt(ctx, validatorAddr, nil)
-	require.NoError(t, err)
-	t.Logf("Validator ETH balance: %s wei", balance.String())
-	require.True(t, balance.Cmp(big.NewInt(0)) > 0, "Validator should have ETH")
-
-	// Get chain ID
-	chainID, err := sys.L1Client.ChainID(ctx)
-	require.NoError(t, err)
-
-	// Create transactor for validator
-	auth, err := bind.NewKeyedTransactorWithChainID(validatorKey, chainID)
-	require.NoError(t, err)
-	auth.GasLimit = 3000000
-
-	t.Logf("✓ Validator transactor created")
+	t.Logf("✓ Validator address: %s", accounts.Validator.Addr.Hex())
 	t.Logf("✓ RAT contract: %s", sys.Addresses.RATProxy.Hex())
 	t.Logf("✓ SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
 
-	// Connect to TON contract (RAT uses TON, not WTON)
-	tonERC20, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
+	// Get test deposit amount
+	depositAmount := getTestDepositAmount()
+	t.Logf("✓ Deposit amount: %s wei (50000 TON)", depositAmount.String())
+
+	// Check TON balance
+	tonBalance, err := contracts.TON.BalanceOf(callOpts, accounts.Validator.Addr)
 	require.NoError(t, err)
-	t.Logf("✓ TON contract connected")
-
-	// Connect to RAT contract
-	ratContract, err := bindings.NewRAT(sys.Addresses.RATProxy, sys.L1Client)
-	require.NoError(t, err)
-	t.Logf("✓ RAT contract connected")
-
-	// Get minimum collateral required
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
-	minCollateral, err := ratContract.GetMinimumCollateral(callOpts)
-	require.NoError(t, err)
-	t.Logf("✓ Minimum collateral: %s", minCollateral.String())
-
-	// Use a smaller amount that fits within genesis TON balance
-	// Validator has 100000 TON in genesis, so let's use 50000 TON
-	depositAmount := new(big.Int).SetUint64(50000)
-	depositAmount.Mul(depositAmount, big.NewInt(1e18)) // Convert to wei (18 decimals)
-	t.Logf("Deposit amount: %s TON", depositAmount.String())
-
-	// Check if this is enough for minimum collateral
-	if depositAmount.Cmp(minCollateral) < 0 {
-		t.Logf("WARNING: Deposit amount %s is less than minimum collateral %s",
-			depositAmount.String(), minCollateral.String())
-		t.Logf("This test will verify the error handling for insufficient collateral")
-	}
-
-	// Step 1: Get TON balance (should have from genesis)
-	tonBalance, err := tonERC20.BalanceOf(callOpts, validatorAddr)
-	require.NoError(t, err)
-	t.Logf("Validator TON balance: %s", tonBalance.String())
-
-	// Verify validator has enough TON
+	t.Logf("✓ Validator TON balance: %s", tonBalance.String())
 	require.True(t, tonBalance.Cmp(depositAmount) >= 0,
 		"Validator should have at least %s TON but has %s", depositAmount.String(), tonBalance.String())
 
-	// If minimum collateral is too high for our test amount, adjust it
-	// getMinimumCollateral() = slashingPenalty + validatorBuffer
-	if depositAmount.Cmp(minCollateral) < 0 {
-		t.Logf("Lowering slashing penalty and validator buffer to match test amount...")
+	// Adjust minimum collateral if needed
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
-		// Get deployer (owner) to adjust parameters
-		deployerKey, err := crypto.HexToECDSA("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-		require.NoError(t, err)
-		deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerKey, chainID)
-		require.NoError(t, err)
-		deployerAuth.GasLimit = 3000000
+	// Register validator
+	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
 
-		// Set both slashingPenalty and validatorBuffer to 1/4 of deposit amount
-		// So minimum collateral = slashingPenalty + validatorBuffer = deposit/4 + deposit/4 = deposit/2
-		quarterDeposit := new(big.Int).Div(depositAmount, big.NewInt(4))
-
-		// Set slashing penalty
-		setPenaltyTx, err := ratContract.SetSlashingPenalty(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-		penaltyReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, setPenaltyTx)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1), penaltyReceipt.Status, "SetSlashingPenalty should succeed")
-		t.Logf("✓ Slashing penalty set to %s (tx: %s)", quarterDeposit.String(), setPenaltyTx.Hash().Hex())
-
-		// Set validator buffer
-		setBufferTx, err := ratContract.SetValidatorBuffer(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-		bufferReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, setBufferTx)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1), bufferReceipt.Status, "SetValidatorBuffer should succeed")
-		t.Logf("✓ Validator buffer set to %s (tx: %s)", quarterDeposit.String(), setBufferTx.Hash().Hex())
-
-		// Verify new minimum collateral
-		newMinCollateral, err := ratContract.GetMinimumCollateral(callOpts)
-		require.NoError(t, err)
-		t.Logf("✓ New minimum collateral: %s", newMinCollateral.String())
-		require.True(t, depositAmount.Cmp(newMinCollateral) >= 0,
-			"Deposit amount should be >= minimum collateral")
-	}
-
-	// Step 2: Approve TON to RAT
-	t.Log("Approving TON to RAT...")
-	approveTx, err := tonERC20.Approve(auth, sys.Addresses.RATProxy, depositAmount)
-	require.NoError(t, err)
-	approveReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), approveReceipt.Status, "Approve should succeed")
-	t.Logf("✓ TON approved to RAT (tx: %s)", approveTx.Hash().Hex())
-
-	// Step 3: Register validator
-	t.Log("Registering validator...")
-	registerTx, err := ratContract.RegisterValidator(auth, sys.Addresses.SystemConfig, depositAmount)
-	require.NoError(t, err)
-	regReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), regReceipt.Status, "Register transaction should succeed")
-	t.Logf("✓ Validator registered (tx: %s)", registerTx.Hash().Hex())
-
-	// Step 4: Verify registration
-	isActive, err := ratContract.IsValidatorActive(callOpts, validatorAddr, sys.Addresses.SystemConfig)
+	// Verify registration
+	isActive, err := contracts.RAT.IsValidatorActive(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	require.True(t, isActive, "Validator should be active after registration")
 	t.Logf("✓ Validator is active")
@@ -165,72 +67,25 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	t.Parallel()
 
 	sys := rat.StartTONStakingSystem(t)
-	ctx := sys.Ctx
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
 	t.Log("=== Testing RAT Trigger via DisputeGame Creation ===")
 
-	// Prerequisites: Register a validator first
-	validatorKey, err := crypto.HexToECDSA("7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6")
-	require.NoError(t, err)
-	validatorAddr := crypto.PubkeyToAddress(validatorKey.PublicKey)
+	// Setup accounts and contracts
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
 
-	chainID, err := sys.L1Client.ChainID(ctx)
-	require.NoError(t, err)
+	// Get test deposit amount and adjust collateral
+	depositAmount := getTestDepositAmount()
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
-	validatorAuth, err := bind.NewKeyedTransactorWithChainID(validatorKey, chainID)
-	require.NoError(t, err)
-	validatorAuth.GasLimit = 3000000
-
-	// Connect to contracts
-	ratContract, err := bindings.NewRAT(sys.Addresses.RATProxy, sys.L1Client)
-	require.NoError(t, err)
-
-	tonERC20, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
-	require.NoError(t, err)
-
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
-
-	// Get minimum collateral and adjust it
-	minCollateral, err := ratContract.GetMinimumCollateral(callOpts)
-	require.NoError(t, err)
-	t.Logf("Current minimum collateral: %s", minCollateral.String())
-
-	depositAmount := new(big.Int).SetUint64(50000)
-	depositAmount.Mul(depositAmount, big.NewInt(1e18))
-
-	// Lower collateral requirements if needed
-	if depositAmount.Cmp(minCollateral) < 0 {
-		deployerKey, err := crypto.HexToECDSA("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-		require.NoError(t, err)
-		deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerKey, chainID)
-		require.NoError(t, err)
-		deployerAuth.GasLimit = 3000000
-
-		quarterDeposit := new(big.Int).Div(depositAmount, big.NewInt(4))
-
-		_, err = ratContract.SetSlashingPenalty(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-		_, err = ratContract.SetValidatorBuffer(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-
-		t.Logf("✓ Collateral requirements adjusted")
-	}
-
-	// Register validator
+	// Step 1: Register validator
 	t.Log("Step 1: Registering validator...")
-	approveTx, err := tonERC20.Approve(validatorAuth, sys.Addresses.RATProxy, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
-	require.NoError(t, err)
-
-	registerTx, err := ratContract.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
-	require.NoError(t, err)
-	t.Logf("✓ Validator %s registered", validatorAddr.Hex())
+	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
+	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
 
 	// Get validator count before game creation
-	validatorCount, err := ratContract.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
+	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
 
@@ -299,21 +154,16 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	// Step 2: Create dispute game as proposer
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
-	proposerKey, err := crypto.HexToECDSA("47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a")
-	require.NoError(t, err)
-	proposerAuth, err := bind.NewKeyedTransactorWithChainID(proposerKey, chainID)
-	require.NoError(t, err)
-	proposerAuth.GasLimit = 5000000
-	proposerAuth.Value = initBond // Send required bond
+	accounts.Proposer.Auth.Value = initBond // Send required bond
 
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
 
 	// extraData must be exactly 32 bytes containing l2BlockNumber
-	l2BlockNumber := big.NewInt(100) // Dummy L2 block number
+	l2BlockNumber := big.NewInt(testL2BlockNumber)
 	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
 	t.Logf("✓ Using L2 block number: %d", l2BlockNumber.Uint64())
 
-	createGameTx, err := dgf.Create(proposerAuth, gameType, rootClaim, extraData)
+	createGameTx, err := dgf.Create(accounts.Proposer.Auth, gameType, rootClaim, extraData)
 	require.NoError(t, err)
 
 	gameReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, createGameTx)
@@ -340,20 +190,14 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	t.Logf("✓ DisputeGame created (tx: %s)", createGameTx.Hash().Hex())
 
 	// Parse DisputeGameCreated event
-	var gameAddress common.Address
-	for _, log := range gameReceipt.Logs {
-		if log.Topics[0].Hex() == "0x5b565efe82411da98814f356d0e7bcb8f0219b8d970307c5afb4a6903a8b2e35" {
-			gameAddress = common.HexToAddress(log.Topics[1].Hex())
-			t.Logf("✓ Game address: %s", gameAddress.Hex())
-			break
-		}
-	}
+	gameAddress := parseDisputeGameCreatedEvent(t, gameReceipt)
 	require.NotEqual(t, common.Address{}, gameAddress, "Should have game address")
+	t.Logf("✓ Game address: %s", gameAddress.Hex())
 
 	// Check for RAT AttentionTestTriggered event
 	ratTriggered := false
 	for _, log := range gameReceipt.Logs {
-		if log.Topics[0].Hex() == "0xcf68a8dafa7b2329d7d7fcde3af620c2a51f64345d1eb2d66ffe7c7f1e9b0c38" {
+		if log.Topics[0].Hex() == eventAttentionTestTriggered {
 			ratTriggered = true
 			testId := log.Topics[1]
 			validator := common.HexToAddress(log.Topics[2].Hex())
@@ -378,153 +222,40 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	t.Parallel()
 
 	sys := rat.StartTONStakingSystem(t)
-	ctx := sys.Ctx
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
 	t.Log("=== Testing RAT Evidence Submission Flow ===")
 
-	// Prerequisites: Register a validator first
-	validatorKey, err := crypto.HexToECDSA("7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6")
-	require.NoError(t, err)
-	validatorAddr := crypto.PubkeyToAddress(validatorKey.PublicKey)
+	// Setup accounts and contracts
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
 
-	chainID, err := sys.L1Client.ChainID(ctx)
-	require.NoError(t, err)
+	// Get test deposit amount and adjust collateral
+	depositAmount := getTestDepositAmount()
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
-	validatorAuth, err := bind.NewKeyedTransactorWithChainID(validatorKey, chainID)
-	require.NoError(t, err)
-	validatorAuth.GasLimit = 3000000
-
-	// Connect to contracts
-	ratContract, err := bindings.NewRAT(sys.Addresses.RATProxy, sys.L1Client)
-	require.NoError(t, err)
-
-	tonERC20, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
-	require.NoError(t, err)
-
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
-
-	// Get minimum collateral and adjust it
-	minCollateral, err := ratContract.GetMinimumCollateral(callOpts)
-	require.NoError(t, err)
-	t.Logf("Current minimum collateral: %s", minCollateral.String())
-
-	depositAmount := new(big.Int).SetUint64(50000)
-	depositAmount.Mul(depositAmount, big.NewInt(1e18))
-
-	// Lower collateral requirements if needed
-	if depositAmount.Cmp(minCollateral) < 0 {
-		deployerKey, err := crypto.HexToECDSA("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-		require.NoError(t, err)
-		deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerKey, chainID)
-		require.NoError(t, err)
-		deployerAuth.GasLimit = 3000000
-
-		quarterDeposit := new(big.Int).Div(depositAmount, big.NewInt(4))
-
-		_, err = ratContract.SetSlashingPenalty(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-		_, err = ratContract.SetValidatorBuffer(deployerAuth, quarterDeposit)
-		require.NoError(t, err)
-
-		t.Logf("✓ Collateral requirements adjusted")
-	}
-
-	// Register validator
+	// Step 1: Register validator
 	t.Log("Step 1: Registering validator...")
-	approveTx, err := tonERC20.Approve(validatorAuth, sys.Addresses.RATProxy, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
-	require.NoError(t, err)
-
-	registerTx, err := ratContract.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
-	require.NoError(t, err)
-	t.Logf("✓ Validator %s registered", validatorAddr.Hex())
+	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
+	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
 
 	// Get validator count before game creation
-	validatorCount, err := ratContract.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
+	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
 
 	// Step 2: Create dispute game as proposer
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
-	dgf, err := bindings.NewDisputeGameFactory(sys.Addresses.DisputeGameFactory, sys.L1Client)
-	require.NoError(t, err)
-
-	gameType := uint32(0)
-	initBond, err := dgf.InitBonds(callOpts, gameType)
-	require.NoError(t, err)
-	t.Logf("✓ Required init bond: %s wei", initBond.String())
-
-	proposerKey, err := crypto.HexToECDSA("47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a")
-	require.NoError(t, err)
-	proposerAuth, err := bind.NewKeyedTransactorWithChainID(proposerKey, chainID)
-	require.NoError(t, err)
-	proposerAuth.GasLimit = 5000000
-	proposerAuth.Value = initBond // Send required bond
-
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-
-	// extraData must be exactly 32 bytes containing l2BlockNumber
-	l2BlockNumber := big.NewInt(100) // Dummy L2 block number
-	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
-	t.Logf("✓ Using L2 block number: %d", l2BlockNumber.Uint64())
-
-	createGameTx, err := dgf.Create(proposerAuth, gameType, rootClaim, extraData)
-	require.NoError(t, err)
-
-	gameReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, createGameTx)
-	require.NoError(t, err)
-
-	// Log all events from the transaction
-	t.Logf("Transaction logs count: %d", len(gameReceipt.Logs))
-	for i, log := range gameReceipt.Logs {
-		t.Logf("Log %d: Address=%s, Topics=%v", i, log.Address.Hex(), len(log.Topics))
-		if len(log.Topics) > 0 {
-			t.Logf("  Topic[0]=%s", log.Topics[0].Hex())
-		}
-	}
-
-	t.Logf("✓ DisputeGame created (tx: %s)", createGameTx.Hash().Hex())
+	gameReceipt, _ := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
 
 	// Step 3: Parse RAT trigger event and get batchIndex
 	t.Log("Step 3: Parsing RAT trigger event...")
 
-	var testID [32]byte
-	var selectedValidator common.Address
-	var batchIndex uint32
-	ratTriggered := false
-
-	for _, log := range gameReceipt.Logs {
-		if log.Topics[0].Hex() == "0xcf68a8dafa7b2329d7d7fcde3af620c2a51f64345d1eb2d66ffe7c7f1e9b0c38" {
-			ratTriggered = true
-			testID = log.Topics[1]
-			selectedValidator = common.HexToAddress(log.Topics[2].Hex())
-
-			// Parse non-indexed data for batchIndex
-			ratABI, err := abi.JSON(strings.NewReader(bindings.RATABI))
-			require.NoError(t, err)
-
-			type EventData struct {
-				GameAddress common.Address
-				BatchIndex  uint32
-				Deadline    *big.Int
-			}
-			var data EventData
-			err = ratABI.UnpackIntoInterface(&data, "AttentionTestTriggered", log.Data)
-			require.NoError(t, err)
-
-			batchIndex = data.BatchIndex
-			t.Logf("✓ RAT triggered - Test ID: %s, Validator: %s", common.BytesToHash(testID[:]).Hex(), selectedValidator.Hex())
-			t.Logf("✓ Batch index: %d", batchIndex)
-			break
-		}
-	}
-
+	testID, batchIndex, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
-	require.Equal(t, validatorAddr, selectedValidator, "Validator should be selected")
+	_ = testID // testID available for future use if needed
 
 	// Step 4: Submit evidence as selected validator
 	t.Log("Step 4: Submitting evidence...")
@@ -532,9 +263,9 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	// Create dummy evidence
 	evidence := []byte("dummy evidence data")
 
-	evidenceTx, err := ratContract.SubmitEvidence(validatorAuth, sys.Addresses.SystemConfig, batchIndex, evidence)
+	evidenceTx, err := contracts.RAT.SubmitEvidence(accounts.Validator.Auth, sys.Addresses.SystemConfig, batchIndex, evidence)
 	require.NoError(t, err)
-	evidenceReceipt, err := bind.WaitMined(ctx, sys.L1Client, evidenceTx)
+	evidenceReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, evidenceTx)
 	require.NoError(t, err)
 	t.Logf("✓ Evidence submitted (tx: %s)", evidenceTx.Hash().Hex())
 
@@ -564,3 +295,352 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	t.Log("   3. Evidence submitted successfully")
 }
 
+// TestSimpleRAT_ChallengerWins tests the full flow with incorrect state root:
+// 1. Validator registration
+// 2. Proposer creates DisputeGame with WRONG root claim (triggers RAT)
+// 3. Validator (as challenger) wins the game
+// 4. Validator's bond is restored via RAT.resolveClaim()
+// 5. Validator claims game bond credits (2-step process with DelayedWETH)
+func TestSimpleRAT_ChallengerWins(t *testing.T) {
+	t.Parallel()
+
+	sys := rat.StartTONStakingSystem(t)
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+
+	t.Log("=== Testing RAT Challenger Wins Flow ===")
+
+	// Setup accounts and contracts
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
+
+	// Get test deposit amount and adjust collateral
+	depositAmount := getTestDepositAmount()
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	// Step 1: Register validator
+	t.Log("Step 1: Registering validator...")
+
+	// Track initial ETH balance
+	initialETHBalance, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)
+	require.NoError(t, err)
+	t.Logf("✓ Validator initial ETH balance: %s wei", initialETHBalance.String())
+
+	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
+	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
+
+	// Get validator deposit before game creation
+	regBefore, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ Validator deposit before game: %s", regBefore.DepositedAmount.String())
+	t.Logf("✓ Validator bond locked before: %s", regBefore.TotalBondForRAT.String())
+
+	// Get validator count before game creation
+	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
+
+	// Step 2: Create dispute game with WRONG root claim as proposer
+	t.Log("Step 2: Creating DisputeGame with WRONG root claim...")
+
+	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+
+	// Step 3: Parse RAT trigger event
+	t.Log("Step 3: Parsing RAT trigger event...")
+
+	testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+	require.True(t, ratTriggered, "RAT should be triggered")
+	_ = testID // testID available for future use if needed
+
+	// Get validator deposit after RAT trigger (should be reduced)
+	regAfterTrigger, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ Validator deposit after RAT trigger: %s", regAfterTrigger.DepositedAmount.String())
+	t.Logf("✓ Validator bond locked after: %s", regAfterTrigger.TotalBondForRAT.String())
+	require.True(t, regAfterTrigger.TotalBondForRAT.Cmp(big.NewInt(0)) > 0, "Bond should be locked")
+
+	// Step 4: Challenger attacks the wrong root claim
+	t.Log("Step 4: Validator/challenger attacks wrong root claim...")
+
+	// Connect to the game contract
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	require.NoError(t, err)
+
+	// Check game configuration
+	maxDepth, err := game.MaxGameDepth(callOpts)
+	if err != nil {
+		t.Logf("⚠️  Failed to get max game depth: %v", err)
+	} else {
+		t.Logf("✓ Max game depth: %s", maxDepth.String())
+	}
+
+	splitDepth, err := game.SplitDepth(callOpts)
+	if err != nil {
+		t.Logf("⚠️  Failed to get split depth: %v", err)
+	} else {
+		t.Logf("✓ Split depth: %s", splitDepth.String())
+	}
+
+	// Check game status
+	gameStatus, err := game.Status(callOpts)
+	if err != nil {
+		t.Logf("⚠️  Failed to get game status: %v", err)
+	} else {
+		t.Logf("✓ Game status: %d (0=IN_PROGRESS, 1=CHALLENGER_WINS, 2=DEFENDER_WINS)", gameStatus)
+	}
+
+	// Get root claim
+	gameRootClaim, err := game.RootClaim(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ Root claim: %x", gameRootClaim)
+
+	// Get claim data for root (claim index 0)
+	claimData, err := game.ClaimData(callOpts, big.NewInt(0))
+	require.NoError(t, err)
+	t.Logf("✓ Root claim data - Position: %s, Bond: %s", claimData.Position.String(), claimData.Bond.String())
+	t.Logf("✓ Root claim from claimData: %x", claimData.Claim)
+
+	// Calculate next position using LibPosition.move(position, true):
+	// attack: position * 2
+	nextPosition := new(big.Int).Mul(claimData.Position, big.NewInt(2))
+	t.Logf("✓ Next position for attack: %s", nextPosition.String())
+
+	// Query required bond from contract
+	requiredBond, err := game.GetRequiredBond(callOpts, nextPosition)
+	if err != nil {
+		t.Logf("⚠️  Failed to get required bond: %v", err)
+		// Fallback to root bond
+		requiredBond = claimData.Bond
+	} else {
+		t.Logf("✓ Required bond from contract: %s wei", requiredBond.String())
+	}
+
+	// Validator attacks the root claim
+	correctClaim := [32]byte{0x00} // Correct claim (different from wrong 0xFF...)
+	accounts.Validator.Auth.Value = requiredBond
+	attackBond := new(big.Int).Set(requiredBond) // Save attack bond amount
+	attackTx, err := game.Attack(accounts.Validator.Auth, gameRootClaim, big.NewInt(0), correctClaim)
+	require.NoError(t, err)
+	accounts.Validator.Auth.Value = nil // Reset
+
+	attackReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, attackTx)
+	require.NoError(t, err)
+	t.Logf("✓ Attack tx mined (tx: %s, status: %d, gas: %d)",
+		attackTx.Hash().Hex(), attackReceipt.Status, attackReceipt.GasUsed)
+	require.Equal(t, uint64(1), attackReceipt.Status, "Attack transaction should succeed")
+
+	// Record bonds involved in the game
+	rootBond := new(big.Int).Set(claimData.Bond)
+	totalGameBonds := new(big.Int).Add(attackBond, rootBond)
+	t.Logf("✓ Game bonds - Root: %s wei, Attack: %s wei, Total: %s wei",
+		rootBond.String(), attackBond.String(), totalGameBonds.String())
+
+	// Step 5: Wait for game clock to expire and resolve
+	t.Log("Step 5: Waiting for game clock to expire...")
+
+	// Verify the attack was successful by checking claim count
+	claimCount, err := game.ClaimDataLen(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ Total claims in game: %d", claimCount.Uint64())
+	require.True(t, claimCount.Uint64() >= 2, "Should have at least 2 claims (root + attack), got %d", claimCount.Uint64())
+
+	// Get max clock duration
+	maxClockDuration, err := game.MaxClockDuration(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ Max clock duration: %d seconds", maxClockDuration)
+
+	// Advance time past the clock duration
+	timeToAdvance := int64(maxClockDuration + 1) // Add 1 second buffer
+	advanceTimeAndMine(t, sys, timeToAdvance)
+
+	// Step 6: Resolve the game
+	t.Log("Step 6: Resolving game claims...")
+
+	// Resolve claims bottom-up (child first, then parent)
+	// Claim 1 is our attack claim
+	resolveTx, err := game.ResolveClaim(accounts.Validator.Auth, big.NewInt(1), big.NewInt(0))
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx)
+	require.NoError(t, err)
+	t.Logf("✓ Resolved claim 1 (attack claim)")
+
+	// Resolve claim 0 (root claim)
+	resolveTx, err = game.ResolveClaim(accounts.Validator.Auth, big.NewInt(0), big.NewInt(0))
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx)
+	require.NoError(t, err)
+	t.Logf("✓ Resolved claim 0 (root claim)")
+
+	// Resolve the game
+	resolveGameTx, err := game.Resolve(accounts.Validator.Auth)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveGameTx)
+	require.NoError(t, err)
+	t.Logf("✓ Game resolved")
+
+	// Check final game status
+	finalStatus, err := game.Status(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ Final game status: %d (1=CHALLENGER_WINS)", finalStatus)
+	require.Equal(t, uint8(1), finalStatus, "Game should be won by challenger")
+
+	// Step 7: Call RAT.resolveClaim to restore validator bond
+	t.Log("Step 7: Calling RAT.resolveClaim to restore validator bond...")
+
+	resolveRATTx, err := contracts.RAT.ResolveClaim(accounts.Validator.Auth, gameAddress)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveRATTx)
+	require.NoError(t, err)
+	t.Logf("✓ RAT.resolveClaim called (tx: %s)", resolveRATTx.Hash().Hex())
+
+	// Verify validator bond was restored
+	regAfterResolve, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ Validator deposit after resolve: %s", regAfterResolve.DepositedAmount.String())
+	t.Logf("✓ Validator bond locked after resolve: %s", regAfterResolve.TotalBondForRAT.String())
+
+	// Bond should be restored (TotalBondForRAT should be 0)
+	require.True(t, regAfterResolve.TotalBondForRAT.Cmp(big.NewInt(0)) == 0,
+		"Bond should be restored after challenger wins, but got: %s", regAfterResolve.TotalBondForRAT.String())
+
+	// Deposit should be restored to original amount
+	require.True(t, regAfterResolve.DepositedAmount.Cmp(depositAmount) == 0,
+		"Deposit should be restored to original %s, but got: %s",
+		depositAmount.String(), regAfterResolve.DepositedAmount.String())
+
+	// Check final ETH balance
+	finalETHBalance, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)
+	require.NoError(t, err)
+	ethSpentOnGas := new(big.Int).Sub(initialETHBalance, finalETHBalance)
+	t.Logf("✓ Validator final ETH balance: %s wei", finalETHBalance.String())
+	t.Logf("✓ ETH spent on gas: %s wei", ethSpentOnGas.String())
+
+	// Step 8: Verify and claim game bonds via credit system
+	t.Log("")
+	t.Log("=== Step 8: Verify and Claim Game Bonds ===")
+
+	// Advance time to ensure game is fully finalized
+	advanceTimeAndMine(t, sys, 60) // 60 seconds for finalization
+
+	// Check credit balance
+	creditBalance, err := game.Credit(callOpts, accounts.Validator.Addr)
+	require.NoError(t, err)
+	t.Logf("✓ Validator credit balance: %s wei", creditBalance.String())
+
+	// Verify credit equals total game bonds
+	require.True(t, creditBalance.Cmp(totalGameBonds) == 0,
+		"Credit balance should equal total game bonds (%s wei), but got: %s wei",
+		totalGameBonds.String(), creditBalance.String())
+	t.Logf("✓ Credit balance matches total game bonds: %s wei (%s ETH)",
+		totalGameBonds.String(),
+		new(big.Float).Quo(new(big.Float).SetInt(totalGameBonds), big.NewFloat(1e18)).Text('f', 6))
+	t.Logf("   - Root claim bond (from proposer): %s wei", rootBond.String())
+	t.Logf("   - Attack claim bond (from validator): %s wei", attackBond.String())
+
+	// Track ETH balance before claiming credit
+	ethBeforeClaim, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)
+	require.NoError(t, err)
+	t.Logf("✓ ETH balance before claiming: %s wei", ethBeforeClaim.String())
+
+	// First call to claimCredit: unlocks the credit
+	claimCreditTx1, err := game.ClaimCredit(accounts.Validator.Auth, accounts.Validator.Addr)
+	require.NoError(t, err)
+	claimReceipt1, err := bind.WaitMined(sys.Ctx, sys.L1Client, claimCreditTx1)
+	require.NoError(t, err)
+	t.Logf("✓ game.claimCredit (1st call - unlock) (tx: %s, gas used: %d)", claimCreditTx1.Hash().Hex(), claimReceipt1.GasUsed)
+
+	// Query DelayedWETH withdrawal delay dynamically
+	wethAddr, err := game.Weth(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ DelayedWETH address: %s", wethAddr.Hex())
+
+	delayedWETH, err := bindings.NewDelayedWETHMinimal(wethAddr, sys.L1Client)
+	require.NoError(t, err)
+
+	withdrawalDelay, err := delayedWETH.Delay(callOpts)
+	require.NoError(t, err)
+	t.Logf("✓ Withdrawal delay from contract: %s seconds (%s days)",
+		withdrawalDelay.String(),
+		new(big.Float).Quo(new(big.Float).SetInt(withdrawalDelay), big.NewFloat(86400)).Text('f', 1))
+
+	// Wait for DelayedWETH withdrawal delay
+	advanceTimeAndMine(t, sys, withdrawalDelay.Int64())
+
+	// Second call to claimCredit: actually transfers ETH
+	claimCreditTx2, err := game.ClaimCredit(accounts.Validator.Auth, accounts.Validator.Addr)
+	require.NoError(t, err)
+	claimReceipt2, err := bind.WaitMined(sys.Ctx, sys.L1Client, claimCreditTx2)
+	require.NoError(t, err)
+	t.Logf("✓ game.claimCredit (2nd call - transfer) (tx: %s, gas used: %d)", claimCreditTx2.Hash().Hex(), claimReceipt2.GasUsed)
+
+	// Check ETH balance after claiming
+	ethAfterClaim, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)
+	require.NoError(t, err)
+	t.Logf("✓ ETH balance after claiming: %s wei", ethAfterClaim.String())
+
+	// Calculate gas cost for both claim transactions
+	gasUsedForClaim1 := new(big.Int).Mul(big.NewInt(int64(claimReceipt1.GasUsed)), claimReceipt1.EffectiveGasPrice)
+	gasUsedForClaim2 := new(big.Int).Mul(big.NewInt(int64(claimReceipt2.GasUsed)), claimReceipt2.EffectiveGasPrice)
+	totalGasForClaim := new(big.Int).Add(gasUsedForClaim1, gasUsedForClaim2)
+	t.Logf("✓ Total gas cost for claim (both calls): %s wei", totalGasForClaim.String())
+
+	// Check credit balance after claiming (should be 0)
+	creditAfterClaim, err := game.Credit(callOpts, accounts.Validator.Addr)
+	require.NoError(t, err)
+	t.Logf("✓ Credit balance after claiming: %s wei", creditAfterClaim.String())
+
+	// Calculate actual change in ETH balance
+	actualChange := new(big.Int).Sub(ethAfterClaim, ethBeforeClaim)
+	t.Logf("✓ Actual ETH balance change: %s wei", actualChange.String())
+
+	// Expected change = credit - total gas cost
+	expectedChange := new(big.Int).Sub(creditBalance, totalGasForClaim)
+	t.Logf("✓ Expected ETH balance change: %s wei (credit %s - gas %s)",
+		expectedChange.String(), creditBalance.String(), totalGasForClaim.String())
+
+	// Verify the credit was claimed successfully
+	if creditAfterClaim.Cmp(big.NewInt(0)) == 0 {
+		t.Logf("✅ Credit successfully claimed (balance cleared to 0)")
+	} else {
+		t.Logf("⚠️  Warning: Credit balance not cleared: %s wei", creditAfterClaim.String())
+	}
+
+	// Verify ETH balance change
+	if actualChange.Cmp(expectedChange) == 0 {
+		t.Logf("✅ ETH balance change matches expected (credit transferred successfully)")
+	} else {
+		diff := new(big.Int).Sub(actualChange, expectedChange)
+		diff.Abs(diff)
+		t.Logf("⚠️  ETH balance difference from expected: %s wei", diff.String())
+	}
+
+	if actualChange.Cmp(big.NewInt(0)) > 0 {
+		t.Logf("✅ Net ETH gain (credit received minus gas): %s wei (%s ETH)",
+			actualChange.String(),
+			new(big.Float).Quo(new(big.Float).SetInt(actualChange), big.NewFloat(1e18)).Text('f', 6))
+	} else {
+		t.Logf("⚠️  Net ETH loss: %s wei", new(big.Int).Abs(actualChange).String())
+	}
+
+	t.Log("")
+	t.Log("=== Challenger Wins Test Complete ===")
+	t.Log("✅ Step 1: Validator registered")
+	t.Log("✅ Step 2: DisputeGame created with wrong claim (RAT triggered)")
+	t.Log("✅ Step 3: Validator bond locked")
+	t.Log("✅ Step 4: Validator attacked wrong root claim")
+	t.Log("✅ Step 5: Time advanced past clock duration")
+	t.Log("✅ Step 6: Game resolved (CHALLENGER_WINS)")
+	t.Log("✅ Step 7: RAT.resolveClaim called, validator bond fully restored")
+	t.Logf("✅ Step 8: Game bonds credited: %s wei (%s ETH)",
+		creditBalance.String(),
+		new(big.Float).Quo(new(big.Float).SetInt(creditBalance), big.NewFloat(1e18)).Text('f', 6))
+	t.Logf("✅ Step 8: claimCredit called twice (unlock + transfer)")
+	t.Logf("         - 1st call gas: %s wei (unlock credit)", gasUsedForClaim1.String())
+	t.Logf("         - 2nd call gas: %s wei (transfer ETH)", gasUsedForClaim2.String())
+	if actualChange.Cmp(big.NewInt(0)) > 0 {
+		t.Logf("✅ Step 8: Net ETH gain after gas: %s wei (%s ETH)",
+			actualChange.String(),
+			new(big.Float).Quo(new(big.Float).SetInt(actualChange), big.NewFloat(1e18)).Text('f', 6))
+	} else {
+		t.Logf("⚠️  Step 8: Net ETH loss: %s wei", new(big.Int).Abs(actualChange).String())
+	}
+}

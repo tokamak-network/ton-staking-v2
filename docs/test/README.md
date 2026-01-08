@@ -34,7 +34,9 @@ make test  # Run E2E tests (requires genesis)
 
 ### E2E Tests (Go)
 - **Run:** `make test-e2e` (from project root) or `cd op-e2e && make test`
-- **Total:** 3 tests
+- **Total:** 7 tests (3 system + 4 RAT scenario)
+- **Duration:** ~21 seconds (parallel)
+- **Code:** `op-e2e/faultproofs/` - Main tests with reusable helper functions
 - **Guide:** [e2e-tests.md](./e2e-tests.md)
 
 ## Documentation
