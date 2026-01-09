@@ -104,9 +104,11 @@ contract DeployV3FullForDevnet is Script {
 
     // RAT parameters (Testing-optimized)
     uint256 constant RAT_TRIGGER_PROBABILITY = RAY; // 100% for testing (always trigger)
-    uint256 constant RAT_SLASHING_PENALTY = 100 * RAY; // 100 WTON
-    uint256 constant RAT_VALIDATOR_BUFFER = 100 * RAY; // 100 WTON
-    uint256 constant RAT_MINIMUM_THRESHOLD = 200 * RAY; // 200 WTON (D_min)
+    // minimum collateral = slashingPenalty + validatorBuffer = 10 + 90 = 100 TON
+    // Values in TON wei (1e18) to match deposit units
+    uint256 constant RAT_SLASHING_PENALTY = 10 * 1e18; // 10 TON (penalty kept small)
+    uint256 constant RAT_VALIDATOR_BUFFER = 90 * 1e18; // 90 TON
+    uint256 constant RAT_MINIMUM_THRESHOLD = 200 * 1e18; // 200 TON (D_min)
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
@@ -774,7 +776,19 @@ contract DeployV3FullForDevnet is Script {
     function _mintTestTokens() internal {
         console.log("--- Step 12: Mint Test Tokens ---");
 
-        address[4] memory testAccounts = [DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER];
+        // Include all Anvil test accounts for E2E testing
+        address[10] memory testAccounts = [
+            OPTIMISM_DEPLOYER, // Account #0
+            DEPLOYER,          // Account #1
+            PROXY_ADMIN,       // Account #2
+            VALIDATOR,         // Account #3
+            PROPOSER,          // Account #4
+            CHALLENGER,        // Account #5
+            0x976EA74026E726554dB657fA54763abd0C3a0aa9, // Account #6
+            0x14dC79964da2C08b23698B3D3cc7Ca32193d9955, // Account #7
+            0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f, // Account #8
+            0xa0Ee7A142d267C1f36714E4a8F75612F20a79720  // Account #9
+        ];
 
         for (uint256 i = 0; i < testAccounts.length; i++) {
             // Mint TON (18 decimals)
@@ -784,11 +798,8 @@ contract DeployV3FullForDevnet is Script {
             MockWTON(wton).mint(testAccounts[i], 100000 * RAY);
         }
 
-        console.log("Minted 100,000 TON and 100,000 WTON to each test account:");
-        console.log("  - DEPLOYER:", DEPLOYER);
-        console.log("  - VALIDATOR:", VALIDATOR);
-        console.log("  - PROPOSER:", PROPOSER);
-        console.log("  - CHALLENGER:", CHALLENGER);
+        console.log("Minted 100,000 TON and 100,000 WTON to 10 Anvil test accounts");
+        console.log("  Including: OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, and 5 more");
         console.log("");
     }
 
