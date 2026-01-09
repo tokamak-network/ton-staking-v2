@@ -181,13 +181,14 @@ interface IRAT {
     ) external;
 
     /// @notice RAT 증거 제출
-    /// @param systemConfig L2의 SystemConfig 주소
-    /// @param batchIndex 배치 인덱스
-    /// @param evidence 증거 데이터
+    /// @dev V3: 증거 타입별 검증 지원 (FraudProof, StateLeaf)
+    /// @param testId RAT 테스트 ID
+    /// @param evidenceType 증거 타입 (0: FraudProof, 1: StateLeaf)
+    /// @param evidenceData 증거 데이터
     function submitEvidence(
-        address systemConfig,
-        uint32 batchIndex,
-        bytes calldata evidence
+        bytes32 testId,
+        uint8 evidenceType,
+        bytes calldata evidenceData
     ) external;
 
     /// @notice FaultDisputeGame에서 게임 해결 시 호출 (챌린저 승리 시 담보금 복구)

@@ -46,6 +46,7 @@ contract RATStorage {
         address validatorAddress;       // 선택된 검증자
         address systemConfig;           // L2 SystemConfig 주소
         uint32 batchIndex;              // 배치 인덱스
+        address gameAddress;            // DisputeGame 주소 (rootClaim 조회용)
         bytes32 batchHash;              // 배치 해시
         uint256 bondAmount;             // 선차감된 담보금 (C_off)
         uint256 createdAt;              // 생성 시간

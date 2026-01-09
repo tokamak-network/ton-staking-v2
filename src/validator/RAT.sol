@@ -8,6 +8,8 @@ import {IRAT} from "./IRAT.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {IOnApprove} from "../stake/interfaces/IOnApprove.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
+import {Type3EvidenceVerifier} from "./libraries/Type3EvidenceVerifier.sol";
+import {IDisputeGame} from "./interfaces/IDisputeGame.sol";
 
 // Custom Errors
 error AlreadyRegisteredError();
@@ -157,6 +159,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
             address validatorAddress,
             address systemConfig,
             uint32 batchIndex,
+            address gameAddress,
             bytes32 batchHash,
             uint256 bondAmount,
             uint256 createdAt,
@@ -169,6 +172,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
             test.validatorAddress,
             test.systemConfig,
             test.batchIndex,
+            test.gameAddress,
             test.batchHash,
             test.bondAmount,
             test.createdAt,
@@ -445,6 +449,7 @@ contract RAT is RATStorage, IRAT, IOnApprove {
             validatorAddress: selectedValidator,
             systemConfig: systemConfig,
             batchIndex: batchIndex,
+            gameAddress: gameAddress,
             batchHash: batchHash,
             bondAmount: bondAmount,
             createdAt: block.timestamp,
@@ -467,39 +472,38 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     }
 
     /// @inheritdoc IRAT
+    /// @dev V3: 증거 타입별 검증 지원 (FraudProof, StateLeaf)
     function submitEvidence(
-        address systemConfig,
-        uint32 batchIndex,
-        bytes calldata evidence
+        bytes32 testId,
+        uint8 evidenceType,
+        bytes calldata evidenceData
     ) external ifFree whenNotPaused {
-        bytes32 testId = batchToTestId[systemConfig][batchIndex];
         if (testId == bytes32(0)) revert TestNotFoundError();
 
         AttentionTest storage test = attentionTests[testId];
-
         if (test.validatorAddress != msg.sender) revert NotSelectedValidatorError();
         if (test.status != AttentionTestStatus.Pending) revert TestAlreadyRespondedError();
         if (block.timestamp > test.deadline) revert DeadlinePassedError();
 
-        // 증거 검증 (TODO: 실제 증거 검증 로직)
-        // 현재는 제출 자체만으로 성공으로 처리
-        _verifyEvidence(test.batchHash, evidence);
+        // 증거 검증 (롤업 타입별 + 증거 타입별 라이브러리 사용)
+        bool isValid = _verifyEvidence(test.systemConfig, testId, test.batchHash, evidenceType, evidenceData);
+        require(isValid, "Evidence verification failed");
 
         // 담보금 복구
-        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+        ValidatorRegistration storage reg = validatorRegistrations[test.systemConfig][msg.sender];
         reg.depositedAmount += test.bondAmount;
         reg.totalBondForRAT -= test.bondAmount;
 
         test.status = AttentionTestStatus.Responded;
-        activeTestCount[systemConfig]--;
+        activeTestCount[test.systemConfig]--;
 
         // 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
         if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
-            _restoreValidator(systemConfig, msg.sender, reg);
-            emit ValidatorRestored(msg.sender, systemConfig);
+            _restoreValidator(test.systemConfig, msg.sender, reg);
+            emit ValidatorRestored(msg.sender, test.systemConfig);
         }
 
-        emit EvidenceSubmitted(testId, msg.sender, systemConfig, batchIndex);
+        emit EvidenceSubmitted(testId, msg.sender, test.systemConfig, test.batchIndex);
     }
 
     /// @inheritdoc IRAT
@@ -571,16 +575,71 @@ contract RAT is RATStorage, IRAT, IOnApprove {
         return address(0);
     }
 
-    /// @notice 증거 검증
-    function _verifyEvidence(bytes32 batchHash, bytes calldata evidence)
-        internal
-        pure
-        returns (bool)
-    {
-        // TODO: 실제 증거 검증 로직 구현
-        // Optimism RAT에서는 stateRoot의 left/right 자식 해시를 검증
-        // 현재는 제출 자체만으로 통과
-        return evidence.length > 0;
+    /// @notice 증거 검증 (롤업 타입별 + 증거 타입별 라이브러리 사용)
+    /// @dev systemConfig의 롤업 타입과 evidenceType에 따라 적절한 검증 라이브러리를 호출
+    /// @param systemConfig SystemConfig 주소 (롤업 타입 확인용)
+    /// @param testId RAT 테스트 ID
+    /// @param batchHash 예상 output root (FraudProof 검증용)
+    /// @param evidenceType 증거 타입 (0: FraudProof, 1: StateLeaf)
+    /// @param evidenceData 증거 데이터 (타입별로 다른 구조)
+    /// @return 검증 성공 여부
+    function _verifyEvidence(
+        address systemConfig,
+        bytes32 testId,
+        bytes32 batchHash,
+        uint8 evidenceType,
+        bytes calldata evidenceData
+    ) internal view returns (bool) {
+        // Evidence 데이터가 비어있으면 실패
+        if (evidenceData.length == 0) {
+            return false;
+        }
+
+        // SystemConfig의 롤업 타입 조회
+        uint8 rollupType = _getRollupType(systemConfig);
+
+        // Type 1 (LEGACY), Type 2 (OPTIMISM_BEDROCK): RAT 미사용
+        if (rollupType == 1 || rollupType == 2) {
+            revert("RAT not supported for this rollup type");
+        }
+
+        // Type 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME)
+        if (rollupType == 3) {
+            // Evidence type 0: FraudProof (batch derivation)
+            if (evidenceType == 0) {
+                return Type3EvidenceVerifier.verify(batchHash, evidenceData);
+            }
+            // Evidence type 1: StateLeaf (adjacent leaves)
+            else if (evidenceType == 1) {
+                // DisputeGame에서 rootClaim 조회
+                AttentionTest storage test = attentionTests[testId];
+                bytes32 rootClaim = IDisputeGame(test.gameAddress).rootClaim();
+
+                // rootClaim과 함께 검증 (State Root as Target)
+                return Type3EvidenceVerifier.verifyStateLeaf(rootClaim, evidenceData);
+            }
+            else {
+                revert("Unsupported evidence type");
+            }
+        }
+
+        // 미래 타입 (Type 4, 5, ...): 여기에 추가
+        // if (rollupType == 4) {
+        //     return Type4EvidenceVerifier.verify(batchHash, evidenceData);
+        // }
+
+        // 지원하지 않는 타입
+        revert("Unsupported rollup type");
+    }
+
+    /// @notice SystemConfig의 롤업 타입 조회
+    /// @dev L1BridgeRegistry에서 SystemConfig의 롤업 타입을 조회
+    /// @param systemConfig SystemConfig 주소 (rollupConfig)
+    /// @return 롤업 타입 (1: LEGACY, 2: OPTIMISM_BEDROCK, 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME, ...)
+    function _getRollupType(address systemConfig) internal view returns (uint8) {
+        // L1BridgeRegistry에서 rollupType 조회
+        IL1BridgeRegistry registry = IL1BridgeRegistry(l1BridgeRegistry);
+        return registry.rollupType(systemConfig);
     }
 
     /// @notice 검증자 제거
