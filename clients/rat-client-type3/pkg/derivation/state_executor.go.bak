@@ -1,0 +1,338 @@
+package derivation
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+)
+
+// L2BlockResult represents the result of executing a batch
+type L2BlockResult struct {
+	BlockNumber uint64
+	BlockHash   common.Hash
+	StateRoot   common.Hash
+	Timestamp   uint64
+	ParentHash  common.Hash
+	Transactions types.Transactions
+}
+
+// StateExecutor executes batches to derive L2 state
+// HYBRID APPROACH:
+// - Starts from finalized state root (L1 verified = trustless)
+// - Uses L2 RPC for state data (MVP, TODO: add proof verification)
+// - Executes batches from L1 (trustless)
+type StateExecutor struct {
+	l1Client *ethclient.Client
+	l2Client *ethclient.Client
+}
+
+// NewStateExecutor creates a new state executor
+func NewStateExecutor(l1RPCURL, l2RPCURL string) (*StateExecutor, error) {
+	l1Client, err := ethclient.Dial(l1RPCURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to L1: %w", err)
+	}
+
+	l2Client, err := ethclient.Dial(l2RPCURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to L2: %w", err)
+	}
+
+	return &StateExecutor{
+		l1Client: l1Client,
+		l2Client: l2Client,
+	}, nil
+}
+
+// GetFinalizedL2Block gets the finalized L2 block as starting point
+// TODO: Query DisputeGameFactory for finalized output
+func (e *StateExecutor) GetFinalizedL2Block(ctx context.Context) (*L2BlockResult, error) {
+	// TODO: Implement actual finalized block lookup from L1 DisputeGameFactory
+	// For now, use a placeholder (e.g., safe block from L2)
+
+	// Get L2 "safe" block as approximation
+	header, err := e.l2Client.HeaderByNumber(ctx, big.NewInt(-4)) // -4 = safe block
+	if err != nil {
+		return nil, fmt.Errorf("failed to get safe L2 block: %w", err)
+	}
+
+	return &L2BlockResult{
+		BlockNumber: header.Number.Uint64(),
+		BlockHash:   header.Hash(),
+		StateRoot:   header.Root,
+		Timestamp:   header.Time,
+		ParentHash:  header.ParentHash,
+	}, nil
+}
+
+// ExecuteBatch executes a batch to derive the next L2 block
+// HYBRID APPROACH:
+// - Compares L2 block from L2 RPC with expected batch data
+// - Verifies timestamp, parent hash, transactions match
+// - TODO: Full EVM execution for complete trustless verification
+func (e *StateExecutor) ExecuteBatch(
+	ctx context.Context,
+	parentBlock *L2BlockResult,
+	batch *SingularBatch,
+) (*L2BlockResult, error) {
+	expectedBlockNum := parentBlock.BlockNumber + 1
+
+	// Fetch L2 block from L2 RPC
+	l2Block, err := e.l2Client.BlockByNumber(ctx, big.NewInt(int64(expectedBlockNum)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get L2 block %d: %w", expectedBlockNum, err)
+	}
+
+	// Verify batch consistency with L2 block
+	if err := e.verifyBatchConsistency(batch, l2Block); err != nil {
+		return nil, fmt.Errorf("batch consistency check failed: %w", err)
+	}
+
+	// Extract result
+	// MVP: Trust L2 RPC for state root
+	// TODO: Implement full EVM execution to derive state root trustlessly
+	result := &L2BlockResult{
+		BlockNumber:  l2Block.NumberU64(),
+		BlockHash:    l2Block.Hash(),
+		StateRoot:    l2Block.Root(),
+		Timestamp:    l2Block.Time(),
+		ParentHash:   l2Block.ParentHash(),
+		Transactions: l2Block.Transactions(),
+	}
+
+	return result, nil
+}
+
+// verifyBatchConsistency verifies that batch data matches L2 block
+func (e *StateExecutor) verifyBatchConsistency(batch *SingularBatch, l2Block *types.Block) error {
+	// Verify timestamp
+	if batch.Timestamp != l2Block.Time() {
+		return fmt.Errorf("timestamp mismatch: batch=%d, L2block=%d", batch.Timestamp, l2Block.Time())
+	}
+
+	// Verify parent hash
+	if batch.ParentHash != l2Block.ParentHash() {
+		return fmt.Errorf("parent hash mismatch: batch=%s, L2block=%s",
+			batch.ParentHash.Hex(), l2Block.ParentHash().Hex())
+	}
+
+	// Verify transaction count
+	if len(batch.Transactions) != len(l2Block.Transactions()) {
+		return fmt.Errorf("tx count mismatch: batch=%d, L2block=%d",
+			len(batch.Transactions), len(l2Block.Transactions()))
+	}
+
+	// Verify individual transactions match
+	for i, batchTx := range batch.Transactions {
+		l2Tx := l2Block.Transactions()[i]
+
+		// Compare RLP-encoded transaction bytes
+		l2TxBytes, err := l2Tx.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("failed to marshal L2 tx %d: %w", i, err)
+		}
+
+		if !bytes.Equal(batchTx, l2TxBytes) {
+			return fmt.Errorf("tx %d mismatch: batch tx != L2 block tx", i)
+		}
+	}
+
+	return nil
+}
+
+// ExecuteBatchTrustless executes a batch with full EVM execution
+// FULLY TRUSTLESS: Uses state proofs to verify data from L2 RPC
+//
+// Approach:
+// 1. Get finalized state root from L1 (trustless)
+// 2. For each account/storage accessed during execution:
+//    - Fetch state data + Merkle proof from L2 RPC
+//    - Verify proof against finalized state root
+//    - If proof valid, state data is trustless
+// 3. Execute batch with EVM using verified state
+// 4. Compute new state root
+//
+// L2 RPC can lie about state data, but cannot forge valid Merkle proofs!
+func (e *StateExecutor) ExecuteBatchTrustless(
+	ctx context.Context,
+	parentStateRoot common.Hash,
+	parentHeader *types.Header,
+	batch *SingularBatch,
+) (*L2BlockResult, error) {
+	// Create EVM executor
+	chainID := big.NewInt(902) // TODO: Get from config
+	evmExec := NewEVMExecutor(chainID)
+
+	// Step 1: Open state DB with proof-based backend
+	// This creates a state DB that verifies all data against parentStateRoot
+	stateDB, err := e.openStateDBWithProofs(ctx, parentStateRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open state DB: %w", err)
+	}
+
+	// Step 2: Create L1 attributes deposit transaction (Optimism-specific)
+	l1AttrTx, err := evmExec.createL1AttributesDepositTx(batch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create L1 attributes tx: %w", err)
+	}
+
+	// Prepend L1 attributes tx to batch transactions
+	allTxs := make([]*types.Transaction, 0, len(batch.Transactions)+1)
+	allTxs = append(allTxs, l1AttrTx)
+
+	// Decode batch transactions
+	for _, txBytes := range batch.Transactions {
+		tx := new(types.Transaction)
+		if err := tx.UnmarshalBinary(txBytes); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal tx: %w", err)
+		}
+		allTxs = append(allTxs, tx)
+	}
+
+	// Step 3: Execute all transactions with EVM
+	receipts := make([]*types.Receipt, 0, len(allTxs))
+	var gasUsed uint64
+
+	for i, tx := range allTxs {
+		receipt, err := evmExec.applyTransaction(
+			stateDB,
+			parentHeader,
+			tx,
+			&gasUsed,
+			evmExec.vmConfig,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply tx %d: %w", i, err)
+		}
+		receipts = append(receipts, receipt)
+	}
+
+	// Step 4: Finalize state (compute new state root)
+	newStateRoot, err := evmExec.FinalizeState(stateDB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to finalize state: %w", err)
+	}
+
+	// Step 5: Build L2 block header
+	header, err := evmExec.BuildBlockHeader(
+		batch,
+		parentHeader,
+		newStateRoot,
+		receipts,
+		allTxs,
+		gasUsed,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build header: %w", err)
+	}
+
+	// Step 6: Return result
+	result := &L2BlockResult{
+		BlockNumber:  header.Number.Uint64(),
+		BlockHash:    header.Hash(),
+		StateRoot:    newStateRoot,
+		Timestamp:    header.Time,
+		ParentHash:   header.ParentHash,
+		Transactions: allTxs,
+	}
+
+	return result, nil
+}
+
+// openStateDBWithProofs opens a state DB that verifies all data with Merkle proofs
+// This makes the state DB trustless even when fetching from untrusted L2 RPC
+func (e *StateExecutor) openStateDBWithProofs(
+	ctx context.Context,
+	stateRoot common.Hash,
+) (*state.StateDB, error) {
+	// TODO: Implement proof-verified state DB
+	//
+	// This requires:
+	// 1. Create a custom state.Database implementation
+	// 2. On each state access (GetAccount, GetStorage):
+	//    a. Fetch data + Merkle proof from L2 RPC via eth_getProof
+	//    b. Verify proof against stateRoot
+	//    c. If valid, cache and return data
+	//    d. If invalid, reject (L2 RPC lied!)
+	// 3. Build state.StateDB on top of this proof-verified backend
+	//
+	// This way, even if L2 RPC is malicious, it cannot provide
+	// invalid state data because proofs are verified against
+	// the finalized state root from L1.
+
+	return nil, fmt.Errorf("proof-verified state DB not yet implemented")
+}
+
+// GetWithdrawalStorageRoot gets the L2ToL1MessagePasser storage root
+func (e *StateExecutor) GetWithdrawalStorageRoot(
+	ctx context.Context,
+	blockHash common.Hash,
+	l2ToL1MessagePasser common.Address,
+) (common.Hash, error) {
+	// Call eth_getProof to get account proof for L2ToL1MessagePasser
+	// The storage root is in the account proof
+
+	// Create block number parameter from hash
+	// We need to use block hash for precise state lookup
+	blockNum, err := e.getBlockNumberByHash(ctx, blockHash)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to get block number: %w", err)
+	}
+
+	// Call eth_getProof RPC method
+	type AccountResult struct {
+		Address      common.Address  `json:"address"`
+		Balance      *big.Int        `json:"balance"`
+		CodeHash     common.Hash     `json:"codeHash"`
+		Nonce        uint64          `json:"nonce"`
+		StorageHash  common.Hash     `json:"storageHash"` // This is what we need!
+		AccountProof []string        `json:"accountProof"`
+		StorageProof []StorageResult `json:"storageProof"`
+	}
+
+	type StorageResult struct {
+		Key   string   `json:"key"`
+		Value *big.Int `json:"value"`
+		Proof []string `json:"proof"`
+	}
+
+	var result AccountResult
+	err = e.l2Client.Client().CallContext(
+		ctx,
+		&result,
+		"eth_getProof",
+		l2ToL1MessagePasser,
+		[]string{}, // No specific storage keys needed, just account proof
+		fmt.Sprintf("0x%x", blockNum),
+	)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("eth_getProof call failed: %w", err)
+	}
+
+	// StorageHash is the storage root we need
+	return result.StorageHash, nil
+}
+
+// getBlockNumberByHash gets block number from block hash
+func (e *StateExecutor) getBlockNumberByHash(ctx context.Context, blockHash common.Hash) (uint64, error) {
+	header, err := e.l2Client.HeaderByHash(ctx, blockHash)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get header by hash: %w", err)
+	}
+	return header.Number.Uint64(), nil
+}
+
+// Close closes the RPC connections
+func (e *StateExecutor) Close() {
+	if e.l1Client != nil {
+		e.l1Client.Close()
+	}
+	if e.l2Client != nil {
+		e.l2Client.Close()
+	}
+}

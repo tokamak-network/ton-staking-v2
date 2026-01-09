@@ -1,0 +1,265 @@
+package verification
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/tokamak-network/ton-staking-v2/clients/rat-client-type3/pkg/derivation"
+)
+
+// HybridVerifier combines multiple verification strategies
+// for maximum reliability and trustlessness
+//
+// Verification Strategy Hierarchy:
+// 1. Local Stateless Executor (Primary) ⚡⚡ 100% trustless
+//    - Uses locally synced L2 state built from L1 batches
+//    - Fastest (1-5 minutes)
+//    - Requires background sync
+//
+// 2. L2 RPC with Proof Verification (Fallback) ⚡ Trustless with cooperation
+//    - Uses ProofVerifiedStateDB with eth_getProof
+//    - Fast (10-30 minutes)
+//    - Requires L2 RPC cooperation
+//    - Can detect lies but vulnerable to DoS
+//
+// 3. Checkpoint-based Execution (Emergency) 🐌 100% trustless
+//    - Executes from nearest finalized checkpoint
+//    - Slow (1-2 hours depending on checkpoint distance)
+//    - Pure L1 data, no L2 RPC needed
+//
+// 4. DisputeGame (Ultimate Fallback) 🐌🐌 100% trustless
+//    - RAT timeout → participate in 7-day dispute game
+//    - Interactive bisection game
+//    - Guaranteed bond recovery if honest
+type HybridVerifier struct {
+	// Primary: Stateless executor (100% trustless)
+	statelessExecutor *derivation.StatelessExecutor
+
+	// Fallback: Proof-verified L2 RPC
+	proofVerifier *TrustlessVerifier
+
+	// Emergency: Checkpoint-based
+	checkpointVerifier *CheckpointVerifier
+
+	// Config
+	preferStateless      bool          // Prefer stateless even if slower
+	l2RPCTimeout         time.Duration // Max time to wait for L2 RPC
+	checkpointMaxBlocks  uint64        // Max blocks to execute from checkpoint
+	allowCheckpointFallback bool
+}
+
+// VerificationStrategy indicates which strategy was used
+type VerificationStrategy string
+
+const (
+	StrategyStateless   VerificationStrategy = "stateless_executor"   // Local L1-only execution
+	StrategyProofVerify VerificationStrategy = "proof_verified_l2rpc" // L2 RPC with proofs
+	StrategyCheckpoint  VerificationStrategy = "checkpoint_based"     // Checkpoint execution
+	StrategyFailed      VerificationStrategy = "failed"               // All strategies failed
+)
+
+// HybridVerificationResult contains the verification result and metadata
+type HybridVerificationResult struct {
+	// Result
+	ComputedStateRoot  common.Hash
+	ComputedOutputRoot common.Hash
+	IsValid            bool
+
+	// Metadata
+	Strategy      VerificationStrategy
+	ExecutionTime time.Duration
+	BlocksExecuted uint64
+
+	// Diagnostics
+	StatelessAvailable   bool
+	StatelessError       error
+	ProofVerifyError     error
+	CheckpointError      error
+}
+
+// NewHybridVerifier creates a new hybrid verifier
+func NewHybridVerifier(
+	statelessExecutor *derivation.StatelessExecutor,
+	proofVerifier *TrustlessVerifier,
+	checkpointVerifier *CheckpointVerifier,
+	preferStateless bool,
+) *HybridVerifier {
+	return &HybridVerifier{
+		statelessExecutor:   statelessExecutor,
+		proofVerifier:       proofVerifier,
+		checkpointVerifier:  checkpointVerifier,
+		preferStateless:     preferStateless,
+		l2RPCTimeout:        30 * time.Minute,
+		checkpointMaxBlocks: 10000, // Max 10k blocks from checkpoint
+		allowCheckpointFallback: true,
+	}
+}
+
+// VerifyBatch verifies a batch using the best available strategy
+func (v *HybridVerifier) VerifyBatch(
+	ctx context.Context,
+	targetL2Block uint64,
+	claimedOutputRoot common.Hash,
+) (*HybridVerificationResult, error) {
+	startTime := time.Now()
+	result := &HybridVerificationResult{}
+
+	// Strategy 1: Try local stateless executor first (if available)
+	if v.statelessExecutor != nil {
+		stateRoot, err := v.statelessExecutor.VerifyStateRoot(ctx, targetL2Block)
+		if err == nil {
+			// Success! Fastest and most trustless
+			result.ComputedStateRoot = stateRoot
+			result.Strategy = StrategyStateless
+			result.ExecutionTime = time.Since(startTime)
+			result.StatelessAvailable = true
+
+			// TODO: Compute output root from state root
+			// result.ComputedOutputRoot = ...
+
+			result.IsValid = (result.ComputedOutputRoot == claimedOutputRoot)
+			return result, nil
+		}
+
+		// Stateless executor failed (probably not synced yet)
+		result.StatelessError = err
+		result.StatelessAvailable = false
+
+		// If we prefer stateless and it's just behind, try to catch up
+		if v.preferStateless && v.statelessExecutor.IsSynced(targetL2Block-100) {
+			// We're close! Try to catch up
+			estimatedTime := v.statelessExecutor.EstimateCatchUpTime(targetL2Block)
+			if estimatedTime < 30*time.Minute {
+				fmt.Printf("Catching up to block %d (estimated %v)...\n", targetL2Block, estimatedTime)
+				if err := v.statelessExecutor.CatchUp(ctx, targetL2Block); err == nil {
+					// Retry after catch-up
+					stateRoot, err := v.statelessExecutor.VerifyStateRoot(ctx, targetL2Block)
+					if err == nil {
+						result.ComputedStateRoot = stateRoot
+						result.Strategy = StrategyStateless
+						result.ExecutionTime = time.Since(startTime)
+						result.StatelessAvailable = true
+						result.IsValid = (result.ComputedOutputRoot == claimedOutputRoot)
+						return result, nil
+					}
+				}
+			}
+		}
+	}
+
+	// Strategy 2: Try L2 RPC with proof verification (requires cooperation)
+	if v.proofVerifier != nil {
+		fmt.Println("Stateless executor not available, trying L2 RPC with proof verification...")
+
+		l2RPCCtx, cancel := context.WithTimeout(ctx, v.l2RPCTimeout)
+		defer cancel()
+
+		// TODO: Implement proof verification using TrustlessVerifier
+		// This will use ProofVerifiedStateDB with eth_getProof
+		_ = l2RPCCtx
+
+		// Placeholder for now
+		result.ProofVerifyError = fmt.Errorf("proof verification not yet implemented")
+	}
+
+	// Strategy 3: Try checkpoint-based execution (slower but trustless)
+	if v.allowCheckpointFallback && v.checkpointVerifier != nil {
+		fmt.Println("L2 RPC failed, trying checkpoint-based execution...")
+
+		checkpoint, distance := v.checkpointVerifier.FindNearestCheckpoint(targetL2Block)
+		if checkpoint != nil && distance <= v.checkpointMaxBlocks {
+			fmt.Printf("Found checkpoint at block %d, executing %d blocks...\n", checkpoint.BlockNumber, distance)
+
+			stateRoot, err := v.checkpointVerifier.ExecuteFromCheckpoint(
+				ctx,
+				checkpoint,
+				targetL2Block,
+			)
+			if err == nil {
+				result.ComputedStateRoot = stateRoot
+				result.Strategy = StrategyCheckpoint
+				result.ExecutionTime = time.Since(startTime)
+				result.BlocksExecuted = distance
+
+				// TODO: Compute output root
+				result.IsValid = (result.ComputedOutputRoot == claimedOutputRoot)
+				return result, nil
+			}
+
+			result.CheckpointError = err
+		} else {
+			result.CheckpointError = fmt.Errorf("no suitable checkpoint found (nearest is %d blocks away)", distance)
+		}
+	}
+
+	// All strategies failed
+	result.Strategy = StrategyFailed
+	result.ExecutionTime = time.Since(startTime)
+
+	return result, fmt.Errorf(
+		"all verification strategies failed: stateless=%v, proofVerify=%v, checkpoint=%v",
+		result.StatelessError,
+		result.ProofVerifyError,
+		result.CheckpointError,
+	)
+}
+
+// GetRecommendedStrategy returns the recommended strategy based on current state
+func (v *HybridVerifier) GetRecommendedStrategy(targetL2Block uint64) VerificationStrategy {
+	// Check if stateless executor is synced
+	if v.statelessExecutor != nil && v.statelessExecutor.IsSynced(targetL2Block) {
+		return StrategyStateless
+	}
+
+	// Check if catch-up is feasible
+	if v.statelessExecutor != nil {
+		estimatedTime := v.statelessExecutor.EstimateCatchUpTime(targetL2Block)
+		if estimatedTime < 20*time.Minute {
+			return StrategyStateless // Worth catching up
+		}
+	}
+
+	// Fall back to proof verification
+	return StrategyProofVerify
+}
+
+// CheckpointVerifier handles checkpoint-based verification
+type CheckpointVerifier struct {
+	// TODO: Implement checkpoint-based verification
+	// This will:
+	// 1. Query DisputeGameFactory for finalized checkpoints
+	// 2. Find nearest checkpoint before target block
+	// 3. Execute batches from checkpoint to target
+}
+
+// Checkpoint represents a finalized L2 state checkpoint
+type Checkpoint struct {
+	BlockNumber uint64
+	StateRoot   common.Hash
+	OutputRoot  common.Hash
+	L1Block     uint64
+	Finalized   bool
+}
+
+// FindNearestCheckpoint finds the nearest finalized checkpoint before target
+func (c *CheckpointVerifier) FindNearestCheckpoint(targetBlock uint64) (*Checkpoint, uint64) {
+	// TODO: Query DisputeGameFactory for finalized games
+	// Return nearest checkpoint and distance to target
+	return nil, 0
+}
+
+// ExecuteFromCheckpoint executes batches from checkpoint to target
+func (c *CheckpointVerifier) ExecuteFromCheckpoint(
+	ctx context.Context,
+	checkpoint *Checkpoint,
+	targetBlock uint64,
+) (common.Hash, error) {
+	// TODO: Implement checkpoint-based execution
+	// 1. Start with checkpoint state root
+	// 2. Fetch batches from L1 (checkpoint to target)
+	// 3. Execute batches
+	// 4. Return computed state root
+	return common.Hash{}, fmt.Errorf("checkpoint execution not yet implemented")
+}

@@ -1,0 +1,442 @@
+# Adjacent Leaves Approach - State Trie Verification
+
+## Overview
+
+The **Adjacent Leaves** approach is an alternative RAT verification method for Type 3 rollups that uses L2 state Patricia trie iteration instead of fraud proofs. This approach requires validators to prove they are running a full op-geth node with access to the complete state database.
+
+## Key Concept
+
+Instead of verifying L2 state by deriving it from L1 batches (fraud proof approach), validators demonstrate node operation by:
+
+1. **Accessing L2 State Database**: Direct read access to op-geth's state trie (requires full node)
+2. **Finding Adjacent Leaves**: Iterate the entire state Patricia trie to find two consecutive account entries
+3. **Generating Merkle Proofs**: Prove both leaves exist in the state root at a specific block
+
+## Why This Approach?
+
+### Advantages
+- **Simpler Implementation**: No need for complex batch decoding and EVM execution
+- **Proves Full Node Operation**: External RPC cannot iterate state trie (only `eth_getProof` for specific addresses)
+- **Faster Evidence Generation**: Direct database access vs full block re-execution
+- **Less Computation**: Reading existing state vs re-executing all transactions
+
+### Requirements
+- **Full op-geth Node**: Must run your own op-geth with state database access
+- **op-node in Follower Mode**: Syncs L2 state from L1 batch data (trustless)
+- **State DB Access**: Read permission to op-geth's `chaindata` directory
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────┐
+│                    L1 (Ethereum)                       │
+│                                                        │
+│  ┌──────────────┐                                     │
+│  │ Batch Inbox  │ ← L2 transaction batches            │
+│  └──────────────┘                                     │
+└────────────────────────────────────────────────────────┘
+         ▼
+┌────────────────────────────────────────────────────────┐
+│                 op-node (Follower)                     │
+│  - Derives L2 blocks from L1 batch data                │
+│  - Trustless source of L2 state                        │
+│  - Sends execution payloads to op-geth                 │
+└────────────────────────────────────────────────────────┘
+         ▼
+┌────────────────────────────────────────────────────────┐
+│                    op-geth                             │
+│  - Executes L2 blocks from op-node                     │
+│  - Stores state in Patricia trie (LevelDB)             │
+│  - Provides RPC for block headers                      │
+└────────────────────────────────────────────────────────┘
+         ▼
+┌────────────────────────────────────────────────────────┐
+│              RAT Client (Adjacent Leaves)              │
+│                                                        │
+│  1. Monitor L1 for AttentionTestTriggered              │
+│  2. Open op-geth state DB (direct read)                │
+│  3. Iterate state trie to find adjacent leaves         │
+│  4. Generate Merkle proofs for both leaves             │
+│  5. Submit evidence to L1                              │
+└────────────────────────────────────────────────────────┘
+```
+
+## Trust Model
+
+This approach is **fully trustless**:
+
+1. **L1 Batch Data**: Posted to L1 (trustless)
+2. **op-node Derivation**: Deterministic derivation from L1 batches (trustless)
+3. **op-geth Execution**: Deterministic EVM execution (trustless)
+4. **State Trie**: Cryptographically verified Patricia trie (trustless)
+5. **Merkle Proofs**: Cryptographic proof of leaf inclusion (trustless)
+
+**Key Point**: You MUST run your own op-node + op-geth. Using an external RPC defeats the purpose because:
+- External RPC cannot iterate state trie (only specific addresses via `eth_getProof`)
+- RAT client needs direct database access
+- Proves validator is running full infrastructure
+
+## Technical Details
+
+### State Patricia Trie
+
+Ethereum's state is stored in a Patricia Merkle Trie:
+
+```
+State Root (32 bytes hash)
+    │
+    ├─ Branch Node
+    │   ├─ Leaf: Account A (keccak256(address_A) → RLP(account_A))
+    │   ├─ Leaf: Account B (keccak256(address_B) → RLP(account_B))  ← Adjacent!
+    │   └─ ...
+    └─ ...
+```
+
+**Key Properties**:
+- **Keys**: `keccak256(address)` (sorted lexicographically)
+- **Values**: `RLP(nonce, balance, storageRoot, codeHash)`
+- **Iteration**: Trie iterator yields leaves in sorted key order
+- **Adjacency**: Two consecutive leaves in iteration order
+
+### Finding Adjacent Leaves
+
+Given a random value R (from RAT test):
+
+```go
+// 1. Get state root for target block
+stateRoot := GetStateRoot(blockNumber)
+
+// 2. Collect all leaves from state trie
+leaves := IterateStateTrie(stateRoot) // Sorted by key
+
+// 3. Binary search for position
+randomHash := BigToHash(randomValue)
+idx := BinarySearch(leaves, randomHash)
+
+// 4. Return adjacent pair
+leafA := leaves[idx-1]  // Key < randomValue
+leafB := leaves[idx]    // Key >= randomValue
+```
+
+**Edge Cases**:
+- If `randomValue` < all keys: Use first two leaves
+- If `randomValue` > all keys: Use last two leaves
+- Normal case: `leafA.key < randomValue <= leafB.key`
+
+### Evidence Structure
+
+```go
+type StateLeafEvidence struct {
+    // Leaf A (state trie account)
+    LeafAKey   [32]byte  // keccak256(address)
+    LeafAValue []byte    // RLP(nonce, balance, storageRoot, codeHash)
+    LeafAProof [][]byte  // Merkle proof nodes
+
+    // Leaf B (adjacent account)
+    LeafBKey   [32]byte
+    LeafBValue []byte
+    LeafBProof [][]byte
+
+    // State context
+    StateRoot   [32]byte
+    BlockNumber uint256
+}
+```
+
+**Verification on L1**:
+1. Verify `leafA.proof` → proves leafA in stateRoot
+2. Verify `leafB.proof` → proves leafB in stateRoot
+3. Check `leafA.key < randomValue <= leafB.key`
+4. Success → Validator has full state trie access
+
+## Implementation
+
+### Package Structure
+
+```
+clients/rat-client-type3/
+├── pkg/
+│   ├── l2sync/
+│   │   ├── state_trie.go           # Patricia trie iteration
+│   │   ├── synchronizer_state.go   # State DB access wrapper
+│   │   └── types.go                # Type definitions
+│   ├── evidence/
+│   │   └── state_leaf_evidence.go  # Evidence structure
+│   ├── client/
+│   │   ├── config.go               # Config with StateDBPath
+│   │   └── service_adjacent.go     # Service using state syncer
+│   └── submitter/
+│       └── adjacent_submitter.go   # Evidence submission
+└── docs/
+    └── ADJACENT_LEAVES_APPROACH.md # This document
+```
+
+### Key Components
+
+#### 1. StateSynchronizer (`synchronizer_state.go`)
+
+```go
+type StateSynchronizer struct {
+    stateDB ethdb.Database    // Direct access to op-geth state DB
+    l2RPC   *ethclient.Client // For block headers
+}
+
+// Find adjacent leaves in state trie for given block
+func (s *StateSynchronizer) FindAdjacentLeaves(
+    ctx context.Context,
+    randomValue *big.Int,
+    blockNumber uint64,
+) (*AdjacentLeaves, error)
+```
+
+**Key Methods**:
+- `FindAdjacentLeaves()`: Main entry point
+- `GetStateRoot()`: Get state root for block
+- `GetLatestBlockNumber()`: Check sync status
+
+#### 2. State Trie Iterator (`state_trie.go`)
+
+```go
+// Iterate all leaves in state trie
+func CollectAllLeaves(
+    db ethdb.Database,
+    stateRoot common.Hash,
+) ([]*StateTrieLeaf, error)
+
+// Find two adjacent leaves around random value
+func FindAdjacentLeavesInStateTrie(
+    db ethdb.Database,
+    stateRoot common.Hash,
+    randomValue *big.Int,
+) (*StateTrieLeaf, *StateTrieLeaf, error)
+
+// Generate Merkle proof for a leaf
+func GenerateStateProof(
+    db ethdb.Database,
+    stateRoot common.Hash,
+    leafKey common.Hash,
+) ([][]byte, error)
+```
+
+#### 3. State Leaf Evidence (`state_leaf_evidence.go`)
+
+```go
+type StateLeafEvidence struct {
+    LeafAKey, LeafAValue, LeafAProof
+    LeafBKey, LeafBValue, LeafBProof
+    StateRoot, BlockNumber
+}
+
+// Methods
+func (e *StateLeafEvidence) Encode() ([]byte, error)
+func (e *StateLeafEvidence) Validate() error
+func (e *StateLeafEvidence) VerifyRange(randomValue *big.Int) bool
+```
+
+## Configuration
+
+### Required Settings
+
+```yaml
+# L2 RPC (op-geth)
+l2_rpc_url: "http://localhost:8545"
+
+# State DB Path (REQUIRED for adjacent leaves)
+state_db_path: "/path/to/op-geth/chaindata"
+# Example: ~/.ethereum/optimism/geth/chaindata
+
+# Other settings...
+l1_rpc_url: "http://localhost:9545"
+rat_contract: "0x..."
+private_key: "0x..."
+```
+
+### State DB Path Discovery
+
+The state database is typically located at:
+
+```bash
+# Default op-geth data directory
+~/.ethereum/geth/chaindata
+
+# Custom data directory
+<datadir>/geth/chaindata
+
+# Optimism
+~/.ethereum/optimism/geth/chaindata
+
+# Docker
+/root/.ethereum/geth/chaindata
+```
+
+**To find it**:
+```bash
+# Check op-geth startup logs
+grep "Database" op-geth.log
+
+# Or check process
+ps aux | grep geth
+# Look for --datadir flag
+```
+
+## Verification Flow
+
+1. **Monitor L1**:
+   ```go
+   event := <-monitor.Events() // AttentionTestTriggered
+   randomValue := event.TestID
+   ```
+
+2. **Get Latest Block**:
+   ```go
+   blockNumber := stateSyncer.GetLatestBlockNumber()
+   ```
+
+3. **Find Adjacent Leaves**:
+   ```go
+   leaves := stateSyncer.FindAdjacentLeaves(ctx, randomValue, blockNumber)
+   // Returns: leafA, leafB, proofA, proofB, stateRoot
+   ```
+
+4. **Create Evidence**:
+   ```go
+   evidence := NewStateLeafEvidence(leaves)
+   ```
+
+5. **Submit to L1**:
+   ```go
+   receipt := submitter.SubmitEvidence(ctx, testID, randomValue, evidence)
+   ```
+
+## Setup Guide
+
+### 1. Run op-node (Follower Mode)
+
+```bash
+op-node \
+  --l1=http://localhost:9545 \
+  --l2=http://localhost:8545 \
+  --l2.jwt-secret=./jwt.txt \
+  --rollup.config=./rollup.json \
+  --rpc.addr=0.0.0.0 \
+  --rpc.port=9546
+```
+
+### 2. Run op-geth
+
+```bash
+op-geth \
+  --datadir=/data/optimism \
+  --http \
+  --http.addr=0.0.0.0 \
+  --http.port=8545 \
+  --authrpc.addr=0.0.0.0 \
+  --authrpc.port=8551 \
+  --authrpc.jwtsecret=./jwt.txt \
+  --syncmode=full \  # IMPORTANT: full mode required
+  --gcmode=archive   # Recommended for historical state access
+```
+
+### 3. Run RAT Client
+
+```bash
+./bin/rat-client \
+  --l1-rpc=http://localhost:9545 \
+  --l2-rpc=http://localhost:8545 \
+  --state-db-path=/data/optimism/geth/chaindata \
+  --rat-contract=0x... \
+  --private-key=0x...
+```
+
+## Performance
+
+### Time Complexity
+
+- **State Trie Iteration**: O(n) where n = number of accounts
+  - Typical L2: ~100k accounts → ~10 seconds
+  - Large L2: ~1M accounts → ~100 seconds
+
+- **Binary Search**: O(log n)
+  - Negligible (~10 iterations for 1M accounts)
+
+- **Merkle Proof Generation**: O(depth)
+  - Trie depth: ~16-20 levels → milliseconds
+
+**Total**: ~10-100 seconds depending on state size
+
+### Optimization
+
+The implementation includes optimizations:
+
+1. **Pre-allocated Arrays**: Reduce memory allocations during iteration
+2. **Sorted Iteration**: Trie iterator yields leaves in order (no sorting needed)
+3. **Parallel Proof Generation**: Generate proofA and proofB concurrently
+4. **Local Verification**: Verify proofs before submission
+
+## Comparison with Fraud Proof Approach
+
+| Aspect | Adjacent Leaves | Fraud Proof |
+|--------|----------------|-------------|
+| **Complexity** | Low (read state DB) | High (batch decode + EVM) |
+| **Computation** | Minimal (iterate trie) | Heavy (execute txs) |
+| **Dependencies** | State DB access | Full derivation pipeline |
+| **Proof Type** | State inclusion | Execution trace |
+| **Evidence Size** | ~2-5 KB | ~50-200 KB |
+| **Generation Time** | 10-100 seconds | 5-30 minutes |
+| **Full Node Proof** | ✅ Yes (direct DB access) | ⚠️ No (can use RPC) |
+
+## Security Considerations
+
+### Trustlessness
+
+The approach maintains full trustlessness:
+
+1. **State Root from L1**: Op-geth state root derives from L1 batches (via op-node)
+2. **Merkle Proofs**: Cryptographically prove leaf inclusion
+3. **On-chain Verification**: L1 contract verifies all proofs
+
+### Attack Resistance
+
+**Cannot Fake State Access**:
+- External RPC cannot iterate full trie (only `eth_getProof` for specific addresses)
+- RAT client MUST have local state DB access
+- Proves validator runs full node
+
+**Merkle Proof Security**:
+- Proofs are cryptographically sound
+- L1 contract verifies against state root
+- Cannot forge proofs without breaking keccak256
+
+### Operational Security
+
+1. **State DB Permissions**: Read-only access sufficient
+2. **Concurrent Access**: LevelDB supports multiple readers
+3. **No State Modification**: RAT client never writes to state DB
+4. **Graceful Degradation**: Falls back if state DB unavailable
+
+## Limitations
+
+1. **Full Node Required**: Cannot use light clients or external RPC
+2. **State Size Growth**: Iteration time increases with state size
+3. **Historical Blocks**: Requires archive mode for old blocks (or recent blocks only)
+4. **Single L2**: Must run separate op-geth per L2 chain
+
+## Future Optimizations
+
+1. **Incremental Iteration**: Cache trie position between tests
+2. **State Pruning**: Only keep recent state roots
+3. **Parallel Iteration**: Split trie iteration across goroutines
+4. **Proof Caching**: Cache proofs for frequently accessed leaves
+
+## References
+
+- [Ethereum Patricia Trie Specification](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/)
+- [go-ethereum Trie Implementation](https://github.com/ethereum/go-ethereum/tree/master/trie)
+- [op-geth State Database](https://github.com/ethereum-optimism/op-geth)
+- [RAT Contract Specification](../../src/validator/RAT.sol)
+
+## See Also
+
+- [op-node Setup Guide](./opnode-setup.md)
+- [Main README](../README.md)
+- [RAT Client Implementation Plan](../../docs/rat-client-implementation-plan.md)

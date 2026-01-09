@@ -1,0 +1,165 @@
+package test
+
+import (
+	"context"
+	"math/big"
+	"testing"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/crypto"
+	// "github.com/stretchr/testify/require"
+
+	// "github.com/ethereum-optimism/optimism/op-e2e/system/e2esys"
+	// "github.com/ethereum-optimism/optimism/op-service/testlog"
+	// "github.com/ethereum/go-ethereum/log"
+)
+
+// TestFullStackSetup demonstrates what gets started in E2E tests
+// TODO: Re-enable once op-e2e dependencies are available
+/*
+func TestFullStackSetup(t *testing.T) {
+	// op-e2e가 자동으로 시작하는 것들:
+	t.Log("Starting full Optimism stack...")
+
+	cfg := e2esys.DefaultSystemConfig(t)
+	sys, err := cfg.Start(t)
+	require.NoError(t, err)
+	defer sys.Close()
+
+	// ====================================
+	// 1. L1 (Ethereum)
+	// ====================================
+	t.Log("✅ [1] L1 geth started")
+	t.Logf("    L1 RPC: %s", sys.NodeEndpoint("l1").RPC)
+
+	// ====================================
+	// 2. L2 geth (Sequencer)
+	// ====================================
+	l2Sequencer := sys.NodeClient("sequencer")
+	l2ChainID, err := l2Sequencer.ChainID(context.Background())
+	require.NoError(t, err)
+	t.Log("✅ [2] L2 geth (sequencer) started")
+	t.Logf("    L2 Chain ID: %s", l2ChainID.String())
+	t.Logf("    L2 RPC: %s", sys.NodeEndpoint("sequencer").RPC)
+
+	// ====================================
+	// 3. op-batcher (L2 → L1 배치 제출자)
+	// ====================================
+	require.NotNil(t, sys.BatchSubmitter, "op-batcher should be running")
+	t.Log("✅ [3] op-batcher started")
+	t.Log("    Role: Submits L2 batches to L1")
+
+	// ====================================
+	// 4. op-node (L1 → L2 Derivation)
+	// ====================================
+	rollupNode := sys.RollupNode("sequencer")
+	rollupRPC := rollupNode.HTTPEndpoint()
+	require.NotEmpty(t, rollupRPC)
+	t.Log("✅ [4] op-node started")
+	t.Logf("    Rollup RPC: %s", rollupRPC)
+	t.Log("    Role: Derives L2 state from L1 batches (trustless!)")
+
+	// ====================================
+	// 5. 전체 흐름 테스트
+	// ====================================
+	t.Log("\n=== Testing Full Data Flow ===")
+
+	// Step 1: L2에 트랜잭션 제출
+	tx := sendL2Transaction(t, l2Sequencer)
+	t.Logf("✅ [Step 1] L2 transaction submitted: %s", tx.Hash().Hex())
+
+	// Step 2: L2 블록이 생성될 때까지 대기
+	receipt, err := waitForReceipt(context.Background(), l2Sequencer, tx.Hash(), 30*time.Second)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+	t.Logf("✅ [Step 2] L2 transaction mined in block %d", receipt.BlockNumber.Uint64())
+
+	// Step 3: op-batcher가 L1에 배치를 제출할 때까지 대기
+	// (자동으로 백그라운드에서 실행됨)
+	time.Sleep(15 * time.Second) // op-batcher의 제출 주기 대기
+	t.Log("✅ [Step 3] op-batcher should have submitted batch to L1")
+
+	// Step 4: op-node가 L1 배치로부터 L2 상태를 재구성하는지 확인
+	// (op-node의 safe head가 우리 트랜잭션 블록까지 따라잡았는지 확인)
+	t.Log("✅ [Step 4] op-node is deriving L2 state from L1 batches")
+
+	// ====================================
+	// 6. RAT Client가 사용할 정보
+	// ====================================
+	t.Log("\n=== RAT Client Configuration ===")
+	t.Logf("L1 RPC:      %s", sys.NodeEndpoint("l1").RPC)
+	t.Logf("Rollup RPC:  %s", rollupRPC)
+	t.Logf("SystemConfig: %s", sys.L1Deployments.SystemConfigProxy.Hex())
+	t.Log("\nRAT Client will:")
+	t.Log("1. Connect to op-node Rollup RPC")
+	t.Log("2. Call optimism_outputAtBlock(blockNum)")
+	t.Log("3. Compare with claimed output root")
+	t.Log("4. Submit evidence if mismatch detected")
+
+	t.Log("\n✅ Full stack test completed!")
+}
+
+// sendL2Transaction sends a simple transaction to L2
+func sendL2Transaction(t *testing.T, client *ethclient.Client) *types.Transaction {
+	ctx := context.Background()
+
+	// Get test account (op-e2e provides pre-funded accounts)
+	privateKey := /* TODO: get from secrets */
+	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	// Get nonce
+	nonce, err := client.PendingNonceAt(ctx, fromAddress)
+	require.NoError(t, err)
+
+	// Get gas price
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	// Create transaction
+	toAddress := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	tx := types.NewTransaction(
+		nonce,
+		toAddress,
+		big.NewInt(1000000000), // 1 gwei
+		21000,
+		gasPrice,
+		nil,
+	)
+
+	// Sign transaction
+	chainID, err := client.ChainID(ctx)
+	require.NoError(t, err)
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	require.NoError(t, err)
+
+	// Send transaction
+	err = client.SendTransaction(ctx, signedTx)
+	require.NoError(t, err)
+
+	return signedTx
+}
+
+// waitForReceipt waits for a transaction receipt
+func waitForReceipt(ctx context.Context, client *ethclient.Client, txHash common.Hash, timeout time.Duration) (*types.Receipt, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			receipt, err := client.TransactionReceipt(ctx, txHash)
+			if err == nil {
+				return receipt, nil
+			}
+		}
+	}
+}
+*/

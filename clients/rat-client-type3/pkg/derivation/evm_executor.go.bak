@@ -1,0 +1,249 @@
+package derivation
+
+import (
+	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
+)
+
+// EVMExecutor executes transactions with EVM for trustless state derivation
+type EVMExecutor struct {
+	chainConfig *params.ChainConfig
+	vmConfig    vm.Config
+}
+
+// NewEVMExecutor creates a new EVM executor
+func NewEVMExecutor(chainID *big.Int) *EVMExecutor {
+	// Optimism chain config
+	chainConfig := &params.ChainConfig{
+		ChainID:             chainID,
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ArrowGlacierBlock:   big.NewInt(0),
+		GrayGlacierBlock:    big.NewInt(0),
+		// Optimism specific
+		// TODO: Add Optimism-specific config (Bedrock, Canyon, Delta, Ecotone, etc.)
+	}
+
+	vmConfig := vm.Config{
+		// Debug: false,
+	}
+
+	return &EVMExecutor{
+		chainConfig: chainConfig,
+		vmConfig:    vmConfig,
+	}
+}
+
+// ExecuteBatch executes a batch of transactions on a state
+// Returns the new state root after execution
+func (e *EVMExecutor) ExecuteBatch(
+	parentStateRoot common.Hash,
+	batch *SingularBatch,
+	parentHeader *types.Header,
+) (common.Hash, *types.Header, error) {
+	// TODO: Implement full EVM execution
+	//
+	// Steps:
+	// 1. Open state DB at parentStateRoot
+	// 2. Create block context (timestamp, number, coinbase, etc.)
+	// 3. Insert L1 attributes deposit transaction (Optimism-specific)
+	// 4. Execute each transaction in batch:
+	//    - Create EVM instance
+	//    - Apply transaction
+	//    - Update state
+	//    - Collect receipt
+	// 5. Finalize state (compute state root)
+	// 6. Build L2 block header
+	// 7. Return new state root and header
+
+	return common.Hash{}, nil, fmt.Errorf("full EVM execution not yet implemented")
+}
+
+// applyTransaction applies a single transaction to the state
+func (e *EVMExecutor) applyTransaction(
+	stateDB *state.StateDB,
+	header *types.Header,
+	tx *types.Transaction,
+	usedGas *uint64,
+	cfg vm.Config,
+) (*types.Receipt, error) {
+	// Create EVM context
+	blockContext := NewEVMBlockContext(header, nil, nil)
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, stateDB, e.chainConfig, cfg)
+
+	// Apply transaction
+	// TODO: Use core.ApplyTransaction or similar
+	_ = vmenv
+
+	return nil, fmt.Errorf("transaction application not implemented")
+}
+
+// NewEVMBlockContext creates a block context for EVM
+func NewEVMBlockContext(header *types.Header, getHash vm.GetHashFunc, author *common.Address) vm.BlockContext {
+	beneficiary := common.Address{}
+	if author != nil {
+		beneficiary = *author
+	} else if header.Coinbase != (common.Address{}) {
+		beneficiary = header.Coinbase
+	}
+
+	return vm.BlockContext{
+		CanTransfer: core.CanTransfer,
+		Transfer:    core.Transfer,
+		GetHash:     getHash,
+		Coinbase:    beneficiary,
+		BlockNumber: new(big.Int).Set(header.Number),
+		Time:        header.Time,
+		Difficulty:  new(big.Int).Set(header.Difficulty),
+		GasLimit:    header.GasLimit,
+		BaseFee:     header.BaseFee,
+	}
+}
+
+// createL1AttributesDepositTx creates the L1 attributes deposit transaction
+// This is Optimism-specific and contains L1 block info
+//
+// CRITICAL: This must be executed BEFORE any user transactions in the batch!
+// It updates the L1Block predeploy with current L1 context, which affects:
+// - Gas fee calculation (L1 data fee)
+// - Block context (L1 block number, timestamp accessible to contracts)
+func (e *EVMExecutor) createL1AttributesDepositTx(
+	batch *SingularBatch,
+) (*types.Transaction, error) {
+	// L1 Attributes Depositor address (system address)
+	// This is a special address that can send deposit transactions
+	l1AttributesDepositor := common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
+
+	// L1Block predeploy address
+	// This is where L1 context is stored on L2
+	l1BlockAddress := common.HexToAddress("0x4200000000000000000000000000000000000015")
+
+	// Build calldata: setL1BlockValues(uint64 number, uint64 timestamp, uint256 basefee, bytes32 hash, ...)
+	// For MVP, we use simplified version: setL1BlockValuesEcotone()
+	//
+	// Function selector: keccak256("setL1BlockValuesEcotone()") = 0x440a5e20...
+	// Full signature depends on Optimism version
+	//
+	// Parameters needed:
+	// - L1 block number (from batch.EpochNum)
+	// - L1 block hash (from batch.EpochHash)
+	// - L1 timestamp
+	// - L1 basefee
+	// - L1 blobBaseFee (for EIP-4844)
+	// - Sequence number
+	// - Batcher hash
+	// - Fee overhead/scalar
+
+	// TODO: Encode proper setL1BlockValues calldata
+	// For now, create a placeholder deposit transaction
+	calldata := []byte{} // Placeholder
+
+	// Create deposit transaction (type 0x7E)
+	// Deposit transactions are special in Optimism:
+	// - No signature
+	// - No gas price (system transaction)
+	// - Included before user transactions
+	depositTx := types.NewTx(&types.DepositTx{
+		SourceHash: crypto.Keccak256Hash(
+			batch.EpochHash.Bytes(),
+			common.BigToHash(big.NewInt(int64(batch.EpochNum))).Bytes(),
+		),
+		From:  l1AttributesDepositor,
+		To:    &l1BlockAddress,
+		Value: big.NewInt(0),
+		Gas:   1000000, // System transaction, gas doesn't matter
+		Data:  calldata,
+	})
+
+	return depositTx, nil
+}
+
+// NOTE: For full implementation, we need to:
+// 1. Get L1 block data (number, hash, timestamp, basefee) from batch context
+// 2. Encode proper ABI calldata for setL1BlockValues
+// 3. Handle different Optimism versions (Bedrock, Canyon, Delta, Ecotone, Fjord, Granite)
+//
+// Reference: op-node/rollup/derive/l1_block_info.go
+
+// OpenStateDB opens a state DB at a specific root
+func (e *EVMExecutor) OpenStateDB(root common.Hash) (*state.StateDB, error) {
+	// TODO: Implement state DB opening
+	//
+	// This requires:
+	// 1. Database backend (memory or disk)
+	// 2. State trie at root
+	// 3. Access to account/storage data
+	//
+	// For trustless verification, we would need:
+	// - Either: Full state DB synced from L2
+	// - Or: State proofs for each accessed account/storage slot
+
+	return nil, fmt.Errorf("state DB opening not implemented - requires state backend")
+}
+
+// FinalizeState computes the final state root after all transactions
+func (e *EVMExecutor) FinalizeState(stateDB *state.StateDB) (common.Hash, error) {
+	// Commit the state changes
+	root, err := stateDB.Commit(0, true) // Block number 0, delete empty objects
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to commit state: %w", err)
+	}
+
+	return root, nil
+}
+
+// BuildBlockHeader constructs an L2 block header from execution results
+func (e *EVMExecutor) BuildBlockHeader(
+	batch *SingularBatch,
+	parentHeader *types.Header,
+	stateRoot common.Hash,
+	receipts types.Receipts,
+	txs types.Transactions,
+	gasUsed uint64,
+) (*types.Header, error) {
+	// Compute transaction trie root
+	txHash := types.DeriveSha(txs, trie.NewStackTrie(nil))
+
+	// Compute receipt trie root
+	receiptHash := types.DeriveSha(receipts, trie.NewStackTrie(nil))
+
+	// Build header
+	header := &types.Header{
+		ParentHash:  batch.ParentHash,
+		UncleHash:   types.EmptyUncleHash,
+		Coinbase:    common.Address{}, // Optimism uses zero address
+		Root:        stateRoot,
+		TxHash:      txHash,
+		ReceiptHash: receiptHash,
+		Bloom:       types.CreateBloom(receipts),
+		Difficulty:  big.NewInt(0), // Optimism has no difficulty
+		Number:      new(big.Int).Add(parentHeader.Number, big.NewInt(1)),
+		GasLimit:    30_000_000, // Optimism default
+		GasUsed:     gasUsed,
+		Time:        batch.Timestamp,
+		Extra:       []byte{},
+		MixDigest:   common.Hash{},
+		Nonce:       types.BlockNonce{},
+	}
+
+	return header, nil
+}

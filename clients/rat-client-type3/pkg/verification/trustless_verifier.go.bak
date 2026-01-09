@@ -1,0 +1,351 @@
+package verification
+
+import (
+	"context"
+	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+)
+
+// TrustlessVerifier verifies state roots using ONLY L1 data
+// This is the main verification engine for RAT client
+//
+// IMPORTANT: RAT is a "Fast Path" verification mechanism
+// - Requires L2 RPC cooperation (for state proofs)
+// - If L2 RPC is uncooperative/malicious → RAT cannot verify
+// - In that case: Attention Test times out → FaultDisputeGame takes over
+//
+// Two-Tier Verification Design:
+// 1. RAT (Fast Path): Requires L2 RPC cooperation, quick verification
+// 2. FaultDisputeGame (Slow Path): No L2 RPC needed, interactive bisection
+//
+// Approach:
+// 1. Get finalized state root from L1 (trustless starting point)
+// 2. Get all batches from L1 since finalized block
+// 3. Execute batches with proof-verified state (requires L2 RPC cooperation)
+// 4. Compute new state root (trustless IF L2 RPC cooperates)
+// 5. Compare with claimed state root from DisputeGame
+//
+// L2 RPC Role & Timeout Handling:
+// - Provides state data + Merkle proofs
+// - If honest: Proofs verify → RAT succeeds → submitEvidence() → Bond restored
+// - If dishonest: Proofs fail → RAT cannot verify → Timeout
+//
+// What happens on Timeout?
+// 1. Validator's bond remains LOCKED (not slashed yet!)
+// 2. Validator must participate in FaultDisputeGame as challenger
+// 3. If Validator wins the game → DisputeGame calls resolveClaim()
+// 4. RAT.resolveClaim() restores the bond
+//
+// Design Trade-off:
+// - RAT (Fast): Requires L2 RPC cooperation, 10-30 minutes
+// - DisputeGame (Slow): L2 RPC not needed, 7 days (bisection game)
+//
+// Attack Resistance:
+// - Malicious L2 RPC can DoS RAT (force timeout)
+// - But cannot prevent bond recovery (via DisputeGame)
+// - Cannot cause unfair bond loss to honest validators
+type TrustlessVerifier struct {
+	l1Client *ethclient.Client
+	l2Client *ethclient.Client
+
+	// L1 contract addresses
+	disputeGameFactory common.Address
+	batchInbox         common.Address
+	batcherAddress     common.Address
+	l2ToL1MessagePasser common.Address
+
+	// Config
+	chainID *big.Int
+}
+
+// NewTrustlessVerifier creates a new trustless verifier
+func NewTrustlessVerifier(
+	l1RPCURL string,
+	l2RPCURL string,
+	disputeGameFactory common.Address,
+	batchInbox common.Address,
+	batcherAddress common.Address,
+	l2ToL1MessagePasser common.Address,
+	chainID *big.Int,
+) (*TrustlessVerifier, error) {
+	l1Client, err := ethclient.Dial(l1RPCURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to L1: %w", err)
+	}
+
+	l2Client, err := ethclient.Dial(l2RPCURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to L2: %w", err)
+	}
+
+	return &TrustlessVerifier{
+		l1Client:            l1Client,
+		l2Client:            l2Client,
+		disputeGameFactory:  disputeGameFactory,
+		batchInbox:          batchInbox,
+		batcherAddress:      batcherAddress,
+		l2ToL1MessagePasser: l2ToL1MessagePasser,
+		chainID:             chainID,
+	}, nil
+}
+
+// VerificationResult contains the verification result
+type VerificationResult struct {
+	// Input
+	TestID              [32]byte
+	BatchIndex          uint32
+	DisputeGameAddress  common.Address
+
+	// Finalized state (L1)
+	FinalizedStateRoot   common.Hash
+	FinalizedL2BlockNum  uint64
+	FinalizedOutputRoot  common.Hash
+
+	// Claimed state (from DisputeGame on L1)
+	ClaimedStateRoot    common.Hash
+	ClaimedL2BlockNum   uint64
+	ClaimedOutputRoot   common.Hash
+
+	// Computed state (trustless calculation)
+	ComputedStateRoot   common.Hash
+	ComputedL2BlockNum  uint64
+	ComputedOutputRoot  common.Hash
+
+	// Verification
+	IsValid bool // Does computed match claimed?
+
+	// Evidence (if fraud detected)
+	Evidence *TrustlessEvidence
+}
+
+// TrustlessEvidence contains complete trustless evidence
+type TrustlessEvidence struct {
+	// Finalized output from L1
+	FinalizedOutput *FinalizedOutput
+
+	// All batches executed
+	Batches []*BatchWithProof
+
+	// Execution trace
+	ExecutionTrace []*ExecutionStep
+
+	// Final computed values
+	ComputedStateRoot  common.Hash
+	ComputedOutputRoot common.Hash
+
+	// Merkle proofs
+	StateProofs    [][]byte
+	WithdrawalProof [][]byte
+}
+
+// BatchWithProof is a batch with L1 inclusion proof
+type BatchWithProof struct {
+	BatchData      []byte
+	L1BlockNumber  uint64
+	L1TxHash       common.Hash
+	L1TxIndex      uint
+	L1TxProof      [][]byte // Merkle proof that batch is in L1
+	DecodedBatch   interface{} // SingularBatch or SpanBatch
+}
+
+// ExecutionStep is a single step in batch execution
+type ExecutionStep struct {
+	BatchIndex       int
+	ParentStateRoot  common.Hash
+	Transactions     []*types.Transaction
+	ResultStateRoot  common.Hash
+	StateAccesses    []*StateAccess // All state accessed (with proofs)
+}
+
+// StateAccess is a state access with proof
+type StateAccess struct {
+	Address     common.Address
+	StorageKey  common.Hash
+	Value       common.Hash
+	Proof       []string // Merkle proof
+	Verified    bool
+}
+
+// FinalizedOutput represents finalized output from L1
+type FinalizedOutput struct {
+	OutputRoot    common.Hash
+	StateRoot     common.Hash
+	WithdrawalRoot common.Hash
+	L2BlockNumber uint64
+	L1BlockNumber uint64
+}
+
+// VerifyBatch is the main verification function
+func (v *TrustlessVerifier) VerifyBatch(
+	ctx context.Context,
+	testID [32]byte,
+	batchIndex uint32,
+	disputeGameAddress common.Address,
+) (*VerificationResult, error) {
+	result := &VerificationResult{
+		TestID:             testID,
+		BatchIndex:         batchIndex,
+		DisputeGameAddress: disputeGameAddress,
+	}
+
+	// Step 1: Get finalized output from L1 (trustless)
+	finalizedOutput, err := v.getFinalizedOutputFromL1(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get finalized output: %w", err)
+	}
+
+	result.FinalizedStateRoot = finalizedOutput.StateRoot
+	result.FinalizedL2BlockNum = finalizedOutput.L2BlockNumber
+	result.FinalizedOutputRoot = finalizedOutput.OutputRoot
+
+	// Step 2: Get claimed output from DisputeGame on L1 (trustless)
+	claimedOutput, err := v.getClaimedOutputFromDisputeGame(ctx, disputeGameAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get claimed output: %w", err)
+	}
+
+	result.ClaimedOutputRoot = claimedOutput.OutputRoot
+	result.ClaimedL2BlockNum = claimedOutput.L2BlockNumber
+	result.ClaimedStateRoot = claimedOutput.StateRoot
+
+	// Step 3: Get all batches from L1 since finalized block (trustless)
+	batches, err := v.getBatchesFromL1(
+		ctx,
+		finalizedOutput.L2BlockNumber+1,
+		batchIndex,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batches: %w", err)
+	}
+
+	// Step 4: Execute batches with proof-verified state (trustless!)
+	computedOutput, executionTrace, err := v.executeBatchesTrustless(
+		ctx,
+		finalizedOutput.StateRoot,
+		batches,
+		claimedOutput.L2BlockNumber,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute batches: %w", err)
+	}
+
+	result.ComputedStateRoot = computedOutput.StateRoot
+	result.ComputedL2BlockNum = computedOutput.L2BlockNumber
+	result.ComputedOutputRoot = computedOutput.OutputRoot
+
+	// Step 5: Compare computed vs claimed
+	result.IsValid = (result.ComputedOutputRoot == result.ClaimedOutputRoot)
+
+	// Step 6: If fraud detected, generate evidence
+	if !result.IsValid {
+		evidence := &TrustlessEvidence{
+			FinalizedOutput:    finalizedOutput,
+			Batches:            batches,
+			ExecutionTrace:     executionTrace,
+			ComputedStateRoot:  result.ComputedStateRoot,
+			ComputedOutputRoot: result.ComputedOutputRoot,
+		}
+		result.Evidence = evidence
+	}
+
+	return result, nil
+}
+
+// getFinalizedOutputFromL1 gets finalized output from DisputeGameFactory
+func (v *TrustlessVerifier) getFinalizedOutputFromL1(
+	ctx context.Context,
+) (*FinalizedOutput, error) {
+	// TODO: Query DisputeGameFactory for finalized game
+	// For now, use placeholder
+	return &FinalizedOutput{
+		L2BlockNumber: 1000,
+		StateRoot:     common.Hash{},
+	}, fmt.Errorf("finalized output query not yet implemented")
+}
+
+// getClaimedOutputFromDisputeGame gets claimed output from DisputeGame
+func (v *TrustlessVerifier) getClaimedOutputFromDisputeGame(
+	ctx context.Context,
+	gameAddress common.Address,
+) (*FinalizedOutput, error) {
+	// Use L1DataVerifier implementation
+	verifier, err := NewL1DataVerifier(
+		"", // L1 RPC (we already have client)
+		v.disputeGameFactory,
+		v.batchInbox,
+		v.batcherAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	verifier.l1Client = v.l1Client
+
+	gameData, err := verifier.getDisputeGameData(ctx, gameAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FinalizedOutput{
+		OutputRoot:    gameData.OutputRoot,
+		L2BlockNumber: gameData.L2BlockNumber,
+		L1BlockNumber: gameData.L1BlockNumber,
+		// TODO: Extract state root from output root
+		StateRoot: common.Hash{},
+	}, nil
+}
+
+// getBatchesFromL1 gets all batches from L1 in range
+func (v *TrustlessVerifier) getBatchesFromL1(
+	ctx context.Context,
+	fromL2Block uint64,
+	toBatchIndex uint32,
+) ([]*BatchWithProof, error) {
+	// TODO: Implement batch fetching with proofs
+	// This requires:
+	// 1. Map L2 block range to L1 block range
+	// 2. Find all batcher txs in that range
+	// 3. Generate Merkle proofs for each
+	// 4. Decode batches
+
+	return nil, fmt.Errorf("batch fetching not yet implemented")
+}
+
+// executeBatchesTrustless executes batches with proof-verified state
+// This is the CORE trustless execution engine
+func (v *TrustlessVerifier) executeBatchesTrustless(
+	ctx context.Context,
+	parentStateRoot common.Hash,
+	batches []*BatchWithProof,
+	targetL2BlockNum uint64,
+) (*FinalizedOutput, []*ExecutionStep, error) {
+	// TODO: Implement trustless batch execution
+	//
+	// For each batch:
+	// 1. Open ProofVerifiedStateDB with parent state root
+	// 2. Execute all transactions
+	//    - Each state access verified with eth_getProof
+	// 3. Compute new state root
+	// 4. Record execution trace
+	//
+	// This is FULLY TRUSTLESS because:
+	// - Parent state root from L1 (trustless)
+	// - Batches from L1 (trustless)
+	// - State data verified with proofs (trustless)
+	// - EVM execution deterministic (trustless)
+
+	return nil, nil, fmt.Errorf("trustless batch execution not yet implemented")
+}
+
+// Close closes RPC connections
+func (v *TrustlessVerifier) Close() {
+	if v.l1Client != nil {
+		v.l1Client.Close()
+	}
+	if v.l2Client != nil {
+		v.l2Client.Close()
+	}
+}

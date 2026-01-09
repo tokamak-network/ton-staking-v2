@@ -1,0 +1,112 @@
+package verification
+
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
+)
+
+// MerkleProofBuilder builds Merkle proofs for evidence
+// This is a bridge to the implementation in pkg/evidence/merkle.go
+type MerkleProofBuilder struct{}
+
+// NewMerkleProofBuilder creates a new Merkle proof builder
+func NewMerkleProofBuilder() *MerkleProofBuilder {
+	return &MerkleProofBuilder{}
+}
+
+// BuildTransactionProof builds a Merkle proof for a transaction in a block
+func (b *MerkleProofBuilder) BuildTransactionProof(
+	block *types.Block,
+	txIndex uint,
+) ([][]byte, error) {
+	if int(txIndex) >= len(block.Transactions()) {
+		return nil, fmt.Errorf("tx index %d out of range (block has %d txs)", txIndex, len(block.Transactions()))
+	}
+
+	// Build transaction trie (Merkle Patricia Trie)
+	txTrie, err := b.buildTransactionTrie(block.Transactions())
+	if err != nil {
+		return nil, fmt.Errorf("failed to build tx trie: %w", err)
+	}
+
+	// Verify the trie root matches block's TxHash
+	if txTrie.Hash() != block.TxHash() {
+		return nil, fmt.Errorf("transaction trie root mismatch: computed=%s, block=%s",
+			txTrie.Hash().Hex(), block.TxHash().Hex())
+	}
+
+	// Generate proof for txIndex
+	indexBuf := new(bytes.Buffer)
+	if err := rlp.Encode(indexBuf, txIndex); err != nil {
+		return nil, fmt.Errorf("failed to encode index: %w", err)
+	}
+
+	// Collect proof nodes
+	proofDB := &ProofDB{nodes: make(map[string][]byte)}
+	if err := txTrie.Prove(indexBuf.Bytes(), 0, proofDB); err != nil {
+		return nil, fmt.Errorf("failed to generate proof: %w", err)
+	}
+
+	// Convert proof to [][]byte
+	proof := make([][]byte, 0, len(proofDB.nodes))
+	for _, node := range proofDB.nodes {
+		proof = append(proof, node)
+	}
+
+	return proof, nil
+}
+
+// buildTransactionTrie builds a Merkle Patricia Trie for transactions
+func (b *MerkleProofBuilder) buildTransactionTrie(txs types.Transactions) (*trie.Trie, error) {
+	trieDB := trie.NewDatabase(rawdb.NewMemoryDatabase())
+	txTrie := trie.NewEmpty(trieDB)
+
+	for i, tx := range txs {
+		keyBuf := new(bytes.Buffer)
+		if err := rlp.Encode(keyBuf, uint(i)); err != nil {
+			return nil, fmt.Errorf("failed to encode index %d: %w", i, err)
+		}
+
+		txBytes, err := tx.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal tx %d: %w", i, err)
+		}
+
+		if err := txTrie.Update(keyBuf.Bytes(), txBytes); err != nil {
+			return nil, fmt.Errorf("failed to insert tx %d: %w", i, err)
+		}
+	}
+
+	root, nodes := txTrie.Commit(false)
+	if err := trieDB.Update(trie.NewWithNodeSet(nodes)); err != nil {
+		return nil, fmt.Errorf("failed to commit trie: %w", err)
+	}
+	if err := trieDB.Commit(root, false); err != nil {
+		return nil, fmt.Errorf("failed to commit to db: %w", err)
+	}
+
+	return txTrie, nil
+}
+
+// ProofDB implements trie.Database interface for proof collection
+type ProofDB struct {
+	nodes map[string][]byte
+}
+
+func (p *ProofDB) Put(key []byte, value []byte) error {
+	p.nodes[string(key)] = common.CopyBytes(value)
+	return nil
+}
+
+func (p *ProofDB) Get(key []byte) ([]byte, error) {
+	if v, ok := p.nodes[string(key)]; ok {
+		return v, nil
+	}
+	return nil, fmt.Errorf("key not found")
+}

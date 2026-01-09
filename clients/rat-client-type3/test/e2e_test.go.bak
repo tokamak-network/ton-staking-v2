@@ -1,0 +1,139 @@
+package test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ethereum-optimism/optimism/op-e2e/system/e2esys"
+	// RAT Client imports (TODO: 실제 경로로 수정)
+	// "github.com/tokamak-network/ton-staking-v2/clients/rat-client-type3/pkg/client"
+)
+
+// TestRATClientWithOpNode tests RAT Client E2E with full Optimism stack
+//
+// This test:
+// 1. Starts L1 geth, L2 geth, op-node, op-batcher
+// 2. Deploys RAT contract on L1
+// 3. Submits L2 transactions
+// 4. Triggers RAT
+// 5. Verifies RAT Client can verify using op-node
+func TestRATClientWithOpNode(t *testing.T) {
+	t.Skip("TODO: Implement after RAT contract deployment helpers are ready")
+
+	// 1. Setup Optimism E2E system
+	cfg := e2esys.DefaultSystemConfig(t)
+	sys, err := cfg.Start(t)
+	require.NoError(t, err)
+	defer sys.Close()
+
+	t.Log("✅ Optimism stack started")
+	t.Logf("   L1 RPC: %s", sys.L1Deployments.L1RPC)
+	t.Logf("   L2 RPC: %s", sys.Clients["sequencer"].L2.Client())
+	t.Logf("   op-node RPC: %s", sys.RollupNodes["sequencer"].HTTPEndpoint())
+
+	// 2. Deploy RAT contract on L1
+	// TODO: Implement RAT contract deployment
+	// ratAddr := deployRATContract(t, sys.L1)
+	// t.Logf("✅ RAT Contract deployed: %s", ratAddr.Hex())
+
+	// 3. Register validator in RAT
+	// TODO: Implement validator registration
+	// registerValidator(t, sys.L1, ratAddr, validatorAddr)
+	// t.Log("✅ Validator registered")
+
+	// 4. Submit L2 transaction
+	// l2Client := sys.Clients["sequencer"].L2
+	// tx := submitL2Transaction(t, l2Client)
+	// t.Logf("✅ L2 Transaction submitted: %s", tx.Hash().Hex())
+
+	// 5. Wait for batch to be submitted to L1
+	// batchIndex := waitForBatchSubmission(t, sys.L1, l2BlockNum)
+	// t.Logf("✅ Batch submitted to L1: index %d", batchIndex)
+
+	// 6. Trigger RAT
+	// testID := triggerRAT(t, sys.L1, ratAddr, batchIndex)
+	// t.Logf("✅ RAT triggered: testID %x", testID)
+
+	// 7. Start RAT Client
+	// TODO: Create RAT Client config
+	// ratClient := startRATClient(t, &client.Config{
+	// 	VerificationMode: client.VerificationModeOpNode,
+	// 	L1RPCURL:         sys.L1Deployments.L1RPC,
+	// 	RPCURLs:          []string{sys.RollupNodes["sequencer"].HTTPEndpoint()},
+	// 	RATContract:      ratAddr,
+	// 	SystemConfig:     sys.L1Deployments.SystemConfigProxy,
+	// })
+	// defer ratClient.Stop()
+
+	// 8. Wait for RAT Client to verify
+	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// defer cancel()
+	//
+	// result := waitForVerification(ctx, t, ratClient, testID)
+	// require.True(t, result.IsValid, "Verification should pass for honest proposer")
+	// t.Log("✅ RAT Client verified successfully")
+}
+
+// TestRATClientDetectsFraud tests RAT Client can detect fraudulent output roots
+func TestRATClientDetectsFraud(t *testing.T) {
+	t.Skip("TODO: Implement fraud detection test")
+
+	// 1. Setup Optimism E2E system
+	// 2. Deploy RAT contract
+	// 3. Submit FAKE output root to L1
+	// 4. Trigger RAT
+	// 5. RAT Client should detect mismatch
+	// 6. RAT Client should submit evidence
+	// 7. Verify evidence was submitted on-chain
+}
+
+// TestRATClientRPCFailover tests RAT Client handles RPC failures
+func TestRATClientRPCFailover(t *testing.T) {
+	t.Skip("TODO: Implement RPC failover test")
+
+	// 1. Setup multiple op-node instances
+	// 2. Configure RAT Client with multiple RPCs
+	// 3. Shutdown primary RPC
+	// 4. Trigger RAT
+	// 5. RAT Client should automatically failover to secondary RPC
+	// 6. Verification should still succeed
+}
+
+// Helper functions (TODO: Implement)
+
+// func deployRATContract(t *testing.T, l1 *ethclient.Client) common.Address {
+// 	// Deploy RAT.sol to L1
+// 	return common.Address{}
+// }
+
+// func registerValidator(t *testing.T, l1 *ethclient.Client, ratAddr, validator common.Address) {
+// 	// Call RAT.registerValidator()
+// }
+
+// func submitL2Transaction(t *testing.T, l2 *ethclient.Client) *types.Transaction {
+// 	// Submit a simple transaction to L2
+// 	return nil
+// }
+
+// func waitForBatchSubmission(t *testing.T, l1 *ethclient.Client, l2BlockNum uint64) uint32 {
+// 	// Watch for BatchSubmitted event on L1
+// 	return 0
+// }
+
+// func triggerRAT(t *testing.T, l1 *ethclient.Client, ratAddr common.Address, batchIndex uint32) [32]byte {
+// 	// Call RAT.triggerAttentionTest()
+// 	return [32]byte{}
+// }
+
+// func startRATClient(t *testing.T, cfg *client.Config) *client.RATClientService {
+// 	// Create and start RAT Client
+// 	return nil
+// }
+
+// func waitForVerification(ctx context.Context, t *testing.T, client *client.RATClientService, testID [32]byte) *VerificationResult {
+// 	// Wait for RAT Client to complete verification
+// 	return nil
+// }
