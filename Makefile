@@ -1,6 +1,7 @@
 .PHONY: all build test clean help
 .PHONY: devnet-allocs-optimism devnet-allocs-offline devnet-clean devnet-status
 .PHONY: test-e2e test-e2e-unit test-e2e-integration
+.PHONY: devnet-start devnet-stop devnet-info devnet-logs
 
 # Default target
 all: build
@@ -91,6 +92,56 @@ devnet-verify:
 	@bash scripts/verify-optimism-deployment.sh
 
 # ==========================================
+# Persistent Devnet Commands (Kurtosis)
+# ==========================================
+# These commands manage a persistent Kurtosis devnet for manual testing
+# and RAT Client development. They use the same genesis as E2E tests.
+#
+# Workflow:
+#   1. make devnet-allocs-offline  # Generate genesis (same as E2E)
+#   2. make devnet-start           # Start persistent devnet
+#   3. make devnet-info            # Get RPC endpoints and addresses
+#   4. make rat-client-run         # Run RAT Client
+#   5. make devnet-stop            # Stop devnet when done
+# ==========================================
+
+# Start persistent Kurtosis devnet with TON Staking V3
+devnet-start:
+	@if [ ! -f .devnet/allocs-l1-staking-v3.json ]; then \
+		echo "Error: Genesis not found. Run 'make devnet-allocs-offline' first."; \
+		exit 1; \
+	fi
+	@chmod +x ./scripts/start-persistent-devnet.sh
+	@./scripts/start-persistent-devnet.sh
+
+# Stop persistent devnet
+devnet-stop:
+	@chmod +x ./scripts/stop-devnet.sh
+	@./scripts/stop-devnet.sh
+
+# Get devnet information (RPC endpoints, contract addresses)
+devnet-info:
+	@chmod +x ./scripts/get-devnet-info.sh
+	@./scripts/get-devnet-info.sh
+
+# Show devnet logs (specify service name)
+# Usage: make devnet-logs SERVICE=op-node
+devnet-logs:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "Usage: make devnet-logs SERVICE=<service-name>"; \
+		echo ""; \
+		echo "Available services:"; \
+		echo "  - el-1-geth-teku (L1 execution)"; \
+		echo "  - cl-1-teku-geth (L1 consensus)"; \
+		echo "  - op-el-2151908-node0-op-geth (L2 execution)"; \
+		echo "  - op-cl-2151908-node0-op-node (L2 consensus / Rollup RPC)"; \
+		echo "  - op-batcher-2151908-op-kurtosis (Batcher)"; \
+		echo "  - op-proposer-2151908-op-kurtosis (Proposer)"; \
+		exit 1; \
+	fi
+	@kurtosis service logs simple-devnet $(SERVICE) -f
+
+# ==========================================
 # E2E Test Commands
 # ==========================================
 
@@ -128,13 +179,71 @@ help:
 	@echo "  make test-v3            Run V3 tests only"
 	@echo "  make clean              Clean build artifacts"
 	@echo ""
-	@echo "E2E Testing (Asterisc-style):"
+	@echo "E2E Testing (Automated):"
 	@echo "  make devnet-allocs-offline  Generate genesis with all contracts"
 	@echo "  make test-e2e               Run E2E tests (starts isolated nodes)"
 	@echo "  make test-e2e-unit          Run E2E unit tests (no genesis needed)"
 	@echo "  make test-e2e-integration   Run E2E integration tests"
 	@echo ""
+	@echo "Persistent Devnet (Manual Testing):"
+	@echo "  make devnet-start           Start Kurtosis devnet"
+	@echo "  make devnet-stop            Stop devnet"
+	@echo "  make devnet-info            Get RPC endpoints and addresses"
+	@echo "  make devnet-logs SERVICE=X  Show service logs"
+	@echo ""
 	@echo "Devnet Management:"
 	@echo "  make devnet-clean           Clean all devnet state"
 	@echo "  make devnet-status          Show devnet status"
 	@echo "  make devnet-verify          Verify Optimism contracts in genesis"
+	@echo ""
+	@echo "RAT Client:"
+	@echo "  make rat-client-build       Build RAT client Type 3"
+	@echo "  make rat-client-test        Test RAT client"
+	@echo "  make rat-client-run         Run RAT client (requires config)"
+
+# ==========================================
+# RAT Client Commands
+# ==========================================
+
+RAT_CLIENT_DIR := clients/rat-client-type3
+
+# Build RAT client Type 3
+rat-client-build:
+	@echo "Building RAT Client Type 3..."
+	cd $(RAT_CLIENT_DIR) && go build -o bin/rat-client-type3 ./cmd
+	@echo "Binary: $(RAT_CLIENT_DIR)/bin/rat-client-type3"
+
+# Test RAT client
+rat-client-test:
+	@echo "Testing RAT Client Type 3..."
+	cd $(RAT_CLIENT_DIR) && go test -v ./pkg/...
+
+# Run RAT client (development mode with example config)
+rat-client-run:
+	@if [ ! -f $(RAT_CLIENT_DIR)/config.yaml ]; then \
+		echo "Error: config.yaml not found. Copy config.example.yaml to config.yaml first."; \
+		exit 1; \
+	fi
+	cd $(RAT_CLIENT_DIR) && go run ./cmd \
+		--l1-rpc $$(grep l1_rpc_url config.yaml | awk '{print $$2}' | tr -d '"') \
+		--l2-rpc $$(grep l2_rpc_url config.yaml | awk '{print $$2}' | tr -d '"') \
+		--private-key $$(grep private_key config.yaml | awk '{print $$2}' | tr -d '"') \
+		--rat-contract $$(grep rat_contract config.yaml | awk '{print $$2}' | tr -d '"') \
+		--system-config $$(grep system_config config.yaml | awk '{print $$2}' | tr -d '"') \
+		--batch-inbox $$(grep batch_inbox config.yaml | awk '{print $$2}' | tr -d '"') \
+		--batcher-address $$(grep batcher_address config.yaml | awk '{print $$2}' | tr -d '"') \
+		--dispute-game-factory $$(grep dispute_game_factory config.yaml | awk '{print $$2}' | tr -d '"') \
+		--l1-bridge-registry $$(grep l1_bridge_registry config.yaml | awk '{print $$2}' | tr -d '"')
+
+# Clean RAT client build artifacts
+rat-client-clean:
+	@echo "Cleaning RAT client artifacts..."
+	cd $(RAT_CLIENT_DIR) && rm -rf bin/
+	@echo "Cleaned"
+
+.PHONY: rat-client-build rat-client-test rat-client-run rat-client-clean
+
+# Run specific RAT State Root test only
+test-rat-state-root:
+	@echo "Running RAT State Root test only..."
+	cd op-e2e && GOWORK=off go test -v ./faultproofs -run TestRATStateRootAsTarget -timeout 2m

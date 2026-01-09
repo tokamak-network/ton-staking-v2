@@ -214,6 +214,39 @@ import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
 | **OptimismPortal** | L1↔L2 bridge |
 | **DAO** | Governance (DAOCommittee) |
 
+## RAT Clients
+
+TON Staking V3 includes RAT (Randomized Attention Test) clients for monitoring validators. Each rollup type requires its own client implementation.
+
+### Available Clients
+
+| Client | Rollup Type | Status |
+|--------|-------------|--------|
+| [rat-client-type3](./clients/rat-client-type3/) | Type 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME | ✅ Implemented |
+| rat-client-type4 | Type 4: TBD | 📋 Planned |
+| rat-client-type5 | Type 5: TBD | 📋 Planned |
+
+### Quick Start
+
+```bash
+# Build RAT client
+make rat-client-build
+
+# Configure (copy example and edit)
+cd clients/rat-client-type3
+cp config.example.yaml config.yaml
+# Edit config.yaml with your settings
+
+# Run
+make rat-client-run
+```
+
+### Documentation
+
+- [RAT Clients Overview](./clients/README.md)
+- [RAT Client Type 3 Documentation](./clients/rat-client-type3/README.md)
+- [RAT Implementation Plan](./docs/rat-client-implementation-plan.md)
+
 ## Documentation
 
 | Document | Description |
