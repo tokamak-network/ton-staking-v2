@@ -25,7 +25,7 @@ const (
 	proposerPrivateKey  = "47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" // Account #4
 
 	// Test parameters
-	testDepositAmountTON = 50000 // 50000 TON
+	testDepositAmountTON = 1000 // 1000 TON
 	testL2BlockNumber    = 100
 
 	// Event signatures
@@ -143,14 +143,16 @@ func registerValidatorWithTON(t *testing.T, sys *rat.TONStakingSystem, contracts
 	// Approve TON to RAT
 	approveTx, err := contracts.TON.Approve(validatorAuth, sys.Addresses.RATProxy, depositAmount)
 	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
+	approveReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
 	require.NoError(t, err)
+	require.Equal(t, uint64(1), approveReceipt.Status, "TON approval failed")
 
 	// Register validator
 	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig, depositAmount)
 	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
+	registerReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
 	require.NoError(t, err)
+	require.Equal(t, uint64(1), registerReceipt.Status, "Validator registration failed")
 
 	t.Logf("✓ Validator registered with deposit: %s TON", depositAmount.String())
 }
