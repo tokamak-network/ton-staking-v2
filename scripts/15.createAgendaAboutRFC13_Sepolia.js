@@ -136,10 +136,42 @@ async function CreateAgendaAboutRFC13() {
     console.log("get voting count : ", await daoagendaManager.getVotingCount(await daoagendaManager.numAgendas() - 1))
 }
 
+async function executeAgenda() {
+    const [deployer] = await ethers.getSigners();
 
+    let daoAgendaManagerAddr = "0x1444f7a8bC26a3c9001a13271D56d6fF36B44f08";
+    let daoCommitteeProxyAddr = "0xA2101482b28E3D99ff6ced517bA41EFf4971a386";
+
+    //==== Set DAOLogicV1 =================================
+    let daoLogicV1 = new ethers.Contract(
+        daoCommitteeProxyAddr,
+        DAOLogicABI,
+        ethers.provider
+    )
+
+    //==== Set DAOAgendaManager =================================
+    let daoagendaManager = new ethers.Contract(
+        daoAgendaManagerAddr,
+        DAOAgendaManagerABI,
+        ethers.provider
+    )
+
+
+    //==== Set AgendaID =================================
+    let agendaID = await daoagendaManager.numAgendas() - 1
+    console.log("agendaID : ", agendaID)
+
+
+    const agenda = await daoagendaManager.agendas(agendaID);
+    console.log("agenda : ", agenda)
+
+    await daoLogicV1.connect(deployer).executeAgenda(agendaID);
+    console.log("executed agendaID :", agendaID)
+}
 
 const main = async () => {
     await CreateAgendaAboutRFC13()
+    // await executeAgenda()
 }
 
 
