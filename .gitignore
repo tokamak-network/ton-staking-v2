@@ -32,3 +32,8 @@ paper/
 docs/for-llm-kr-v2/
 
 backup/
+
+# backup files
+*.bak
+*.backup
+*~
