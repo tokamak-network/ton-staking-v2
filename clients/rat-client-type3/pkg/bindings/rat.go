@@ -4,7 +4,6 @@
 package bindings
 
 import (
-	"errors"
 	"math/big"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 )
 
 // RATABI is the input ABI used to generate the binding from.
@@ -45,12 +43,15 @@ const RATABI = `[
 			{"name": "", "type": "bytes32"}
 		],
 		"outputs": [
-			{"name": "validator", "type": "address"},
+			{"name": "validatorAddress", "type": "address"},
 			{"name": "systemConfig", "type": "address"},
-			{"name": "gameAddress", "type": "address"},
 			{"name": "batchIndex", "type": "uint32"},
+			{"name": "gameAddress", "type": "address"},
+			{"name": "batchHash", "type": "bytes32"},
+			{"name": "bondAmount", "type": "uint256"},
+			{"name": "createdAt", "type": "uint256"},
 			{"name": "deadline", "type": "uint256"},
-			{"name": "submitted", "type": "bool"}
+			{"name": "status", "type": "uint8"}
 		],
 		"stateMutability": "view"
 	},
@@ -126,6 +127,46 @@ func (_RAT *RATTransactor) SubmitEvidence(opts *bind.TransactOpts, systemConfig 
 // SubmitEvidence is a paid mutator transaction binding the contract method.
 func (_RAT *RAT) SubmitEvidence(opts *bind.TransactOpts, systemConfig common.Address, batchIndex uint32, evidenceData []byte) (*types.Transaction, error) {
 	return _RAT.RATTransactor.SubmitEvidence(opts, systemConfig, batchIndex, evidenceData)
+}
+
+// AttentionTestResult represents the return values from attentionTests getter
+type AttentionTestResult struct {
+	ValidatorAddress common.Address
+	SystemConfig     common.Address
+	BatchIndex       uint32
+	GameAddress      common.Address
+	BatchHash        [32]byte
+	BondAmount       *big.Int
+	CreatedAt        *big.Int
+	Deadline         *big.Int
+	Status           uint8
+}
+
+// AttentionTests is a free data retrieval call binding the contract method 0x319ad327.
+func (_RAT *RATCaller) AttentionTests(opts *bind.CallOpts, testId [32]byte) (*AttentionTestResult, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "attentionTests", testId)
+	if err != nil {
+		return nil, err
+	}
+
+	result := new(AttentionTestResult)
+	result.ValidatorAddress = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	result.SystemConfig = *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
+	result.BatchIndex = *abi.ConvertType(out[2], new(uint32)).(*uint32)
+	result.GameAddress = *abi.ConvertType(out[3], new(common.Address)).(*common.Address)
+	result.BatchHash = *abi.ConvertType(out[4], new([32]byte)).(*[32]byte)
+	result.BondAmount = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+	result.CreatedAt = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
+	result.Deadline = *abi.ConvertType(out[7], new(*big.Int)).(**big.Int)
+	result.Status = *abi.ConvertType(out[8], new(uint8)).(*uint8)
+
+	return result, nil
+}
+
+// AttentionTests is a free data retrieval call binding the contract method.
+func (_RAT *RAT) AttentionTests(opts *bind.CallOpts, testId [32]byte) (*AttentionTestResult, error) {
+	return _RAT.RATCaller.AttentionTests(opts, testId)
 }
 
 // RATAttentionTestTriggeredIterator is returned from FilterAttentionTestTriggered and is used to iterate over the raw logs and unpacked data for AttentionTestTriggered events

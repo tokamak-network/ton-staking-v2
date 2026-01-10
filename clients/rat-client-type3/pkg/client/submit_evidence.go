@@ -9,9 +9,18 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 	"github.com/tokamak-network/ton-staking-v2/clients/rat-client-type3/pkg/l2sync"
 )
+
+// OutputRootProof represents the Optimism OutputRootProof structure
+// This matches the Solidity struct in Type3EvidenceVerifier.sol
+type OutputRootProof struct {
+	Version                  [32]byte // bytes32 version (always 0x0)
+	StateRoot                [32]byte // bytes32 stateRoot
+	MessagePasserStorageRoot [32]byte // bytes32 messagePasserStorageRoot
+	LatestBlockHash          [32]byte // bytes32 latestBlockhash
+}
 
 // StateLeafEvidence represents the on-chain StateLeafEvidence structure
 // This matches the Solidity struct in Type3EvidenceVerifier.sol
@@ -27,8 +36,11 @@ type StateLeafEvidence struct {
 	LeafBProof [][]byte   // bytes[] leafBProof
 
 	// State context
-	StateRoot   [32]byte // bytes32 stateRoot
+	StateRoot   [32]byte // bytes32 stateRoot (deprecated, use OutputRootProof.StateRoot)
 	BlockNumber *big.Int // uint256 blockNumber
+
+	// Output Root Proof (for rootClaim verification)
+	OutputRootProof OutputRootProof // OutputRootProof outputRootProof
 }
 
 // SubmitStateLeafEvidence submits StateLeaf evidence to RAT contract
@@ -40,7 +52,7 @@ func SubmitStateLeafEvidence(
 	testId [32]byte,
 	leaves *l2sync.AdjacentLeaves,
 ) (*types.Transaction, error) {
-	log.Info("Submitting StateLeaf evidence to RAT contract",
+	log.Printf("Submitting StateLeaf evidence to RAT contract",
 		"testId", common.BytesToHash(testId[:]).Hex(),
 		"blockNumber", leaves.BlockNumber,
 		"stateRoot", leaves.StateRoot.Hex())
@@ -63,7 +75,7 @@ func SubmitStateLeafEvidence(
 		return nil, fmt.Errorf("failed to encode evidence: %w", err)
 	}
 
-	log.Info("Encoded StateLeaf evidence",
+	log.Printf("Encoded StateLeaf evidence",
 		"evidenceSize", len(evidenceData),
 		"proofANodes", len(evidence.LeafAProof),
 		"proofBNodes", len(evidence.LeafBProof))
@@ -83,7 +95,7 @@ func SubmitStateLeafEvidence(
 		return nil, fmt.Errorf("failed to submit evidence transaction: %w", err)
 	}
 
-	log.Info("Evidence transaction submitted",
+	log.Printf("Evidence transaction submitted",
 		"txHash", tx.Hash().Hex(),
 		"nonce", tx.Nonce(),
 		"gasLimit", tx.Gas())
@@ -104,6 +116,7 @@ func encodeStateLeafEvidence(evidence *StateLeafEvidence) ([]byte, error) {
 	//     bytes[] leafBProof;
 	//     bytes32 stateRoot;
 	//     uint256 blockNumber;
+	//     OutputRootProof outputRootProof;
 	// }
 
 	stateLeafEvidenceType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
@@ -115,6 +128,12 @@ func encodeStateLeafEvidence(evidence *StateLeafEvidence) ([]byte, error) {
 		{Name: "leafBProof", Type: "bytes[]"},
 		{Name: "stateRoot", Type: "bytes32"},
 		{Name: "blockNumber", Type: "uint256"},
+		{Name: "outputRootProof", Type: "tuple", Components: []abi.ArgumentMarshaling{
+			{Name: "version", Type: "bytes32"},
+			{Name: "stateRoot", Type: "bytes32"},
+			{Name: "messagePasserStorageRoot", Type: "bytes32"},
+			{Name: "latestBlockhash", Type: "bytes32"},
+		}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create type: %w", err)
@@ -163,7 +182,7 @@ func WaitForEvidenceSubmission(
 	client bind.DeployBackend,
 	tx *types.Transaction,
 ) (*types.Receipt, error) {
-	log.Info("Waiting for evidence submission transaction to be mined",
+	log.Printf("Waiting for evidence submission transaction to be mined",
 		"txHash", tx.Hash().Hex())
 
 	receipt, err := bind.WaitMined(ctx, client, tx)
@@ -175,7 +194,7 @@ func WaitForEvidenceSubmission(
 		return receipt, fmt.Errorf("evidence submission transaction failed")
 	}
 
-	log.Info("Evidence submission successful",
+	log.Printf("Evidence submission successful",
 		"txHash", receipt.TxHash.Hex(),
 		"blockNumber", receipt.BlockNumber,
 		"gasUsed", receipt.GasUsed)

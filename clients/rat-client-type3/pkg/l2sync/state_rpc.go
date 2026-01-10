@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
@@ -97,7 +97,7 @@ type SortedAccount struct {
 
 // GetAccountRangeViaRPC fetches all accounts using debug_accountRange RPC
 func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumber string) (*AccountRangeResult, error) {
-	log.Info("Fetching account range via RPC", "block", blockNumber)
+	log.Printf("Fetching account range via RPC", "block", blockNumber)
 
 	var result AccountRangeResult
 	err := rpcClient.CallContext(ctx, &result, "debug_accountRange",
@@ -112,7 +112,7 @@ func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumb
 		return nil, fmt.Errorf("failed to call debug_accountRange: %w", err)
 	}
 
-	log.Info("Fetched accounts via RPC",
+	log.Printf("Fetched accounts via RPC",
 		"count", len(result.Accounts),
 		"root", result.GetRootHash().Hex())
 
@@ -126,7 +126,7 @@ func FindAdjacentLeavesViaRPC(
 	randomValue *big.Int,
 	blockNumber uint64,
 ) (*AdjacentLeaves, error) {
-	log.Info("Finding adjacent leaves via RPC",
+	log.Printf("Finding adjacent leaves via RPC",
 		"randomValue", randomValue.String(),
 		"blockNumber", blockNumber)
 
@@ -158,7 +158,7 @@ func FindAdjacentLeavesViaRPC(
 		return sorted[i].Key.Big().Cmp(sorted[j].Key.Big()) < 0
 	})
 
-	log.Info("Sorted accounts by key",
+	log.Printf("Sorted accounts by key",
 		"count", len(sorted),
 		"firstKey", sorted[0].Key.Hex(),
 		"lastKey", sorted[len(sorted)-1].Key.Hex())
@@ -169,7 +169,7 @@ func FindAdjacentLeavesViaRPC(
 		return sorted[i].Key.Big().Cmp(randomHash.Big()) >= 0
 	})
 
-	log.Debug("Binary search result", "index", idx)
+	log.Printf("Binary search result", "index", idx)
 
 	// 5. Select adjacent leaves
 	var accountA, accountB SortedAccount
@@ -178,20 +178,20 @@ func FindAdjacentLeavesViaRPC(
 		// Random value smaller than all leaves
 		accountA = sorted[0]
 		accountB = sorted[1]
-		log.Info("Random value smaller than all leaves, using first two")
+		log.Printf("Random value smaller than all leaves, using first two")
 	} else if idx >= len(sorted) {
 		// Random value larger than all leaves
 		accountA = sorted[len(sorted)-2]
 		accountB = sorted[len(sorted)-1]
-		log.Info("Random value larger than all leaves, using last two")
+		log.Printf("Random value larger than all leaves, using last two")
 	} else {
 		// Normal case
 		accountA = sorted[idx-1]
 		accountB = sorted[idx]
-		log.Info("Found adjacent leaves in middle")
+		log.Printf("Found adjacent leaves in middle")
 	}
 
-	log.Info("Selected adjacent accounts",
+	log.Printf("Selected adjacent accounts",
 		"accountA", accountA.Address.Hex(),
 		"keyA", accountA.Key.Hex(),
 		"balanceA", accountA.Info.GetBalance().String(),
@@ -200,76 +200,103 @@ func FindAdjacentLeavesViaRPC(
 		"balanceB", accountB.Info.GetBalance().String())
 
 	// 6. Get proofs via eth_getProof
-	proofA, err := GetProofViaRPC(ctx, rpcClient, accountA.Address, blockHex)
+	// IMPORTANT: Use the account state from eth_getProof, not from debug_accountRange
+	// The proof contains the actual account state at the specified block
+	proofResultA, err := GetProofViaRPC(ctx, rpcClient, accountA.Address, blockHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proof for accountA: %w", err)
 	}
 
-	proofB, err := GetProofViaRPC(ctx, rpcClient, accountB.Address, blockHex)
+	proofResultB, err := GetProofViaRPC(ctx, rpcClient, accountB.Address, blockHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proof for accountB: %w", err)
 	}
 
-	// 7. Create state trie leaves
-	// RLP-encode account for leafA
-	balanceA, _ := uint256.FromBig(accountA.Info.GetBalance())
+	// 7. Convert proof to [][]byte
+	proofABytes, err := proofResultA.GetProofBytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode proofA: %w", err)
+	}
+
+	proofBBytes, err := proofResultB.GetProofBytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode proofB: %w", err)
+	}
+
+	// 8. Create state trie leaves using account state from eth_getProof
+	// RLP-encode account for leafA (using eth_getProof result)
+	balanceA, _ := uint256.FromBig(proofResultA.Balance.ToInt())
 	accountAData := &types.StateAccount{
-		Nonce:    accountA.Info.Nonce,
+		Nonce:    uint64(proofResultA.Nonce),
 		Balance:  balanceA,
-		Root:     accountA.Info.GetRoot(),
-		CodeHash: accountA.Info.GetCodeHash().Bytes(),
+		Root:     proofResultA.StorageHash,
+		CodeHash: proofResultA.CodeHash.Bytes(),
 	}
 	valueA, err := rlp.EncodeToBytes(accountAData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode accountA: %w", err)
 	}
 
+	log.Printf("Account A from eth_getProof",
+		"address", accountA.Address.Hex(),
+		"nonce", proofResultA.Nonce,
+		"balance", proofResultA.Balance.ToInt().String(),
+		"storageHash", proofResultA.StorageHash.Hex(),
+		"codeHash", proofResultA.CodeHash.Hex())
+
 	leafA := &StateTrieLeaf{
 		Key:         accountA.Key,
 		Value:       valueA,
 		Address:     accountA.Address,
-		Nonce:       accountA.Info.Nonce,
-		Balance:     accountA.Info.GetBalance(),
-		StorageRoot: accountA.Info.GetRoot(),
-		CodeHash:    accountA.Info.GetCodeHash(),
+		Nonce:       uint64(proofResultA.Nonce),
+		Balance:     proofResultA.Balance.ToInt(),
+		StorageRoot: proofResultA.StorageHash,
+		CodeHash:    proofResultA.CodeHash,
 	}
 
-	// RLP-encode account for leafB
-	balanceB, _ := uint256.FromBig(accountB.Info.GetBalance())
+	// RLP-encode account for leafB (using eth_getProof result)
+	balanceB, _ := uint256.FromBig(proofResultB.Balance.ToInt())
 	accountBData := &types.StateAccount{
-		Nonce:    accountB.Info.Nonce,
+		Nonce:    uint64(proofResultB.Nonce),
 		Balance:  balanceB,
-		Root:     accountB.Info.GetRoot(),
-		CodeHash: accountB.Info.GetCodeHash().Bytes(),
+		Root:     proofResultB.StorageHash,
+		CodeHash: proofResultB.CodeHash.Bytes(),
 	}
 	valueB, err := rlp.EncodeToBytes(accountBData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode accountB: %w", err)
 	}
 
+	log.Printf("Account B from eth_getProof",
+		"address", accountB.Address.Hex(),
+		"nonce", proofResultB.Nonce,
+		"balance", proofResultB.Balance.ToInt().String(),
+		"storageHash", proofResultB.StorageHash.Hex(),
+		"codeHash", proofResultB.CodeHash.Hex())
+
 	leafB := &StateTrieLeaf{
 		Key:         accountB.Key,
 		Value:       valueB,
 		Address:     accountB.Address,
-		Nonce:       accountB.Info.Nonce,
-		Balance:     accountB.Info.GetBalance(),
-		StorageRoot: accountB.Info.GetRoot(),
-		CodeHash:    accountB.Info.GetCodeHash(),
+		Nonce:       uint64(proofResultB.Nonce),
+		Balance:     proofResultB.Balance.ToInt(),
+		StorageRoot: proofResultB.StorageHash,
+		CodeHash:    proofResultB.CodeHash,
 	}
 
-	// 8. Create AdjacentLeaves
+	// 9. Create AdjacentLeaves
 	leaves := &AdjacentLeaves{
 		LeafA:       leafA,
 		LeafB:       leafB,
-		ProofA:      proofA,
-		ProofB:      proofB,
+		ProofA:      proofABytes,
+		ProofB:      proofBBytes,
 		StateRoot:   result.GetRootHash(),
 		BlockNumber: blockNumber,
 	}
 
-	log.Info("Successfully created adjacent leaves via RPC",
-		"proofANodes", len(proofA),
-		"proofBNodes", len(proofB))
+	log.Printf("Successfully created adjacent leaves via RPC",
+		"proofANodes", len(proofABytes),
+		"proofBNodes", len(proofBBytes))
 
 	return leaves, nil
 }
@@ -293,8 +320,9 @@ type StorageProof struct {
 }
 
 // GetProofViaRPC gets Merkle proof for an account via eth_getProof
-func GetProofViaRPC(ctx context.Context, rpcClient *rpc.Client, address common.Address, blockNumber string) ([][]byte, error) {
-	log.Debug("Getting proof via RPC", "address", address.Hex(), "block", blockNumber)
+// Returns the full ProofResult which includes both proof and account state
+func GetProofViaRPC(ctx context.Context, rpcClient *rpc.Client, address common.Address, blockNumber string) (*ProofResult, error) {
+	log.Printf("Getting proof via RPC", "address", address.Hex(), "block", blockNumber)
 
 	var result ProofResult
 	err := rpcClient.CallContext(ctx, &result, "eth_getProof",
@@ -306,18 +334,24 @@ func GetProofViaRPC(ctx context.Context, rpcClient *rpc.Client, address common.A
 		return nil, fmt.Errorf("failed to call eth_getProof: %w", err)
 	}
 
-	// Convert hex strings to byte slices
-	proof := make([][]byte, len(result.AccountProof))
-	for i, hexProof := range result.AccountProof {
+	log.Printf("Got proof via RPC",
+		"nodes", len(result.AccountProof),
+		"nonce", result.Nonce,
+		"balance", result.Balance.ToInt().String())
+
+	return &result, nil
+}
+
+// GetProofBytes converts ProofResult.AccountProof to [][]byte
+func (pr *ProofResult) GetProofBytes() ([][]byte, error) {
+	proof := make([][]byte, len(pr.AccountProof))
+	for i, hexProof := range pr.AccountProof {
 		proofBytes, err := hexutil.Decode(hexProof)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode proof node %d: %w", i, err)
 		}
 		proof[i] = proofBytes
 	}
-
-	log.Debug("Got proof via RPC", "nodes", len(proof))
-
 	return proof, nil
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,6 +47,11 @@ func main() {
 				Usage:    "SystemConfig address",
 				Required: true,
 			},
+			&cli.Uint64Flag{
+				Name:  "start-block",
+				Usage: "Block number to start monitoring from",
+				Value: 0,
+			},
 		},
 		Action: run,
 	}
@@ -65,6 +71,7 @@ func run(c *cli.Context) error {
 	config.PrivateKeyHex = c.String("private-key")
 	config.RATContract = common.HexToAddress(c.String("rat-contract"))
 	config.SystemConfig = common.HexToAddress(c.String("system-config"))
+	config.StartBlockNumber = c.Uint64("start-block")
 
 	// Load private key
 	if err := config.LoadPrivateKey(); err != nil {
@@ -76,8 +83,24 @@ func run(c *cli.Context) error {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	// Create service
-	service, err := client.NewRATClientService(config)
+	// Create adjacent leaves service (State Root as Target mode)
+	adjacentConfig := &client.AdjacentServiceConfig{
+		L1RPCURL:         config.L1RPCURL,
+		RATContract:      config.RATContract,
+		PollInterval:     config.PollInterval,
+		Confirmations:    config.Confirmations,
+		StartBlockNumber: config.StartBlockNumber,
+		L2RPCURL:         config.GetPrimaryRPC(),
+		OpNodeRPCURL:     "",        // Not used for now
+		StateDBPath:      "",         // Not used (using RPC mode)
+		StakingContract:  common.Address{}, // Not used
+		ValidatorAddress: config.ValidatorAddress,
+		PrivateKey:       config.GetPrivateKey(),
+		GasLimit:         config.GasLimit,
+		MaxGasPrice:      new(big.Int).SetUint64(config.MaxGasPrice),
+	}
+
+	service, err := client.NewRATClientAdjacentService(adjacentConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}
@@ -88,16 +111,9 @@ func run(c *cli.Context) error {
 	}
 	defer service.Stop()
 
-	log.Printf("\nNOTE: Core verification logic not yet implemented:")
-	log.Printf("  - Batch fetching: TODO")
-	log.Printf("  - Batch decoding: TODO")
-	log.Printf("  - Trustless EVM execution: TODO")
-	log.Printf("  - Merkle proof generation: TODO")
-	log.Printf("  - Evidence submission: TODO")
-	log.Printf("\nPress Ctrl+C to stop...")
+	log.Printf("\nRAT Client running in Adjacent Leaves mode (State Root as Target)")
+	log.Printf("Press Ctrl+C to stop...")
 
-	// Wait for service
-	service.Wait()
-
-	return nil
+	// Wait forever (service runs in background)
+	select {}
 }

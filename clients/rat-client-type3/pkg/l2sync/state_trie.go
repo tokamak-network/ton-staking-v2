@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
@@ -37,7 +37,7 @@ type StateTrieIterator struct {
 
 // NewStateTrieIterator creates iterator for given state root
 func NewStateTrieIterator(db ethdb.Database, stateRoot common.Hash) (*StateTrieIterator, error) {
-	log.Info("Opening state trie", "stateRoot", stateRoot.Hex())
+	log.Printf("Opening state trie", "stateRoot", stateRoot.Hex())
 
 	// Create trie database with proper config for v1.13+
 	// Use simple config - Preimages are needed for SecureTrie
@@ -52,7 +52,7 @@ func NewStateTrieIterator(db ethdb.Database, stateRoot common.Hash) (*StateTrieI
 		return nil, fmt.Errorf("failed to open state trie: %w", err)
 	}
 
-	log.Info("State trie opened successfully")
+	log.Printf("State trie opened successfully")
 
 	// Create node iterator
 	nodeIter, err := tr.NodeIterator(nil)
@@ -73,7 +73,7 @@ func (it *StateTrieIterator) Next() (*StateTrieLeaf, bool) {
 	for {
 		iterCount++
 		if !it.iterator.Next() {
-			log.Info("Trie iterator exhausted", "iterations", iterCount)
+			log.Printf("Trie iterator exhausted", "iterations", iterCount)
 			return nil, false
 		}
 
@@ -81,7 +81,7 @@ func (it *StateTrieIterator) Next() (*StateTrieLeaf, bool) {
 		value := it.iterator.Value
 
 		if iterCount <= 5 || iterCount%100 == 0 {
-			log.Info("Trie iterator entry",
+			log.Printf("Trie iterator entry",
 				"iteration", iterCount,
 				"keyLen", len(key),
 				"valueLen", len(value))
@@ -97,11 +97,11 @@ func (it *StateTrieIterator) Next() (*StateTrieLeaf, bool) {
 		// Decode RLP account
 		var account types.StateAccount
 		if err := rlp.DecodeBytes(value, &account); err != nil {
-			log.Warn("Failed to decode account", "key", keyHash.Hex(), "error", err)
+			log.Printf("Failed to decode account", "key", keyHash.Hex(), "error", err)
 			continue // Skip invalid entries
 		}
 
-		log.Info("Found account in state trie",
+		log.Printf("Found account in state trie",
 			"iteration", iterCount,
 			"key", keyHash.Hex(),
 			"balance", account.Balance.ToBig().String(),
@@ -120,7 +120,7 @@ func (it *StateTrieIterator) Next() (*StateTrieLeaf, bool) {
 
 // CollectAllLeaves collects all leaves from state trie
 func CollectAllLeaves(db ethdb.Database, stateRoot common.Hash) ([]*StateTrieLeaf, error) {
-	log.Info("Collecting all leaves from state trie", "stateRoot", stateRoot.Hex())
+	log.Printf("Collecting all leaves from state trie", "stateRoot", stateRoot.Hex())
 
 	iter, err := NewStateTrieIterator(db, stateRoot)
 	if err != nil {
@@ -139,11 +139,11 @@ func CollectAllLeaves(db ethdb.Database, stateRoot common.Hash) ([]*StateTrieLea
 		count++
 
 		if count%1000 == 0 {
-			log.Debug("Collecting leaves", "count", count)
+			log.Printf("Collecting leaves", "count", count)
 		}
 	}
 
-	log.Info("Collected all leaves", "count", len(leaves))
+	log.Printf("Collected all leaves", "count", len(leaves))
 
 	// Note: Leaves from trie iterator are already sorted by key
 	// Patricia trie iterates in lexicographic order of keys
@@ -157,7 +157,7 @@ func FindAdjacentLeavesInStateTrie(
 	stateRoot common.Hash,
 	randomValue *big.Int,
 ) (*StateTrieLeaf, *StateTrieLeaf, error) {
-	log.Info("Finding adjacent leaves in state trie",
+	log.Printf("Finding adjacent leaves in state trie",
 		"stateRoot", stateRoot.Hex(),
 		"randomValue", randomValue.String(),
 	)
@@ -175,7 +175,7 @@ func FindAdjacentLeavesInStateTrie(
 	// 2. Convert random value to hash for comparison
 	randomHash := common.BigToHash(randomValue)
 
-	log.Info("Search parameters",
+	log.Printf("Search parameters",
 		"randomHash", randomHash.Hex(),
 		"totalLeaves", len(leaves),
 		"firstLeafKey", leaves[0].Key.Hex(),
@@ -189,7 +189,7 @@ func FindAdjacentLeavesInStateTrie(
 		return leaves[i].Key.Big().Cmp(randomHash.Big()) >= 0
 	})
 
-	log.Debug("Binary search result", "index", idx)
+	log.Printf("Binary search result", "index", idx)
 
 	// 4. Handle edge cases
 	var leafA, leafB *StateTrieLeaf
@@ -198,20 +198,20 @@ func FindAdjacentLeavesInStateTrie(
 		// Random value is smaller than all leaves
 		leafA = leaves[0]
 		leafB = leaves[1]
-		log.Info("Random value smaller than all leaves, using first two")
+		log.Printf("Random value smaller than all leaves, using first two")
 	} else if idx >= len(leaves) {
 		// Random value is larger than all leaves
 		leafA = leaves[len(leaves)-2]
 		leafB = leaves[len(leaves)-1]
-		log.Info("Random value larger than all leaves, using last two")
+		log.Printf("Random value larger than all leaves, using last two")
 	} else {
 		// Normal case: found position between two leaves
 		leafA = leaves[idx-1] // Key < randomValue
 		leafB = leaves[idx]   // Key >= randomValue
-		log.Info("Found adjacent leaves")
+		log.Printf("Found adjacent leaves")
 	}
 
-	log.Info("Adjacent leaves selected",
+	log.Printf("Adjacent leaves selected",
 		"leafA.key", leafA.Key.Hex(),
 		"leafA.balance", leafA.Balance,
 		"leafB.key", leafB.Key.Hex(),
@@ -227,7 +227,7 @@ func GenerateStateProof(
 	stateRoot common.Hash,
 	leafKey common.Hash,
 ) ([][]byte, error) {
-	log.Debug("Generating state proof", "stateRoot", stateRoot.Hex(), "leafKey", leafKey.Hex())
+	log.Printf("Generating state proof", "stateRoot", stateRoot.Hex(), "leafKey", leafKey.Hex())
 
 	// Open trie
 	trieDB := triedb.NewDatabase(db, nil)
@@ -251,7 +251,7 @@ func GenerateStateProof(
 		proofNodes = append(proofNodes, common.CopyBytes(iter.Value()))
 	}
 
-	log.Debug("Generated proof", "nodes", len(proofNodes))
+	log.Printf("Generated proof", "nodes", len(proofNodes))
 
 	return proofNodes, nil
 }
@@ -274,19 +274,19 @@ func VerifyStateProof(
 	// Verify proof
 	value, err := trie.VerifyProof(stateRoot, leafKey.Bytes(), proofDB)
 	if err != nil {
-		log.Warn("Proof verification failed", "error", err)
+		log.Printf("Proof verification failed", "error", err)
 		return false
 	}
 
 	// Compare values
 	if len(value) != len(leafValue) {
-		log.Warn("Proof value length mismatch", "expected", len(leafValue), "got", len(value))
+		log.Printf("Proof value length mismatch", "expected", len(leafValue), "got", len(value))
 		return false
 	}
 
 	for i := range value {
 		if value[i] != leafValue[i] {
-			log.Warn("Proof value mismatch at index", "index", i)
+			log.Printf("Proof value mismatch at index", "index", i)
 			return false
 		}
 	}

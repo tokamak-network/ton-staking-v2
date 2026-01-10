@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 )
 
 // StateSynchronizer provides access to L2 state trie
@@ -39,21 +39,26 @@ func NewStateSynchronizer(config *StateSyncConfig) (*StateSynchronizer, error) {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	log.Info("Connected to L2 RPC",
+	log.Printf("Connected to L2 RPC",
 		"rpc", config.L2RPCURL,
 		"chainID", chainID,
 	)
 
-	// Open state database (LevelDB)
-	stateDB, err := rawdb.NewLevelDBDatabase(config.StateDBPath, 128, 1024, "ratclient", true)
-	if err != nil {
-		client.Close()
-		return nil, fmt.Errorf("failed to open state DB at %s: %w", config.StateDBPath, err)
-	}
+	// Open state database (LevelDB) only if path is provided
+	var stateDB ethdb.Database
+	if config.StateDBPath != "" {
+		stateDB, err = rawdb.NewLevelDBDatabase(config.StateDBPath, 128, 1024, "ratclient", true)
+		if err != nil {
+			client.Close()
+			return nil, fmt.Errorf("failed to open state DB at %s: %w", config.StateDBPath, err)
+		}
 
-	log.Info("Opened state database",
-		"path", config.StateDBPath,
-	)
+		log.Printf("Opened state database",
+			"path", config.StateDBPath,
+		)
+	} else {
+		log.Printf("State database path not provided, will use RPC mode")
+	}
 
 	return &StateSynchronizer{
 		stateDB: stateDB,
@@ -67,10 +72,19 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 	randomValue *big.Int,
 	blockNumber uint64,
 ) (*AdjacentLeaves, error) {
-	log.Info("Finding adjacent leaves",
+	log.Printf("Finding adjacent leaves",
 		"blockNumber", blockNumber,
 		"randomValue", randomValue,
 	)
+
+	// If stateDB is nil, use RPC mode
+	if s.stateDB == nil {
+		log.Printf("Using RPC mode (debug_accountRange + eth_getProof)")
+		return FindAdjacentLeavesViaRPC(ctx, s.l2RPC.Client(), randomValue, blockNumber)
+	}
+
+	// StateDB mode (direct database access)
+	log.Printf("Using StateDB mode (direct database access)")
 
 	// 1. Get state root for block
 	header, err := s.l2RPC.HeaderByNumber(ctx, new(big.Int).SetUint64(blockNumber))
@@ -80,7 +94,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 
 	stateRoot := header.Root
 
-	log.Info("Got state root",
+	log.Printf("Got state root",
 		"blockNumber", blockNumber,
 		"stateRoot", stateRoot.Hex(),
 	)
@@ -92,7 +106,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 	}
 
 	// 3. Generate proofs
-	log.Info("Generating Merkle proofs...")
+	log.Printf("Generating Merkle proofs...")
 
 	proofA, err := GenerateStateProof(s.stateDB, stateRoot, leafA.Key)
 	if err != nil {
@@ -104,7 +118,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 		return nil, fmt.Errorf("failed to generate proof for leafB: %w", err)
 	}
 
-	log.Info("Proofs generated",
+	log.Printf("Proofs generated",
 		"proofA.nodes", len(proofA),
 		"proofB.nodes", len(proofB),
 	)
@@ -118,7 +132,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 		return nil, fmt.Errorf("leafB proof verification failed")
 	}
 
-	log.Info("Proofs verified locally")
+	log.Printf("Proofs verified locally")
 
 	return &AdjacentLeaves{
 		LeafA:       leafA,

@@ -89,56 +89,72 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 	//     bytes32 latestBlockhash;
 	// }
 
-	bytes32Ty, _ := abi.NewType("bytes32", "", nil)
-	bytesTy, _ := abi.NewType("bytes", "", nil)
-	bytesArrayTy, _ := abi.NewType("bytes[]", "", nil)
-	uint256Ty, _ := abi.NewType("uint256", "", nil)
-
-	// Define OutputRootProof tuple type
-	outputRootProofTy, _ := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "version", Type: "bytes32"},
+	// Define StateLeafEvidence tuple type (wrapping the entire struct)
+	// This matches Solidity's abi.encode(StateLeafEvidence)
+	stateLeafEvidenceTy, _ := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
+		{Name: "leafAKey", Type: "bytes32"},
+		{Name: "leafAValue", Type: "bytes"},
+		{Name: "leafAProof", Type: "bytes[]"},
+		{Name: "leafBKey", Type: "bytes32"},
+		{Name: "leafBValue", Type: "bytes"},
+		{Name: "leafBProof", Type: "bytes[]"},
 		{Name: "stateRoot", Type: "bytes32"},
-		{Name: "messagePasserStorageRoot", Type: "bytes32"},
-		{Name: "latestBlockhash", Type: "bytes32"},
+		{Name: "blockNumber", Type: "uint256"},
+		{Name: "outputRootProof", Type: "tuple", Components: []abi.ArgumentMarshaling{
+			{Name: "version", Type: "bytes32"},
+			{Name: "stateRoot", Type: "bytes32"},
+			{Name: "messagePasserStorageRoot", Type: "bytes32"},
+			{Name: "latestBlockhash", Type: "bytes32"},
+		}},
 	})
 
-	arguments := abi.Arguments{
-		{Type: bytes32Ty},         // leafAKey
-		{Type: bytesTy},           // leafAValue
-		{Type: bytesArrayTy},      // leafAProof
-		{Type: bytes32Ty},         // leafBKey
-		{Type: bytesTy},           // leafBValue
-		{Type: bytesArrayTy},      // leafBProof
-		{Type: bytes32Ty},         // stateRoot
-		{Type: uint256Ty},         // blockNumber
-		{Type: outputRootProofTy}, // outputRootProof
-	}
-
-	// Pack OutputRootProof as struct
-	outputRootProofStruct := struct {
+	// Define OutputRootProof struct type for embedding
+	type OutputRootProofStruct struct {
 		Version                  [32]byte
 		StateRoot                common.Hash
 		MessagePasserStorageRoot common.Hash
 		LatestBlockhash          common.Hash
-	}{
+	}
+
+	// Pack OutputRootProof as struct
+	outputRootProofStruct := OutputRootProofStruct{
 		Version:                  e.OutputRootProof.Version,
 		StateRoot:                e.OutputRootProof.StateRoot,
 		MessagePasserStorageRoot: e.OutputRootProof.MessagePasserStorageRoot,
 		LatestBlockhash:          e.OutputRootProof.LatestBlockHash,
 	}
 
-	// Pack arguments
-	encoded, err := arguments.Pack(
-		e.LeafAKey,
-		e.LeafAValue,
-		e.LeafAProof,
-		e.LeafBKey,
-		e.LeafBValue,
-		e.LeafBProof,
-		e.StateRoot,
-		new(big.Int).SetUint64(e.BlockNumber),
-		outputRootProofStruct,
-	)
+	// Pack the entire struct as a single tuple argument
+	// This matches Solidity's abi.encode(StateLeafEvidence)
+	stateLeafEvidenceStruct := struct {
+		LeafAKey         common.Hash
+		LeafAValue       []byte
+		LeafAProof       [][]byte
+		LeafBKey         common.Hash
+		LeafBValue       []byte
+		LeafBProof       [][]byte
+		StateRoot        common.Hash
+		BlockNumber      *big.Int
+		OutputRootProof  OutputRootProofStruct
+	}{
+		LeafAKey:        e.LeafAKey,
+		LeafAValue:      e.LeafAValue,
+		LeafAProof:      e.LeafAProof,
+		LeafBKey:        e.LeafBKey,
+		LeafBValue:      e.LeafBValue,
+		LeafBProof:      e.LeafBProof,
+		StateRoot:       e.StateRoot,
+		BlockNumber:     new(big.Int).SetUint64(e.BlockNumber),
+		OutputRootProof: outputRootProofStruct,
+	}
+
+	// Create arguments with single tuple
+	arguments := abi.Arguments{
+		{Type: stateLeafEvidenceTy},
+	}
+
+	// Pack the struct as a single argument
+	encoded, err := arguments.Pack(stateLeafEvidenceStruct)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode evidence: %w", err)

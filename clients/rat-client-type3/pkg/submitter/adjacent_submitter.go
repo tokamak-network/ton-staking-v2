@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 	"github.com/tokamak-network/ton-staking-v2/clients/rat-client-type3/pkg/evidence"
 )
 
@@ -45,7 +45,7 @@ func NewAdjacentLeavesSubmitter(
 	}
 
 	from := crypto.PubkeyToAddress(privateKey.PublicKey)
-	log.Info("Created submitter",
+	log.Printf("Created submitter",
 		"l1RPC", l1RPCURL,
 		"chainID", chainID,
 		"ratContract", ratContract.Hex(),
@@ -68,7 +68,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	randomValue *big.Int,
 	ev *evidence.StateLeafEvidence,
 ) (*types.Receipt, error) {
-	log.Info("Submitting state leaf evidence",
+	log.Printf("Submitting state leaf evidence",
 		"testID", common.BytesToHash(testID[:]).Hex(),
 		"randomValue", randomValue,
 		"leafA.key", ev.LeafAKey.Hex(),
@@ -92,7 +92,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 		return nil, fmt.Errorf("failed to encode evidence: %w", err)
 	}
 
-	log.Info("Evidence encoded",
+	log.Printf("Evidence encoded",
 		"size", len(evidenceData),
 		"stateRoot", ev.StateRoot.Hex(),
 	)
@@ -109,7 +109,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	// Estimate gas
 	gasLimit, err := s.estimateGas(ctx, from, calldata)
 	if err != nil {
-		log.Warn("Gas estimation failed, using default", "error", err, "default", s.gasLimit)
+		log.Printf("Gas estimation failed, using default", "error", err, "default", s.gasLimit)
 		gasLimit = s.gasLimit
 	}
 
@@ -121,7 +121,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 
 	// Cap gas price
 	if s.maxGasPrice != nil && gasPrice.Cmp(s.maxGasPrice) > 0 {
-		log.Warn("Gas price capped", "suggested", gasPrice, "max", s.maxGasPrice)
+		log.Printf("Gas price capped", "suggested", gasPrice, "max", s.maxGasPrice)
 		gasPrice = s.maxGasPrice
 	}
 
@@ -159,7 +159,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	}
 
 	txHash := signedTx.Hash()
-	log.Info("Transaction sent",
+	log.Printf("Transaction sent",
 		"txHash", txHash.Hex(),
 		"from", from.Hex(),
 		"to", s.ratContract.Hex(),
@@ -178,7 +178,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 		return receipt, fmt.Errorf("transaction failed: %s", txHash.Hex())
 	}
 
-	log.Info("Evidence submitted successfully",
+	log.Printf("Evidence submitted successfully",
 		"txHash", txHash.Hex(),
 		"blockNumber", receipt.BlockNumber,
 		"gasUsed", receipt.GasUsed,

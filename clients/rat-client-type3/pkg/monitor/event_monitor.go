@@ -71,6 +71,17 @@ func NewEventMonitor(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Initialize lastProcessedBlock to startBlock - 1
+	// so that first poll includes startBlock
+	var initialLastProcessed uint64
+	if startBlock > 0 {
+		initialLastProcessed = startBlock - 1
+	} else {
+		initialLastProcessed = 0
+	}
+
+	log.Printf("[DEBUG] EventMonitor initialized with startBlock=%d, lastProcessedBlock=%d", startBlock, initialLastProcessed)
+
 	return &EventMonitor{
 		l1Client:           client,
 		ratContract:        ratContract,
@@ -79,7 +90,7 @@ func NewEventMonitor(
 		pollInterval:       pollInterval,
 		confirmations:      confirmations,
 		eventTopic:         eventTopic,
-		lastProcessedBlock: startBlock,
+		lastProcessedBlock: initialLastProcessed,
 		eventsChan:         make(chan *AttentionTestTriggered, 10),
 		ctx:                ctx,
 		cancel:             cancel,
@@ -93,6 +104,7 @@ func (m *EventMonitor) Start() error {
 	log.Printf("  Validator: %s", m.validatorAddress.Hex())
 	log.Printf("  SystemConfig: %s", m.systemConfig.Hex())
 	log.Printf("  Poll Interval: %v", m.pollInterval)
+	log.Printf("  lastProcessedBlock: %d", m.lastProcessedBlock)
 
 	go m.pollLoop()
 	return nil
@@ -112,12 +124,20 @@ func (m *EventMonitor) Events() <-chan *AttentionTestTriggered {
 
 // pollLoop continuously polls for new events
 func (m *EventMonitor) pollLoop() {
+	log.Printf("[DEBUG] pollLoop started, performing immediate poll...")
+
+	// Do an immediate poll to catch up on any missed events
+	if err := m.poll(); err != nil {
+		log.Printf("Error in initial poll: %v", err)
+	}
+
 	ticker := time.NewTicker(m.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-m.ctx.Done():
+			log.Printf("[DEBUG] pollLoop context done, exiting")
 			return
 		case <-ticker.C:
 			if err := m.poll(); err != nil {
@@ -129,15 +149,27 @@ func (m *EventMonitor) pollLoop() {
 
 // poll queries L1 for new events
 func (m *EventMonitor) poll() error {
+	log.Printf("[DEBUG] ===== poll() called, lastProcessedBlock=%d =====", m.lastProcessedBlock)
+
 	// Get current block number
+	log.Printf("[DEBUG] Getting current block number...")
 	currentBlock, err := m.l1Client.BlockNumber(m.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
+	log.Printf("[DEBUG] Current block: %d", currentBlock)
 
-	// Apply confirmations
-	safeBlock := currentBlock - m.confirmations
+	// Apply confirmations (check for underflow)
+	var safeBlock uint64
+	if currentBlock > m.confirmations {
+		safeBlock = currentBlock - m.confirmations
+	} else {
+		safeBlock = 0
+	}
+	log.Printf("[DEBUG] safeBlock (currentBlock %d - confirmations %d) = %d", currentBlock, m.confirmations, safeBlock)
+
 	if safeBlock <= m.lastProcessedBlock {
+		log.Printf("[DEBUG] Nothing new to process (safeBlock=%d, lastProcessed=%d)", safeBlock, m.lastProcessedBlock)
 		return nil // Nothing new to process
 	}
 
@@ -145,22 +177,45 @@ func (m *EventMonitor) poll() error {
 	fromBlock := m.lastProcessedBlock + 1
 	toBlock := safeBlock
 
+	log.Printf("[DEBUG] Preparing FilterLogs query from block %d to %d", fromBlock, toBlock)
+
+	topics := [][]common.Hash{
+		{m.eventTopic},                                   // event signature
+		{},                                               // testId (any)
+		{common.BytesToHash(m.validatorAddress.Bytes())}, // validator (filter our address)
+	}
+
+	// Only filter by systemConfig if it's not empty
+	if m.systemConfig != (common.Address{}) {
+		log.Printf("[DEBUG] Filtering by systemConfig: %s", m.systemConfig.Hex())
+		topics = append(topics, []common.Hash{common.BytesToHash(m.systemConfig.Bytes())})
+	} else {
+		log.Printf("[DEBUG] SystemConfig is empty, not filtering by it")
+	}
+
+	log.Printf("[DEBUG] Query parameters:")
+	log.Printf("[DEBUG]   FromBlock: %d", fromBlock)
+	log.Printf("[DEBUG]   ToBlock: %d", toBlock)
+	log.Printf("[DEBUG]   RAT Contract: %s", m.ratContract.Hex())
+	log.Printf("[DEBUG]   Validator: %s", m.validatorAddress.Hex())
+	log.Printf("[DEBUG]   Event Topic: %s", m.eventTopic.Hex())
+	log.Printf("[DEBUG]   Topics count: %d", len(topics))
+
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),
 		ToBlock:   big.NewInt(int64(toBlock)),
 		Addresses: []common.Address{m.ratContract},
-		Topics: [][]common.Hash{
-			{m.eventTopic},                                      // event signature
-			{},                                                  // testId (any)
-			{common.BytesToHash(m.validatorAddress.Bytes())},    // validator (filter our address)
-			{common.BytesToHash(m.systemConfig.Bytes())},        // systemConfig (filter our config)
-		},
+		Topics:    topics,
 	}
 
+	log.Printf("[DEBUG] Calling FilterLogs...")
 	logs, err := m.l1Client.FilterLogs(m.ctx, query)
 	if err != nil {
+		log.Printf("[DEBUG] FilterLogs failed with error: %v", err)
+		log.Printf("[DEBUG] Error type: %T", err)
 		return fmt.Errorf("failed to filter logs: %w", err)
 	}
+	log.Printf("[DEBUG] FilterLogs returned %d logs", len(logs))
 
 	log.Printf("Polled blocks %d-%d: found %d events", fromBlock, toBlock, len(logs))
 

@@ -94,7 +94,7 @@ func DefaultConfig() *Config {
 
 		// Monitoring
 		PollInterval:     12 * time.Second,
-		Confirmations:    64,
+		Confirmations:    2, // Testnet/devnet value (mainnet should use 64)
 		StartBlockNumber: 0,
 
 		// Submission
