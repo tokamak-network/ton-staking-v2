@@ -21,6 +21,7 @@ type TONStakingSystem struct {
 	T             *testing.T
 	Ctx           context.Context
 	L1Client      *ethclient.Client
+	L1RPCURL      string // Actual Anvil RPC URL with dynamic port
 	AnvilCmd      *exec.Cmd
 	AllocsPath    string
 	AddressesPath string
@@ -102,6 +103,7 @@ func StartTONStakingSystem(t *testing.T) *TONStakingSystem {
 		"--accounts", "10",
 		"--balance", "10000",
 		"--mnemonic", "test test test test test test test test test test test junk",
+		"--timestamp", fmt.Sprintf("%d", time.Now().Unix()),
 	)
 
 	// Redirect anvil output to test logs
@@ -137,6 +139,7 @@ func StartTONStakingSystem(t *testing.T) *TONStakingSystem {
 		T:             t,
 		Ctx:           ctx,
 		L1Client:      l1Client,
+		L1RPCURL:      rpcURL,
 		AnvilCmd:      anvilCmd,
 		AllocsPath:    genesisPath,
 		AddressesPath: addressesPath,

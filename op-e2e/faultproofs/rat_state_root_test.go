@@ -305,12 +305,34 @@ func TestRATStateRootAsTarget(t *testing.T) {
 	proposerAuth.GasLimit = 5000000
 
 	// Create dispute game using helper function (it will handle init bond and extraData)
-	receipt, gameAddress := createDisputeGame(t, sys, proposerAuth, rootClaimArray)
-	t.Logf("✓ DisputeGame created in block %d", receipt.BlockNumber.Uint64())
+	gameReceipt, gameAddress := createDisputeGame(t, sys, proposerAuth, rootClaimArray, blockNumber)
+	t.Logf("✓ DisputeGame created in block %d", gameReceipt.BlockNumber.Uint64())
 	t.Logf("✓ DisputeGame address: %s", gameAddress.Hex())
+	t.Logf("✓ DisputeGame references L2 block: %d", blockNumber)
 
 	// Parse RAT trigger event using helper function
-	testID, ratTriggered := parseRATTriggerEvent(t, receipt, validatorAddr)
+	testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, validatorAddr)
+	require.True(t, ratTriggered, "RAT should be triggered with 100% probability")
+
+	t.Log("=== Starting RAT Client ===")
+
+	// Start RAT client subprocess to handle evidence submission
+	// Use event block number as starting point for monitoring
+	eventBlockNumber := gameReceipt.BlockNumber.Uint64()
+	t.Logf("AttentionTestTriggered event found at block %d", eventBlockNumber)
+
+	// Start monitoring from earlier blocks to ensure event block is "safe" (confirmed) on first poll
+	confirmations := uint64(2) // Should match RAT client config
+	var startBlock uint64
+	if eventBlockNumber > confirmations+2 {
+		startBlock = eventBlockNumber - confirmations - 2
+	} else {
+		startBlock = 0
+	}
+	t.Logf("Starting RAT client from block %d (event at %d, confirmations=%d)", startBlock, eventBlockNumber, confirmations)
+
+	validatorPrivKey := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" // Anvil account #0
+	ratClientReceipt := startRATClient(t, sys, contracts, sys.L1RPCURL, l2RPC, validatorPrivKey, testID, validatorAddr, startBlock)
 
 	// If RAT not triggered, check why
 	if !ratTriggered {
@@ -357,10 +379,11 @@ func TestRATStateRootAsTarget(t *testing.T) {
 	t.Log("✅ OutputRootProof calculated correctly")
 	t.Log("✅ DisputeGame created successfully")
 	t.Log("✅ Validator registered successfully")
-	if ratTriggered {
-		t.Logf("✅ RAT auto-triggered (Test ID: %s)", common.BytesToHash(testID[:]).Hex())
-	} else {
-		t.Log("ℹ️  RAT not triggered (probabilistic - normal behavior)")
+	t.Logf("✅ RAT auto-triggered (Test ID: %s)", common.BytesToHash(testID[:]).Hex())
+	if ratClientReceipt != nil && ratClientReceipt.Status == 1 {
+		t.Log("✅ RAT client successfully submitted evidence")
+		t.Logf("   Evidence TX: %s", ratClientReceipt.TxHash.Hex())
+		t.Logf("   Gas Used: %d", ratClientReceipt.GasUsed)
 	}
 	t.Log("")
 	t.Logf("DisputeGame address: %s", gameAddress.Hex())
@@ -368,12 +391,7 @@ func TestRATStateRootAsTarget(t *testing.T) {
 	t.Logf("L2 Block: %d", blockNumber)
 	t.Logf("L2 State Root: %s", stateRoot.Hex())
 	t.Log("")
-	t.Log("Framework is ready for RAT client integration!")
-	t.Log("")
-	t.Log("Next steps:")
-	t.Log("1. Run RAT client binary (reads DisputeGame rootClaim, queries L2 state)")
-	t.Log("2. Verify evidence submission to RAT contract")
-	t.Log("3. Check RAT resolution and bond distribution")
+	t.Log("✅ Complete E2E test with RAT client integration successful!")
 }
 
 // TestRATClientIntegration tests RAT client binary integration

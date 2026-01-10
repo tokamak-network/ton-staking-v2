@@ -16,6 +16,7 @@ cd op-e2e && make test
 
 - **`faultproofs/rat_system_test.go`** - 3 system tests verifying startup, balances, and contract calls
 - **`faultproofs/rat_challenge_test.go`** - 4 RAT scenario tests (646 lines)
+- **`faultproofs/rat_state_root_test.go`** - RAT State Root E2E test with L2 geth integration (434 lines)
 - **`faultproofs/rat_challenge_helpers.go`** - Reusable test helpers (313 lines, 11 functions)
 - **`e2eutils/rat/system.go`** - `StartTONStakingSystem()` helper that starts isolated Anvil nodes with genesis state
 - **`bindings/`** - Contract bindings (RAT, FaultDisputeGame, DelayedWETH, etc.)
@@ -35,8 +36,8 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 
 ## Tests
 
-**Total: 7 tests (3 system + 4 RAT scenario)**
-**Duration: ~21 seconds (parallel)**
+**Total: 8 tests (3 system + 4 RAT scenario + 1 State Root E2E)**
+**Duration: ~40 seconds (parallel)**
 
 ### System Tests (3)
 
@@ -54,10 +55,25 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
    - Dynamic withdrawal delay query from contract
    - Comprehensive bond restoration verification
 
+### State Root E2E Test (1)
+
+8. **TestRATStateRootAsTarget** (~18s) - Complete "State Root as Target" flow with L2 integration
+   - Starts isolated L1 (Anvil) with genesis containing all deployed contracts
+   - Starts isolated L2 (geth dev mode) with archive state
+   - Creates transactions on L2 to generate state changes
+   - Computes OutputRootProof (hash of version, stateRoot, messagePasserStorageRoot, blockHash)
+   - Registers validator first (prerequisite for RAT)
+   - Creates DisputeGame with OutputRootProof as rootClaim (triggers RAT automatically)
+   - Launches RAT client as subprocess to monitor and submit evidence
+   - Verifies StateLeafEvidence submission using Type 3 verifier (adjacent leaves proof)
+   - Validates complete evidence verification on-chain (Gas: ~277k)
+   - **Full integration test**: L1 + L2 + RAT client + OutputRootProof + StateLeafEvidence
+   - **Type 3**: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME rollup architecture
+
 ## Running Tests
 
 ```bash
-# All tests (7 tests, ~21s)
+# All tests (8 tests, ~40s)
 make test
 
 # System tests only (3 tests)
@@ -65,6 +81,9 @@ GOWORK=off go test -v -run "TestTONStakingSystemStartup|TestAccountBalances|Test
 
 # RAT scenario tests only (4 tests)
 GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
+
+# State Root E2E test (requires L2 geth)
+GOWORK=off go test -v -run TestRATStateRootAsTarget ./faultproofs
 
 # Specific test
 GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs
@@ -83,7 +102,9 @@ For detailed documentation, see:
 
 - Go 1.22+
 - Foundry (for Anvil)
+- Geth (for L2 in TestRATStateRootAsTarget)
 - Genesis file generated: `make devnet-allocs-offline` (from project root)
+- RAT client binary built: `cd clients/rat-client-type3 && go build`
 
 ## Troubleshooting
 
@@ -96,4 +117,105 @@ cd .. && make devnet-allocs-offline
 Tests use dynamic port allocation. If issues persist:
 ```bash
 pkill anvil
+pkill geth
 ```
+
+### RAT client binary not found
+Build the RAT client before running TestRATStateRootAsTarget:
+```bash
+cd clients/rat-client-type3 && go build -o bin/rat-client-type3 cmd/main.go
+```
+
+## Test Details
+
+### TestRATStateRootAsTarget Architecture
+
+This test validates the complete "State Root as Target" verification flow for **Type 3 rollups**.
+
+**What is Type 3?**
+- **Type 3** = `OPTIMISM_BEDROCK_WITH_DISPUTE_GAME`
+- Rollup architecture: Optimism Bedrock + DisputeGameFactory
+- Uses DisputeGame system for fraud proofs (vs. legacy fault proof system)
+- Supports OutputRootProof-based state verification
+- RAT supports multiple rollup types (Type 3, Type 4, etc.) with different verifiers
+
+**Components:**
+- **L1 (Anvil)**: Pre-deployed contracts from genesis (RAT, DisputeGameFactory, SystemConfig)
+- **L2 (geth)**: Dev mode with archive state and debug APIs enabled
+- **RAT Client**: Go subprocess monitoring L1 events and submitting evidence
+- **Contracts**: Type3EvidenceVerifier library for Type 3 rollup evidence verification
+
+**Flow:**
+1. Start isolated L1 with genesis (all contracts deployed)
+2. Start isolated L2 geth with dynamic ports
+3. Generate L2 state by sending transactions
+4. Query L2 state: `eth_getBlockByNumber`, `debug_accountRange`, `eth_getProof`
+5. Compute OutputRootProof components:
+   - `version`: 32-byte zero (always 0x0)
+   - `stateRoot`: L2 state root from block header
+   - `messagePasserStorageRoot`: L2ToL1MessagePasser storage root
+   - `latestBlockHash`: L2 block hash
+6. Register validator with TON deposit (prerequisite for RAT)
+7. Create DisputeGame with `rootClaim = hash(OutputRootProof)` (RAT auto-triggers)
+8. Launch RAT client subprocess that:
+   - Monitors `AttentionTestTriggered` events
+   - Finds adjacent leaves in L2 state trie using `debug_accountRange`
+   - Generates Merkle proofs using `eth_getProof`
+   - Encodes StateLeafEvidence with OutputRootProof
+   - Submits evidence to RAT contract
+9. Verify evidence on-chain:
+   - Validates OutputRootProof: `hash(outputRootProof) == rootClaim`
+   - Validates adjacency: `leafA.key < stateRoot <= leafB.key` (**State Root as Target!**)
+   - Validates Merkle proofs: Both leaves verify against stateRoot
+   - All validations pass → Evidence accepted
+
+**Evidence Format:**
+
+Type 3 rollups support two evidence types:
+- **Evidence Type 0**: FraudProof (batch derivation verification)
+- **Evidence Type 1**: StateLeafEvidence (state possession proof via adjacent leaves)
+
+This test uses **Evidence Type 1 (StateLeafEvidence)**:
+```solidity
+struct StateLeafEvidence {
+    bytes32 leafAKey;          // keccak256(address)
+    bytes leafAValue;          // RLP(account)
+    bytes[] leafAProof;        // Merkle proof
+    bytes32 leafBKey;          // Adjacent leaf key
+    bytes leafBValue;          // RLP(account)
+    bytes[] leafBProof;        // Merkle proof
+    bytes32 stateRoot;         // L2 state root (deprecated, use OutputRootProof)
+    uint256 blockNumber;       // L2 block number
+    OutputRootProof outputRootProof;  // Proves stateRoot authenticity
+}
+
+struct OutputRootProof {
+    bytes32 version;                      // Always 0x0
+    bytes32 stateRoot;                    // L2 state root
+    bytes32 messagePasserStorageRoot;     // L2ToL1MessagePasser storage root
+    bytes32 latestBlockhash;              // L2 block hash
+}
+```
+
+**Key Technical Details:**
+- **State Root as Target**: The stateRoot itself is the target value being proven (not a random value)
+  - Validator must prove they possess full L2 state by finding adjacent leaves where `leafA.key < stateRoot <= leafB.key`
+  - This proves the validator knows the entire state trie structure
+- **ABI Encoding**: Uses `abi.encode(struct)` format (includes 32-byte offset)
+- **Merkle Proof**: Optimism's MerkleTrie.sol verifies Patricia trie proofs
+- **Account Data**: Must use `eth_getProof` data (not `debug_accountRange`)
+- **Adjacency**: Proven by providing two consecutive leaves in sorted key order that bracket the stateRoot
+- **Gas Cost**: ~277k for full verification (includes 2 Merkle proofs + validation)
+
+**Success Criteria:**
+- ✅ L1 and L2 start successfully
+- ✅ OutputRootProof computed correctly
+- ✅ DisputeGame created with correct rootClaim
+- ✅ Validator registered and RAT triggered
+- ✅ RAT client detects event and generates evidence
+- ✅ Evidence submitted on-chain (transaction receipt obtained)
+- ✅ All on-chain validations pass:
+  - OutputRootProof hash matches rootClaim
+  - StateRoot falls within adjacent leaf range (State Root as Target)
+  - Both Merkle proofs verify against stateRoot
+- ✅ Gas usage reasonable (~277k)

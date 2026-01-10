@@ -248,26 +248,24 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-	gameReceipt, _ := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	gameReceipt, _ := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim, testL2BlockNumber)
 
 	// Step 3: Parse RAT trigger event and get batchIndex
 	t.Log("Step 3: Parsing RAT trigger event...")
 
-	testID, batchIndex, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
+	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
-	_ = testID // testID available for future use if needed
 
 	// Step 4: Submit evidence as selected validator
 	t.Log("Step 4: Submitting evidence...")
 
 	// Create dummy evidence
-	evidence := []byte("dummy evidence data")
+	evidenceType := uint8(0) // FraudProof type
+	evidenceData := []byte("dummy evidence data")
 
-	evidenceTx, err := contracts.RAT.SubmitEvidence(accounts.Validator.Auth, sys.Addresses.SystemConfig, batchIndex, evidence)
+	evidenceReceipt, err := submitEvidenceToRAT(t, sys, contracts, accounts.Validator.Auth, testID, evidenceType, evidenceData)
 	require.NoError(t, err)
-	evidenceReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, evidenceTx)
-	require.NoError(t, err)
-	t.Logf("✓ Evidence submitted (tx: %s)", evidenceTx.Hash().Hex())
+	t.Logf("✓ Evidence submitted (status: %d)", evidenceReceipt.Status)
 
 	// Verify evidence submission event
 	evidenceSubmitted := false
@@ -342,7 +340,7 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	// Step 2: Create dispute game with WRONG root claim as proposer
 	t.Log("Step 2: Creating DisputeGame with WRONG root claim...")
 
-	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth, testL2BlockNumber)
 
 	// Step 3: Parse RAT trigger event
 	t.Log("Step 3: Parsing RAT trigger event...")

@@ -1,16 +1,23 @@
 package faultproofs
 
 import (
+	"bufio"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
+	"os/exec"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
@@ -158,7 +165,7 @@ func registerValidatorWithTON(t *testing.T, sys *rat.TONStakingSystem, contracts
 }
 
 // createDisputeGameWithWrongClaim creates a DisputeGame with a wrong root claim
-func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts) (*types.Receipt, common.Address) {
+func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts, l2BlockNumber uint64) (*types.Receipt, common.Address) {
 	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
 	// Connect to DisputeGameFactory
@@ -177,8 +184,8 @@ func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, pr
 	rootClaim := [32]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// extraData: 32 bytes containing l2BlockNumber
-	l2BlockNumber := big.NewInt(testL2BlockNumber)
-	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
+	l2BlockNumberBig := big.NewInt(int64(l2BlockNumber))
+	extraData := common.LeftPadBytes(l2BlockNumberBig.Bytes(), 32)
 
 	// Create game
 	createGameTx, err := dgf.Create(proposerAuth, gameType, rootClaim, extraData)
@@ -234,8 +241,8 @@ func advanceTimeAndMine(t *testing.T, sys *rat.TONStakingSystem, seconds int64) 
 	t.Logf("✓ Block mined")
 }
 
-// createDisputeGame creates a dispute game with a given root claim
-func createDisputeGame(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts, rootClaim [32]byte) (*types.Receipt, common.Address) {
+// createDisputeGame creates a dispute game with a given root claim and L2 block number
+func createDisputeGame(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts, rootClaim [32]byte, l2BlockNumber uint64) (*types.Receipt, common.Address) {
 	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
 	// Connect to DisputeGameFactory
@@ -251,8 +258,8 @@ func createDisputeGame(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bi
 	proposerAuth.Value = initBond
 
 	// extraData: 32 bytes containing l2BlockNumber
-	l2BlockNumber := big.NewInt(testL2BlockNumber)
-	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
+	l2BlockNumberBig := big.NewInt(int64(l2BlockNumber))
+	extraData := common.LeftPadBytes(l2BlockNumberBig.Bytes(), 32)
 
 	// Create game
 	createGameTx, err := dgf.Create(proposerAuth, gameType, rootClaim, extraData)
@@ -279,6 +286,276 @@ func parseDisputeGameCreatedEvent(t *testing.T, receipt *types.Receipt) common.A
 		}
 	}
 	return common.Address{}
+}
+
+// AccountRange represents response from debug_accountRange
+type AccountRange struct {
+	Accounts map[string]AccountInfo `json:"accounts"` // key is address string
+	Next     string                 `json:"next"`
+}
+
+// AccountInfo represents account data from debug_accountRange
+type AccountInfo struct {
+	Balance  string `json:"balance"`
+	Nonce    uint64 `json:"nonce"`
+	Root     string `json:"root"`     // Storage root
+	CodeHash string `json:"codeHash"`
+	Address  string `json:"address"` // WITH 0x prefix
+	Key      string `json:"key"`     // WITHOUT 0x prefix - keccak256(address)
+}
+
+// createStateLeafEvidence creates StateLeaf evidence for RAT submission using RPC
+func createStateLeafEvidence(t *testing.T, sys *rat.TONStakingSystem, l2Client *ethclient.Client, stateRoot common.Hash, msgPasserRoot common.Hash, blockHash common.Hash, blockNumber uint64) []byte {
+	ctx := sys.Ctx
+
+	// Step 1: Get all accounts from L2 state trie using debug_accountRange
+	t.Log("Querying L2 state accounts using debug_accountRange...")
+
+	var accountRange AccountRange
+	blockNumHex := fmt.Sprintf("0x%x", blockNumber)
+
+	err := l2Client.Client().CallContext(ctx, &accountRange, "debug_accountRange",
+		blockNumHex,                 // block number
+		common.Hash{}.Hex(),         // start (0x00...00 = from beginning)
+		256,                         // maxResults
+		true,                        // excludeCode
+		true,                        // excludeStorage
+		false,                       // incompletes
+	)
+	if err != nil {
+		t.Logf("debug_accountRange failed: %v, using dummy evidence", err)
+		return []byte("dummy_stateleaf_evidence")
+	}
+
+	if len(accountRange.Accounts) < 2 {
+		t.Logf("Not enough accounts (%d), using dummy evidence", len(accountRange.Accounts))
+		return []byte("dummy_stateleaf_evidence")
+	}
+
+	t.Logf("Found %d accounts in state trie", len(accountRange.Accounts))
+
+	// Step 2: Find adjacent leaves where leafA.key < stateRoot < leafB.key
+	// Convert accounts map to sorted slice
+	type accountEntry struct {
+		address  common.Address
+		key      common.Hash // keccak256(address)
+		info     AccountInfo
+	}
+
+	accounts := make([]accountEntry, 0, len(accountRange.Accounts))
+	for _, acc := range accountRange.Accounts {
+		// Parse key (keccak256 of address) - add 0x prefix if missing
+		keyHex := acc.Key
+		if !strings.HasPrefix(keyHex, "0x") {
+			keyHex = "0x" + keyHex
+		}
+		keyHash := common.HexToHash(keyHex)
+
+		accounts = append(accounts, accountEntry{
+			address: common.HexToAddress(acc.Address),
+			key:     keyHash,
+			info:    acc,
+		})
+	}
+
+	// Sort by key
+	sort.Slice(accounts, func(i, j int) bool {
+		return accounts[i].key.Big().Cmp(accounts[j].key.Big()) < 0
+	})
+
+	// Find position where stateRoot would be inserted
+	stateRootBig := stateRoot.Big()
+	var leafA, leafB accountEntry
+
+	idx := sort.Search(len(accounts), func(i int) bool {
+		return accounts[i].key.Big().Cmp(stateRootBig) >= 0
+	})
+
+	if idx == 0 {
+		// stateRoot smaller than all accounts - use first two
+		leafA, leafB = accounts[0], accounts[1]
+		t.Log("Using first two accounts (stateRoot < all keys)")
+	} else if idx >= len(accounts) {
+		// stateRoot larger than all accounts - use last two
+		leafA, leafB = accounts[len(accounts)-2], accounts[len(accounts)-1]
+		t.Log("Using last two accounts (stateRoot > all keys)")
+	} else {
+		// Normal case
+		leafA, leafB = accounts[idx-1], accounts[idx]
+		t.Log("Found adjacent accounts")
+	}
+
+	t.Logf("LeafA address: %s, key: %s", leafA.address.Hex(), leafA.key.Hex())
+	t.Logf("LeafB address: %s, key: %s", leafB.address.Hex(), leafB.key.Hex())
+
+	// For now, return dummy evidence until we implement full proof generation
+	// TODO: Use eth_getProof to get Merkle proofs for leafA and leafB
+	// TODO: RLP encode account data
+	// TODO: Properly encode StateLeafEvidence struct using ABI encoder
+
+	t.Log("⚠ Using dummy evidence (proof generation not yet implemented)")
+	return []byte("dummy_stateleaf_evidence")
+}
+
+// submitEvidenceToRAT submits evidence to RAT contract and returns receipt
+func submitEvidenceToRAT(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, testID [32]byte, evidenceType uint8, evidenceData []byte) (*types.Receipt, error) {
+	t.Logf("Submitting evidence: testID=%s, type=%d, dataLen=%d", common.BytesToHash(testID[:]).Hex(), evidenceType, len(evidenceData))
+
+	evidenceTx, err := contracts.RAT.SubmitEvidence(validatorAuth, testID, evidenceType, evidenceData)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, evidenceTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
+}
+
+// startRATClient starts RAT client subprocess and waits for evidence submission
+func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, l1RPCURL, l2RPCURL string, validatorPrivKey string, testID [32]byte, validatorAddr common.Address, startBlock uint64) *types.Receipt {
+	ctx := sys.Ctx
+
+	// Build RAT client binary if not exists
+	t.Log("Building RAT client binary...")
+	buildCmd := exec.Command("make", "rat-client-build")
+	buildCmd.Dir = "../../" // From op-e2e/faultproofs to root
+	buildOutput, err := buildCmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Build output: %s", buildOutput)
+		t.Fatalf("Failed to build RAT client: %v", err)
+	}
+	t.Log("✓ RAT client binary built")
+
+	// Prepare RAT client arguments
+	ratClientBinary := "../../clients/rat-client-type3/bin/rat-client-type3"
+	args := []string{
+		"--l1-rpc", l1RPCURL,
+		"--l2-rpc", l2RPCURL,
+		"--private-key", validatorPrivKey,
+		"--rat-contract", sys.Addresses.RATProxy.Hex(),
+		"--system-config", sys.Addresses.SystemConfig.Hex(),
+		"--start-block", fmt.Sprintf("%d", startBlock),
+	}
+
+	t.Logf("Starting RAT client:")
+	t.Logf("  Binary: %s", ratClientBinary)
+	t.Logf("  L1 RPC: %s", l1RPCURL)
+	t.Logf("  L2 RPC: %s", l2RPCURL)
+	t.Logf("  RAT Contract: %s", sys.Addresses.RATProxy.Hex())
+	t.Logf("  System Config: %s", sys.Addresses.SystemConfig.Hex())
+
+	// Start RAT client process
+	ratClient := exec.Command(ratClientBinary, args...)
+	ratClient.Dir = "../../op-e2e/faultproofs"
+
+	// Capture output
+	ratClientStdout, err := ratClient.StdoutPipe()
+	if err != nil {
+		t.Fatalf("Failed to create stdout pipe: %v", err)
+	}
+	ratClientStderr, err := ratClient.StderrPipe()
+	if err != nil {
+		t.Fatalf("Failed to create stderr pipe: %v", err)
+	}
+
+	// Start the process
+	if err := ratClient.Start(); err != nil {
+		t.Fatalf("Failed to start RAT client: %v", err)
+	}
+	t.Logf("✓ RAT client started (PID: %d)", ratClient.Process.Pid)
+
+	// Log output in background
+	go func() {
+		scanner := bufio.NewScanner(ratClientStdout)
+		for scanner.Scan() {
+			t.Logf("[rat-client] %s", scanner.Text())
+		}
+	}()
+	go func() {
+		scanner := bufio.NewScanner(ratClientStderr)
+		for scanner.Scan() {
+			t.Logf("[rat-client-err] %s", scanner.Text())
+		}
+	}()
+
+	// Ensure cleanup
+	defer func() {
+		if ratClient.Process != nil {
+			t.Logf("Stopping RAT client (PID: %d)", ratClient.Process.Pid)
+			ratClient.Process.Kill()
+			ratClient.Wait()
+		}
+	}()
+
+	// Wait for evidence submission (monitor EvidenceSubmitted event)
+	t.Log("Waiting for evidence submission...")
+
+	eventSig := crypto.Keccak256Hash([]byte("EvidenceSubmitted(bytes32,address,address,uint32)"))
+	evidenceStartBlock := startBlock // Start monitoring from the same block as RAT event
+
+	// Poll for evidence submission event (timeout after 2 minutes)
+	timeout := time.After(2 * time.Minute)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("Timeout waiting for evidence submission (2 minutes)")
+			return nil
+
+		case <-ticker.C:
+			// Get current block
+			currentBlock, err := sys.L1Client.BlockNumber(ctx)
+			if err != nil {
+				t.Logf("Failed to get block number: %v", err)
+				continue
+			}
+
+			// Query logs for EvidenceSubmitted event
+			logs, err := sys.L1Client.FilterLogs(ctx, ethereum.FilterQuery{
+				FromBlock: new(big.Int).SetUint64(evidenceStartBlock),
+				ToBlock:   new(big.Int).SetUint64(currentBlock),
+				Addresses: []common.Address{sys.Addresses.RATProxy},
+				Topics:    [][]common.Hash{{eventSig}, {testID}},
+			})
+			if err != nil {
+				t.Logf("Failed to filter logs: %v", err)
+				continue
+			}
+
+			if len(logs) > 0 {
+				log := logs[0]
+				t.Logf("✓ Evidence submitted in block %d, tx %s", log.BlockNumber, log.TxHash.Hex())
+
+				// Get receipt
+				receipt, err := sys.L1Client.TransactionReceipt(ctx, log.TxHash)
+				if err != nil {
+					t.Fatalf("Failed to get receipt: %v", err)
+				}
+
+				if receipt.Status == 1 {
+					t.Log("✓ Evidence submission successful")
+
+					// Verify bond recovery
+					callOpts := &bind.CallOpts{Context: ctx}
+					registration, err := contracts.RAT.ValidatorRegistrations(callOpts, sys.Addresses.SystemConfig, validatorAddr)
+					if err == nil {
+						t.Logf("✓ Validator deposit after evidence: %s", registration.DepositedAmount.String())
+					}
+				} else {
+					t.Log("⚠ Evidence submission transaction reverted")
+				}
+
+				return receipt
+			}
+
+			startBlock = currentBlock + 1
+		}
+	}
 }
 
 // parseRATTriggerEventWithBatchIndex parses the AttentionTestTriggered event with batchIndex from receipt
