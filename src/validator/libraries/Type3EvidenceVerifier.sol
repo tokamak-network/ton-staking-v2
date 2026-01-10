@@ -131,31 +131,25 @@ library Type3EvidenceVerifier {
         pure
         returns (bool)
     {
-        if (evidenceData.length == 0) return false;
+        require(evidenceData.length > 0, "ERR_EMPTY_EVIDENCE");
 
         StateLeafEvidence memory ev = abi.decode(evidenceData, (StateLeafEvidence));
 
         // 1. 기본 검증
-        if (!_validateStateLeafBasics(ev)) return false;
+        require(_validateStateLeafBasics(ev), "ERR_BASIC_VALIDATION");
 
         // 2. OutputRootProof 검증: hash(outputRootProof) == rootClaim
         bytes32 computedRootClaim = _hashOutputRootProof(ev.outputRootProof);
-        if (computedRootClaim != rootClaim) {
-            return false;
-        }
+        require(computedRootClaim == rootClaim, "ERR_OUTPUT_ROOT_MISMATCH");
 
         // 3. OutputRootProof에서 stateRoot 추출
         bytes32 stateRoot = ev.outputRootProof.stateRoot;
 
         // 4. 범위 검증: leafA.key < stateRoot < leafB.key (State Root as Target!)
-        if (!_verifyAdjacentRange(ev.leafAKey, ev.leafBKey, stateRoot)) {
-            return false;
-        }
+        require(_verifyAdjacentRange(ev.leafAKey, ev.leafBKey, stateRoot), "ERR_RANGE_CHECK");
 
         // 5. Patricia Trie Merkle Proof 검증
-        if (!_verifyPatriciaProofsWithRoot(ev, stateRoot)) {
-            return false;
-        }
+        require(_verifyPatriciaProofsWithRoot(ev, stateRoot), "ERR_MERKLE_PROOF");
 
         return true;
     }
@@ -484,9 +478,7 @@ library Type3EvidenceVerifier {
             stateRoot                       // root (파라미터로 받은 값 사용)
         );
 
-        if (!leafAValid) {
-            return false;
-        }
+        require(leafAValid, "ERR_LEAF_A_INVALID");
 
         // 2. Leaf B proof 검증
         bool leafBValid = MerkleTrie.verifyInclusionProof(
@@ -496,9 +488,7 @@ library Type3EvidenceVerifier {
             stateRoot                       // root (파라미터로 받은 값 사용)
         );
 
-        if (!leafBValid) {
-            return false;
-        }
+        require(leafBValid, "ERR_LEAF_B_INVALID");
 
         return true;
     }
