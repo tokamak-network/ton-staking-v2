@@ -2,51 +2,51 @@
 
 ## Overview
 
-RAT (Randomized Attention Test) Client는 TON Staking V3에서 **validator가 L2 rollup node를 직접 보유하고 있는지 검증**하기 위한 시스템입니다. Type 3 rollup (Optimism Bedrock with DisputeGameFactory)의 경우, **debug API를 통한 State Trie 기반 검증**으로 validator의 full op-geth node 운영을 확인합니다.
+The RAT (Randomized Attention Test) Client is a system for **verifying that validators directly own L2 rollup nodes** in TON Staking V3. For Type 3 rollups (Optimism Bedrock with DisputeGameFactory), it confirms validator's full op-geth node operation through **State Trie-based verification using debug API**.
 
-**핵심 요구사항:**
-- debug_accountRange API 사용 → Full node + debug API 필요
-- RandomValue로 L2 블록 선택 → 어떤 블록이 선택될지 예측 불가
-- debug API는 self-hosted node에서만 활성화 가능
+**Key Requirements:**
+- Use of `debug_accountRange` API → Requires full node + debug API
+- L2 block selection via StateRoot → Cannot predict which block will be selected
+- Debug API is only available on self-hosted nodes
 
 ## Design Philosophy
 
-### 목적: Validator Liveness 증명
+### Purpose: Validator Liveness Proof
 
 ```
-Liveness = Full node 직접 보유 + L2 실시간 모니터링
-Correctness = State가 올바른지 검증
+Liveness = Direct full node ownership + Real-time L2 monitoring
+Correctness = Verification that state is correct
 
-RAT Client = Liveness 검증 (20-30분, debug API)
-DisputeGame = Correctness 검증 (7일, L1-only)
+RAT Client = Liveness verification (20-30 minutes, debug API)
+DisputeGame = Correctness verification (7 days, L1-only)
 
-→ 2-tier 보안 모델
+→ 2-tier security model
 ```
 
-**검증 시간 상세:**
-- **Production**: ~20-30분
-  - Reorg 보호 (64 confirmations): ~12.8분
-  - State iteration + proof generation: ~5-15분
-- **Test/Devnet**: ~5-10분
-  - Reorg 보호 (1-6 confirmations): ~12초-1.2분
-  - State iteration + proof generation: ~5-10분
+**Verification Time Details:**
+- **Production**: ~20-30 minutes
+  - Reorg protection (64 confirmations): ~12.8 minutes
+  - State iteration + proof generation: ~5-15 minutes
+- **Test/Devnet**: ~5-10 minutes
+  - Reorg protection (1-6 confirmations): ~12 seconds-1.2 minutes
+  - State iteration + proof generation: ~5-10 minutes
 
-**핵심 설계 원칙:**
-1. **빠름**: 20-30분 내 증거 제출 (Production)
-2. **단순함**: 복잡한 fraud proof 대신 state trie iteration
-3. **실용적**: debug API 사용 (state trie 인덱스 접근)
-4. **폴백 가능**: 실패 시 DisputeGame으로 최종 검증
+**Core Design Principles:**
+1. **Fast**: Evidence submission within 20-30 minutes (Production)
+2. **Simple**: State trie iteration instead of complex fraud proofs
+3. **Practical**: Use of debug API (state trie access)
+4. **Fallback capable**: Final verification via DisputeGame on failure
 
 ### Trade-offs
 
-| 항목 | RAT Client | DisputeGame (Optimism) |
+| Item | RAT Client | DisputeGame (Optimism) |
 |------|-----------|------------------------|
-| 검증 시간 | 20-30분 (Production) | 7일 |
-| 복잡도 | 낮음 | 높음 |
-| 비용 | 낮음 (1-2 tx) | 높음 (수십 tx) |
-| 요구사항 | Full op-geth + debug API | L1만 사용 |
-| 검증 내용 | Liveness (node 보유 + 모니터링) | Correctness (state 정확성) |
-| 목적 | Fast path (99% 케이스) | Final safety (1% 의심 케이스) |
+| Verification Time | 20-30 minutes (Production) | 7 days |
+| Complexity | Low | High |
+| Cost | Low (1-2 tx) | High (dozens of tx) |
+| Requirements | Full op-geth + debug API | L1 only |
+| Verification Content | Liveness (node ownership + monitoring) | Correctness (state accuracy) |
+| Purpose | Fast path (99% of cases) | Final safety (1% suspicious cases) |
 
 ## System Architecture
 
@@ -124,7 +124,7 @@ DisputeGame = Correctness 검증 (7일, L1-only)
 
 ### 1. Event Monitor (`pkg/monitor`)
 
-**역할**: L1의 RAT contract를 모니터링하여 AttentionTest 이벤트 감지
+**Role**: Monitors L1 RAT contract to detect AttentionTest events
 
 ```go
 type AttentionTestTriggered struct {
@@ -135,16 +135,16 @@ type AttentionTestTriggered struct {
 }
 ```
 
-**주요 기능:**
-- L1 블록 폴링 (12초 간격)
-- 이벤트 파싱
-- Reorg 보호 (64 confirmations, ~12.8분)
-  - Production: 64 confirmations (안전성)
-  - Test/Devnet: 1-6 confirmations (빠른 테스트)
+**Key Features:**
+- L1 block polling (12-second intervals)
+- Event parsing
+- Reorg protection (64 confirmations, ~12.8 minutes)
+  - Production: 64 confirmations (safety)
+  - Test/Devnet: 1-6 confirmations (fast testing)
 
 ### 2. Op-node Client (`pkg/verification`)
 
-**역할**: op-node의 Rollup RPC를 통해 OutputRootProof 조회
+**Role**: Queries OutputRootProof via op-node's Rollup RPC
 
 ```go
 type OutputRootProof struct {
@@ -155,99 +155,154 @@ type OutputRootProof struct {
 }
 ```
 
-**핵심**: L2 state root의 진위를 확인하는 구조체
+**Core**: Structure for verifying authenticity of L2 state root
 
 ### 3. State Synchronizer (`pkg/l2sync`)
 
-**역할**: L2 state trie를 순회하며 인접한 leaf 쌍을 찾음
+**Role**: Traverses L2 state trie to find adjacent leaf pairs
 
-**주요 컴포넌트:**
+**Key Components:**
 - `StateTrie`: Patricia trie iterator
-- `StateRPC`: RPC 기반 state fetcher (debug_accountRange 사용)
-- `AdjacentLeaves`: 인접 leaf 쌍 + Merkle proofs
+- `StateRPC`: RPC-based state fetcher (uses `debug_accountRange`)
+- `AdjacentLeaves`: Adjacent leaf pairs + Merkle proofs
 
-**debug_accountRange API 사용:**
+**Using `debug_accountRange` API:**
 ```go
-// debug_accountRange는 state trie의 특정 범위를 페이징으로 조회
-// 파라미터: (stateRoot, startKey, maxResults, excludeCode, excludeStorage)
+// debug_accountRange queries a specific range of state trie with pagination
+// Parameters: (stateRoot, startKey, maxResults, excludeCode, excludeStorage)
 debug_accountRange(stateRoot, startKey, 1000, true, true)
 
-// 반환: {
+// Returns: {
 //   accounts: { "0x123...": { balance, nonce, ... }, ... }
-//   next: "0x456..."  // 다음 페이지 시작 키
+//   next: "0x456..."  // Next page start key
 // }
 ```
 
-**왜 Full Node + debug API가 필요한가?**
+**Why Full Node + Debug API is Required:**
 ```
-일반 RPC (eth_getProof):
-  - 특정 주소의 proof만 조회 가능
-  - 누구나 외부 RPC로 호출 가능
-  - 주소를 알면 증거 미리 준비 가능
-  → Full node 필요 없음
+Regular RPC (eth_getProof):
+  - Can only query proof for specific addresses
+  - Anyone can call via external RPC
+  - Can prepare evidence in advance if address is known
+  → Full node not required
 
 debug_accountRange:
-  - State trie를 순회하여 adjacent leaves 조회
-  - DisputeGame에서 지정된 L2 블록의 StateRoot를 target으로 사용
-  - StateRoot 자체를 기준으로 adjacent leaves 찾기
-  - 대부분의 Public RPC는 debug API를 비활성화
-  → Full node 필요
-  → debug API 활성화 필요
-  → Self-hosted op-geth 필요
+  - Traverses state trie to find adjacent leaves
+  - Uses StateRoot from L2 block specified in DisputeGame as target
+  - Finds adjacent leaves based on StateRoot itself
+  - Most public RPCs disable debug API
+  → Full node required
+  → Debug API activation required
+  → Self-hosted op-geth required
 ```
 
 **StateRoot as Target:**
-- DisputeGame 생성 시 L2 블록이 이미 지정됨
-- 해당 블록의 StateRoot를 가져와서 target value로 사용
-- StateRoot를 big.Int로 변환하여 binary search에 사용
-- 항상 해당 블록의 state를 보유해야 함
+- L2 block is already specified when DisputeGame is created
+- Fetch StateRoot of that block and use as target value
+- Convert StateRoot to big.Int for use in binary search
+- Must always maintain state of that block
 
 **How StateRoot is Used as Target:**
 
 ```
-1. RAT contract에서 AttentionTestTriggered 이벤트 수신
+1. Receive AttentionTestTriggered event from RAT contract
    - gameAddress: DisputeGame contract address
    - batchIndex: Game index
 
-2. DisputeGame contract에서 L2 블록 번호 조회
+2. Query L2 block number from DisputeGame contract
    blockNumber := game.l2BlockNumber()
 
-3. 해당 블록의 StateRoot 조회
+3. Query StateRoot of that block
    stateRoot := l2Client.GetBlockByNumber(blockNumber).StateRoot
 
-4. StateRoot를 big.Int로 변환 (target value)
+4. Convert StateRoot to big.Int (target value)
    randomValue := new(big.Int).SetBytes(stateRoot[:])
 
-5. State trie에서 adjacent leaves 찾기
+5. Find adjacent leaves in state trie
    leafA.key < randomValue <= leafB.key
 ```
 
-**왜 Pre-computed proof가 불가능한가?**
+**Why Pre-computed Proof is Impossible:**
 
-Patricia Merkle Trie의 특성상, **한 계정만 변경되어도 Root까지 전체 경로가 갱신됩니다**:
+Due to the nature of Patricia Merkle Trie, **even a single account change updates the entire path to the Root**:
 
 ```
-블록 N에서 계정 A의 balance 변경:
-  1. 계정 A의 leaf hash 재계산
-  2. 계정 A를 포함하는 branch node hash 재계산
-  3. 그 상위 branch node hash 재계산
-  4. ...Root까지 모든 상위 노드 hash 재계산
-  5. State Root: Root_N → Root_N+1 (완전히 변경!)
+Account A balance change in block N:
+  1. Recalculate account A's leaf hash
+  2. Recalculate branch node hash containing account A
+  3. Recalculate parent branch node hash
+  4. ...Recalculate all parent node hashes up to Root
+  5. State Root: Root_N → Root_N+1 (completely changed!)
 
-결과:
-  - 계정 B는 전혀 변경되지 않았어도
-  - State Root가 Root_N+1로 변경됨
-  - 계정 B의 proof는 Root_N+1 기준으로 새로 생성해야 함
-  - Root_N 기준 proof는 검증 실패!
+Result:
+  - Even if account B is not changed at all
+  - State Root changes to Root_N+1
+  - Account B's proof must be newly generated based on Root_N+1
+  - Proof based on Root_N fails verification!
 
-→ 챌린지된 블록의 StateRoot로 proof를 생성하려면
-→ 해당 블록의 State를 보유해야 함 (Archive mode 권장)
-→ 과거 블록의 state 접근 필수!
+→ To generate proof with challenged block's StateRoot
+→ Must maintain state of that block (Archive mode recommended)
+→ Must access state of past blocks!
 ```
+
+**State Patricia Trie Structure:**
+
+Ethereum's state is stored in a Patricia Merkle Trie:
+
+```
+State Root (32 bytes hash)
+    │
+    ├─ Branch Node
+    │   ├─ Leaf: Account A (keccak256(address_A) → RLP(account_A))
+    │   ├─ Leaf: Account B (keccak256(address_B) → RLP(account_B))  ← Adjacent!
+    │   └─ ...
+    └─ ...
+```
+
+**Key Properties**:
+- **Keys**: `keccak256(address)` (sorted lexicographically)
+- **Values**: `RLP(nonce, balance, storageRoot, codeHash)`
+- **Iteration**: Trie iterator yields leaves in sorted key order
+- **Adjacency**: Two consecutive leaves in iteration order
+
+**Binary Search Algorithm**:
+
+```go
+// 1. Get L2 block number from DisputeGame contract
+blockNumber := game.L2BlockNumber()
+
+// 2. Get state root for that block
+stateRoot := GetStateRoot(blockNumber)
+
+// 3. Convert StateRoot to big.Int (this becomes the target value)
+targetValue := new(big.Int).SetBytes(stateRoot[:])
+
+// 4. Collect all accounts from state trie via debug_accountRange
+accounts := GetAccountRange(stateRoot, blockNumber) // Sorted by keccak256(address)
+
+// 5. Binary search for position
+targetHash := BigToHash(targetValue) // = stateRoot
+idx := BinarySearch(accounts, targetHash)
+
+// 6. Return adjacent pair
+leafA := accounts[idx-1]  // leafA.key < stateRoot (as big.Int)
+leafB := accounts[idx]    // leafB.key >= stateRoot (as big.Int)
+```
+
+**Edge Cases**:
+- If `stateRoot` < all keys: Use first two accounts
+- If `stateRoot` > all keys: Use last two accounts
+- Normal case: `leafA.key < stateRoot <= leafB.key`
+
+**Why StateRoot as target?**
+- **Unpredictable position**: StateRoot is a 32-byte hash, selects arbitrary position in trie
+- **Pre-computing impossible**: Cannot know which accounts will be adjacent to StateRoot
+- **Forces archive mode**: Must have state at the challenged block (may be in past)
+- **Proves full state possession**: Must iterate entire state trie to find adjacent leaves
 
 ### 4. Evidence Generator (`pkg/evidence`)
 
-**역할**: StateLeafEvidence 생성 및 ABI 인코딩
+**Role**: Generates StateLeafEvidence and ABI encoding
 
 ```go
 type StateLeafEvidence struct {
@@ -268,294 +323,336 @@ type StateLeafEvidence struct {
 }
 ```
 
-**검증 로직 (on-chain):**
-1. OutputRootProof → rootClaim 검증 (hash(outputRootProof) == rootClaim)
-2. StateRoot 추출 (from OutputRootProof)
-3. **범위 검증: leafA.key < stateRoot < leafB.key** (StateRoot as Target!)
-4. LeafA Merkle proof → StateRoot 검증
-5. LeafB Merkle proof → StateRoot 검증
-6. Divergence 검증 (leafA와 leafB 사이에 다른 leaf가 없음을 증명)
-7. 모두 통과 → Validator는 full node를 운영 중!
+**Verification Logic (on-chain):**
+1. OutputRootProof → rootClaim verification (hash(outputRootProof) == rootClaim)
+2. Extract StateRoot (from OutputRootProof)
+3. **Range verification: leafA.key < stateRoot < leafB.key** (StateRoot as Target!)
+4. LeafA Merkle proof → StateRoot verification
+5. LeafB Merkle proof → StateRoot verification
+6. Divergence verification (proves no other leaf exists between leafA and leafB)
+7. All pass → Validator is operating a full node!
 
 ### 5. Evidence Submitter (`pkg/submitter`)
 
-**역할**: StateLeafEvidence를 RAT contract에 제출
+**Role**: Submits StateLeafEvidence to RAT contract
 
-**주요 기능:**
-- StateLeafEvidence ABI 인코딩
-- RAT.submitEvidence(testID, evidenceType, evidenceData) 호출
+**Key Features:**
+- StateLeafEvidence ABI encoding
+- Calls RAT.submitEvidence(testID, evidenceType, evidenceData)
   - evidenceType = 1 (StateLeaf)
   - evidenceData = abi.encode(StateLeafEvidence)
-- Gas estimation 및 제한 (max gas price 설정)
-- Transaction 서명 및 제출
-- Receipt 대기 및 검증
-- Deadline 체크 (제출 전 10분 버퍼)
+- Gas estimation and limits (max gas price setting)
+- Transaction signing and submission
+- Receipt waiting and verification
+- Deadline check (10-minute buffer before submission)
 
-**Note**: randomValue는 클라이언트 내부에서만 사용 (범위 검증용), 온체인에는 전달하지 않음
+**Note**: randomValue is only used internally in client (for range verification), not transmitted on-chain
 
 ## Verification Process
 
-### 전체 흐름
+### Overall Flow
 
 ```
-1. [L1] RAT contract가 AttentionTest 트리거
-   - DisputeGame 생성 시 자동 트리거
-   - TestID 생성
-   - gameAddress, batchIndex 제공
-   - Deadline 설정 (예: 1시간)
+1. [L1] RAT contract triggers AttentionTest
+   - Automatically triggered when DisputeGame is created
+   - TestID generation
+   - Provides gameAddress, batchIndex
+   - Sets deadline (e.g., 1 hour)
 
-2. [RAT Client] Event 감지
-   - AttentionTestTriggered 이벤트 수신
-   - TestID, validator, gameAddress, batchIndex, deadline 추출
-   - RAT contract에서 batchHash (output root) 조회
+2. [RAT Client] Event detection
+   - Receives AttentionTestTriggered event
+   - Extracts TestID, validator, gameAddress, batchIndex, deadline
+   - Queries batchHash (output root) from RAT contract
 
-3. [L2 블록 번호 조회]
-   - DisputeGame contract에서 l2BlockNumber() 조회
-   - 챌린지 대상 L2 블록이 이미 결정됨
+3. [L2 Block Number Query]
+   - Queries l2BlockNumber() from DisputeGame contract
+   - Challenged L2 block is already determined
 
-4. [StateRoot 조회 및 검증]
-   - L2 client에서 해당 블록의 StateRoot 조회
-   - Op-node에서 OutputRootProof 가져오기
-   - OutputRootProof 검증: hash(outputRootProof) == batchHash
+4. [StateRoot Query and Verification]
+   - Queries StateRoot of that block from L2 client
+   - Gets OutputRootProof from op-node
+   - Verifies OutputRootProof: hash(outputRootProof) == batchHash
 
 5. [StateRoot as Target]
-   - StateRoot를 big.Int로 변환 (randomValue)
+   - Converts StateRoot to big.Int (randomValue)
    - randomValue := new(big.Int).SetBytes(stateRoot[:])
 
-6. [Adjacent Leaves 찾기]
-   - debug_accountRange로 state trie의 모든 accounts 조회
+6. [Find Adjacent Leaves]
+   - Queries all accounts in state trie via debug_accountRange
    - Binary search: leafA.key < randomValue <= leafB.key
-   - eth_getProof로 Merkle proofs 생성
+   - Generates Merkle proofs via eth_getProof
 
-7. [Divergence Witness 계산]
-   - LeafA와 LeafB의 divergence point 찾기
-   - Branch node와 indices 추출
+7. [Calculate Divergence Witness]
+   - Finds divergence point of LeafA and LeafB
+   - Extracts branch node and indices
 
-8. [Evidence 생성]
-   - StateLeafEvidence 구조체 생성
-   - OutputRootProof 포함
-   - DivergenceWitness 포함
-   - ABI 인코딩
+8. [Generate Evidence]
+   - Creates StateLeafEvidence structure
+   - Includes OutputRootProof
+   - Includes DivergenceWitness
+   - ABI encoding
 
-9. [L1 제출]
+9. [L1 Submission]
    - RAT.submitEvidence(testID, evidenceType=1, evidenceData)
    - evidenceType = 1 (StateLeaf)
-   - Gas estimation 및 제출
+   - Gas estimation and submission
 
-10. [On-chain 검증]
-   - OutputRootProof 검증
-   - leafA.key < stateRoot < leafB.key 확인
-   - Merkle proofs 검증
-   - Divergence 검증
-   - 성공 → Validator가 archive node 운영 중!
+10. [On-chain Verification]
+   - OutputRootProof verification
+   - Checks leafA.key < stateRoot < leafB.key
+   - Merkle proof verification
+   - Divergence verification
+   - Success → Validator is operating an archive node!
 ```
 
-### StateRoot as Target 방식
+### StateRoot as Target Method
 
-**L2 블록 결정:**
+**L2 Block Determination:**
 
 ```go
-// 1. DisputeGame에서 l2BlockNumber 조회 (이미 결정됨)
+// 1. Query l2BlockNumber from DisputeGame (already determined)
 blockNumber := game.L2BlockNumber()
 
-// 2. 해당 블록의 StateRoot 조회
+// 2. Query StateRoot of that block
 stateRoot := l2Client.BlockByNumber(blockNumber).StateRoot()
 
-// 3. StateRoot를 big.Int로 변환 (target value)
+// 3. Convert StateRoot to big.Int (target value)
 randomValue := new(big.Int).SetBytes(stateRoot[:])
 
-// 4. StateRoot 기준으로 adjacent leaves 찾기
+// 4. Find adjacent leaves based on StateRoot
 // Binary search: leafA.key < randomValue <= leafB.key
 adjacentLeaves := FindAdjacentLeaves(stateRoot, randomValue, blockNumber)
 ```
 
-**왜 StateRoot를 target으로 사용하는가?**
-- **예측 불가능**: StateRoot는 32 bytes hash, 임의의 위치 선택
-- **Pre-computed proof 방지**: 어떤 계정 쌍이 선택될지 사전에 알 수 없음
-- **Archive mode 필수**: 과거 블록의 state를 보유해야 proof 생성 가능
-- **Full state 증명**: State trie 전체를 보유해야만 adjacent leaves 찾기 가능
+**Why Use StateRoot as Target?**
+- **Unpredictable**: StateRoot is a 32-byte hash, selects arbitrary position
+- **Prevents pre-computed proof**: Cannot know in advance which account pair will be selected
+- **Archive mode required**: Must maintain state of past blocks to generate proof
+- **Full state proof**: Must maintain entire state trie to find adjacent leaves
 
 ## Trust Model
 
 ### Trustless Components
 
-1. **L1 Data**: Ethereum L1 consensus (완전 trustless)
-2. **op-node**: L1 batch data에서 deterministic derivation (trustless)
+1. **L1 Data**: Ethereum L1 consensus (fully trustless)
+2. **op-node**: Deterministic derivation from L1 batch data (trustless)
 3. **State Trie**: Cryptographic Merkle Patricia Trie (trustless)
-4. **Merkle Proofs**: 암호학적 검증 (trustless)
+4. **Merkle Proofs**: Cryptographic verification (trustless)
 
 ### Trust Assumptions
 
-1. **op-geth Execution**: Validator가 정직하게 op-geth를 실행한다고 가정
-   - **왜 OK?**: RAT은 Liveness 검증 (node 운영 여부)
-   - **Correctness**: DisputeGame이 state 정확성 보장
+1. **op-geth Execution**: Assumes validator executes op-geth honestly
+   - **Why OK?**: RAT verifies Liveness (node operation)
+   - **Correctness**: DisputeGame guarantees state accuracy
 
-2. **debug API Access**: Validator가 자신의 op-geth에서 debug API 사용
-   - **요구사항**: debug API는 self-hosted node만 제공
-   - **보안**: Public RPC는 debug API 비활성화
-   - **Archive Mode**: 챌린지된 블록의 state 보유 필요 (과거 블록일 수 있음)
-   - **검증**: Merkle proof로 state 일관성 확인
+2. **debug API Access**: Validator uses debug API on their own op-geth
+   - **Requirement**: Debug API is only provided by self-hosted nodes
+   - **Security**: Public RPCs disable debug API
+   - **Archive Mode**: Must maintain state of challenged block (may be a past block)
+   - **Verification**: Confirms state consistency via Merkle proof
 
 ### Security Model
 
 ```
 RAT Client (Fast):
-  - Liveness 검증
-    * Full node 직접 보유 (debug API)
-    * L2 실시간 모니터링
-  - 20-30분 (Production)
-  - 대부분(99%)의 케이스
+  - Liveness verification
+    * Direct full node ownership (debug API)
+    * Real-time L2 monitoring
+  - 20-30 minutes (Production)
+  - Most (99%) of cases
 
-      실패? → 의심스러움
+      Failure? → Suspicious
          ↓
 DisputeGame (Slow):
-  - Correctness 검증
-    * State 정확성
-    * L1 데이터만 사용
-  - 7일
-  - 최종 안전성 보장
+  - Correctness verification
+    * State accuracy
+    * L1 data only
+  - 7 days
+  - Final safety guarantee
 ```
 
 ## Design Decisions
 
-### 1. 왜 Adjacent Leaves?
+### 1. Why Adjacent Leaves?
 
-**대안들:**
-- ❌ Random address의 eth_getProof: 외부 RPC로 가능 (full node 필요 없음)
-- ❌ Full state re-execution: 너무 느림 (수 시간)
-- ❌ Challenge-response: 너무 복잡, 여러 round 필요
+**Alternatives:**
+- ❌ eth_getProof for random address: Possible via external RPC (full node not required)
+- ❌ Full state re-execution: Too slow (hours)
+- ❌ Challenge-response: Too complex, requires multiple rounds
 
 **Adjacent Leaves + debug_accountRange:**
-- ✅ Full node + debug API 필요
-- ✅ Public RPC 사용 불가 (대부분 debug API 비활성화)
-- ✅ 빠름 (20-30분)
-- ✅ 단순함 (1 tx)
-- ✅ RandomValue로 caching 방지
-- ✅ 예측 불가능 (어떤 계정이 선택될지 사전에 알 수 없음)
+- ✅ Requires full node + debug API
+- ✅ Cannot use public RPC (most disable debug API)
+- ✅ Fast (20-30 minutes)
+- ✅ Simple (1 tx)
+- ✅ Prevents caching via StateRoot
+- ✅ Unpredictable (cannot know in advance which account will be selected)
 
-### 2. 왜 debug API 의존?
+**Comparison with Fraud Proof Approach:**
 
-**검증 목적이 다름:**
+| Aspect | Adjacent Leaves (RPC-based) | Fraud Proof |
+|--------|----------------|-------------|
+| **Complexity** | Low (RPC calls) | High (batch decode + EVM) |
+| **Computation** | Minimal (iterate via debug APIs) | Heavy (execute txs) |
+| **Dependencies** | L2 RPC with debug APIs | Full derivation pipeline |
+| **Proof Type** | State inclusion | Execution trace |
+| **Evidence Size** | ~2-5 KB | ~50-200 KB |
+| **Generation Time** | Fast (RPC-dependent) | Slow (full derivation) |
+| **Full Node Proof** | ✅ Yes (requires debug APIs) | ❌ Not implemented |
+| **Implementation Status** | ✅ Complete & Tested | ❌ Planned only |
+
+### 2. Why Depend on Debug API?
+
+**Different verification purposes:**
 ```
 RAT Client = Liveness
-  - Full node 직접 보유?
-  - L2를 실시간 모니터링?
+  - Direct full node ownership?
+  - Real-time L2 monitoring?
 
 DisputeGame = Correctness
-  - State가 올바른가?
-  - L1 데이터와 일치하는가?
+  - Is state correct?
+  - Does it match L1 data?
 ```
 
-**Liveness 검증 핵심:**
-"Validator가 full op-geth node를 직접 운영하며 L2를 모니터링 중인가?"
+**Core of Liveness Verification:**
+"Does the validator directly operate a full op-geth node and monitor L2?"
 
-**debug API가 필요한 이유:**
+**Why Debug API is Required:**
 ```
 debug_accountRange:
-  - Full node만 활성화 (Archive node도 가능)
-  - Public RPC는 대부분 비활성화 (보안/리소스 이유)
-  - Infura, Alchemy 등 외부 서비스 불가
-  - RandomValue로 L2 블록 선택 → 어떤 블록이 선택될지 예측 불가
-  → Self-hosted op-geth 필수!
-  → debug API 활성화 필수!
-  → 모든 블록의 state 유지 필수!
+  - Only enabled on full nodes (Archive nodes also possible)
+  - Most public RPCs disable it (security/resource reasons)
+  - External services like Infura, Alchemy unavailable
+  - L2 block selection via StateRoot → Cannot predict which block will be selected
+  → Self-hosted op-geth required!
+  → Debug API activation required!
+  → Must maintain state of all blocks!
 
-eth_getProof (일반 API):
-  - 어떤 RPC에서든 호출 가능
-  - 특정 주소만 조회 (사전 준비 가능)
-  - 외부 서비스 의존 가능
-  → Full node + debug API 필요 없음
+eth_getProof (regular API):
+  - Can be called from any RPC
+  - Only queries specific addresses (can prepare in advance)
+  - Can depend on external services
+  → Full node + debug API not required
 ```
 
-**왜 이것으로 충분한가?**
-- RAT = Liveness (node 운영 + 모니터링)
-- DisputeGame = Correctness (state 정확성)
-- debug API 요구 + RandomValue = Liveness 검증
+**Why is This Sufficient?**
+- RAT = Liveness (node operation + monitoring)
+- DisputeGame = Correctness (state accuracy)
+- Debug API requirement + StateRoot = Liveness verification
 
-### 3. 왜 OutputRootProof?
+### 3. Why OutputRootProof?
 
-**On-chain 검증 효율성:**
+**On-chain Verification Efficiency:**
 ```
-Option 1: StateRoot만 제출
-  → On-chain에서 rootClaim과 비교할 방법 없음
-  → Challenger가 rootClaim을 모름
+Option 1: Submit only StateRoot
+  → No way to compare with rootClaim on-chain
+  → Challenger doesn't know rootClaim
 
-Option 2: OutputRootProof 제출
-  → OutputRootProof.StateRoot를 검증
-  → OutputRootProof 전체를 hash → rootClaim과 비교
-  → 검증 완료!
+Option 2: Submit OutputRootProof
+  → Verify OutputRootProof.StateRoot
+  → Hash entire OutputRootProof → Compare with rootClaim
+  → Verification complete!
 ```
 
-### 4. 왜 E2E Test?
+### 4. Why E2E Test?
 
-**신뢰성:**
-- State trie iteration은 복잡
-- Merkle proof 생성은 까다로움
-- ABI encoding은 정확해야 함
+**Reliability:**
+- State trie iteration is complex
+- Merkle proof generation is tricky
+- ABI encoding must be accurate
 
-→ 실제 op-geth state로 E2E test 필수
+→ E2E test with actual op-geth state is essential
 
 ## Performance Considerations
 
 ### State Trie Iteration
 
 ```
-문제: State trie 크기
-  - Mainnet: ~수백만 accounts
-  - Iteration: 수 분 ~ 수십 분
+Problem: State trie size
+  - Mainnet: ~millions of accounts
+  - Iteration: Minutes to tens of minutes
 
-해결: Parallel fetching
-  - RPC 기반: debug_accountRange로 페이징
-  - Direct DB: 더 빠름 (LevelDB iterator)
+Solution: Parallel fetching
+  - RPC-based: Pagination via debug_accountRange
+  - Direct DB: Faster (LevelDB iterator)
 ```
 
 ### Merkle Proof Generation
 
 ```
-문제: Proof 크기
+Problem: Proof size
   - Trie depth: ~64 levels
-  - Proof 크기: ~2-4KB per leaf
+  - Proof size: ~2-4KB per leaf
 
-최적화: Compact encoding
-  - RLP 사용
-  - 중복 제거 (같은 branch node)
+Optimization: Compact encoding
+  - Use RLP
+  - Remove duplicates (same branch node)
 ```
+
+## Limitations
+
+The current implementation has the following limitations:
+
+### 1. Debug APIs Required
+- Public RPC providers (Infura, Alchemy, etc.) don't expose `debug_accountRange` API
+- Validators must run their own L2 node with debug APIs enabled
+- Cannot rely on external RPC services for evidence generation
+
+### 2. Archive Mode Required
+- Must access state at specific past blocks (challenges may reference old blocks)
+- Full nodes with default pruning may have already deleted challenged block's state
+- Archive mode recommended to ensure state availability (disk: ~10+ TB)
+
+### 3. L2 Node Dependency
+- Validators must run and maintain their own op-geth infrastructure
+- Requires technical expertise for node operation and maintenance
+- Node must stay synced to respond to challenges
+
+### 4. RPC Performance Dependency
+- State iteration speed depends on L2 RPC performance
+- Large state tries (1M+ accounts) may take significant time to iterate
+- Network latency affects proof generation time
+
+### 5. Single Verification Method
+- Currently only implements state trie iteration approach (Evidence Type 1)
+- Fraud Proof approach (Evidence Type 0) planned but not implemented
+- No fallback if debug APIs become unavailable
 
 ## Future Improvements
 
 ### 1. Stateless Execution Mode
 
-현재는 state trie iteration에만 집중
-향후: L1-only execution 추가 가능
+Currently focused only on state trie iteration
+Future: Can add L1-only execution
 ```
 Stateless Executor:
-  - L1 batch data만 사용
+  - Uses only L1 batch data
   - State pre-fetching with proofs
-  - 완전 trustless
-  - 느리지만 L2 RPC 불필요
+  - Fully trustless
+  - Slow but L2 RPC not required
 ```
 
 ### 2. Multiple Verification Methods
 
 ```
-Fast Path (현재):
+Fast Path (current):
   - Adjacent leaves
-  - 20-30분 (Production)
+  - 20-30 minutes (Production)
 
-Medium Path (미래):
+Medium Path (future):
   - Stateless execution
-  - 1-2시간
-  - L2 RPC 불필요
+  - 1-2 hours
+  - L2 RPC not required
 
-Slow Path (항상):
+Slow Path (always):
   - DisputeGame
-  - 7일
+  - 7 days
   - Final safety
 ```
 
 ## Reference Implementation
 
-주요 파일:
+Key Files:
 - `pkg/client/service_adjacent.go` - Main service
 - `pkg/l2sync/state_trie.go` - State trie iterator
 - `pkg/evidence/state_leaf_evidence.go` - Evidence structure
@@ -564,23 +661,24 @@ Slow Path (항상):
 
 ## Conclusion
 
-RAT Client Type 3는 **Validator Liveness를 검증하는 실용적인 시스템**입니다:
+RAT Client Type 3 is a **practical system for verifying Validator Liveness**:
 
-**Liveness란?**
-- Full node 직접 보유 (Self-hosted op-geth with Archive mode)
-- L2 모니터링 (챌린지된 블록의 state 보유)
-- debug API 접근 가능 (Public RPC 불가)
+**What is Liveness?**
+- Direct full node ownership (Self-hosted op-geth with Archive mode)
+- L2 monitoring (maintaining state of challenged block)
+- Debug API access (Public RPC unavailable)
 
-**핵심 특징:**
-- Fast (20-30분, Production)
+**Core Features:**
+- Fast (20-30 minutes, Production)
 - Simple (adjacent leaves + debug API)
-- Practical (StateRoot as target, 어떤 계정이 선택될지 예측 불가능)
-- Safe (DisputeGame 폴백)
+- Practical (StateRoot as target, cannot predict which account will be selected)
+- Safe (DisputeGame fallback)
 
-**설계 철학:**
+**Design Philosophy:**
 - Liveness (RAT) vs Correctness (DisputeGame)
-- debug API 요구 → Full node + debug 모드 필요
-- RandomValue → Pre-computed proof 방지
-- 99% 케이스를 빠르게 처리
-- 1% 의심 케이스는 DisputeGame으로 해결
-- 2-tier 보안 모델로 balance 달성
+- Debug API requirement → Full node + debug mode required
+- StateRoot → Prevents pre-computed proof
+- Handles 99% of cases quickly
+- Resolves 1% suspicious cases via DisputeGame
+- Achieves balance with 2-tier security model
+
