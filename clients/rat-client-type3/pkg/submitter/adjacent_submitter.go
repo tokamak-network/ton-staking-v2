@@ -45,12 +45,11 @@ func NewAdjacentLeavesSubmitter(
 	}
 
 	from := crypto.PubkeyToAddress(privateKey.PublicKey)
-	log.Printf("Created submitter",
-		"l1RPC", l1RPCURL,
-		"chainID", chainID,
-		"ratContract", ratContract.Hex(),
-		"from", from.Hex(),
-	)
+	log.Printf("Created submitter: l1RPC=%s, chainID=%v, ratContract=%s, from=%s",
+		l1RPCURL,
+		chainID,
+		ratContract.Hex(),
+		from.Hex())
 
 	return &AdjacentLeavesSubmitter{
 		l1Client:    client,
@@ -68,12 +67,11 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	randomValue *big.Int,
 	ev *evidence.StateLeafEvidence,
 ) (*types.Receipt, error) {
-	log.Printf("Submitting state leaf evidence",
-		"testID", common.BytesToHash(testID[:]).Hex(),
-		"randomValue", randomValue,
-		"leafA.key", ev.LeafAKey.Hex(),
-		"leafB.key", ev.LeafBKey.Hex(),
-	)
+	log.Printf("Submitting state leaf evidence: testID=%s, randomValue=%v, leafA.key=%s, leafB.key=%s",
+		common.BytesToHash(testID[:]).Hex(),
+		randomValue,
+		ev.LeafAKey.Hex(),
+		ev.LeafBKey.Hex())
 
 	// Validate evidence
 	if err := ev.Validate(); err != nil {
@@ -92,10 +90,9 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 		return nil, fmt.Errorf("failed to encode evidence: %w", err)
 	}
 
-	log.Printf("Evidence encoded",
-		"size", len(evidenceData),
-		"stateRoot", ev.StateRoot.Hex(),
-	)
+	log.Printf("Evidence encoded: size=%d, stateRoot=%s",
+		len(evidenceData),
+		ev.StateRoot.Hex())
 
 	// Build calldata for submitEvidence(bytes32 testID, uint8 evidenceType, bytes calldata evidenceData)
 	calldata, err := s.buildCalldata(testID, evidenceData)
@@ -109,7 +106,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	// Estimate gas
 	gasLimit, err := s.estimateGas(ctx, from, calldata)
 	if err != nil {
-		log.Printf("Gas estimation failed, using default", "error", err, "default", s.gasLimit)
+		log.Printf("Gas estimation failed, using default: error=%v, default=%d", err, s.gasLimit)
 		gasLimit = s.gasLimit
 	}
 
@@ -121,7 +118,7 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 
 	// Cap gas price
 	if s.maxGasPrice != nil && gasPrice.Cmp(s.maxGasPrice) > 0 {
-		log.Printf("Gas price capped", "suggested", gasPrice, "max", s.maxGasPrice)
+		log.Printf("Gas price capped: suggested=%s, max=%s", gasPrice, s.maxGasPrice)
 		gasPrice = s.maxGasPrice
 	}
 
@@ -159,14 +156,13 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	}
 
 	txHash := signedTx.Hash()
-	log.Printf("Transaction sent",
-		"txHash", txHash.Hex(),
-		"from", from.Hex(),
-		"to", s.ratContract.Hex(),
-		"gasLimit", gasLimit,
-		"gasPrice", gasPrice,
-		"nonce", nonce,
-	)
+	log.Printf("Transaction sent: txHash=%s, from=%s, to=%s, gasLimit=%d, gasPrice=%v, nonce=%d",
+		txHash.Hex(),
+		from.Hex(),
+		s.ratContract.Hex(),
+		gasLimit,
+		gasPrice,
+		nonce)
 
 	// Wait for receipt
 	receipt, err := s.waitForReceipt(ctx, txHash)
@@ -178,11 +174,10 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 		return receipt, fmt.Errorf("transaction failed: %s", txHash.Hex())
 	}
 
-	log.Printf("Evidence submitted successfully",
-		"txHash", txHash.Hex(),
-		"blockNumber", receipt.BlockNumber,
-		"gasUsed", receipt.GasUsed,
-	)
+	log.Printf("Evidence submitted successfully: txHash=%s, blockNumber=%v, gasUsed=%d",
+		txHash.Hex(),
+		receipt.BlockNumber,
+		receipt.GasUsed)
 
 	return receipt, nil
 }

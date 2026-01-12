@@ -44,20 +44,20 @@ type SafeHeadResponse struct {
 
 // L1BlockRef represents an L1 block reference
 type L1BlockRef struct {
-	Hash       common.Hash `json:"hash"`
-	Number     uint64      `json:"number"`
-	ParentHash common.Hash `json:"parentHash"`
-	Time       uint64      `json:"timestamp"`
+	Hash       common.Hash    `json:"hash"`
+	Number     hexutil.Uint64 `json:"number"`
+	ParentHash common.Hash    `json:"parentHash"`
+	Time       hexutil.Uint64 `json:"timestamp"`
 }
 
 // L2BlockRef represents an L2 block reference
 type L2BlockRef struct {
-	Hash           common.Hash `json:"hash"`
-	Number         uint64      `json:"number"`
-	ParentHash     common.Hash `json:"parentHash"`
-	Time           uint64      `json:"timestamp"`
-	L1Origin       L1BlockRef  `json:"l1origin"`
-	SequenceNumber uint64      `json:"sequenceNumber"`
+	Hash           common.Hash    `json:"hash"`
+	Number         hexutil.Uint64 `json:"number"`
+	ParentHash     common.Hash    `json:"parentHash"`
+	Time           hexutil.Uint64 `json:"timestamp"`
+	L1Origin       L1BlockRef     `json:"l1origin"`
+	SequenceNumber hexutil.Uint64 `json:"sequenceNumber"`
 }
 
 // SyncStatus represents the sync status from op-node
@@ -183,12 +183,13 @@ func (c *OpNodeRollupClient) VerifyOpNodeSynced(
 	}
 
 	// Check if safe L2 head is at or beyond target block
-	if status.SafeL2.Number < targetL2Block {
+	safeL2Number := uint64(status.SafeL2.Number)
+	if safeL2Number < targetL2Block {
 		return fmt.Errorf(
 			"op-node not synced to target block: safe_l2=%d, target=%d (behind by %d blocks)",
-			status.SafeL2.Number,
+			safeL2Number,
 			targetL2Block,
-			targetL2Block-status.SafeL2.Number,
+			targetL2Block-safeL2Number,
 		)
 	}
 
@@ -235,20 +236,23 @@ func (c *OpNodeRollupClient) EstimateL1BlockForL2Block(
 	}
 
 	// If target is at or before safe L2, we can estimate from current L1
-	if targetL2Block <= status.SafeL2.Number {
+	safeL2Number := uint64(status.SafeL2.Number)
+	safeL1Number := uint64(status.SafeL1.Number)
+
+	if targetL2Block <= safeL2Number {
 		// Rough estimate: L2 blocks are faster than L1 blocks
 		// Typically L2:L1 ratio is ~12:1 for Optimism
 		l2BlocksPerL1 := uint64(12)
 
-		l2Distance := status.SafeL2.Number - targetL2Block
+		l2Distance := safeL2Number - targetL2Block
 		l1Distance := l2Distance / l2BlocksPerL1
 
-		estimatedL1 := status.SafeL1.Number - l1Distance
+		estimatedL1 := safeL1Number - l1Distance
 
 		return estimatedL1, nil
 	}
 
-	return 0, fmt.Errorf("target L2 block %d is beyond safe L2 head %d", targetL2Block, status.SafeL2.Number)
+	return 0, fmt.Errorf("target L2 block %d is beyond safe L2 head %d", targetL2Block, safeL2Number)
 }
 
 // WaitForL2BlockSync waits for op-node to sync to the target L2 block

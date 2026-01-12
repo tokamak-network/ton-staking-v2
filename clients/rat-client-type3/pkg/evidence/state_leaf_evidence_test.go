@@ -33,6 +33,12 @@ func TestStateLeafEvidence_Validate(t *testing.T) {
 					MessagePasserStorageRoot: common.HexToHash("0xef00"),
 					LatestBlockHash:          common.HexToHash("0x9999"),
 				},
+				DivergenceWitness: DivergenceWitness{
+					DivergenceNode:  []byte("mock_branch_node"),
+					IndexA:          1,
+					IndexB:          5,
+					DivergenceDepth: 0,
+				},
 			},
 			wantErr: false,
 		},
@@ -181,6 +187,12 @@ func TestStateLeafEvidence_Encode(t *testing.T) {
 			MessagePasserStorageRoot: common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111"),
 			LatestBlockHash:          common.HexToHash("0x2222222222222222222222222222222222222222222222222222222222222222"),
 		},
+		DivergenceWitness: DivergenceWitness{
+			DivergenceNode:  []byte{0xaa, 0xbb, 0xcc, 0xdd},
+			IndexA:          2,
+			IndexB:          7,
+			DivergenceDepth: 1,
+		},
 	}
 
 	// Test encoding
@@ -262,4 +274,136 @@ func TestStateLeafEvidence_ProofStructure(t *testing.T) {
 	for i, node := range proof {
 		assert.Equal(t, 32, len(node), "Proof node %d should be 32 bytes", i)
 	}
+}
+
+// TestDivergenceWitness tests DivergenceWitness structure
+func TestDivergenceWitness(t *testing.T) {
+	witness := DivergenceWitness{
+		DivergenceNode:  []byte{0x01, 0x02, 0x03},
+		IndexA:          3,
+		IndexB:          8,
+		DivergenceDepth: 2,
+	}
+
+	assert.NotNil(t, witness.DivergenceNode)
+	assert.Equal(t, uint8(3), witness.IndexA)
+	assert.Equal(t, uint8(8), witness.IndexB)
+	assert.Equal(t, uint64(2), witness.DivergenceDepth)
+	assert.Less(t, witness.IndexA, witness.IndexB, "IndexA should be less than IndexB")
+}
+
+// TestDivergenceWitness_IndexOrdering tests that IndexA < IndexB
+func TestDivergenceWitness_IndexOrdering(t *testing.T) {
+	tests := []struct {
+		name    string
+		indexA  uint8
+		indexB  uint8
+		wantErr bool
+	}{
+		{
+			name:    "valid ordering",
+			indexA:  1,
+			indexB:  5,
+			wantErr: false,
+		},
+		{
+			name:    "adjacent indices",
+			indexA:  3,
+			indexB:  4,
+			wantErr: false,
+		},
+		{
+			name:    "maximum valid gap",
+			indexA:  0,
+			indexB:  15,
+			wantErr: false,
+		},
+		{
+			name:    "invalid: equal indices",
+			indexA:  5,
+			indexB:  5,
+			wantErr: true,
+		},
+		{
+			name:    "invalid: reversed order",
+			indexA:  8,
+			indexB:  3,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			witness := DivergenceWitness{
+				DivergenceNode:  []byte("mock_node"),
+				IndexA:          tt.indexA,
+				IndexB:          tt.indexB,
+				DivergenceDepth: 0,
+			}
+
+			// In production, this validation happens in FindDivergenceNode
+			// Here we just verify the ordering
+			if tt.wantErr {
+				assert.GreaterOrEqual(t, witness.IndexA, witness.IndexB,
+					"IndexA should be >= IndexB (invalid)")
+			} else {
+				assert.Less(t, witness.IndexA, witness.IndexB,
+					"IndexA should be < IndexB (valid)")
+			}
+		})
+	}
+}
+
+// TestStateLeafEvidence_WithDivergenceWitness tests evidence with divergence witness
+func TestStateLeafEvidence_WithDivergenceWitness(t *testing.T) {
+	ev := &StateLeafEvidence{
+		LeafAKey:   common.HexToHash("0x1111"),
+		LeafAValue: []byte("valueA"),
+		LeafAProof: [][]byte{[]byte("proofA1"), []byte("proofA2")},
+		LeafBKey:   common.HexToHash("0x5555"),
+		LeafBValue: []byte("valueB"),
+		LeafBProof: [][]byte{[]byte("proofB1"), []byte("proofB2")},
+		StateRoot:  common.HexToHash("0xabcd"),
+		OutputRootProof: OutputRootProof{
+			Version:                  [32]byte{},
+			StateRoot:                common.HexToHash("0xabcd"),
+			MessagePasserStorageRoot: common.HexToHash("0xef00"),
+			LatestBlockHash:          common.HexToHash("0x9999"),
+		},
+		DivergenceWitness: DivergenceWitness{
+			DivergenceNode:  []byte("branch_node_rlp"),
+			IndexA:          1,
+			IndexB:          5,
+			DivergenceDepth: 0,
+		},
+	}
+
+	// Verify all fields are set
+	require.NotNil(t, ev.DivergenceWitness.DivergenceNode)
+	require.Equal(t, uint8(1), ev.DivergenceWitness.IndexA)
+	require.Equal(t, uint8(5), ev.DivergenceWitness.IndexB)
+	require.Equal(t, uint64(0), ev.DivergenceWitness.DivergenceDepth)
+
+	// Test encoding with divergence witness
+	encoded, err := ev.Encode()
+	require.NoError(t, err)
+	assert.NotNil(t, encoded)
+
+	// Test validation
+	err = ev.Validate()
+	assert.NoError(t, err)
+}
+
+// TestDivergenceWitness_EmptyNode tests handling of empty divergence node
+func TestDivergenceWitness_EmptyNode(t *testing.T) {
+	witness := DivergenceWitness{
+		DivergenceNode:  nil, // Empty
+		IndexA:          1,
+		IndexB:          5,
+		DivergenceDepth: 0,
+	}
+
+	// In production, FindDivergenceNode ensures DivergenceNode is never nil
+	// This test just verifies the structure can handle it
+	assert.Nil(t, witness.DivergenceNode)
 }

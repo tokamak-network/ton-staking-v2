@@ -140,7 +140,7 @@ func (v *OpNodeVerifier) GetSafeL2HeadAtL1(
 		return 0, err
 	}
 
-	return resp.SafeHead.Number, nil
+	return uint64(resp.SafeHead.Number), nil
 }
 
 // GetSyncStatus gets the current sync status from op-node

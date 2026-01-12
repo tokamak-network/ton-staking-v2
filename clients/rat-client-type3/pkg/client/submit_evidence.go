@@ -52,10 +52,10 @@ func SubmitStateLeafEvidence(
 	testId [32]byte,
 	leaves *l2sync.AdjacentLeaves,
 ) (*types.Transaction, error) {
-	log.Printf("Submitting StateLeaf evidence to RAT contract",
-		"testId", common.BytesToHash(testId[:]).Hex(),
-		"blockNumber", leaves.BlockNumber,
-		"stateRoot", leaves.StateRoot.Hex())
+	log.Printf("Submitting StateLeaf evidence to RAT contract: testId=%s, blockNumber=%d, stateRoot=%s",
+		common.BytesToHash(testId[:]).Hex(),
+		leaves.BlockNumber,
+		leaves.StateRoot.Hex())
 
 	// 1. Convert AdjacentLeaves to StateLeafEvidence (Solidity struct format)
 	evidence := &StateLeafEvidence{
@@ -75,10 +75,10 @@ func SubmitStateLeafEvidence(
 		return nil, fmt.Errorf("failed to encode evidence: %w", err)
 	}
 
-	log.Printf("Encoded StateLeaf evidence",
-		"evidenceSize", len(evidenceData),
-		"proofANodes", len(evidence.LeafAProof),
-		"proofBNodes", len(evidence.LeafBProof))
+	log.Printf("Encoded StateLeaf evidence: evidenceSize=%d, proofANodes=%d, proofBNodes=%d",
+		len(evidenceData),
+		len(evidence.LeafAProof),
+		len(evidence.LeafBProof))
 
 	// 3. Call RAT.submitEvidence(testId, evidenceType=1, evidenceData)
 	evidenceType := uint8(1) // StateLeaf type
@@ -95,10 +95,10 @@ func SubmitStateLeafEvidence(
 		return nil, fmt.Errorf("failed to submit evidence transaction: %w", err)
 	}
 
-	log.Printf("Evidence transaction submitted",
-		"txHash", tx.Hash().Hex(),
-		"nonce", tx.Nonce(),
-		"gasLimit", tx.Gas())
+	log.Printf("Evidence transaction submitted: txHash=%s, nonce=%d, gasLimit=%d",
+		tx.Hash().Hex(),
+		tx.Nonce(),
+		tx.Gas())
 
 	return tx, nil
 }
@@ -182,8 +182,7 @@ func WaitForEvidenceSubmission(
 	client bind.DeployBackend,
 	tx *types.Transaction,
 ) (*types.Receipt, error) {
-	log.Printf("Waiting for evidence submission transaction to be mined",
-		"txHash", tx.Hash().Hex())
+	log.Printf("Waiting for evidence submission transaction to be mined: txHash=%s", tx.Hash().Hex())
 
 	receipt, err := bind.WaitMined(ctx, client, tx)
 	if err != nil {
@@ -194,10 +193,10 @@ func WaitForEvidenceSubmission(
 		return receipt, fmt.Errorf("evidence submission transaction failed")
 	}
 
-	log.Printf("Evidence submission successful",
-		"txHash", receipt.TxHash.Hex(),
-		"blockNumber", receipt.BlockNumber,
-		"gasUsed", receipt.GasUsed)
+	log.Printf("Evidence submission successful: txHash=%s, blockNumber=%v, gasUsed=%d",
+		receipt.TxHash.Hex(),
+		receipt.BlockNumber,
+		receipt.GasUsed)
 
 	return receipt, nil
 }

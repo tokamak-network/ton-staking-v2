@@ -18,6 +18,15 @@ type OutputRootProof struct {
 	LatestBlockHash          common.Hash // L2 block hash
 }
 
+// DivergenceWitness represents divergence point witness data
+// This proves that there are no other leaves between LeafA and LeafB
+type DivergenceWitness struct {
+	DivergenceNode  []byte // RLP-encoded branch node at divergence point
+	IndexA          uint8  // Slot index where LeafA is located (0-15)
+	IndexB          uint8  // Slot index where LeafB is located (0-15)
+	DivergenceDepth uint64 // Depth of divergence node from root
+}
+
 // StateLeafEvidence represents evidence based on adjacent leaves in L2 state Patricia trie
 type StateLeafEvidence struct {
 	// Leaf A (state trie leaf)
@@ -36,6 +45,9 @@ type StateLeafEvidence struct {
 
 	// Output Root Proof (for rootClaim verification)
 	OutputRootProof OutputRootProof // Proves stateRoot authenticity
+
+	// Divergence Witness (perfect adjacency verification)
+	DivergenceWitness DivergenceWitness // Proves no leaves between LeafA and LeafB
 }
 
 // NewStateLeafEvidence creates evidence from adjacent leaves
@@ -55,6 +67,17 @@ func NewStateLeafEvidence(leaves *l2sync.AdjacentLeaves) (*StateLeafEvidence, er
 			leaves.LeafA.Key.Hex(), leaves.LeafB.Key.Hex())
 	}
 
+	// Generate divergence witness
+	divergenceNode, indexA, indexB, depth, err := l2sync.FindDivergenceNode(
+		leaves.LeafA.Key,
+		leaves.LeafB.Key,
+		leaves.ProofA,
+		leaves.ProofB,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find divergence node: %w", err)
+	}
+
 	return &StateLeafEvidence{
 		LeafAKey:    leaves.LeafA.Key,
 		LeafAValue:  leaves.LeafA.Value,
@@ -64,6 +87,12 @@ func NewStateLeafEvidence(leaves *l2sync.AdjacentLeaves) (*StateLeafEvidence, er
 		LeafBProof:  leaves.ProofB,
 		StateRoot:   leaves.StateRoot,
 		BlockNumber: leaves.BlockNumber,
+		DivergenceWitness: DivergenceWitness{
+			DivergenceNode:  divergenceNode,
+			IndexA:          indexA,
+			IndexB:          indexB,
+			DivergenceDepth: depth,
+		},
 	}, nil
 }
 
@@ -80,6 +109,7 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 	//     bytes32 stateRoot;
 	//     uint256 blockNumber;
 	//     OutputRootProof outputRootProof;
+	//     DivergenceWitness divergenceWitness;
 	// }
 	//
 	// struct OutputRootProof {
@@ -87,6 +117,13 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 	//     bytes32 stateRoot;
 	//     bytes32 messagePasserStorageRoot;
 	//     bytes32 latestBlockhash;
+	// }
+	//
+	// struct DivergenceWitness {
+	//     bytes divergenceNode;
+	//     uint8 indexA;
+	//     uint8 indexB;
+	//     uint256 divergenceDepth;
 	// }
 
 	// Define StateLeafEvidence tuple type (wrapping the entire struct)
@@ -106,6 +143,12 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 			{Name: "messagePasserStorageRoot", Type: "bytes32"},
 			{Name: "latestBlockhash", Type: "bytes32"},
 		}},
+		{Name: "divergenceWitness", Type: "tuple", Components: []abi.ArgumentMarshaling{
+			{Name: "divergenceNode", Type: "bytes"},
+			{Name: "indexA", Type: "uint8"},
+			{Name: "indexB", Type: "uint8"},
+			{Name: "divergenceDepth", Type: "uint256"},
+		}},
 	})
 
 	// Define OutputRootProof struct type for embedding
@@ -116,6 +159,14 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 		LatestBlockhash          common.Hash
 	}
 
+	// Define DivergenceWitness struct type for embedding
+	type DivergenceWitnessStruct struct {
+		DivergenceNode  []byte
+		IndexA          uint8
+		IndexB          uint8
+		DivergenceDepth *big.Int
+	}
+
 	// Pack OutputRootProof as struct
 	outputRootProofStruct := OutputRootProofStruct{
 		Version:                  e.OutputRootProof.Version,
@@ -124,28 +175,38 @@ func (e *StateLeafEvidence) Encode() ([]byte, error) {
 		LatestBlockhash:          e.OutputRootProof.LatestBlockHash,
 	}
 
+	// Pack DivergenceWitness as struct
+	divergenceWitnessStruct := DivergenceWitnessStruct{
+		DivergenceNode:  e.DivergenceWitness.DivergenceNode,
+		IndexA:          e.DivergenceWitness.IndexA,
+		IndexB:          e.DivergenceWitness.IndexB,
+		DivergenceDepth: new(big.Int).SetUint64(e.DivergenceWitness.DivergenceDepth),
+	}
+
 	// Pack the entire struct as a single tuple argument
 	// This matches Solidity's abi.encode(StateLeafEvidence)
 	stateLeafEvidenceStruct := struct {
-		LeafAKey         common.Hash
-		LeafAValue       []byte
-		LeafAProof       [][]byte
-		LeafBKey         common.Hash
-		LeafBValue       []byte
-		LeafBProof       [][]byte
-		StateRoot        common.Hash
-		BlockNumber      *big.Int
-		OutputRootProof  OutputRootProofStruct
+		LeafAKey          common.Hash
+		LeafAValue        []byte
+		LeafAProof        [][]byte
+		LeafBKey          common.Hash
+		LeafBValue        []byte
+		LeafBProof        [][]byte
+		StateRoot         common.Hash
+		BlockNumber       *big.Int
+		OutputRootProof   OutputRootProofStruct
+		DivergenceWitness DivergenceWitnessStruct
 	}{
-		LeafAKey:        e.LeafAKey,
-		LeafAValue:      e.LeafAValue,
-		LeafAProof:      e.LeafAProof,
-		LeafBKey:        e.LeafBKey,
-		LeafBValue:      e.LeafBValue,
-		LeafBProof:      e.LeafBProof,
-		StateRoot:       e.StateRoot,
-		BlockNumber:     new(big.Int).SetUint64(e.BlockNumber),
-		OutputRootProof: outputRootProofStruct,
+		LeafAKey:          e.LeafAKey,
+		LeafAValue:        e.LeafAValue,
+		LeafAProof:        e.LeafAProof,
+		LeafBKey:          e.LeafBKey,
+		LeafBValue:        e.LeafBValue,
+		LeafBProof:        e.LeafBProof,
+		StateRoot:         e.StateRoot,
+		BlockNumber:       new(big.Int).SetUint64(e.BlockNumber),
+		OutputRootProof:   outputRootProofStruct,
+		DivergenceWitness: divergenceWitnessStruct,
 	}
 
 	// Create arguments with single tuple

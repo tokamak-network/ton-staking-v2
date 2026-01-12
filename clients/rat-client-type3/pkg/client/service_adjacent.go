@@ -157,19 +157,18 @@ func NewRATClientAdjacentService(config *AdjacentServiceConfig) (*RATClientAdjac
 			cancel()
 			return nil, fmt.Errorf("failed to create op-node client: %w", err)
 		}
-		log.Printf("op-node client created", "opNodeRPC", config.OpNodeRPCURL)
+		log.Printf("op-node client created: opNodeRPC=%s", config.OpNodeRPCURL)
 	} else {
 		log.Printf("OpNodeRPCURL not configured - OutputRootProof will not be included in evidence")
 	}
 
-	log.Printf("Created RAT client service (adjacent leaves mode)",
-		"l1RPC", config.L1RPCURL,
-		"l2RPC", config.L2RPCURL,
-		"opNodeRPC", config.OpNodeRPCURL,
-		"ratContract", config.RATContract.Hex(),
-		"stakingContract", config.StakingContract.Hex(),
-		"validator", config.ValidatorAddress.Hex(),
-	)
+	log.Printf("Created RAT client service (adjacent leaves mode): l1RPC=%s, l2RPC=%s, opNodeRPC=%s, ratContract=%s, stakingContract=%s, validator=%s",
+		config.L1RPCURL,
+		config.L2RPCURL,
+		config.OpNodeRPCURL,
+		config.RATContract.Hex(),
+		config.StakingContract.Hex(),
+		config.ValidatorAddress.Hex())
 
 	return &RATClientAdjacentService{
 		l1RPCURL:         config.L1RPCURL,
@@ -254,7 +253,7 @@ func (s *RATClientAdjacentService) processEvents() {
 
 		case event := <-s.eventMonitor.Events():
 			if err := s.handleAttentionTest(event); err != nil {
-				log.Printf("Failed to handle attention test", "error", err, "testID", common.BytesToHash(event.TestId[:]).Hex())
+				log.Printf("Failed to handle attention test: error=%v, testID=%s", err, common.BytesToHash(event.TestId[:]).Hex())
 				s.mu.Lock()
 				s.failedSubmissions++
 				s.mu.Unlock()

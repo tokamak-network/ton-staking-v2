@@ -39,10 +39,7 @@ func NewStateSynchronizer(config *StateSyncConfig) (*StateSynchronizer, error) {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	log.Printf("Connected to L2 RPC",
-		"rpc", config.L2RPCURL,
-		"chainID", chainID,
-	)
+	log.Printf("Connected to L2 RPC: rpc=%s, chainID=%v", config.L2RPCURL, chainID)
 
 	// Open state database (LevelDB) only if path is provided
 	var stateDB ethdb.Database
@@ -53,9 +50,7 @@ func NewStateSynchronizer(config *StateSyncConfig) (*StateSynchronizer, error) {
 			return nil, fmt.Errorf("failed to open state DB at %s: %w", config.StateDBPath, err)
 		}
 
-		log.Printf("Opened state database",
-			"path", config.StateDBPath,
-		)
+		log.Printf("Opened state database: path=%s", config.StateDBPath)
 	} else {
 		log.Printf("State database path not provided, will use RPC mode")
 	}
@@ -72,10 +67,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 	randomValue *big.Int,
 	blockNumber uint64,
 ) (*AdjacentLeaves, error) {
-	log.Printf("Finding adjacent leaves",
-		"blockNumber", blockNumber,
-		"randomValue", randomValue,
-	)
+	log.Printf("Finding adjacent leaves: blockNumber=%d, randomValue=%v", blockNumber, randomValue)
 
 	// If stateDB is nil, use RPC mode
 	if s.stateDB == nil {
@@ -94,10 +86,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 
 	stateRoot := header.Root
 
-	log.Printf("Got state root",
-		"blockNumber", blockNumber,
-		"stateRoot", stateRoot.Hex(),
-	)
+	log.Printf("Got state root: blockNumber=%d, stateRoot=%s", blockNumber, stateRoot.Hex())
 
 	// 2. Find adjacent leaves in state trie
 	leafA, leafB, err := FindAdjacentLeavesInStateTrie(s.stateDB, stateRoot, randomValue)
@@ -118,10 +107,7 @@ func (s *StateSynchronizer) FindAdjacentLeaves(
 		return nil, fmt.Errorf("failed to generate proof for leafB: %w", err)
 	}
 
-	log.Printf("Proofs generated",
-		"proofA.nodes", len(proofA),
-		"proofB.nodes", len(proofB),
-	)
+	log.Printf("Proofs generated: proofA.nodes=%d, proofB.nodes=%d", len(proofA), len(proofB))
 
 	// 4. Verify proofs locally
 	if !VerifyStateProof(stateRoot, leafA.Key, leafA.Value, proofA) {
