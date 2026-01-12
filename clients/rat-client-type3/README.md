@@ -49,16 +49,16 @@ rat-client-type3/
 │   │   ├── finalized_state.go          # L1 finalized state lookup ✅
 │   │   ├── proof_verified_state.go     # Proof-verified state DB (trustless!) ✅
 │   │   ├── state_prefetcher.go         # State pre-fetching optimization ✅
-│   │   └── stateless_executor.go       # 🆕 L1-only stateless execution ✅
+│   │   └── stateless_executor.go       #  L1-only stateless execution ✅
 │   ├── verification/
 │   │   ├── output_root.go              # Output root computation ✅
 │   │   ├── opnode_verifier.go          # Op-node based verification ✅
 │   │   └── opnode_provider.go          # Op-node RPC provider ✅
 │   ├── evidence/
-│   │   └── state_leaf_evidence.go      # 🆕 State leaf evidence with Merkle proofs ✅
+│   │   └── state_leaf_evidence.go      #  State leaf evidence with Merkle proofs ✅
 │   ├── submitter/
-│   │   └── adjacent_submitter.go       # 🆕 Adjacent leaves evidence submitter ✅
-│   └── l2sync/                         # 🆕 L2 state synchronization ✅
+│   │   └── adjacent_submitter.go       #  Adjacent leaves evidence submitter ✅
+│   └── l2sync/                         #  L2 state synchronization ✅
 │       ├── types.go                    # Sync types and interfaces ✅
 │       ├── state_trie.go               # State trie iterator ✅
 │       ├── state_rpc.go                # RPC-based state fetcher ✅
@@ -67,11 +67,9 @@ rat-client-type3/
 │   ├── state_leaf_e2e_test.go          # E2E tests for state leaf approach ✅
 │   └── state_leaf_rpc_e2e_test.go      # RPC-based E2E tests ✅
 ├── docs/                               # 📚 Documentation
-│   ├── ARCHITECTURE.md                 # System architecture
-│   ├── IMPLEMENTATION_STATUS.md        # Detailed implementation status
-│   ├── ADJACENT_LEAVES_APPROACH.md     # Adjacent leaves approach
-│   ├── OPNODE_SETUP_GUIDE.md           # Op-node setup guide
-│   └── TRUSTLESS_VERIFICATION.md       # Trustless verification details
+│   ├── ARCHITECTURE.md                 # System architecture and design
+│   ├── ADJACENT_LEAVES_APPROACH.md     # Adjacent leaves approach (technical details)
+│   └── TESTING_GUIDE.md                # Testing guide for E2E tests
 ├── bin/
 │   └── rat-client-type3                # Compiled binary
 ├── go.mod
@@ -79,64 +77,82 @@ rat-client-type3/
 
 Total: 28 Go files, ~7,668 lines of code
 
-🆕 New: State leaf evidence approach with adjacent trie leaves
-✅ Complete: Full trustless verification implementation
+✅ Complete: State leaf evidence approach with adjacent trie leaves
+✅ Complete: RPC-based verification with debug APIs
 ```
 
 ## Configuration
 
+The RAT client uses a YAML configuration file. See `config.example.yaml` for a complete example.
+
 ### Required Settings
 
 ```yaml
-# L1/L2 RPC endpoints
-l1_rpc_url: "https://mainnet.infura.io/v3/..."
-l2_rpc_url: "https://optimism-mainnet.infura.io/v3/..."
+# Verification mode (current implementation: l2rpc)
+# - l2rpc: Use L2 RPC with debug APIs (fully implemented and tested)
+# - hybrid: Try op-node first, fallback to L2 RPC (default, recommended)
+# - opnode: Use op-node Rollup RPC only
+# - stateless: L1-only execution (future enhancement, not fully implemented)
+verification_mode: l2rpc
+
+# L1 Configuration
+l1:
+  rpc_url: "http://localhost:8545"
+  beacon_url: "http://localhost:5052"  # For EIP-4844 blob data
+
+# RPC endpoints (op-node Rollup RPC or L2 geth RPC)
+rpc:
+  urls:
+    - "http://localhost:9545"  # Primary (op-node or L2 geth)
+
+# Contract addresses
+contracts:
+  rat_contract: "0x..."
+  system_config: "0x..."
+  dispute_game_factory: "0x..."
+  l1_bridge_registry: "0x..."
+  batch_inbox: "0xff03...000"
+  batcher_address: "0x..."
 
 # Validator identity
-private_key: "0x..."  # Your validator private key
+validator:
+  private_key: "${VALIDATOR_PRIVATE_KEY}"  # Use environment variable
 
-# Type 3 Rollup Contract Addresses
-rat_contract: "0x..."              # RAT contract
-system_config: "0x..."             # SystemConfig (rollupConfig)
-batch_inbox: "0xff03...000"        # Batch inbox
-batcher_address: "0x..."           # Authorized batcher
-dispute_game_factory: "0x..."      # DisputeGameFactory (Type 3)
-l1_bridge_registry: "0x..."        # L1BridgeRegistry
-
-# Trustless Verification
-enable_trustless_verification: true
-state_db_cache_size: 1024          # MB
-trie_cache_size: 512               # MB
-finalized_state_source: "l2rpc"    # or "archive"
-
-# Timing
-poll_interval: 12s
-deadline_buffer: 10m
+# RAT client settings
+rat:
+  poll_interval: 12s
+  deadline_buffer: 10m
+  max_gas_price: 100  # gwei
 ```
 
-## Trustless Verification Flow
+For detailed configuration options, see `config.example.yaml` in the rat-client-type3 directory.
+
+## Verification Flow (Current Implementation - l2rpc mode)
+
+The RAT client uses **L2 RPC with debug APIs** to prove state possession:
 
 ```
 1. Monitor L1 for AttentionTestTriggered event
    ↓
-2. Fetch L1 batch data (calldata/blobs) since finalized
+2. Extract target value (state root) from DisputeGame
    ↓
-3. Decode batches → transactions
+3. Connect to L2 node and iterate state trie (debug_accountRange)
    ↓
-4. Execute transactions with EVM engine
+4. Find two adjacent leaves where: leafA.key < stateRoot <= leafB.key
    ↓
-5. Derive L2 state root (NO L2 RPC trust)
+5. Generate Merkle proofs for both leaves (eth_getProof)
    ↓
-6. Reconstruct L2 block header from execution
+6. Calculate divergence witness (trie split point)
    ↓
-7. Compute output root
+7. Encode StateLeafEvidence with OutputRootProof
    ↓
-8. Compare: derived vs claimed
-   ↓
-9. If mismatch → Generate Merkle proof evidence
-   ↓
-10. Submit to RAT contract
+8. Submit to RAT contract for on-chain verification
 ```
+
+**Key Requirements:**
+- L2 node with debug APIs enabled (`debug_accountRange`, `eth_getProof`)
+- Archive mode recommended (to access historical state)
+- Op-node for OutputRootProof validation
 
 ## Implementation Status
 
@@ -194,53 +210,59 @@ deadline_buffer: 10m
 
 ✅ **Core Implementation Complete:**
 1. **State Leaf Evidence** - Adjacent trie leaves approach for compact proofs
-2. **State Trie Iterator** - Efficient iteration over L2 state Patricia trie
-3. **Proof-Verified State DB** - Cryptographically verified state from L2 RPC
-4. **Adjacent Leaves Submitter** - Evidence submission with proper gas management
-5. **OutputRootProof** - Optimism output root verification structure
-6. **L2 State Synchronization** - RPC-based state fetching with proof verification
-7. **Stateless Executor** - L1-only execution framework (100% trustless)
-8. **E2E Test Suite** - Full integration tests with real state data
-9. **RPC Failover Manager** - Multi-RPC endpoint management
-10. **Service Architecture** - Complete client service lifecycle
+2. **DivergenceWitness** - Proves divergence point in Merkle Patricia Trie with branch indices
+3. **State Trie Iterator** - Efficient iteration over L2 state Patricia trie
+4. **Adjacent Leaves Finder** - Binary search algorithm to find consecutive leaves in state trie
+5. **Proof-Verified State DB** - Cryptographically verified state from L2 RPC
+6. **Adjacent Leaves Submitter** - Evidence submission with proper gas management
+7. **OutputRootProof** - Optimism output root verification structure
+8. **L2 State Synchronization** - RPC-based state fetching with proof verification (debug_accountRange + eth_getProof)
+9. **Stateless Executor** - L1-only execution framework (100% trustless)
+10. **E2E Test Suite** - Full integration tests with real state data
+11. **E2E Integration Tests** - RAT client binary subprocess execution tests
+12. **RPC Failover Manager** - Multi-RPC endpoint management
+13. **Service Architecture** - Complete client service lifecycle
+14. **Test Summary Script** - Automated test result parsing and reporting
 
-⏳ **TODO (Advanced Features):**
-1. **Merkle Proof Verification** - Implement trie.VerifyProof for account/storage proofs
-2. **Full DisputeGameFactory Integration** - Complete implementation of finalized output query
-3. **Beacon Chain API Client** - Implement blob sidecar fetching from beacon chain
-4. **SpanBatch Transaction Parsing** - Decode SpanBatch custom transaction encoding
-5. **Full EVM Execution Integration** - Connect proof-verified state DB to go-ethereum EVM
-6. **L1 Attributes Calldata Encoding** - Complete setL1BlockValues ABI encoding
+⏳ **Future Enhancements (Optional):**
+1. **Beacon Chain Blob Support** - Fetch blob sidecars from beacon chain (currently uses calldata)
+2. **SpanBatch Optimization** - Enhanced SpanBatch parsing for improved performance
+3. **Advanced Gas Optimization** - Further reduce evidence submission gas costs (currently ~280k)
+4. **Multi-Rollup Support** - Extend to support Type 4 and Type 5 rollups
 
 ### Implementation Approach
 
-**FULLY TRUSTLESS VERIFICATION (NO L2 RPC TRUST):**
-1. ✅ Get finalized state root from L1 (DisputeGameFactory)
-2. ✅ Get state data from L2 RPC WITH PROOF VERIFICATION
-   - Fetch: eth_getProof (account + storage)
-   - Verify: Merkle proof against finalized state root
-   - Code: keccak256(bytecode) == codeHash
-   - ✅ L2 RPC CANNOT LIE (cryptographically enforced)
-3. ✅ Fetch batches from L1 DA (calldata ✅, blobs framework ✅)
-4. ✅ Execute batches with proof-verified state
-   - Pre-fetch all state proofs (parallel, fast)
-   - Execute with verified state only
-   - Compute new state root (trustless!)
-5. ✅ Generate Merkle proofs for evidence (tx trie ✅)
-6. ✅ Submit evidence to RAT contract (fully implemented)
+**L2 RPC WITH DEBUG APIs (Current Implementation - l2rpc mode):**
 
-**Key Innovation: Proof-Verified State DB**
-```
-L2 RPC provides data → Merkle proof verification → Use if valid
-                     ↓
-                  Invalid? → Reject (RPC lied!)
-                     ↓
-              All state verified → Trustless execution!
-```
+The current implementation uses **L2 geth debug APIs** to prove state possession without full batch execution:
 
-**Performance Optimization:**
-- Without pre-fetching: 1000 txs × 10 accesses × 100ms RPC = 16 minutes
-- With pre-fetching: 10,000 proofs in parallel = 10 seconds
+1. ✅ **Get OutputRootProof from op-node**
+   - op-node derives L2 state from L1 batches (trustless derivation)
+   - OutputRootProof contains: StateRoot, MessagePasserStorageRoot, LatestBlockHash
+   - Validator uses this to verify state root authenticity
+
+2. ✅ **Iterate state trie via debug_accountRange**
+   - Connect to L2 node with debug APIs enabled
+   - Use `debug_accountRange` to iterate through state trie
+   - Find adjacent leaves where: leafA.key < stateRoot <= leafB.key
+
+3. ✅ **Generate Merkle proofs via eth_getProof**
+   - Use `eth_getProof` to generate Merkle proofs for both leaves
+   - Proofs verify against the state root from OutputRootProof
+
+4. ✅ **Calculate divergence witness**
+   - Identify the divergence point in the Merkle Patricia Trie
+   - Calculate branch indices for both leaves
+
+5. ✅ **Submit evidence to RAT contract**
+   - Encode StateLeafEvidence with OutputRootProof
+   - Submit on-chain for verification
+
+**Why This Approach?**
+- Fast: No need to execute full batches (~20-30 minutes vs hours)
+- Simple: Uses standard RPC APIs (debug_accountRange + eth_getProof)
+- Effective: Proves validator has full L2 state at challenged block
+- Requires: Archive mode to access historical state
 
 **Current Capabilities:**
 - ✅ Monitor L1 for AttentionTest events
@@ -273,62 +295,41 @@ require (
 ### Build
 
 ```bash
-make build
-```
+# From project root
+make rat-client-build
 
-### Run with Devnet
-
-```bash
-# 1. Start Optimism devnet (L1 + L2 + op-node + op-batcher)
-make devnet-up
-
-# 2. Deploy RAT contract to devnet L1
-make deploy-rat
-
-# 3. Run RAT client
-make run
-
-# 4. Stop devnet
-make devnet-down
+# Or from rat-client-type3 directory
+cd clients/rat-client-type3
+go build -o bin/rat-client-type3 ./cmd
 ```
 
 ### Run Tests
 
 ```bash
-# Unit tests
-make test
+# Unit tests (from project root)
+make rat-client-test
 
-# E2E tests (requires devnet)
+# Or from rat-client-type3 directory
+cd clients/rat-client-type3
+go test -v ./pkg/...
+
+# E2E tests (from project root)
+# First, generate genesis file (one time setup)
+make devnet-allocs-offline
+
+# Then run E2E tests
 make test-e2e
-
-# Full test cycle
-make test-full
 ```
 
-### Quick Start (One Command)
-
-```bash
-make quickstart
-```
-
-This will:
-1. Start Optimism devnet
-2. Deploy RAT contract
-3. Run RAT client
-
-### Manual Run
-
-```bash
-./bin/rat-client --config config.yaml
-```
+**Test Coverage:**
+- Unit tests: Client components, evidence generation, state synchronization
+- E2E tests: Full integration with L1/L2 nodes, contract deployment, evidence submission
 
 ## Documentation
 
-- [System Architecture](docs/ARCHITECTURE.md) - Overall system design and components
-- [Implementation Status](docs/IMPLEMENTATION_STATUS.md) - Detailed completion tracking
-- [Adjacent Leaves Approach](docs/ADJACENT_LEAVES_APPROACH.md) - Evidence generation strategy
-- [Trustless Verification](docs/TRUSTLESS_VERIFICATION.md) - Security model and guarantees
-- [Op-node Setup Guide](docs/OPNODE_SETUP_GUIDE.md) - Op-node integration instructions
+- [System Architecture](docs/ARCHITECTURE.md) - Overall system design, components, and data flow
+- [Adjacent Leaves Approach](docs/ADJACENT_LEAVES_APPROACH.md) - Technical details of state possession proof method
+- [Testing Guide](docs/TESTING_GUIDE.md) - How to run E2E tests with real L2 state
 
 ## References
 
