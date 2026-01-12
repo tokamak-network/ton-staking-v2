@@ -152,7 +152,10 @@ test-e2e:
 		exit 1; \
 	fi
 	@echo "Running E2E tests (each test starts its own isolated node)..."
-	cd op-e2e && GOWORK=off go test -v ./faultproofs/... -timeout 300s
+	@cd op-e2e && GOWORK=off go test -v ./faultproofs/... -timeout 300s 2>&1 | tee /tmp/go_test_output.log; \
+	GO_EXIT_CODE=$${PIPESTATUS[0]}; \
+	cd .. && chmod +x scripts/parse_test_summary.sh && ./scripts/parse_test_summary.sh /tmp/go_test_output.log; \
+	exit $$GO_EXIT_CODE
 
 # Run E2E unit tests only (no devnet required)
 test-e2e-unit:
