@@ -13,6 +13,7 @@ import {IFaultDisputeGame} from './interfaces/IFaultDisputeGame.sol';
 import {IOptimismSystemConfig as ISystemConfig} from './interfaces/IOptimismSystemConfig.sol';
 
 import './Layer2ManagerStorage.sol';
+import './Layer2ManagerV1_2Storage.sol';
 import '../proxy/ProxyStorage.sol';
 import {AccessibleCommon} from '../common/AccessibleCommon.sol';
 
@@ -20,7 +21,12 @@ error ZeroAddressError();
 error StatusError();
 error SlashingError();
 
-contract Layer2Manager_Slashing is ProxyStorage, AccessibleCommon, Layer2ManagerStorage {
+contract Layer2Manager_Slashing is
+    ProxyStorage,
+    AccessibleCommon,
+    Layer2ManagerStorage,
+    Layer2ManagerV1_2Storage
+{
     /* ========== DEPENDENCIES ========== */
     using SafeERC20 for IERC20;
 

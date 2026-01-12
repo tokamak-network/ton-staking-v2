@@ -9,6 +9,7 @@ import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
 import {SeigManagerStorage} from './SeigManagerStorage.sol';
 import {SeigManagerV1_1Storage} from './SeigManagerV1_1Storage.sol';
 import {SeigManagerV1_3Storage} from './SeigManagerV1_3Storage.sol';
+import {SeigManagerV1_4Storage} from './SeigManagerV1_4Storage.sol';
 
 /**
  * @dev SeigManager_Slashing handles the slashing logic for operators in the Tokamak Network.
@@ -36,7 +37,8 @@ contract SeigManager_Slashing is
     AuthControlSeigManager,
     SeigManagerStorage,
     SeigManagerV1_1Storage,
-    SeigManagerV1_3Storage
+    SeigManagerV1_3Storage,
+    SeigManagerV1_4Storage
 {
     uint256 internal constant WEI_UNIT = 1e18;
 
