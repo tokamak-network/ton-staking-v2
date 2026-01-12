@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
-import {DeployV3SlashForDevnet} from "../../script/DeployV3SlashForDevnet.s.sol";
+import {DeployV3FullSlash} from "../../script/DeployV3FullSlash.s.sol";
 import {Layer2Manager_Slashing} from "../../src/layer2/Layer2Manager_Slashing.sol";
 import {DepositManager_Slashing} from "../../src/stake/managers/DepositManager_Slashing.sol";
 import {SeigManager_Slashing} from "../../src/stake/managers/SeigManager_Slashing.sol";
@@ -76,7 +76,7 @@ contract SlashingMockFactory {
     }
 }
 
-contract SlashingTest is Test, DeployV3SlashForDevnet {
+contract SlashingTest is Test, DeployV3FullSlash {
     address public operator = makeAddr("operator");
     address public challenger = makeAddr("challenger");
     address public rollupConfig = makeAddr("mockRollupConfig");
@@ -85,8 +85,31 @@ contract SlashingTest is Test, DeployV3SlashForDevnet {
     SlashingMockFactory public mockFactory;
 
     function setUp() public {
-        // 1. 배포 스크립트 실행
-        run();
+        // 1. 배포 스크립트 실행 (internal functions 직접 호출)
+        // TransparentUpgradeableProxy admin 충돌을 피하기 위해 별도 deployer 사용
+        address deployer = makeAddr("deployer");
+
+        vm.startPrank(deployer);
+
+        _deployTokens();
+        _deployCoinageInfrastructure(deployer);
+        _deployLayer2Registry(deployer);
+        _deployManagerProxies();
+        _deployManagerImplementations();
+        _initializeManagers(deployer);
+        _setupMinterPermissions();
+        _deployOperatorManagerFactory(deployer);
+        _deployV3Contracts(deployer);
+        _configureV3Contracts(deployer);
+        _setupCrossReferences(deployer);
+        _deployDAOVault();
+        _deployDAOAgendaManager();
+        _deployDAOCommittee();
+        _addMinterSetting();
+        _addSeigManagerSetting();
+        _setupContractOwner();
+
+        vm.stopPrank();
 
         // 2. Mock 인프라 설정
         mockFactory = new SlashingMockFactory();
