@@ -2,15 +2,20 @@
 
 ## Overview
 
-RAT (Randomized Attention Test) Client는 TON Staking V3에서 **validator liveness를 검증**하기 위한 시스템입니다. Type 3 rollup (Optimism Bedrock with DisputeGameFactory)의 경우, validator가 실제로 L2 노드를 운영하고 있는지 증명하기 위해 **State Trie 기반 검증**을 수행합니다.
+RAT (Randomized Attention Test) Client는 TON Staking V3에서 **validator가 L2 rollup node를 직접 보유하고 있는지 검증**하기 위한 시스템입니다. Type 3 rollup (Optimism Bedrock with DisputeGameFactory)의 경우, **debug API를 통한 State Trie 기반 검증**으로 validator가 실제로 full op-geth node를 운영 중임을 증명합니다.
+
+**핵심 증명:**
+- debug_accountRange API 사용 → Full node 직접 운영 증명
+- RandomValue로 선택된 인덱스 → 사전 준비 불가능
+- debug API는 self-hosted node에서만 활성화 가능
 
 ## Design Philosophy
 
-### 목적: Fast Path for Validator Liveness
+### 목적: Full Node Ownership 증명 + Liveness Test
 
 ```
-RAT Client = 빠른 검증 (10-30분)
-DisputeGame = 최종 안전성 (7일, 완전 trustless)
+RAT Client = 빠른 검증 (10-30분) + Full node 직접 보유 증명
+DisputeGame = 최종 안전성 (7일) + State correctness 검증
 
 → 2-tier 보안 모델
 ```
@@ -18,7 +23,7 @@ DisputeGame = 최종 안전성 (7일, 완전 trustless)
 **핵심 설계 원칙:**
 1. **빠름**: 10-30분 내 증거 제출
 2. **단순함**: 복잡한 fraud proof 대신 state trie iteration
-3. **실용적**: L2 RPC 활용 허용 (liveness test이므로)
+3. **실용적**: debug API 사용 (state trie 인덱스 접근)
 4. **폴백 가능**: 실패 시 DisputeGame으로 최종 검증
 
 ### Trade-offs
@@ -28,8 +33,9 @@ DisputeGame = 최종 안전성 (7일, 완전 trustless)
 | 검증 시간 | 10-30분 | 7일 |
 | 복잡도 | 낮음 | 높음 |
 | 비용 | 낮음 (1-2 tx) | 높음 (수십 tx) |
-| L2 의존성 | 있음 (op-geth 필요) | 없음 (L1만 사용) |
-| 목적 | Liveness test | Final safety |
+| 요구사항 | Full op-geth + debug API | L1만 사용 |
+| 증명 내용 | Full node 직접 보유 | State correctness |
+| 목적 | Liveness + Node ownership | Final safety |
 
 ## System Architecture
 
@@ -143,22 +149,43 @@ type OutputRootProof struct {
 
 **주요 컴포넌트:**
 - `StateTrie`: Patricia trie iterator
-- `StateRPC`: RPC 기반 state fetcher
+- `StateRPC`: RPC 기반 state fetcher (debug_accountRange 사용)
 - `AdjacentLeaves`: 인접 leaf 쌍 + Merkle proofs
 
-**왜 Adjacent Leaves?**
+**debug_accountRange API 사용:**
+```go
+// debug_accountRange는 state trie의 특정 범위를 페이징으로 조회
+// 파라미터: (stateRoot, startKey, maxResults, excludeCode, excludeStorage)
+debug_accountRange(stateRoot, startKey, 1000, true, true)
+
+// 반환: {
+//   accounts: { "0x123...": { balance, nonce, ... }, ... }
+//   next: "0x456..."  // 다음 페이지 시작 키
+// }
+```
+
+**왜 debug API가 Full Node 증명인가?**
 ```
 일반 RPC (eth_getProof):
   - 특정 주소의 proof만 조회 가능
   - 누구나 외부 RPC로 호출 가능
-  → Validator가 full node를 운영하는지 증명 불가
+  - 주소를 알면 증거 미리 준비 가능
+  → Full node 운영 증명 불가
 
-State Trie Iteration:
-  - 전체 state trie를 순회해야 함
-  - op-geth의 state DB 직접 접근 필요
-  - 외부 RPC로는 불가능 (debug_accountRange는 페이징만)
+debug_accountRange:
+  - State trie를 인덱스 순서로 순회
+  - RandomValue로 선택된 인덱스의 계정들을 조회
+  - 사전에 어떤 계정이 선택될지 예측 불가
+  - 대부분의 Public RPC는 debug API를 비활성화
+  → Validator는 자신의 op-geth를 직접 운영해야 함
   → Full node 운영 증명!
 ```
+
+**RandomValue 활용:**
+- RandomValue를 시드로 state trie의 특정 인덱스 선택
+- 해당 인덱스의 계정과 다음 계정 = adjacent leaves
+- Pre-computed proof 불가능
+- 항상 최신 state 유지 필요
 
 ### 4. Evidence Generator (`pkg/evidence`)
 
@@ -237,7 +264,7 @@ type StateLeafEvidence struct {
    - Merkle proof 검증
    - 인접성 확인
    - OutputRootProof 검증
-   - 성공 → Validator liveness 확인!
+   - 성공 → Validator가 full node를 직접 운영 중임을 확인!
 ```
 
 ### Adjacent Leaves Selection
@@ -273,14 +300,17 @@ func SelectLeafIndex(randomValue *big.Int, totalLeaves int) int {
    - **왜 OK?**: RAT은 liveness test이지 correctness test가 아님
    - **최종 검증**: DisputeGame이 correctness 보장
 
-2. **L2 RPC Access**: op-geth RPC가 올바른 데이터 제공
-   - **왜 OK?**: Validator 자신의 노드 (self-hosted)
-   - **검증**: Merkle proof로 일관성 확인
+2. **debug API Access**: Validator가 자신의 op-geth에서 debug API 사용
+   - **왜 OK?**: debug API는 full node만 제공 (self-hosted 증명)
+   - **보안**: Public RPC는 debug API 비활성화 (외부 의존 불가)
+   - **검증**: Merkle proof로 state 일관성 확인
+   - **RandomValue**: 사전에 어떤 계정이 선택될지 예측 불가
 
 ### Security Model
 
 ```
 RAT Client (Fast):
+  - Full node ownership 증명 (debug API 사용)
   - Validator liveness 검증
   - 10-30분
   - 대부분(99%)의 케이스
@@ -302,13 +332,15 @@ DisputeGame (Slow):
 - ❌ Full state re-execution: 너무 느림 (수 시간)
 - ❌ Challenge-response: 너무 복잡, 여러 round 필요
 
-**Adjacent Leaves:**
-- ✅ Full node 증명 (state DB 직접 접근)
+**Adjacent Leaves + debug_accountRange:**
+- ✅ Full node 증명 (debug API 필요)
+- ✅ Public RPC 사용 불가 (대부분 debug API 비활성화)
 - ✅ 빠름 (10-30분)
 - ✅ 단순함 (1 tx)
 - ✅ RandomValue로 caching 방지
+- ✅ 예측 불가능 (어떤 계정이 선택될지 사전에 알 수 없음)
 
-### 2. 왜 L2 RPC 의존?
+### 2. 왜 debug API 의존?
 
 **목적이 다름:**
 ```
@@ -316,8 +348,27 @@ RAT = Validator liveness (살아있는가?)
 DisputeGame = State correctness (정확한가?)
 ```
 
-RAT에서는 "Validator가 full node를 운영 중인가?"만 확인하면 됨
-→ L2 RPC 의존 허용
+**RAT의 핵심 질문:**
+"Validator가 full op-geth node를 직접 운영 중인가?"
+
+**debug API 사용이 이를 증명:**
+```
+debug_accountRange:
+  - Full node만 활성화 (Archive node도 가능)
+  - Public RPC는 대부분 비활성화 (보안/리소스 이유)
+  - Infura, Alchemy 등에서 사용 불가
+  → Validator는 자신의 op-geth를 직접 운영해야 함
+
+eth_getProof (일반 API):
+  - 어떤 RPC에서든 호출 가능
+  - 외부 서비스 의존 가능
+  → Full node 운영 증명 불가
+```
+
+**왜 이것으로 충분한가?**
+- RAT은 liveness test (node 운영 여부 확인)
+- Correctness는 DisputeGame이 최종 보장
+- debug API 접근 = full node 운영 = liveness 증명 완료
 
 ### 3. 왜 OutputRootProof?
 
@@ -411,16 +462,17 @@ Slow Path (항상):
 
 ## Conclusion
 
-RAT Client Type 3는 **실용적인 validator liveness test**입니다:
+RAT Client Type 3는 **Full Node Ownership을 증명하는 실용적인 validator liveness test**입니다:
 
 **핵심:**
 - Fast (10-30분)
 - Simple (adjacent leaves)
-- Practical (L2 RPC 사용)
+- Practical (debug API로 full node 직접 보유 증명)
 - Safe (DisputeGame 폴백)
 
 **철학:**
-- 완벽한 trustless보다 **빠른 liveness 검증**
+- debug API 사용 → Public RPC로는 불가능 → Full node 직접 운영 증명
+- RandomValue → 예측 불가능 → Pre-computed proof 방지
 - 99% 케이스를 빠르게 처리
 - 1% 의심 케이스는 DisputeGame으로 해결
 - 2-tier 보안 모델로 balance 달성
