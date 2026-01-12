@@ -296,6 +296,16 @@ contract Type3EvidenceVerifierTest is Test {
         leafBProof[0] = hex"f8718080808080a0b40d147218a1e3b80a1f9854cbde2f981e49c37cbdca2de71eed5e0e3f55836e80808080808080a0a7fcf24375ff0a8c95069e8e75ba36c6f09dad3c147525f6f9713262c92e0751a0d551c93a45008bf408880b4f6215203b6282994502fc2380a3317dfb90dd5f448080";
         leafBProof[1] = hex"f871a039ed35852650f28d7a8f73c7ba49bcd72d97edf8d731797e5a2728559b865552b84ef84c8088016345785d8a0000a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
+        // Create DivergenceWitness from real E2E data
+        // Both proofs share the same first node (index 0) - this is the divergence node
+        // LeafA follows branch 5, LeafB follows branch 13 (0xd)
+        Type3EvidenceVerifier.DivergenceWitness memory mockWitness = Type3EvidenceVerifier.DivergenceWitness({
+            divergenceNode: hex"f8718080808080a0b40d147218a1e3b80a1f9854cbde2f981e49c37cbdca2de71eed5e0e3f55836e80808080808080a0a7fcf24375ff0a8c95069e8e75ba36c6f09dad3c147525f6f9713262c92e0751a0d551c93a45008bf408880b4f6215203b6282994502fc2380a3317dfb90dd5f448080",
+            indexA: 5,  // LeafA key first nibble: 5380c7b7... -> 5
+            indexB: 13, // LeafB key first nibble: d9ed3585... -> d (13)
+            divergenceDepth: 0
+        });
+
         Type3EvidenceVerifier.StateLeafEvidence memory ev = Type3EvidenceVerifier.StateLeafEvidence({
             leafAKey: leafAKey,
             leafAValue: leafAValue,
@@ -305,7 +315,8 @@ contract Type3EvidenceVerifierTest is Test {
             leafBProof: leafBProof,
             stateRoot: outputRootProof.stateRoot,
             blockNumber: 3,
-            outputRootProof: outputRootProof
+            outputRootProof: outputRootProof,
+            divergenceWitness: mockWitness
         });
 
         console.log("\nTesting full StateLeaf verification...");
@@ -379,6 +390,14 @@ contract Type3EvidenceVerifierTest is Test {
             latestBlockhash: bytes32(uint256(0x9abc))
         });
 
+        // Create mock DivergenceWitness
+        Type3EvidenceVerifier.DivergenceWitness memory mockWitness2 = Type3EvidenceVerifier.DivergenceWitness({
+            divergenceNode: hex"f8518080808080808080808080808080808080",
+            indexA: 0,
+            indexB: 1,
+            divergenceDepth: 0
+        });
+
         // Create evidence
         Type3EvidenceVerifier.StateLeafEvidence memory ev = Type3EvidenceVerifier.StateLeafEvidence({
             leafAKey: bytes32(uint256(100)),
@@ -389,7 +408,8 @@ contract Type3EvidenceVerifierTest is Test {
             leafBProof: proofB,
             stateRoot: bytes32(uint256(0x1234)),
             blockNumber: 1000,
-            outputRootProof: outputRootProof
+            outputRootProof: outputRootProof,
+            divergenceWitness: mockWitness2
         });
 
         // Test basic validation
@@ -438,6 +458,14 @@ contract Type3EvidenceVerifierTest is Test {
             latestBlockhash: bytes32(uint256(0x9abc))
         });
 
+        // Create mock DivergenceWitness
+        Type3EvidenceVerifier.DivergenceWitness memory mockWitness3 = Type3EvidenceVerifier.DivergenceWitness({
+            divergenceNode: hex"f8518080808080808080808080808080808080",
+            indexA: 0,
+            indexB: 1,
+            divergenceDepth: 0
+        });
+
         return Type3EvidenceVerifier.StateLeafEvidence({
             leafAKey: bytes32(uint256(100)),
             leafAValue: hex"f84401830f424084deadbeef80a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
@@ -447,7 +475,8 @@ contract Type3EvidenceVerifierTest is Test {
             leafBProof: proofB,
             stateRoot: bytes32(uint256(0x1234)),
             blockNumber: 1000,
-            outputRootProof: outputRootProof
+            outputRootProof: outputRootProof,
+            divergenceWitness: mockWitness3
         });
     }
 }
