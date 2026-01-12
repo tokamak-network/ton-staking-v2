@@ -152,14 +152,14 @@ test-e2e:
 		exit 1; \
 	fi
 	@echo "Running E2E tests (each test starts its own isolated node)..."
-	@cd op-e2e && GOWORK=off go test -v ./faultproofs/... -timeout 300s 2>&1 | tee /tmp/go_test_output.log; \
+	@cd op-e2e && GOWORK=off go test -count=1 -v ./faultproofs/... -timeout 300s 2>&1 | tee /tmp/go_test_output.log; \
 	GO_EXIT_CODE=$${PIPESTATUS[0]}; \
 	cd .. && chmod +x scripts/parse_test_summary.sh && ./scripts/parse_test_summary.sh /tmp/go_test_output.log; \
 	exit $$GO_EXIT_CODE
 
 # Run E2E unit tests only (no devnet required)
 test-e2e-unit:
-	cd op-e2e && go test -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
+	cd op-e2e && go test -count=1 -v -run "TestRATHelper|TestRATConstants" ./faultproofs/...
 
 # Run E2E integration tests (requires devnet-allocs-offline first)
 test-e2e-integration:
@@ -167,7 +167,7 @@ test-e2e-integration:
 		echo "Error: Genesis file not found. Run 'make devnet-allocs-offline' first."; \
 		exit 1; \
 	fi
-	cd op-e2e && GOWORK=off go test -v -run "TestRATIntegration" ./faultproofs/... -timeout 300s
+	cd op-e2e && GOWORK=off go test -count=1 -v -run "TestRATIntegration" ./faultproofs/... -timeout 300s
 
 # ==========================================
 # Help
@@ -219,7 +219,7 @@ rat-client-build:
 # Test RAT client
 rat-client-test:
 	@echo "Testing RAT Client Type 3..."
-	cd $(RAT_CLIENT_DIR) && go test -v ./pkg/...
+	cd $(RAT_CLIENT_DIR) && go test -count=1 -v ./pkg/...
 
 # Run RAT client (development mode with example config)
 rat-client-run:

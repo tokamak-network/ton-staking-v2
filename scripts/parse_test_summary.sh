@@ -26,17 +26,20 @@ fi
 if grep -q "^--- SKIP:" "$LOG_FILE"; then
     echo "⏭️  Skipped Tests:"
 
-    # Process skip messages
-    grep -n "^--- SKIP:" "$LOG_FILE" | while IFS=: read -r line_num skip_line; do
-        # Print the skip line
-        echo "$skip_line" | sed 's/^--- SKIP: /  ⏭️  /'
+    # Get test names that were skipped
+    skipped_tests=$(grep "^--- SKIP:" "$LOG_FILE" | sed 's/^--- SKIP: //' | sed 's/ (.*//')
 
-        # Get the next line (reason)
-        next_line=$((line_num + 1))
-        reason=$(sed -n "${next_line}p" "$LOG_FILE")
+    # For each skipped test, find the reason
+    echo "$skipped_tests" | while read -r test_name; do
+        # Find the test and extract skip info (with time)
+        skip_info=$(grep "^--- SKIP:" "$LOG_FILE" | grep "$test_name" | sed 's/^--- SKIP: //')
+        echo "  ⏭️  $skip_info"
 
-        # Only print if it's not another test marker and not empty
-        if [[ ! "$reason" =~ ^--- ]] && [[ -n "$reason" ]]; then
+        # Look for the reason in the test output (usually between === RUN and --- SKIP)
+        reason=$(awk "/^=== RUN   $test_name$/,/^--- SKIP: $test_name/" "$LOG_FILE" | \
+                 grep -E "^\s+.*\.go:[0-9]+:" | tail -1 | sed 's/^[[:space:]]*//' | sed 's/^[^:]*:[^:]*: //')
+
+        if [[ -n "$reason" ]]; then
             echo "      Reason: $reason"
         fi
     done
