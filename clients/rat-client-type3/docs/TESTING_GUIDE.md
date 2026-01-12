@@ -369,22 +369,6 @@ E2E_TEST=1 L2_RPC_URL="..." STATE_DB_PATH="..." \
 
 ---
 
-## Performance Benchmarks
-
-참고용 성능 지표:
-
-| State Size | Iteration Time | Proof Generation | Total Time |
-|-----------|---------------|------------------|------------|
-| 10 accounts | ~0.5s | ~0.1s | ~0.6s |
-| 100 accounts | ~2s | ~0.2s | ~2.2s |
-| 1,000 accounts | ~8s | ~0.3s | ~8.3s |
-| 10,000 accounts | ~45s | ~0.5s | ~45.5s |
-| 100,000 accounts | ~6min | ~0.8s | ~6min |
-
-*MacBook Pro M1, SSD 기준*
-
----
-
 ## Next Steps
 
 E2E 테스트 성공 후:
