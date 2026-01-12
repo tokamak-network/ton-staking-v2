@@ -6,7 +6,7 @@ RAT (Randomized Attention Test) Client는 TON Staking V3에서 **validator가 L2
 
 **핵심 요구사항:**
 - debug_accountRange API 사용 → Full node + debug API 필요
-- RandomValue로 선택된 인덱스 → 사전 준비 불가능
+- RandomValue로 L2 블록 선택 → 어떤 블록이 선택될지 예측 불가
 - debug API는 self-hosted node에서만 활성화 가능
 
 ## Design Philosophy
@@ -187,9 +187,9 @@ debug_accountRange(stateRoot, startKey, 1000, true, true)
   → Full node 필요 없음
 
 debug_accountRange:
-  - State trie를 인덱스 순서로 순회
-  - RandomValue로 선택된 인덱스의 계정들을 조회
-  - 사전에 어떤 계정이 선택될지 예측 불가
+  - State trie를 순회하여 adjacent leaves 조회
+  - RandomValue로 선택된 L2 블록의 StateRoot 사용
+  - 어떤 블록이 선택될지 사전에 예측 불가
   - 대부분의 Public RPC는 debug API를 비활성화
   → Full node 필요
   → debug API 활성화 필요
@@ -197,10 +197,30 @@ debug_accountRange:
 ```
 
 **RandomValue 활용:**
-- RandomValue를 시드로 state trie의 특정 인덱스 선택
-- 해당 인덱스의 계정과 다음 계정 = adjacent leaves
+- RandomValue로 L2 OutputRoot (StateRoot) 선택
+- 선택된 StateRoot 기준으로 state trie에서 adjacent leaves 찾기
 - Pre-computed proof 불가능
 - 항상 최신 state 유지 필요
+
+**RandomValue로 StateRoot를 선택하는 방법:**
+
+```
+1. RAT contract가 RandomValue 제공 (예: 0x1a2b3c...)
+
+2. RandomValue를 사용해서 L2 블록 번호 결정
+   blockNumber = batchIndex + (RandomValue % N)
+   // N은 검증 범위 (예: 최근 100개 블록)
+
+3. 해당 블록의 OutputRoot 조회 (op-node RPC)
+   OutputRoot = {
+     Version: 0x0,
+     StateRoot: 0xabc...,  ← 이것을 사용!
+     MessagePasserStorageRoot: 0xdef...,
+     LatestBlockHash: 0x123...
+   }
+
+4. StateRoot 기준으로 state trie에서 adjacent leaves 찾기
+```
 
 **왜 Pre-computed proof가 불가능한가?**
 
@@ -220,8 +240,8 @@ Patricia Merkle Trie의 특성상, **한 계정만 변경되어도 Root까지 �
   - 계정 B의 proof는 Root_N+1 기준으로 새로 생성해야 함
   - Root_N 기준 proof는 검증 실패!
 
-→ RandomValue로 선택된 계정의 proof를 생성하려면
-→ 최신 블록의 State Root 필요
+→ RandomValue로 선택된 StateRoot의 proof를 생성하려면
+→ 해당 블록의 State를 보유해야 함
 → 실시간으로 L2 모니터링 필수!
 ```
 
@@ -282,49 +302,60 @@ type StateLeafEvidence struct {
    - Event Monitor가 AttentionTestTriggered 이벤트 수신
    - TestID, RandomValue 추출
 
-3. [Op-node] OutputRootProof 조회
-   - BatchIndex에 해당하는 L2 block 확인
-   - OutputRootProof 가져오기 (StateRoot 포함)
+3. [RandomValue로 블록 선택]
+   - RandomValue를 사용해서 검증할 L2 블록 결정
+   - 예: blockNumber = batchIndex + (RandomValue % N)
 
-4. [State Synchronizer] Adjacent Leaves 찾기
-   - op-geth state DB 접근
-   - State trie 순회
-   - RandomValue를 시드로 특정 leaf 쌍 선택
-   - Merkle proof 생성
+4. [Op-node] OutputRootProof 조회
+   - 선택된 L2 블록의 OutputRootProof 가져오기
+   - OutputRootProof.StateRoot 추출
 
-5. [Evidence Generator] 증거 생성
+5. [RPC Client] Adjacent Leaves 찾기
+   - debug_accountRange로 state trie 조회 (StateRoot 기준)
+   - 임의의 adjacent leaf 쌍 선택 (또는 첫 번째 쌍)
+   - eth_getProof로 Merkle proof 생성
+
+6. [Evidence Generator] 증거 생성
    - StateLeafEvidence 구조체 생성
    - OutputRootProof 포함
    - ABI 인코딩
 
-6. [Submitter] L1 제출
+7. [Submitter] L1 제출
    - submitEvidence(testID, randomValue, evidence)
    - Gas 관리 및 재시도
 
-7. [L1] On-chain 검증
+8. [L1] On-chain 검증
    - Merkle proof 검증
    - 인접성 확인
    - OutputRootProof 검증
    - 성공 → Validator가 full node를 직접 운영 중임을 확인!
 ```
 
-### Adjacent Leaves Selection
+### RandomValue와 블록 선택
 
-**RandomValue 활용:**
+**RandomValue로 L2 블록 선택:**
 
 ```go
-// RandomValue를 시드로 사용하여 deterministic하게 leaf 선택
-func SelectLeafIndex(randomValue *big.Int, totalLeaves int) int {
-    return int(randomValue.Mod(randomValue, big.NewInt(int64(totalLeaves-1))).Int64())
+// RandomValue를 사용해서 검증할 L2 블록 번호 결정
+func SelectBlockNumber(batchIndex uint64, randomValue *big.Int, range uint64) uint64 {
+    // 예: 최근 100개 블록 중에서 선택
+    offset := randomValue.Mod(randomValue, big.NewInt(int64(range)))
+    return batchIndex + offset.Uint64()
 }
 
-// 선택된 index의 leaf와 그 다음 leaf를 adjacent pair로 사용
+// 선택된 블록의 OutputRoot 조회
+outputRoot := opNodeClient.GetOutputRoot(blockNumber)
+stateRoot := outputRoot.StateRoot
+
+// StateRoot 기준으로 adjacent leaves 찾기
+// (state trie에서 임의의 인접 쌍 또는 첫 번째 쌍 사용)
 ```
 
-**왜 Random Selection?**
+**왜 RandomValue가 필요한가?**
+- 어떤 블록이 선택될지 사전에 예측 불가
 - Pre-computed proof 방지
-- Validator가 항상 최신 state를 유지해야 함
-- Caching 불가능
+- Validator가 모든 블록의 state를 유지해야 함
+- 특정 블록만 선별적으로 모니터링 불가
 
 ## Trust Model
 
@@ -406,10 +437,10 @@ debug_accountRange:
   - Full node만 활성화 (Archive node도 가능)
   - Public RPC는 대부분 비활성화 (보안/리소스 이유)
   - Infura, Alchemy 등 외부 서비스 불가
-  - RandomValue로 인덱스 선택 → 사전 준비 불가
+  - RandomValue로 L2 블록 선택 → 어떤 블록이 선택될지 예측 불가
   → Self-hosted op-geth 필수!
   → debug API 활성화 필수!
-  → 최신 state 유지 필수!
+  → 모든 블록의 state 유지 필수!
 
 eth_getProof (일반 API):
   - 어떤 RPC에서든 호출 가능
