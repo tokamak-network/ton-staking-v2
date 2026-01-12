@@ -1,16 +1,21 @@
 # RAT Client Configuration Example
 #
-# Verification Mode: opnode (op-node Rollup RPC 사용)
+# Verification Mode: l2rpc (L2 RPC with debug APIs)
 #
 # 사전 요구사항:
-# 1. op-node가 실행 중이어야 함
-# 2. op-node가 L2를 동기화하고 있어야 함
+# 1. L2 geth가 debug APIs 활성화 상태로 실행 중이어야 함
+# 2. op-node가 실행 중이어야 함 (OutputRootProof 검증용)
 
 ##############################################################################
 # Verification Strategy
 ##############################################################################
 
-verification_mode: opnode  # opnode | hybrid | stateless
+# Current implementation: l2rpc (L2 RPC with debug APIs)
+# - l2rpc: Use L2 geth with debug_accountRange + eth_getProof (fully implemented)
+# - hybrid: Try op-node first, fallback to L2 RPC (default, recommended)
+# - opnode: Use op-node Rollup RPC only
+# - stateless: L1-only execution (future, not fully implemented)
+verification_mode: l2rpc
 
 ##############################################################################
 # L1 Configuration

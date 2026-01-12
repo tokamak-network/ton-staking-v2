@@ -5,7 +5,8 @@
 # Verification Strategy
 ##############################################################################
 
-verification_mode: opnode  # Use op-node from devnet
+# l2rpc mode: Use L2 geth debug APIs + op-node for OutputRootProof
+verification_mode: l2rpc
 
 ##############################################################################
 # L1 Configuration (Devnet L1)
@@ -19,13 +20,14 @@ l1:
   beacon_url: "http://localhost:5052"
 
 ##############################################################################
-# RPC Configuration (op-node from devnet)
+# RPC Configuration (L2 geth + op-node from devnet)
 ##############################################################################
 
 rpc:
-  # Devnet op-node Rollup RPC
+  # Primary: L2 geth RPC (for debug_accountRange, eth_getProof)
+  # Secondary: op-node Rollup RPC (for OutputRootProof)
   urls:
-    - "http://localhost:9545"
+    - "http://localhost:9545"  # L2 geth or op-node
 
   # op-node sync settings
   opnode:
