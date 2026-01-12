@@ -39,7 +39,11 @@ test:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v ./faultproofs/...
+	@echo "Running E2E tests..."
+	@GOWORK=off go test -v ./faultproofs/... 2>&1 | tee /tmp/e2e_test_output.log; \
+	TEST_EXIT_CODE=$${PIPESTATUS[0]}; \
+	chmod +x ../scripts/parse_test_summary.sh && ../scripts/parse_test_summary.sh /tmp/e2e_test_output.log; \
+	exit $$TEST_EXIT_CODE
 
 # Run all RAT tests (requires genesis file)
 test-rat:

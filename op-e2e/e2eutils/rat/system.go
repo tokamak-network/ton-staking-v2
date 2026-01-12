@@ -56,7 +56,7 @@ func StartTONStakingSystem(t *testing.T) *TONStakingSystem {
 	ctx := context.Background()
 
 	// Find project root
-	projectRoot, err := findProjectRoot()
+	projectRoot, err := FindProjectRoot()
 	require.NoError(t, err, "Failed to find project root")
 
 	// Paths to generated files
@@ -172,9 +172,9 @@ func (s *TONStakingSystem) Close() {
 	}
 }
 
-// findProjectRoot finds the project root directory by looking for Makefile with devnet-allocs target
+// FindProjectRoot finds the project root directory by looking for Makefile with devnet-allocs target
 // This ensures we find ton-staking-v2 root, not op-e2e root
-func findProjectRoot() (string, error) {
+func FindProjectRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err

@@ -45,19 +45,18 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 2. **TestAccountBalances** (~1s) - Verify test account balances from genesis
 3. **TestRATContractCall** (~1s) - Verify RAT contract is callable
 
-### RAT Scenario Tests (4)
+### RAT Scenario Tests (3)
 
 4. **TestSimpleRAT_ValidatorRegistration** (~4s) - Validator registration with TON deposit
 5. **TestSimpleRAT_GameCreation** (~6s) - DisputeGame creation and RAT trigger
-6. **TestSimpleRAT_EvidenceSubmission** (~8s) - Evidence submission flow
-7. **TestSimpleRAT_ChallengerWins** (~20s) - Full challenger wins scenario with bond claiming
+6. **TestSimpleRAT_ChallengerWins** (~20s) - Full challenger wins scenario with bond claiming
    - Includes 2-step credit claiming with DelayedWETH (7-day delay)
    - Dynamic withdrawal delay query from contract
    - Comprehensive bond restoration verification
 
-### State Root E2E Test (1)
+### RAT Client E2E Test (1)
 
-8. **TestRATStateRootAsTarget** (~18s) - Complete "State Root as Target" flow with L2 integration
+7. **TestRATClient_EvidenceSubmission_E2E** (~30s) - Complete RAT client evidence submission flow with L2 integration
    - Starts isolated L1 (Anvil) with genesis containing all deployed contracts
    - Starts isolated L2 (geth dev mode) with archive state
    - Creates transactions on L2 to generate state changes
@@ -73,17 +72,17 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 ## Running Tests
 
 ```bash
-# All tests (8 tests, ~40s)
+# All tests (7 tests, ~60s)
 make test
 
 # System tests only (3 tests)
 GOWORK=off go test -v -run "TestTONStakingSystemStartup|TestAccountBalances|TestRATContractCall" ./faultproofs
 
-# RAT scenario tests only (4 tests)
+# RAT scenario tests only (3 tests)
 GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
 
-# State Root E2E test (requires L2 geth)
-GOWORK=off go test -v -run TestRATStateRootAsTarget ./faultproofs
+# RAT Client E2E test (requires L2 geth)
+GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
 
 # Specific test
 GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs
@@ -102,7 +101,7 @@ For detailed documentation, see:
 
 - Go 1.22+
 - Foundry (for Anvil)
-- Geth (for L2 in TestRATStateRootAsTarget)
+- Geth (for L2 in TestRATClient_EvidenceSubmission_E2E)
 - Genesis file generated: `make devnet-allocs-offline` (from project root)
 - RAT client binary built: `cd clients/rat-client-type3 && go build`
 
@@ -121,16 +120,16 @@ pkill geth
 ```
 
 ### RAT client binary not found
-Build the RAT client before running TestRATStateRootAsTarget:
+Build the RAT client before running TestRATClient_EvidenceSubmission_E2E:
 ```bash
 cd clients/rat-client-type3 && go build -o bin/rat-client-type3 cmd/main.go
 ```
 
 ## Test Details
 
-### TestRATStateRootAsTarget Architecture
+### TestRATClient_EvidenceSubmission_E2E Architecture
 
-This test validates the complete "State Root as Target" verification flow for **Type 3 rollups**.
+This test validates the complete RAT client evidence submission flow for **Type 3 rollups**.
 
 **What is Type 3?**
 - **Type 3** = `OPTIMISM_BEDROCK_WITH_DISPUTE_GAME`

@@ -21,14 +21,14 @@ import (
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
-// TestRATStateRootAsTarget tests the complete "State Root as Target" flow
+// TestRATClient_EvidenceSubmission_E2E tests the complete RAT client evidence submission flow
 // 1. Start L1 with genesis (all contracts deployed)
 // 2. Start L2 geth and generate state
 // 3. Create DisputeGame with OutputRootProof
 // 4. Trigger RAT
-// 5. Run RAT client
-// 6. Verify evidence submission
-func TestRATStateRootAsTarget(t *testing.T) {
+// 5. Run RAT client to generate and submit StateLeaf evidence
+// 6. Verify evidence submission on-chain
+func TestRATClient_EvidenceSubmission_E2E(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os/exec"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
@@ -288,115 +286,6 @@ func parseDisputeGameCreatedEvent(t *testing.T, receipt *types.Receipt) common.A
 	return common.Address{}
 }
 
-// AccountRange represents response from debug_accountRange
-type AccountRange struct {
-	Accounts map[string]AccountInfo `json:"accounts"` // key is address string
-	Next     string                 `json:"next"`
-}
-
-// AccountInfo represents account data from debug_accountRange
-type AccountInfo struct {
-	Balance  string `json:"balance"`
-	Nonce    uint64 `json:"nonce"`
-	Root     string `json:"root"`     // Storage root
-	CodeHash string `json:"codeHash"`
-	Address  string `json:"address"` // WITH 0x prefix
-	Key      string `json:"key"`     // WITHOUT 0x prefix - keccak256(address)
-}
-
-// createStateLeafEvidence creates StateLeaf evidence for RAT submission using RPC
-func createStateLeafEvidence(t *testing.T, sys *rat.TONStakingSystem, l2Client *ethclient.Client, stateRoot common.Hash, msgPasserRoot common.Hash, blockHash common.Hash, blockNumber uint64) []byte {
-	ctx := sys.Ctx
-
-	// Step 1: Get all accounts from L2 state trie using debug_accountRange
-	t.Log("Querying L2 state accounts using debug_accountRange...")
-
-	var accountRange AccountRange
-	blockNumHex := fmt.Sprintf("0x%x", blockNumber)
-
-	err := l2Client.Client().CallContext(ctx, &accountRange, "debug_accountRange",
-		blockNumHex,                 // block number
-		common.Hash{}.Hex(),         // start (0x00...00 = from beginning)
-		256,                         // maxResults
-		true,                        // excludeCode
-		true,                        // excludeStorage
-		false,                       // incompletes
-	)
-	if err != nil {
-		t.Logf("debug_accountRange failed: %v, using dummy evidence", err)
-		return []byte("dummy_stateleaf_evidence")
-	}
-
-	if len(accountRange.Accounts) < 2 {
-		t.Logf("Not enough accounts (%d), using dummy evidence", len(accountRange.Accounts))
-		return []byte("dummy_stateleaf_evidence")
-	}
-
-	t.Logf("Found %d accounts in state trie", len(accountRange.Accounts))
-
-	// Step 2: Find adjacent leaves where leafA.key < stateRoot < leafB.key
-	// Convert accounts map to sorted slice
-	type accountEntry struct {
-		address  common.Address
-		key      common.Hash // keccak256(address)
-		info     AccountInfo
-	}
-
-	accounts := make([]accountEntry, 0, len(accountRange.Accounts))
-	for _, acc := range accountRange.Accounts {
-		// Parse key (keccak256 of address) - add 0x prefix if missing
-		keyHex := acc.Key
-		if !strings.HasPrefix(keyHex, "0x") {
-			keyHex = "0x" + keyHex
-		}
-		keyHash := common.HexToHash(keyHex)
-
-		accounts = append(accounts, accountEntry{
-			address: common.HexToAddress(acc.Address),
-			key:     keyHash,
-			info:    acc,
-		})
-	}
-
-	// Sort by key
-	sort.Slice(accounts, func(i, j int) bool {
-		return accounts[i].key.Big().Cmp(accounts[j].key.Big()) < 0
-	})
-
-	// Find position where stateRoot would be inserted
-	stateRootBig := stateRoot.Big()
-	var leafA, leafB accountEntry
-
-	idx := sort.Search(len(accounts), func(i int) bool {
-		return accounts[i].key.Big().Cmp(stateRootBig) >= 0
-	})
-
-	if idx == 0 {
-		// stateRoot smaller than all accounts - use first two
-		leafA, leafB = accounts[0], accounts[1]
-		t.Log("Using first two accounts (stateRoot < all keys)")
-	} else if idx >= len(accounts) {
-		// stateRoot larger than all accounts - use last two
-		leafA, leafB = accounts[len(accounts)-2], accounts[len(accounts)-1]
-		t.Log("Using last two accounts (stateRoot > all keys)")
-	} else {
-		// Normal case
-		leafA, leafB = accounts[idx-1], accounts[idx]
-		t.Log("Found adjacent accounts")
-	}
-
-	t.Logf("LeafA address: %s, key: %s", leafA.address.Hex(), leafA.key.Hex())
-	t.Logf("LeafB address: %s, key: %s", leafB.address.Hex(), leafB.key.Hex())
-
-	// For now, return dummy evidence until we implement full proof generation
-	// TODO: Use eth_getProof to get Merkle proofs for leafA and leafB
-	// TODO: RLP encode account data
-	// TODO: Properly encode StateLeafEvidence struct using ABI encoder
-
-	t.Log("⚠ Using dummy evidence (proof generation not yet implemented)")
-	return []byte("dummy_stateleaf_evidence")
-}
-
 // submitEvidenceToRAT submits evidence to RAT contract and returns receipt
 func submitEvidenceToRAT(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, testID [32]byte, evidenceType uint8, evidenceData []byte) (*types.Receipt, error) {
 	t.Logf("Submitting evidence: testID=%s, type=%d, dataLen=%d", common.BytesToHash(testID[:]).Hex(), evidenceType, len(evidenceData))
@@ -418,10 +307,16 @@ func submitEvidenceToRAT(t *testing.T, sys *rat.TONStakingSystem, contracts *Tes
 func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, l1RPCURL, l2RPCURL string, validatorPrivKey string, testID [32]byte, validatorAddr common.Address, startBlock uint64) *types.Receipt {
 	ctx := sys.Ctx
 
+	// Find project root (ton-staking-v2 directory)
+	projectRoot, err := rat.FindProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
+
 	// Build RAT client binary if not exists
 	t.Log("Building RAT client binary...")
 	buildCmd := exec.Command("make", "rat-client-build")
-	buildCmd.Dir = "../../" // From op-e2e/faultproofs to root
+	buildCmd.Dir = projectRoot
 	buildOutput, err := buildCmd.CombinedOutput()
 	if err != nil {
 		t.Logf("Build output: %s", buildOutput)
@@ -430,7 +325,7 @@ func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestCont
 	t.Log("✓ RAT client binary built")
 
 	// Prepare RAT client arguments
-	ratClientBinary := "../../clients/rat-client-type3/bin/rat-client-type3"
+	ratClientBinary := "clients/rat-client-type3/bin/rat-client-type3"
 	args := []string{
 		"--l1-rpc", l1RPCURL,
 		"--l2-rpc", l2RPCURL,
@@ -449,7 +344,7 @@ func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestCont
 
 	// Start RAT client process
 	ratClient := exec.Command(ratClientBinary, args...)
-	ratClient.Dir = "../../op-e2e/faultproofs"
+	ratClient.Dir = projectRoot
 
 	// Capture output
 	ratClientStdout, err := ratClient.StdoutPipe()
