@@ -68,7 +68,7 @@ contract SeigManager_Slashing is
         uint256 operatorAmount = _coinages[layer2].balanceOf(operator);
 
         // burn {v + ⍺} {tot} tokens to the layer2 contract,
-        uint256 totAmount = _additionalTotBurnAmount(layer2, operator, operatorAmount);
+        uint256 totAmount = _uncommittedOperatorSeigniorage(layer2, operatorAmount);
         _tot.burnFrom(layer2, operatorAmount + totAmount);
 
         // burn {v} {coinages[layer2]} tokens to the account
@@ -84,23 +84,22 @@ contract SeigManager_Slashing is
     //////////////////////////////
 
     // return ⍺, where ⍺ = (tot.balanceOf(layer2) - coinages[layer2].totalSupply()) * (amount / coinages[layer2].totalSupply())
-    function _additionalTotBurnAmount(
+    function _uncommittedOperatorSeigniorage(
         address layer2,
-        address account,
         uint256 amount
-    ) internal view returns (uint256 totAmount) {
+    ) internal view returns (uint256) {
         uint256 coinageTotalSupply = _coinages[layer2].totalSupply();
-        uint256 totBalalnce = _tot.balanceOf(layer2);
+        uint256 totBalance = _tot.balanceOf(layer2);
 
         // NOTE: arithamtic operations (mul and div) make some errors, so we gonna adjust them under 1e-9 WTON.
-        //       note that coinageTotalSupply and totBalalnce are RAY values.
-        if (coinageTotalSupply >= totBalalnce && coinageTotalSupply - totBalalnce < WEI_UNIT) {
+        //       note that coinageTotalSupply and totBalance are RAY values.
+        if (coinageTotalSupply >= totBalance && coinageTotalSupply - totBalance < WEI_UNIT) {
             return 0;
         }
 
         return
             FullMath.rdiv(
-                FullMath.rmul(totBalalnce - coinageTotalSupply, amount),
+                FullMath.rmul(totBalance - coinageTotalSupply, amount),
                 coinageTotalSupply
             );
     }
