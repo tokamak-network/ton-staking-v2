@@ -96,7 +96,7 @@ GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commi
 **Current lib/optimism settings:**
 - Repository: `tokamak-network/optimism`
 - Branch: `feature/ton-staking-v3`
-- Commit: `039c2878b` (feat: add devnet-allocs tool for e2e testing)
+- Commit: `72ed4cc6cb` (docs: clarify RandomValue usage - selects L2 block, not trie index)
 
 ## Project Structure
 

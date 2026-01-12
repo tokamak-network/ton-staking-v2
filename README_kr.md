@@ -96,7 +96,7 @@ GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commi
 **현재 lib/optimism 설정:**
 - Repository: `tokamak-network/optimism`
 - Branch: `feature/ton-staking-v3`
-- Commit: `2e955e16f` (feat: integrate TON Staking V3 RAT and SeigManager with Optimism dispute system)
+- Commit: `72ed4cc6cb` (docs: clarify RandomValue usage - selects L2 block, not trie index)
 
 ## 프로젝트 구조
 
@@ -213,6 +213,39 @@ import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
 | **DisputeGameFactory** | Dispute Game 생성 (RAT 트리거) |
 | **OptimismPortal** | L1↔L2 브릿지 |
 | **DAO** | 거버넌스 (DAOCommittee) |
+
+## RAT 클라이언트
+
+TON Staking V3는 검증자 모니터링을 위한 RAT(Randomized Attention Test) 클라이언트를 포함합니다. 각 롤업 타입별로 별도의 클라이언트 구현이 필요합니다.
+
+### 사용 가능한 클라이언트
+
+| 클라이언트 | 롤업 타입 | 상태 |
+|-----------|----------|------|
+| [rat-client-type3](./clients/rat-client-type3/) | Type 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME | ✅ 구현 완료 |
+| rat-client-type4 | Type 4: TBD | 📋 계획 중 |
+| rat-client-type5 | Type 5: TBD | 📋 계획 중 |
+
+### 빠른 시작
+
+```bash
+# RAT 클라이언트 빌드
+make rat-client-build
+
+# 설정 (예제 복사 후 편집)
+cd clients/rat-client-type3
+cp config.example.yaml config.yaml
+# config.yaml을 편집하여 설정 입력
+
+# 실행
+make rat-client-run
+```
+
+### 문서
+
+- [RAT 클라이언트 개요](./clients/README.md)
+- [RAT Client Type 3 문서](./clients/rat-client-type3/README.md)
+- [RAT 구현 계획](./docs/rat-client-implementation-plan.md)
 
 ## 문서
 
