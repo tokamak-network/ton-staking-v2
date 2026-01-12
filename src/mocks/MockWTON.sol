@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MockTON} from "./MockTON.sol";
 
 interface IDepositManager {
     function deposit(address layer2, address account, uint256 amount) external returns (bool);
@@ -147,12 +148,12 @@ contract MockWTON is ERC20 {
 
         // mint TON if WTON contract has not enough TON to transfer
         uint256 tonAmount = _toWAD(wtonAmount);
-        uint256 tonBalance = ton.balanceOf(address(this));
+        uint256 tonBalance = MockTON(ton).balanceOf(address(this));
         if (tonBalance < tonAmount) {
-            ton.mint(address(this), tonAmount.sub(tonBalance));
+            MockTON(ton).mint(address(this), tonAmount - tonBalance);
         }
 
-        ton.transfer(tonAccount, tonAmount);
+        MockTON(ton).transfer(tonAccount, tonAmount);
         return true;
     }
 
@@ -162,7 +163,7 @@ contract MockWTON is ERC20 {
         uint256 tonAmount
     ) internal returns (bool) {
         _mint(wtonAccount, _toRAY(tonAmount));
-        ton.transferFrom(tonAccount, address(this), tonAmount);
+        IERC20(ton).transferFrom(tonAccount, address(this), tonAmount);
         return true;
     }
 
