@@ -16,6 +16,8 @@ import {ITON} from "../../src/stake/interfaces/ITON.sol";
 import {GameType, Claim, Position, Clock} from "../../src/layer2/lib/LibUDT.sol";
 import {GameStatus} from "../../src/layer2/lib/Types.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {RATProxy} from "../../src/validator/RATProxy.sol";
+import {ValidatorRewardProxy} from "../../src/validator/ValidatorRewardProxy.sol";
 
 // Interfaces for mocking or interaction
 interface ITON_Mint is ITON {
@@ -85,23 +87,37 @@ contract SlashingTest is Test, DeployV3FullSlash {
     SlashingMockFactory public mockFactory;
 
     function setUp() public {
-        // 1. 배포 스크립트 실행 (internal functions 직접 호출)
-        // TransparentUpgradeableProxy admin 충돌을 피하기 위해 별도 deployer 사용
-        address deployer = makeAddr("deployer");
+        // TransparentUpgradeableProxy 패턴:
+        // - admin: upgradeTo(), changeAdmin() 같은 관리 함수만 호출 가능
+        // - owner: 구현체의 비즈니스 로직 함수 호출 가능
+        address admin = makeAddr("proxyAdmin"); // Proxy admin 전용
+        address owner = address(this); // 비즈니스 로직 owner (테스트 컨트랙트)
 
-        vm.startPrank(deployer);
+        // owner 컨텍스트에서 배포 시작
+        vm.startPrank(owner);
 
+        // 1. 전체 시스템 배포
         _deployTokens();
-        _deployCoinageInfrastructure(deployer);
-        _deployLayer2Registry(deployer);
+        _deployCoinageInfrastructure(owner);
+        _deployLayer2Registry(owner);
         _deployManagerProxies();
         _deployManagerImplementations();
-        _initializeManagers(deployer);
+        _initializeManagers(owner);
         _setupMinterPermissions();
-        _deployOperatorManagerFactory(deployer);
-        _deployV3Contracts(deployer);
-        _configureV3Contracts(deployer);
-        _setupCrossReferences(deployer);
+        _deployOperatorManagerFactory(owner);
+
+        // RAT, ValidatorReward를 owner로 배포 (임시로 owner가 proxy admin + contract owner)
+        _deployV3Contracts(owner);
+
+        // RAT, ValidatorReward의 proxy admin만 admin으로 변경 (contract owner는 owner 유지)
+        RATProxy(payable(ratProxy)).changeAdmin(admin);
+        ValidatorRewardProxy(payable(validatorPoolProxy)).changeAdmin(admin);
+
+        // 이제 admin = proxy admin, owner = contract owner로 분리됨
+        _configureV3Contracts(owner);
+        _setupCrossReferences(owner);
+
+        // 2. DAO 컨트랙트 배포
         _deployDAOVault();
         _deployDAOAgendaManager();
         _deployDAOCommittee();
