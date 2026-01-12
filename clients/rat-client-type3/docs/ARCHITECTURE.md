@@ -188,38 +188,38 @@ debug_accountRange(stateRoot, startKey, 1000, true, true)
 
 debug_accountRange:
   - State trie를 순회하여 adjacent leaves 조회
-  - RandomValue로 선택된 L2 블록의 StateRoot 사용
-  - 어떤 블록이 선택될지 사전에 예측 불가
+  - DisputeGame에서 지정된 L2 블록의 StateRoot를 target으로 사용
+  - StateRoot 자체를 기준으로 adjacent leaves 찾기
   - 대부분의 Public RPC는 debug API를 비활성화
   → Full node 필요
   → debug API 활성화 필요
   → Self-hosted op-geth 필요
 ```
 
-**RandomValue 활용:**
-- RandomValue로 L2 OutputRoot (StateRoot) 선택
-- 선택된 StateRoot 기준으로 state trie에서 adjacent leaves 찾기
-- Pre-computed proof 불가능
-- 항상 최신 state 유지 필요
+**StateRoot as Target:**
+- DisputeGame 생성 시 L2 블록이 이미 지정됨
+- 해당 블록의 StateRoot를 가져와서 target value로 사용
+- StateRoot를 big.Int로 변환하여 binary search에 사용
+- 항상 해당 블록의 state를 보유해야 함
 
-**RandomValue로 StateRoot를 선택하는 방법:**
+**How StateRoot is Used as Target:**
 
 ```
-1. RAT contract가 RandomValue 제공 (예: 0x1a2b3c...)
+1. RAT contract에서 AttentionTestTriggered 이벤트 수신
+   - gameAddress: DisputeGame contract address
+   - batchIndex: Game index
 
-2. RandomValue를 사용해서 L2 블록 번호 결정
-   blockNumber = batchIndex + (RandomValue % N)
-   // N은 검증 범위 (예: 최근 100개 블록)
+2. DisputeGame contract에서 L2 블록 번호 조회
+   blockNumber := game.l2BlockNumber()
 
-3. 해당 블록의 OutputRoot 조회 (op-node RPC)
-   OutputRoot = {
-     Version: 0x0,
-     StateRoot: 0xabc...,  ← 이것을 사용!
-     MessagePasserStorageRoot: 0xdef...,
-     LatestBlockHash: 0x123...
-   }
+3. 해당 블록의 StateRoot 조회
+   stateRoot := l2Client.GetBlockByNumber(blockNumber).StateRoot
 
-4. StateRoot 기준으로 state trie에서 adjacent leaves 찾기
+4. StateRoot를 big.Int로 변환 (target value)
+   randomValue := new(big.Int).SetBytes(stateRoot[:])
+
+5. State trie에서 adjacent leaves 찾기
+   leafA.key < randomValue <= leafB.key
 ```
 
 **왜 Pre-computed proof가 불가능한가?**
@@ -240,9 +240,9 @@ Patricia Merkle Trie의 특성상, **한 계정만 변경되어도 Root까지 �
   - 계정 B의 proof는 Root_N+1 기준으로 새로 생성해야 함
   - Root_N 기준 proof는 검증 실패!
 
-→ RandomValue로 선택된 StateRoot의 proof를 생성하려면
-→ 해당 블록의 State를 보유해야 함
-→ 실시간으로 L2 모니터링 필수!
+→ 챌린지된 블록의 StateRoot로 proof를 생성하려면
+→ 해당 블록의 State를 보유해야 함 (Archive mode 권장)
+→ 과거 블록의 state 접근 필수!
 ```
 
 ### 4. Evidence Generator (`pkg/evidence`)
@@ -269,21 +269,29 @@ type StateLeafEvidence struct {
 ```
 
 **검증 로직 (on-chain):**
-1. LeafA Merkle proof → StateRoot 검증
-2. LeafB Merkle proof → StateRoot 검증
-3. LeafA.key < LeafB.key (인접성 확인)
-4. OutputRootProof → rootClaim 검증
-5. 모두 통과 → Validator는 full node를 운영 중!
+1. OutputRootProof → rootClaim 검증 (hash(outputRootProof) == rootClaim)
+2. StateRoot 추출 (from OutputRootProof)
+3. **범위 검증: leafA.key < stateRoot < leafB.key** (StateRoot as Target!)
+4. LeafA Merkle proof → StateRoot 검증
+5. LeafB Merkle proof → StateRoot 검증
+6. Divergence 검증 (leafA와 leafB 사이에 다른 leaf가 없음을 증명)
+7. 모두 통과 → Validator는 full node를 운영 중!
 
 ### 5. Evidence Submitter (`pkg/submitter`)
 
-**역할**: 생성된 증거를 L1에 제출
+**역할**: StateLeafEvidence를 RAT contract에 제출
 
 **주요 기능:**
-- 트랜잭션 빌드 및 서명
-- Gas estimation
-- Nonce 관리
-- Receipt 대기
+- StateLeafEvidence ABI 인코딩
+- RAT.submitEvidence(testID, evidenceType, evidenceData) 호출
+  - evidenceType = 1 (StateLeaf)
+  - evidenceData = abi.encode(StateLeafEvidence)
+- Gas estimation 및 제한 (max gas price 설정)
+- Transaction 서명 및 제출
+- Receipt 대기 및 검증
+- Deadline 체크 (제출 전 10분 버퍼)
+
+**Note**: randomValue는 클라이언트 내부에서만 사용 (범위 검증용), 온체인에는 전달하지 않음
 
 ## Verification Process
 
@@ -291,71 +299,81 @@ type StateLeafEvidence struct {
 
 ```
 1. [L1] RAT contract가 AttentionTest 트리거
+   - DisputeGame 생성 시 자동 트리거
    - TestID 생성
-   - RandomValue 제공
-   - Deadline 설정 (예: 30분)
+   - gameAddress, batchIndex 제공
+   - Deadline 설정 (예: 1시간)
 
-2. [RAT Client] Event 감지 (~12.8분 대기)
-   - L1 블록 생성 후 64 confirmations 대기 (Reorg 보호)
-   - Production: ~12.8분 (64 confirmations)
-   - Test/Devnet: ~12초-1.2분 (1-6 confirmations)
-   - Event Monitor가 AttentionTestTriggered 이벤트 수신
-   - TestID, RandomValue 추출
+2. [RAT Client] Event 감지
+   - AttentionTestTriggered 이벤트 수신
+   - TestID, validator, gameAddress, batchIndex, deadline 추출
+   - RAT contract에서 batchHash (output root) 조회
 
-3. [RandomValue로 블록 선택]
-   - RandomValue를 사용해서 검증할 L2 블록 결정
-   - 예: blockNumber = batchIndex + (RandomValue % N)
+3. [L2 블록 번호 조회]
+   - DisputeGame contract에서 l2BlockNumber() 조회
+   - 챌린지 대상 L2 블록이 이미 결정됨
 
-4. [Op-node] OutputRootProof 조회
-   - 선택된 L2 블록의 OutputRootProof 가져오기
-   - OutputRootProof.StateRoot 추출
+4. [StateRoot 조회 및 검증]
+   - L2 client에서 해당 블록의 StateRoot 조회
+   - Op-node에서 OutputRootProof 가져오기
+   - OutputRootProof 검증: hash(outputRootProof) == batchHash
 
-5. [RPC Client] Adjacent Leaves 찾기
-   - debug_accountRange로 state trie 조회 (StateRoot 기준)
-   - 임의의 adjacent leaf 쌍 선택 (또는 첫 번째 쌍)
-   - eth_getProof로 Merkle proof 생성
+5. [StateRoot as Target]
+   - StateRoot를 big.Int로 변환 (randomValue)
+   - randomValue := new(big.Int).SetBytes(stateRoot[:])
 
-6. [Evidence Generator] 증거 생성
+6. [Adjacent Leaves 찾기]
+   - debug_accountRange로 state trie의 모든 accounts 조회
+   - Binary search: leafA.key < randomValue <= leafB.key
+   - eth_getProof로 Merkle proofs 생성
+
+7. [Divergence Witness 계산]
+   - LeafA와 LeafB의 divergence point 찾기
+   - Branch node와 indices 추출
+
+8. [Evidence 생성]
    - StateLeafEvidence 구조체 생성
    - OutputRootProof 포함
+   - DivergenceWitness 포함
    - ABI 인코딩
 
-7. [Submitter] L1 제출
-   - submitEvidence(testID, randomValue, evidence)
-   - Gas 관리 및 재시도
+9. [L1 제출]
+   - RAT.submitEvidence(testID, evidenceType=1, evidenceData)
+   - evidenceType = 1 (StateLeaf)
+   - Gas estimation 및 제출
 
-8. [L1] On-chain 검증
-   - Merkle proof 검증
-   - 인접성 확인
+10. [On-chain 검증]
    - OutputRootProof 검증
-   - 성공 → Validator가 full node를 직접 운영 중임을 확인!
+   - leafA.key < stateRoot < leafB.key 확인
+   - Merkle proofs 검증
+   - Divergence 검증
+   - 성공 → Validator가 archive node 운영 중!
 ```
 
-### RandomValue와 블록 선택
+### StateRoot as Target 방식
 
-**RandomValue로 L2 블록 선택:**
+**L2 블록 결정:**
 
 ```go
-// RandomValue를 사용해서 검증할 L2 블록 번호 결정
-func SelectBlockNumber(batchIndex uint64, randomValue *big.Int, range uint64) uint64 {
-    // 예: 최근 100개 블록 중에서 선택
-    offset := randomValue.Mod(randomValue, big.NewInt(int64(range)))
-    return batchIndex + offset.Uint64()
-}
+// 1. DisputeGame에서 l2BlockNumber 조회 (이미 결정됨)
+blockNumber := game.L2BlockNumber()
 
-// 선택된 블록의 OutputRoot 조회
-outputRoot := opNodeClient.GetOutputRoot(blockNumber)
-stateRoot := outputRoot.StateRoot
+// 2. 해당 블록의 StateRoot 조회
+stateRoot := l2Client.BlockByNumber(blockNumber).StateRoot()
 
-// StateRoot 기준으로 adjacent leaves 찾기
-// (state trie에서 임의의 인접 쌍 또는 첫 번째 쌍 사용)
+// 3. StateRoot를 big.Int로 변환 (target value)
+randomValue := new(big.Int).SetBytes(stateRoot[:])
+
+// 4. StateRoot 기준으로 adjacent leaves 찾기
+// Binary search: leafA.key < randomValue <= leafB.key
+adjacentLeaves := FindAdjacentLeaves(stateRoot, randomValue, blockNumber)
 ```
 
-**왜 RandomValue가 필요한가?**
-- 어떤 블록이 선택될지 사전에 예측 불가
-- Pre-computed proof 방지
-- Validator가 모든 블록의 state를 유지해야 함
-- 특정 블록만 선별적으로 모니터링 불가
+**왜 StateRoot를 target으로 사용하는가?**
+- **예측 불가능**: StateRoot는 32 bytes hash, 임의의 위치 선택
+- **Pre-computed proof 방지**: 어떤 계정 쌍이 선택될지 사전에 알 수 없음
+- **Archive mode 필수**: 과거 블록의 state를 보유해야 proof 생성 가능
+- **Full state 증명**: State trie 전체를 보유해야만 adjacent leaves 찾기 가능
 
 ## Trust Model
 
@@ -375,7 +393,7 @@ stateRoot := outputRoot.StateRoot
 2. **debug API Access**: Validator가 자신의 op-geth에서 debug API 사용
    - **요구사항**: debug API는 self-hosted node만 제공
    - **보안**: Public RPC는 debug API 비활성화
-   - **모니터링**: RandomValue로 최신 state 유지 강제
+   - **Archive Mode**: 챌린지된 블록의 state 보유 필요 (과거 블록일 수 있음)
    - **검증**: Merkle proof로 state 일관성 확인
 
 ### Security Model
@@ -549,14 +567,14 @@ Slow Path (항상):
 RAT Client Type 3는 **Validator Liveness를 검증하는 실용적인 시스템**입니다:
 
 **Liveness란?**
-- Full node 직접 보유 (Self-hosted op-geth)
-- L2 실시간 모니터링 (최신 state 유지)
+- Full node 직접 보유 (Self-hosted op-geth with Archive mode)
+- L2 모니터링 (챌린지된 블록의 state 보유)
 - debug API 접근 가능 (Public RPC 불가)
 
 **핵심 특징:**
 - Fast (20-30분, Production)
 - Simple (adjacent leaves + debug API)
-- Practical (RandomValue로 예측 불가능)
+- Practical (StateRoot as target, 어떤 계정이 선택될지 예측 불가능)
 - Safe (DisputeGame 폴백)
 
 **설계 철학:**

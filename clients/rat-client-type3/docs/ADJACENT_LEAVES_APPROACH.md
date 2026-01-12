@@ -100,28 +100,48 @@ State Root (32 bytes hash)
 
 ### Finding Adjacent Leaves
 
-Given a random value R (from RAT test):
+**How is the target value determined?**
+
+The target value comes from the **StateRoot** of the challenged L2 block:
+- L2 block number is determined by DisputeGame (not random)
+- StateRoot is fetched from that specific block
+- StateRoot (32 bytes hash) is converted to big.Int as the target value
+- Used to select an unpredictable position in the state trie
+
+**Algorithm**:
 
 ```go
-// 1. Get state root for target block
+// 1. Get L2 block number from DisputeGame contract
+blockNumber := game.L2BlockNumber()
+
+// 2. Get state root for that block
 stateRoot := GetStateRoot(blockNumber)
 
-// 2. Collect all leaves from state trie
-leaves := IterateStateTrie(stateRoot) // Sorted by key
+// 3. Convert StateRoot to big.Int (this becomes the "randomValue" for search)
+randomValue := new(big.Int).SetBytes(stateRoot[:])
 
-// 3. Binary search for position
-randomHash := BigToHash(randomValue)
-idx := BinarySearch(leaves, randomHash)
+// 4. Collect all accounts from state trie via debug_accountRange
+accounts := GetAccountRange(stateRoot, blockNumber) // Sorted by keccak256(address)
 
-// 4. Return adjacent pair
-leafA := leaves[idx-1]  // Key < randomValue
-leafB := leaves[idx]    // Key >= randomValue
+// 5. Binary search for position
+randomHash := BigToHash(randomValue) // = stateRoot
+idx := BinarySearch(accounts, randomHash)
+
+// 6. Return adjacent pair
+leafA := accounts[idx-1]  // leafA.key < stateRoot (as big.Int)
+leafB := accounts[idx]    // leafB.key >= stateRoot (as big.Int)
 ```
 
 **Edge Cases**:
-- If `randomValue` < all keys: Use first two leaves
-- If `randomValue` > all keys: Use last two leaves
-- Normal case: `leafA.key < randomValue <= leafB.key`
+- If `stateRoot` < all keys: Use first two accounts
+- If `stateRoot` > all keys: Use last two accounts
+- Normal case: `leafA.key < stateRoot <= leafB.key`
+
+**Why StateRoot as target?**
+- **Unpredictable position**: StateRoot is a 32-byte hash, selects arbitrary position in trie
+- **Pre-computing impossible**: Cannot know which accounts will be adjacent to StateRoot
+- **Forces archive mode**: Must have state at the challenged block (may be in past)
+- **Proves full state possession**: Must iterate entire state trie to find adjacent leaves
 
 ### Evidence Structure
 
@@ -144,10 +164,13 @@ type StateLeafEvidence struct {
 ```
 
 **Verification on L1**:
-1. Verify `leafA.proof` → proves leafA in stateRoot
-2. Verify `leafB.proof` → proves leafB in stateRoot
-3. Check `leafA.key < randomValue <= leafB.key`
-4. Success → Validator has full state trie access
+1. Verify OutputRootProof: `hash(outputRootProof) == rootClaim`
+2. Extract stateRoot from OutputRootProof
+3. Check `leafA.key < stateRoot < leafB.key` (StateRoot as Target!)
+4. Verify `leafA.proof` → proves leafA exists in stateRoot
+5. Verify `leafB.proof` → proves leafB exists in stateRoot
+6. Verify divergence witness (proves no leaves between leafA and leafB)
+7. Success → Validator has full state trie access at challenged block
 
 ## Implementation
 
@@ -284,18 +307,24 @@ ps aux | grep geth
 1. **Monitor L1**:
    ```go
    event := <-monitor.Events() // AttentionTestTriggered
-   randomValue := event.TestID
+   gameAddress := event.GameAddress
    ```
 
-2. **Get Latest Block**:
+2. **Get L2 Block Number from DisputeGame**:
    ```go
-   blockNumber := stateSyncer.GetLatestBlockNumber()
+   blockNumber := disputeGame.L2BlockNumber()
    ```
 
-3. **Find Adjacent Leaves**:
+3. **Get StateRoot and Convert to Target Value**:
+   ```go
+   stateRoot := l2Client.BlockByNumber(blockNumber).StateRoot()
+   randomValue := new(big.Int).SetBytes(stateRoot[:])
+   ```
+
+4. **Find Adjacent Leaves**:
    ```go
    leaves := stateSyncer.FindAdjacentLeaves(ctx, randomValue, blockNumber)
-   // Returns: leafA, leafB, proofA, proofB, stateRoot
+   // Returns: leafA, leafB, proofA, proofB, stateRoot, divergenceWitness
    ```
 
 4. **Create Evidence**:
@@ -306,6 +335,8 @@ ps aux | grep geth
 5. **Submit to L1**:
    ```go
    receipt := submitter.SubmitEvidence(ctx, testID, randomValue, evidence)
+   // Note: randomValue is used for client-side range validation only
+   // On-chain: RAT.submitEvidence(testID, evidenceType=1, evidenceData)
    ```
 
 ## Setup Guide
