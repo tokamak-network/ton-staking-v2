@@ -35,24 +35,24 @@ January 2026
 4. **test/v3/RAT.t.sol**
    - Updated all test cases to use new submitEvidence signature (5 locations)
    - Uses `rat.batchToTestId(systemConfig, batchIndex)` to get testId
-   - Passes evidenceType = 0 (FraudProof) for existing tests
+   - Note: evidenceType = 0 (FraudProof) is not yet implemented/tested
 
 ### Go Client
 
 1. **clients/rat-client-type3/pkg/submitter/adjacent_submitter.go**
    - Fixed evidenceType value from 4 to 1 (line 198)
-   - Matches Solidity EvidenceType enum (0 = FraudProof, 1 = StateLeaf)
+   - Uses EvidenceType 1 (StateLeaf) - Type 0 (FraudProof) not yet implemented
 
 ## Evidence Types
 
-### Type 0: FraudProof (Batch Derivation)
-- Original approach
-- Derives L2 state from L1 batch data
-- Verifies output root computation
-- Uses `Type3EvidenceVerifier.verify()` function
+### Type 0: FraudProof (Batch Derivation) - NOT YET IMPLEMENTED
+- Planned approach (not implemented/tested)
+- Would derive L2 state from L1 batch data
+- Would verify output root computation
+- Contract function `Type3EvidenceVerifier.verify()` exists but not used
 
-### Type 1: StateLeaf (Adjacent Leaves)
-- New approach
+### Type 1: StateLeaf (Adjacent Leaves) - CURRENT IMPLEMENTATION
+- Current implemented approach
 - Provides two adjacent leaves from L2 state Patricia trie
 - Proves full node operation via state trie access
 - Uses `Type3EvidenceVerifier.verifyStateLeaf()` function

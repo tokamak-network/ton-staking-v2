@@ -170,9 +170,10 @@ This test validates the complete RAT client evidence submission flow for **Type 
 
 **Evidence Format:**
 
-Type 3 rollups support two evidence types:
-- **Evidence Type 0**: FraudProof (batch derivation verification)
+Type 3 rollups currently implement:
 - **Evidence Type 1**: StateLeafEvidence (state possession proof via adjacent leaves)
+
+Note: Evidence Type 0 (FraudProof via batch derivation) is planned but not yet implemented.
 
 This test uses **Evidence Type 1 (StateLeafEvidence)**:
 ```solidity
