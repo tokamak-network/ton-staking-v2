@@ -394,19 +394,6 @@ func TestRATClient_EvidenceSubmission_E2E(t *testing.T) {
 	t.Log("✅ Complete E2E test with RAT client integration successful!")
 }
 
-// TestRATClientIntegration tests RAT client binary integration
-// This test requires the RAT client to be built first
-func TestRATClientIntegration(t *testing.T) {
-	t.Skip("TODO: Implement RAT client binary integration test")
-
-	// This will:
-	// 1. Start full system (L1 + L2)
-	// 2. Trigger RAT
-	// 3. Launch RAT client binary as subprocess
-	// 4. Wait for evidence submission
-	// 5. Verify on-chain
-}
-
 // testWriter implements io.Writer for test logging
 type testWriter struct {
 	t      *testing.T
