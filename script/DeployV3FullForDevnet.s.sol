@@ -16,12 +16,19 @@ import {SeigManagerV1_2} from "../src/stake/managers/SeigManagerV1_2.sol";
 import {SeigManagerV1_3} from "../src/stake/managers/SeigManagerV1_3.sol";
 import {SeigManagerV1_4} from "../src/stake/managers/SeigManagerV1_4.sol";
 import {DepositManager} from "../src/stake/managers/DepositManager.sol";
-import {DepositManager_setWithdrawalDelay} from "../src/stake/managers/DepositManager_setWithdrawalDelay.sol";
+import {
+    DepositManager_setWithdrawalDelay
+} from "../src/stake/managers/DepositManager_setWithdrawalDelay.sol";
 import {DepositManagerV1_1} from "../src/stake/managers/DepositManagerV1_1.sol";
 import {DepositManagerV1_2} from "../src/stake/managers/DepositManagerV1_2.sol";
 import {Layer2ManagerV1_1} from "../src/layer2/Layer2ManagerV1_1.sol";
 import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
+import {Layer2Manager_Slashing} from "../src/layer2/Layer2Manager_Slashing.sol";
+
+// Slashing Implementations
+import {SeigManager_Slashing} from "../src/stake/managers/SeigManager_Slashing.sol";
+import {DepositManager_Slashing} from "../src/stake/managers/DepositManager_Slashing.sol";
 
 // Manager Proxies
 import {SeigManagerProxy} from "../src/stake/managers/SeigManagerProxy.sol";
@@ -142,6 +149,11 @@ contract DeployV3FullForDevnet is Script {
     address public layer2ManagerV1_1Impl;
     address public layer2ManagerImpl;
     address public l1BridgeRegistryImpl;
+
+    // Slashing Implementations
+    address public seigManagerSlashingImpl;
+    address public depositManagerSlashingImpl;
+    address public layer2ManagerSlashingImpl;
 
     // Operator Manager
     address public operatorManagerFactory;
@@ -389,6 +401,17 @@ contract DeployV3FullForDevnet is Script {
         l1BridgeRegistryImpl = address(new L1BridgeRegistryV1_2());
         console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
         IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryImpl);
+
+        // Slashing Implementations
+        seigManagerSlashingImpl = address(new SeigManager_Slashing());
+        console.log("SeigManager_Slashing Impl:", seigManagerSlashingImpl);
+
+        depositManagerSlashingImpl = address(new DepositManager_Slashing());
+        console.log("DepositManager_Slashing Impl:", depositManagerSlashingImpl);
+
+        layer2ManagerSlashingImpl = address(new Layer2Manager_Slashing());
+        console.log("Layer2Manager_Slashing Impl:", layer2ManagerSlashingImpl);
+
         console.log("");
     }
 
@@ -411,6 +434,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("SeigManager initialized");
 
         // Set SeigManager data
+        // prettier-ignore
         SeigManagerV1_2(seigManagerProxy).setData(
             address(0),     // powerTON
             deployer,       // dao
@@ -423,7 +447,10 @@ contract DeployV3FullForDevnet is Script {
         console.log("SeigManager setData done");
 
         // Setup SeigManager multi-implementation routing
-        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV1_3Impl, true);
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
+            seigManagerV1_3Impl,
+            true
+        );
         SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerImpl, true);
 
         // V1_3 selectors
@@ -434,7 +461,10 @@ contract DeployV3FullForDevnet is Script {
         v1_3Selectors[3] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
         v1_3Selectors[4] = SeigManagerV1_3.claimableL2Seigniorage.selector;
         v1_3Selectors[5] = SeigManagerV1_3.estimatedDistribute.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_3Selectors, seigManagerV1_3Impl);
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
+            v1_3Selectors,
+            seigManagerV1_3Impl
+        );
 
         // V1_4 selectors
         bytes4[] memory v1_4Selectors = new bytes4[](31);
@@ -469,7 +499,22 @@ contract DeployV3FullForDevnet is Script {
         v1_4Selectors[28] = bytes4(keccak256("v3MigrationBlock()"));
         v1_4Selectors[29] = bytes4(keccak256("sequencerVault()"));
         v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
+            v1_4Selectors,
+            seigManagerImpl
+        );
+
+        // SeigManager Slashing routing
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
+            seigManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory seigSlashingSelectors = new bytes4[](1);
+        seigSlashingSelectors[0] = SeigManager_Slashing.onSlash.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
+            seigSlashingSelectors,
+            seigManagerSlashingImpl
+        );
 
         console.log("SeigManager multi-implementation configured");
 
@@ -484,26 +529,57 @@ contract DeployV3FullForDevnet is Script {
         console.log("DepositManager initialized");
 
         // Setup DepositManager multi-implementation routing
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerSetDelayImpl, true);
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_1Impl, true);
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_2Impl, true);
+        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
+            depositManagerSetDelayImpl,
+            true
+        );
+        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
+            depositManagerV1_1Impl,
+            true
+        );
+        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
+            depositManagerV1_2Impl,
+            true
+        );
 
         bytes4[] memory dmIndex1Selectors = new bytes4[](2);
         dmIndex1Selectors[0] = DepositManager_setWithdrawalDelay.setWithdrawalDelay.selector;
         dmIndex1Selectors[1] = DepositManager_setWithdrawalDelay.setWithdrawalDelayByOwner.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex1Selectors, depositManagerSetDelayImpl);
+        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
+            dmIndex1Selectors,
+            depositManagerSetDelayImpl
+        );
 
         bytes4[] memory dmIndex2Selectors = new bytes4[](3);
         dmIndex2Selectors[0] = DepositManagerV1_1.setMinDepositGasLimit.selector;
         dmIndex2Selectors[1] = DepositManagerV1_1.setAddresses.selector;
         dmIndex2Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex2Selectors, depositManagerV1_1Impl);
+        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
+            dmIndex2Selectors,
+            depositManagerV1_1Impl
+        );
 
         bytes4[] memory dmIndex3Selectors = new bytes4[](3);
         dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
         dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;
         dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
+        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
+            dmIndex3Selectors,
+            depositManagerV1_2Impl
+        );
+
+        // DepositManager Slashing routing
+        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
+            depositManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory dmSlashingSelectors = new bytes4[](2);
+        dmSlashingSelectors[0] = DepositManager_Slashing.setSlashingRewardRate.selector;
+        dmSlashingSelectors[1] = DepositManager_Slashing.slash.selector;
+        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
+            dmSlashingSelectors,
+            depositManagerSlashingImpl
+        );
 
         console.log("DepositManager multi-implementation configured");
         console.log("");
@@ -574,7 +650,9 @@ contract DeployV3FullForDevnet is Script {
         );
 
         // Deploy ValidatorReward proxy with deployer as admin
-        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, PROXY_ADMIN, validatorRewardInitData));
+        validatorPoolProxy = address(
+            new ValidatorRewardProxy(validatorPoolImpl, PROXY_ADMIN, validatorRewardInitData)
+        );
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
         // Deploy SequencerVault
@@ -642,7 +720,10 @@ contract DeployV3FullForDevnet is Script {
         console.log("Layer2Manager.setAddresses done");
 
         // Layer2Manager multi-implementation
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(layer2ManagerImpl, true);
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(
+            layer2ManagerImpl,
+            true
+        );
 
         bytes4[] memory l2mV1_2Selectors = new bytes4[](5);
         l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
@@ -650,7 +731,22 @@ contract DeployV3FullForDevnet is Script {
         l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
         l2mV1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
         l2mV1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(
+            l2mV1_2Selectors,
+            layer2ManagerImpl
+        );
+
+        // Layer2Manager Slashing routing
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(
+            layer2ManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory l2SlashingSelectors = new bytes4[](1);
+        l2SlashingSelectors[0] = Layer2Manager_Slashing.slashingCandidate.selector;
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(
+            l2SlashingSelectors,
+            layer2ManagerSlashingImpl
+        );
 
         Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
         console.log("Layer2Manager.setSequencerVault done");
@@ -675,6 +771,11 @@ contract DeployV3FullForDevnet is Script {
             layer2ManagerProxy
         );
         console.log("DepositManager.setAddresses done");
+
+        // Set default slashing reward rate (e.g., 10% = 1000)
+        DepositManager_Slashing(depositManagerProxy).setSlashingRewardRate(1000);
+        console.log("DepositManager.setSlashingRewardRate(1000) done");
+
         console.log("");
     }
 
@@ -706,7 +807,11 @@ contract DeployV3FullForDevnet is Script {
 
         // Set RAT on DisputeGameFactory
         try IDisputeGameFactory(disputeGameFactory).setRAT(ratProxy) {
-            console.log("DisputeGameFactory.setRAT(", ratProxy, ") done (called by Optimism deployer)");
+            console.log(
+                "DisputeGameFactory.setRAT(",
+                ratProxy,
+                ") done (called by Optimism deployer)"
+            );
         } catch {
             console.log("Warning: DisputeGameFactory.setRAT() failed");
             console.log("Skipping Optimism integration");
@@ -715,7 +820,6 @@ contract DeployV3FullForDevnet is Script {
             console.log("");
             return;
         }
-
         // Set SystemConfig on DisputeGameFactory
         if (systemConfig != address(0)) {
             try IDisputeGameFactory(disputeGameFactory).setSystemConfig(systemConfig) {
@@ -731,7 +835,6 @@ contract DeployV3FullForDevnet is Script {
         } catch {
             console.log("Warning: DisputeGameFactory.setInitBond() failed");
         }
-
         vm.stopBroadcast(); // Stop Optimism deployer broadcast
         vm.startBroadcast(); // Resume TON Staking deployer
 
@@ -747,7 +850,6 @@ contract DeployV3FullForDevnet is Script {
         } catch {
             console.log("Warning: Could not verify RAT connection");
         }
-
         // Register SystemConfig in L1BridgeRegistry (this also registers DisputeGameFactory)
         console.log("Registering SystemConfig in L1BridgeRegistry...");
         vm.stopBroadcast(); // Stop Optimism deployer broadcast
@@ -835,6 +937,7 @@ contract DeployV3FullForDevnet is Script {
     }
 
     // Helper functions to avoid stack too deep
+    // prettier-ignore
     function _buildJsonPart1() internal view returns (string memory) {
         return string(abi.encodePacked(
             "{\n",
@@ -846,6 +949,7 @@ contract DeployV3FullForDevnet is Script {
         ));
     }
 
+    // prettier-ignore
     function _buildJsonPart2() internal view returns (string memory) {
         return string(abi.encodePacked(
             '  "layer2RegistryProxy": "', vm.toString(layer2RegistryProxy), '",\n',
@@ -856,6 +960,7 @@ contract DeployV3FullForDevnet is Script {
         ));
     }
 
+    // prettier-ignore
     function _buildJsonPart3() internal view returns (string memory) {
         return string(abi.encodePacked(
             '  "operatorManagerFactory": "', vm.toString(operatorManagerFactory), '",\n',
@@ -865,6 +970,7 @@ contract DeployV3FullForDevnet is Script {
         ));
     }
 
+    // prettier-ignore
     function _buildJsonPart4() internal view returns (string memory) {
         return string(abi.encodePacked(
             '  "disputeGameFactory": "', vm.toString(disputeGameFactory), '",\n',
@@ -882,6 +988,7 @@ contract DeployV3FullForDevnet is Script {
 
     function _saveDeployment() internal {
         // Build JSON in parts to avoid stack too deep
+        // prettier-ignore
         string memory json = string(abi.encodePacked(
             _buildJsonPart1(),
             _buildJsonPart2(),
