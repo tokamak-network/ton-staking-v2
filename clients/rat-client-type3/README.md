@@ -4,15 +4,15 @@
 
 ## Overview
 
-This is a specialized RAT client implementation for **Type 3 rollups** (Optimism Bedrock with DisputeGameFactory). It monitors L1 for attention test events, verifies proposer-submitted state roots through **trustless derivation** from L1 batch data, and submits fraud-proof-style evidence with Merkle proofs.
+This is a specialized RAT client implementation for **Type 3 rollups** (Optimism Bedrock with DisputeGameFactory). It monitors L1 for attention test events, fetches state roots from DisputeGame, and proves state possession by finding adjacent leaves in the L2 state trie with cryptographically verified Merkle proofs.
 
 ## Key Features
 
 ### Trustless Verification
-- **Does NOT trust L2 node** for state root validation
-- Derives L2 state entirely from L1 batch data (calldata/blobs)
-- Full EVM execution engine to compute state roots
-- Reconstructs L2 block headers from execution results
+- Uses L2 RPC with cryptographic proof verification
+- StateRoot from DisputeGame (derived by op-node from L1 batches)
+- Merkle proofs verified against L1-finalized state root
+- L2 node cannot lie (proofs must match finalized state root)
 
 ### Type 3 Specific
 - Optimism Bedrock batch format support (SingularBatch, SpanBatch)
@@ -21,10 +21,10 @@ This is a specialized RAT client implementation for **Type 3 rollups** (Optimism
 - Output root computation (OutputV0 format)
 
 ### Evidence Generation
-- Merkle proof construction for on-chain verification
-- State root proof (L2 header trie)
-- Withdrawal root proof (L2ToL1MessagePasser storage trie)
-- Batch data proof (L1 transaction trie)
+- Adjacent leaves Merkle proofs (leafA, leafB in state trie)
+- OutputRootProof structure (StateRoot, MessagePasserStorageRoot, LatestBlockHash)
+- DivergenceWitness (proves no leaves between leafA and leafB)
+- On-chain verification via Type3EvidenceVerifier
 
 ## Project Structure
 
@@ -67,8 +67,7 @@ rat-client-type3/
 │   ├── state_leaf_e2e_test.go          # E2E tests for state leaf approach ✅
 │   └── state_leaf_rpc_e2e_test.go      # RPC-based E2E tests ✅
 ├── docs/                               # 📚 Documentation
-│   ├── ARCHITECTURE.md                 # System architecture and design
-│   ├── ADJACENT_LEAVES_APPROACH.md     # Adjacent leaves approach (technical details)
+│   ├── ARCHITECTURE.md                 # System architecture, design, and technical details
 │   └── TESTING_GUIDE.md                # Testing guide for E2E tests
 ├── bin/
 │   └── rat-client-type3                # Compiled binary
@@ -327,8 +326,7 @@ make test-e2e
 
 ## Documentation
 
-- [System Architecture](docs/ARCHITECTURE.md) - Overall system design, components, and data flow
-- [Adjacent Leaves Approach](docs/ADJACENT_LEAVES_APPROACH.md) - Technical details of state possession proof method
+- [System Architecture](docs/ARCHITECTURE.md) - System design, components, technical details, and verification methods
 - [Testing Guide](docs/TESTING_GUIDE.md) - How to run E2E tests with real L2 state
 
 ## References

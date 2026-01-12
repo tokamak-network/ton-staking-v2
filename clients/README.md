@@ -345,8 +345,7 @@ See [E2E Tests Guide](../op-e2e/README.md) for details.
 
 ### Type 3 RAT Client
 - [Quick Start Guide](./rat-client-type3/README.md) - Configuration and usage
-- [Architecture](./rat-client-type3/docs/ARCHITECTURE.md) - System design and components
-- [Adjacent Leaves Approach](./rat-client-type3/docs/ADJACENT_LEAVES_APPROACH.md) - Technical details
+- [Architecture](./rat-client-type3/docs/ARCHITECTURE.md) - System design, components, and technical details
 - [Testing Guide](./rat-client-type3/docs/TESTING_GUIDE.md) - How to test
 
 ### System Documentation
