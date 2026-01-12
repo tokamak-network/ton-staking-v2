@@ -39,10 +39,37 @@ contract MockWTON is ERC20 {
         _burn(from, amount);
     }
 
-    function swapToTONAndTransfer(address to, uint256 wtonAmount) external returns (bool) {
-        _burn(msg.sender, wtonAmount);
-        // In real implementation, this would transfer TON
-        return true;
+    //////////////////////
+    // Swap functions
+    //////////////////////
+
+    /**
+     * @dev swap WTON to TON
+     */
+    function swapToTON(uint256 wtonAmount) public returns (bool) {
+        return _swapToTON(msg.sender, msg.sender, wtonAmount);
+    }
+
+    /**
+     * @dev swap TON to WTON
+     */
+    function swapFromTON(uint256 tonAmount) public returns (bool) {
+        return _swapFromTON(msg.sender, msg.sender, tonAmount);
+    }
+
+    /**
+     * @dev swap WTON to TON, and transfer TON
+     * NOTE: TON's transfer event's `from` argument is not `msg.sender` but `WTON` address.
+     */
+    function swapToTONAndTransfer(address to, uint256 wtonAmount) public returns (bool) {
+        return _swapToTON(to, msg.sender, wtonAmount);
+    }
+
+    /**
+     * @dev swap TON to WTON, and transfer WTON
+     */
+    function swapFromTONAndTransfer(address to, uint256 tonAmount) public returns (bool) {
+        return _swapFromTON(msg.sender, to, tonAmount);
     }
 
     /// @notice receiveApproval callback from TON.approveAndCall
@@ -105,5 +132,51 @@ contract MockWTON is ERC20 {
         IDepositManager(depositManager).deposit(layer2, owner, wtonAmount);
 
         return true;
+    }
+
+    //////////////////////
+    // Internal functions
+    //////////////////////
+
+    function _swapToTON(
+        address tonAccount,
+        address wtonAccount,
+        uint256 wtonAmount
+    ) internal returns (bool) {
+        _burn(wtonAccount, wtonAmount);
+
+        // mint TON if WTON contract has not enough TON to transfer
+        uint256 tonAmount = _toWAD(wtonAmount);
+        uint256 tonBalance = ton.balanceOf(address(this));
+        if (tonBalance < tonAmount) {
+            ton.mint(address(this), tonAmount.sub(tonBalance));
+        }
+
+        ton.transfer(tonAccount, tonAmount);
+        return true;
+    }
+
+    function _swapFromTON(
+        address tonAccount,
+        address wtonAccount,
+        uint256 tonAmount
+    ) internal returns (bool) {
+        _mint(wtonAccount, _toRAY(tonAmount));
+        ton.transferFrom(tonAccount, address(this), tonAmount);
+        return true;
+    }
+
+    /**
+     * @dev transform WAD to RAY
+     */
+    function _toRAY(uint256 v) internal pure returns (uint256) {
+        return v * 10 ** 9;
+    }
+
+    /**
+     * @dev transform RAY to WAD
+     */
+    function _toWAD(uint256 v) internal pure returns (uint256) {
+        return v / 10 ** 9;
     }
 }
