@@ -11,10 +11,14 @@ contract DepositManagerV1_1Storage {
 
     bool internal _lock;
 
-    modifier ifFree {
-        require(!_lock, "lock");
+    modifier ifFree() {
+        require(!_lock, 'lock');
         _lock = true;
         _;
         _lock = false;
     }
+
+    /// @notice Percentage of slashed amount given to challenger as reward (100% = 10000)
+    /// @dev Example 10% = 1000
+    uint256 public slashingRewardRate;
 }
