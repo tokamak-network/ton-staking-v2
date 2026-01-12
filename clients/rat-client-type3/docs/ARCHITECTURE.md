@@ -11,11 +11,14 @@ RAT (Randomized Attention Test) Client는 TON Staking V3에서 **validator가 L2
 
 ## Design Philosophy
 
-### 목적: Full Node Ownership 증명 + Liveness Test
+### 목적: Validator Liveness 증명
 
 ```
-RAT Client = 빠른 검증 (10-30분) + Full node 직접 보유 증명
-DisputeGame = 최종 안전성 (7일) + State correctness 검증
+Liveness = Full node 직접 보유 + L2 실시간 모니터링
+Correctness = State가 올바른지 검증
+
+RAT Client = Liveness 검증 (10-30분, debug API)
+DisputeGame = Correctness 검증 (7일, L1-only)
 
 → 2-tier 보안 모델
 ```
@@ -34,8 +37,8 @@ DisputeGame = 최종 안전성 (7일) + State correctness 검증
 | 복잡도 | 낮음 | 높음 |
 | 비용 | 낮음 (1-2 tx) | 높음 (수십 tx) |
 | 요구사항 | Full op-geth + debug API | L1만 사용 |
-| 증명 내용 | Full node 직접 보유 | State correctness |
-| 목적 | Liveness + Node ownership | Final safety |
+| 검증 내용 | Liveness (node 보유 + 모니터링) | Correctness (state 정확성) |
+| 목적 | Fast path (99% 케이스) | Final safety (1% 의심 케이스) |
 
 ## System Architecture
 
@@ -297,28 +300,31 @@ func SelectLeafIndex(randomValue *big.Int, totalLeaves int) int {
 ### Trust Assumptions
 
 1. **op-geth Execution**: Validator가 정직하게 op-geth를 실행한다고 가정
-   - **왜 OK?**: RAT은 liveness test이지 correctness test가 아님
-   - **최종 검증**: DisputeGame이 correctness 보장
+   - **왜 OK?**: RAT은 Liveness 검증 (node 운영 여부)
+   - **Correctness**: DisputeGame이 state 정확성 보장
 
 2. **debug API Access**: Validator가 자신의 op-geth에서 debug API 사용
-   - **왜 OK?**: debug API는 full node만 제공 (self-hosted 증명)
-   - **보안**: Public RPC는 debug API 비활성화 (외부 의존 불가)
+   - **Liveness 증명**: debug API는 self-hosted node만 제공
+   - **보안**: Public RPC는 debug API 비활성화
+   - **모니터링 증명**: RandomValue로 최신 state 유지 강제
    - **검증**: Merkle proof로 state 일관성 확인
-   - **RandomValue**: 사전에 어떤 계정이 선택될지 예측 불가
 
 ### Security Model
 
 ```
 RAT Client (Fast):
-  - Full node ownership 증명 (debug API 사용)
-  - Validator liveness 검증
+  - Liveness 검증
+    * Full node 직접 보유 (debug API)
+    * L2 실시간 모니터링
   - 10-30분
   - 대부분(99%)의 케이스
 
       실패? → 의심스러움
          ↓
 DisputeGame (Slow):
-  - State correctness 검증
+  - Correctness 검증
+    * State 정확성
+    * L1 데이터만 사용
   - 7일
   - 최종 안전성 보장
 ```
@@ -342,33 +348,41 @@ DisputeGame (Slow):
 
 ### 2. 왜 debug API 의존?
 
-**목적이 다름:**
+**검증 목적이 다름:**
 ```
-RAT = Validator liveness (살아있는가?)
-DisputeGame = State correctness (정확한가?)
+RAT Client = Liveness
+  - Full node 직접 보유?
+  - L2를 실시간 모니터링?
+
+DisputeGame = Correctness
+  - State가 올바른가?
+  - L1 데이터와 일치하는가?
 ```
 
-**RAT의 핵심 질문:**
-"Validator가 full op-geth node를 직접 운영 중인가?"
+**Liveness 검증 핵심:**
+"Validator가 full op-geth node를 직접 운영하며 L2를 모니터링 중인가?"
 
-**debug API 사용이 이를 증명:**
+**debug API가 Liveness를 증명하는 방법:**
 ```
 debug_accountRange:
   - Full node만 활성화 (Archive node도 가능)
   - Public RPC는 대부분 비활성화 (보안/리소스 이유)
-  - Infura, Alchemy 등에서 사용 불가
-  → Validator는 자신의 op-geth를 직접 운영해야 함
+  - Infura, Alchemy 등 외부 서비스 불가
+  - RandomValue로 인덱스 선택 → 사전 준비 불가
+  → Self-hosted op-geth 필수!
+  → 최신 state 유지 필수!
 
 eth_getProof (일반 API):
   - 어떤 RPC에서든 호출 가능
+  - 특정 주소만 조회 (사전 준비 가능)
   - 외부 서비스 의존 가능
-  → Full node 운영 증명 불가
+  → Liveness 증명 불가
 ```
 
 **왜 이것으로 충분한가?**
-- RAT은 liveness test (node 운영 여부 확인)
-- Correctness는 DisputeGame이 최종 보장
-- debug API 접근 = full node 운영 = liveness 증명 완료
+- RAT = Liveness (node 운영 + 모니터링)
+- DisputeGame = Correctness (state 정확성)
+- debug API 접근 + RandomValue = Liveness 증명 완료
 
 ### 3. 왜 OutputRootProof?
 
@@ -462,17 +476,23 @@ Slow Path (항상):
 
 ## Conclusion
 
-RAT Client Type 3는 **Full Node Ownership을 증명하는 실용적인 validator liveness test**입니다:
+RAT Client Type 3는 **Validator Liveness를 검증하는 실용적인 시스템**입니다:
 
-**핵심:**
+**Liveness란?**
+- Full node 직접 보유 (Self-hosted op-geth)
+- L2 실시간 모니터링 (최신 state 유지)
+- debug API 접근 가능 (Public RPC 불가)
+
+**핵심 특징:**
 - Fast (10-30분)
-- Simple (adjacent leaves)
-- Practical (debug API로 full node 직접 보유 증명)
+- Simple (adjacent leaves + debug API)
+- Practical (RandomValue로 예측 불가능)
 - Safe (DisputeGame 폴백)
 
-**철학:**
-- debug API 사용 → Public RPC로는 불가능 → Full node 직접 운영 증명
-- RandomValue → 예측 불가능 → Pre-computed proof 방지
+**설계 철학:**
+- Liveness (RAT) vs Correctness (DisputeGame)
+- debug API 사용 → Full node 직접 운영 증명
+- RandomValue → Pre-computed proof 방지
 - 99% 케이스를 빠르게 처리
 - 1% 의심 케이스는 DisputeGame으로 해결
 - 2-tier 보안 모델로 balance 달성
