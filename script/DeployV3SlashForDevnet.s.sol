@@ -942,7 +942,7 @@ contract DeployV3SlashForDevnet is Script {
         console.log("--- Step 13: DAOVault Deploy ---");
 
         bytes memory daovaultArgs = abi.encode(ton, wton);
-        daoVault = deployCode("../abis/DAOVault.json", daovaultArgs);
+        daoVault = deployCode("abis/DAOVault.json", daovaultArgs);
         console.log("DAOVault deployed at:", daoVault);
     }
 
@@ -952,7 +952,7 @@ contract DeployV3SlashForDevnet is Script {
     function _deployDAOAgendaManager() internal {
         console.log("--- Step 14: DAOAgendaManager Deploy ---");
 
-        daoAgendaManager = deployCode("../abis/DAOAgendaManager.json");
+        daoAgendaManager = deployCode("abis/DAOAgendaManager.json");
         console.log("DAOAgendaManager deployed at:", daoAgendaManager);
     }
 
@@ -976,7 +976,7 @@ contract DeployV3SlashForDevnet is Script {
             address(1), // candidateFactory 배포전, address(0)으로 설정 불가
             address(daoVault)
         );
-        daoCommitteeProxy = deployCode("../abis/DAOCommitteeProxy.json", daoArgs);
+        daoCommitteeProxy = deployCode("abis/DAOCommitteeProxy.json", daoArgs);
         console.log("DAOCommitteeProxy deployed at:", daoCommitteeProxy);
 
         // Step 3: DAOCommittee_V1 구현체 배포 및 설정
@@ -1223,7 +1223,8 @@ contract DeployV3SlashForDevnet is Script {
             '  "operatorManagerFactory": "', vm.toString(operatorManagerFactory), '",\n',
             '  "ratProxy": "', vm.toString(ratProxy), '",\n',
             '  "validatorRewardProxy": "', vm.toString(validatorPoolProxy), '",\n',
-            '  "sequencerVaultProxy": "', vm.toString(sequencerVaultProxy), '",\n'
+            '  "sequencerVaultProxy": "', vm.toString(sequencerVaultProxy), '",\n',
+            '  "daoCommitteeProxy": "', vm.toString(daoCommitteeProxy), '",\n'
         ));
     }
 
