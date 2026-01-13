@@ -945,7 +945,7 @@ contract DeployV3FullSlash is Script {
             0.5e27,                     //daoSeigRate_
             0.5e27,                     //relativeSeigRate_
             93096,                      //adjustDelay_
-            1000.1e27 //minimumAmount_
+            1000.1e27                   //minimumAmount_
         );
         SeigManagerV1_2(address(seigManagerProxy)).setSeigStartBlock(1);
         console.log("SeigManagerV1_2 setData complete and seigStartBlock set to 1");
