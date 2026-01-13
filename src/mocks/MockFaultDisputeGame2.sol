@@ -192,6 +192,7 @@ contract MockFaultDisputeGame2 is IDisputeGame, ISemver {
         // claimData(0).claimant: 게임을 만든 사람 (보통 디펜더/오퍼레이터)
         // claimData(0).counteredBy: 루트 클레임을 최종적으로 격파한(Counter) 사람 (챌린저)
         // 첫번째 승리한 Challenger에게 보상을 주는 것을 테스트하기 위함
+        require(claimData[0].counteredBy == address(0), "Already countered");
         claimData[0].counteredBy = msg.sender;
     }
 
