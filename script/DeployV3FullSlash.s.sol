@@ -26,6 +26,11 @@ import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
 // L1BridgeRegistryV1_1 import removed - V1_2 has all V1_1 functions
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
 
+// Slashing Implementations
+import {Layer2Manager_Slashing} from "../src/layer2/Layer2Manager_Slashing.sol";
+import {SeigManager_Slashing} from "../src/stake/managers/SeigManager_Slashing.sol";
+import {DepositManager_Slashing} from "../src/stake/managers/DepositManager_Slashing.sol";
+
 // Manager Proxies (ProxySeigManager has setAliveImplementation2, setSelectorImplementations2)
 import {SeigManagerProxy} from "../src/stake/managers/SeigManagerProxy.sol";
 import {DepositManagerProxy} from "../src/stake/managers/DepositManagerProxy.sol";
@@ -148,6 +153,11 @@ contract DeployV3FullSlash is Script {
     address public sequencerVaultProxy;
     address public sequencerVaultImpl;
 
+    // Slashing Implementations
+    address public seigManagerSlashingImpl;
+    address public depositManagerSlashingImpl;
+    address public layer2ManagerSlashingImpl;
+
     // DAO Committee
     address public daoVault;
     address public daoAgendaManager;
@@ -161,6 +171,9 @@ contract DeployV3FullSlash is Script {
     CandidateAddOnV1_1 public candidateAddOnImpl;
     CandidateAddOnFactory public candidateAddOnFactoryLogic;
     CandidateAddOnFactoryProxy public candidateAddOnFactoryProxy;
+
+    // Slashing parameters
+    uint256 constant SLASHING_REWARD_RATE = 1000; // 10% = 1000 (basis points)
 
     function run() external virtual {
         uint256 deployerPrivateKey = vm.envOr(
@@ -325,6 +338,18 @@ contract DeployV3FullSlash is Script {
         // console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
         IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryImpl);
         // console.log("");
+
+        // Slashing Implementations
+        seigManagerSlashingImpl = address(new SeigManager_Slashing());
+        // console.log("SeigManager_Slashing Impl:", seigManagerSlashingImpl);
+
+        depositManagerSlashingImpl = address(new DepositManager_Slashing());
+        // console.log("DepositManager_Slashing Impl:", depositManagerSlashingImpl);
+
+        layer2ManagerSlashingImpl = address(new Layer2Manager_Slashing());
+        // console.log("Layer2Manager_Slashing Impl:", layer2ManagerSlashingImpl);
+
+        // console.log("");
     }
 
     // ==========================================
@@ -434,6 +459,18 @@ contract DeployV3FullSlash is Script {
         );
         // console.log("SeigManager V1_4 selectors registered (31 functions)");
 
+        // SeigManager Slashing routing
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
+            seigManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory seigSlashingSelectors = new bytes4[](1);
+        seigSlashingSelectors[0] = SeigManager_Slashing.onSlash.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
+            seigSlashingSelectors,
+            seigManagerSlashingImpl
+        );
+
         // 나머지 함수들은 V1_2 (기본 구현체)가 처리
 
         // Initialize DepositManager (using Base implementation - Index 0)
@@ -498,6 +535,25 @@ contract DeployV3FullSlash is Script {
         );
         // console.log("DepositManager Index 3 (V1_2) selectors registered (3 functions)");
         // console.log("");
+
+        // DepositManager Slashing routing
+        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
+            depositManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory dmSlashingSelectors = new bytes4[](3);
+        dmSlashingSelectors[0] = DepositManager_Slashing.setSlashingRewardRate.selector;
+        dmSlashingSelectors[1] = DepositManager_Slashing.slash.selector;
+        dmSlashingSelectors[2] = bytes4(keccak256("slashingRewardRate()"));
+        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
+            dmSlashingSelectors,
+            depositManagerSlashingImpl
+        );
+
+        // SlashingRewardRate Setting
+        DepositManager_Slashing(address(depositManagerProxy)).setSlashingRewardRate(
+            SLASHING_REWARD_RATE
+        );
     }
 
     // ==========================================
@@ -684,6 +740,18 @@ contract DeployV3FullSlash is Script {
             layer2ManagerImpl
         );
         // console.log("Layer2Manager V1_2 selectors registered (5 functions)");
+
+        // Layer2Manager Slashing routing
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(
+            layer2ManagerSlashingImpl,
+            true
+        );
+        bytes4[] memory l2SlashingSelectors = new bytes4[](1);
+        l2SlashingSelectors[0] = Layer2Manager_Slashing.slashingCandidate.selector;
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(
+            l2SlashingSelectors,
+            layer2ManagerSlashingImpl
+        );
 
         // Layer2Manager.setSequencerVault (V3 - OperatorManager가 자동 조회)
         Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
