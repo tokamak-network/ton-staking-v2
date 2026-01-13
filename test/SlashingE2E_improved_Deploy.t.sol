@@ -368,9 +368,10 @@ contract SlashingE2E_improved_Deploy is Test {
         console.log('DepositManagerV1_1 selectors routed');
 
         // Step 7: Slashing 함수들을 Slashing 구현체로 라우팅
-        bytes4[] memory slashingSelectors = new bytes4[](2);
+        bytes4[] memory slashingSelectors = new bytes4[](3);
         slashingSelectors[0] = DepositManager_Slashing.slash.selector;
         slashingSelectors[1] = DepositManager_Slashing.setSlashingRewardRate.selector;
+        slashingSelectors[2] = bytes4(keccak256('slashingRewardRate()'));
         depositManagerProxy.setSelectorImplementations2(
             slashingSelectors,
             address(depositManagerSlashing)
