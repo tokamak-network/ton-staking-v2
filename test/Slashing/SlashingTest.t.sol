@@ -127,17 +127,17 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.stopPrank();
 
-        // 2. Mock 인프라 설정
+        // 3. Mock 인프라 설정
         mockFactory = new SlashingMockFactory();
         mockGame = new SlashingMockGame(challenger);
 
-        // 3. 테스트 컨트랙트에 권한 부여 (Rollup 등록을 위해)
+        // 4. 테스트 컨트랙트에 권한 부여 (Rollup 등록을 위해)
         // script에서 l1BridgeRegistryProxy의 admin은 daoCommitteeProxy임
         vm.prank(daoCommitteeProxy);
         AuthControlL1BridgeRegistry(l1BridgeRegistryProxy).addManager(address(this));
         AuthControlL1BridgeRegistry(l1BridgeRegistryProxy).addRegistrant(address(this));
 
-        // 4. Rollup 인프라 모킹 (Layer2Manager 등록 시 필요)
+        // 5. Rollup 인프라 모킹 (Layer2Manager 등록 시 필요)
         vm.mockCall(
             rollupConfig,
             abi.encodeWithSignature("l1StandardBridge()"),
@@ -159,11 +159,11 @@ contract SlashingTest is Test, DeployV3FullSlash {
             abi.encode(address(mockFactory))
         );
 
-        // 5. Rollup 등록
+        // 6. Rollup 등록
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfig(
             rollupConfig,
             2, // Bedrock
-            address(0),
+            makeAddr("l2TON"), // L2 TON 주소 (테스트용 mock 주소)
             "TestRollup"
         );
 
