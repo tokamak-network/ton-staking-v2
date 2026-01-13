@@ -24,9 +24,9 @@ import {DepositManagerV1_2} from "../src/stake/managers/DepositManagerV1_2.sol";
 import {Layer2ManagerV1_1} from "../src/layer2/Layer2ManagerV1_1.sol";
 import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
-import {Layer2Manager_Slashing} from "../src/layer2/Layer2Manager_Slashing.sol";
 
 // Slashing Implementations
+import {Layer2Manager_Slashing} from "../src/layer2/Layer2Manager_Slashing.sol";
 import {SeigManager_Slashing} from "../src/stake/managers/SeigManager_Slashing.sol";
 import {DepositManager_Slashing} from "../src/stake/managers/DepositManager_Slashing.sol";
 
@@ -607,9 +607,10 @@ contract DeployV3SlashForDevnet is Script {
             depositManagerSlashingImpl,
             true
         );
-        bytes4[] memory dmSlashingSelectors = new bytes4[](2);
+        bytes4[] memory dmSlashingSelectors = new bytes4[](3);
         dmSlashingSelectors[0] = DepositManager_Slashing.setSlashingRewardRate.selector;
         dmSlashingSelectors[1] = DepositManager_Slashing.slash.selector;
+        dmSlashingSelectors[2] = bytes4(keccak256("slashingRewardRate()"));
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
             dmSlashingSelectors,
             depositManagerSlashingImpl
