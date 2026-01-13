@@ -18,6 +18,10 @@ import {GameStatus} from "../../src/layer2/lib/Types.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RATProxy} from "../../src/validator/RATProxy.sol";
 import {ValidatorRewardProxy} from "../../src/validator/ValidatorRewardProxy.sol";
+import {MockTON} from "../../src/mocks/MockTON.sol";
+
+import {MockDisputeGameFactory} from "../../src/mocks/MockDisputeGameFactory.sol";
+import {MockFaultDisputeGame2} from "../../src/mocks/MockFaultDisputeGame2.sol";
 
 // Interfaces for mocking or interaction
 interface ITON_Mint is ITON {
@@ -175,12 +179,19 @@ contract SlashingTest is Test, DeployV3FullSlash {
     function test_CandidateRegistrationAndStaking() public {
         uint256 stakeAmount = 10000 * 1e18; // 10,000 TON
 
+        console.log("Step 1: Minting TON to operator");
         // Operator에게 TON 지급
-        ITON_Mint(ton).mint(operator, stakeAmount);
+        MockTON(ton).mint(operator, stakeAmount);
+        console.log("Operator TON balance:", IERC20(ton).balanceOf(operator));
 
+        console.log("Step 2: Starting prank as operator");
         vm.startPrank(operator);
-        IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
 
+        console.log("Step 3: Approving Layer2Manager");
+        IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
+        console.log("Approval successful");
+
+        console.log("Step 4: Registering candidate");
         // Candidate 등록
         Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
@@ -188,8 +199,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
             true, // Use TON
             "MyOperator"
         );
+        console.log("Registration successful");
         vm.stopPrank();
 
+        console.log("Step 5: Verifying registration");
         // 등록 검증
         address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
@@ -224,23 +237,42 @@ contract SlashingTest is Test, DeployV3FullSlash {
             candidateAddOn,
             operatorManager
         );
+        assertEq(initialStake, 10000 * 1e18 * 1e9, "Initial stake mismatch");
 
-        // 2. 슬래싱 게임 설정
-        GameType gType = GameType.wrap(0);
-        Claim rClaim = Claim.wrap(bytes32(uint256(1)));
+        // 2. Slashing 준비 (Mock Dispute Game 컨트랙트 실제 배포)
+        MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
+
+        // SystemConfig.disputeGameFactory() 모킹 (실제 배포된 gameFactory 주소를 리턴하도록)
+        vm.mockCall(
+            rollupConfig,
+            abi.encodeWithSignature("disputeGameFactory()"),
+            abi.encode(address(gameFactory))
+        );
+
+        GameType gameType = GameType.wrap(0);
+        Claim rootClaim = Claim.wrap(bytes32(uint256(1)));
         bytes memory extraData = hex"1234";
 
-        mockFactory.setGame(gType, rClaim, extraData, address(mockGame));
+        // Dispute Game 생성 및 상태 설정
+        MockFaultDisputeGame2 game = MockFaultDisputeGame2(
+            address(gameFactory.create(gameType, rootClaim, extraData))
+        );
+        game.initialize(); // claimData[0] 설정을 위해 초기화 필요
+
+        // Challenger 승리 시뮬레이션
+        vm.prank(challenger);
+        game.step(); // 챌린저가 대응(step)함
+        game.resolve(); // 게임 종료 -> CHALLENGER_WINS 상태가 됨
 
         // 3. 슬래싱 실행
         uint256 challengerBalanceBefore = IWTON(wton).balanceOf(challenger);
 
-        Layer2Manager_Slashing(layer2ManagerProxy).slashingCandidate(
+        Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
-            gType,
-            rClaim,
+            gameType,
+            rootClaim,
             extraData,
-            address(mockGame)
+            address(game)
         );
 
         // 4. 결과 검증
@@ -251,17 +283,19 @@ contract SlashingTest is Test, DeployV3FullSlash {
         assertEq(finalStake, 0, "Stake should be zeroed");
 
         // 보상 검증 (10% reward)
-        uint256 expectedReward = (initialStake * 1000) / 10000;
+        uint256 slashingRewardRate = DepositManager_Slashing(address(depositManagerProxy))
+            .slashingRewardRate();
+        uint256 rewardAmount = (initialStake * slashingRewardRate) / 10000;
         uint256 challengerBalanceAfter = IWTON(wton).balanceOf(challenger);
 
         assertEq(
             challengerBalanceAfter - challengerBalanceBefore,
-            expectedReward,
+            rewardAmount,
             "Challenger reward mismatch"
         );
 
         console.log("Slashing Successful!");
         console.log("Slashed Amount (RAY):", initialStake);
-        console.log("Challenger Reward (RAY):", expectedReward);
+        console.log("Challenger Reward (RAY):", rewardAmount);
     }
 }
