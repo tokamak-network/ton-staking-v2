@@ -346,15 +346,15 @@ contract DeployV3FullSlash is Script {
         // console.log("SeigManager initialized");
 
         // setData: 시뇨리지 분배 비율 설정 (V1_2 함수)
-        SeigManagerV1_2(seigManagerProxy).setData(
-            address(0), // powerTON (테스트시 address(0))
-            deployer, // dao address (테스트시 deployer)
-            0, // powerTONSeigRate: 0%
-            0.5e27, // daoSeigRate: 50%
-            0.5e27, // relativeSeigRate: 50%
-            93096, // adjustCommissionDelay
-            1000.1e27 // minimumAmount: 1000.1 WTON
-        );
+        // SeigManagerV1_2(seigManagerProxy).setData(
+        //     address(0), // powerTON (테스트시 address(0))
+        //     deployer, // dao address (테스트시 deployer)
+        //     0, // powerTONSeigRate: 0%
+        //     0.5e27, // daoSeigRate: 50%
+        //     0.5e27, // relativeSeigRate: 50%
+        //     93096, // adjustCommissionDelay
+        //     1000.1e27 // minimumAmount: 1000.1 WTON
+        // );
         // console.log("SeigManager setData done");
 
         // =====================================================
@@ -647,16 +647,16 @@ contract DeployV3FullSlash is Script {
         // console.log("SeigManager.setValidatorReward done");
 
         // Layer2Manager.setAddresses (using V1_1 interface - Index 0)
-        Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
-            l1BridgeRegistryProxy,
-            operatorManagerFactory,
-            ton,
-            wton,
-            deployer, // dao (use deployer for testing)
-            depositManagerProxy,
-            seigManagerProxy,
-            address(0) // swapProxy (not needed for testing)
-        );
+        // Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
+        //     l1BridgeRegistryProxy,
+        //     operatorManagerFactory,
+        //     ton,
+        //     wton,
+        //     deployer, // dao (use deployer for testing)
+        //     depositManagerProxy,
+        //     seigManagerProxy,
+        //     address(0) // swapProxy (not needed for testing)
+        // );
         // console.log("Layer2Manager.setAddresses done");
 
         // =====================================================
@@ -723,7 +723,7 @@ contract DeployV3FullSlash is Script {
         console.log("--- Step 11: DAOVault Deploy ---");
 
         bytes memory daovaultArgs = abi.encode(ton, wton);
-        daoVault = deployCode("../abis/DAOVault.json", daovaultArgs);
+        daoVault = deployCode("abis/DAOVault.json", daovaultArgs);
         console.log("DAOVault deployed at:", daoVault);
     }
 
@@ -733,7 +733,7 @@ contract DeployV3FullSlash is Script {
     function _deployDAOAgendaManager() internal {
         console.log("--- Step 12: DAOAgendaManager Deploy ---");
 
-        daoAgendaManager = deployCode("../abis/DAOAgendaManager.json");
+        daoAgendaManager = deployCode("abis/DAOAgendaManager.json");
         console.log("DAOAgendaManager deployed at:", daoAgendaManager);
     }
 
@@ -757,7 +757,7 @@ contract DeployV3FullSlash is Script {
             address(1), // candidateFactory 배포전, address(0)으로 설정 불가
             address(daoVault)
         );
-        daoCommitteeProxy = deployCode("../abis/DAOCommitteeProxy.json", daoArgs);
+        daoCommitteeProxy = deployCode("abis/DAOCommitteeProxy.json", daoArgs);
         console.log("DAOCommitteeProxy deployed at:", daoCommitteeProxy);
 
         // Step 3: DAOCommittee_V1 구현체 배포 및 설정
