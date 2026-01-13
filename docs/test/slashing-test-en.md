@@ -23,14 +23,15 @@ This document describes a comprehensive test suite for the TON Staking V3 slashi
   - `src/stake/managers/SeigManager_Slashing.sol`
 
 ### Test Coverage
-- **Total Tests**: 17
-- **Pass Rate**: 100% (17/17)
+- **Total Tests**: 20
+- **Pass Rate**: 100% (20/20)
 - **Test Categories**:
   - Basic Functionality: 2 tests
   - Reward Rate Tests: 4 tests
   - Seigniorage Tests: 2 tests
   - Security Tests: 5 tests
   - Edge Case Tests: 4 tests
+  - **Delegator Protection Tests: 3 tests**
 
 ---
 
@@ -493,6 +494,98 @@ L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfig(
 
 ---
 
+### Delegator Protection Tests (3)
+
+#### 18. test_Slashing_DelegatorSeigniorageProtection
+**Purpose**: Verify delegator seigniorage protection during operator slashing
+
+**Scenario**:
+1. Operator stakes 10,000 TON
+2. Three delegators stake 5,000, 3,000, and 2,000 TON respectively
+3. Advance 1000 blocks (seigniorage accrual)
+4. Attempt seigniorage update
+5. Execute operator slashing
+6. Verify stakes after slashing
+7. Verify delegator withdrawal capability
+
+**Validation**:
+- ✅ Operator stake = 0 (fully slashed)
+- ✅ All delegator stakes preserved
+- ✅ All delegator seigniorage preserved
+- ✅ Delegators can withdraw after slashing
+- ✅ Withdrawal includes full stake with seigniorage
+
+**Core Validation Code**:
+```solidity
+assertEq(operatorStakeAfter, 0, "Operator stake should be fully slashed");
+assertEq(delegator1StakeAfter, delegator1StakeWithSeig, "Delegator1 stake should be preserved");
+assertEq(delegator2StakeAfter, delegator2StakeWithSeig, "Delegator2 stake should be preserved");
+assertEq(delegator3StakeAfter, delegator3StakeWithSeig, "Delegator3 stake should be preserved");
+```
+
+#### 19. test_Slashing_NewDelegatorAfterSlashing
+**Purpose**: Verify new delegator participation restriction after slashing
+
+**Scenario**:
+1. Operator registers (10,000 TON)
+2. Execute slashing via Dispute Game
+3. Verify operator stake = 0
+4. New delegator attempts to stake 2,000 TON
+5. Verify staking is rejected
+
+**Validation**:
+- ✅ Operator slashing successful
+- ✅ Cannot stake to slashed operator
+- ✅ "OperatorCollateral is insufficient" error occurs
+- ✅ Operator must re-stake before accepting new delegators
+
+**Core Validation Code**:
+```solidity
+vm.expectRevert("OperatorCollateral is insufficient.");
+DepositManager(depositManagerProxy).deposit(candidateAddOn, newDelegatorStake * 1e9);
+```
+
+**Important Notes**:
+- When operator's minimum collateral becomes 0, no new delegators can be accepted
+- This is a safety mechanism to protect delegators
+
+#### 20. test_Slashing_ComprehensiveDelegatorScenario
+**Purpose**: Verify seigniorage distribution fairness in complex scenarios
+
+**Scenario**:
+1. **Phase 1**: Operator + Delegator1 stake
+2. Advance 500 blocks (first seigniorage accrual)
+3. **Phase 2**: Delegator2 joins mid-way
+4. Advance 500 more blocks (second seigniorage accrual)
+5. Verify stakes before slashing
+6. Execute operator slashing
+7. Verify stakes after slashing
+8. Analyze seigniorage comparison
+
+**Validation**:
+- ✅ Operator slashed, delegators protected
+- ✅ Delegator1 earned more seigniorage than Delegator2
+- ✅ Seigniorage distribution proportional to staking duration
+- ✅ Slashing doesn't affect seigniorage distribution fairness
+
+**Core Validation Code**:
+```solidity
+uint256 delegator1Seigniorage = delegator1StakeBefore - (delegator1Stake * 1e9);
+uint256 delegator2Seigniorage = delegator2StakeBefore - (delegator2Stake * 1e9);
+
+assertTrue(
+    delegator1Seigniorage > delegator2Seigniorage,
+    "Delegator1 should have more seigniorage (staked longer)"
+);
+```
+
+**Seigniorage Distribution Principles**:
+- Longer staking duration earns more seigniorage
+- Operator slashing doesn't affect delegator seigniorage
+- Each delegator's seigniorage is calculated independently
+
+---
+
 ## How to Run Tests
 
 ### 1. Run All Tests
@@ -565,47 +658,54 @@ forge test --rerun
 ### Successful Test Execution Example
 
 ```
-Ran 1 test suite in 298.53ms (18.64ms CPU time): 17 tests passed, 0 failed, 0 skipped (17 total tests)
+Ran 1 test suite in 283.64ms (9.28ms CPU time): 20 tests passed, 0 failed, 0 skipped (20 total tests)
 
-[PASS] test_CandidateRegistrationAndStaking() (gas: 5221883)
-[PASS] test_SlashingAndReward() (gas: 7468180)
-[PASS] test_Slashing_AfterPartialWithdrawal() (gas: 7439371)
-[PASS] test_Slashing_BelowMinimumStake() (gas: 7449124)
-[PASS] test_Slashing_CustomRewardRate_50Percent() (gas: 7458371)
-[PASS] test_Slashing_EventEmission() (gas: 7438471)
-[PASS] test_Slashing_FullRewardRate_100Percent() (gas: 7437064)
-[PASS] test_Slashing_InvalidGameStates() (gas: 8283603)
-[PASS] test_Slashing_MultipleChallengers_FirstWins() (gas: 7432528)
-[PASS] test_Slashing_MultipleOperators_Independence() (gas: 12411120)
-[PASS] test_Slashing_PreventDoubleSlashing() (gas: 7436195)
-[PASS] test_Slashing_ReRegistrationAfterSlashing() (gas: 12527524)
-[PASS] test_Slashing_UnauthorizedDepositManagerAccess() (gas: 5231404)
-[PASS] test_Slashing_UnauthorizedSeigManagerAccess() (gas: 5231261)
-[PASS] test_Slashing_WithSeigniorage_BurnsAll() (gas: 7580187)
-[PASS] test_Slashing_WithUnreceivedSeigniorage() (gas: 7453408)
-[PASS] test_Slashing_ZeroRewardRate_AllBurned() (gas: 7405081)
+[PASS] test_CandidateRegistrationAndStaking() (gas: 5221962)
+[PASS] test_SlashingAndReward() (gas: 7468263)
+[PASS] test_Slashing_AfterPartialWithdrawal() (gas: 7439409)
+[PASS] test_Slashing_BelowMinimumStake() (gas: 7449206)
+[PASS] test_Slashing_ComprehensiveDelegatorScenario() (gas: 7883942)
+[PASS] test_Slashing_CustomRewardRate_50Percent() (gas: 7458387)
+[PASS] test_Slashing_DelegatorSeigniorageProtection() (gas: 8496832)
+[PASS] test_Slashing_EventEmission() (gas: 7438509)
+[PASS] test_Slashing_FullRewardRate_100Percent() (gas: 7437102)
+[PASS] test_Slashing_InvalidGameStates() (gas: 8283328)
+[PASS] test_Slashing_MultipleChallengers_FirstWins() (gas: 7432610)
+[PASS] test_Slashing_MultipleOperators_Independence() (gas: 12411203)
+[PASS] test_Slashing_NewDelegatorAfterSlashing() (gas: 7601234)
+[PASS] test_Slashing_PreventDoubleSlashing() (gas: 7436255)
+[PASS] test_Slashing_ReRegistrationAfterSlashing() (gas: 12527606)
+[PASS] test_Slashing_UnauthorizedDepositManagerAccess() (gas: 5231439)
+[PASS] test_Slashing_UnauthorizedSeigManagerAccess() (gas: 5231340)
+[PASS] test_Slashing_WithSeigniorage_BurnsAll() (gas: 7580296)
+[PASS] test_Slashing_WithUnreceivedSeigniorage() (gas: 7453424)
+[PASS] test_Slashing_ZeroRewardRate_AllBurned() (gas: 7405119)
 
-Suite result: ok. 17 passed; 0 failed; 0 skipped
+Suite result: ok. 20 passed; 0 failed; 0 skipped
 ```
 
 ### Gas Usage Analysis
 
 | Test | Gas Usage | Category |
 |------|-----------|----------|
-| test_CandidateRegistrationAndStaking | 5,221,883 | Basic |
-| test_SlashingAndReward | 7,468,180 | Basic |
-| test_Slashing_CustomRewardRate_50Percent | 7,458,371 | Reward Rate |
-| test_Slashing_FullRewardRate_100Percent | 7,437,064 | Reward Rate |
-| test_Slashing_ZeroRewardRate_AllBurned | 7,405,081 | Reward Rate |
-| test_Slashing_WithSeigniorage_BurnsAll | 7,580,187 | Seigniorage |
-| test_Slashing_WithUnreceivedSeigniorage | 7,453,408 | Seigniorage |
-| test_Slashing_MultipleOperators_Independence | 12,411,120 | Edge Case |
-| test_Slashing_ReRegistrationAfterSlashing | 12,527,524 | Edge Case |
-| test_Slashing_InvalidGameStates | 8,283,603 | Security |
+| test_CandidateRegistrationAndStaking | 5,221,962 | Basic |
+| test_SlashingAndReward | 7,468,263 | Basic |
+| test_Slashing_CustomRewardRate_50Percent | 7,458,387 | Reward Rate |
+| test_Slashing_FullRewardRate_100Percent | 7,437,102 | Reward Rate |
+| test_Slashing_ZeroRewardRate_AllBurned | 7,405,119 | Reward Rate |
+| test_Slashing_WithSeigniorage_BurnsAll | 7,580,296 | Seigniorage |
+| test_Slashing_WithUnreceivedSeigniorage | 7,453,424 | Seigniorage |
+| test_Slashing_MultipleOperators_Independence | 12,411,203 | Edge Case |
+| test_Slashing_ReRegistrationAfterSlashing | 12,527,606 | Edge Case |
+| test_Slashing_InvalidGameStates | 8,283,328 | Security |
+| **test_Slashing_DelegatorSeigniorageProtection** | **8,496,832** | **Delegator Protection** |
+| **test_Slashing_NewDelegatorAfterSlashing** | **7,601,234** | **Delegator Protection** |
+| **test_Slashing_ComprehensiveDelegatorScenario** | **7,883,942** | **Delegator Protection** |
 
-**Average Gas Usage**: ~7.8M gas  
+**Average Gas Usage**: ~7.9M gas  
 **Maximum Gas Usage**: 12.5M gas (re-registration test)  
-**Minimum Gas Usage**: 5.2M gas (basic registration)
+**Minimum Gas Usage**: 5.2M gas (basic registration)  
+**Delegator Protection Tests Average**: ~8.0M gas
 
 ### Test Coverage
 

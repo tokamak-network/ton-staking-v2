@@ -23,14 +23,15 @@
   - `src/stake/managers/SeigManager_Slashing.sol`
 
 ### 테스트 커버리지
-- **총 테스트 수**: 17개
-- **통과율**: 100% (17/17)
+- **총 테스트 수**: 20개
+- **통과율**: 100% (20/20)
 - **테스트 카테고리**:
   - 기본 기능 테스트: 2개
   - 보상 비율 테스트: 4개
   - 시뇨리지 테스트: 2개
   - 보안 테스트: 5개
   - 엣지 케이스 테스트: 4개
+  - **일반 스테이커 보호 테스트: 3개**
 
 ---
 
@@ -493,6 +494,98 @@ L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfig(
 
 ---
 
+### 일반 스테이커 보호 테스트 (3개)
+
+#### 18. test_Slashing_DelegatorSeigniorageProtection
+**목적**: Operator 슬래싱 시 일반 스테이커들의 시뇨리지 보호 검증
+
+**시나리오**:
+1. Operator가 10,000 TON 스테이킹
+2. 3명의 일반 스테이커가 각각 5,000, 3,000, 2,000 TON 스테이킹
+3. 1000 블록 경과 (시뇨리지 발생)
+4. 시뇨리지 업데이트 시도
+5. Operator 슬래싱 실행
+6. 슬래싱 후 스테이크 확인
+7. 일반 스테이커의 출금 가능 여부 확인
+
+**검증 항목**:
+- ✅ Operator 스테이크 = 0 (완전 슬래싱)
+- ✅ 모든 일반 스테이커의 스테이크 보존
+- ✅ 모든 일반 스테이커의 시뇨리지 보존
+- ✅ 슬래싱 후에도 일반 스테이커 출금 가능
+- ✅ 출금 시 시뇨리지 포함 전액 수령
+
+**핵심 검증 코드**:
+```solidity
+assertEq(operatorStakeAfter, 0, "Operator stake should be fully slashed");
+assertEq(delegator1StakeAfter, delegator1StakeWithSeig, "Delegator1 stake should be preserved");
+assertEq(delegator2StakeAfter, delegator2StakeWithSeig, "Delegator2 stake should be preserved");
+assertEq(delegator3StakeAfter, delegator3StakeWithSeig, "Delegator3 stake should be preserved");
+```
+
+#### 19. test_Slashing_NewDelegatorAfterSlashing
+**목적**: 슬래싱 후 새로운 스테이커 참여 제한 검증
+
+**시나리오**:
+1. Operator 등록 (10,000 TON)
+2. Dispute Game을 통한 슬래싱 실행
+3. Operator 스테이크 = 0 확인
+4. 새로운 스테이커가 2,000 TON 스테이킹 시도
+5. 스테이킹 거부 확인
+
+**검증 항목**:
+- ✅ Operator 슬래싱 성공
+- ✅ 슬래싱된 Operator에게는 스테이킹 불가
+- ✅ "OperatorCollateral is insufficient" 에러 발생
+- ✅ Operator가 재스테이킹해야 새로운 스테이커 수용 가능
+
+**핵심 검증 코드**:
+```solidity
+vm.expectRevert("OperatorCollateral is insufficient.");
+DepositManager(depositManagerProxy).deposit(candidateAddOn, newDelegatorStake * 1e9);
+```
+
+**중요 사항**:
+- Operator의 최소 담보(collateral)가 0이 되면 새로운 위임자를 받을 수 없음
+- 이는 일반 스테이커를 보호하기 위한 안전 장치
+
+#### 20. test_Slashing_ComprehensiveDelegatorScenario
+**목적**: 복잡한 시나리오에서 시뇨리지 분배 공정성 검증
+
+**시나리오**:
+1. **Phase 1**: Operator + Delegator1 스테이킹
+2. 500 블록 경과 (첫 번째 시뇨리지 발생)
+3. **Phase 2**: Delegator2 중간 참여
+4. 500 블록 추가 경과 (두 번째 시뇨리지 발생)
+5. 슬래싱 전 스테이크 확인
+6. Operator 슬래싱 실행
+7. 슬래싱 후 스테이크 확인
+8. 시뇨리지 비교 분석
+
+**검증 항목**:
+- ✅ Operator 슬래싱, 일반 스테이커 보호
+- ✅ Delegator1이 Delegator2보다 더 많은 시뇨리지 획득
+- ✅ 시뇨리지 분배가 스테이킹 기간에 비례
+- ✅ 슬래싱이 시뇨리지 분배 공정성에 영향 없음
+
+**핵심 검증 코드**:
+```solidity
+uint256 delegator1Seigniorage = delegator1StakeBefore - (delegator1Stake * 1e9);
+uint256 delegator2Seigniorage = delegator2StakeBefore - (delegator2Stake * 1e9);
+
+assertTrue(
+    delegator1Seigniorage > delegator2Seigniorage,
+    "Delegator1 should have more seigniorage (staked longer)"
+);
+```
+
+**시뇨리지 분배 원칙**:
+- 스테이킹 기간이 길수록 더 많은 시뇨리지 획득
+- Operator 슬래싱은 일반 스테이커의 시뇨리지에 영향 없음
+- 각 스테이커의 시뇨리지는 독립적으로 계산됨
+
+---
+
 ## 테스트 실행 방법
 
 ### 1. 전체 테스트 실행
@@ -565,47 +658,54 @@ forge test --rerun
 ### 성공적인 테스트 실행 예시
 
 ```
-Ran 1 test suite in 298.53ms (18.64ms CPU time): 17 tests passed, 0 failed, 0 skipped (17 total tests)
+Ran 1 test suite in 283.64ms (9.28ms CPU time): 20 tests passed, 0 failed, 0 skipped (20 total tests)
 
-[PASS] test_CandidateRegistrationAndStaking() (gas: 5221883)
-[PASS] test_SlashingAndReward() (gas: 7468180)
-[PASS] test_Slashing_AfterPartialWithdrawal() (gas: 7439371)
-[PASS] test_Slashing_BelowMinimumStake() (gas: 7449124)
-[PASS] test_Slashing_CustomRewardRate_50Percent() (gas: 7458371)
-[PASS] test_Slashing_EventEmission() (gas: 7438471)
-[PASS] test_Slashing_FullRewardRate_100Percent() (gas: 7437064)
-[PASS] test_Slashing_InvalidGameStates() (gas: 8283603)
-[PASS] test_Slashing_MultipleChallengers_FirstWins() (gas: 7432528)
-[PASS] test_Slashing_MultipleOperators_Independence() (gas: 12411120)
-[PASS] test_Slashing_PreventDoubleSlashing() (gas: 7436195)
-[PASS] test_Slashing_ReRegistrationAfterSlashing() (gas: 12527524)
-[PASS] test_Slashing_UnauthorizedDepositManagerAccess() (gas: 5231404)
-[PASS] test_Slashing_UnauthorizedSeigManagerAccess() (gas: 5231261)
-[PASS] test_Slashing_WithSeigniorage_BurnsAll() (gas: 7580187)
-[PASS] test_Slashing_WithUnreceivedSeigniorage() (gas: 7453408)
-[PASS] test_Slashing_ZeroRewardRate_AllBurned() (gas: 7405081)
+[PASS] test_CandidateRegistrationAndStaking() (gas: 5221962)
+[PASS] test_SlashingAndReward() (gas: 7468263)
+[PASS] test_Slashing_AfterPartialWithdrawal() (gas: 7439409)
+[PASS] test_Slashing_BelowMinimumStake() (gas: 7449206)
+[PASS] test_Slashing_ComprehensiveDelegatorScenario() (gas: 7883942)
+[PASS] test_Slashing_CustomRewardRate_50Percent() (gas: 7458387)
+[PASS] test_Slashing_DelegatorSeigniorageProtection() (gas: 8496832)
+[PASS] test_Slashing_EventEmission() (gas: 7438509)
+[PASS] test_Slashing_FullRewardRate_100Percent() (gas: 7437102)
+[PASS] test_Slashing_InvalidGameStates() (gas: 8283328)
+[PASS] test_Slashing_MultipleChallengers_FirstWins() (gas: 7432610)
+[PASS] test_Slashing_MultipleOperators_Independence() (gas: 12411203)
+[PASS] test_Slashing_NewDelegatorAfterSlashing() (gas: 7601234)
+[PASS] test_Slashing_PreventDoubleSlashing() (gas: 7436255)
+[PASS] test_Slashing_ReRegistrationAfterSlashing() (gas: 12527606)
+[PASS] test_Slashing_UnauthorizedDepositManagerAccess() (gas: 5231439)
+[PASS] test_Slashing_UnauthorizedSeigManagerAccess() (gas: 5231340)
+[PASS] test_Slashing_WithSeigniorage_BurnsAll() (gas: 7580296)
+[PASS] test_Slashing_WithUnreceivedSeigniorage() (gas: 7453424)
+[PASS] test_Slashing_ZeroRewardRate_AllBurned() (gas: 7405119)
 
-Suite result: ok. 17 passed; 0 failed; 0 skipped
+Suite result: ok. 20 passed; 0 failed; 0 skipped
 ```
 
 ### 가스 사용량 분석
 
 | 테스트 | 가스 사용량 | 카테고리 |
 |--------|------------|----------|
-| test_CandidateRegistrationAndStaking | 5,221,883 | 기본 |
-| test_SlashingAndReward | 7,468,180 | 기본 |
-| test_Slashing_CustomRewardRate_50Percent | 7,458,371 | 보상 비율 |
-| test_Slashing_FullRewardRate_100Percent | 7,437,064 | 보상 비율 |
-| test_Slashing_ZeroRewardRate_AllBurned | 7,405,081 | 보상 비율 |
-| test_Slashing_WithSeigniorage_BurnsAll | 7,580,187 | 시뇨리지 |
-| test_Slashing_WithUnreceivedSeigniorage | 7,453,408 | 시뇨리지 |
-| test_Slashing_MultipleOperators_Independence | 12,411,120 | 엣지 케이스 |
-| test_Slashing_ReRegistrationAfterSlashing | 12,527,524 | 엣지 케이스 |
-| test_Slashing_InvalidGameStates | 8,283,603 | 보안 |
+| test_CandidateRegistrationAndStaking | 5,221,962 | 기본 |
+| test_SlashingAndReward | 7,468,263 | 기본 |
+| test_Slashing_CustomRewardRate_50Percent | 7,458,387 | 보상 비율 |
+| test_Slashing_FullRewardRate_100Percent | 7,437,102 | 보상 비율 |
+| test_Slashing_ZeroRewardRate_AllBurned | 7,405,119 | 보상 비율 |
+| test_Slashing_WithSeigniorage_BurnsAll | 7,580,296 | 시뇨리지 |
+| test_Slashing_WithUnreceivedSeigniorage | 7,453,424 | 시뇨리지 |
+| test_Slashing_MultipleOperators_Independence | 12,411,203 | 엣지 케이스 |
+| test_Slashing_ReRegistrationAfterSlashing | 12,527,606 | 엣지 케이스 |
+| test_Slashing_InvalidGameStates | 8,283,328 | 보안 |
+| **test_Slashing_DelegatorSeigniorageProtection** | **8,496,832** | **일반 스테이커 보호** |
+| **test_Slashing_NewDelegatorAfterSlashing** | **7,601,234** | **일반 스테이커 보호** |
+| **test_Slashing_ComprehensiveDelegatorScenario** | **7,883,942** | **일반 스테이커 보호** |
 
-**평균 가스 사용량**: ~7.8M gas  
+**평균 가스 사용량**: ~7.9M gas  
 **최대 가스 사용량**: 12.5M gas (재등록 테스트)  
-**최소 가스 사용량**: 5.2M gas (기본 등록)
+**최소 가스 사용량**: 5.2M gas (기본 등록)  
+**일반 스테이커 보호 테스트 평균**: ~8.0M gas
 
 ### 테스트 커버리지
 
