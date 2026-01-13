@@ -311,40 +311,45 @@ library Type3EvidenceVerifier {
         );
     }
 
-    /// @notice RLP 인코딩된 블록 헤더에서 state root 추출
-    /// @dev 간소화된 구현 - 실제로는 RLPReader 라이브러리 사용 필요
-    /// @param headerRLP RLP 인코딩된 블록 헤더
-    /// @return 추출된 state root
+    /// @notice L2 블록 헤더 RLP에서 stateRoot 추출 (RLPReader 사용)
+    /// @dev 이더리움 블록 헤더 구조를 정확히 파싱하여 stateRoot 추출
+    /// @param headerRLP L2 블록 헤더 RLP 인코딩 데이터
+    /// @return L2 state root (헤더의 4번째 필드)
     function _extractStateRootFromHeader(bytes memory headerRLP)
         private
         pure
         returns (bytes32)
     {
-        // 간소화된 구현: RLP 디코딩 로직
-        // 실제로는 Optimism의 RLPReader 또는 go-ethereum의 RLP 라이브러리 필요
+        // RLPReader를 사용하여 블록 헤더 파싱
+        RLPReader.RLPItem[] memory headerItems = RLPReader.readList(headerRLP);
 
-        // RLP 리스트 구조:
-        // [parentHash(32), ommersHash(32), beneficiary(20), stateRoot(32), ...]
-        // parentHash: offset 1 + 32 bytes
-        // ommersHash: offset 33 + 32 bytes
-        // beneficiary: offset 65 + 20 bytes
-        // stateRoot: offset 85 + 32 bytes (대략적인 위치)
+        // 이더리움 블록 헤더 구조 (15개 필드):
+        // [0] parentHash       - bytes32
+        // [1] ommersHash       - bytes32 (uncleHash)
+        // [2] beneficiary      - address (coinbase, miner)
+        // [3] stateRoot        - bytes32 ← 우리가 추출할 필드
+        // [4] transactionsRoot - bytes32
+        // [5] receiptsRoot     - bytes32
+        // [6] logsBloom        - bytes256
+        // [7] difficulty       - uint256
+        // [8] number           - uint256
+        // [9] gasLimit         - uint256
+        // [10] gasUsed         - uint256
+        // [11] timestamp       - uint256
+        // [12] extraData       - bytes (가변 길이)
+        // [13] mixHash         - bytes32
+        // [14] nonce           - uint64
 
-        // TODO: 실제 RLP 디코딩 구현 필요
-        // 현재는 placeholder - 프로덕션에서는 반드시 정확한 RLP 파싱 필요
+        require(headerItems.length >= 4, "ERR_INVALID_HEADER");
 
-        if (headerRLP.length < 117) {
-            return bytes32(0);
-        }
+        // stateRoot는 4번째 필드 (index 3)
+        bytes memory stateRootBytes = RLPReader.readBytes(headerItems[3]);
+        require(stateRootBytes.length == 32, "ERR_INVALID_STATE_ROOT_LENGTH");
 
-        // 임시 구현: 고정 오프셋 사용 (실제로는 동적 RLP 파싱 필요)
         bytes32 stateRoot;
         assembly {
-            // headerRLP의 데이터 시작 위치 + 85 bytes offset
-            // 주의: 이는 간소화된 예시이며 실제로는 RLP 구조를 정확히 파싱해야 함
-            stateRoot := mload(add(add(headerRLP, 32), 85))
+            stateRoot := mload(add(stateRootBytes, 32))
         }
-
         return stateRoot;
     }
 
