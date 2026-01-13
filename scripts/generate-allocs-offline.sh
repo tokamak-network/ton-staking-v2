@@ -105,7 +105,7 @@ echo -e "${BLUE}  Input:  $TARGET_L1_ALLOC${NC}"
 echo -e "${BLUE}  Output: $STATE_DUMP_PATH${NC}"
 echo ""
 
-DEPLOY_OUTPUT=$(forge script script/DeployV3FullForDevnet.s.sol:DeployV3FullForDevnet \
+DEPLOY_OUTPUT=$(forge script script/DeployV3SlashForDevnet.s.sol:DeployV3SlashForDevnet \
     --sig "runForDevnetAlloc()" \
     --chain-id 900 \
     --ffi \
