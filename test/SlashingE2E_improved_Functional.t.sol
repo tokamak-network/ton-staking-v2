@@ -167,7 +167,10 @@ contract SlashingE2E_improved_Functional is SlashingE2E_improved_Deploy {
         assertEq(finalStake, 0, 'Stake should be slashed to 0');
 
         // 챌린저 보상 확인 (10% = 1,000 TON in RAY = 1,000 * 1e18 * 1e9)
-        uint256 rewardAmount = (initialStake * SLASHING_REWARD_RATE) / 10000;
+        uint256 slashingRewardRate = DepositManager_Slashing(address(depositManagerProxy))
+            .slashingRewardRate();
+        console.log('Slashing Reward Rate:', slashingRewardRate);
+        uint256 rewardAmount = (initialStake * slashingRewardRate) / 10000;
         uint256 challengerFinalWton = IERC20(wton).balanceOf(challenger);
         assertEq(
             challengerFinalWton - challengerInitialWton,
