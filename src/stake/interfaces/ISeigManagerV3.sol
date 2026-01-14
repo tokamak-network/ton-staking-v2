@@ -90,6 +90,12 @@ interface ISeigManagerV3 {
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake);
 
+    /// @notice 시퀀서 담보금 조회
+    /// @dev V3: operator의 해당 layer2 coinage 잔액을 담보금으로 사용
+    /// @param layer2 L2 주소
+    /// @return 시퀀서의 담보금 (WTON, 27 decimals - RAY 단위)
+    function getSequencerStaked(address layer2) external view returns (uint256);
+
     /// @notice 쌍곡선 포화 함수 계산
     /// @dev 백서 공식 (11): y(x) = L · (x / (k + x))
     /// @param x 전체 유효 Bridged TON

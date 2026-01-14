@@ -182,11 +182,13 @@ contract RATStorage {
     // V3 검증자 담보금 체크 유연화
     // ==========================================
 
-    /// @notice 최소 담보금 강제 여부
-    /// @dev true: registerValidator 시 minimumThreshold 체크
-    ///      false: 최소 담보금 체크 생략 (초기 단계에서 진입 장벽 최소화)
-    /// @dev V3 회의 결정: 초기값 false로 설정하여 검증자 유치 용이하게 함
-    bool public enforceMinDeposit;
+    /// @notice 검증자 유효성 검사 완화 여부
+    /// @dev 등록 후 유효성 검사 기준:
+    ///      true: C_off 기준 (완화) - 초기 단계에서 진입 장벽 최소화
+    ///      false: D_min 기준 (엄격)
+    /// @dev V3 회의 결정: 초기값 true로 설정하여 검증자 유치 용이하게 함
+    /// @dev 참고: 등록 시에는 항상 D_min 이상 필요
+    bool public relaxedValidatorCheck;
 
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)

@@ -63,16 +63,22 @@ function checkCurrentEligibility(address layer2)
 
 **자격 조건**:
 ```
-eligible = (S_i ≥ θ × B_i)
+eligible = (T_i ≥ max(θ × B_i, D_sequencer))
 
 여기서:
-- S_i = SequencerVault.getSequencerDepositByLayer2(layer2) [TON, 18 decimals]
+- T_i = SeigManager.getSequencerStaked(layer2) [WTON, 27 decimals]
+- θ × B_i = 시뇨리지 자격 조건
+- D_sequencer = H_max × C_max + Δ_sequencer (Fraud Proof 비용 커버)
+
+파라미터:
 - θ = minStakingRatio [RAY, 27 decimals]
 - B_i = Layer2Manager.getBridgedTONByLayer(layer2) [TON, 18 decimals]
+- H_max = maxChallengers (최대 동시 챌린저 수)
+- C_max = maxFraudProofCost (단일 Fraud Proof 최대 비용)
+- Δ_sequencer = sequencerAdditionalReward (시퀀서 추가 보상)
 ```
 
-> **단위 참고**: S_i와 B_i 모두 TON(18 decimals) 단위입니다.
-> `requiredStake = rmul(bridgedTON, minStakingRatio)`로 계산됩니다.
+> **단위 참고**: T_i는 WTON(27 decimals), B_i는 TON(18 decimals). 비교 시 단위 변환 필요.
 
 ---
 
@@ -100,7 +106,7 @@ function onBridgedTONChange() external whenV3Active
    └─ 등록되지 않은 L2 → early return
 
 3. _updateEligibilityInternal(layer2)
-   ├─ 자격 재평가 (S_i ≥ θ × B_i)
+   ├─ 자격 재평가 (T_i ≥ θ × B_i)
    └─ totalEffectiveBridgedTON 갱신
 ```
 
@@ -161,8 +167,8 @@ function setHalfSaturationPoint(uint256 k) external onlyOwner
 // ValidatorReward 컨트랙트 주소 설정
 function setValidatorReward(address reward) external onlyOwner
 
-// SequencerVault 컨트랙트 주소 설정
-function setSequencerVault(address vault) external onlyOwner
+// RAT 컨트랙트 주소 설정
+function setRAT(address rat) external onlyOwner
 ```
 
 ---
@@ -229,6 +235,19 @@ function requestWithdrawal(address layer2, uint256 amount) external
 |------|------|
 | **호출 주체** | 스테이커 |
 | **대기 기간** | 2주 (약 100,800 블록) |
+
+**V3 출금 제한 (시퀀서/검증자)**:
+```
+시퀀서의 경우:
+- 출금 후 잔액 ≥ max(θ·B_i, D_sequencer) 유지 필요
+- 최소 담보금 미만으로 출금 불가
+- ※ TVL 증가 시 θ·B_i가 증가하여 시뇨리지 자격 상실 가능
+
+검증자의 경우:
+- 활성 검증자는 출금 후 잔액 ≥ D_min 유지 필요
+- 최소 담보금 미만으로 출금 불가
+- 담보금 미만으로 출금하려면 검증자 탈퇴(deactivateValidator()) 필요
+```
 
 ---
 
@@ -514,31 +533,33 @@ function availableForRegistration(address rollupConfig, uint8 _type) external vi
 
 ### 5.1 registerValidator
 
-검증자를 등록합니다.
+검증자를 등록합니다 (V3: 기존 스테이킹 사용).
 
 ```solidity
-function registerValidator(address systemConfig, uint256 depositAmount) external
+function registerValidator(address systemConfig) external
 ```
 
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 검증자 |
-| **최소 담보금** | C_off + Δ_validator |
+| **최소 담보금** | D_min = C_off + Δ_validator (coinage 기준) |
 
 **동작 흐름**:
 ```
-1. TON.transferFrom(msg.sender, this, depositAmount)
-2. 등록 정보 저장
+1. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)
+2. 스테이킹 금액 >= D_min 확인
+   └─ 부족 시: 등록 실패 (InsufficientDepositError)
+3. 등록 정보 저장
    - validatorRegistrations[systemConfig][validator] 생성
    - validatorPools[systemConfig].validators.push()
-3. 활성화: isActive = true
+4. 활성화: isActive = true
 ```
 
 ---
 
 ### 5.2 onApprove
 
-TON.approveAndCall 콜백입니다.
+TON.approveAndCall 콜백입니다 (담보금 부족 시 스테이킹 예치).
 
 ```solidity
 function onApprove(
@@ -558,7 +579,12 @@ function onApprove(
 ```
 1. msg.sender == ton 검증
 2. data에서 systemConfig 추출
-3. _registerValidatorInternal(owner, systemConfig, amount)
+3. TON을 DepositManager를 통해 스테이킹 예치
+4. 검증자 등록:
+   - 이미 등록된 검증자인지 확인
+   - stakeOf(layer2, validator) >= D_min 확인
+   - N_max (최대 검증자 수) 체크
+   - 검증자 정보 저장 및 활성화
 ```
 
 ---
@@ -587,11 +613,9 @@ function triggerAttentionTest(
 1. 권한 검증: L1BridgeRegistry에서 factory 확인
 2. 확률 체크: hash(blockHash) % MAX < π_a
 3. 검증자 랜덤 선택
-4. C_off 선차감
-   - depositedAmount -= C_off
-   - totalBondForRAT += C_off
+4. C_off 선차감: 검증자 coinage에서 C_off를 RAT 컨트랙트로 전송 (스테이킹 금액 감소)
 5. 마감 시간 설정: deadline = block.timestamp + evidenceSubmissionPeriod
-6. D_min 미만 시 비활성화
+6. relaxedValidatorCheck에 따라 C_off 또는 D_min 미만 시 비활성화
 7. 이벤트: AttentionTestTriggered
 ```
 
@@ -620,10 +644,8 @@ function submitEvidence(
 2. 상태 확인: status == Pending
 3. 기한 확인: block.timestamp <= deadline
 4. 증거 검증
-5. 담보금 복구
-   - depositedAmount += C_off
-   - totalBondForRAT -= C_off
-6. 비활성 상태였으면 재활성화 (D_min 이상 시)
+5. 담보금 복구: RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+6. 비활성 상태였으면 재활성화 (relaxedValidatorCheck에 따라 C_off 또는 D_min 이상 시)
 7. 이벤트: EvidenceSubmitted
 ```
 
@@ -646,10 +668,8 @@ function resolveClaim(address _claimant) external
 ```
 1. msg.sender(게임 주소)로 testId 조회
 2. 선택된 검증자 == _claimant 확인
-3. 담보금 복구
-   - depositedAmount += C_off
-   - totalBondForRAT -= C_off
-4. 비활성 상태였으면 재활성화 (D_min 이상 시)
+3. 담보금 복구: RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+4. 비활성 상태였으면 재활성화 (relaxedValidatorCheck에 따라 C_off 또는 D_min 이상 시)
 5. 이벤트: BondRestored
 ```
 
@@ -666,17 +686,17 @@ function deactivateValidator(address systemConfig) external
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 검증자 본인 |
-| **출금** | 즉시 (RAT 테스트 대기 중이면 마감 후) |
+| **출금** | DepositManager.requestWithdrawal() 사용 |
 
 **동작 흐름**:
 ```
 1. 활성 상태 확인
 2. RAT 테스트 대기 확인: block.timestamp >= latestTestDeadline
-3. 미응답 RAT 테스트 슬래싱 처리
-   - accumulatedSlashings += totalBondForRAT
+3. 미응답 RAT 테스트 C_off 몰수 처리
 4. 비활성화: isActive = false
-5. TON 반환: TON.transfer(msg.sender, depositedAmount)
-6. 이벤트: ValidatorDeactivated
+5. 이벤트: ValidatorDeactivated
+
+스테이킹 출금은 별도로 DepositManager.requestWithdrawal() 사용
 ```
 
 ---
@@ -773,39 +793,14 @@ function getTotalPendingRewards(address validator) external view returns (uint25
 
 ---
 
-## 7. SequencerVault 함수
+## 7. SeigManager 시퀀서 슬래싱 함수
 
-### 7.1 registerSequencer
+### 7.1 slashSequencerByGame
 
-시퀀서를 등록합니다.
-
-```solidity
-function registerSequencer(address systemConfig, uint256 depositAmount) external
-```
-
-| 항목 | 내용 |
-|------|------|
-| **호출 주체** | 누구나 (제3자 펀딩 가능) |
-| **최소 담보금** | max(θ × B_i, H_max × C_max + Δ_sequencer) |
-
-**동작 흐름**:
-```
-1. Layer2Manager.getLayer2BySystemConfig(systemConfig) → layer2, operator 조회
-2. TON.transferFrom(msg.sender, this, depositAmount)
-3. 등록 정보 저장
-   - sequencerDeposits[systemConfig] = {operator, layer2, depositAmount, 0, true}
-   - layer2ToSystemConfig[layer2] = systemConfig
-4. 이벤트: SequencerRegistered
-```
-
----
-
-### 7.2 slashSequencerByGame
-
-시퀀서를 슬래싱합니다 (Permissionless).
+시퀀서를 슬래싱합니다 (Permissionless). V3에서는 SeigManager에서 처리합니다.
 
 ```solidity
-function slashSequencerByGame(address gameAddress) external
+function slashSequencerByGame(address gameAddress) external whenV3Active whenNotPaused
 ```
 
 | 항목 | 내용 |
@@ -817,59 +812,14 @@ function slashSequencerByGame(address gameAddress) external
 ```
 1. DisputeGameFactory 검증 (가짜 게임 방지)
 2. 게임 상태 확인: status != DEFENDER_WINS
-3. 시퀀서 담보금 슬래싱
+3. 시퀀서 전체 스테이킹 금액 몰수 (coinage.burnFrom)
 4. 챌린저 보상 계산: C_max + Δ/n
-5. 챌린저 보상 누적
-6. 나머지: accumulatedSlashings += 잔여분
-7. 시퀀서 비활성화
-8. 이벤트: SequencerSlashed
+5. 챌린저 보상 지급 (WTON.mint)
+6. 나머지: DAO Treasury
+7. 이벤트: SequencerSlashed
 ```
 
----
-
-### 7.3 deactivateSequencer
-
-시퀀서를 탈퇴시킵니다.
-
-```solidity
-function deactivateSequencer(address systemConfig) external
-```
-
-| 항목 | 내용 |
-|------|------|
-| **호출 주체** | OperatorManager만 |
-
-**동작 흐름**:
-```
-1. deposit.operator == msg.sender 확인
-2. TON.transfer(msg.sender, depositedAmount)
-3. 비활성화: isActive = false
-4. 이벤트: SequencerDeactivated
-```
-
----
-
-### 7.4 조회 함수
-
-```solidity
-// 담보금 조회 (systemConfig 기준)
-function getSequencerDeposit(address systemConfig) external view returns (uint256)
-
-// 담보금 조회 (layer2 기준) - SeigManager에서 사용
-function getSequencerDepositByLayer2(address layer2) external view returns (uint256)
-
-// 활성 상태 확인
-function isSequencerActive(address systemConfig) external view returns (bool)
-function isSequencerActiveByLayer2(address layer2) external view returns (bool)
-
-// 최소 담보금 계산 (백서 기반 해석)
-function getMinimumCollateral(uint256 bridgedTON) external view returns (uint256)
-// 반환: max(θ × bridgedTON, H_max × C_max + Δ_sequencer)
-
-// 시퀀서 정보 조회
-function getSequencerInfo(address systemConfig)
-    external view returns (address operator, address layer2, uint256 depositedAmount, uint256 slashedAmount, bool isActive)
-```
+> **V3 변경사항**: 시퀀서 담보금은 별도 SequencerVault가 아닌 기존 스테이킹 시스템(coinage)을 사용합니다.
 
 ---
 
@@ -925,32 +875,7 @@ function setAddresses(address _depositManager, address _ton, address _wton, addr
 
 ---
 
-### 8.4 syncSequencerVault
-
-Layer2Manager에서 SequencerVault 주소를 조회하여 로컬에 설정합니다.
-
-```solidity
-function syncSequencerVault() external
-```
-
-| 항목 | 내용 |
-|------|------|
-| **호출 주체** | 누구나 |
-| **조건** | Layer2Manager.sequencerVault()가 address(0)이 아니어야 함 |
-| **조건** | 현재 저장된 값과 다른 값이어야 함 |
-
-**동작 흐름**:
-```
-1. Layer2Manager.sequencerVault() 조회
-2. address(0) 체크 → ZeroAddressError
-3. 현재 값과 동일 체크 → SameAddressError
-4. 로컬 스토리지에 저장
-5. 이벤트: SequencerVaultSet
-```
-
----
-
-### 8.5 TYPE 3 업그레이드 절차
+### 8.4 TYPE 3 업그레이드 절차
 
 TYPE 1/2 롤업이 DisputeGame을 도입하여 TYPE 3로 업그레이드하려면:
 
@@ -961,14 +886,8 @@ TYPE 1/2 롤업이 DisputeGame을 도입하여 TYPE 3로 업그레이드하려�
 
 2. OperatorManagerProxy.upgradeTo(V1_2 impl)
    └── owner가 직접 호출
-   └── SequencerVault 연동 기능 활성화
-
-3. OperatorManagerV1_2.syncSequencerVault()
-   └── 누구나 호출 가능
-   └── Layer2Manager에서 SequencerVault 주소 자동 조회
+   └── TYPE 3 기능 활성화
 ```
-
-> **참고**: `_getSequencerVault()` 내부 함수는 로컬 스토리지에 값이 없으면 Layer2Manager에서 자동으로 조회하므로, `syncSequencerVault()` 호출은 선택사항입니다.
 
 ---
 
@@ -993,13 +912,12 @@ TYPE 1/2 롤업이 DisputeGame을 도입하여 TYPE 3로 업그레이드하려�
 | `minimumThreshold` | `setMinimumThreshold(D_min)` | D_min > 0 | TON |
 | `evidenceSubmissionPeriod` | `setEvidenceSubmissionPeriod(t)` | t > 0 | 초 |
 
-### 9.3 SequencerVault 파라미터
+### 9.3 SeigManager 시퀀서 슬래싱 파라미터
 
 | 파라미터 | 함수 | 범위 | 단위 |
 |---------|------|------|------|
-| `minimumStakingRatio` | `setMinimumStakingRatio(θ)` | 0 < θ ≤ 1 | RAY |
-| `maxFraudProofCost` | `setMaxFraudProofCost(C_max)` | C_max > 0 | TON |
-| `sequencerAdditionalReward` | `setSequencerAdditionalReward(Δ)` | Δ ≥ 0 | TON |
+| `maxFraudProofCost` | `setMaxFraudProofCost(C_max)` | C_max > 0 | WTON |
+| `sequencerAdditionalReward` | `setSequencerAdditionalReward(Δ)` | Δ ≥ 0 | WTON |
 | `maxChallengers` | `setMaxChallengers(H_max)` | H_max > 0 | 개수 |
 
 ---
@@ -1035,15 +953,10 @@ event RewardToTreasury(address indexed systemConfig, uint256 amount);
 event RewardsClaimed(address indexed validator, uint256 amount);
 ```
 
-### 10.4 SequencerVault 이벤트
+### 10.4 SeigManager 시퀀서 슬래싱 이벤트
 
 ```solidity
-event SequencerRegistered(address indexed operator, address indexed systemConfig, address layer2, uint256 depositAmount);
-event SequencerDeactivated(address indexed sequencer, address indexed systemConfig, uint256 returnedAmount);
-event DepositAdded(address indexed sequencer, address indexed systemConfig, uint256 amount);
-event SequencerSlashed(address indexed sequencer, address indexed systemConfig, address indexed gameAddress, uint256 slashedAmount, address challenger, uint256 challengerReward);
-event SlashingsWithdrawnToTreasury(address indexed treasury, uint256 amount);
-event ChallengerRewardClaimed(address indexed challenger, uint256 amount);
+event SequencerSlashed(address indexed layer2, address indexed gameAddress, uint256 slashedAmount, address challenger, uint256 challengerReward);
 ```
 
 ---

@@ -357,18 +357,19 @@ contract SeigManagerV1_4 is
         requiredStake = minForSeigniorage > minForFraudProof ? minForSeigniorage : minForFraudProof;
 
         // 5. S_i: 시퀀서의 현재 담보금 (coinage에서 조회, WTON 27 decimals)
-        currentStake = _getSequencerCollateral(layer2);
+        currentStake = getSequencerStaked(layer2);
 
         // 6. S_i ≥ max(θ·B_i, D_sequencer)
         eligible = currentStake >= requiredStake;
     }
 
+    /// @inheritdoc ISeigManagerV3
     /// @notice 시퀀서 담보금 조회
     /// @dev V3: 기존 스테이킹 시스템(coinage) 사용 - SequencerVault 미사용
     /// @dev operator의 해당 layer2 coinage 잔액을 담보금으로 사용
     /// @param layer2 L2 주소
     /// @return 시퀀서의 담보금 (WTON, 27 decimals - RAY 단위)
-    function _getSequencerCollateral(address layer2) internal view returns (uint256) {
+    function getSequencerStaked(address layer2) public view returns (uint256) {
         // 1. coinage 조회
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         if (address(coinage) == address(0)) return 0;

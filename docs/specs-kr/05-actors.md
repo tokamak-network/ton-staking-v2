@@ -33,7 +33,8 @@ TON을 L2에 스테이킹하는 사용자입니다.
 | 항목 | V2 | V3 |
 |------|-----|-----|
 | 시뇨리지 수령 | O | **X** |
-| 스테이킹 목적 | 시뇨리지 수령 | L2 자격 조건 기여 (시퀀서 명의만 인정) |
+| 스테이킹 목적 | 시뇨리지 수령 | 시퀀서/검증자 담보금 조건 |
+| 출금 제한 | 없음 | 시퀀서/검증자는 최소 담보금 유지 필요 |
 
 ### 2.4 상호작용
 
@@ -74,7 +75,7 @@ L2 롤업의 트랜잭션 순서를 결정하고 배치를 제출하는 운영�
 - L2 트랜잭션 순서 결정
 - 배치 데이터를 L1에 제출
 - Output Root 제출 (DisputeGame 생성)
-- SequencerVault에 담보금 예치
+- 기존 스테이킹 시스템(coinage)에 담보금 예치
 
 ### 3.3 보상
 
@@ -101,10 +102,10 @@ L2 롤업의 트랜잭션 순서를 결정하고 배치를 제출하는 운영�
 ### 3.5 자격 조건
 
 ```
-S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
+T_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
 
 여기서:
-- S_i = SequencerVault 담보금
+- T_i = 시퀀서 스테이킹 금액 (SeigManager.getSequencerStaked(layer2))
 - θ · B_i = 시뇨리지 자격 조건 (백서 Rule 4)
 - H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 Formula 1)
 
@@ -124,8 +125,9 @@ S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
 ├────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ 등록 (누구나 대신 가능):                              │   │
-│  │   SequencerVault.registerSequencer(systemConfig, amt)│   │
+│  │ 담보금 예치 (기존 스테이킹 사용):                     │   │
+│  │   DepositManager.deposit(layer2, amount)             │   │
+│  │   → SeigManager.getSequencerStaked(layer2)로 담보금 조회│   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -136,14 +138,25 @@ S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ 보상 수령:                                           │   │
-│  │   Layer2Manager → OperatorManager → 시퀀서           │   │
-│  │   OperatorManager.claimERC20(wton, amount)           │   │
+│  │ 시뇨리지 분배 (V3):                                   │   │
+│  │   SeigManager.updateSeigniorage() 호출 시            │   │
+│  │   → 자격 조건 충족 시 (T_i ≥ max(θ·B_i, D_seq))      │   │
+│  │   → 시퀀서 보상: o_i = (1-α) · S_i                   │   │
+│  │   → WTON 민팅 → Layer2Manager → OperatorManager     │   │
+│  │   ※ V3: 일반 스테이커 시뇨리지 없음                  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ 탈퇴 (OperatorManager만 가능):                        │   │
-│  │   SequencerVault.deactivateSequencer(systemConfig)   │   │
+│  │ 보상 수령:                                           │   │
+│  │   OperatorManager.claimERC20(wton, amount)           │   │
+│  │   → OperatorManager에 누적된 WTON 수령               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 스테이킹 금액 출금:                                   │   │
+│  │   DepositManager.requestWithdrawal(layer2, amount)   │   │
+│  │   (2주 대기 후 processRequest)                       │   │
+│  │   ※ 담보금(max(θ·B_i, D_seq)) 이하로 출금 불가       │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └────────────────────────────────────────────────────────────┘
@@ -177,28 +190,64 @@ L2 배치의 유효성을 검증하고 RAT에 응답하는 참여자입니다.
 
 ### 4.4 리스크
 
-**RAT 미응답 시 C_off 슬래싱**
+**RAT 미응답 시 C_off 페널티**
 
 ```
-담보금 = D_validator = C_off + Δ_validator
+담보금 = D_validator = C_off + Δ_validator (coinage 기준)
 
-슬래싱 조건:
+페널티 조건:
 - RAT 트리거 후 evidenceSubmissionPeriod 내 미응답
-- 슬래싱 금액: C_off
-- D_min 미만 시 검증자 세트에서 즉시 제거
+- 페널티 금액: C_off (coinage에서 RAT로 전송)
+
+비활성화 조건 (relaxedValidatorCheck 플래그에 따라):
+- relaxedValidatorCheck = true: 담보금 < C_off 시 즉시 비활성화 (완화)
+- relaxedValidatorCheck = false: 담보금 < D_min 시 즉시 비활성화 (엄격)
+
+페널티 처리:
+- 선차감: coinage에서 C_off를 RAT 컨트랙트로 전송 (스테이킹 금액 감소)
+- 복구: 증거 제출 시 RAT에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+- 몰수: 미응답 시 RAT 컨트랙트의 C_off 몰수
 ```
 
-### 4.5 등록 조건
+### 4.5 담보금 및 등록 조건
 
 ```
-최소 담보금 = C_off + Δ_validator
+최소 담보금 = D_min = C_off + Δ_validator
+
+등록 요구사항:
+- stakeOf(layer2, validator) >= D_min (등록 시 필수)
+
+relaxedValidatorCheck 플래그:
+- 등록 후 유효성 검사 및 비활성화 조건에만 적용
+- true: C_off 기준으로 유효성 판단 (초기 단계, 완화)
+- false: D_min 기준으로 유효성 판단 (엄격)
 
 파라미터:
-- C_off = 슬래싱 페널티
+- C_off = 페널티 금액
 - Δ_validator = 추가 버퍼
+- relaxedValidatorCheck = 검증자 유효성 검사 완화 여부 (DAO 설정)
 ```
 
-### 4.6 상호작용
+### 4.6 유효한 검증자 (Active Validator)
+
+```
+유효한 검증자 조건 (relaxedValidatorCheck 플래그에 따라):
+- RAT에 등록됨 (isActive = true)
+- relaxedValidatorCheck = true: stakeOf(layer2, validator) >= C_off (완화)
+- relaxedValidatorCheck = false: stakeOf(layer2, validator) >= D_min (엄격)
+
+상태 변경:
+- 활성 → 비활성:
+  · relaxedValidatorCheck = true: 담보금 < C_off 시 비활성화
+  · relaxedValidatorCheck = false: 담보금 < D_min 시 비활성화
+- 비활성 → 활성: 담보금 복구 후 조건 충족 시 자동 재활성화
+
+검증자 수 제한:
+- N_max = L2별 최대 검증자 수
+- 검증자 보상: v_j = (α · S_i) / |V_i| (활성 검증자만 분배)
+```
+
+### 4.7 상호작용
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -206,13 +255,16 @@ L2 배치의 유효성을 검증하고 RAT에 응답하는 참여자입니다.
 ├────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ 등록:                                                │   │
-│  │   TON.approveAndCall(RAT, amount, systemConfig)      │   │
-│  │   → RAT.onApprove() 콜백에서 처리                     │   │
+│  │ 등록 (V3: 기존 스테이킹 사용):                        │   │
 │  │                                                      │   │
-│  │ 또는:                                                │   │
-│  │   TON.approve(RAT, amount)                           │   │
-│  │   RAT.registerValidator(systemConfig, amount)        │   │
+│  │ 방법 1: 스테이킹 금액이 D_min 이상인 경우            │   │
+│  │   RAT.registerValidator(systemConfig)                │   │
+│  │   → stakeOf(layer2, validator) >= D_min 확인       │   │
+│  │                                                      │   │
+│  │ 방법 2: 스테이킹 금액이 부족한 경우                   │   │
+│  │   TON.approveAndCall(RAT, amount, systemConfig)      │   │
+│  │   → RAT가 DepositManager를 통해 스테이킹 예치        │   │
+│  │   → RAT.registerValidator(systemConfig) 자동 실행   │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -231,7 +283,7 @@ L2 배치의 유효성을 검증하고 RAT에 응답하는 참여자입니다.
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ 탈퇴:                                                │   │
 │  │   RAT.deactivateValidator(systemConfig)              │   │
-│  │   (즉시 출금, RAT 테스트 대기 중이면 마감 후)         │   │
+│  │   (RAT 테스트 대기 중이면 마감 후)                   │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └────────────────────────────────────────────────────────────┘
@@ -300,9 +352,8 @@ V3에서는 검증자가 챌린저 역할을 겸할 수 있습니다.
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ 승리 후:                                             │   │
-│  │   누구나: SequencerVault.slashSequencerByGame(game)  │   │
-│  │   → 챌린저 보상 자동 누적                             │   │
-│  │   → SequencerVault.claimChallengerReward()           │   │
+│  │   누구나: SeigManager.slashSequencerByGame(game)     │   │
+│  │   → 챌린저 보상 지급                                 │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └────────────────────────────────────────────────────────────┘
@@ -410,7 +461,7 @@ L2의 상태(Output Root)를 L1에 제출하는 운영 주체입니다. 보통 �
 │  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐      │
 │  │     시퀀서       │      │     검증자        │      │    스테이커       │      │
 │  │                  │      │                  │      │                  │      │
-│  │ 담보금: S_i      │      │ 담보금: D_valid  │      │ 스테이킹: -      │      │
+│  │ 담보금: T_i      │      │ 담보금: D_valid  │      │ 스테이킹: -      │      │
 │  │ 보상: (1-α)·S_i │      │ 보상: α·S_i/|V|  │      │ 보상: 없음 (V3)  │      │
 │  │ 리스크: 전액슬래싱 │      │ 리스크: C_off    │      │ 리스크: 없음     │      │
 │  └────────┬─────────┘      └────────┬─────────┘      └──────────────────┘      │

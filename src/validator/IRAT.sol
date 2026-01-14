@@ -60,9 +60,9 @@ interface IRAT {
     /// @notice L2별 최대 검증자 수 변경 이벤트
     event MaxValidatorsPerL2Updated(uint256 newMaxValidators);
 
-    /// @notice 최소 담보금 강제 여부 변경 이벤트
-    /// @dev V3 회의 결정: 초기에는 false로 설정
-    event EnforceMinDepositUpdated(bool enforce);
+    /// @notice 검증자 유효성 검사 완화 여부 변경 이벤트
+    /// @dev V3 회의 결정: 초기에는 true로 설정 (완화)
+    event RelaxedValidatorCheckUpdated(bool relaxed);
 
     // V3: RewardsClaimed, RewardsClaimedBatch 이벤트 제거 - ValidatorReward로 이동
 
@@ -250,8 +250,8 @@ interface IRAT {
     /// @notice 증거 제출 기간 설정
     function setEvidenceSubmissionPeriod(uint256 period) external;
 
-    /// @notice 최소 담보금 강제 여부 설정
-    /// @param enforce true: 강제, false: 비강제 (초기 단계)
-    /// @dev V3 회의 결정: 초기에는 false로 설정하여 검증자 유치 용이하게 함
-    function setEnforceMinDeposit(bool enforce) external;
+    /// @notice 검증자 유효성 검사 완화 여부 설정
+    /// @param relaxed true: C_off 기준 (완화), false: D_min 기준 (엄격)
+    /// @dev V3 회의 결정: 초기에는 true로 설정하여 검증자 유치 용이하게 함
+    function setRelaxedValidatorCheck(bool relaxed) external;
 }

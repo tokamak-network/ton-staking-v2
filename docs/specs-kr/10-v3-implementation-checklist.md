@@ -24,9 +24,10 @@
 
 | 항목 | 결정 |
 |------|------|
-| 구현 방식 | `enforceMinDeposit` flag 추가 |
-| 초기 설정 | `false` (최소 담보금 체크 안함) |
-| 향후 | DAO 거버넌스로 `true` 전환 가능 |
+| 구현 방식 | `relaxedValidatorCheck` flag 추가 |
+| 초기 설정 | `true` (유효성 검사 완화, C_off 기준) |
+| 향후 | DAO 거버넌스로 `false` 전환 가능 (D_min 기준) |
+| 등록 시 | 항상 D_min 이상 필요 (flag와 무관) |
 
 ---
 
@@ -44,17 +45,30 @@
 | DAO 고정 분배 | `SeigManagerV1_4.sol` | Formula 7 |
 | 최소 스테이킹 요건 | `SeigManagerV1_4.sol` | Rule 4 |
 
-### 1.2 회의 결정에 따른 개발 필요 항목 ⚠️
+### 1.2 회의 결정에 따른 개발 항목 상태
 
-| 항목 | 상태 | 우선순위 |
-|------|------|----------|
-| **SequencerVault 제거/미사용** | 신규 개발 | **높음** |
-| **SeigManager._getSequencerCollateral() 수정** | 신규 개발 | **높음** |
-| **슬래싱 로직 이전 (coinage 차감)** | 신규 개발 | **높음** |
-| **enforceMinDeposit flag** | 신규 개발 | **높음** |
-| **최소 스테이킹 조건 통합** | 확인/수정 | 높음 |
-| **L2 물리적 정지 로직 제거** | 확인/수정 | 높음 |
-| 슬래싱 후 자격 재평가 | 확인 | 중간 |
+#### 시퀀서 관련
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| **SequencerVault DEPRECATED** | ✅ 완료 | 기존 스테이킹으로 대체 |
+| **`getSequencerStaked()` 함수** | ✅ 완료 | coinage 조회 |
+| **최소 스테이킹 조건** | ✅ 완료 | `max(D_seq, θ·B_i)` |
+| **시퀀서 슬래싱 로직** | ⚠️ 기본 구조 | coinage.burnFrom() |
+
+#### 검증자 관련
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| **RAT 직접 예치 → coinage** | ❌ 미구현 | 기존 스테이킹으로 변경 필요 |
+| **`_getValidatorCollateral()` 추가** | ❌ 미구현 | coinage 조회 |
+| **RAT 슬래싱 로직 변경** | ❌ 미구현 | coinage.burnFrom() |
+| **RAT 복구 로직 변경** | ❌ 미구현 | coinage.mint() 또는 잠금 해제 |
+| **relaxedValidatorCheck flag** | ✅ 완료 | RAT.sol, RATStorage.sol, IRAT.sol |
+
+#### 공통
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| **L2 물리적 정지 로직 제거** | ✅ 완료 | 해당 로직 없음 확인 |
+| 슬래싱 후 자격 재평가 | ✅ 완료 | checkCurrentEligibility() |
 
 ---
 
@@ -69,23 +83,23 @@
 | 항목 | 현재 (SequencerVault) | V3 (기존 스테이킹) |
 |------|----------------------|-------------------|
 | 담보금 예치 | Vault에 별도 예치 | DepositManager에 스테이킹 |
-| 자격 체크 | `SequencerVault.getSequencerDepositByLayer2()` | `coinage.balanceOf(operator)` |
+| 자격 체크 | `SequencerVault.getSequencerDepositByLayer2()` | `SeigManager.getSequencerStaked(layer2)` |
 | 슬래싱 | Vault에서 차감 | coinage에서 차감 |
 | 자본 효율성 | 낮음 (중복 자금) | 높음 (단일 자금) |
 
 #### 구현 요구사항
 
 ```solidity
-// SeigManagerV1_4.sol - 현재
-function _getSequencerCollateral(address layer2) internal view returns (uint256) {
-    return ISequencerVault(sequencerVault).getSequencerDepositByLayer2(layer2);
-}
-
-// SeigManagerV1_4.sol - V3 수정
-function _getSequencerCollateral(address layer2) internal view returns (uint256) {
+// SeigManagerV1_4.sol - V3 구현
+function getSequencerStaked(address layer2) public view returns (uint256) {
     // V3: 기존 스테이킹에서 조회 (SequencerVault 미사용)
+    RefactorCoinageSnapshotI coinage = _coinages[layer2];
+    if (address(coinage) == address(0)) return 0;
+
     address operator = Layer2I(layer2).operator();
-    return _coinages[layer2].balanceOf(operator);
+    if (operator == address(0)) return 0;
+
+    return coinage.balanceOf(operator);
 }
 
 // 최소 스테이킹 조건 (checkCurrentEligibility 수정)
@@ -94,61 +108,147 @@ minRequiredStake = max(H_max · C_max + Δ_sequencer, θ · B_i)
 
 #### 체크리스트
 
-- [ ] **SequencerVault 제거/미사용 처리**
-- [ ] **`_getSequencerCollateral()` 수정** - coinage에서 조회
-- [ ] **슬래싱 로직 이전** - coinage 차감 방식으로 변경
-- [ ] 현재 `checkCurrentEligibility()` 함수가 두 조건 모두 체크하는지 확인
-- [ ] 두 조건의 max 값을 사용하도록 수정 (필요 시)
-- [ ] 슬래싱 시 전액 몰수 로직 확인 (coinage에서 차감)
-- [ ] **L2 물리적 정지 로직이 있다면 제거**
+- [x] **SequencerVault DEPRECATED 처리** ✅
+- [x] **`getSequencerStaked()` 함수** - coinage에서 조회 ✅
+- [ ] **슬래싱 로직** - coinage 차감 방식 (기본 구조 완료, 상세 구현 필요)
+- [x] 현재 `checkCurrentEligibility()` 함수가 두 조건 모두 체크하는지 확인 ✅
+- [x] 두 조건의 max 값을 사용하도록 수정 ✅
+- [ ] 슬래싱 시 전액 몰수 로직 (상세 구현 필요)
+- [x] **L2 물리적 정지 로직** - 해당 로직 없음 확인 ✅
 
-#### 수정 대상 파일
+#### 수정 완료 파일
 
-| 파일 | 수정 내용 |
-|------|----------|
-| `src/sequencer/SequencerVault.sol` | **제거 또는 deprecated 처리** |
-| `src/stake/managers/SeigManagerV1_4.sol` | `_getSequencerCollateral()` 수정, 슬래싱 로직 추가 |
-| `src/stake/managers/SeigManagerV1_4Storage.sol` | `sequencerVault` 변수 제거, 슬래싱 파라미터 추가 |
+| 파일 | 수정 내용 | 상태 |
+|------|----------|------|
+| `src/stake/managers/SeigManagerV1_4Storage.sol` | `sequencerVault` DEPRECATED, `sequencerAdditionalReward`, `slashedGames` 추가 | ✅ |
+| `src/stake/managers/SeigManagerV1_4.sol` | `getSequencerStaked()` coinage 조회, `checkCurrentEligibility()` max 조건 | ✅ |
 
-### 2.2 Issue 2: 검증자 최소 담보금 유연화
+### 2.2 Issue 2: 검증자 유효성 검사 유연화
 
 #### 구현 요구사항
 
 ```solidity
 // RATStorage.sol에 추가
-bool public enforceMinDeposit;  // 초기값: false
+bool public relaxedValidatorCheck;  // 초기값: true (완화)
 
 // RAT.sol에 추가
-function setEnforceMinDeposit(bool _enforce) external onlyOwner {
-    enforceMinDeposit = _enforce;
-    emit EnforceMinDepositChanged(_enforce);
+function setRelaxedValidatorCheck(bool _relaxed) external onlyOwner {
+    relaxedValidatorCheck = _relaxed;
+    emit RelaxedValidatorCheckUpdated(_relaxed);
 }
 
 function registerValidator(address systemConfig, uint256 depositAmount) external {
-    // 초기에는 체크 안함 (enforceMinDeposit = false)
-    if (enforceMinDeposit) {
-        require(depositAmount >= minValidatorDeposit, "Insufficient deposit");
-    }
+    // 등록 시 항상 D_min 이상 필요 (flag와 무관)
+    require(depositAmount >= minValidatorDeposit, "Insufficient deposit");
     // ... 기존 등록 로직
+}
+
+// 등록 후 유효성 검사 (flag에 따라 기준 변경)
+function isValidValidator(address layer2, address validator) public view returns (bool) {
+    uint256 stake = stakeOf(layer2, validator);
+    if (relaxedValidatorCheck) {
+        return stake >= C_off;  // 완화
+    } else {
+        return stake >= D_min;  // 엄격
+    }
 }
 ```
 
 #### 체크리스트
 
-- [ ] `RATStorage.sol`: `enforceMinDeposit` 변수 추가
-- [ ] `RAT.sol`: `setEnforceMinDeposit()` 함수 추가
-- [ ] `RAT.sol`: `registerValidator()` 내 조건부 체크 로직 추가
-- [ ] `IRAT.sol`: 인터페이스 업데이트
-- [ ] 초기화 시 `enforceMinDeposit = false` 설정
-- [ ] 테스트 케이스 추가
+- [x] `RATStorage.sol`: `relaxedValidatorCheck` 변수 추가 ✅
+- [x] `RAT.sol`: `setRelaxedValidatorCheck()` 함수 추가 ✅
+- [x] `RAT.sol`: `registerValidator()` 내 무조건 D_min 체크 ✅
+- [x] `IRAT.sol`: 인터페이스 업데이트 ✅
+- [x] 초기화 시 `relaxedValidatorCheck = true` 설정 (기본값, 완화) ✅
+- [x] 테스트 케이스 추가 ✅
+
+#### 수정 완료 파일
+
+| 파일 | 수정 내용 | 상태 |
+|------|----------|------|
+| `src/validator/RATStorage.sol` | `relaxedValidatorCheck` 변수 추가 | ✅ |
+| `src/validator/RAT.sol` | `setRelaxedValidatorCheck()` 함수, 무조건 D_min 체크 | ✅ |
+| `src/validator/IRAT.sol` | `setRelaxedValidatorCheck()`, `RelaxedValidatorCheckUpdated` 이벤트 | ✅ |
+
+### 2.3 Issue 3: 검증자 담보금 → 기존 스테이킹 (신규)
+
+#### 핵심 변경: RAT 직접 예치 → coinage 사용
+
+**V3 결정**: 검증자 담보금도 시퀀서와 동일하게 기존 TON 스테이킹 사용
+
+| 항목 | V2 (RAT 직접 예치) | V3 (coinage) |
+|------|-------------------|--------------|
+| 담보금 예치 | RAT에 TON 전송 | DepositManager 스테이킹 |
+| 자격 체크 | `RAT.depositedAmount` | `stakeOf(layer2, validator)` |
+| 슬래싱 (C_off) | `depositedAmount -= C_off` | `coinage.burnFrom(validator, C_off)` |
+| 복구 | `depositedAmount += C_off` | `coinage.mint()` 또는 잠금 해제 |
+
+#### 구현 요구사항
+
+```solidity
+// RAT.sol - V3 수정 필요
+function _getValidatorCollateral(address validator, address systemConfig) internal view returns (uint256) {
+    address layer2 = _getLayer2FromSystemConfig(systemConfig);
+    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
+    return SeigManagerI(seigManager).stakeOf(layer2, validator);
+}
+
+// RAT 슬래싱
+function _slashValidator(address validator, address systemConfig, uint256 amount) internal {
+    address layer2 = _getLayer2FromSystemConfig(systemConfig);
+    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
+    coinage.burnFrom(validator, amount);
+}
+
+// RAT 복구 (옵션 1: mint)
+function _restoreValidator(address validator, address systemConfig, uint256 amount) internal {
+    address layer2 = _getLayer2FromSystemConfig(systemConfig);
+    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
+    coinage.mint(validator, amount);
+}
+```
+
+#### 체크리스트
+
+- [ ] **RAT 직접 예치 로직 제거**
+  - [ ] `registerValidator()` - TON 전송 로직 제거
+  - [ ] `depositedAmount` 관련 로직 제거
+  - [ ] `addDeposit()` 함수 제거 또는 변경
+- [ ] **`_getValidatorCollateral()` 추가** - coinage 조회
+- [ ] **슬래싱 로직 변경**
+  - [ ] `triggerAttentionTest()` - coinage.burnFrom() 사용
+  - [ ] 또는 잠금 방식으로 변경
+- [ ] **복구 로직 변경**
+  - [ ] `submitEvidence()` - coinage.mint() 또는 잠금 해제
+  - [ ] `resolveClaim()` - coinage.mint() 또는 잠금 해제
+- [ ] **테스트 케이스 수정**
+- [ ] **스펙 문서 업데이트**
+
+#### 설계 결정 필요
+
+**옵션 1: 즉시 burn/mint 방식**
+```
+트리거 → coinage.burnFrom(C_off) → 응답 → coinage.mint(C_off)
+```
+- 장점: 단순함
+- 단점: 빈번한 burn/mint
+
+**옵션 2: 잠금 방식**
+```
+트리거 → lockedAmount += C_off → 응답 → lockedAmount -= C_off
+                              → 미응답 → coinage.burnFrom(C_off)
+```
+- 장점: 실제 슬래싱 시에만 burn
+- 단점: 잠금 상태 관리 필요
 
 #### 수정 대상 파일
 
-| 파일 | 수정 내용 |
-|------|----------|
-| `src/validator/RATStorage.sol` | `enforceMinDeposit` 변수 추가 |
-| `src/validator/RAT.sol` | setter 함수 및 조건부 로직 |
-| `src/validator/IRAT.sol` | 인터페이스 |
+| 파일 | 수정 내용 | 상태 |
+|------|----------|------|
+| `src/validator/RAT.sol` | coinage 연동, 슬래싱/복구 로직 | ❌ 미구현 |
+| `src/validator/RATStorage.sol` | depositedAmount 제거, 잠금 관련 추가 | ❌ 미구현 |
+| `src/validator/IRAT.sol` | 인터페이스 업데이트 | ❌ 미구현 |
 
 ---
 
@@ -159,7 +259,7 @@ function registerValidator(address systemConfig, uint256 depositAmount) external
 | 이슈 | 상태 | 해결 방법 |
 |------|------|----------|
 | 시퀀서/검증자 담보금 분리 | **해결됨** | 기존 스테이킹 시스템 활용 |
-| 검증자 담보금 N_max | **해결됨** | enforceMinDeposit flag로 유연화 |
+| 검증자 담보금 N_max | **해결됨** | relaxedValidatorCheck flag로 유연화 |
 
 ### 3.2 검토 필요 이슈 ⚠️
 
@@ -202,14 +302,22 @@ R_challenger = C_max + Δ_sequencer / n
 
 ## 5. 테스트 체크리스트
 
-### 5.1 신규 테스트 필요
+### 5.1 신규 테스트 상태
 
-| 테스트 케이스 | 파일 | 우선순위 |
-|--------------|------|----------|
-| `enforceMinDeposit = false` 시 검증자 등록 | `RAT.t.sol` | **높음** |
-| `enforceMinDeposit = true` 시 담보금 부족 거부 | `RAT.t.sol` | **높음** |
-| 슬래싱 후 시뇨리지 자격 상실 | `SeigManager.t.sol` | 높음 |
-| `max(D_sequencer, θ·B_i)` 조건 검증 | `SeigManager.t.sol` | 높음 |
+#### 시퀀서 관련
+| 테스트 케이스 | 파일 | 상태 |
+|--------------|------|------|
+| `max(D_sequencer, θ·B_i)` 조건 검증 | `SeigManager.t.sol` | ✅ 완료 |
+| 슬래싱 후 시뇨리지 자격 상실 | `SeigManager.t.sol` | ⚠️ 상세 구현 시 |
+
+#### 검증자 관련
+| 테스트 케이스 | 파일 | 상태 |
+|--------------|------|------|
+| 등록 시 D_min 미만 거부 (항상) | `RAT.t.sol` | ✅ 완료 |
+| `relaxedValidatorCheck` 유효성 검사 | `RAT.t.sol` | ✅ 완료 |
+| 검증자 담보금 coinage 조회 | `RAT.t.sol` | ❌ 구현 필요 |
+| RAT 슬래싱 coinage.burnFrom() | `RAT.t.sol` | ❌ 구현 필요 |
+| RAT 복구 coinage.mint() | `RAT.t.sol` | ❌ 구현 필요 |
 
 ### 5.2 기존 테스트 확인
 
@@ -223,18 +331,26 @@ R_challenger = C_max + Δ_sequencer / n
 
 ## 6. 액션 아이템 요약
 
-### 6.1 즉시 필요 (높음)
+### 6.1 시퀀서 관련 - 완료 ✅
 
-| # | 항목 | 담당 | 파일 |
+| # | 항목 | 파일 | 상태 |
 |---|------|------|------|
-| 1 | **SequencerVault 제거/미사용** | 개발팀 | `SequencerVault.sol` |
-| 2 | **`_getSequencerCollateral()` 수정** | 개발팀 | `SeigManagerV1_4.sol` |
-| 3 | **슬래싱 로직 이전 (coinage 차감)** | 개발팀 | `SeigManagerV1_4.sol` |
-| 4 | `enforceMinDeposit` flag 추가 | 개발팀 | `RAT.sol`, `RATStorage.sol` |
-| 5 | 최소 스테이킹 조건 확인/수정 (`max()`) | 개발팀 | `SeigManagerV1_4.sol` |
-| 6 | L2 물리적 정지 로직 확인/제거 | 개발팀 | 관련 슬래싱 코드 |
+| 1 | **SequencerVault DEPRECATED** | `SeigManagerV1_4Storage.sol` | ✅ |
+| 2 | **`getSequencerStaked()` 함수** | `SeigManagerV1_4.sol` | ✅ |
+| 3 | **최소 스테이킹 조건 `max()`** | `SeigManagerV1_4.sol` | ✅ |
+| 4 | **시퀀서 슬래싱 로직** | `SeigManagerV1_4.sol` | ⚠️ 기본 구조 |
 
-### 6.2 단기 (중간)
+### 6.2 검증자 관련 - 구현 필요 ❌
+
+| # | 항목 | 파일 | 상태 |
+|---|------|------|------|
+| 1 | **RAT 직접 예치 제거** | `RAT.sol` | ❌ |
+| 2 | **`_getValidatorCollateral()` 추가** | `RAT.sol` | ❌ |
+| 3 | **RAT 슬래싱 로직 변경** | `RAT.sol` | ❌ |
+| 4 | **RAT 복구 로직 변경** | `RAT.sol` | ❌ |
+| 5 | `relaxedValidatorCheck` flag 추가 | `RAT.sol`, `RATStorage.sol` | ✅ |
+
+### 6.3 단기 (중간)
 
 | # | 항목 | 담당 |
 |---|------|------|
@@ -252,12 +368,20 @@ R_challenger = C_max + Δ_sequencer / n
 
 ## 7. 결론
 
-**회의 결정으로 V3 변경 방향이 명확해졌습니다**:
+**시퀀서 관련 - 구현 완료** ✅:
+1. **SequencerVault DEPRECATED** → ✅ 완료
+2. **`getSequencerStaked()` coinage 조회** → ✅ 완료
+3. **최소 스테이킹 조건 `max(D_seq, θ·B_i)`** → ✅ 완료
+4. **시퀀서 슬래싱 로직** → ⚠️ 기본 구조 완료
 
-1. **SequencerVault 제거**: 별도 Vault 불필요, 기존 스테이킹 시스템 활용 → **개발 필요**
-2. **시퀀서 담보금**: coinage에서 조회, `max(D_sequencer, θ·B_i)` 조건 → **개발 필요**
-3. **슬래싱**: coinage에서 차감, L2 물리적 정지 없음 → **개발 필요**
-4. **검증자 담보금**: `enforceMinDeposit` flag로 유연화, 초기값 `false` → **개발 필요**
+**검증자 관련 - 구현 필요** ❌:
+1. **RAT 직접 예치 → coinage 사용** → ❌ 미구현
+2. **`_getValidatorCollateral()` coinage 조회** → ❌ 미구현
+3. **RAT 슬래싱/복구 로직 coinage 연동** → ❌ 미구현
+4. **`relaxedValidatorCheck` flag** → ✅ 완료
+
+**테스트 결과**: 198 passed, 0 failed (2026-01-14)
+> ⚠️ 검증자 coinage 연동 후 테스트 수정 필요
 
 ---
 

@@ -21,9 +21,8 @@
 | **DepositManagerV1_2** | TON/WTON 스테이킹 관리 |
 | **Layer2ManagerV1_2** | L2 등록 및 Bridged TON 조회 |
 | **L1BridgeRegistryV1_2** | 브릿지/포탈 등록, TVL 조회 |
-| **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
+| **RAT** | 검증자 등록, RAT 테스트, C_off 페널티 |
 | **ValidatorRewardV1** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리, 슬래싱 |
 
 ## V3 핵심 변경사항
 
@@ -31,7 +30,7 @@
 |------|-----|-----|
 | 시뇨리지 분배 기준 | L2 TVL | Bridged TON |
 | 분배 함수 | 선형 | 쌍곡선 `y(x) = L·(x/(k+x))` |
-| 자격 조건 | 최소 예치금 | `S_i ≥ θ·B_i` |
+| 자격 조건 | 최소 예치금 | `T_i ≥ max(θ·B_i, D_seq)` |
 | 스테이커 시뇨리지 | 제공 | 미제공 |
 | 검증자 보상 | 없음 | `α·S_i / |V_i|` |
 

@@ -6,22 +6,21 @@
 
 ## 1. 모호하거나 불명확한 부분
 
-### 1.1 시퀀서 담보금 vs SequencerVault 담보금 혼용 (01, 05)
-**위치**: `01-system-overview.md:78-79`, `05-actors.md:107-108`
+### 1.1 시퀀서 담보금 vs SequencerVault 담보금 혼용 (01, 05) ✅ 해결됨
+
+**위치**: `01-system-overview.md`, `05-actors.md` 등
 
 **문제**: 스펙 문서에서 자격 조건을 설명할 때 `S_i`를 "시퀀서 담보금 (SequencerVault)"라고 하지만, 백서에서는 `T_i`를 "L2의 시퀀서가 L1 TON 스테이킹 컨트랙트에 스테이킹한 양"으로 정의합니다.
 
+**해결 (V3 구현)**:
+- 변수명 통일: `T_i` = 시퀀서 스테이킹 금액, `S_i` = L2 시뇨리지 분배량
+- SequencerVault 제거: 기존 스테이킹 시스템(coinage) 사용
+- 자격 조건: `T_i ≥ θ · B_i`
+- 스테이킹 조회: `SeigManager.getSequencerStaked(layer2)`
+
 ```
-스펙: S_i ≥ θ · B_i (S_i = SequencerVault 담보금)
-백서: T_i ≥ θ · B_i (T_i = L1 TON 스테이킹 컨트랙트에 스테이킹한 양)
+V3 스펙: T_i ≥ θ · B_i (T_i = coinage.balanceOf(operator))
 ```
-
-**권장**: 백서는 `T_i`를 사용하고 스펙은 `S_i`를 사용하는데, 이 둘이 같은 것인지 명확히 해야 합니다.
-
-**질문**: The whitepaper describes the amount Ti staked in the L1 TON staking contract.
-However, TON staking no longer pays seigniorage. The role of TON staking may become ambiguous in the future. Furthermore, the whitepaper does not clearly define the role of TON staking.
-
-Since this amount will be slashed in the future, it would be better to view it as collateral rather than staking.
 
 ---
 
@@ -120,12 +119,12 @@ D_validator = C_off + Δ_validator
 
 ## 4. 우선 수정 권장 사항
 
-가장 우선적으로 수정해야 할 사항:
-
-1. **시퀀서 담보금 변수명 통일** (`S_i` vs `T_i`)
-2. **Fast Withdrawal 구현 계획 명시**
-3. **Multi-Challenger 추적 메커니즘 상세화**
-4. **RAT 검증자 선택 알고리즘 상세화**
+| # | 항목 | 상태 |
+|---|------|------|
+| 1 | **시퀀서 담보금 변수명 통일** (`S_i` → `T_i`) | ✅ 해결됨 |
+| 2 | Fast Withdrawal 구현 계획 명시 | ⏳ 향후 |
+| 3 | Multi-Challenger 추적 메커니즘 상세화 | ⏳ 향후 |
+| 4 | RAT 검증자 선택 알고리즘 상세화 | ⏳ 검토 필요 |
 
 ---
 

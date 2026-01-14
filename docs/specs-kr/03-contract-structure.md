@@ -97,11 +97,6 @@ src/
 │   ├── ValidatorRewardProxy.sol               # 프록시 (TransparentUpgradeableProxy)
 │   └── IValidatorReward.sol                   # 인터페이스
 │
-├── sequencer/                          # 시퀀서 시스템 (V3 신규) 🆕
-│   ├── SequencerVault.sol                     # 시퀀서 담보금/슬래싱
-│   ├── SequencerVaultStorage.sol              # 스토리지
-│   ├── SequencerVaultProxy.sol                # 프록시 (Selector Routing)
-│   └── ISequencerVault.sol                    # 인터페이스
 │
 ├── dao/                                # DAO/거버넌스
 │   ├── DAOCommittee_V1.sol                    # DAO 커미티 구현체
@@ -319,7 +314,7 @@ typeRegistrant[n] (Manager가 지정, 타입별 위임)
 
 ### 2.5 RAT (Randomized Attention Test)
 
-검증자 등록, RAT 테스트, 슬래싱을 관리합니다.
+검증자 등록, RAT 테스트, C_off 페널티를 관리합니다.
 
 ```solidity
 contract RAT is
@@ -362,26 +357,6 @@ contract ValidatorRewardV1 is
 - `claimAllRewards()`: 보상 청구
 - `getPendingRewardsByL2()`: L2별 미청구 보상 조회
 
-### 2.7 SequencerVault
-
-시퀀서 담보금 및 슬래싱을 관리합니다.
-
-```solidity
-contract SequencerVault is
-    ProxyStorage,
-    SequencerVaultStorage,
-    ISequencerVault
-{
-    // ...
-}
-```
-
-**핵심 기능**:
-- `registerSequencer()`: 시퀀서 등록 (담보금 예치)
-- `slashSequencerByGame()`: 시퀀서 슬래싱 (Permissionless)
-- `deactivateSequencer()`: 시퀀서 탈퇴
-- `getSequencerDepositByLayer2()`: 담보금 조회
-
 ---
 
 ## 3. 스토리지 구조
@@ -402,8 +377,7 @@ contract SeigManagerV1_4Storage {
 
     // V3 참조 주소
     address public validatorReward;           // ValidatorReward 컨트랙트
-    address public ratContract;               // RAT 컨트랙트 (미사용, ValidatorReward 내부)
-    address public sequencerVault;            // SequencerVault 컨트랙트
+    address public ratContract;               // RAT 컨트랙트
 
     // Bridged TON 추적
     mapping(address => BridgedTONInfo) public bridgedTONInfo;
@@ -415,7 +389,7 @@ contract SeigManagerV1_4Storage {
         uint256 initialDebt;          // 초기부채 (V2 패턴 동일)
         uint256 startBlock;           // 참여 시작 블록
         uint256 lastUpdateTime;       // 마지막 업데이트 타임스탬프
-        bool isEligible;              // 자격 여부 (S_i ≥ θ·B_i)
+        bool isEligible;              // 자격 여부 (T_i ≥ θ·B_i)
     }
 }
 ```
@@ -430,6 +404,11 @@ contract RATStorage {
     uint256 public ratTriggerProbability;     // π_a: RAT 트리거 확률 (RAY)
     uint256 public minimumThreshold;          // D_min: 최소 담보금 임계값
     uint256 public evidenceSubmissionPeriod;  // 증거 제출 기간 (초)
+
+    // V3 검증자 담보금 체크 유연화
+    bool public relaxedValidatorCheck;        // 검증자 유효성 검사 완화 여부
+                                              // true: C_off 기준 (완화), false: D_min 기준 (엄격)
+                                              // 등록 시에는 항상 D_min 이상 필요
 
     // 검증자 등록
     mapping(address => mapping(address => ValidatorRegistration))
@@ -489,34 +468,6 @@ contract ValidatorRewardStorage {
     // L2별 검증자 보상 (Per-L2 추적)
     mapping(address => mapping(address => uint256))
         public validatorL2PendingRewards;  // validator => systemConfig => 보상
-}
-```
-
-### 3.4 SequencerVaultStorage
-
-```solidity
-contract SequencerVaultStorage {
-    // 시퀀서 담보금
-    mapping(address => SequencerDeposit) public sequencerDeposits;
-    mapping(address => address) public layer2ToSystemConfig;
-
-    // 파라미터
-    uint256 public minimumStakingRatio;       // θ: 최소 스테이킹 비율
-    uint256 public maxFraudProofCost;         // C_max
-    uint256 public sequencerAdditionalReward; // Δ_sequencer
-    uint256 public maxChallengers;            // H_max
-
-    // 슬래싱
-    uint256 public accumulatedSlashings;
-    mapping(address => uint256) public challengerPendingRewards;
-
-    struct SequencerDeposit {
-        address operator;             // OperatorManager 주소
-        address layer2;               // Layer2 주소
-        uint256 depositedAmount;      // 담보금
-        uint256 slashedAmount;        // 슬래싱된 금액
-        bool isActive;                // 활성 상태
-    }
 }
 ```
 
@@ -607,26 +558,6 @@ interface IValidatorReward {
     event ValidatorRewardReceived(address indexed validator, address indexed systemConfig, uint256 amount);
     event RewardToDAO(address indexed systemConfig, uint256 amount);  // V3: 검증자 없을 때 DAO로 전송
     event RewardsClaimed(address indexed validator, uint256 amount);
-}
-```
-
-### 4.4 ISequencerVault
-
-```solidity
-interface ISequencerVault {
-    function registerSequencer(address systemConfig, uint256 depositAmount) external;
-    function deactivateSequencer(address systemConfig) external;
-    function addDeposit(address systemConfig, uint256 amount) external;
-    function slashSequencerByGame(address gameAddress) external;
-
-    function getSequencerDeposit(address systemConfig) external view returns (uint256);
-    function getSequencerDepositByLayer2(address layer2) external view returns (uint256);
-    function isSequencerActive(address systemConfig) external view returns (bool);
-    function getMinimumCollateral(uint256 bridgedTON) external view returns (uint256);
-
-    // 이벤트
-    event SequencerRegistered(address indexed operator, address indexed systemConfig, address layer2, uint256 depositAmount);
-    event SequencerSlashed(address indexed sequencer, address indexed systemConfig, address indexed gameAddress, uint256 slashedAmount, address challenger, uint256 challengerReward);
 }
 ```
 

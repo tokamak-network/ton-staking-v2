@@ -148,11 +148,9 @@ contract RATTest is Test {
         assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Active count should be 1");
     }
 
-    /// @notice 불충분한 담보금으로 등록 실패 (enforceMinDeposit = true일 때만)
+    /// @notice 불충분한 담보금으로 등록 실패 (등록 시 항상 D_min 필요)
     function test_registerValidator_insufficientDeposit() public {
-        // V3: enforceMinDeposit 플래그 활성화 필요
-        rat.setEnforceMinDeposit(true);
-
+        // V3: 등록 시 항상 D_min 이상 필요 (relaxedValidatorCheck와 무관)
         uint256 minDeposit = rat.getMinimumCollateral();
         uint256 insufficientDeposit = minDeposit - 1;
 

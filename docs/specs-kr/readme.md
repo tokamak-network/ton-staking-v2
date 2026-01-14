@@ -23,7 +23,6 @@
 | **L1BridgeRegistryV1_2** | Bridge/portal registration, TVL queries |
 | **RAT** | Validator registration, RAT tests, slashing |
 | **ValidatorRewardV1** | Validator reward distribution |
-| **SequencerVault** | Sequencer collateral management, slashing |
 
 ## V3 Key Changes
 
@@ -31,7 +30,7 @@
 |----------|-----|-----|
 | Seigniorage distribution basis | L2 TVL | Bridged TON |
 | Distribution function | Linear | Hyperbolic `y(x) = L·(x/(k+x))` |
-| Eligibility condition | Minimum deposit | `S_i ≥ θ·B_i` |
+| Eligibility condition | Minimum deposit | `T_i ≥ max(θ·B_i, D_seq)` |
 | Staker seigniorage | Provided | Not provided |
 | Validator rewards | None | `α·S_i / |V_i|` |
 
