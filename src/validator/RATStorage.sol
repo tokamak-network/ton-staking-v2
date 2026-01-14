@@ -179,6 +179,16 @@ contract RATStorage {
     // mapping(address => mapping(address => uint256)) public pendingWithdrawals;  // DEPRECATED
 
     // ==========================================
+    // V3 검증자 담보금 체크 유연화
+    // ==========================================
+
+    /// @notice 최소 담보금 강제 여부
+    /// @dev true: registerValidator 시 minimumThreshold 체크
+    ///      false: 최소 담보금 체크 생략 (초기 단계에서 진입 장벽 최소화)
+    /// @dev V3 회의 결정: 초기값 false로 설정하여 검증자 유치 용이하게 함
+    bool public enforceMinDeposit;
+
+    // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)
     // ==========================================
 

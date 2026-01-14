@@ -154,7 +154,11 @@ contract SeigManagerV1_4 is
     );
 
     /// @notice SequencerVault 주소 변경 이벤트
+    /// @dev DEPRECATED: V3에서는 사용되지 않음
     event SequencerVaultUpdated(address indexed vault);
+
+    /// @notice 시퀀서 추가 보상 변경 이벤트
+    event SequencerAdditionalRewardUpdated(uint256 delta);
 
     // ==========================================
     // Governance Functions - V3 Parameters
@@ -224,11 +228,20 @@ contract SeigManagerV1_4 is
     }
 
     /// @notice SequencerVault 컨트랙트 주소 설정
-    /// @dev V3: 시퀀서 자격 조건(S_i ≥ θ·B_i)을 SequencerVault 담보금으로 확인
+    /// @dev DEPRECATED: V3에서는 기존 스테이킹 시스템(coinage) 사용
+    /// @dev 이 함수는 호환성을 위해 유지됨, V3에서는 사용되지 않음
     function setSequencerVault(address vault) external onlyOwner {
         if (vault == address(0)) revert ZeroAddressError();
         sequencerVault = vault;
         emit SequencerVaultUpdated(vault);
+    }
+
+    /// @notice 시퀀서 추가 보상 설정
+    /// @param delta 추가 보상 (WTON 단위, 27 decimals)
+    /// @dev 백서 공식 (1): D_sequencer = H_max · C_max + Δ_sequencer
+    function setSequencerAdditionalReward(uint256 delta) external onlyOwner {
+        sequencerAdditionalReward = delta;
+        emit SequencerAdditionalRewardUpdated(delta);
     }
 
 
@@ -315,42 +328,57 @@ contract SeigManagerV1_4 is
 
     /// @inheritdoc ISeigManagerV3
     /// @notice L2 시퀀서의 시뇨리지 수령 자격 실시간 확인
-    /// @dev 백서 공식 (9): 1_i = {1 if S_i ≥ θ·B_i, 0 otherwise}
-    /// @dev S_i는 시퀀서의 SequencerVault 담보금
-    /// @dev B_i는 L1 브리지에서 직접 조회 (가스비 높지만 정확함)
+    /// @dev V3 백서 공식: S_i ≥ max(D_sequencer, θ·B_i)
+    ///      - D_sequencer = H_max · C_max + Δ_sequencer (Fraud Proof 비용 커버)
+    ///      - θ·B_i (시뇨리지 자격 조건)
+    /// @dev S_i는 operator의 coinage 잔액 (기존 스테이킹)
     /// @param layer2 L2 주소
     /// @return eligible 시뇨리지 수령 자격 여부
-    /// @return requiredStake 필요 담보금 (θ·B_i)
-    /// @return currentStake 현재 시퀀서 담보금 (S_i)
+    /// @return requiredStake 필요 담보금 (WTON, 27 decimals)
+    /// @return currentStake 현재 시퀀서 담보금 (WTON, 27 decimals)
     function checkCurrentEligibility(address layer2)
         public
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake)
     {
-        // B_i: L1 브리지에서 직접 조회 (실시간)
+        // 1. B_i: L1 브리지에서 직접 조회 (TON 단위, 18 decimals)
         uint256 bridgedTON = ILayer2Manager(layer2Manager).getBridgedTONByLayer(layer2);
 
-        // θ·B_i 계산
-         // Todo. 브릿지된 톤은 톤기준, 필요한 스테이킹양은 WTON 이므로, 고려해서 변환해줘야한다.
-        // rmul(x, y) = (x * y) / RAY
-        requiredStake = (bridgedTON * minStakingRatio) / RAY_UNIT;
+        // 2. θ·B_i 계산 (TON → WTON 변환: 9 decimals 추가)
+        // bridgedTON은 18 decimals, minStakingRatio는 RAY(27 decimals)
+        // 결과를 WTON(27 decimals)로 변환: bridgedTON * 1e9 * minStakingRatio / 1e27
+        uint256 minForSeigniorage = (bridgedTON * GWEI_UNIT * minStakingRatio) / RAY_UNIT;
 
-        // S_i: 시퀀서의 현재 담보금 (SequencerVault에서 조회)
+        // 3. D_sequencer = H_max · C_max + Δ_sequencer (Fraud Proof 비용 커버)
+        // maxFraudProofCost, sequencerAdditionalReward는 WTON 단위(27 decimals)
+        uint256 minForFraudProof = maxChallengers * maxFraudProofCost + sequencerAdditionalReward;
+
+        // 4. requiredStake = max(θ·B_i, D_sequencer)
+        requiredStake = minForSeigniorage > minForFraudProof ? minForSeigniorage : minForFraudProof;
+
+        // 5. S_i: 시퀀서의 현재 담보금 (coinage에서 조회, WTON 27 decimals)
         currentStake = _getSequencerCollateral(layer2);
 
-        // S_i ≥ θ·B_i
+        // 6. S_i ≥ max(θ·B_i, D_sequencer)
         eligible = currentStake >= requiredStake;
     }
 
     /// @notice 시퀀서 담보금 조회
-    /// @dev V3: SequencerVault에서 담보금 조회 (L1 스테이킹 아님)
-    /// @dev Layer2의 오퍼레이터(OperatorManager)가 SequencerVault에 담보금 예치
+    /// @dev V3: 기존 스테이킹 시스템(coinage) 사용 - SequencerVault 미사용
+    /// @dev operator의 해당 layer2 coinage 잔액을 담보금으로 사용
     /// @param layer2 L2 주소
-    /// @return 시퀀서의 담보금 (TON, 18 decimals)
+    /// @return 시퀀서의 담보금 (WTON, 27 decimals - RAY 단위)
     function _getSequencerCollateral(address layer2) internal view returns (uint256) {
-        if (sequencerVault == address(0)) return 0;
+        // 1. coinage 조회
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        if (address(coinage) == address(0)) return 0;
 
-        return ISequencerVault(sequencerVault).getSequencerDepositByLayer2(layer2);
+        // 2. operator 주소 조회
+        address operator = Layer2I(layer2).operator();
+        if (operator == address(0)) return 0;
+
+        // 3. operator의 coinage 잔액 반환 (WTON, 27 decimals)
+        return coinage.balanceOf(operator);
     }
 
 

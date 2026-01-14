@@ -89,6 +89,14 @@ contract SeigManagerV1_4Storage {
     /// @dev 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
     uint256 public maxFraudProofCost;
 
+    /// @notice Δ_sequencer: 시퀀서 추가 보상/버퍼
+    /// @dev 백서 공식 (1): D_sequencer = H_max · C_max + Δ_sequencer
+    uint256 public sequencerAdditionalReward;
+
+    /// @notice 이미 슬래싱된 게임 주소 추적
+    /// @dev 중복 슬래싱 방지용
+    mapping(address => bool) public slashedGames;
+
     // ==========================================
     // V3 마이그레이션 상태
     // ==========================================
@@ -100,11 +108,13 @@ contract SeigManagerV1_4Storage {
     uint256 public v3MigrationBlock;
 
     // ==========================================
-    // SequencerVault 참조
+    // SequencerVault 참조 - DEPRECATED
     // ==========================================
 
     /// @notice SequencerVault 컨트랙트 주소
-    /// @dev V3: 시퀀서 자격 조건(S_i ≥ θ·B_i)을 SequencerVault 담보금으로 확인
+    /// @dev DEPRECATED: V3에서는 기존 스테이킹 시스템(coinage) 사용
+    /// @dev 이 변수는 호환성을 위해 유지되지만, 새 로직에서는 사용하지 않음
+    /// @dev V3에서 시퀀서 담보금은 _coinages[layer2].balanceOf(operator)로 조회
     address public sequencerVault;
 
 }

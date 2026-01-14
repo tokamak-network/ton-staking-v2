@@ -335,15 +335,19 @@ contract RAT is RATStorage, IRAT, IOnApprove {
 
     /// @notice 내부 검증자 등록 로직
     /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
+    /// @dev V3 회의 결정: enforceMinDeposit flag로 최소 담보금 체크 유연화
     function _registerValidatorInternal(address validator, address systemConfig, uint256 depositAmount) internal {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][validator];
         if (reg.isActive) revert AlreadyRegisteredError();
 
-        uint256 minDeposit = getMinimumCollateral();
-
         // 기존 담보금이 있는 경우 (슬래싱 후 재등록)
         uint256 totalDeposit = reg.depositedAmount + depositAmount;
-        if (totalDeposit < minDeposit) revert InsufficientDepositError();
+
+        // V3: 조건부 최소 담보금 체크 (enforceMinDeposit flag)
+        if (enforceMinDeposit) {
+            uint256 minDeposit = getMinimumCollateral();
+            if (totalDeposit < minDeposit) revert InsufficientDepositError();
+        }
 
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
 
@@ -654,6 +658,15 @@ contract RAT is RATStorage, IRAT, IOnApprove {
     /// @inheritdoc IRAT
     function setEvidenceSubmissionPeriod(uint256 period) external onlyOwner {
         evidenceSubmissionPeriod = period;
+    }
+
+    /// @inheritdoc IRAT
+    /// @notice 최소 담보금 강제 여부 설정
+    /// @param enforce true: 강제, false: 비강제 (초기 단계)
+    /// @dev V3 회의 결정: 초기에는 false로 설정하여 검증자 유치 용이하게 함
+    function setEnforceMinDeposit(bool enforce) external onlyOwner {
+        enforceMinDeposit = enforce;
+        emit EnforceMinDepositUpdated(enforce);
     }
 
     /// @notice RAT 트리거 권한 주소 설정 (deprecated - use L1BridgeRegistry instead)
