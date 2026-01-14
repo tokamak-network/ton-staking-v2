@@ -900,13 +900,24 @@ contract DeployV3SlashForDevnet is Script {
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addManager(msg.sender);
         console.log("Added deployer as L1BridgeRegistry manager:", msg.sender);
 
+        // Deploy and configure MockSystemConfig for E2E tests
+        MockSystemConfig _mockSystemConfig = new MockSystemConfig();
+        mockSystemConfig = address(_mockSystemConfig);
+        console.log("MockSystemConfig deployed at:", mockSystemConfig);
+
+        // Configure MockSystemConfig
+        _mockSystemConfig.setUnsafeBlockSigner(makeAddr("mockUnsafeBlockSigner"));
+        _mockSystemConfig.setDisputeGame(disputeGameFactory);
+        console.log("MockSystemConfig configured with DisputeGameFactory:", disputeGameFactory);
+
+        // Register MockSystemConfig instead of real SystemConfig
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfigByManager(
-            systemConfig,
+            mockSystemConfig,
             3, // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
             ton // L2 TON address (using L1 TON as placeholder, not actually used for Optimism)
         );
-        console.log("SystemConfig registered in L1BridgeRegistry");
-        console.log("  This also registered DisputeGameFactory for RAT trigger");
+        console.log("MockSystemConfig registered in L1BridgeRegistry");
+        console.log("  This provides unsafeBlockSigner, optimismPortal, etc. for E2E tests");
 
         console.log("");
     }
@@ -1123,8 +1134,13 @@ contract DeployV3SlashForDevnet is Script {
         // Layer2ManagerProxy
         Layer2ManagerProxy(payable(layer2ManagerProxy)).transferOwnership(daoCommitteeProxy);
         console.log("Layer2ManagerProxy ownership transferred to DAOCommitteeProxy");
+        // L1BridgeRegistryProxy - Setup for E2E tests
+        // Grant REGISTRANT_ROLE to deployer for E2E tests
+        // (SystemConfig is already registered in Step 11)
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addRegistrant(msg.sender);
+        console.log("Granted REGISTRANT_ROLE to deployer:", msg.sender);
 
-        // L1BridgeRegistryProxy
+        // Now transfer admin to DAOCommittee
         L1BridgeRegistryProxy(payable(l1BridgeRegistryProxy)).transferAdmin(daoCommitteeProxy);
         console.log("L1BridgeRegistryProxy ownership transferred to DAOCommitteeProxy");
 
