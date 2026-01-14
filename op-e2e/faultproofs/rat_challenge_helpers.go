@@ -20,9 +20,10 @@ import (
 // Common test constants
 const (
 	// Test accounts private keys (Anvil test accounts)
-	validatorPrivateKey = "7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" // Account #3
-	deployerPrivateKey  = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" // Account #1
-	proposerPrivateKey  = "47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" // Account #4
+	validatorPrivateKey  = "7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" // Account #3
+	deployerPrivateKey   = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" // Account #1
+	proposerPrivateKey   = "47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" // Account #4
+	challengerPrivateKey = "8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba" // Account #5
 
 	// Test parameters
 	testDepositAmountTON = 50000 // 50000 TON
@@ -46,6 +47,11 @@ type TestAccounts struct {
 		Auth *bind.TransactOpts
 	}
 	Proposer struct {
+		Key  *ecdsa.PrivateKey
+		Addr common.Address
+		Auth *bind.TransactOpts
+	}
+	Challenger struct {
 		Key  *ecdsa.PrivateKey
 		Addr common.Address
 		Auth *bind.TransactOpts
@@ -88,6 +94,14 @@ func setupTestAccounts(t *testing.T, sys *rat.TONStakingSystem) *TestAccounts {
 	accounts.Proposer.Auth, err = bind.NewKeyedTransactorWithChainID(accounts.Proposer.Key, chainID)
 	require.NoError(t, err)
 	accounts.Proposer.Auth.GasLimit = 5000000
+
+	// Setup challenger
+	accounts.Challenger.Key, err = crypto.HexToECDSA(challengerPrivateKey)
+	require.NoError(t, err)
+	accounts.Challenger.Addr = crypto.PubkeyToAddress(accounts.Challenger.Key.PublicKey)
+	accounts.Challenger.Auth, err = bind.NewKeyedTransactorWithChainID(accounts.Challenger.Key, chainID)
+	require.NoError(t, err)
+	accounts.Challenger.Auth.GasLimit = 5000000
 
 	return accounts
 }
@@ -310,4 +324,57 @@ func parseRATTriggerEventWithBatchIndex(t *testing.T, receipt *types.Receipt, ex
 	}
 
 	return [32]byte{}, 0, false
+}
+
+// attackClaim attacks a claim in a DisputeGame
+func attackClaim(t *testing.T, sys *rat.TONStakingSystem, challengerAuth *bind.TransactOpts, gameAddress common.Address, correctClaim [32]byte) {
+	// Connect to FaultDisputeGame
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	require.NoError(t, err)
+
+	// Attack the root claim (claim index 0)
+	parentClaim := [32]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} // Wrong claim to attack
+	parentIndex := big.NewInt(0)
+
+	// Set bond value (may be required)
+	challengerAuth.Value = big.NewInt(0)
+
+	attackTx, err := game.Attack(challengerAuth, parentClaim, parentIndex, correctClaim)
+	require.NoError(t, err)
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, attackTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Attack transaction failed")
+
+	t.Logf("✓ Challenger attacked claim with correct root claim")
+}
+
+// resolveGame resolves a DisputeGame
+func resolveGame(t *testing.T, sys *rat.TONStakingSystem, gameAddress common.Address) {
+	// Connect to FaultDisputeGame
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	require.NoError(t, err)
+
+	// Resolve the game
+	resolveTx, err := game.Resolve(nil)
+	require.NoError(t, err)
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Resolve transaction failed")
+
+	t.Logf("✓ DisputeGame resolved")
+}
+
+// getGameStatus returns the current status of a DisputeGame
+func getGameStatus(t *testing.T, sys *rat.TONStakingSystem, gameAddress common.Address) uint8 {
+	// Connect to FaultDisputeGame
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	require.NoError(t, err)
+
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	status, err := game.Status(callOpts)
+	require.NoError(t, err)
+
+	return status
 }
