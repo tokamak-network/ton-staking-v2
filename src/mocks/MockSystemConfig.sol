@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
@@ -9,11 +9,10 @@ interface IERC20 {
 }
 
 interface ITarget {
-    function transferOwnership(address newOwner) external ;
+    function transferOwnership(address newOwner) external;
 }
 
 contract MockL1StandardBridge {
-
     address public portal;
 
     constructor() {}
@@ -34,10 +33,11 @@ contract MockL1StandardBridge {
         uint32 _l2Gas,
         bytes calldata _data
     ) external {
-
-        require(IERC20(_l1Token).transferFrom(msg.sender, address(this), _amount) , "fail transferFrom");
+        require(
+            IERC20(_l1Token).transferFrom(msg.sender, address(this), _amount),
+            "fail transferFrom"
+        );
         require(IERC20(_l1Token).transfer(portal, _amount), "fail transfer");
-
     }
 
     function bridgeNativeTokenTo(
@@ -46,12 +46,13 @@ contract MockL1StandardBridge {
         uint32 _l2Gas,
         bytes calldata _data
     ) external {
-
         // sepolia ton
         address l1token = 0xa30fe40285B8f5c0457DbC3B7C8A280373c40044;
-        require(IERC20(l1token).transferFrom(msg.sender, address(this), _amount) , "fail transferFrom");
+        require(
+            IERC20(l1token).transferFrom(msg.sender, address(this), _amount),
+            "fail transferFrom"
+        );
         require(IERC20(l1token).transfer(portal, _amount), "fail transfer");
-
     }
 }
 
@@ -66,9 +67,7 @@ contract MockOptimismPortal is Ownable {
     }
 }
 
-
 contract MockSystemConfig is Ownable {
-
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
     ///         proxies and will differ for each OP Stack chain.
     struct Addresses {
@@ -83,10 +82,10 @@ contract MockSystemConfig is Ownable {
     Addresses public addresses;
     string public name;
     address public unsafeBlockSigner;
+    address public disputeGameFactory;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
-
         address portal = address(new MockOptimismPortal());
         MockL1StandardBridge bridge = new MockL1StandardBridge();
 
@@ -120,6 +119,11 @@ contract MockSystemConfig is Ownable {
         ITarget(_target).transferOwnership(_addr);
     }
 
+    function setDisputeGame(address _dispute) external {
+        require(disputeGameFactory == address(0), "already set");
+        disputeGameFactory = _dispute;
+    }
+
     /* ========== view ========== */
 
     function l1CrossDomainMessenger() external view returns (address addr_) {
@@ -145,5 +149,4 @@ contract MockSystemConfig is Ownable {
     function optimismMintableERC20Factory() external view returns (address addr_) {
         addr_ = addresses.optimismMintableERC20Factory;
     }
-
 }
