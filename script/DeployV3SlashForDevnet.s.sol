@@ -51,6 +51,7 @@ import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
 import {MockWTON} from "../src/mocks/MockWTON.sol";
+import {MockSystemConfig} from "../src/mocks/MockSystemConfig.sol";
 
 // DAO Committee
 import {DAOCommitteeProxy2} from "../src/proxy/DAOCommitteeProxy2.sol";
@@ -124,7 +125,7 @@ contract DeployV3SlashForDevnet is Script {
     uint256 constant RAT_TRIGGER_PROBABILITY = RAY; // 100% for testing (always trigger)
     uint256 constant RAT_SLASHING_PENALTY = 100 * RAY; // 100 WTON
     uint256 constant RAT_VALIDATOR_BUFFER = 100 * RAY; // 100 WTON
-    uint256 constant RAT_MINIMUM_THRESHOLD = 200 * RAY; // 200 WTON (D_min)
+    uint256 constant RAT_MINIMUM_THRESHOLD = 0; // 0 for testing (always trigger if any stake exists)
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
@@ -184,6 +185,7 @@ contract DeployV3SlashForDevnet is Script {
     // Optimism Contracts (read from environment)
     address public disputeGameFactory;
     address public systemConfig;
+    address public mockSystemConfig;
 
     // DAO Committee
     address public daoVault;
@@ -901,13 +903,13 @@ contract DeployV3SlashForDevnet is Script {
         console.log("Added deployer as L1BridgeRegistry manager:", msg.sender);
 
         // Deploy and configure MockSystemConfig for E2E tests
-        MockSystemConfig _mockSystemConfig = new MockSystemConfig();
-        mockSystemConfig = address(_mockSystemConfig);
+        MockSystemConfig mockInstance = new MockSystemConfig();
+        mockSystemConfig = address(mockInstance);
         console.log("MockSystemConfig deployed at:", mockSystemConfig);
 
         // Configure MockSystemConfig
-        _mockSystemConfig.setUnsafeBlockSigner(makeAddr("mockUnsafeBlockSigner"));
-        _mockSystemConfig.setDisputeGame(disputeGameFactory);
+        mockInstance.setUnsafeBlockSigner(DEPLOYER);
+        mockInstance.setDisputeGame(disputeGameFactory);
         console.log("MockSystemConfig configured with DisputeGameFactory:", disputeGameFactory);
 
         // Register MockSystemConfig instead of real SystemConfig
@@ -931,11 +933,11 @@ contract DeployV3SlashForDevnet is Script {
         address[4] memory testAccounts = [DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER];
 
         for (uint256 i = 0; i < testAccounts.length; i++) {
-            // Mint TON (18 decimals)
-            MockTON(ton).mint(testAccounts[i], 100000 * 1e18);
+            // Mint TON (18 decimals) - 100,000,000 TON
+            MockTON(ton).mint(testAccounts[i], 100000000 * 1e18);
 
-            // Mint WTON (27 decimals)
-            MockWTON(wton).mint(testAccounts[i], 100000 * RAY);
+            // Mint WTON (27 decimals) - 100,000,000 WTON
+            MockWTON(wton).mint(testAccounts[i], 100000000 * RAY);
         }
 
         console.log("Minted 100,000 TON and 100,000 WTON to each test account:");
@@ -1131,6 +1133,15 @@ contract DeployV3SlashForDevnet is Script {
         Layer2RegistryProxy(payable(layer2RegistryProxy)).transferOwnership(daoCommitteeProxy);
         console.log("Layer2RegistryProxy ownership transferred to DAOCommitteeProxy");
 
+        // Set the minimum deposit amount to 0 for E2E tests to avoid decimal mismatch reverts
+        // IMPORTANT: Must be done BEFORE transferring ownership to DAOCommittee
+        if (Layer2ManagerV1_1(layer2ManagerProxy).minimumInitialDepositAmount() != 0) {
+            Layer2ManagerV1_1(layer2ManagerProxy).setMinimumInitialDepositAmount(0);
+            console.log("Layer2Manager minimumInitialDepositAmount set to 0");
+        } else {
+            console.log("Layer2Manager minimumInitialDepositAmount is already 0");
+        }
+
         // Layer2ManagerProxy
         Layer2ManagerProxy(payable(layer2ManagerProxy)).transferOwnership(daoCommitteeProxy);
         console.log("Layer2ManagerProxy ownership transferred to DAOCommitteeProxy");
@@ -1249,6 +1260,7 @@ contract DeployV3SlashForDevnet is Script {
         return string(abi.encodePacked(
             '  "disputeGameFactory": "', vm.toString(disputeGameFactory), '",\n',
             '  "systemConfig": "', vm.toString(systemConfig), '",\n',
+            '  "mockSystemConfig": "', vm.toString(mockSystemConfig), '",\n',
             '  "accounts": {\n',
             '    "optimismDeployer": "', vm.toString(OPTIMISM_DEPLOYER), '",\n',
             '    "tonStakingDeployer": "', vm.toString(DEPLOYER), '",\n',
