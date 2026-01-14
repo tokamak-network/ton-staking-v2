@@ -30,23 +30,24 @@ type TONStakingSystem struct {
 
 // DeploymentAddresses contains all deployed contract addresses
 type DeploymentAddresses struct {
-	ChainID               int64                  `json:"chainId"`
-	RPCURL                string                 `json:"rpcUrl"`
-	TON                   common.Address         `json:"ton"`
-	WTON                  common.Address         `json:"wton"`
-	CoinageFactory        common.Address         `json:"coinageFactory"`
-	Layer2RegistryProxy   common.Address         `json:"layer2RegistryProxy"`
-	SeigManagerProxy      common.Address         `json:"seigManagerProxy"`
-	DepositManagerProxy   common.Address         `json:"depositManagerProxy"`
-	Layer2ManagerProxy    common.Address         `json:"layer2ManagerProxy"`
-	L1BridgeRegistryProxy common.Address         `json:"l1BridgeRegistryProxy"`
-	OperatorManagerFactory common.Address        `json:"operatorManagerFactory"`
-	RATProxy              common.Address         `json:"ratProxy"`
-	ValidatorRewardProxy  common.Address         `json:"validatorRewardProxy"`
-	SequencerVaultProxy   common.Address         `json:"sequencerVaultProxy"`
-	DisputeGameFactory    common.Address         `json:"disputeGameFactory"`
-	SystemConfig          common.Address         `json:"systemConfig"`
-	Accounts              map[string]common.Address `json:"accounts"`
+	ChainID                int64                     `json:"chainId"`
+	RPCURL                 string                    `json:"rpcUrl"`
+	TON                    common.Address            `json:"ton"`
+	WTON                   common.Address            `json:"wton"`
+	CoinageFactory         common.Address            `json:"coinageFactory"`
+	Layer2RegistryProxy    common.Address            `json:"layer2RegistryProxy"`
+	SeigManagerProxy       common.Address            `json:"seigManagerProxy"`
+	DepositManagerProxy    common.Address            `json:"depositManagerProxy"`
+	Layer2ManagerProxy     common.Address            `json:"layer2ManagerProxy"`
+	L1BridgeRegistryProxy  common.Address            `json:"l1BridgeRegistryProxy"`
+	OperatorManagerFactory common.Address            `json:"operatorManagerFactory"`
+	RATProxy               common.Address            `json:"ratProxy"`
+	ValidatorRewardProxy   common.Address            `json:"validatorRewardProxy"`
+	SequencerVaultProxy    common.Address            `json:"sequencerVaultProxy"`
+	DisputeGameFactory     common.Address            `json:"disputeGameFactory"`
+	SystemConfig           common.Address            `json:"systemConfig"`
+	MockSystemConfig       common.Address            `json:"mockSystemConfig"` // For E2E tests
+	Accounts               map[string]common.Address `json:"accounts"`
 }
 
 // StartTONStakingSystem starts a local TON Staking V3 system using allocs-l1-staking-v3.json
