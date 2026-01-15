@@ -47,6 +47,7 @@ import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
+import {SystemConfig} from "@optimism-bedrock/L1/SystemConfig.sol";
 
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
@@ -902,24 +903,58 @@ contract DeployV3SlashForDevnet is Script {
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addManager(msg.sender);
         console.log("Added deployer as L1BridgeRegistry manager:", msg.sender);
 
-        // Deploy and configure MockSystemConfig for E2E tests
-        MockSystemConfig mockInstance = new MockSystemConfig();
-        mockSystemConfig = address(mockInstance);
-        console.log("MockSystemConfig deployed at:", mockSystemConfig);
+        // // Deploy and configure MockSystemConfig for E2E tests
+        // MockSystemConfig mockInstance = new MockSystemConfig();
+        // mockSystemConfig = address(mockInstance);
+        // console.log("MockSystemConfig deployed at:", mockSystemConfig);
 
-        // Configure MockSystemConfig
-        mockInstance.setUnsafeBlockSigner(DEPLOYER);
-        mockInstance.setDisputeGame(disputeGameFactory);
-        console.log("MockSystemConfig configured with DisputeGameFactory:", disputeGameFactory);
+        // // Configure MockSystemConfig
+        // mockInstance.setUnsafeBlockSigner(DEPLOYER);
+        // mockInstance.setDisputeGame(disputeGameFactory);
+        // console.log("MockSystemConfig configured with DisputeGameFactory:", disputeGameFactory);
 
-        // Register MockSystemConfig instead of real SystemConfig
+        // // Register MockSystemConfig
+        // L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfigByManager(
+        //     mockSystemConfig,
+        //     3, // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+        //     ton // L2 TON address (using L1 TON as placeholder, not actually used for Optimism)
+        // );
+        // console.log("MockSystemConfig registered in L1BridgeRegistry");
+        // console.log("  This provides unsafeBlockSigner, optimismPortal, etc. for E2E tests");
+
+        // Register systemConfig
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfigByManager(
-            mockSystemConfig,
+            systemConfig,
             3, // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
             ton // L2 TON address (using L1 TON as placeholder, not actually used for Optimism)
         );
-        console.log("MockSystemConfig registered in L1BridgeRegistry");
-        console.log("  This provides unsafeBlockSigner, optimismPortal, etc. for E2E tests");
+        console.log("SystemConfig registered in L1BridgeRegistry");
+
+        // Configure SystemConfig directly (instead of Mock)
+        vm.stopBroadcast(); // Stop TON Staking deployer broadcast
+
+        address sysOwner = SystemConfig(systemConfig).owner();
+        console.log("SystemConfig owner:", sysOwner);
+
+        // Impersonate SystemConfig owner to set UnsafeBlockSigner
+        vm.startBroadcast(sysOwner);
+        SystemConfig(systemConfig).setUnsafeBlockSigner(DEPLOYER);
+        console.log("SystemConfig.setUnsafeBlockSigner(", DEPLOYER, ") done");
+
+        // Verify DisputeGameFactory in SystemConfig (derived from OptimismPortal)
+        address checkDisputeGameFactory = SystemConfig(systemConfig).disputeGameFactory();
+        require(
+            checkDisputeGameFactory == disputeGameFactory,
+            "DisputeGameFactory mismatch: SystemConfig points to different factory"
+        );
+
+        console.log("Verified SystemConfig.disputeGameFactory matches:", checkDisputeGameFactory);
+
+        vm.stopBroadcast();
+
+        vm.startBroadcast(); // Resume TON Staking deployer
+
+        console.log("  Real SystemConfig configured with unsafeBlockSigner for E2E tests");
 
         console.log("");
     }
