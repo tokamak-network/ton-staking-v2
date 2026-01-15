@@ -17,6 +17,7 @@ node_modules/
 # logs
 *.log
 log-*.log
+*.test
 
 # claude files
 .claude/
@@ -32,3 +33,4 @@ paper/
 docs/for-llm-kr-v2/
 
 backup/
+
