@@ -30,7 +30,7 @@ mockGame.setStatus(GameStatus.CHALLENGER_WINS);
 ---
 
 ### E2E 테스트 (Go) - 통합 테스트 ⭐
-**위치**: `op-e2e/faultproofs/slashing_test.go`
+**위치**: `op-e2e/slashing/slashing_test.go`
 
 ```go
 // 실제 Optimism 컨트랙트 사용
@@ -134,7 +134,8 @@ Step 6: 슬래싱 실행 (실제!)
 ```json
 {
   "chainId": 900,
-  "disputeGameFactory": "0xC5EBaDB0BcD1a00450098a645bAc3C1Adb9841E5",
+  "disputeGameFactory": "0xb606Ad4a2Ba58ba7cE88fe50A2b7991EB0e1d4F3",
+  "systemConfig": "0xe705b6429e79D1a2Ce8E84df065c27b9c4Eed3C4",
   "ratProxy": "0x49FcbCC4E425add3a45AFC82F4dD0E5c227A0Ff8",
   "seigManagerProxy": "0x0f5D1ef48f12b6f691401bfe88c2037c690a6afe",
   "depositManagerProxy": "0x90118d110B07ABB82Ba8980D1c5cC96EeA810d2C",
@@ -144,7 +145,7 @@ Step 6: 슬래싱 실행 (실제!)
 
 ### 코드 증거: `createDisputeGameWithWrongClaim()`
 ```go
-// op-e2e/faultproofs/rat_challenge_helpers.go:163-206
+// op-e2e/e2eutils/rat/helpers.go (or local helpers)
 
 func createDisputeGameWithWrongClaim(...) {
     // 실제 DisputeGameFactory 연결
@@ -248,7 +249,7 @@ make test-e2e
 
 # 슬래싱 테스트만
 cd op-e2e
-GOWORK=off go test -v -run TestSlashing ./faultproofs
+GOWORK=off go test -v ./slashing/...
 ```
 
 ### 3. 테스트 플로우
@@ -298,9 +299,9 @@ GOWORK=off go test -v -run TestSlashing ./faultproofs
 ## 📚 참고 자료
 
 ### 관련 파일
-- **E2E 테스트**: `op-e2e/faultproofs/slashing_test.go`
-- **헬퍼 함수**: `op-e2e/faultproofs/slashing_helpers.go`
-- **공통 헬퍼**: `op-e2e/faultproofs/rat_challenge_helpers.go`
+- **E2E 테스트**: `op-e2e/slashing/slashing_test.go`
+- **헬퍼 함수**: `op-e2e/slashing/slashing_helpers.go`
+- **공통 헬퍼**: `op-e2e/e2eutils/rat/helpers.go`
 - **Genesis 스크립트**: `script/DeployV3SlashForDevnet.s.sol`
 
 ### 기존 E2E 테스트 예시
