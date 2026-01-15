@@ -47,7 +47,6 @@ import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
 import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
-import {SystemConfig} from "@optimism-bedrock/L1/SystemConfig.sol";
 
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
@@ -78,6 +77,12 @@ interface IDisputeGameFactory {
     function setImplementation(uint32 gameType, address impl) external;
     function setInitBond(uint32 gameType, uint256 bond) external;
     function rat() external view returns (address);
+}
+
+interface ISystemConfig {
+    function owner() external view returns (address);
+    function setUnsafeBlockSigner(address _unsafeBlockSigner) external;
+    function disputeGameFactory() external view returns (address);
 }
 
 /**
@@ -933,16 +938,16 @@ contract DeployV3SlashForDevnet is Script {
         // Configure SystemConfig directly (instead of Mock)
         vm.stopBroadcast(); // Stop TON Staking deployer broadcast
 
-        address sysOwner = SystemConfig(systemConfig).owner();
+        address sysOwner = ISystemConfig(systemConfig).owner();
         console.log("SystemConfig owner:", sysOwner);
 
         // Impersonate SystemConfig owner to set UnsafeBlockSigner
         vm.startBroadcast(sysOwner);
-        SystemConfig(systemConfig).setUnsafeBlockSigner(DEPLOYER);
+        ISystemConfig(systemConfig).setUnsafeBlockSigner(DEPLOYER);
         console.log("SystemConfig.setUnsafeBlockSigner(", DEPLOYER, ") done");
 
         // Verify DisputeGameFactory in SystemConfig (derived from OptimismPortal)
-        address checkDisputeGameFactory = SystemConfig(systemConfig).disputeGameFactory();
+        address checkDisputeGameFactory = ISystemConfig(systemConfig).disputeGameFactory();
         require(
             checkDisputeGameFactory == disputeGameFactory,
             "DisputeGameFactory mismatch: SystemConfig points to different factory"
