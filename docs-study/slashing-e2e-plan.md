@@ -119,31 +119,31 @@ func updateSeigniorage(
 abigen --abi=out/Layer2Manager_Slashing.sol/Layer2Manager_Slashing.json \
        --pkg=bindings \
        --type=Layer2ManagerSlashing \
-       --out=op-bindings/bindings/layer2manager_slashing.go
+       --out=op-e2e/bindings/layer2manager_slashing.go
 
 # 2. DepositManager_Slashing
 abigen --abi=out/DepositManager_Slashing.sol/DepositManager_Slashing.json \
        --pkg=bindings \
        --type=DepositManagerSlashing \
-       --out=op-bindings/bindings/depositmanager_slashing.go
+       --out=op-e2e/bindings/depositmanager_slashing.go
 
 # 3. SeigManager_Slashing
 abigen --abi=out/SeigManager_Slashing.sol/SeigManager_Slashing.json \
        --pkg=bindings \
        --type=SeigManagerSlashing \
-       --out=op-bindings/bindings/seigmanager_slashing.go
+       --out=op-e2e/bindings/seigmanager_slashing.go
 
 # 4. DepositManager (일반 deposit 함수용)
 abigen --abi=out/DepositManager.sol/DepositManager.json \
        --pkg=bindings \
        --type=DepositManager \
-       --out=op-bindings/bindings/depositmanager.go
+       --out=op-e2e/bindings/depositmanager.go
 
 # 5. Layer2ManagerV1_1 (registerCandidateAddOn용)
 abigen --abi=out/Layer2ManagerV1_1.sol/Layer2ManagerV1_1.json \
        --pkg=bindings \
        --type=Layer2ManagerV1_1 \
-       --out=op-bindings/bindings/layer2managerv1_1.go
+       --out=op-e2e/bindings/layer2managerv1_1.go
 ```
 
 #### Makefile 타겟 추가
@@ -155,13 +155,13 @@ bindings-slashing:
 	@echo "Generating slashing contract bindings..."
 	abigen --abi=out/Layer2Manager_Slashing.sol/Layer2Manager_Slashing.json \
 	       --pkg=bindings --type=Layer2ManagerSlashing \
-	       --out=op-bindings/bindings/layer2manager_slashing.go
+	       --out=op-e2e/bindings/layer2manager_slashing.go
 	abigen --abi=out/DepositManager_Slashing.sol/DepositManager_Slashing.json \
 	       --pkg=bindings --type=DepositManagerSlashing \
-	       --out=op-bindings/bindings/depositmanager_slashing.go
+	       --out=op-e2e/bindings/depositmanager_slashing.go
 	abigen --abi=out/SeigManager_Slashing.sol/SeigManager_Slashing.json \
 	       --pkg=bindings --type=SeigManagerSlashing \
-	       --out=op-bindings/bindings/seigmanager_slashing.go
+	       --out=op-e2e/bindings/seigmanager_slashing.go
 	@echo "✓ Slashing bindings generated"
 ```
 
