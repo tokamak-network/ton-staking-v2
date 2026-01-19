@@ -38,6 +38,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     address public mockPortal;
     address public mockDisputeGameFactory;
     address public mockL2TON;
+    address public mockLayer2 = address(0x8001);
 
     // ==========================================
     // Test Addresses
@@ -227,11 +228,11 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
 
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         // 4. 등록 확인
-        (uint256 deposited, , , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        (uint256 deposited, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertEq(deposited, depositAmount, "Deposit amount mismatch");
         assertTrue(isActive, "Validator should be active");
     }
@@ -244,13 +245,13 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         // 첫 번째 검증자
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         // 두 번째 검증자
         vm.startPrank(validator2);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         // 검증자 수 확인
@@ -342,10 +343,10 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
 
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, validatorDeposit);
-        rat.registerValidator(address(mockSystemConfig), validatorDeposit);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
-        (uint256 deposited, , , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        (uint256 deposited, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertEq(deposited, validatorDeposit, "Step 3: Validator deposit failed");
         assertTrue(isActive, "Step 3: Validator not active");
 
@@ -362,7 +363,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         // ==========================================
         vm.startPrank(validator2);
         MockTON(ton).approve(ratProxy, validatorDeposit);
-        rat.registerValidator(address(mockSystemConfig), validatorDeposit);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         vm.roll(block.number + 100);
@@ -381,23 +382,23 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         // 1. 검증자 등록
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         // 2. 검증자 탈퇴
         vm.prank(validator1);
         rat.deactivateValidator(address(mockSystemConfig));
 
-        (, , , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertFalse(isActive, "Validator should be inactive after deactivation");
 
         // 3. 검증자 재등록
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
-        (, , , isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        (, , isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertTrue(isActive, "Validator should be active after re-registration");
     }
 
@@ -430,7 +431,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
 
         vm.startPrank(validator1);
         MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig), depositAmount);
+        rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
     }
 }

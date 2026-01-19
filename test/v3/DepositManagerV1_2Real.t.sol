@@ -100,7 +100,7 @@ contract DepositManagerV1_2RealTest is Test, DeployV3Full {
         // 프록시를 통해 호출하면 revert reason이 전달되지 않을 수 있음
         vm.prank(user1);
         vm.expectRevert();
-        depositManagerV1_2.deposit(address(0x1001), user1, 0);
+        depositManager.deposit(address(0x1001), user1, 0);
     }
 
     // ==========================================

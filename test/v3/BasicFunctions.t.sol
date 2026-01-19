@@ -170,7 +170,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
 
         // 3. Deposit
-        bool success = DepositManagerV1_2(depositManagerProxy).deposit(
+        bool success = DepositManager(depositManagerProxy).deposit(
             address(mockLayer2),
             user1,
             depositAmount
@@ -193,8 +193,8 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, amount1 + amount2);
 
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, amount1);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, amount2);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, amount1);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, amount2);
         vm.stopPrank();
 
         assertEq(depositManager.accStaked(address(mockLayer2), user1), amount1 + amount2);
@@ -240,7 +240,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         // 스테이킹
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
 
         // 출금 요청
         bool success = DepositManagerV1_2(depositManagerProxy).requestWithdrawal(
@@ -260,7 +260,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
 
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
 
         // 전액 출금 요청
         DepositManagerV1_2(depositManagerProxy).requestWithdrawal(address(mockLayer2), depositAmount);
@@ -282,7 +282,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         // 스테이킹 및 출금 요청
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
         DepositManagerV1_2(depositManagerProxy).requestWithdrawal(address(mockLayer2), withdrawAmount);
         vm.stopPrank();
 
@@ -308,7 +308,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
 
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
         DepositManagerV1_2(depositManagerProxy).requestWithdrawal(address(mockLayer2), depositAmount);
         vm.stopPrank();
 
@@ -332,7 +332,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         // 스테이킹
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
         vm.stopPrank();
 
         // 블록 진행
@@ -352,7 +352,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
 
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
         vm.stopPrank();
 
         vm.roll(block.number + 100);
@@ -377,7 +377,7 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         // 2. 스테이킹
         vm.startPrank(user1);
         MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        DepositManagerV1_2(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
+        DepositManager(depositManagerProxy).deposit(address(mockLayer2), user1, depositAmount);
         vm.stopPrank();
 
         assertEq(depositManager.accStaked(address(mockLayer2), user1), depositAmount);

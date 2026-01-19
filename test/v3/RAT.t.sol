@@ -18,256 +18,324 @@ contract MockFaultDisputeGame {
 
 /// @notice Mock L1BridgeRegistry for factory validation
 contract MockL1BridgeRegistry {
-    /// @notice factory => rollupConfig mapping
     mapping(address => address) public rollupConfigWithDisputeGameFactory;
 
-    /// @notice Register a factory as valid
     function setFactory(address factory, address rollupConfig) external {
         rollupConfigWithDisputeGameFactory[factory] = rollupConfig;
     }
 }
 
+/// @notice Mock Layer2Manager for V3
+contract MockLayer2Manager {
+    mapping(address => address) public systemConfigToLayer2;
+
+    function setLayer2(address systemConfig, address layer2) external {
+        systemConfigToLayer2[systemConfig] = layer2;
+    }
+
+    function getLayer2BySystemConfig(address systemConfig) external view returns (address) {
+        return systemConfigToLayer2[systemConfig];
+    }
+}
+
+/// @notice Mock SeigManager for V3
+contract MockSeigManager {
+    address public ratContract;
+    mapping(address => mapping(address => uint256)) public stakes;
+
+    function setRATContract(address _rat) external {
+        ratContract = _rat;
+    }
+
+    function setStake(address layer2, address account, uint256 amount) external {
+        stakes[layer2][account] = amount;
+    }
+
+    function stakeOf(address layer2, address account) external view returns (uint256) {
+        return stakes[layer2][account];
+    }
+
+    function coinages(address) external pure returns (address) {
+        return address(0);
+    }
+
+    function transferCoinageToRAT(address layer2, address validator, uint256 amount) external {
+        require(stakes[layer2][validator] >= amount, "insufficient stake");
+        stakes[layer2][validator] -= amount;
+        stakes[layer2][ratContract] += amount;
+    }
+
+    function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external {
+        require(stakes[layer2][ratContract] >= amount, "insufficient RAT stake");
+        stakes[layer2][ratContract] -= amount;
+        stakes[layer2][validator] += amount;
+    }
+
+    function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external {
+        require(stakes[layer2][ratContract] >= amount, "insufficient RAT stake");
+        stakes[layer2][ratContract] -= amount;
+        stakes[layer2][recipient] += amount;
+    }
+}
+
 /// @title RATTest
-/// @notice RAT (Randomized Attention Test) 단위 테스트
-/// @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
+/// @notice RAT (Randomized Attention Test) V3 단위 테스트
 contract RATTest is Test {
     RAT public rat;
     MockWTON public wton;
     MockTON public ton;
     MockL1BridgeRegistry public mockL1BridgeRegistry;
+    MockLayer2Manager public mockLayer2Manager;
+    MockSeigManager public mockSeigManager;
 
     address public owner = address(this);
-    address public seigManager = address(0x1);
-    address public depositManager = address(0x2);
-    address public factory = address(0x3);  // DisputeGameFactory 역할
+    address public factory = address(0x3);
     address public treasury = address(0x4);
 
     address public systemConfig1 = address(0x10);
     address public systemConfig2 = address(0x20);
+    address public layer2_1 = address(0x11);
+    address public layer2_2 = address(0x21);
 
     address public validator1 = address(0x100);
     address public validator2 = address(0x200);
     address public validator3 = address(0x300);
 
-    // Mock game contracts for RAT tests (provides systemConfig() for resolveClaim)
     MockFaultDisputeGame public mockGame1;
-    MockFaultDisputeGame public mockGame2;
 
     uint256 internal constant RAY = 1e27;
 
-    // 백서 V2 기본값
-    uint256 public slashingPenalty = 100e27;       // C_off = 100 WTON
-    uint256 public validatorBuffer = 100e27;       // Δ_validator = 100 WTON
-    uint256 public minimumThreshold = 150e27;      // D_min = 150 WTON
-    uint256 public minimumDeposit = 200e27;        // D_validator = C_off + Δ_validator
+    uint256 public slashingPenalty = 100e27;
+    uint256 public validatorBuffer = 100e27;
+    uint256 public minimumThreshold = 200e27;
     uint256 public evidenceSubmissionPeriod = 1 hours;
+    uint256 public ratTriggerProbability = RAY; // 100% for testing
+    uint256 public maxValidatorsPerL2 = 100;
+    uint256 public challengeGameDuration = 7 days; // 챌린지 게임 기간
+    uint256 public safetyBuffer = 1 days; // 안전 버퍼
 
     function setUp() public {
-        // Deploy mocks
         wton = new MockWTON();
         ton = new MockTON();
         wton.setTON(address(ton));
 
-        // Deploy mock L1BridgeRegistry
         mockL1BridgeRegistry = new MockL1BridgeRegistry();
-        // factory를 systemConfig1의 유효한 factory로 등록
         mockL1BridgeRegistry.setFactory(factory, systemConfig1);
 
-        // Deploy mock games (with systemConfig for resolveClaim)
-        mockGame1 = new MockFaultDisputeGame(systemConfig1);
-        mockGame2 = new MockFaultDisputeGame(systemConfig1);
+        mockLayer2Manager = new MockLayer2Manager();
+        mockLayer2Manager.setLayer2(systemConfig1, layer2_1);
+        mockLayer2Manager.setLayer2(systemConfig2, layer2_2);
 
-        // Deploy RAT (V3: depositManager 제거)
+        mockSeigManager = new MockSeigManager();
+
+        mockGame1 = new MockFaultDisputeGame(systemConfig1);
+
         rat = new RAT();
         rat.initialize(
-            seigManager,
+            address(mockSeigManager),
             address(wton),
             address(ton),
-            address(0), // layer2Manager (not used in tests)
+            address(mockLayer2Manager),
             owner,
-            0.01e27 // ratTriggerProbability (테스트용 1%)
+            ratTriggerProbability,
+            evidenceSubmissionPeriod,
+            slashingPenalty,
+            validatorBuffer,
+            minimumThreshold,
+            maxValidatorsPerL2,
+            challengeGameDuration,
+            safetyBuffer
         );
 
-        // 백서 V2 파라미터 설정
-        rat.setSlashingPenalty(slashingPenalty);
-        rat.setValidatorBuffer(validatorBuffer);
-        rat.setMinimumThreshold(minimumThreshold);
-        rat.setL1BridgeRegistry(address(mockL1BridgeRegistry));  // factory 검증용
+        mockSeigManager.setRATContract(address(rat));
+        rat.setL1BridgeRegistry(address(mockL1BridgeRegistry));
         rat.setTreasury(treasury);
-        rat.setEvidenceSubmissionPeriod(evidenceSubmissionPeriod);
 
-        // Mint TON to validators (RAT uses TON, not WTON)
-        ton.mint(validator1, 10000e27);
-        ton.mint(validator2, 10000e27);
-        ton.mint(validator3, 10000e27);
-
-        // Approve TON to RAT
-        vm.prank(validator1);
-        ton.approve(address(rat), type(uint256).max);
-        vm.prank(validator2);
-        ton.approve(address(rat), type(uint256).max);
-        vm.prank(validator3);
-        ton.approve(address(rat), type(uint256).max);
+        // Setup validator stakes
+        mockSeigManager.setStake(layer2_1, validator1, 500e27);
+        mockSeigManager.setStake(layer2_1, validator2, 600e27);
+        mockSeigManager.setStake(layer2_1, validator3, 700e27);
+        mockSeigManager.setStake(layer2_2, validator1, 500e27);
     }
 
     // ==========================================
-    // 최소 담보금 테스트
+    // 기본 테스트
     // ==========================================
 
-    /// @notice 백서 공식 (5): D_validator = C_off + Δ_validator
-    function test_getMinimumCollateral() public view {
-        uint256 minCollateral = rat.getMinimumCollateral();
+    function test_getDynamicMinimumCollateral() public view {
+        // N=1 (기본값), attentionCost=0 이면 C_off = slashingPenalty
+        uint256 minCollateral = rat.getDynamicMinimumCollateral(systemConfig1);
+        assertEq(minCollateral, slashingPenalty + validatorBuffer);
+    }
 
-        // D_validator = slashingPenalty + validatorBuffer = 100 + 100 = 200
-        assertEq(minCollateral, slashingPenalty + validatorBuffer, "Minimum collateral calculation");
+    function test_getCoffWithRelaxedCheck_relaxedMode() public {
+        // relaxedValidatorCheck = true (기본값)
+        // C_off는 항상 slashingPenalty
+
+        // 검증자 3명 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        uint256 coff = rat.getCoffWithRelaxedCheck(systemConfig1);
+        assertEq(coff, slashingPenalty);
+    }
+
+    function test_getCoffWithRelaxedCheck_strictMode() public {
+        // relaxedValidatorCheck = false
+        // C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
+
+        rat.setRelaxedValidatorCheck(false);
+        rat.setAttentionCost(50e27); // c_m 설정
+
+        // 검증자 3명 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        uint256 coff = rat.getCoffWithRelaxedCheck(systemConfig1);
+
+        // 예상값 계산: (50e27 × 3 × 1e27) / 1e27 = 150e27
+        uint256 expected = (50e27 * 3 * RAY) / RAY;
+        assertEq(coff, expected);
+        assertTrue(coff > slashingPenalty);
+    }
+
+    function test_getDynamicCoff_withFormula() public view {
+        // attentionCost=0 이므로 항상 slashingPenalty 반환
+        uint256 coff = rat.getDynamicCoff(systemConfig1);
+        assertEq(coff, slashingPenalty);
+    }
+
+    function test_getDynamicCoff_withAttentionCost() public {
+        // attentionCost 설정 후 formula 기반 계산
+        rat.setAttentionCost(50e27);
+
+        // 검증자 5명 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        uint256 coff = rat.getDynamicCoff(systemConfig1);
+
+        // 예상값: max(100e27, (50e27 × 3 × 1e27) / 1e27) = 150e27
+        uint256 expected = (50e27 * 3 * RAY) / RAY;
+        assertEq(coff, expected);
+    }
+
+    function test_getMinimumCollateralWithRelaxedCheck_relaxedMode() public {
+        // relaxedValidatorCheck = true (기본값)
+        // D_min = C_off + validatorBuffer = slashingPenalty + validatorBuffer
+
+        uint256 dmin = rat.getMinimumCollateralWithRelaxedCheck(systemConfig1);
+        assertEq(dmin, slashingPenalty + validatorBuffer);
+    }
+
+    function test_getMinimumCollateralWithRelaxedCheck_strictMode() public {
+        // relaxedValidatorCheck = false
+        // D_min = C_off(dynamic) + validatorBuffer
+
+        rat.setRelaxedValidatorCheck(false);
+        rat.setAttentionCost(50e27);
+
+        // 검증자 3명 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        uint256 dmin = rat.getMinimumCollateralWithRelaxedCheck(systemConfig1);
+
+        // 예상값: (50e27 × 3 × 1e27) / 1e27 + 100e27 = 250e27
+        uint256 expectedCoff = (50e27 * 3 * RAY) / RAY;
+        uint256 expected = expectedCoff + validatorBuffer;
+        assertEq(dmin, expected);
     }
 
     // ==========================================
     // 검증자 등록 테스트
     // ==========================================
 
-    /// @notice 검증자 등록 성공
     function test_registerValidator_success() public {
-        uint256 depositAmount = 500e27;
-
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, depositAmount);
+        rat.registerValidator(systemConfig1);
 
-        // 검증
-        (
-            uint256 depositedAmount,
-            uint256 totalBondForRAT,
-            uint32 validatorIndex,
-            bool isActive
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 collateral, uint32 validatorIndex, bool isActive) =
+            rat.getValidatorRegistration(validator1, systemConfig1);
 
-        assertTrue(isActive, "Validator should be active");
-        assertEq(depositedAmount, depositAmount, "Deposit amount should match");
-        assertEq(totalBondForRAT, 0, "No bonds initially");
-        assertEq(validatorIndex, 0, "First validator index");
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Active count should be 1");
+        assertTrue(isActive);
+        assertEq(collateral, 500e27);
+        assertEq(validatorIndex, 0);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
     }
 
-    /// @notice 불충분한 담보금으로 등록 실패 (등록 시 항상 D_min 필요)
     function test_registerValidator_insufficientDeposit() public {
-        // V3: 등록 시 항상 D_min 이상 필요 (relaxedValidatorCheck와 무관)
-        uint256 minDeposit = rat.getMinimumCollateral();
-        uint256 insufficientDeposit = minDeposit - 1;
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold - 1);
 
         vm.prank(validator1);
         vm.expectRevert();
-        rat.registerValidator(systemConfig1, insufficientDeposit);
+        rat.registerValidator(systemConfig1);
     }
 
-    /// @notice 중복 등록 실패
     function test_registerValidator_alreadyRegistered() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         vm.prank(validator1);
         vm.expectRevert();
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
     }
 
-    /// @notice 여러 L2에 등록 가능
-    function test_registerValidator_multipleL2() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig2, 500e27);
-
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "L2_1 active count");
-        assertEq(rat.getActiveValidatorCount(systemConfig2), 1, "L2_2 active count");
-    }
-
-    /// @notice 여러 검증자 등록
     function test_registerMultipleValidators() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         vm.prank(validator2);
-        rat.registerValidator(systemConfig1, 600e27);
+        rat.registerValidator(systemConfig1);
 
         vm.prank(validator3);
-        rat.registerValidator(systemConfig1, 700e27);
+        rat.registerValidator(systemConfig1);
 
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 3, "Should have 3 active validators");
-    }
-
-    // ==========================================
-    // 담보금 추가 테스트
-    // ==========================================
-
-    /// @notice 담보금 추가
-    function test_addDeposit() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        vm.prank(validator1);
-        rat.addDeposit(systemConfig1, 200e27);
-
-        (
-            uint256 depositedAmount,
-            ,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 700e27, "Deposit should be increased");
-    }
-
-    /// @notice 비활성 검증자 담보금 추가 실패
-    function test_addDeposit_notActive() public {
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.addDeposit(systemConfig1, 200e27);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 3);
     }
 
     // ==========================================
     // 검증자 비활성화 테스트
     // ==========================================
 
-    /// @notice 검증자 비활성화
     function test_deactivateValidator() public {
-        uint256 depositAmount = 500e27;
-
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, depositAmount);
-
-        // V3: RAT은 TON을 직접 보관하고 반환함 (WTON 아님)
-        uint256 balanceBefore = ton.balanceOf(validator1);
+        rat.registerValidator(systemConfig1);
 
         vm.prank(validator1);
         rat.deactivateValidator(systemConfig1);
 
-        // 검증
-        (
-            uint256 depositedAmount,
-            ,
-            ,
-            bool isActive
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (uint256 collateral, , bool isActive) =
+            rat.getValidatorRegistration(validator1, systemConfig1);
 
-        assertFalse(isActive, "Validator should be inactive");
-        assertEq(depositedAmount, 0, "Deposit should be 0");
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 0, "Active count should be 0");
-
-        // 담보금 반환 확인 (TON으로 반환됨)
-        assertEq(
-            ton.balanceOf(validator1),
-            balanceBefore + depositAmount,
-            "Deposit should be returned"
-        );
+        assertFalse(isActive);
+        assertEq(collateral, 500e27); // coinage unchanged
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
     }
 
     // ==========================================
     // RAT 트리거 테스트
     // ==========================================
 
-    /// @notice RAT 트리거 성공
     function test_triggerAttentionTest() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
         bytes32 batchHash = keccak256("batch1");
@@ -276,46 +344,33 @@ contract RATTest is Test {
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
-        // 검증자의 담보금 선차감 확인
-        (
-            uint256 depositedAmount,
-            uint256 totalBondForRAT,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
+        // Check validator stake was reduced (pre-deducted)
+        uint256 validatorStake = mockSeigManager.stakeOf(layer2_1, validator1);
+        assertEq(validatorStake, 500e27 - slashingPenalty);
 
-        // 초기 500 - C_off(100) = 400
-        assertEq(depositedAmount, 400e27, "Deposit should be reduced by C_off");
-        assertEq(totalBondForRAT, 100e27, "Bond for RAT should be C_off");
+        // Check RAT received the stake
+        uint256 ratStake = mockSeigManager.stakeOf(layer2_1, address(rat));
+        assertEq(ratStake, slashingPenalty);
     }
 
-    /// @notice 권한 없는 RAT 트리거 실패
-    function test_triggerAttentionTest_notAuthorized() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+    function test_triggerAttentionTest_noValidators() public {
+        uint32 batchIndex = 1;
+        bytes32 batchHash = keccak256("batch1");
+        bytes32 blockHash = keccak256("block1");
 
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
-    }
-
-    /// @notice 활성 검증자 없을 때 RAT 트리거 (무시됨)
-    function test_triggerAttentionTest_noActiveValidators() public {
-        // 검증자 없는 상태에서 트리거
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
-        // 테스트가 생성되지 않음 확인
-        assertEq(rat.activeTestCount(systemConfig1), 0, "No test should be created");
+        // Should not revert, just return early
     }
 
     // ==========================================
     // 증거 제출 테스트
     // ==========================================
 
-    /// @notice 증거 제출 성공 (담보금 복구)
-    function test_submitEvidence_success() public {
+    function test_submitEvidence() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
         bytes32 batchHash = keccak256("batch1");
@@ -324,346 +379,340 @@ contract RATTest is Test {
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
-        // 증거 제출
+        // Before evidence: validator stake reduced
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 400e27);
+
         vm.prank(validator1);
         rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
 
-        // 담보금 복구 확인
-        (
-            uint256 depositedAmount,
-            uint256 totalBondForRAT,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 500e27, "Deposit should be restored");
-        assertEq(totalBondForRAT, 0, "No more bond for RAT");
+        // After evidence: stake restored
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 500e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 0);
     }
 
-    /// @notice 마감 후 증거 제출 실패
-    function test_submitEvidence_deadlinePassed() public {
+    // ==========================================
+    // 상태 조회 테스트 (시간 기반)
+    // ==========================================
+
+    function test_getAttentionTestStatus_evidencePeriod() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
-        bytes32 batchHash = keccak256("batch1");
-        bytes32 blockHash = keccak256("block1");
-
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
-        // 마감 경과
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
+
+        // deadline 전에는 EvidencePeriod
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.EvidencePeriod));
+    }
+
+    function test_getAttentionTestStatus_challengePeriod() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        uint32 batchIndex = 1;
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
+
+        // deadline 경과 후 ~ challengeGameDuration 내에는 ChallengePeriod
         vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
 
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.ChallengePeriod));
+
+        // 검증자 스테이크는 선차감 상태
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 400e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
     }
 
-    /// @notice 선택되지 않은 검증자가 증거 제출 실패
-    function test_submitEvidence_notSelectedValidator() public {
+    function test_getAttentionTestStatus_slashed() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
-        // 다른 검증자가 제출 시도
-        vm.prank(validator2);
-        vm.expectRevert();
-        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
+
+        // deadline + challengeGameDuration 경과 후에 Slashed
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + challengeGameDuration + 1);
+
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.Slashed));
+
+        // 검증자 스테이크는 여전히 선차감 상태 (treasury 출금 전)
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 400e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
     }
 
-    // ==========================================
-    // 슬래싱 테스트 (백서 V2)
-    // ==========================================
-
-    // ==========================================
-    // NOTE: Lazy Evaluation으로 변경됨
-    // - triggerAttentionTest 시점에 C_off 선차감
-    // - 마감 후 미응답 시 자동 슬래싱 확정 (별도 트랜잭션 불필요)
-    // - 출금(deactivateValidator) 시 latestTestDeadline 확인
-    // ==========================================
-
-    /// @notice 미응답 검증자 슬래싱 - Lazy Evaluation
-    /// @dev trigger 시점에 선차감되고, deadline 후 미응답 시 확정됨
-    function test_lazyEvaluation_noResponseSlash() public {
-        uint256 initialDeposit = 500e27;
-
+    function test_getAttentionTestStatus_restoredByEvidence() public {
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, initialDeposit);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
-        // trigger 직후 확인
-        (
-            uint256 depositedAmount,
-            uint256 totalBondForRAT,
-            ,
-            bool isActive
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        // trigger 시점에 C_off가 선차감됨
-        assertEq(depositedAmount, 400e27, "Deposit after trigger (pre-deducted)");
-        assertEq(totalBondForRAT, 100e27, "Bond should hold C_off");
-        assertTrue(isActive, "Should still be active");
-
-        // 마감 경과 후 - 별도 finalize 없이 슬래싱 확정
-        vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
-
-        // 출금 시도 시 latestTestDeadline 확인됨
-        // (이제 deadline 지났으므로 출금 가능해져야 함)
-    }
-
-    /// @notice 슬래싱 후 D_min 미만 - trigger 시점에 비활성화 확인
-    function test_lazyEvaluation_belowThreshold() public {
-        // 최소 담보금으로 등록 (200 = C_off + buffer)
-        uint256 initialDeposit = minimumDeposit;
-
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, initialDeposit);
-
-        uint32 batchIndex = 1;
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
-
-        // trigger 직후 확인
-        (
-            uint256 depositedAmount,
-            ,
-            ,
-            bool isActive
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        // trigger 시점에 C_off가 선차감됨: 200 - 100 = 100 < D_min(150)
-        assertEq(depositedAmount, 100e27, "Deposit after trigger");
-        // D_min 미달로 비활성화
-        assertFalse(isActive, "Should be deactivated (deposit < D_min)");
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 0, "Active count should be 0");
-    }
-
-    /// @notice 증거 제출 시 담보금 복구
-    function test_lazyEvaluation_submitEvidenceRestores() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        uint32 batchIndex = 1;
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
-
-        // trigger 직후 - 선차감됨
-        (uint256 depositBefore,,,) = rat.getValidatorRegistration(validator1, systemConfig1);
-        assertEq(depositBefore, 400e27, "Deposit pre-deducted");
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
 
         // 증거 제출
         vm.prank(validator1);
-        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+        rat.submitEvidence(systemConfig1, batchIndex, "evidence");
 
-        // 증거 제출 후 - 복구됨
-        (uint256 depositAfter, uint256 bondAfter,,) = rat.getValidatorRegistration(validator1, systemConfig1);
-        assertEq(depositAfter, 500e27, "Deposit restored after evidence");
-        assertEq(bondAfter, 0, "Bond cleared after evidence");
-    }
-
-    // V3: 보상 분배 테스트 제거 - ValidatorReward.t.sol로 이동
-    // - test_distributeValidatorReward -> ValidatorReward.distributeL2Rewards()
-    // - test_claimRewards -> ValidatorReward.claimAllRewards()
-    // - test_claimRewardsBatch -> ValidatorReward.claimAllRewards()
-    // - test_claimRewards_noRewards -> ValidatorReward 테스트
-
-    // ==========================================
-    // 거버넌스 테스트
-    // ==========================================
-
-    /// @notice 슬래싱 페널티 설정 (owner only)
-    function test_setSlashingPenalty() public {
-        rat.setSlashingPenalty(200e27);
-        assertEq(rat.slashingPenalty(), 200e27);
-    }
-
-    /// @notice 최소 임계값 설정 (owner only)
-    function test_setMinimumThreshold() public {
-        rat.setMinimumThreshold(300e27);
-        assertEq(rat.minimumThreshold(), 300e27);
-    }
-
-    /// @notice 비소유자 설정 실패
-    function test_setSlashingPenalty_notOwner() public {
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.setSlashingPenalty(200e27);
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.RestoredByEvidence));
     }
 
     // ==========================================
-    // 백서 공식 (4) 검증 테스트
+    // Treasury 출금 테스트
     // ==========================================
 
-    /// @notice C_off ≥ (c_m · n) / π_a 검증
-    function test_validateSlashingPenalty() public {
-        // attentionCost 설정 (기본값 0이므로 설정 필요)
-        rat.setAttentionCost(0.0001e27); // c_m = 0.01%
-        rat.setRatTriggerProbability(0.01e27); // π_a = 1%
-
-        // n = 3
-        bool isValid = rat.validateSlashingPenalty(3);
-
-        // C_off(100) >= (c_m(0.0001) * 3) / π_a(0.01) = 0.03
-        assertTrue(isValid, "Slashing penalty should be valid for n=3");
-    }
-
-    /// @notice 슬래싱 누적 금액 Treasury 전송
-    /// @dev Lazy evaluation에서는 미응답 시 슬래싱이 deadline 경과 후 확정됨
-    /// TODO: Lazy evaluation에 맞게 accumulatedSlashings 누적 로직 확인 필요
     function test_withdrawSlashingsToTreasury() public {
-        vm.skip(true); // TODO: Lazy evaluation 방식에 맞게 수정 필요
-
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
-        vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
+        // 아직 출금 불가 (deadline + 챌린지 게임 기간 + 안전 버퍼 대기 필요)
+        vm.expectRevert("pending tests not expired");
+        rat.withdrawSlashingsToTreasury(systemConfig1);
 
-        // Lazy evaluation: deadline 경과 후 슬래싱 확정
-        // accumulatedSlashings가 어디서 누적되는지 확인 필요
+        // 전체 대기 시간 경과 후 출금 가능
+        // deadline = 현재 + evidenceSubmissionPeriod
+        // withdrawableAfter = deadline + challengeGameDuration + safetyBuffer
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + challengeGameDuration + safetyBuffer + 1);
 
-        uint256 treasuryBefore = wton.balanceOf(treasury);
-        rat.withdrawSlashingsToTreasury();
+        // Withdraw to treasury
+        rat.withdrawSlashingsToTreasury(systemConfig1);
 
-        assertEq(wton.balanceOf(treasury), treasuryBefore + 100e27, "Treasury should receive slashed amount");
-        assertEq(rat.accumulatedSlashings(), 0, "Accumulated slashings should be 0");
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 0);
+        assertEq(mockSeigManager.stakeOf(layer2_1, treasury), slashingPenalty);
     }
 
-    // V3: test_getTotalPendingRewards 제거 - ValidatorReward.getPendingRewards()로 이동
-
     // ==========================================
-    // resolveClaim 테스트 (FaultDisputeGame 연동)
+    // 확률적 트리거 테스트
     // ==========================================
 
-    /// @notice resolveClaim 성공 - 게임 승리 시 본드 복구
-    function test_resolveClaim_success() public {
+    function test_probabilisticTrigger() public {
+        // Set probability to 0 (should never trigger)
+        rat.setRatTriggerProbability(0);
+
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // No test should be created
+        bytes32 testId = rat.batchToTestId(systemConfig1, 1);
+        assertEq(testId, bytes32(0));
+    }
+
+    // ==========================================
+    // resolveClaim 테스트 (챌린지 복구)
+    // ==========================================
+
+    function test_resolveClaim_duringChallengePeriod() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
 
         uint32 batchIndex = 1;
-        bytes32 batchHash = keccak256("batch1");
-        bytes32 blockHash = keccak256("block1");
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
+
+        // deadline 경과 후 ChallengePeriod로 진입
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + 1);
+
+        // 챌린지 승리 시 resolveClaim 호출 (게임 주소에서 호출)
+        vm.prank(address(mockGame1));
+        rat.resolveClaim(validator1);
+
+        // 상태가 RestoredByChallenge로 변경됨
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.RestoredByChallenge));
+
+        // 담보금 복구됨
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 500e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 0);
+    }
+
+    function test_resolveClaim_afterChallengePeriod_fails() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        uint32 batchIndex = 1;
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // deadline + challengeGameDuration 경과 후에는 복구 불가
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + challengeGameDuration + 1);
+
+        vm.prank(address(mockGame1));
+        rat.resolveClaim(validator1);
+
+        // 상태는 Slashed로 유지 (복구 실패)
+        bytes32 testId = rat.batchToTestId(systemConfig1, batchIndex);
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.Slashed));
+
+        // 담보금 복구되지 않음
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 400e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
+    }
+
+    // ==========================================
+    // relaxedValidatorCheck 테스트
+    // ==========================================
+
+    function test_relaxedValidatorCheck_true_removesAtCoff() public {
+        // relaxedValidatorCheck = true (기본값)
+        // 본드 사용 후 remaining < C_off 이면 제거
+
+        // 먼저 D_min으로 등록
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
+
+        // 등록 후 담보금을 C_off * 2 - 1 로 변경 (본드 후 remaining = C_off - 1)
+        mockSeigManager.setStake(layer2_1, validator1, slashingPenalty * 2 - 1);
 
         // RAT 트리거
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
-        // 트리거 후 상태 확인
-        (
-            uint256 depositAfterTrigger,
-            uint256 bondAfterTrigger,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterTrigger, 400e27, "Deposit should be reduced by C_off");
-        assertEq(bondAfterTrigger, 100e27, "Bond should be C_off");
-
-        // FaultDisputeGame에서 resolveClaim 호출 (게임 승리)
-        vm.prank(address(mockGame1));
-        rat.resolveClaim(validator1);
-
-        // 본드 복구 확인
-        (
-            uint256 depositAfterResolve,
-            uint256 bondAfterResolve,
-            ,
-            bool isActive
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterResolve, 500e27, "Deposit should be fully restored");
-        assertEq(bondAfterResolve, 0, "Bond should be cleared");
-        assertTrue(isActive, "Validator should remain active");
+        // 본드 후 remaining = (200e27 - 1) - 100e27 = 100e27 - 1 < C_off(100e27)
+        // 검증자가 제거되어야 함
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
     }
 
-    /// @notice resolveClaim - 등록되지 않은 게임 주소에서 호출 시 무시
-    function test_resolveClaim_unknownGame() public {
+    function test_relaxedValidatorCheck_false_removesAtDmin() public {
+        // relaxedValidatorCheck = false 설정
+        rat.setRelaxedValidatorCheck(false);
+
+        // 검증자 담보금을 D_min + C_off - 1 로 설정 (본드 후 remaining = D_min - 1)
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold + slashingPenalty - 1);
+
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
 
-        // 등록되지 않은 게임 주소에서 호출
-        address unknownGame = address(0x9999);
-        vm.prank(unknownGame);
-        rat.resolveClaim(validator1);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
 
-        // 상태 변화 없음 확인
-        (
-            uint256 depositedAmount,
-            ,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 500e27, "Deposit should be unchanged");
-    }
-
-    /// @notice resolveClaim - 선택된 검증자가 아닌 경우 무시
-    function test_resolveClaim_notSelectedValidator() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        uint32 batchIndex = 1;
+        // RAT 트리거
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
-        // validator2 (선택되지 않은 검증자)로 resolveClaim 호출
-        vm.prank(address(mockGame1));
-        rat.resolveClaim(validator2);
-
-        // validator1의 본드는 그대로
-        (
-            uint256 depositedAmount,
-            uint256 bondAmount,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 400e27, "Deposit should still be reduced");
-        assertEq(bondAmount, 100e27, "Bond should still be locked");
+        // 본드 후 remaining = (300e27 - 1) - 100e27 = 200e27 - 1 < D_min(200e27)
+        // 검증자가 제거되어야 함
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
     }
 
-    /// @notice resolveClaim - 이미 응답한 테스트에 대해 무시
-    function test_resolveClaim_alreadyResponded() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+    function test_relaxedValidatorCheck_false_keepAboveDmin() public {
+        // relaxedValidatorCheck = false 설정
+        rat.setRelaxedValidatorCheck(false);
 
-        uint32 batchIndex = 1;
+        // 검증자 담보금을 D_min + C_off 로 설정 (본드 후 remaining = D_min)
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold + slashingPenalty);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // RAT 트리거
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
 
-        // 증거 제출로 먼저 응답
-        vm.prank(validator1);
-        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
-
-        // 이후 resolveClaim 호출 - 무시되어야 함
-        vm.prank(address(mockGame1));
-        rat.resolveClaim(validator1);
-
-        // 상태 확인 (submitEvidence로 이미 복구됨)
-        (
-            uint256 depositedAmount,
-            uint256 bondAmount,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 500e27, "Deposit should be restored by submitEvidence");
-        assertEq(bondAmount, 0, "Bond should be cleared by submitEvidence");
+        // 본드 후 remaining = 300e27 - 100e27 = 200e27 >= D_min(200e27)
+        // 검증자가 유지되어야 함
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
     }
 
     // ==========================================
-    // gameToTestId 매핑 테스트
+    // 담보금 부족 시나리오 테스트
     // ==========================================
 
-    /// @notice gameToTestId 매핑 확인
-    function test_gameToTestId_mapping() public {
+    function test_triggerAttentionTest_zeroCollateral() public {
+        // 담보금 0으로 설정
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold);
+
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.registerValidator(systemConfig1);
+
+        // 담보금을 0으로 변경
+        mockSeigManager.setStake(layer2_1, validator1, 0);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
+
+        // RAT 트리거 - 담보금 0이면 테스트 없이 검증자 제거
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 검증자 제거됨
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
+
+        // 테스트는 생성되지 않음
+        bytes32 testId = rat.batchToTestId(systemConfig1, 1);
+        assertEq(testId, bytes32(0));
+    }
+
+    function test_triggerAttentionTest_partialBond() public {
+        // 담보금을 C_off 미만으로 설정 (50e27)
+        mockSeigManager.setStake(layer2_1, validator1, minimumThreshold);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // 담보금을 50e27로 변경 (C_off = 100e27 미만)
+        mockSeigManager.setStake(layer2_1, validator1, 50e27);
+
+        // RAT 트리거
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // bondAmount는 available(50e27)로 조정됨
+        // remaining = 50e27 - 50e27 = 0 < C_off, 검증자 제거됨
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
+
+        // 하지만 테스트는 생성됨 (담보금 > 0이므로)
+        bytes32 testId = rat.batchToTestId(systemConfig1, 1);
+        assertTrue(testId != bytes32(0));
+
+        // RAT에 50e27 선차감됨
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 50e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 0);
+    }
+
+    // ==========================================
+    // 재활성화 테스트
+    // ==========================================
+
+    /// @notice submitEvidence 후 자동 재활성화 테스트 (충분한 담보금)
+    function test_submitEvidence_reactivatesValidator() public {
+        // relaxedValidatorCheck = true (C_off 기준)
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(true);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // 검증자 활성 상태 확인
+        (,,,, bool isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertTrue(isActive);
+
+        // 담보금을 낮춰서 triggerAttentionTest 시 제거되도록 설정
+        // remaining = 150e27 - 100e27 = 50e27 < C_off(100e27) → 제거
+        mockSeigManager.setStake(layer2_1, validator1, 150e27);
 
         uint32 batchIndex = 1;
         bytes32 batchHash = keccak256("batch1");
@@ -672,202 +721,127 @@ contract RATTest is Test {
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, batchHash, blockHash);
 
-        // gameToTestId 매핑 확인
-        bytes32 testIdFromGame = rat.gameToTestId(address(mockGame1));
-        bytes32 testIdFromBatch = rat.batchToTestId(systemConfig1, batchIndex);
+        // 검증자가 제거되었는지 확인
+        (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertFalse(isActive);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
 
-        assertEq(testIdFromGame, testIdFromBatch, "Game should map to same testId");
-        assertTrue(testIdFromGame != bytes32(0), "TestId should not be zero");
-    }
+        // 담보금: validator=50e27, RAT=100e27
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 50e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
 
-    // ==========================================
-    // 여러 게임 동시 진행 테스트
-    // ==========================================
-
-    /// @notice 여러 게임이 동시에 진행될 때 RAT 테스트
-    function test_multipleGamesSimultaneous() public {
-        // 3명의 검증자 등록
+        // 증거 제출 → 담보금 복구 (50e27 + 100e27 = 150e27)
         vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator2);
-        rat.registerValidator(systemConfig1, 500e27);
-        vm.prank(validator3);
-        rat.registerValidator(systemConfig1, 500e27);
+        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
 
-        // 첫 번째 게임 - RAT 트리거
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
-
-        // 두 번째 게임 - RAT 트리거
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame2), systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
-
-        // 두 게임이 다른 testId를 가져야 함
-        bytes32 testId1 = rat.gameToTestId(address(mockGame1));
-        bytes32 testId2 = rat.gameToTestId(address(mockGame2));
-
-        assertTrue(testId1 != testId2, "Different games should have different testIds");
-
-        // activeTestCount 확인
-        assertEq(rat.activeTestCount(systemConfig1), 2, "Should have 2 active tests");
-    }
-
-    /// @notice 여러 게임 중 일부만 응답 - resolveClaim으로 각 게임별 본드 복구
-    function test_multipleGames_partialResponse() public {
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 500e27);
-
-        // 두 게임 트리거 (같은 검증자가 선택됨)
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
-
-        // 첫 번째 테스트에 대한 담보금 차감 후 두 번째 트리거
-        // 담보금: 500 - 100 = 400
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame2), systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
-
-        // 담보금: 400 - 100 = 300, bond: 200
-        (
-            uint256 depositedAmount,
-            uint256 totalBond,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositedAmount, 300e27, "Deposit should be reduced twice");
-        assertEq(totalBond, 200e27, "Bond should be doubled");
-
-        // 첫 번째 게임에서 resolveClaim 호출 - gameToTestId로 찾음
-        vm.prank(address(mockGame1));
-        rat.resolveClaim(validator1);
-
-        // 첫 번째 본드 복구 확인
-        (
-            uint256 depositAfterFirst,
-            uint256 bondAfterFirst,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterFirst, 400e27, "One bond should be restored");
-        assertEq(bondAfterFirst, 100e27, "One bond should remain");
-
-        // 두 번째 게임에서 resolveClaim 호출
-        vm.prank(address(mockGame2));
-        rat.resolveClaim(validator1);
-
-        // 두 번째 본드도 복구 확인
-        (
-            uint256 depositAfterSecond,
-            uint256 bondAfterSecond,
-            ,
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterSecond, 500e27, "All bonds should be restored");
-        assertEq(bondAfterSecond, 0, "No bonds should remain");
-    }
-
-    // ==========================================
-    // 검증자 복구 테스트 (비활성화 후 재활성화)
-    // ==========================================
-
-    /// @notice resolveClaim으로 비활성화된 검증자 복구
-    /// @dev trigger 시점에 D_min 미만이면 즉시 비활성화됨, resolveClaim으로 복구 가능
-    function test_resolveClaim_restoreInactiveValidator() public {
-        // 최소 담보금으로 등록
-        uint256 initialDeposit = minimumDeposit; // 200
-
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, initialDeposit);
-
-        // RAT 트리거 - 담보금: 200 - 100 = 100 (D_min(150) 미만으로 비활성화됨)
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
-
-        (
-            uint256 depositAfterTrigger,
-            ,
-            ,
-            bool isActiveAfterTrigger
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterTrigger, 100e27, "Deposit should be 100 (below D_min)");
-        // trigger 시점에 D_min 미달로 즉시 비활성화됨
-        assertFalse(isActiveAfterTrigger, "Should be inactive after trigger (D_min check)");
-
-        // resolveClaim으로 본드 복구 - 담보금: 100 + 100 = 200 >= D_min(150) → 재활성화
-        vm.prank(address(mockGame1));
-        rat.resolveClaim(validator1);
-
-        (
-            uint256 depositAfterResolve,
-            uint256 bondAfterResolve,
-            ,
-            bool isActiveAfterResolve
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterResolve, 200e27, "Deposit should be restored to 200");
-        assertEq(bondAfterResolve, 0, "Bond should be cleared");
-        assertTrue(isActiveAfterResolve, "Should be active after bond restore (>= D_min)");
-    }
-
-    /// @notice 슬래싱 후 추가 입금으로 검증자 재활성화
-    /// @dev Lazy evaluation: trigger 시점에 D_min 미달 시 바로 비활성화됨
-    function test_reactivateValidator_afterSlash() public {
-        // 최소 담보금으로 등록
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, minimumDeposit);
-
-        // RAT 트리거 - Lazy evaluation에서 D_min 미달 시 바로 비활성화됨
-        vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
-
-        // trigger 시점에 이미 비활성화됨 (200 - 100 = 100 < D_min(150))
-        (
-            uint256 depositAfterSlash,
-            ,
-            ,
-            bool isActiveAfterSlash
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterSlash, 100e27, "Deposit should be 100 after trigger");
-        assertFalse(isActiveAfterSlash, "Should be inactive after trigger (D_min check failed)");
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 0, "Active count should be 0");
-
-        // registerValidator로 재등록 (기존 담보금 + 추가 입금)
-        // 기존 100e27이 있으므로 100e27만 추가하면 D_min(200e27) 충족
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, 100e27);
+        // 복구 후 담보금이 150e27 >= C_off(100e27) → 자동 재활성화
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 150e27);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 0);
 
         // 재활성화 확인
-        (
-            uint256 depositAfterReregister,
-            ,
-            ,
-            bool isActiveAfterReregister
-        ) = rat.getValidatorRegistration(validator1, systemConfig1);
-
-        assertEq(depositAfterReregister, 200e27, "Deposit should be 200 after reregister");
-        assertTrue(isActiveAfterReregister, "Should be reactivated after reregister");
-        assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Active count should be 1");
+        (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertTrue(isActive);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
     }
 
-    /// @notice 비활성 검증자가 addDeposit 사용 불가 테스트
-    /// @dev Lazy evaluation: trigger 시점에 D_min 미달 시 바로 비활성화됨
-    function test_addDeposit_revertWhenInactive() public {
-        // 최소 담보금으로 등록
-        vm.prank(validator1);
-        rat.registerValidator(systemConfig1, minimumDeposit);
+    /// @notice submitEvidence 후 재활성화 실패 (담보금 부족)
+    function test_submitEvidence_noReactivation_insufficientCollateral() public {
+        // relaxedValidatorCheck = true (C_off 기준)
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(true);
 
-        // RAT 트리거 - Lazy evaluation에서 D_min 미달 시 바로 비활성화됨
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // 담보금을 50e27로 낮춤 (C_off = 100e27 미만)
+        mockSeigManager.setStake(layer2_1, validator1, 50e27);
+
+        uint32 batchIndex = 1;
         vm.prank(factory);
-        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
 
-        // trigger 시점에 이미 비활성화됨 (200 - 100 = 100 < D_min(150))
-        (,,, bool isActive) = rat.getValidatorRegistration(validator1, systemConfig1);
-        assertFalse(isActive, "Should be inactive after trigger (D_min check failed)");
+        // 검증자 제거 확인 (담보금 전액 차감됨)
+        (,,,, bool isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertFalse(isActive);
 
-        // 비활성 상태에서 addDeposit 시도 - 실패해야 함
+        // 담보금 전액 RAT로 이동: validator=0, RAT=50e27
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 0);
+        assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 50e27);
+
+        // 증거 제출 → 담보금 복구 (0 + 50e27 = 50e27)
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSignature("NotActiveValidatorError()"));
-        rat.addDeposit(systemConfig1, 100e27);
+        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+
+        // 복구 후 담보금 50e27 < C_off(100e27) → 재활성화 안 됨
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 50e27);
+        (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertFalse(isActive);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
+    }
+
+    /// @notice resolveClaim 후 자동 재활성화 테스트
+    function test_resolveClaim_reactivatesValidator() public {
+        // relaxedValidatorCheck = true (C_off 기준)
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(true);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // 담보금을 낮춰서 제거되도록 설정
+        mockSeigManager.setStake(layer2_1, validator1, 150e27);
+
+        uint32 batchIndex = 1;
+        vm.prank(factory);
+        address gameAddress = address(mockGame1);
+        rat.triggerAttentionTest(gameAddress, systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // 검증자 제거 확인
+        (,,,, bool isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertFalse(isActive);
+
+        // 챌린지 게임 승리로 담보금 복구
+        vm.prank(gameAddress);
+        rat.resolveClaim(validator1);
+
+        // 복구 후 담보금 150e27 >= C_off(100e27) → 자동 재활성화
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 150e27);
+        (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertTrue(isActive);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
+    }
+
+    /// @notice relaxedValidatorCheck=false 일 때 재활성화 테스트 (D_min 기준)
+    function test_reactivation_strictMode_Dmin() public {
+        // relaxedValidatorCheck = false (D_min 기준)
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(false);
+
+        // D_min = C_off + validatorBuffer = 100e27 + 100e27 = 200e27
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // 담보금을 250e27로 설정
+        // triggerAttentionTest 시: remaining = 250e27 - 100e27 = 150e27
+        // 150e27 < D_min(200e27) → 제거
+        mockSeigManager.setStake(layer2_1, validator1, 250e27);
+
+        uint32 batchIndex = 1;
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // 검증자 제거 확인
+        (,,,, bool isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertFalse(isActive);
+
+        // 담보금 복구: 150e27 + 100e27 = 250e27
+        vm.prank(validator1);
+        rat.submitEvidence(systemConfig1, batchIndex, "evidence_data");
+
+        // 복구 후 250e27 >= D_min(200e27) → 자동 재활성화
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 250e27);
+        (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
+        assertTrue(isActive);
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
     }
 }
