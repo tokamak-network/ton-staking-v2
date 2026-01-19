@@ -92,40 +92,6 @@ contract DepositManagerV1_2 is
     );
 
     // ==========================================
-    // Deposit Functions
-    // ==========================================
-
-    /**
-     * @notice WTON 스테이킹 (외부 호출용)
-     * @param layer2 스테이킹할 L2 주소
-     * @param account 스테이킹 계정
-     * @param amount 스테이킹 금액 (WTON)
-     */
-    function deposit(
-        address layer2,
-        address account,
-        uint256 amount
-    ) external onlyLayer2(layer2) returns (bool) {
-        require(amount > 0, "DepositManager: amount must not be zero");
-
-        // WTON 전송
-        IERC20(_wton).safeTransferFrom(msg.sender, address(this), amount);
-
-        // 스테이킹 기록
-        _accStaked[layer2][account] += amount;
-        _accStakedLayer2[layer2] += amount;
-        _accStakedAccount[account] += amount;
-
-        // SeigManager 콜백
-        require(ISeigManager(_seigManager).onDeposit(layer2, account, amount), "onDeposit failed");
-
-        // V3: 스테이킹 변경 알림 (자격 재평가용)
-        _notifyStakingChange(layer2);
-
-        return true;
-    }
-
-    // ==========================================
     // Withdrawal Functions
     // ==========================================
 
@@ -251,9 +217,6 @@ contract DepositManagerV1_2 is
         emit WithdrawalRequested(layer2, msg.sender, amount);
 
         require(ISeigManager(_seigManager).onWithdraw(layer2, msg.sender, amount));
-
-        // V3: 스테이킹 변경 알림 (자격 재평가용)
-        _notifyStakingChange(layer2);
 
         return true;
     }

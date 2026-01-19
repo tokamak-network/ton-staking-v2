@@ -18,6 +18,7 @@ import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
 import {IOptimismSystemConfig} from "../../layer2/interfaces/IOptimismSystemConfig.sol";
 import {ISequencerVault} from "../../sequencer/ISequencerVault.sol";
 import {IValidatorReward} from "../../validator/IValidatorReward.sol";
+import {IRAT} from "../../validator/IRAT.sol";
 
 import "../../proxy/ProxyStorage.sol";
 import {AuthControlSeigManager} from "../../common/AuthControlSeigManager.sol";
@@ -145,6 +146,9 @@ contract SeigManagerV1_4 is
         uint256 slashedAmount,
         uint256 challengerCount
     );
+
+    /// @notice 언스테이크 이벤트
+    event UnstakeLog(uint256 coinageBurnAmount, uint256 totBurnAmount);
 
     /// @notice 챌린저 보상 지급 이벤트
     event ChallengerRewarded(
@@ -1111,5 +1115,196 @@ contract SeigManagerV1_4 is
         (tempRollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
         rollupConfig = tempRollupConfig;
         if (ILayer2Manager(layer2Manager).statusLayer2(rollupConfig) == 1) allowed = true;
+    }
+
+    // ==========================================
+    // RAT Integration Functions
+    // ==========================================
+
+    /// @notice RAT 컨트랙트에서만 호출 가능
+    modifier onlyRAT() {
+        require(msg.sender == ratContract, "only RAT");
+        _;
+    }
+
+    /// @notice RAT 컨트랙트 주소 설정
+    /// @param rat RAT 컨트랙트 주소
+    function setRATContract(address rat) external onlyOwner {
+        if (rat == address(0)) revert ZeroAddressError();
+        ratContract = rat;
+        emit RATContractUpdated(rat);
+    }
+
+    /// @notice RAT 선차감: validator coinage → RAT coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageToRAT(address layer2, address validator, uint256 amount) external onlyRAT {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        _checkCoinage(address(coinage));
+
+        // validator에서 burn, RAT에 mint
+        coinage.burnFrom(validator, amount);
+        coinage.mint(ratContract, amount);
+
+        emit CoinageTransferredForRAT(layer2, validator, ratContract, amount);
+    }
+
+    /// @notice RAT 복구: RAT coinage → validator coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external onlyRAT {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        _checkCoinage(address(coinage));
+
+        // RAT에서 burn, validator에 mint
+        coinage.burnFrom(ratContract, amount);
+        coinage.mint(validator, amount);
+
+        emit CoinageTransferredForRAT(layer2, ratContract, validator, amount);
+    }
+
+    /// @notice RAT 슬래싱 확정: RAT coinage → recipient coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능 (treasury로 전송용)
+    /// @param layer2 L2 주소
+    /// @param recipient 수신자 주소 (treasury)
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external onlyRAT {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        _checkCoinage(address(coinage));
+
+        // RAT에서 burn, recipient에 mint
+        coinage.burnFrom(ratContract, amount);
+        coinage.mint(recipient, amount);
+
+        emit CoinageTransferredForRAT(layer2, ratContract, recipient, amount);
+    }
+
+    // ==========================================
+    // DepositManager 콜백 함수
+    // ==========================================
+
+    /// @notice 스테이킹 시 호출되는 콜백
+    /// @dev V2: minimumAmount 체크, V3: checkCurrentEligibility() 체크
+    /// @param layer2 L2 주소
+    /// @param account 스테이킹 계정
+    /// @param amount 스테이킹 금액
+    function onDeposit(
+        address layer2,
+        address account,
+        uint256 amount
+    ) external onlyDepositManager returns (bool) {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        _checkCoinage(address(coinage));
+
+        // 시퀀서(오퍼레이터) 최소 담보금 체크
+        if (_isOperator(layer2, account)) {
+            uint256 newBalance = coinage.balanceOf(account) + amount;
+
+            if (v3Migrated) {
+                // V3: max(θ × B_i, D_sequencer) 이상 유지 필요
+                (, uint256 requiredStake, ) = checkCurrentEligibility(layer2);
+                require(newBalance >= requiredStake, "SeigManager: operator minimum amount required");
+            } else {
+                // V2: minimumAmount 이상 유지 필요
+                require(newBalance >= minimumAmount, "SeigManager: minimum amount is required");
+            }
+        }
+
+        // tot 민트
+        _tot.mint(layer2, amount);
+
+        // coinage 민트
+        coinage.mint(account, amount);
+
+        // V3: 스테이킹 변경 시 자격 상태 업데이트
+        if (v3Migrated) {
+            _updateEligibilityInternal(layer2);
+        }
+
+        return true;
+    }
+
+    /// @notice 출금 요청 시 호출되는 콜백
+    /// @dev V2: minimumAmount 체크, V3: checkCurrentEligibility() 및 검증자 체크
+    /// @param layer2 L2 주소
+    /// @param account 출금 계정
+    /// @param amount 출금 금액
+    function onWithdraw(
+        address layer2,
+        address account,
+        uint256 amount
+    ) external onlyDepositManager returns (bool) {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        _checkCoinage(address(coinage));
+
+        uint256 balance = coinage.balanceOf(account);
+        require(balance >= amount, "SeigManager: insufficient balance to unstake");
+
+        uint256 newBalance = balance - amount;
+
+        // 시퀀서(오퍼레이터) 담보금 체크
+        if (_isOperator(layer2, account)) {
+            if (v3Migrated) {
+                // V3: max(θ × B_i, D_sequencer) 이상 유지 필요
+                (, uint256 requiredStake, ) = checkCurrentEligibility(layer2);
+                require(newBalance >= requiredStake, "SeigManager: operator minimum amount required");
+            } else {
+                // V2: minimumAmount 이상 유지 필요
+                require(newBalance >= minimumAmount, "SeigManager: minimum amount is required");
+            }
+        }
+
+        // V3: 검증자 담보금 체크
+        // D_min (pure) = C_off(dynamic) + Δ_validator 이상 유지 필요
+        if (v3Migrated && ratContract != address(0)) {
+            uint256 validatorMin = IRAT(ratContract).getValidatorMinCollateralForLayer2(layer2, account);
+            if (validatorMin > 0) {
+                require(newBalance >= validatorMin, "SeigManager: validator minimum collateral required");
+            }
+        }
+
+        // tot burn
+        uint256 totAmount = _additionalTotBurnAmount(layer2, account, amount);
+        _tot.burnFrom(layer2, amount + totAmount);
+
+        // coinage burn
+        coinage.burnFrom(account, amount);
+
+        emit UnstakeLog(amount, totAmount);
+
+        return true;
+    }
+
+    /// @notice 추가 tot burn 금액 계산
+    /// @dev 출금 비율에 따른 추가 burn 금액
+    function _additionalTotBurnAmount(
+        address layer2,
+        address,
+        uint256 amount
+    ) internal view returns (uint256) {
+        RefactorCoinageSnapshotI coinage = _coinages[layer2];
+        uint256 coinageTotalSupply = coinage.totalSupply();
+        if (coinageTotalSupply == 0) return 0;
+
+        uint256 totBalance = _tot.balanceOf(layer2);
+        if (totBalance == 0) return 0;
+
+        // 출금 비율 = amount / coinageTotalSupply
+        // 추가 burn = (totBalance - coinageTotalSupply) * 출금 비율
+        uint256 totExcess = totBalance > coinageTotalSupply ? totBalance - coinageTotalSupply : 0;
+        return FullMath.mulDiv(totExcess, amount, coinageTotalSupply);
+    }
+
+    /// @notice 오퍼레이터 여부 확인
+    function _isOperator(address layer2, address account) internal view returns (bool) {
+        try Layer2I(layer2).operator() returns (address op) {
+            return op == account;
+        } catch {
+            return false;
+        }
     }
 }

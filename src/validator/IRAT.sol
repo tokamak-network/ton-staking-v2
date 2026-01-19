@@ -4,7 +4,9 @@ pragma solidity ^0.8.4;
 /// @title IRAT
 /// @notice Randomized Attention Test (RAT) 인터페이스
 /// @dev Tokamak Economics Whitepaper V3 (December 16, 2025) 기준
-/// @dev RAT은 검증자 등록/담보금/슬래싱만 담당
+/// @dev V3: 검증자 담보금 = 기존 TON 스테이킹 (coinage)
+/// @dev V3: 슬래싱 = validator coinage → RAT coinage 전송 (burn/mint)
+/// @dev V3: 복구 = RAT coinage → validator coinage 전송 (burn/mint)
 /// @dev 검증자 보상 분배는 ValidatorReward 컨트랙트에서 처리
 interface IRAT {
     // ==========================================
@@ -15,16 +17,49 @@ interface IRAT {
     event ValidatorRegistered(
         address indexed validator,
         address indexed systemConfig,
+        address indexed layer2,
         uint256 depositAmount,
         uint256 registrationId
     );
 
     /// @notice 검증자 탈퇴 이벤트
+    /// @dev V3: 별도 출금 불필요, DepositManager를 통해 직접 출금
+    /// @param validator 탈퇴한 검증자
+    /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
     event ValidatorDeactivated(
         address indexed validator,
         address indexed systemConfig,
-        uint256 returnedAmount
+        address indexed layer2
     );
+
+    /// @notice 검증자 재활성화 이벤트
+    /// @dev 담보금 복구 후 자동 재활성화 시 발생
+    /// @param validator 재활성화된 검증자
+    /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
+    /// @param collateral 현재 담보금
+    event ValidatorReactivated(
+        address indexed validator,
+        address indexed systemConfig,
+        address indexed layer2,
+        uint256 collateral
+    );
+
+    /// @notice 슬래싱 금액 Treasury 전송 이벤트
+    /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
+    /// @param treasury Treasury 주소
+    /// @param amount 전송 금액
+    event SlashingsWithdrawn(
+        address indexed systemConfig,
+        address indexed layer2,
+        address indexed treasury,
+        uint256 amount
+    );
+
+    /// @notice 누적 슬래싱 추적값 초기화 이벤트
+    event AccumulatedSlashingsReset(uint256 amount);
 
     /// @notice Attention Test 트리거 이벤트
     event AttentionTestTriggered(
@@ -37,22 +72,31 @@ interface IRAT {
     );
 
     /// @notice 증거 제출 이벤트
+    /// @param testId RAT 테스트 ID
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
+    /// @param batchIndex 배치 인덱스
     event EvidenceSubmitted(
         bytes32 indexed testId,
         address indexed validator,
         address indexed systemConfig,
+        address layer2,
         uint32 batchIndex
     );
 
     /// @notice 슬래싱 이벤트
+    /// @param testId RAT 테스트 ID (담보금 부족으로 즉시 제거 시 bytes32(0))
     /// @param validator 슬래싱된 검증자
     /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
     /// @param slashedAmount 슬래싱된 금액 (C_off)
     /// @param removedFromSet D_min 미만으로 활성 세트에서 제거되었는지
     event ValidatorSlashed(
         bytes32 indexed testId,
         address indexed validator,
         address indexed systemConfig,
+        address layer2,
         uint256 slashedAmount,
         bool removedFromSet
     );
@@ -74,10 +118,16 @@ interface IRAT {
     );
 
     /// @notice 챌린지 승리로 담보금 복구 이벤트 (resolveClaim)
+    /// @param testId RAT 테스트 ID
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2 SystemConfig 주소
+    /// @param layer2 Layer2 주소
+    /// @param restoredAmount 복구된 금액
     event BondRestored(
         bytes32 indexed testId,
         address indexed validator,
         address indexed systemConfig,
+        address layer2,
         uint256 restoredAmount
     );
 
@@ -94,12 +144,14 @@ interface IRAT {
     // View Functions
     // ==========================================
 
-    /// @notice 최소 담보금 계산
-    /// @dev 백서 공식 (5): D_validator = C_off + Δ_validator
-    function getMinimumCollateral() external view returns (uint256);
+    /// @notice L2별 동적 최소 담보금 계산
+    /// @dev C_off = max(slashingPenalty, (c_m × N) / π_a)
+    /// @dev D_min = C_off + Δ_validator
+    /// @param systemConfig L2의 SystemConfig 주소
+    function getDynamicMinimumCollateral(address systemConfig) external view returns (uint256);
 
     /// @notice 슬래싱 페널티 검증
-    /// @dev 백서 공식 (4): C_off ≥ (c_m · n) / π_a
+    /// @dev 백서 공식 (5): C_off ≥ (c_m · n) / π_a
     /// @param n 검증자 수
     function validateSlashingPenalty(uint256 n) external view returns (bool);
 
@@ -123,47 +175,57 @@ interface IRAT {
     /// @notice 검증자 등록 정보 조회
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @return depositedAmount 현재 유효 담보금 (원금 - 슬래싱 손실)
-    /// @return totalBondForRAT 진행 중인 RAT 테스트에 묶인 금액
+    /// @return collateral 현재 담보금 (coinage 스테이킹 금액)
     /// @return validatorIndex 검증자 인덱스
     /// @return isActive 활성 상태
     function getValidatorRegistration(address validator, address systemConfig)
         external
         view
         returns (
-            uint256 depositedAmount,
-            uint256 totalBondForRAT,
+            uint256 collateral,
             uint32 validatorIndex,
             bool isActive
         );
 
-    /// @notice 검증자 담보금 조회 (외부 컨트랙트용 간편 함수)
+    /// @notice 검증자 담보금 조회 (coinage 스테이킹 금액)
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @return 현재 담보금 (슬래싱 반영된 금액)
+    /// @return 현재 담보금 (coinage에서 직접 조회)
     function getValidatorDeposit(address validator, address systemConfig) external view returns (uint256);
+
+    /// @notice 검증자의 사용 가능한 담보금 조회 (총 담보금 - 잠금 금액)
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    /// @return 사용 가능한 담보금
+    function getAvailableCollateral(address validator, address systemConfig) external view returns (uint256);
+
+    /// @notice Layer2 기준으로 검증자의 최소 담보금 요구량 조회
+    /// @dev SeigManager.onWithdraw에서 출금 제한 체크에 사용
+    /// @dev 출금 제한은 항상 엄격한 기준(pure D_min) 적용: D_min = C_off(dynamic) + Δ_validator
+    /// @dev relaxedValidatorCheck와 무관하게 항상 동적 공식 기반 D_min 반환 (보안 우선)
+    /// @param layer2 Layer2 주소
+    /// @param validator 검증자 주소
+    /// @return 해당 L2에서 활성 검증자인 경우 pure D_min, 아니면 0
+    function getValidatorMinCollateralForLayer2(address layer2, address validator) external view returns (uint256);
 
     // ==========================================
     // External Functions - Validator Management
     // ==========================================
 
     /// @notice 검증자 등록
-    /// @dev V3: TON.approveAndCall(RAT, amount, systemConfig) 사용 권장
+    /// @dev V3: 별도 예치 불필요, 기존 스테이킹(coinage) 사용
+    /// @dev 검증자는 DepositManager를 통해 미리 스테이킹해야 함
     /// @param systemConfig L2의 SystemConfig 주소
-    /// @param depositAmount 담보금 (TON)
-    function registerValidator(address systemConfig, uint256 depositAmount) external;
+    function registerValidator(address systemConfig) external;
 
-    /// @notice 검증자 탈퇴 및 즉시 출금
-    /// @dev V3: DepositManager 미사용으로 즉시 출금 가능
+    /// @notice 검증자 탈퇴
+    /// @dev V3: 별도 출금 불필요, DepositManager를 통해 출금
+    /// @dev 진행 중인 RAT 테스트가 있어도 탈퇴 가능
     /// @param systemConfig L2의 SystemConfig 주소
     function deactivateValidator(address systemConfig) external;
 
-    /// @notice 담보금 추가 예치
-    /// @param systemConfig L2의 SystemConfig 주소
-    /// @param amount 추가 금액 (TON)
-    function addDeposit(address systemConfig, uint256 amount) external;
-
-    // V3: processWithdrawal 제거 - deactivateValidator에서 즉시 출금
+    // V3: addDeposit 제거 - 검증자는 DepositManager를 통해 스테이킹 추가
+    // V3: processWithdrawal 제거 - 검증자는 DepositManager를 통해 출금
 
     // ==========================================
     // External Functions - RAT Operations

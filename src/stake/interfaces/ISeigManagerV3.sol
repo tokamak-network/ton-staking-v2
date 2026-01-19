@@ -72,6 +72,17 @@ interface ISeigManagerV3 {
     /// @notice V3 마이그레이션 완료 이벤트
     event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
 
+    /// @notice RAT용 coinage 전송 이벤트
+    event CoinageTransferredForRAT(
+        address indexed layer2,
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
+    /// @notice RAT 컨트랙트 주소 설정 이벤트
+    event RATContractUpdated(address newRAT);
+
     // ==========================================
     // View Functions - L2 Information
     // ==========================================
@@ -173,4 +184,32 @@ interface ISeigManagerV3 {
 
     /// @notice V2 → V3 데이터 마이그레이션
     function migrateToV3() external;
+
+    // ==========================================
+    // External Functions - RAT Integration
+    // ==========================================
+
+    /// @notice RAT 컨트랙트 주소 설정
+    function setRATContract(address rat) external;
+
+    /// @notice RAT 선차감: validator coinage → RAT coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageToRAT(address layer2, address validator, uint256 amount) external;
+
+    /// @notice RAT 복구: RAT coinage → validator coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external;
+
+    /// @notice RAT 슬래싱 확정: RAT coinage → recipient coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능 (treasury로 전송용)
+    /// @param layer2 L2 주소
+    /// @param recipient 수신자 주소 (treasury)
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external;
 }

@@ -18,11 +18,15 @@ contract RATStorage {
     // Enums
     // ==========================================
 
+    /// @notice RAT 테스트 상태
+    /// @dev 시간 기반으로 계산되는 상태 (EvidencePeriod → ChallengePeriod → Slashed)
     enum AttentionTestStatus {
-        Pending,        // 대기 중 (증거 제출 기간)
-        Responded,      // 증거 제출됨
-        Slashed,        // 슬래싱됨 (미응답)
-        Expired         // 만료됨 (처리 완료)
+        None,                   // 존재하지 않음
+        EvidencePeriod,         // 증거 제출 기간 (deadline 전)
+        ChallengePeriod,        // 챌린지 기간 (deadline 후 ~ +challengeGameDuration)
+        RestoredByEvidence,     // 증거 제출로 복구됨
+        RestoredByChallenge,    // 챌린지 승리로 복구됨
+        Slashed                 // 슬래싱 확정 (deadline + challengeGameDuration 후)
     }
 
     // ==========================================
@@ -31,12 +35,12 @@ contract RATStorage {
 
     /// @notice 검증자 등록 정보
     /// @dev 백서 V2 공식 (5) 기반: D_validator = C_off + Δ_validator
-    /// @dev V3 정책: 담보금 시뇨리지 없음, depositedAmount = 원금 - 슬래싱
+    /// @dev V3: 담보금은 coinage에서 직접 조회 (SeigManager.stakeOf)
+    /// @dev V3: 슬래싱은 SeigManager를 통해 처리 (선차감 시 validator→RAT, 복구 시 RAT→validator)
     struct ValidatorRegistration {
-        uint256 depositedAmount;        // 현재 유효 담보금 (원금 - 슬래싱 손실)
-        uint256 totalBondForRAT;        // 진행 중인 RAT 테스트들에 묶인 총 금액
-        uint256 pendingRewards;         // 미청구 검증자 보상
-        uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (출금 조건)
+        uint256 lockedForRAT;           // DEPRECATED: coinage 잔액으로 직접 확인 가능
+        uint256 pendingRewards;         // DEPRECATED: V3에서 ValidatorReward 컨트랙트로 이동
+        uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (기록용)
         uint32 validatorIndex;          // 검증자 인덱스
         bool isActive;                  // 활성 상태
     }
@@ -89,6 +93,10 @@ contract RATStorage {
     /// @notice systemConfig => 활성 테스트 수
     mapping(address => uint256) public activeTestCount;
 
+    /// @notice systemConfig => 가장 늦은 테스트 마감 시간
+    /// @dev 이 시간이 지나면 RAT coinage 잔액을 DAO로 전송 가능
+    mapping(address => uint256) public latestDeadlineTest;
+
     /// @notice game address => testId 매핑 (resolveClaim에서 사용)
     mapping(address => bytes32) public gameToTestId;
 
@@ -122,6 +130,14 @@ contract RATStorage {
     /// @notice 증거 제출 기간 (초)
     uint256 public evidenceSubmissionPeriod;
 
+    /// @notice 챌린지 게임 기간 (초)
+    /// @dev withdrawSlashingsToTreasury에서 사용: latestDeadlineTest + challengeGameDuration + safetyBuffer 이후에만 전송 가능
+    uint256 public challengeGameDuration;
+
+    /// @notice 안전 버퍼 시간 (초)
+    /// @dev 기본값: 1일 (86400초)
+    uint256 public safetyBuffer;
+
     // ==========================================
     // 참조 주소
     // ==========================================
@@ -135,7 +151,7 @@ contract RATStorage {
     /// @notice TON 주소
     address public ton;
 
-    // V3: depositManager 제거 - RAT에서 TON 직접 보관
+    // V3: depositManager 제거 - 검증자 담보금은 기존 스테이킹 시스템(coinage) 사용
     // address public depositManager;  // DEPRECATED
 
     /// @notice Layer2Manager 주소
@@ -175,7 +191,7 @@ contract RATStorage {
     /// @dev triggerAttentionTest 호출 시 msg.sender(factory)를 저장
     mapping(address => address) public factoryByGame;
 
-    // V3: pendingWithdrawals 제거 - 즉시 출금 가능 (DepositManager 미사용)
+    // V3: pendingWithdrawals 제거 - 검증자 출금은 DepositManager를 통해 직접 수행
     // mapping(address => mapping(address => uint256)) public pendingWithdrawals;  // DEPRECATED
 
     // ==========================================

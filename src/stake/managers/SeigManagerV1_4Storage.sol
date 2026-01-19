@@ -117,4 +117,12 @@ contract SeigManagerV1_4Storage {
     /// @dev V3에서 시퀀서 담보금은 _coinages[layer2].balanceOf(operator)로 조회
     address public sequencerVault;
 
+    // ==========================================
+    // RAT (Randomized Attention Test) 연동
+    // ==========================================
+
+    /// @notice RAT 컨트랙트 주소
+    /// @dev RAT 슬래싱/복구 시 coinage 전송을 위해 사용
+    address public ratContract;
+
 }
