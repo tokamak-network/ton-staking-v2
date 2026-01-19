@@ -1,4 +1,4 @@
-package faultproofs
+package slashing
 
 import (
 	"math/big"
@@ -21,8 +21,8 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 	t.Log("=== Testing Basic Operator Slashing ===")
 
 	// Setup test accounts and contracts
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
+	accounts := rat.SetupTestAccounts(t, sys)
+	contracts := rat.ConnectTestContracts(t, sys)
 	slashingContracts := connectSlashingContracts(t, sys)
 
 	// Get deposit amount (1,000,000 TON)
@@ -34,7 +34,7 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 	t.Logf("  Deposit amount: %s WTON", depositAmount.String())
 
 	// Adjust minimum collateral
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+	rat.AdjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
 	// Step 1: Register operator with CandidateAddOn
 	t.Log("\n--- Step 1: Register Operator ---")
@@ -53,7 +53,7 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 
 	// Step 2: Setup RAT and Registry
 	t.Log("\n--- Step 2: Setup Registry and RAT ---")
-	rat, err := bindings.NewRAT(sys.Addresses.RATProxy, sys.L1Client)
+	ratInstance, err := bindings.NewRAT(sys.Addresses.RATProxy, sys.L1Client) // Renamed variable from 'rat' to 'ratInstance' to avoid conflict with package name
 	require.NoError(t, err)
 
 	registry, err := bindings.NewL1BridgeRegistryV12(sys.Addresses.L1BridgeRegistryProxy, sys.L1Client)
@@ -75,13 +75,13 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 
 	// Ensure RAT probability is 100% (RAY)
 	ray := new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil)
-	probTx, err := rat.SetRatTriggerProbability(accounts.Deployer.Auth, ray)
+	probTx, err := ratInstance.SetRatTriggerProbability(accounts.Deployer.Auth, ray)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, probTx)
 	require.NoError(t, err)
 
 	// Adjust RAT parameters
-	thresholdTx, err := rat.SetMinimumThreshold(accounts.Deployer.Auth, big.NewInt(0))
+	thresholdTx, err := ratInstance.SetMinimumThreshold(accounts.Deployer.Auth, big.NewInt(0))
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, thresholdTx)
 	require.NoError(t, err)
@@ -95,59 +95,70 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 	require.NoError(t, err)
 
 	// Register in RAT
-	registerValidatorTx, err := rat.RegisterValidator(accounts.Validator.Auth, sysConfigAddr, depositAmount)
+	registerValidatorTx, err := ratInstance.RegisterValidator(accounts.Validator.Auth, sysConfigAddr, depositAmount)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerValidatorTx)
 	require.NoError(t, err)
 
 	// Verify validator is active in RAT
-	isActive, err := rat.IsValidatorActive(nil, accounts.Validator.Addr, sysConfigAddr)
+	isActive, err := ratInstance.IsValidatorActive(nil, accounts.Validator.Addr, sysConfigAddr)
 	require.NoError(t, err)
 	require.True(t, isActive, "Validator should be active")
 
 	t.Log("\n--- Step 3: Create DisputeGame and Trigger RAT ---")
 	// Creating DisputeGame with wrong claim triggers RAT because probability is 100%
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-	gameReceipt, gameAddress := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	gameReceipt, gameAddress := rat.CreateDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
 	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
 
 	// Verify RAT was triggered automatically by DisputeGameFactory
-	testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+	testID, ratTriggered := rat.ParseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered automatically by DisputeGameFactory")
 	t.Logf("✓ RAT triggered with test ID: %x", testID)
 
 	// Step 3: Challenger attacks the wrong claim
 	t.Log("\n--- Step 3: Challenger Attacks ---")
-	correctRootClaim := [32]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	attackClaim(t, sys, accounts.Challenger.Auth, gameAddress, correctRootClaim)
+	// The challenger provides a different claim to prove the original root claim was wrong.
+	// For standard fault proofs, this is a bisection step.
+	correctRootClaim := [32]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	rat.AttackClaim(t, sys, accounts.Challenger.Auth, gameAddress, correctRootClaim, rootClaim)
 
 	// Step 4: Advance time and resolve game
 	t.Log("\n--- Step 4: Resolve Game ---")
-	advanceTimeAndMine(t, sys, 604800) // 7 days
-	resolveGame(t, sys, gameAddress)
+	rat.AdvanceTimeAndMine(t, sys, 1209600) // 14 days
+	rat.ResolveGame(t, sys, accounts.Challenger.Auth, gameAddress)
 
 	// Verify game status is CHALLENGER_WINS
-	gameStatus := getGameStatus(t, sys, gameAddress)
-	require.Equal(t, uint8(2), gameStatus, "Game status should be CHALLENGER_WINS (2)")
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	require.NoError(t, err)
+	status, err := game.Status(nil)
+	require.NoError(t, err)
+	require.Equal(t, uint8(1), status, "Game status should be CHALLENGER_WINS (1)")
 	t.Logf("✓ Game resolved: CHALLENGER_WINS")
 
-	// Step 5: Execute slashing
+	// Step 5: Execute Slashing
 	t.Log("\n--- Step 5: Execute Slashing ---")
-	executeSlashing(t, sys, slashingContracts, accounts.Challenger.Auth, operatorManager, gameAddress)
+	l2BlockNumber := big.NewInt(100) // matches testL2BlockNumber in rat_challenge_helpers.go
+	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
+	executeSlashing(t, sys, slashingContracts, accounts.Challenger.Auth, operatorManager, gameAddress, rootClaim, extraData)
 
 	// Step 6: Verify slashing results
 	t.Log("\n--- Step 6: Verify Results ---")
 
-	// 6.1: Operator stake should be 0
-	operatorStakeAfter := getStakeBalance(t, sys, slashingContracts, candidateAddOn, accounts.Validator.Addr)
-	require.Equal(t, big.NewInt(0), operatorStakeAfter, "Operator stake should be fully slashed")
-	t.Logf("✓ Operator stake after slashing: %s (fully slashed)", operatorStakeAfter.String())
+	// Verify operator stake is slashed
+	operatorStake, err := slashingContracts.DepositManager.AccStaked(nil, candidateAddOn, operatorManager)
+	require.NoError(t, err)
+	require.Equal(t, 0, operatorStake.Cmp(big.NewInt(0)), "Operator stake should be fully slashed (0)")
+	t.Logf("✓ Operator stake after slashing: %s (fully slashed)", operatorStake.String())
 
 	// 6.2: Challenger should receive 10% reward
 	slashingRewardRate := getSlashingRewardRate(t, sys, slashingContracts)
 	t.Logf("  Slashing reward rate: %s (basis points)", slashingRewardRate.String())
 
-	expectedReward := new(big.Int).Mul(depositAmount, slashingRewardRate)
+	// Slashing applies to the operator's initial deposit.
+	// depositAmount is in TON (18 decimals). It is converted to WTON (27 decimals) in Layer2Manager (x 1e9).
+	initialStake := new(big.Int).Mul(depositAmount, big.NewInt(1e9))
+	expectedReward := new(big.Int).Mul(initialStake, slashingRewardRate)
 	expectedReward.Div(expectedReward, big.NewInt(10000)) // Convert basis points to actual amount
 
 	challengerBalanceAfter := getWTONBalance(t, sys, accounts.Challenger.Addr)

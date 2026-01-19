@@ -1,4 +1,4 @@
-package faultproofs
+package slashing
 
 import (
 	"math/big"
@@ -78,9 +78,14 @@ func registerOperatorWithCandidateAddOn(
 ) (common.Address, common.Address) {
 	// Use MockSystemConfig (deployed in Genesis for E2E tests)
 	// This provides unsafeBlockSigner, optimismPortal, etc.
+	// If MockSystemConfig is not present (zero address), fallback to SystemConfig
 	rollupConfig := sys.Addresses.MockSystemConfig
-
-	t.Logf("Using MockSystemConfig: %s (pre-registered in Genesis)", rollupConfig.Hex())
+	if rollupConfig == (common.Address{}) {
+		rollupConfig = sys.Addresses.SystemConfig
+		t.Logf("Using Real SystemConfig: %s (Mock not found)", rollupConfig.Hex())
+	} else {
+		t.Logf("Using MockSystemConfig: %s (pre-registered in Genesis)", rollupConfig.Hex())
+	}
 
 	// Step 1: Approve TON to Layer2Manager
 	ton, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
@@ -172,19 +177,18 @@ func executeSlashing(
 	challengerAuth *bind.TransactOpts,
 	operatorManager common.Address,
 	gameAddress common.Address,
+	rootClaim [32]byte,
+	extraData []byte,
 ) *types.Receipt {
-	// SlashingCandidate requires: operatorManager, batchIndex, rootClaim, proof, gameAddress
-	// For now, use placeholder values
-	batchIndex := uint32(0)
-	rootClaim := [32]byte{}
-	proof := []byte{}
+	// GameType is 0 for FaultDisputeGame
+	gameType := uint32(0)
 
 	tx, err := contracts.Layer2ManagerSlashing.SlashingCandidate(
 		challengerAuth,
 		operatorManager,
-		batchIndex,
+		gameType,
 		rootClaim,
-		proof,
+		extraData,
 		gameAddress,
 	)
 	require.NoError(t, err, "Failed to execute slashing")
