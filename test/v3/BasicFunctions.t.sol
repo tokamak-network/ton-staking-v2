@@ -44,8 +44,13 @@ contract MockLayer2ForTest {
 }
 
 /// @title BasicFunctionsTest
-/// @notice 톤 스테이킹 기본 기능 테스트
-/// @dev DeployV3Full을 사용하여 전체 시스템 배포 후 테스트
+/// @notice TON Staking V3 Basic Functions Unit Tests
+/// @dev Uses DeployV3Full to deploy the entire system, then tests individual component functionality
+///      Test coverage:
+///      - DepositManager: WTON/TON deposit, withdrawal request, withdrawal processing
+///      - Layer2Registry: Layer2 registration and Coinage deployment
+///      - SeigManager: Basic updateSeigniorage operations
+///      Uses MockLayer2 directly to test independently from the actual Layer2Manager registration flow
 contract BasicFunctionsTest is Test, DeployV3Full {
     // 컨트랙트 참조
     DepositManager public depositManager;

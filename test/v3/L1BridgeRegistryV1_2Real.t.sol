@@ -13,9 +13,16 @@ import {
 } from "../../src/layer2/L1BridgeRegistryV1_2.sol";
 
 /// @title L1BridgeRegistryV1_2Test
-/// @notice L1BridgeRegistryV1_2 comprehensive tests
-/// @dev Tests for TYPE 1/2/3 registration, upgradeToType3, typeRegistrant, reject/restore
-
+/// @notice L1BridgeRegistryV1_2 Comprehensive Tests
+/// @dev Uses DeployV3Full to deploy the entire system, then tests L1BridgeRegistry functionality
+///      Test coverage:
+///      - TYPE 1 (Optimism Legacy/Titan) registration
+///      - TYPE 2 (Optimism Bedrock with Native TON) registration
+///      - TYPE 3 (Optimism Bedrock with DisputeGame & Native TON) registration
+///      - upgradeToType3: Upgrade from TYPE 2 to TYPE 3
+///      - typeRegistrant: Type-specific registrant management
+///      - reject/restore: SystemConfig rejection and restoration
+///      - Permission management: admin, manager, registrant roles
 contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
     // Event declarations for testing
     event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2TON, string name);
