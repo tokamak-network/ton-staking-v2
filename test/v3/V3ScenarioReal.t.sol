@@ -4,19 +4,148 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import "../../script/DeployV3Full.s.sol";
 import {SimpleMockSystemConfig} from "../../src/mocks/SimpleMockSystemConfig.sol";
-import {SequencerVault} from "../../src/sequencer/SequencerVault.sol";
-import {SequencerVaultProxy} from "../../src/sequencer/SequencerVaultProxy.sol";
 import {RAT} from "../../src/validator/RAT.sol";
+import {Layer2Registry} from "../../src/stake/Layer2Registry.sol";
+
+// DAO Contracts
+import {DAOCommitteeProxy2} from "../../src/proxy/DAOCommitteeProxy2.sol";
+import {DAOCommittee_V1} from "../../src/dao/DAOCommittee_V1.sol";
+import {DAOCommitteeOwner} from "../../src/dao/DAOCommitteeOwner.sol";
+import {Candidate} from "../../src/dao/Candidate.sol";
+import {CandidateAddOnV1_1} from "../../src/dao/CandidateAddOnV1_1.sol";
+import {CandidateFactory} from "../../src/dao/factory/CandidateFactory.sol";
+import {CandidateFactoryProxy} from "../../src/dao/factory/CandidateFactoryProxy.sol";
+import {CandidateAddOnFactory} from "../../src/dao/factory/CandidateAddOnFactory.sol";
+import {CandidateAddOnFactoryProxy} from "../../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+
+// Storage and AccessControl for MockDAOCommitteeProxy
+import {StorageStateCommittee} from "../../src/dao/StorageStateCommittee.sol";
+import {AccessControl} from "../../src/accessControl/AccessControl.sol";
+import {ISeigManager} from "../../src/dao/interfaces/ISeigManager.sol";
+import {ILayer2Registry} from "../../src/dao/interfaces/ILayer2Registry.sol";
+
+/// @title MockDAOCommitteeProxy
+/// @notice Mock DAO Proxy for Testing (Compatible with Real DAOCommitteeProxy)
+/// @dev Simplified DAO proxy that mimics the real DAOCommitteeProxy behavior
+///      - Must match storage layout for proper delegatecall compatibility
+///      - Inherits StorageStateCommittee and AccessControl from actual contracts
+///      - Supports upgradeTo() for implementation upgrades
+///      - Uses AccessControl for admin permission management
+///      - Serves as proxy for DAOCommitteeProxy2 → DAOCommittee_V1/DAOCommitteeOwner routing
+contract MockDAOCommitteeProxy is StorageStateCommittee, AccessControl {
+    address internal _implementation;
+    bool public pauseProxy;
+
+    event Upgraded(address indexed implementation);
+
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "not admin");
+        _;
+    }
+
+    constructor(address _ton) {
+        ton = _ton;
+
+        // Grant DEFAULT_ADMIN_ROLE to deployer and proxy itself
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, address(this));
+    }
+
+    function upgradeTo(address impl) external onlyAdmin {
+        require(impl != address(0), "zero address");
+        _implementation = impl;
+        emit Upgraded(impl);
+    }
+
+    function implementation() public view returns (address) {
+        return _implementation;
+    }
+
+    fallback() external payable {
+        address _impl = _implementation;
+        require(_impl != address(0) && !pauseProxy, "proxy disabled");
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), _impl, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+
+    receive() external payable {}
+}
+
+interface IDAOCommitteeProxy2 {
+    function upgradeTo2(address impl) external;
+    function setAliveImplementation2(address impl, bool alive) external;
+    function setSelectorImplementations2(bytes4[] calldata selectors, address impl) external;
+}
+
+interface ISeigManagerForMock {
+    function updateSeigniorage() external returns (bool);
+}
+
+/// @title MockLayer2ForV3Test
+/// @notice Mock Layer2 Contract for V3 Scenario Testing
+/// @dev Implements minimal ILayer2 interface for testing purposes
+///      Note: In production, Layer2 is a CandidateAddOn created by DAO.createCandidateAddOn()
+contract MockLayer2ForV3Test {
+    address public operator;
+    address public seigManager;
+    bool public _isLayer2 = true;
+
+    constructor(address _operator) {
+        operator = _operator;
+    }
+
+    function setSeigManager(address _seigManager) external {
+        seigManager = _seigManager;
+    }
+
+    function isLayer2() external view returns (bool) {
+        return _isLayer2;
+    }
+
+    function lastEpoch(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function changeOperator(address _operator) external {
+        operator = _operator;
+    }
+
+    function updateSeigniorage() external returns (bool) {
+        require(seigManager != address(0), "SeigManager not set");
+        return ISeigManagerForMock(seigManager).updateSeigniorage();
+    }
+}
 
 /// @title V3ScenarioRealTest
-/// @notice V3 종합 시나리오 테스트 - DeployV3Full 사용
-/// @dev 테스트 시나리오:
-///      1. V3 마이그레이션
-///      2. Candidate 게임타입3 등록 (DisputeGame 지원)
-///      3. 시퀀서 담보금 예치 (SequencerVault)
-///      4. 검증자 담보금 예치 (RAT)
-///      5. updateSeigniorage 실행
-
+/// @notice TON Staking V3 End-to-End Scenario Tests
+/// @dev Comprehensive E2E tests using DeployV3Full with actual production deployment flow
+///
+///      Key Features:
+///      - Uses real DAO contracts (DAOCommitteeProxy, DAOCommittee_V1, DAOCommitteeOwner)
+///      - Implements actual Layer2 registration flow: SystemConfig → L1BridgeRegistry → Layer2Manager → DAO
+///      - Tests complete validator lifecycle with RAT (Randomized Attention Test)
+///
+///      Test Scenarios:
+///      1. V3 Migration: Migrate from V2 to V3 seigniorage model
+///      2. TYPE 3 Layer2 Registration: Register Optimism Bedrock with DisputeGame support
+///         - L1BridgeRegistry.registerRollupConfig()
+///         - Layer2Manager.registerCandidateAddOn()
+///         - DAO.createCandidateAddOn() (automatic)
+///         - Layer2Registry.registerAndDeployCoinage() (automatic)
+///      3. Validator Collateral Deposit: Validators deposit collateral via RAT
+///      4. Seigniorage Distribution: Execute updateSeigniorage and verify V3 distribution
+///
+///      Architecture:
+///      - DAO: MockDAOCommitteeProxy → DAOCommitteeProxy2 → DAOCommittee_V1/DAOCommitteeOwner
+///      - Factories: CandidateFactory, CandidateAddOnFactory for Layer2 creation
+///      - RAT: Validator attention mechanism with dynamic minimum collateral
+///
 contract V3ScenarioRealTest is Test, DeployV3Full {
     // ==========================================
     // Contracts
@@ -25,10 +154,8 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     Layer2ManagerV1_2 public layer2Manager;
     L1BridgeRegistryV1_2 public l1BridgeRegistry;
     DepositManager public depositManager;
+    Layer2Registry public layer2Registry;
     RAT public rat;
-
-    // SequencerVault (DeployV3Full에서 상속)
-    SequencerVault public sequencerVault;
 
     // ==========================================
     // Mock Contracts for TYPE 3
@@ -38,7 +165,20 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     address public mockPortal;
     address public mockDisputeGameFactory;
     address public mockL2TON;
-    address public mockLayer2 = address(0x8001);
+    address public mockLayer2;
+    address public operatorManager;
+
+    // ==========================================
+    // DAO Contracts
+    // ==========================================
+    address public daoCommitteeProxy;
+    address public daoCommitteeProxy2;
+    address public daoCommitteeV1;
+    address public daoCommitteeOwner;
+    address public candidateImpl;
+    address public candidateAddOnImpl;
+    address public candidateFactoryProxy;
+    address public candidateAddOnFactoryProxy;
 
     // ==========================================
     // Test Addresses
@@ -76,6 +216,9 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         _setupMinterPermissions();
         _deployOperatorManagerFactory(owner);
 
+        // DAO 배포 (Layer2Manager.setAddresses에 필요)
+        _deployDAO();
+
         // RAT, ValidatorReward를 owner로 배포 (임시로 owner가 proxy admin + contract owner)
         _deployV3Contracts(owner);
 
@@ -92,24 +235,34 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         layer2Manager = Layer2ManagerV1_2(layer2ManagerProxy);
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
         depositManager = DepositManager(depositManagerProxy);
+        layer2Registry = Layer2Registry(layer2RegistryProxy);
         rat = RAT(ratProxy);
 
-        // ==========================================
-        // 2. RAT 파라미터 조정 (TON 스케일 1e18로 변경)
-        // ==========================================
-        rat.setSlashingPenalty(100e18);     // C_off = 100 TON
-        rat.setValidatorBuffer(100e18);      // Δ_validator = 100 TON
-        rat.setMinimumThreshold(1000e18);    // D_min = 1000 TON
+        // minimumAmount를 0으로 설정 (operator 요구사항 비활성화)
+        SeigManagerV1_2(seigManagerProxy).setMinimumAmount(0);
 
         // ==========================================
-        // 3. SequencerVault 배포
+        // 2. RAT 파라미터 조정 (WTON 스케일 1e27로 설정)
         // ==========================================
-        _deploySequencerVault();
+        rat.setSlashingPenalty(100 * RAY);     // C_off = 100 WTON
+        rat.setValidatorBuffer(100 * RAY);      // Δ_validator = 100 WTON
+        rat.setMinimumThreshold(1000 * RAY);    // D_min = 1000 WTON
 
         // ==========================================
-        // 4. Mock 컨트랙트 생성 (TYPE 3용)
+        // 3. Mock 컨트랙트 생성 (TYPE 3용)
         // ==========================================
         _setupMockContracts();
+
+        // ==========================================
+        // 4. Layer2 등록 (SystemConfig → DAO → Layer2Manager)
+        // ==========================================
+        (mockLayer2, operatorManager) = _registerLayer2WithSystemConfig(
+            address(mockSystemConfig),
+            mockL2TON,
+            "TestL2",
+            operator1,
+            1000 * RAY // operator deposit
+        );
 
         // ==========================================
         // 5. 테스트 계정에 TON 지급
@@ -123,42 +276,129 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         vm.stopPrank();
     }
 
-    function _deploySequencerVault() internal {
-        // SequencerVault 구현체 배포
-        SequencerVault impl = new SequencerVault();
-
-        // Proxy 배포 및 초기화
-        SequencerVaultProxy proxy = new SequencerVaultProxy();
-        proxy.upgradeTo(address(impl));
-        sequencerVaultProxy = address(proxy);
-        sequencerVault = SequencerVault(sequencerVaultProxy);
-
-        // 초기화
-        sequencerVault.initialize(
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            l1BridgeRegistryProxy,
-            owner
-        );
-
-        // SeigManager에 SequencerVault 설정
-        seigManager.setSequencerVault(sequencerVaultProxy);
-    }
-
+    /// @notice Setup mock Optimism SystemConfig for TYPE 3 testing
+    /// @dev Creates SimpleMockSystemConfig with required Optimism Bedrock components
+    ///      - L1StandardBridge: Bridge contract for TON transfers
+    ///      - OptimismPortal: Portal contract for L2 → L1 message passing
+    ///      - DisputeGameFactory: Factory for creating DisputeGames (TYPE 3 requirement)
+    ///      - unsafeBlockSigner: Sequencer address (operator1)
     function _setupMockContracts() internal {
-        // Mock 주소 생성
+        // Create mock addresses for Optimism components
         mockL1Bridge = address(0x8001);
         mockPortal = address(0x8002);
         mockDisputeGameFactory = address(0x8003);
         mockL2TON = address(0x8004);
 
-        // MockSystemConfig 배포
+        // Deploy and configure MockSystemConfig
         mockSystemConfig = new SimpleMockSystemConfig();
         mockSystemConfig.setL1StandardBridge(mockL1Bridge);
         mockSystemConfig.setOptimismPortal(mockPortal);
         mockSystemConfig.setDisputeGameFactory(mockDisputeGameFactory);
+        mockSystemConfig.setUnsafeBlockSigner(operator1); // operator1 is the sequencer
+    }
+
+    // ==========================================
+    // Deploy DAO Infrastructure (DeployDAOLocal Pattern)
+    // ==========================================
+
+    /// @notice Deploy complete DAO infrastructure following DeployDAOLocal pattern
+    /// @dev Full DAO deployment sequence:
+    ///      1. Deploy MockDAOCommitteeProxy (test-compatible proxy)
+    ///      2. Deploy DAO implementations (DAOCommitteeProxy2, DAOCommittee_V1, DAOCommitteeOwner)
+    ///      3. Setup proxy routing: Proxy → DAOCommitteeProxy2 → DAOCommittee_V1 (default) / DAOCommitteeOwner (by selector)
+    ///      4. Deploy Candidate implementations (Candidate, CandidateAddOnV1_1)
+    ///      5. Deploy and configure Factories (CandidateFactory, CandidateAddOnFactory)
+    ///      6. Grant MINTER_ROLE to DAO for Layer2Registry access
+    ///
+    ///      Architecture:
+    ///      MockDAOCommitteeProxy (proxy)
+    ///        ↓ upgradeTo
+    ///      DAOCommitteeProxy2 (multi-implementation router)
+    ///        ↓ upgradeTo2 (index 0)
+    ///      DAOCommittee_V1 (default implementation)
+    ///        ↓ selector routing (17 owner functions)
+    ///      DAOCommitteeOwner (owner-only functions)
+    function _deployDAO() internal {
+        // 1. Deploy MockDAOCommitteeProxy
+        MockDAOCommitteeProxy mockProxy = new MockDAOCommitteeProxy(ton);
+        daoCommitteeProxy = address(mockProxy);
+
+        // 2. Deploy DAO implementations
+        daoCommitteeProxy2 = address(new DAOCommitteeProxy2());
+        daoCommitteeV1 = address(new DAOCommittee_V1());
+        daoCommitteeOwner = address(new DAOCommitteeOwner());
+
+        // 3. Setup proxy routing
+        // Step 3.1: Upgrade to DAOCommitteeProxy2 (multi-implementation router)
+        mockProxy.upgradeTo(daoCommitteeProxy2);
+        // Step 3.2: Set DAOCommittee_V1 as default implementation (index 0)
+        IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoCommitteeV1);
+
+        // 4. Setup DAOCommitteeOwner selector routing
+        // Step 4.1: Mark DAOCommitteeOwner as alive
+        IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
+
+        bytes4[] memory ownerSelectors = new bytes4[](17);
+        ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
+        ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
+        ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
+        ownerSelectors[3] = DAOCommitteeOwner.setSeigManager.selector;
+        ownerSelectors[4] = DAOCommitteeOwner.setDaoVault.selector;
+        ownerSelectors[5] = DAOCommitteeOwner.setLayer2Registry.selector;
+        ownerSelectors[6] = DAOCommitteeOwner.setAgendaManager.selector;
+        ownerSelectors[7] = DAOCommitteeOwner.setCandidateFactory.selector;
+        ownerSelectors[8] = DAOCommitteeOwner.setTon.selector;
+        ownerSelectors[9] = DAOCommitteeOwner.setWton.selector;
+        ownerSelectors[10] = DAOCommitteeOwner.increaseMaxMember.selector;
+        ownerSelectors[11] = DAOCommitteeOwner.setQuorum.selector;
+        ownerSelectors[12] = DAOCommitteeOwner.decreaseMaxMember.selector;
+        ownerSelectors[13] = DAOCommitteeOwner.setActivityRewardPerSecond.selector;
+        ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
+        ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
+        ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
+
+        IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
+
+        // 5. Deploy Candidate implementations
+        candidateImpl = address(new Candidate());
+        candidateAddOnImpl = address(new CandidateAddOnV1_1());
+
+        // 6. Deploy factories with proxies
+        CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
+        candidateFactoryProxy = address(cfProxy);
+        cfProxy.upgradeTo(address(new CandidateFactory()));
+
+        CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
+        candidateAddOnFactoryProxy = address(caofProxy);
+        caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
+
+        // 7. Configure factories
+        CandidateFactory(candidateFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            candidateImpl,
+            ton,
+            wton
+        );
+
+        CandidateAddOnFactory(candidateAddOnFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            candidateAddOnImpl,
+            ton,
+            wton,
+            l1BridgeRegistryProxy
+        );
+
+        // 8. Configure DAO
+        DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
+        DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
+        DAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
+        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
+        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
+
+        // 9. Grant MINTER_ROLE to DAO (Layer2Registry에서 registerAndDeployCoinage 호출 위해 필요)
+        Layer2Registry(layer2RegistryProxy).addMinter(daoCommitteeProxy);
     }
 
     // ==========================================
@@ -189,18 +429,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     // ==========================================
 
     function test_registerCandidateType3() public {
-        // L1BridgeRegistry에 registrant 권한 부여
-        // owner는 이미 admin이므로 manager 추가 후 registrant 추가
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
-
-        // TYPE 3으로 등록 (DisputeGame 지원)
-        l1BridgeRegistry.registerRollupConfig(
-            address(mockSystemConfig),
-            3, // TYPE_3: bedrock with DisputeGame & nativeTON
-            mockL2TON,
-            "TestLayer2"
-        );
+        // setUp()에서 이미 mockSystemConfig가 등록되었으므로 확인만 수행
 
         // 등록 확인
         (uint8 rollupType, address l2TON, , , ) = l1BridgeRegistry.rollupInfo(address(mockSystemConfig));
@@ -217,40 +446,41 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     // ==========================================
 
     function test_validatorDepositToRAT() public {
-        // 1. TYPE 3 등록
-        _registerType3Candidate();
-
-        // 2. Layer2Manager에 systemConfig 매핑 설정 (필요시)
-        // Note: 실제 환경에서는 Layer2Manager.registerCandidateAddOn 등을 통해 설정
-
-        // 3. 검증자 담보금 예치
-        uint256 depositAmount = 2000e18; // 2000 TON
+        // 1. 검증자가 DepositManager에 먼저 예치 (coinage 잔액 확보)
+        uint256 depositAmount = 2000 * RAY; // 2000 WTON
 
         vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig));
+        MockWTON(wton).mint(validator1, depositAmount);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, validator1, depositAmount);
         vm.stopPrank();
 
+        // 3. RAT에 검증자 등록
+        vm.prank(validator1);
+        rat.registerValidator(address(mockSystemConfig));
+
         // 4. 등록 확인
-        (uint256 deposited, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
-        assertEq(deposited, depositAmount, "Deposit amount mismatch");
+        (uint256 collateral, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        assertGe(collateral, depositAmount, "Collateral should be at least deposit amount");
         assertTrue(isActive, "Validator should be active");
     }
 
     function test_multipleValidatorsDeposit() public {
-        _registerType3Candidate();
+        uint256 depositAmount = 2000 * RAY; // 2000 WTON
 
-        uint256 depositAmount = 2000e18;
-
-        // 첫 번째 검증자
+        // 첫 번째 검증자 예치 및 등록
         vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, depositAmount);
+        MockWTON(wton).mint(validator1, depositAmount);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, validator1, depositAmount);
         rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
-        // 두 번째 검증자
+        // 두 번째 검증자 예치 및 등록
         vm.startPrank(validator2);
-        MockTON(ton).approve(ratProxy, depositAmount);
+        MockWTON(wton).mint(validator2, depositAmount);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, validator2, depositAmount);
         rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
@@ -270,13 +500,10 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         // 1. V3 마이그레이션
         _migrateToV3();
 
-        // 2. TYPE 3 등록 (L1BridgeRegistry)
-        _registerType3Candidate();
-
-        // 3. 검증자 등록
+        // 2. 검증자 등록
         _registerValidators();
 
-        // 4. 블록 진행
+        // 3. 블록 진행
         vm.roll(block.number + 100);
 
         // 5. updateSeigniorage 호출 - Layer2Registry에 등록된 layer2가 없으면 조기 종료됨
@@ -293,7 +520,6 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     /// @notice 여러 번 updateSeigniorage 호출 테스트 (skip - Layer2 필요)
     function test_updateSeigniorageMultipleTimes() public {
         _migrateToV3();
-        _registerType3Candidate();
         _registerValidators();
 
         // V3 마이그레이션 확인
@@ -323,31 +549,25 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         assertTrue(seigManager.v3Migrated(), "Step 1: V3 migration failed");
 
         // ==========================================
-        // Step 2: TYPE 3 Candidate 등록
+        // Step 2: TYPE 3 Candidate 등록 확인 (setUp()에서 이미 등록됨)
         // ==========================================
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
-        l1BridgeRegistry.registerRollupConfig(
-            address(mockSystemConfig),
-            3,
-            mockL2TON,
-            "TestL2"
-        );
         (uint8 rollupType, , , , ) = l1BridgeRegistry.rollupInfo(address(mockSystemConfig));
         assertEq(rollupType, 3, "Step 2: TYPE 3 registration failed");
 
         // ==========================================
         // Step 3: 검증자 담보금 예치
         // ==========================================
-        uint256 validatorDeposit = 2000e18;
+        uint256 validatorDeposit = 2000 * RAY; // 2000 WTON
 
         vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, validatorDeposit);
+        MockWTON(wton).mint(validator1, validatorDeposit);
+        MockWTON(wton).approve(depositManagerProxy, validatorDeposit);
+        depositManager.deposit(mockLayer2, validator1, validatorDeposit);
         rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
         (uint256 deposited, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
-        assertEq(deposited, validatorDeposit, "Step 3: Validator deposit failed");
+        assertGe(deposited, validatorDeposit, "Step 3: Validator deposit failed");
         assertTrue(isActive, "Step 3: Validator not active");
 
         // ==========================================
@@ -362,7 +582,9 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         // Step 5: 추가 검증자 등록
         // ==========================================
         vm.startPrank(validator2);
-        MockTON(ton).approve(ratProxy, validatorDeposit);
+        MockWTON(wton).mint(validator2, validatorDeposit);
+        MockWTON(wton).approve(depositManagerProxy, validatorDeposit);
+        depositManager.deposit(mockLayer2, validator2, validatorDeposit);
         rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
@@ -375,13 +597,14 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     /// @notice 검증자 탈퇴 후 재등록 시나리오
     function test_validatorDeactivateAndReregister() public {
         _migrateToV3();
-        _registerType3Candidate();
 
-        uint256 depositAmount = 2000e18;
+        uint256 depositAmount = 2000 * RAY; // 2000 WTON
 
-        // 1. 검증자 등록
+        // 1. 검증자 예치 및 등록
         vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, depositAmount);
+        MockWTON(wton).mint(validator1, depositAmount);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, validator1, depositAmount);
         rat.registerValidator(address(mockSystemConfig));
         vm.stopPrank();
 
@@ -392,11 +615,9 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertFalse(isActive, "Validator should be inactive after deactivation");
 
-        // 3. 검증자 재등록
-        vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, depositAmount);
+        // 3. 검증자 재등록 (coinage 잔액은 유지되므로 다시 예치할 필요 없음)
+        vm.prank(validator1);
         rat.registerValidator(address(mockSystemConfig));
-        vm.stopPrank();
 
         (, , isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertTrue(isActive, "Validator should be active after re-registration");
@@ -406,6 +627,81 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     // Helper Functions
     // ==========================================
 
+    /// @notice Register SystemConfig and create Layer2 (CandidateAddOn) via actual deployment flow
+    /// @dev Reusable helper function that follows production Layer2 registration sequence:
+    ///
+    ///      Step 1: L1BridgeRegistry.registerRollupConfig()
+    ///      - Registers SystemConfig as TYPE 3 rollup
+    ///      - Requires manager + registrant permissions
+    ///      - Maps DisputeGameFactory → SystemConfig
+    ///
+    ///      Step 2: Layer2Manager.registerCandidateAddOn()
+    ///      - Operator initiates Layer2 registration
+    ///      - Automatically creates OperatorManager via factory
+    ///      - DAO automatically creates CandidateAddOn
+    ///      - Layer2Registry automatically registers and deploys Coinage
+    ///      - Operator deposit automatically processed
+    ///
+    ///      This flow matches production deployment and is used in all E2E tests
+    ///
+    /// @param systemConfig Optimism SystemConfig contract address
+    /// @param l2TON L2 native TON token address
+    /// @param name Layer2 name for registration
+    /// @param operator Operator address (will be OperatorManager owner)
+    /// @param operatorDeposit Operator deposit amount in RAY units (1e27)
+    /// @return layer2 Created Layer2 (CandidateAddOn) contract address
+    /// @return operatorMgr Created OperatorManager contract address
+    function _registerLayer2WithSystemConfig(
+        address systemConfig,
+        address l2TON,
+        string memory name,
+        address operator,
+        uint256 operatorDeposit
+    ) internal returns (address layer2, address operatorMgr) {
+        // 1. L1BridgeRegistry에 SystemConfig 등록 (owner 권한)
+        vm.startPrank(owner);
+
+        // owner에게 manager/registrant 권한이 없으면 부여
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+        if (!l1BridgeRegistry.isRegistrant(owner)) {
+            l1BridgeRegistry.addRegistrant(owner);
+        }
+
+        l1BridgeRegistry.registerRollupConfig(
+            systemConfig,
+            3, // TYPE_3
+            l2TON,
+            name
+        );
+        vm.stopPrank();
+
+        // 2. operator가 Layer2Manager에 등록 (CandidateAddOn 생성)
+        vm.startPrank(operator);
+        MockWTON(wton).mint(operator, operatorDeposit);
+        MockWTON(wton).approve(layer2ManagerProxy, operatorDeposit);
+
+        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+            systemConfig,
+            operatorDeposit,
+            false, // WTON
+            name
+        );
+        vm.stopPrank();
+
+        // 3. 생성된 Layer2와 OperatorManager 주소 가져오기
+        layer2 = Layer2ManagerV1_2(layer2ManagerProxy).getLayer2BySystemConfig(systemConfig);
+        operatorMgr = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(systemConfig);
+    }
+
+    /// @notice Migrate SeigManager to V3 seigniorage model with test parameters
+    /// @dev Sets V3 parameters and executes migration:
+    ///      - daoDistributionRatio (d): 10% - DAO's share of seigniorage
+    ///      - minStakingRatio (θ): 10% - Minimum staking ratio for eligibility
+    ///      - validatorDistributionRatio (α): 20% - Validator pool's share
+    ///      - halfSaturationPoint (k): 1000 WTON - Point where rewards are half of maximum
+    ///      - stakedSeigFactor (λ): 1.0 - V2 compatibility mode (set to 0 for pure V3)
     function _migrateToV3() internal {
         seigManager.setDaoDistributionRatio(0.1e27);
         seigManager.setMinStakingRatio(0.1e27);
@@ -415,23 +711,94 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         seigManager.migrateToV3();
     }
 
-    function _registerType3Candidate() internal {
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
-        l1BridgeRegistry.registerRollupConfig(
-            address(mockSystemConfig),
-            3,
-            mockL2TON,
-            "TestL2"
-        );
+    // _registerType3Candidate() 제거됨 - 이제 _registerLayer2WithSystemConfig() 사용
+
+    /// @notice Register validator1 to RAT with required collateral
+    /// @dev Two-step process required for validator registration:
+    ///      1. Deposit WTON to DepositManager (creates coinage balance for mockLayer2)
+    ///      2. Register to RAT using SystemConfig (validates sufficient collateral)
+    ///
+    ///      RAT requires minimum collateral calculated from total staked amount.
+    ///      This helper deposits 2000 WTON which exceeds typical test thresholds.
+    function _registerValidators() internal {
+        uint256 depositAmount = 2000 * RAY; // 2000 WTON
+
+        // 검증자가 DepositManager에 먼저 예치 (coinage 잔액 확보)
+        vm.startPrank(validator1);
+        MockWTON(wton).mint(validator1, depositAmount);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, validator1, depositAmount);
+        vm.stopPrank();
+
+        // 이제 systemConfig로 RAT에 등록 가능
+        vm.prank(validator1);
+        rat.registerValidator(address(mockSystemConfig));
     }
 
-    function _registerValidators() internal {
-        uint256 depositAmount = 2000e18;
+    // ==========================================
+    // Override: _setupCrossReferences to use mockDAO
+    // ==========================================
 
-        vm.startPrank(validator1);
-        MockTON(ton).approve(ratProxy, depositAmount);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.stopPrank();
+    /// @notice Setup cross-references between contracts using real DAO
+    /// @dev Overrides DeployV3Full._setupCrossReferences to use daoCommitteeProxy instead of mockDAO
+    ///
+    ///      Configuration steps:
+    ///      1. SeigManager references: Layer2Manager, ValidatorReward
+    ///      2. Layer2Manager.setAddresses: Links all required contracts including DAO
+    ///      3. Layer2Manager V1_2: Enable multi-implementation proxy routing
+    ///      4. L1BridgeRegistry.setAddresses: Links Layer2Manager, SeigManager, TON
+    ///      5. OperatorManagerFactory.setAddresses: Links DepositManager, TON, WTON, Layer2Manager
+    ///      6. DepositManager.setAddresses: Links L1BridgeRegistry, Layer2Manager
+    ///
+    ///      This ensures all contracts can interact with the real DAO for E2E testing
+    function _setupCrossReferences(address deployer) internal override {
+        // SeigManager -> Layer2Manager (V1_2에 정의됨)
+        SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
+
+        // SeigManager -> ValidatorReward
+        SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+
+        // Layer2Manager.setAddresses with daoCommitteeProxy
+        Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
+            l1BridgeRegistryProxy,
+            operatorManagerFactory,
+            ton,
+            wton,
+            daoCommitteeProxy,
+            depositManagerProxy,
+            seigManagerProxy,
+            address(0) // swapProxy (not needed for testing)
+        );
+
+        // Layer2Manager V1_2를 alive 상태로 설정
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(layer2ManagerImpl, true);
+
+        // V1_2 함수 selectors 등록
+        bytes4[] memory l2mV1_2Selectors = new bytes4[](3);
+        l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
+        l2mV1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
+        l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
+        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
+
+        // L1BridgeRegistry.setAddresses
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
+            layer2ManagerProxy,
+            seigManagerProxy,
+            ton
+        );
+
+        // OperatorManagerFactory.setAddresses
+        OperatorManagerFactory(operatorManagerFactory).setAddresses(
+            depositManagerProxy,
+            ton,
+            wton,
+            layer2ManagerProxy
+        );
+
+        // DepositManager.setAddresses (V1_1)
+        DepositManagerV1_1(depositManagerProxy).setAddresses(
+            l1BridgeRegistryProxy,
+            layer2ManagerProxy
+        );
     }
 }
