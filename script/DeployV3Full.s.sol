@@ -84,6 +84,9 @@ contract DeployV3Full is Script {
     uint256 constant RAT_VALIDATOR_BUFFER = 100e27; // 100 WTON (RAY)
     uint256 constant RAT_MINIMUM_THRESHOLD = 1000e27; // 1000 WTON (RAY)
     uint256 constant RAT_EVIDENCE_PERIOD = 1 hours;
+    uint256 constant RAT_MAX_VALIDATORS_PER_L2 = 100; // Maximum validators per L2
+    uint256 constant RAT_CHALLENGE_GAME_DURATION = 7 days; // Challenge game period
+    uint256 constant RAT_SAFETY_BUFFER = 1 days; // Safety buffer period
 
     // ==========================================
     // Deployed Addresses
@@ -293,7 +296,7 @@ contract DeployV3Full is Script {
     // ==========================================
     // Step 6: Initialize Managers
     // ==========================================
-    function _initializeManagers(address deployer) internal {
+    function _initializeManagers(address deployer) internal virtual {
         // console.log("--- Step 6: Initialize Managers ---");
 
         // Initialize SeigManager (using V1_2 - 메인넷과 동일하게)
@@ -483,7 +486,6 @@ contract DeployV3Full is Script {
         // Prepare RAT initialization data
         // NOTE: ratTriggerProbability should be determined based on game theory formula:
         // C_off ≥ (c_m · N) / π_a
-        uint256 ratTriggerProbability = 0.01e27; // 1% - adjust based on expected N, c_m, C_off
         bytes memory ratInitData = abi.encodeWithSelector(
             RAT.initialize.selector,
             seigManagerProxy,
@@ -491,7 +493,14 @@ contract DeployV3Full is Script {
             ton,
             layer2ManagerProxy,
             deployer,
-            ratTriggerProbability
+            RAT_TRIGGER_PROBABILITY,
+            RAT_EVIDENCE_PERIOD,
+            RAT_SLASHING_PENALTY,
+            RAT_VALIDATOR_BUFFER,
+            RAT_MINIMUM_THRESHOLD,
+            RAT_MAX_VALIDATORS_PER_L2,
+            RAT_CHALLENGE_GAME_DURATION,
+            RAT_SAFETY_BUFFER
         );
 
         // Deploy RAT proxy with deployer as admin
@@ -569,7 +578,7 @@ contract DeployV3Full is Script {
     // ==========================================
     // Step 10: Setup Cross-References
     // ==========================================
-    function _setupCrossReferences(address deployer) internal {
+    function _setupCrossReferences(address deployer) internal virtual {
         // console.log("--- Step 10: Setup Cross-References ---");
 
         // SeigManager -> Layer2Manager (V1_2에 정의됨)

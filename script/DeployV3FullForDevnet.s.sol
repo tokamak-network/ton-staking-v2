@@ -107,6 +107,9 @@ contract DeployV3FullForDevnet is Script {
     uint256 constant RAT_SLASHING_PENALTY = 100 * RAY; // 100 WTON
     uint256 constant RAT_VALIDATOR_BUFFER = 100 * RAY; // 100 WTON
     uint256 constant RAT_MINIMUM_THRESHOLD = 200 * RAY; // 200 WTON (D_min)
+    uint256 constant RAT_MAX_VALIDATORS_PER_L2 = 100; // Maximum validators per L2
+    uint256 constant RAT_CHALLENGE_GAME_DURATION = 7 days; // Challenge game period
+    uint256 constant RAT_SAFETY_BUFFER = 1 days; // Safety buffer period
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
@@ -553,7 +556,14 @@ contract DeployV3FullForDevnet is Script {
             ton,
             layer2ManagerProxy,
             deployer,
-            RAT_TRIGGER_PROBABILITY
+            RAT_TRIGGER_PROBABILITY,
+            RAT_EVIDENCE_PERIOD,
+            RAT_SLASHING_PENALTY,
+            RAT_VALIDATOR_BUFFER,
+            RAT_MINIMUM_THRESHOLD,
+            RAT_MAX_VALIDATORS_PER_L2,
+            RAT_CHALLENGE_GAME_DURATION,
+            RAT_SAFETY_BUFFER
         );
 
         // Deploy RAT proxy with separate admin (not deployer to avoid TransparentUpgradeableProxy admin restriction)
