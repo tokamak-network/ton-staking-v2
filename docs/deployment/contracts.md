@@ -15,11 +15,10 @@
 3. [SeigManager (다중 구현체)](#3-seigmanager-다중-구현체-패턴--v3-변경)
 4. [DepositManager (다중 구현체)](#4-depositmanager-다중-구현체-패턴--v3-변경)
 5. [Layer2Manager (다중 구현체)](#5-layer2manager-다중-구현체-패턴--v3-변경)
-6. [L1BridgeRegistry (다중 구현체)](#6-l1bridgeregistry-다중-구현체-패턴--v3-변경)
+6. [L1BridgeRegistry (단일 구현체)](#6-l1bridgeregistry-단일-구현체--v3-변경)
 7. [OperatorManager](#7-operatormanager)
 8. [RAT](#8--rat-randomized-attention-test---v3-신규)
 9. [ValidatorReward](#9--validatorreward---v3-신규)
-10. [SequencerVault](#10--sequencervault---v3-신규)
 
 ---
 
@@ -259,14 +258,14 @@ proxy.setAliveImplementation2(address(depositManagerV1_2), true);
 |------|------|
 | 역할 | Layer2 등록 및 관리 |
 | 버전 | V1_1, V1_2 (다중 구현체) |
-| 🆕 V3 추가 | **Layer2ManagerV1_2** - Bridged TON 관리, SequencerVault 설정 |
+| 🆕 V3 추가 | **Layer2ManagerV1_2** - Bridged TON 관리 |
 
 ### 버전별 함수 분포
 
 | 버전 | Index | 주요 함수 | V3 |
 |------|-------|----------|-----|
 | **Layer2ManagerV1_1** | 0 | `setAddresses()`, `registerCandidateAddOn()`, `transferL2Seigniorage()` | - |
-| **Layer2ManagerV1_2** | 1 | `getBridgedTONByLayer()`, `getBridgedTON()`, `getLayer2BySystemConfig()`, `setSequencerVault()`, `sequencerVault()` | 🆕 신규 |
+| **Layer2ManagerV1_2** | 1 | `getBridgedTONByLayer()`, `getBridgedTON()`, `getLayer2BySystemConfig()` | 🆕 신규 |
 
 ### Layer2ManagerV1_2 (Index 1) 등록 함수 목록 (🆕 V3 신규)
 
@@ -275,8 +274,6 @@ proxy.setAliveImplementation2(address(depositManagerV1_2), true);
 | `getBridgedTONByLayer(address)` | - | Layer2 주소로 Bridged TON 조회 |
 | `getBridgedTON(address)` | - | rollupConfig로 Bridged TON 조회 |
 | `getLayer2BySystemConfig(address)` | - | SystemConfig → Layer2 주소 조회 |
-| `setSequencerVault(address)` | - | SequencerVault 주소 설정 (onlyOwner) |
-| `sequencerVault()` | - | SequencerVault 주소 조회 (view) |
 
 ### 배포 절차
 
@@ -298,47 +295,54 @@ Layer2ManagerV1_1(address(proxy)).setAddresses(
 // Step 4: V1_2 구현체 활성화 및 Selector Routing
 proxy.setAliveImplementation2(address(layer2ManagerV1_2), true);
 
-bytes4[] memory v1_2Selectors = new bytes4[](5);
+bytes4[] memory v1_2Selectors = new bytes4[](3);
 v1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
 v1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
 v1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
-v1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
-v1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
 proxy.setSelectorImplementations2(v1_2Selectors, address(layer2ManagerV1_2));
-
-// Step 5: SequencerVault 설정 (V3)
-Layer2ManagerV1_2(address(proxy)).setSequencerVault(sequencerVaultProxy);
 ```
 
 ---
 
-## 6. L1BridgeRegistry (다중 구현체 패턴) 🔄 V3 변경
+## 6. L1BridgeRegistry (단일 구현체) 🔄 V3 변경
 
 | 항목 | 설명 |
 |------|------|
 | 역할 | Optimism SystemConfig 등록 및 관리 |
-| 버전 | V1_1, V1_2 (다중 구현체) |
-| 🆕 V3 추가 | **L1BridgeRegistryV1_2** - DisputeGameFactory 관리 (TYPE 3) |
+| 구현체 | **L1BridgeRegistryV1_2** (V1_1 기능 모두 포함) |
+| 🔄 V3 변경 | V1_2가 V1_1을 완전히 대체 (Selector Routing 불필요) |
 
-### 버전별 함수 분포
+### L1BridgeRegistryV1_2 주요 함수
 
-| 버전 | Index | 주요 함수 | V3 |
-|------|-------|----------|-----|
-| **L1BridgeRegistryV1_1** | 0 | `setAddresses()`, `rejectCandidateAddOn()`, `restoreCandidateAddOn()` | - |
-| **L1BridgeRegistryV1_2** | 1 | `registerRollupConfig()` (TYPE 3), `layer2TVL()` (TYPE 3 지원), `upgradeToType3()` | 🆕 신규 |
+| 함수 시그니처 | 설명 | 비고 |
+|--------------|------|------|
+| `setAddresses(address,address,address)` | layer2Manager, seigManager, ton 설정 | V1_1 포함 |
+| `setSeigniorageCommittee(address)` | 시뇨리지 위원회 설정 | V1_1 포함 |
+| `rejectCandidateAddOn(address)` | 시뇨리지 발급 중지 | V1_1 포함 |
+| `restoreCandidateAddOn(address,bool)` | 시뇨리지 발급 재개 | V1_1 포함 |
+| `registerRollupConfig(...)` | TYPE 1/2/3 롤업 등록 | 🔄 TYPE 3 추가 |
+| `registerRollupConfigByManager(...)` | Manager 전용 등록 | 🔄 TYPE 3 추가 |
+| `registerRollupConfigByType(...)` | 타입별 권한 체크 등록 | 🆕 V3 신규 |
+| `setTypeRegistrant(uint8,address)` | 타입별 등록 권한자 설정 | 🆕 V3 신규 |
+| `upgradeToType3(address)` | TYPE 1/2 → TYPE 3 업그레이드 | 🆕 V3 신규 |
+| `layer2TVL(address)` | TVL 조회 (TYPE 3 지원) | 🔄 TYPE 3 추가 |
 
-### L1BridgeRegistryV1_2 (Index 1) 등록 함수 목록 (🆕 V3 신규)
+### 배포 코드
 
-| 함수 시그니처 | Selector | 설명 |
-|--------------|----------|------|
-| `registerRollupConfig(address,uint8,address,string)` | - | TYPE 3 포함 롤업 등록 (4 params) |
-| `registerRollupConfig(address,uint8,address)` | - | TYPE 3 포함 롤업 등록 (3 params) |
-| `registerRollupConfigByManager(address,uint8,address,string)` | - | Manager 전용 등록 (4 params) |
-| `registerRollupConfigByManager(address,uint8,address)` | - | Manager 전용 등록 (3 params) |
-| `layer2TVL(address)` | - | TYPE 3 지원 TVL 조회 |
-| `upgradeToType3(address)` | - | TYPE 1/2 → TYPE 3 업그레이드 |
-| `rollupConfigWithDisputeGameFactory(address)` | - | DisputeGameFactory → rollupConfig 역조회 |
-| `disputeGameFactory(address)` | - | rollupConfig → DisputeGameFactory 조회 |
+```solidity
+// L1BridgeRegistryV1_2 단일 구현체 배포 (V1_1 기능 모두 포함)
+L1BridgeRegistryV1_2 l1BridgeRegistryImpl = new L1BridgeRegistryV1_2();
+
+L1BridgeRegistryProxy l1BridgeRegistryProxy = new L1BridgeRegistryProxy();
+l1BridgeRegistryProxy.upgradeTo(address(l1BridgeRegistryImpl));
+
+// 주소 설정
+L1BridgeRegistryV1_2(address(l1BridgeRegistryProxy)).setAddresses(
+    layer2ManagerProxy_,
+    seigManagerProxy_,
+    ton_
+);
+```
 
 ---
 
@@ -348,20 +352,7 @@ Layer2ManagerV1_2(address(proxy)).setSequencerVault(sequencerVaultProxy);
 |------|------|-----|
 | 역할 | Layer2 오퍼레이터 관리 | - |
 | 배포 방식 | OperatorManagerFactory가 프록시 생성 | - |
-| 구현체 | OperatorManagerV1_1 (기본), V1_2 (TYPE 3 업그레이드용) | 🆕 V1_2 추가 |
-
-### OperatorManagerV1_2 신규 함수 (SequencerVault 연동) 🆕
-
-| 함수 시그니처 | 접근제어 | 설명 |
-|--------------|----------|------|
-| `syncSequencerVault()` | 누구나 | Layer2Manager에서 SequencerVault 조회하여 로컬에 설정 |
-| `registerSequencer(uint256)` | onlyOwnerOrManager | SequencerVault에 시퀀서 등록 |
-| `deactivateSequencer()` | onlyOwnerOrManager | 시퀀서 탈퇴 및 출금 |
-| `addSequencerDeposit(uint256)` | onlyOwnerOrManager | 담보금 추가 |
-| `getSequencerDeposit()` | view | 담보금 조회 |
-| `isSequencerActive()` | view | 활성 상태 확인 |
-
-> **참고**: `_getSequencerVault()` 내부 함수는 로컬 스토리지에 값이 없으면 `Layer2Manager.sequencerVault()`에서 자동으로 조회합니다.
+| 구현체 | OperatorManagerV1_2 (V3 기본), V1_1 (레거시) | 🔄 V1_2 기본 |
 
 ### OperatorManagerFactory 배포
 
@@ -370,8 +361,8 @@ Layer2ManagerV1_2(address(proxy)).setSequencerVault(sequencerVaultProxy);
 OperatorManagerV1_1 operatorManagerV1_1Impl = new OperatorManagerV1_1();
 OperatorManagerV1_2 operatorManagerV1_2Impl = new OperatorManagerV1_2();
 
-// 2. Factory 배포 (V1_1을 기본 구현체로 사용)
-OperatorManagerFactory factory = new OperatorManagerFactory(address(operatorManagerV1_1Impl));
+// 2. Factory 배포 (V3에서는 V1_2를 기본 구현체로 사용)
+OperatorManagerFactory factory = new OperatorManagerFactory(address(operatorManagerV1_2Impl));
 
 // 3. 주소 설정
 factory.setAddresses(depositManager_, ton_, wton_, layer2Manager_);
@@ -392,12 +383,13 @@ address operatorManager = OperatorManagerFactory(factory).getAddress(rollupConfi
 OperatorManagerProxy(operatorManager).upgradeTo(address(operatorManagerV1_2Impl));
 
 // ==========================================
-// Step 3: SequencerVault 동기화 (누구나 호출 가능)
+// Step 3: 시퀀서 담보금 예치 (기존 스테이킹 시스템 사용)
 // ==========================================
-// Layer2Manager에 SequencerVault가 설정되어 있어야 함
-OperatorManagerV1_2(operatorManager).syncSequencerVault();
+// 시퀀서는 DepositManager를 통해 스테이킹합니다.
+DepositManager(depositManagerProxy).deposit(layer2, operator, amount);
 
-// 이후 시퀀서 담보금 예치 가능
+// 담보금 조회
+SeigManager(seigManagerProxy).getSequencerStaked(layer2);
 ```
 
 ---
@@ -419,12 +411,55 @@ RAT.initialize(
 );
 
 // 파라미터 설정
-// 주의: 배포 스크립트(DeployV3Full.s.sol)에서는 RAY 단위(e27) 사용
-// RAT 컨트랙트 내부에서 자동으로 WEI 단위(e18)로 변환됨
-RAT.setSlashingPenalty(100e27);          // 100 TON (RAY 단위 입력)
-RAT.setValidatorBuffer(100e27);          // 100 TON (RAY 단위 입력)
-RAT.setMinimumThreshold(1000e27);        // 1000 TON (RAY 단위 입력)
+RAT.setSlashingPenalty(100e18);          // 100 TON (C_off)
+RAT.setValidatorBuffer(100e18);          // 100 TON (Δ_validator)
+RAT.setMinimumThreshold(200e18);         // 200 TON (D_min = C_off + Δ_validator)
 RAT.setEvidenceSubmissionPeriod(1 hours);
+
+// V3 신규: 검증자 유효성 검사 완화 플래그
+RAT.setRelaxedValidatorCheck(true);      // 초기값: true (C_off 기준으로 완화)
+```
+
+### relaxedValidatorCheck 플래그
+
+| 값 | 유효성 기준 | 설명 |
+|----|------------|------|
+| `true` (초기) | `stakeOf >= C_off` | 완화된 검사 - 검증자 유치 용이 |
+| `false` | `stakeOf >= D_min` | 엄격한 검사 - 보안 강화 |
+
+> **참고**: 등록 시에는 flag와 무관하게 항상 `D_min` 이상 필요합니다.
+
+### 검증자 담보금 시스템 (V3 구현 완료)
+
+V3에서 검증자 담보금은 시퀀서와 동일하게 기존 coinage 시스템을 사용합니다.
+RAT은 coinage를 직접 조작할 권한이 없으므로, **SeigManager를 통해** burn/mint를 수행합니다.
+
+| 항목 | 설명 |
+|------|------|
+| 담보금 예치 | DepositManager를 통해 스테이킹 (별도 예치 불필요) |
+| 자격 체크 | `stakeOf(layer2, validator)` |
+| 선차감 (트리거 시) | SeigManager.transferCoinageToRAT() 호출 |
+| 복구 (응답 시) | SeigManager.transferCoinageFromRAT() 호출 |
+| 슬래싱 확정 (타임아웃) | RAT이 coinage 보유, treasury로 전송 가능 |
+
+### 배포 시 필수 설정
+
+```solidity
+// SeigManager에 RAT 컨트랙트 등록 (RAT이 coinage 전송 함수를 호출하기 위해 필요)
+SeigManagerV1_4(seigManagerProxy).setRATContract(ratProxy);
+```
+
+### 검증자 등록 절차
+
+```solidity
+// 1. 검증자는 미리 DepositManager를 통해 스테이킹
+DepositManager(depositManagerProxy).deposit(layer2, validator, amount);
+
+// 2. RAT에 검증자 등록 (별도 TON 전송 없음)
+RAT(ratProxy).registerValidator(systemConfig);
+
+// 3. 담보금 조회 (coinage에서 직접 조회)
+uint256 collateral = RAT(ratProxy).getValidatorDeposit(validator, systemConfig);
 ```
 
 ---
@@ -445,46 +480,3 @@ ValidatorRewardV1.initialize(
     owner_         // 관리자 주소
 );
 ```
-
----
-
-## 10. 🆕 SequencerVault - V3 신규
-
-| 항목 | 설명 |
-|------|------|
-| 역할 | 시퀀서 담보금 관리 (TYPE 3 전용) |
-| 🆕 V3 신규 | 시퀀서 담보금 예치, Fraud Proof 기반 슬래싱 |
-| 프록시 패턴 | Proxy (upgradeTo 패턴) |
-
-```solidity
-// 배포
-SequencerVault impl = new SequencerVault();
-SequencerVaultProxy proxy = new SequencerVaultProxy();
-IProxy(address(proxy)).upgradeTo(address(impl));
-
-// 초기화
-SequencerVault(address(proxy)).initialize(
-    seigManager_, wton_, ton_,
-    layer2Manager_, l1BridgeRegistry_, owner_
-);
-```
-
-### SequencerVault 주요 함수
-
-| 함수 | 설명 |
-|------|------|
-| `registerSequencer(systemConfig, amount)` | 시퀀서 등록 및 담보금 예치 |
-| `deactivateSequencer(systemConfig)` | 시퀀서 탈퇴 및 담보금 즉시 반환 |
-| `addDeposit(systemConfig, amount)` | 담보금 추가 |
-| `slashSequencerByGame(gameAddress)` | Fraud Proof 슬래싱 (Permissionless) |
-| `claimChallengerReward()` | 챌린저 보상 청구 |
-| `getMinimumCollateral(bridgedTON)` | 최소 담보금 계산 |
-
-### SequencerVault 파라미터
-
-| 파라미터 | 기본값 | 설명 |
-|----------|--------|------|
-| `minimumStakingRatio` | 0.1e27 | θ = 10% (Bridged TON 대비 최소 담보금) |
-| `maxFraudProofCost` | 1000e18 | C_max = 1000 TON |
-| `sequencerAdditionalReward` | 100e18 | Δ_sequencer = 100 TON |
-| `maxChallengers` | 10 | H_max = 10 |

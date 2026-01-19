@@ -274,7 +274,6 @@ CandidateAddOnFactoryProxy(candidateAddOnFactoryProxy).transferOwnership(daoComm
 // V3 신규
 RATProxy(ratProxy).transferOwnership(daoCommitteeProxy);
 ValidatorRewardProxy(validatorRewardProxy).transferOwnership(daoCommitteeProxy);
-SequencerVaultProxy(sequencerVaultProxy).transferOwnership(daoCommitteeProxy);
 ```
 
 ### Owner 이전 후 동작

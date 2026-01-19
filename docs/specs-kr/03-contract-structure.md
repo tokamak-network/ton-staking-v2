@@ -530,6 +530,7 @@ interface IRAT {
     function isValidatorActive(address validator, address systemConfig) external view returns (bool);
     function getActiveValidatorCount(address systemConfig) external view returns (uint256);
     function getMinimumCollateral() external view returns (uint256);
+    function getValidatorMinCollateralForLayer2(address layer2, address validator) external view returns (uint256);
 
     // 이벤트
     event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId);

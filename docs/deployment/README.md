@@ -41,21 +41,20 @@
 | DepositManagerProxy | DepositManager → V1_1 → V1_2 | 🔄 V1_2 추가 |
 | Layer2RegistryProxy | Layer2Registry | - |
 | Layer2ManagerProxy | Layer2ManagerV1_1 → V1_2 | 🔄 V1_2 추가 |
-| L1BridgeRegistryProxy | L1BridgeRegistryV1_1 → V1_2 | 🔄 V1_2 추가 |
+| L1BridgeRegistryProxy | L1BridgeRegistryV1_2 | 🔄 V1_2 단일 구현체 |
 
 #### 4. 오퍼레이터
 | 컨트랙트 | 설명 | V3 |
 |----------|------|-----|
-| OperatorManagerFactory | 오퍼레이터 매니저 생성 | - |
-| OperatorManagerV1_1 | 기본 로직 | - |
-| OperatorManagerV1_2 | TYPE 3용 로직 (SequencerVault) | 🆕 |
+| OperatorManagerFactory | 오퍼레이터 매니저 생성 | 🔄 V1_2 기본 |
+| OperatorManagerV1_1 | 레거시 로직 | - |
+| OperatorManagerV1_2 | V3 기본 로직 | 🆕 |
 
 #### 5. 🆕 V3 신규 컨트랙트 (프록시 패턴)
 | 프록시 | 구현체 | 설명 |
 |--------|--------|------|
 | RATProxy | RAT | Randomized Attention Test |
 | ValidatorRewardProxy | ValidatorRewardV1 | 검증자 보상 분배 |
-| SequencerVaultProxy | SequencerVault | 시퀀서 담보금 관리 |
 
 ---
 
@@ -125,9 +124,9 @@ export RPC_URL=http://localhost:8545
     - upgradeTo(layer2ManagerV1_1)
     - (나중에 setAddresses 후 V1_2 Selector Routing)
 
-13. L1BridgeRegistryV1_1
-    - upgradeTo(l1BridgeRegistryV1_1)
-    - (나중에 setAddresses 후 V1_2 Selector Routing)
+13. L1BridgeRegistryV1_2
+    - upgradeTo(l1BridgeRegistryV1_2)
+    - V1_2가 V1_1 기능을 모두 포함 (단일 구현체)
 ```
 
 ### Phase 5.5: Minter 권한 설정
@@ -140,9 +139,9 @@ export RPC_URL=http://localhost:8545
 ### Phase 6: OperatorManagerFactory
 
 ```
-16. OperatorManagerV1_1 (구현체) - 기본 구현체
-17. OperatorManagerV1_2 (구현체) - TYPE 3 업그레이드용
-18. OperatorManagerFactory(operatorManagerV1_1Impl)
+16. OperatorManagerV1_1 (구현체) - 레거시용
+17. OperatorManagerV1_2 (구현체) - V3 기본 구현체
+18. OperatorManagerFactory(operatorManagerV1_2Impl)
 ```
 
 ### Phase 7: V3 신규 컨트랙트
@@ -150,28 +149,24 @@ export RPC_URL=http://localhost:8545
 ```
 19. RAT (Proxy + Implementation)
     - initialize(seigManager, wton, ton, layer2Manager, owner, ratTriggerProbability)
-    - 파라미터 설정
+    - 파라미터 설정 (slashingPenalty, validatorBuffer, minimumThreshold, evidenceSubmissionPeriod)
+    - setRelaxedValidatorCheck(true) - 초기에는 완화된 검증자 유효성 검사
 
 20. ValidatorReward (Proxy + Implementation)
     - initialize(seigManager, wton, rat, owner)
-
-21. SequencerVault (Proxy + Implementation)
-    - upgradeTo(sequencerVaultImpl)
-    - initialize(seigManager, wton, ton, layer2Manager, l1BridgeRegistry, owner)
 ```
 
 ### Phase 8: Cross-Reference 설정
 
 ```
-22. SeigManager.setLayer2Manager(layer2Manager)
-23. SeigManager.setValidatorReward(validatorReward)
+21. SeigManager.setLayer2Manager(layer2Manager)
+22. SeigManager.setValidatorReward(validatorReward)
+23. SeigManager.setRAT(ratProxy)
 
 24. Layer2Manager.setAddresses(...)
     - V1_2 활성화 및 Selector Routing
-    - setSequencerVault(sequencerVault) 🆕
 
 25. L1BridgeRegistry.setAddresses(...)
-    - V1_2 활성화 및 Selector Routing
 
 26. OperatorManagerFactory.setAddresses(...)
 27. DepositManager.setAddresses(l1BridgeRegistry, layer2Manager)
@@ -191,12 +186,12 @@ L1BridgeRegistry(l1BridgeRegistryProxy).upgradeToType3(rollupConfig);
 address operatorManager = OperatorManagerFactory(factory).getAddress(rollupConfig);
 OperatorManagerProxy(operatorManager).upgradeTo(address(operatorManagerV1_2Impl));
 
-// Step 3: SequencerVault 동기화 (누구나 호출 가능)
-// Layer2Manager에 SequencerVault가 설정되어 있으면 자동 조회
-OperatorManagerV1_2(operatorManager).syncSequencerVault();
+// Step 3: 시퀀서 담보금 예치 (기존 스테이킹 시스템 사용)
+// 시퀀서는 DepositManager를 통해 스테이킹합니다.
+DepositManager(depositManagerProxy).deposit(layer2, operator, amount);
 
-// Step 4: 시퀀서 담보금 예치
-OperatorManagerV1_2(operatorManager).registerSequencer(depositAmount);
+// 담보금 조회
+SeigManager(seigManagerProxy).getSequencerStaked(layer2);
 ```
 
 ---
@@ -217,6 +212,7 @@ OperatorManagerV1_2(operatorManager).registerSequencer(depositAmount);
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                    SeigManager                           │    │
 │  │           (시뇨리지 계산 및 분배 핵심 로직)               │    │
+│  │         V3: 시퀀서/검증자 담보금 = coinage 스테이킹       │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │         │                    │                    │              │
 │         ▼                    ▼                    ▼              │
@@ -228,43 +224,12 @@ OperatorManagerV1_2(operatorManager).registerSequencer(depositAmount);
 │                              ▼                                   │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                    V3 New Contracts                      │    │
-│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐     │    │
-│  │  │     RAT      │ │  Validator   │ │  Sequencer   │     │    │
-│  │  │  (Attention  │ │   Reward     │ │    Vault     │     │    │
-│  │  │    Test)     │ │              │ │   (TYPE 3)   │     │    │
-│  │  └──────────────┘ └──────────────┘ └──────────────┘     │    │
+│  │  ┌──────────────────────┐ ┌──────────────────────┐      │    │
+│  │  │         RAT          │ │   ValidatorReward    │      │    │
+│  │  │  (Randomized         │ │   (검증자 보상 분배)  │      │    │
+│  │  │   Attention Test)    │ │                      │      │    │
+│  │  └──────────────────────┘ └──────────────────────┘      │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## SequencerVault 자동 설정 흐름 (V3)
-
-OperatorManager는 SequencerVault 주소를 다음과 같이 자동으로 조회합니다:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  SequencerVault Auto-Fetch Flow                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  1. Layer2Manager.setSequencerVault(sequencerVault)              │
-│     └── Owner가 중앙에서 한 번만 설정                            │
-│                                                                  │
-│  2. OperatorManagerV1_2.syncSequencerVault()                     │
-│     └── 누구나 호출 가능                                          │
-│     └── Layer2Manager.sequencerVault() 조회                      │
-│     └── 로컬 스토리지에 저장                                      │
-│                                                                  │
-│  3. OperatorManagerV1_2._getSequencerVault()                     │
-│     ├── 로컬 저장소 확인 → 있으면 사용                            │
-│     └── 없으면 → Layer2Manager에서 자동 조회                      │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**장점**:
-- Factory 코드 수정 없이 SequencerVault 연동
-- 새 OperatorManager 생성 시 자동으로 SequencerVault 조회
-- 기존 OperatorManager도 `syncSequencerVault()` 호출로 설정 가능

@@ -173,6 +173,123 @@ function setRAT(address rat) external onlyOwner
 
 ---
 
+### 1.7 onWithdraw
+
+출금 요청 시 담보금 최소 요구량을 체크합니다.
+
+```solidity
+function onWithdraw(address layer2, address account, uint256 amount) external onlyDepositManager returns (bool)
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | DepositManager |
+| **접근 제어** | `onlyDepositManager` |
+| **반환값** | 항상 true |
+
+**동작 흐름**:
+
+```
+1. 잔액 확인
+   balance = coinage.balanceOf(account)
+   require(balance >= amount)
+   newBalance = balance - amount
+
+2. 시퀀서(오퍼레이터) 담보금 체크
+   if (account == layer2.operator()):
+       V2 모드 (v3Migrated = false):
+           require(newBalance >= minimumAmount)
+
+       V3 모드 (v3Migrated = true):
+           (_, requiredStake, _) = checkCurrentEligibility(layer2)
+           require(newBalance >= requiredStake)
+
+3. 검증자 담보금 체크 (V3만 해당)
+   if (v3Migrated && ratContract != address(0)):
+       validatorMin = RAT.getValidatorMinCollateralForLayer2(layer2, account)
+       if (validatorMin > 0):
+           require(newBalance >= validatorMin)
+
+4. 출금 처리
+   - TOT burn
+   - Coinage burn
+```
+
+**출금 제한**:
+
+```
+V2 모드:
+- 시퀀서: 출금 후 잔액 ≥ minimumAmount (고정값)
+
+V3 모드:
+시퀀서:
+- 출금 후 잔액 ≥ max(θ × B_i, D_sequencer) 유지 필요
+  - θ × B_i = minStakingRatio × getBridgedTONByLayer(layer2) (시뇨리지 자격)
+  - D_sequencer = H_max × C_max + Δ_sequencer (Fraud Proof 비용)
+- checkCurrentEligibility()로 실시간 계산
+
+검증자:
+- 활성 검증자는 출금 후 잔액 ≥ D_min (pure) 유지 필요
+- D_min (pure) = C_off(dynamic) + Δ_validator
+  - C_off(dynamic) = max(slashingPenalty, (c_m × N × RAY) / π_a)
+- relaxedValidatorCheck와 무관하게 항상 pure D_min 적용 (보안 우선)
+- 최소 담보금 미만으로 출금하려면 검증자 탈퇴(deactivateValidator()) 필요
+```
+
+---
+
+### 1.8 onDeposit
+
+예치 요청 시 담보금 최소 요구량을 체크합니다.
+
+```solidity
+function onDeposit(address layer2, address account, uint256 amount) external onlyDepositManager returns (bool)
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | DepositManager |
+| **접근 제어** | `onlyDepositManager` |
+| **반환값** | 항상 true |
+
+**동작 흐름**:
+
+```
+1. 잔액 확인
+   balance = coinage.balanceOf(account)
+   newBalance = balance + amount
+
+2. 시퀀서(오퍼레이터) 최소 담보금 체크
+   if (account == layer2.operator()):
+       V2 모드 (v3Migrated = false):
+           require(newBalance >= minimumAmount)
+
+       V3 모드 (v3Migrated = true):
+           (_, requiredStake, _) = checkCurrentEligibility(layer2)
+           require(newBalance >= requiredStake)
+
+3. 예치 처리
+   - TOT mint
+   - Coinage mint
+
+4. 자격 상태 업데이트 (V3만 해당)
+   if (v3Migrated):
+       _updateEligibilityInternal(layer2)
+```
+
+**예치 제한**:
+
+```
+V2 모드:
+- 시퀀서: 예치 후 잔액 ≥ minimumAmount (고정값)
+
+V3 모드:
+- 시퀀서: 예치 후 잔액 ≥ max(θ × B_i, D_sequencer) 유지 필요
+- 일반 사용자/검증자: 예치 금액 제한 없음 (시퀀서만 체크)
+```
+
+---
+
 ## 2. DepositManager 함수
 
 ### 2.1 deposit
@@ -198,7 +315,7 @@ function deposit(address layer2, address account, uint256 amount)
    - _accStaked[layer2][account] += amount
    - _accStakedLayer2[layer2] += amount
 3. SeigManager.onDeposit(layer2, account, amount)
-4. SeigManager.onStakingChange(layer2) ← V3 추가
+   - V3: 최소 담보금 체크 및 자격 상태 업데이트 포함
 ```
 
 ---
@@ -235,19 +352,7 @@ function requestWithdrawal(address layer2, uint256 amount) external
 |------|------|
 | **호출 주체** | 스테이커 |
 | **대기 기간** | 2주 (약 100,800 블록) |
-
-**V3 출금 제한 (시퀀서/검증자)**:
-```
-시퀀서의 경우:
-- 출금 후 잔액 ≥ max(θ·B_i, D_sequencer) 유지 필요
-- 최소 담보금 미만으로 출금 불가
-- ※ TVL 증가 시 θ·B_i가 증가하여 시뇨리지 자격 상실 가능
-
-검증자의 경우:
-- 활성 검증자는 출금 후 잔액 ≥ D_min 유지 필요
-- 최소 담보금 미만으로 출금 불가
-- 담보금 미만으로 출금하려면 검증자 탈퇴(deactivateValidator()) 필요
-```
+| **출금 제한** | SeigManager.onWithdraw()에서 체크 (1.7 참조) |
 
 ---
 
@@ -546,13 +651,38 @@ function registerValidator(address systemConfig) external
 
 **동작 흐름**:
 ```
-1. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)
-2. 스테이킹 금액 >= D_min 확인
-   └─ 부족 시: 등록 실패 (InsufficientDepositError)
-3. 등록 정보 저장
-   - validatorRegistrations[systemConfig][validator] 생성
+1. 이미 활성 검증자인지 확인
+   └─ isActive = true면 실패 (AlreadyRegisteredError)
+
+2. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)
+
+3. 스테이킹 금액 >= D_min 확인
+   └─ 부족 시: 등록 실패 (InsufficientCollateralError)
+
+4. 등록 정보 저장
+   - validatorRegistrations[systemConfig][validator] 생성/업데이트
    - validatorPools[systemConfig].validators.push()
-4. 활성화: isActive = true
+
+5. 활성화: isActive = true
+```
+
+**재등록 (자동 제거 후)**:
+
+검증자가 담보금 부족으로 자동 제거(`isActive = false`)된 경우:
+
+```
+1. 담보금 보충
+   - DepositManager.deposit()로 D_min 이상 예치
+
+2. 재등록
+   - RAT.registerValidator(systemConfig) 호출
+   - isActive = false 상태이므로 재등록 가능
+   - D_min 이상이면 다시 활성화
+
+주의사항:
+- 진행 중인 RAT 테스트가 있어도 재등록 가능
+  (담보금이 coinage에 있으므로 슬래싱 처리 가능)
+- V3: 검증자 보상은 ValidatorReward 컨트랙트에서 별도 관리
 ```
 
 ---
@@ -641,12 +771,14 @@ function submitEvidence(
 **동작 흐름**:
 ```
 1. 검증자 확인: test.validatorAddress == msg.sender
-2. 상태 확인: status == Pending
+2. 상태 확인: status == EvidencePeriod
 3. 기한 확인: block.timestamp <= deadline
 4. 증거 검증
 5. 담보금 복구: RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
-6. 비활성 상태였으면 재활성화 (relaxedValidatorCheck에 따라 C_off 또는 D_min 이상 시)
-7. 이벤트: EvidenceSubmitted
+6. 자동 재활성화 시도:
+   - isActive=false이고 담보금이 임계값 이상이면 자동 재활성화
+   - 임계값: relaxedValidatorCheck ? C_off : D_min
+7. 이벤트: EvidenceSubmitted (재활성화 시 ValidatorReactivated 추가 발생)
 ```
 
 ---
@@ -669,8 +801,10 @@ function resolveClaim(address _claimant) external
 1. msg.sender(게임 주소)로 testId 조회
 2. 선택된 검증자 == _claimant 확인
 3. 담보금 복구: RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
-4. 비활성 상태였으면 재활성화 (relaxedValidatorCheck에 따라 C_off 또는 D_min 이상 시)
-5. 이벤트: BondRestored
+4. 자동 재활성화 시도:
+   - isActive=false이고 담보금이 임계값 이상이면 자동 재활성화
+   - 임계값: relaxedValidatorCheck ? C_off : D_min
+5. 이벤트: BondRestored (재활성화 시 ValidatorReactivated 추가 발생)
 ```
 
 ---

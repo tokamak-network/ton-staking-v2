@@ -58,10 +58,10 @@
 #### 검증자 관련
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| **RAT 직접 예치 → coinage** | ❌ 미구현 | 기존 스테이킹으로 변경 필요 |
-| **`_getValidatorCollateral()` 추가** | ❌ 미구현 | coinage 조회 |
-| **RAT 슬래싱 로직 변경** | ❌ 미구현 | coinage.burnFrom() |
-| **RAT 복구 로직 변경** | ❌ 미구현 | coinage.mint() 또는 잠금 해제 |
+| **RAT 직접 예치 → coinage** | ✅ 완료 | 기존 스테이킹으로 변경 |
+| **`_getValidatorCollateral()` 추가** | ✅ 완료 | coinage 조회 |
+| **RAT 슬래싱 로직 변경** | ✅ 완료 | validator→RAT coinage 전송 (burn/mint) |
+| **RAT 복구 로직 변경** | ✅ 완료 | RAT→validator coinage 전송 (burn/mint) |
 | **relaxedValidatorCheck flag** | ✅ 완료 | RAT.sol, RATStorage.sol, IRAT.sol |
 
 #### 공통
@@ -171,84 +171,96 @@ function isValidValidator(address layer2, address validator) public view returns
 | `src/validator/RAT.sol` | `setRelaxedValidatorCheck()` 함수, 무조건 D_min 체크 | ✅ |
 | `src/validator/IRAT.sol` | `setRelaxedValidatorCheck()`, `RelaxedValidatorCheckUpdated` 이벤트 | ✅ |
 
-### 2.3 Issue 3: 검증자 담보금 → 기존 스테이킹 (신규)
+### 2.3 Issue 3: 검증자 담보금 → 기존 스테이킹 (✅ 구현 완료)
 
 #### 핵심 변경: RAT 직접 예치 → coinage 사용
 
 **V3 결정**: 검증자 담보금도 시퀀서와 동일하게 기존 TON 스테이킹 사용
 
-| 항목 | V2 (RAT 직접 예치) | V3 (coinage) |
-|------|-------------------|--------------|
-| 담보금 예치 | RAT에 TON 전송 | DepositManager 스테이킹 |
+| 항목 | V2 (RAT 직접 예치) | V3 (coinage) - 구현 완료 |
+|------|-------------------|--------------------------|
+| 담보금 예치 | RAT에 TON 전송 | DepositManager 스테이킹 (별도 예치 불필요) |
 | 자격 체크 | `RAT.depositedAmount` | `stakeOf(layer2, validator)` |
-| 슬래싱 (C_off) | `depositedAmount -= C_off` | `coinage.burnFrom(validator, C_off)` |
-| 복구 | `depositedAmount += C_off` | `coinage.mint()` 또는 잠금 해제 |
+| 선차감 (트리거 시) | `depositedAmount -= C_off` | validator→RAT coinage 전송 (burn/mint) |
+| 복구 (응답 시) | `depositedAmount += C_off` | RAT→validator coinage 전송 (burn/mint) |
+| 슬래싱 확정 (타임아웃) | C_off 영구 몰수 | RAT이 coinage 보유, treasury로 전송 가능 |
 
-#### 구현 요구사항
+#### 구현 완료 코드
 
 ```solidity
-// RAT.sol - V3 수정 필요
+// RAT.sol - V3 구현 완료 ✅
 function _getValidatorCollateral(address validator, address systemConfig) internal view returns (uint256) {
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
-    return SeigManagerI(seigManager).stakeOf(layer2, validator);
+    address layer2 = ILayer2Manager(layer2Manager).getLayer2BySystemConfig(systemConfig);
+    if (layer2 == address(0)) return 0;
+    return ISeigManagerForRAT(seigManager).stakeOf(layer2, validator);
 }
 
-// RAT 슬래싱
-function _slashValidator(address validator, address systemConfig, uint256 amount) internal {
+// 선차감: validator coinage → RAT coinage (SeigManager 경유)
+function _transferCoinageToRAT(address validator, address systemConfig, uint256 amount) internal {
     address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
+    ISeigManagerForRAT(seigManager).transferCoinageToRAT(layer2, validator, amount);
+}
+
+// 복구: RAT coinage → validator coinage (SeigManager 경유)
+function _transferCoinageFromRAT(address validator, address systemConfig, uint256 amount) internal {
+    address layer2 = _getLayer2FromSystemConfig(systemConfig);
+    ISeigManagerForRAT(seigManager).transferCoinageFromRAT(layer2, validator, amount);
+}
+
+// SeigManagerV1_4.sol - RAT 연동 함수 (onlyRAT modifier 적용)
+function transferCoinageToRAT(address layer2, address validator, uint256 amount) external onlyRAT {
+    RefactorCoinageSnapshotI coinage = _coinages[layer2];
     coinage.burnFrom(validator, amount);
+    coinage.mint(ratContract, amount);
 }
 
-// RAT 복구 (옵션 1: mint)
-function _restoreValidator(address validator, address systemConfig, uint256 amount) internal {
-    address layer2 = _getLayer2FromSystemConfig(systemConfig);
-    RefactorCoinageSnapshotI coinage = SeigManagerI(seigManager).coinages(layer2);
+function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external onlyRAT {
+    RefactorCoinageSnapshotI coinage = _coinages[layer2];
+    coinage.burnFrom(ratContract, amount);
     coinage.mint(validator, amount);
 }
 ```
 
-#### 체크리스트
+> **핵심**: RAT은 coinage를 직접 조작할 권한이 없으므로, SeigManager를 통해 burn/mint를 수행합니다.
+> **배포 시**: `SeigManagerV1_4.setRATContract(ratAddress)` 호출 필요
 
-- [ ] **RAT 직접 예치 로직 제거**
-  - [ ] `registerValidator()` - TON 전송 로직 제거
-  - [ ] `depositedAmount` 관련 로직 제거
-  - [ ] `addDeposit()` 함수 제거 또는 변경
-- [ ] **`_getValidatorCollateral()` 추가** - coinage 조회
-- [ ] **슬래싱 로직 변경**
-  - [ ] `triggerAttentionTest()` - coinage.burnFrom() 사용
-  - [ ] 또는 잠금 방식으로 변경
-- [ ] **복구 로직 변경**
-  - [ ] `submitEvidence()` - coinage.mint() 또는 잠금 해제
-  - [ ] `resolveClaim()` - coinage.mint() 또는 잠금 해제
-- [ ] **테스트 케이스 수정**
-- [ ] **스펙 문서 업데이트**
+#### 체크리스트 (✅ 모두 완료)
 
-#### 설계 결정 필요
+- [x] **RAT 직접 예치 로직 제거**
+  - [x] `registerValidator()` - TON 전송 로직 제거
+  - [x] `depositedAmount` → `lockedForRAT`으로 변경
+  - [x] `addDeposit()` 함수 제거
+- [x] **`_getValidatorCollateral()` 추가** - coinage 조회
+- [x] **슬래싱 로직 변경**
+  - [x] `triggerAttentionTest()` - `_transferCoinageToRAT()` 사용
+  - [x] `slashExpiredTest()` - 타임아웃 시 슬래싱 확정
+- [x] **복구 로직 변경**
+  - [x] `submitEvidence()` - `_transferCoinageFromRAT()` 사용
+  - [x] `resolveClaim()` - `_transferCoinageFromRAT()` 사용
+- [x] **스펙 문서 업데이트**
 
-**옵션 1: 즉시 burn/mint 방식**
+#### 설계 결정: 선차감-전송-복구 방식
+
+**구현된 방식** (옵션 1 + 옵션 2 결합):
 ```
-트리거 → coinage.burnFrom(C_off) → 응답 → coinage.mint(C_off)
+트리거 → validator→RAT coinage 전송 (C_off) → 응답 → RAT→validator coinage 전송 (C_off)
+        lockedForRAT += C_off                        lockedForRAT -= C_off
+                                              → 미응답/타임아웃 → RAT이 보유 (treasury로 전송 가능)
+                                                                  lockedForRAT -= C_off
 ```
-- 장점: 단순함
-- 단점: 빈번한 burn/mint
+- 장점: 총 공급량 유지, 선차감으로 슬래싱 보장
+- RAT coinage는 treasury로 전송 가능 (`withdrawSlashingsToTreasury`)
 
-**옵션 2: 잠금 방식**
-```
-트리거 → lockedAmount += C_off → 응답 → lockedAmount -= C_off
-                              → 미응답 → coinage.burnFrom(C_off)
-```
-- 장점: 실제 슬래싱 시에만 burn
-- 단점: 잠금 상태 관리 필요
-
-#### 수정 대상 파일
+#### 수정 완료 파일
 
 | 파일 | 수정 내용 | 상태 |
 |------|----------|------|
-| `src/validator/RAT.sol` | coinage 연동, 슬래싱/복구 로직 | ❌ 미구현 |
-| `src/validator/RATStorage.sol` | depositedAmount 제거, 잠금 관련 추가 | ❌ 미구현 |
-| `src/validator/IRAT.sol` | 인터페이스 업데이트 | ❌ 미구현 |
+| `src/validator/RAT.sol` | SeigManager 경유 coinage 전송, 슬래싱/복구 로직 | ✅ 완료 |
+| `src/validator/RATStorage.sol` | `depositedAmount` → `lockedForRAT` | ✅ 완료 |
+| `src/validator/IRAT.sol` | 인터페이스 업데이트 | ✅ 완료 |
+| `src/stake/managers/SeigManagerV1_4.sol` | RAT 연동 함수 추가 (`transferCoinageToRAT`, `transferCoinageFromRAT`) | ✅ 완료 |
+| `src/stake/managers/SeigManagerV1_4Storage.sol` | `ratContract` 변수 추가 | ✅ 완료 |
+| `src/stake/interfaces/ISeigManagerV3.sol` | RAT 연동 인터페이스 추가 | ✅ 완료 |
 
 ---
 
@@ -315,9 +327,9 @@ R_challenger = C_max + Δ_sequencer / n
 |--------------|------|------|
 | 등록 시 D_min 미만 거부 (항상) | `RAT.t.sol` | ✅ 완료 |
 | `relaxedValidatorCheck` 유효성 검사 | `RAT.t.sol` | ✅ 완료 |
-| 검증자 담보금 coinage 조회 | `RAT.t.sol` | ❌ 구현 필요 |
-| RAT 슬래싱 coinage.burnFrom() | `RAT.t.sol` | ❌ 구현 필요 |
-| RAT 복구 coinage.mint() | `RAT.t.sol` | ❌ 구현 필요 |
+| 검증자 담보금 coinage 조회 | `RAT.t.sol` | ⚠️ 테스트 업데이트 필요 |
+| RAT 슬래싱 (validator→RAT coinage 전송) | `RAT.t.sol` | ⚠️ 테스트 업데이트 필요 |
+| RAT 복구 (RAT→validator coinage 전송) | `RAT.t.sol` | ⚠️ 테스트 업데이트 필요 |
 
 ### 5.2 기존 테스트 확인
 
@@ -340,24 +352,24 @@ R_challenger = C_max + Δ_sequencer / n
 | 3 | **최소 스테이킹 조건 `max()`** | `SeigManagerV1_4.sol` | ✅ |
 | 4 | **시퀀서 슬래싱 로직** | `SeigManagerV1_4.sol` | ⚠️ 기본 구조 |
 
-### 6.2 검증자 관련 - 구현 필요 ❌
+### 6.2 검증자 관련 - 구현 완료 ✅
 
 | # | 항목 | 파일 | 상태 |
 |---|------|------|------|
-| 1 | **RAT 직접 예치 제거** | `RAT.sol` | ❌ |
-| 2 | **`_getValidatorCollateral()` 추가** | `RAT.sol` | ❌ |
-| 3 | **RAT 슬래싱 로직 변경** | `RAT.sol` | ❌ |
-| 4 | **RAT 복구 로직 변경** | `RAT.sol` | ❌ |
+| 1 | **RAT 직접 예치 제거** | `RAT.sol` | ✅ |
+| 2 | **`_getValidatorCollateral()` 추가** | `RAT.sol` | ✅ |
+| 3 | **RAT 슬래싱 로직 변경** | `RAT.sol` | ✅ |
+| 4 | **RAT 복구 로직 변경** | `RAT.sol` | ✅ |
 | 5 | `relaxedValidatorCheck` flag 추가 | `RAT.sol`, `RATStorage.sol` | ✅ |
 
 ### 6.3 단기 (중간)
 
 | # | 항목 | 담당 |
 |---|------|------|
-| 4 | 신규 테스트 케이스 작성 | QA팀 |
-| 5 | RAT 랜덤 선택 알고리즘 검토 | 개발팀 |
+| 1 | RAT 테스트 케이스 업데이트 (coinage 연동) | QA팀 |
+| 2 | RAT 랜덤 선택 알고리즘 검토 | 개발팀 |
 
-### 6.3 장기 (낮음)
+### 6.4 장기 (낮음)
 
 | # | 항목 | 담당 |
 |---|------|------|
@@ -374,14 +386,15 @@ R_challenger = C_max + Δ_sequencer / n
 3. **최소 스테이킹 조건 `max(D_seq, θ·B_i)`** → ✅ 완료
 4. **시퀀서 슬래싱 로직** → ⚠️ 기본 구조 완료
 
-**검증자 관련 - 구현 필요** ❌:
-1. **RAT 직접 예치 → coinage 사용** → ❌ 미구현
-2. **`_getValidatorCollateral()` coinage 조회** → ❌ 미구현
-3. **RAT 슬래싱/복구 로직 coinage 연동** → ❌ 미구현
-4. **`relaxedValidatorCheck` flag** → ✅ 완료
+**검증자 관련 - 구현 완료** ✅:
+1. **RAT 직접 예치 → coinage 사용** → ✅ 완료
+2. **`_getValidatorCollateral()` coinage 조회** → ✅ 완료
+3. **RAT 슬래싱 로직** → ✅ 완료 (validator→RAT coinage 전송)
+4. **RAT 복구 로직** → ✅ 완료 (RAT→validator coinage 전송)
+5. **`relaxedValidatorCheck` flag** → ✅ 완료
 
-**테스트 결과**: 198 passed, 0 failed (2026-01-14)
-> ⚠️ 검증자 coinage 연동 후 테스트 수정 필요
+**테스트**: 기존 RAT 테스트를 coinage 연동에 맞게 업데이트 필요
+> ⚠️ RAT 테스트 케이스가 새로운 coinage 전송 방식에 맞게 수정되어야 함
 
 ---
 
