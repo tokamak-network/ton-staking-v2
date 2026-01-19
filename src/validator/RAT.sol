@@ -539,7 +539,7 @@ contract RAT is RATStorage, IRAT {
         bytes32 blockHash
     ) external onlyValidFactory whenNotPaused {
         // 확률적 트리거 체크 (π_a: RAT 트리거 확률)
-        uint256 randomValue = uint256(keccak256(abi.encodePacked(blockHash, block.timestamp, block.prevrandao))) % RAY;
+        uint256 randomValue = uint256(keccak256(abi.encodePacked(blockHash, block.timestamp))) % RAY;
         if (randomValue >= ratTriggerProbability) return;
 
         ValidatorPoolInfo storage pool = validatorPools[systemConfig];
@@ -721,7 +721,7 @@ contract RAT is RATStorage, IRAT {
         if (validatorCount == 0) return address(0);
 
         // 랜덤 인덱스 생성 후 직접 접근 (O(1))
-        uint256 randomIndex = uint256(keccak256(abi.encodePacked(seed, block.timestamp, block.prevrandao))) % validatorCount;
+        uint256 randomIndex = uint256(keccak256(abi.encodePacked(seed, block.timestamp))) % validatorCount;
 
         return pool.validators[randomIndex];
     }
