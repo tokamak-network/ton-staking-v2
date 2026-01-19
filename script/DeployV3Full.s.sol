@@ -425,14 +425,13 @@ contract DeployV3Full is Script {
         // console.log("DepositManager Index 2 (V1_1) selectors registered");
 
         // Index 3: V1_2 함수 라우팅 (V3 콜백 포함, V1_1 오버라이드)
-        // V1_2에 정의된 함수만 라우팅: deposit, withdrawAndDepositL2, requestWithdrawal
-        // processRequest, processRequests, view 함수들은 기본 구현체(Index 0)에 있음
-        bytes4[] memory dmIndex3Selectors = new bytes4[](3);
-        dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
-        dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
-        dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
+        // V1_2에 정의된 함수만 라우팅: withdrawAndDepositL2, requestWithdrawal
+        // deposit, processRequest, processRequests, view 함수들은 기본 구현체(Index 0)에 있음
+        bytes4[] memory dmIndex3Selectors = new bytes4[](2);
+        dmIndex3Selectors[0] = DepositManagerV1_2.withdrawAndDepositL2.selector;  // V1_1 오버라이드
+        dmIndex3Selectors[1] = DepositManagerV1_2.requestWithdrawal.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
-        // console.log("DepositManager Index 3 (V1_2) selectors registered (3 functions)");
+        // console.log("DepositManager Index 3 (V1_2) selectors registered (2 functions)");
         // console.log("");
     }
 
@@ -558,6 +557,7 @@ contract DeployV3Full is Script {
         RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
         RAT(ratProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
         RAT(ratProxy).setTreasury(deployer);
+        RAT(ratProxy).setRelaxedValidatorCheck(true); // V3: 초기에는 C_off 기준으로 완화
         // console.log("RAT parameters configured");
 
         // ValidatorReward는 별도 파라미터 설정 불필요

@@ -499,10 +499,9 @@ contract DeployV3FullForDevnet is Script {
         dmIndex2Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex2Selectors, depositManagerV1_1Impl);
 
-        bytes4[] memory dmIndex3Selectors = new bytes4[](3);
-        dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
-        dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;
-        dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
+        bytes4[] memory dmIndex3Selectors = new bytes4[](2);
+        dmIndex3Selectors[0] = DepositManagerV1_2.withdrawAndDepositL2.selector;
+        dmIndex3Selectors[1] = DepositManagerV1_2.requestWithdrawal.selector;
         DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
 
         console.log("DepositManager multi-implementation configured");
@@ -613,6 +612,7 @@ contract DeployV3FullForDevnet is Script {
         RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
         RAT(ratProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
         RAT(ratProxy).setTreasury(deployer);
+        RAT(ratProxy).setRelaxedValidatorCheck(true); // V3: 초기에는 C_off 기준으로 완화
         console.log("RAT parameters configured");
         console.log("");
     }
