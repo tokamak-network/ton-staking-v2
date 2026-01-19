@@ -101,7 +101,7 @@ test-e2e:
 		exit 1; \
 	fi
 	@echo "Running E2E tests (each test starts its own isolated node)..."
-	cd op-e2e && GOWORK=off go test -v ./faultproofs/... -timeout 300s
+	cd op-e2e && GOWORK=off go test -v ./faultproofs/... ./slashing/... -timeout 300s
 
 # Run E2E unit tests only (no devnet required)
 test-e2e-unit:
