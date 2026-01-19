@@ -20,4 +20,11 @@ contract Layer2ManagerV1_2Storage {
 
     /// @notice SequencerVault 주소 (TYPE 3 롤업용)
     address public sequencerVault;
+
+    // ==========================================
+    // V3 신규: 슬래싱 관련
+    // ==========================================
+
+    /// @notice 슬래싱된 DisputeGame 주소를 기록하여 중복 슬래싱 방지
+    mapping(address => bool) public slashedDisputeGames;
 }

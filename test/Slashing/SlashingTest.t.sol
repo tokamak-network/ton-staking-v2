@@ -29,6 +29,10 @@ interface ITON_Mint is ITON {
     function mint(address to, uint256 amount) external returns (bool);
 }
 
+interface ILayer2 {
+    function operator() external view returns (address);
+}
+
 // Slashing Scenario Mocks
 contract SlashingMockGame {
     address public winner;
@@ -581,8 +585,9 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("\n=== Test: Prevent Double Slashing ===");
 
         // 1. Candidate 등록 및 첫 번째 슬래싱
+        uint256 totalAmount = 100000 * 1e18;
         uint256 stakeAmount = 10000 * 1e18;
-        MockTON(ton).mint(operator, stakeAmount);
+        MockTON(ton).mint(operator, totalAmount);
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
@@ -629,8 +634,56 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         console.log("[OK] First slashing successful");
 
-        // 2. 두 번째 슬래싱 시도 (실패해야 함)
-        vm.expectRevert(); // 스테이크가 0이므로 revert 예상
+        // 2. Operator가 다시 스테이킹 (Restake) - 자금 복구 시뮬레이션 (직접 입금)
+        vm.startPrank(operator);
+
+        // // 2-1. TON 확보
+        // MockTON(ton).mint(operator, stakeAmount);
+
+        // 2-2. TON -> WTON 변환
+        IERC20(ton).approve(address(wton), stakeAmount);
+        IWTON(wton).swapFromTON(stakeAmount);
+
+        // 2-3. DepositManager에 예치
+        address myCandidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+            operatorManager
+        );
+        uint256 wtonBalance = IERC20(wton).balanceOf(operator);
+
+        IERC20(wton).approve(depositManagerProxy, wtonBalance);
+
+        console.log("Attempting to deposit WTON (RAY):", wtonBalance);
+        uint256 minAmount = SeigManagerV1_2(seigManagerProxy).minimumAmount();
+        console.log("SeigManager Minimum Amount (RAY):", minAmount);
+
+        try
+            DepositManager(depositManagerProxy).deposit(
+                myCandidateAddOn,
+                operatorManager,
+                wtonBalance
+            )
+        {
+            console.log("Deposit successful");
+        } catch Error(string memory reason) {
+            console.log("Deposit failed with reason:", reason);
+            revert(reason); // Re-throw to fail test
+        } catch (bytes memory lowLevelData) {
+            console.log("Deposit failed with low-level error");
+            // Decode custom error if possible?
+            revert("Deposit failed low-level");
+        }
+        vm.stopPrank();
+
+        // 스테이크 복구 확인
+        uint256 currentStake = DepositManager(depositManagerProxy).accStaked(
+            myCandidateAddOn,
+            operatorManager
+        );
+        console.log("Restaked amount (RAY):", currentStake);
+        require(currentStake > 0, "Stake should be restored");
+
+        // 3. 두 번째 슬래싱 시도 (Replay Attack) - 돈이 있어도 실패해야 함!
+        vm.expectRevert(abi.encodeWithSignature("SlashingError()"));
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
             gameType,
@@ -639,7 +692,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
             address(game)
         );
 
-        console.log("[OK] Double slashing prevented");
+        console.log("[OK] Double slashing prevented (even with funds)");
     }
 
     // ============================================

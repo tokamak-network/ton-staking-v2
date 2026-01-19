@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '../libraries/SafeERC20.sol';
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "../libraries/SafeERC20.sol";
 
-import {IIDepositManager} from '../stake/interfaces/IIDepositManager.sol';
-import {GameType, Claim} from './lib/LibUDT.sol';
-import {GameStatus} from './lib/Types.sol';
-import {IDisputeGame} from './interfaces/IDisputeGame.sol';
-import {IDisputeGameFactory} from './interfaces/IDisputeGameFactory.sol';
-import {IFaultDisputeGame} from './interfaces/IFaultDisputeGame.sol';
-import {IOptimismSystemConfig as ISystemConfig} from './interfaces/IOptimismSystemConfig.sol';
+import {IIDepositManager} from "../stake/interfaces/IIDepositManager.sol";
+import {GameType, Claim} from "./lib/LibUDT.sol";
+import {GameStatus} from "./lib/Types.sol";
+import {IDisputeGame} from "./interfaces/IDisputeGame.sol";
+import {IDisputeGameFactory} from "./interfaces/IDisputeGameFactory.sol";
+import {IFaultDisputeGame} from "./interfaces/IFaultDisputeGame.sol";
+import {IOptimismSystemConfig as ISystemConfig} from "./interfaces/IOptimismSystemConfig.sol";
 
-import './Layer2ManagerStorage.sol';
-import './Layer2ManagerV1_2Storage.sol';
-import '../proxy/ProxyStorage.sol';
-import {AccessibleCommon} from '../common/AccessibleCommon.sol';
+import "./Layer2ManagerStorage.sol";
+import "./Layer2ManagerV1_2Storage.sol";
+import "../proxy/ProxyStorage.sol";
+import {AccessibleCommon} from "../common/AccessibleCommon.sol";
 
 error ZeroAddressError();
 error StatusError();
@@ -46,22 +46,22 @@ contract Layer2Manager_Slashing is
 
     /**
      * @notice Slash the operator when challenger wins the dispute game
-     * @param _operator     The operator address to be slashed
-     * @param _gameType     The game type
-     * @param _rootClaim    The root claim
-     * @param _extraData    Extra data for the dispute game
-     * @param _disputeGame  The dispute game address
+     * @param _operatorManager     The operator manager address to be slashed
+     * @param _gameType            The game type
+     * @param _rootClaim           The root claim
+     * @param _extraData           Extra data for the dispute game
+     * @param _disputeGame         The dispute game address
      */
     function slashingCandidate(
-        address _operator,
+        address _operatorManager,
         GameType _gameType,
         Claim _rootClaim,
         bytes calldata _extraData,
         address _disputeGame
     ) external {
-        _nonZeroAddress(_operator);
+        _nonZeroAddress(_operatorManager);
         //DisputeGameFactory 주소 가져오기
-        address disputeGameFactory = ISystemConfig(operatorInfo[_operator].rollupConfig)
+        address disputeGameFactory = ISystemConfig(operatorInfo[_operatorManager].rollupConfig)
             .disputeGameFactory();
         //DisputeGameFactory 주소를 가지고 오지 못하면 RollupConfig 주소가 지원되지 않는 주소거나 잘못되었음
         if (disputeGameFactory == address(0)) revert ZeroAddressError();
@@ -73,26 +73,32 @@ contract Layer2Manager_Slashing is
             _extraData
         );
         //DisputeGameFactory에 등록된 DisputeGame 주소가 아니면 잘못된 DisputeGame 주소임
-        require(address(disputeGame) == _disputeGame, 'wrong dispute game Address');
+        require(address(disputeGame) == _disputeGame, "wrong dispute game Address");
 
         //DisputeGame 주소를 가지고 오면 DisputeGame의 상태를 가져오고 상태가 CHALLENGER_WINS가 아니면 Slashing은 일어나지 않음
         GameStatus status = IDisputeGame(disputeGame).status();
         if (status != GameStatus.CHALLENGER_WINS) revert StatusError();
 
+        // 이미 슬래싱된 DisputeGame인지 확인
+        if (slashedDisputeGames[_disputeGame]) revert SlashingError();
+
         // 승리한 Challenger 주소 추출: claimData(0).counteredBy
         address challenger = _getWinningChallenger(_disputeGame);
-        require(challenger != address(0), 'invalid challenger');
+        require(challenger != address(0), "invalid challenger");
 
         //Slashing the operator and reward the challenger
         if (
             !IIDepositManager(depositManager).slash(
-                operatorInfo[_operator].candidateAddOn,
-                _operator,
+                operatorInfo[_operatorManager].candidateAddOn,
+                _operatorManager,
                 challenger
             )
         ) revert SlashingError();
 
-        emit CandidateSlashed(_operator, challenger, _disputeGame);
+        // 슬래싱된 DisputeGame으로 표시
+        slashedDisputeGames[_disputeGame] = true;
+
+        emit CandidateSlashed(_operatorManager, challenger, _disputeGame);
     }
 
     /* ========== internal ========== */
