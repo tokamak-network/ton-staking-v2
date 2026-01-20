@@ -19,10 +19,9 @@
 
 #### 파일 위치
 ```
-op-e2e/faultproofs/
-├── rat_system_test.go          (기존 - 시스템 테스트)
-├── rat_challenge_test.go       (기존 - RAT 시나리오)
-├── rat_challenge_helpers.go    (기존 - 헬퍼 함수)
+op-e2e/slashing/
+├── rat_challenge_helpers.go    (신규 - 헬퍼 함수)
+├── slashing_helpers.go         (신규 - 슬래싱 시나리오 헬퍼 함수)
 └── slashing_test.go            (신규 - 슬래싱 시나리오) ⭐
 ```
 
@@ -50,7 +49,7 @@ func TestSlashing_ComprehensiveScenario(t *testing.T)
 
 ### 2. 헬퍼 함수 추가 ⭐ **우선순위: 중간**
 
-#### 파일: `op-e2e/faultproofs/slashing_helpers.go` (신규)
+#### 파일: `op-e2e/slashing/slashing_helpers.go` (신규)
 
 필요한 헬퍼 함수들:
 
@@ -227,14 +226,15 @@ func TestSlashing_DelegatorProtection(t *testing.T) {
 }
 ```
 
-#### 시나리오 3: 슬래싱 후 재등록
+#### 시나리오 3: 슬래싱 후 해당 OperatorManager로 다시 스테이킹
 ```go
 func TestSlashing_ReRegistrationAfterSlashing(t *testing.T) {
     // 1. Operator 등록 및 슬래싱
-    // 2. 새로운 RollupConfig로 재등록 시도
-    // 3. 검증:
-    //    - 재등록 성공
-    //    - 새로운 스테이크 정상 작동
+    // 2. 슬래싱 후 시간이 지나도 시뇨리지가 올라가지 않음
+    // 3. 해당 OperatorManager로 다시 스테이킹
+    // 4. 검증:
+    //    - 슬래싱 후 시간이 지나도 해당 Layer2에 시뇨리지가 쌓이지 않음
+    //    - 다시 스테이킹 후 시뇨리지 정상 작동
 }
 ```
 
@@ -300,7 +300,7 @@ func TestSlashing_ComprehensiveScenario(t *testing.T) {
    ```
 
 3. ✅ **헬퍼 함수 작성**
-   - `op-e2e/faultproofs/slashing_helpers.go` 생성
+   - `op-e2e/slashing/slashing_helpers.go` 생성
    - 기본 헬퍼 함수 구현
 
 ### Phase 2: 기본 테스트 (2-3일)
@@ -341,7 +341,7 @@ func TestSlashing_ComprehensiveScenario(t *testing.T) {
   - 재사용 가능한 헬퍼 함수 패턴
 
 ### Genesis 생성 스크립트
-- `script/DeployV3FullSlash.s.sol`
+- `script/DeployV3SlashForDevnet.s.sol`
   - 슬래싱 컨트랙트 배포 스크립트
 
 ---
@@ -411,7 +411,7 @@ Total: 12 E2E tests
    ```
 
 3. **첫 번째 테스트 작성**
-   - `op-e2e/faultproofs/slashing_test.go` 생성
+   - `op-e2e/slashing/slashing_test.go` 생성
    - `TestSlashing_BasicOperatorSlashing` 구현
 
 작업을 시작할 준비가 되면 알려주세요! 🚀
