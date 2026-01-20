@@ -35,9 +35,11 @@ remappings = [
 [profile.default.fuzz]
 runs = 256
 
-# Allow script to write deployment files
+ffi = true
+
+# Allow script to read/write deployment files
 fs_permissions = [
-    { access = "read-write", path = "./deployments" },
-    { access = "read-write", path = ".devnet" },
-    { access = "read-write", path = "./" }
+    { access = "read-write", path = "./" },
+    { access = "read-write", path = ".devnet/" },
+    { access = "read", path = "lib/optimism/" }
 ]
