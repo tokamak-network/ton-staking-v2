@@ -16,6 +16,11 @@ interface ISeigManagerForRAT {
     function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external;
 }
 
+// ERC20 interface for TON token transfers
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
+
 // Custom Errors
 error AlreadyRegisteredError();
 error NotActiveValidatorError();
@@ -303,6 +308,13 @@ contract RAT is RATStorage, IRAT {
         uint256 n = getActiveValidatorCount(systemConfig);
         if (n == 0) n = 1;
         return _calculateDminWithRelaxedCheck(n);
+    }
+
+    /// @notice Backward compatibility wrapper for getMinimumCollateral
+    /// @dev Returns C_off + validatorBuffer (assumes n=1 for simplicity)
+    /// @return Minimum collateral amount
+    function getMinimumCollateral() public view returns (uint256) {
+        return _calculateDminWithRelaxedCheck(1);
     }
 
     /// @inheritdoc IRAT
