@@ -953,7 +953,7 @@ function slashSequencerByGame(address gameAddress) external whenV3Active whenNot
 7. 이벤트: SequencerSlashed
 ```
 
-> **V3 변경사항**: 시퀀서 담보금은 별도 SequencerVault가 아닌 기존 스테이킹 시스템(coinage)을 사용합니다.
+> **V3 변경사항**: 시퀀서 담보금은 기존 스테이킹 시스템(coinage)을 사용합니다.
 
 ---
 

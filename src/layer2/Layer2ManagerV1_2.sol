@@ -32,24 +32,6 @@ contract Layer2ManagerV1_2 is ProxyStorage, AccessibleCommon, Layer2ManagerStora
     using SafeERC20 for IERC20;
 
     // ==========================================
-    // Events
-    // ==========================================
-
-    /// @notice SequencerVault 주소 설정 이벤트
-    event SequencerVaultSet(address indexed sequencerVault);
-
-    // ==========================================
-    // V3 신규: SequencerVault 설정
-    // ==========================================
-
-    /// @notice SequencerVault 주소 설정 (onlyOwner)
-    /// @param _sequencerVault SequencerVault 컨트랙트 주소
-    function setSequencerVault(address _sequencerVault) external onlyOwner {
-        require(_sequencerVault != address(0), "zero address");
-        sequencerVault = _sequencerVault;
-        emit SequencerVaultSet(_sequencerVault);
-    }
-
     // ==========================================
     // V3 신규: Bridged TON 조회
     // ==========================================

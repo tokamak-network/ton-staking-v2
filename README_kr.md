@@ -34,7 +34,6 @@ TON Staking V3는 이더리움 L1에서 운영되며, 여러 L2 롤업(Titan, Th
 | **L1BridgeRegistryV1_2** | 브릿지/포탈 등록, TVL 조회 |
 | **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
 | **ValidatorRewardV1** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리, 슬래싱 |
 
 ## V3 핵심 파라미터
 

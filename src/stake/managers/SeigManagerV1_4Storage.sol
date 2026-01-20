@@ -108,16 +108,6 @@ contract SeigManagerV1_4Storage {
     uint256 public v3MigrationBlock;
 
     // ==========================================
-    // SequencerVault 참조 - DEPRECATED
-    // ==========================================
-
-    /// @notice SequencerVault 컨트랙트 주소
-    /// @dev DEPRECATED: V3에서는 기존 스테이킹 시스템(coinage) 사용
-    /// @dev 이 변수는 호환성을 위해 유지되지만, 새 로직에서는 사용하지 않음
-    /// @dev V3에서 시퀀서 담보금은 _coinages[layer2].balanceOf(operator)로 조회
-    address public sequencerVault;
-
-    // ==========================================
     // RAT (Randomized Attention Test) 연동
     // ==========================================
 

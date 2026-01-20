@@ -93,7 +93,6 @@ contract BasicFunctionsTest is Test, DeployV3Full {
         _deployV3Contracts(owner);
 
         // RAT, ValidatorReward의 proxy admin만 admin으로 변경 (contract owner는 owner 유지)
-        // Note: SequencerVaultProxy는 일반 Proxy이므로 changeAdmin 없음
         RATProxy(payable(ratProxy)).changeAdmin(admin);
         ValidatorRewardProxy(payable(validatorPoolProxy)).changeAdmin(admin);
 

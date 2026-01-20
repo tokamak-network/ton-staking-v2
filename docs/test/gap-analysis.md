@@ -100,7 +100,6 @@ The V3 test suite provides comprehensive coverage for core staking, seigniorage 
 
 | Scenario | Components | Risk |
 |----------|------------|------|
-| Validator + Sequencer | RAT + SequencerVault | Medium |
 | Multi-L2 RAT | RAT across 5+ L2s | Medium |
 | Concurrent Games | 10+ games simultaneously | Low |
 

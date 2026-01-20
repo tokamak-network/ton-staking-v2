@@ -236,16 +236,6 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
         assertEq(seigManager.maxFraudProofCost(), 0, "Should allow zero cost");
     }
 
-    function test_setSequencerVault_basic() public {
-        address vaultAddress = address(0x5678);
-        seigManager.setSequencerVault(vaultAddress);
-        assertEq(seigManager.sequencerVault(), vaultAddress, "Should set SequencerVault address");
-    }
-
-    function test_setSequencerVault_zeroAddress_reverts() public {
-        vm.expectRevert(ZeroAddressError.selector);
-        seigManager.setSequencerVault(address(0));
-    }
 
     function test_setValidatorReward_basic() public {
         address rewardAddress = address(0xABCD);

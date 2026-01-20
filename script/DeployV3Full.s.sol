@@ -39,8 +39,6 @@ import {RAT} from "../src/validator/RAT.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
-import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
-import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
 
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
@@ -135,8 +133,6 @@ contract DeployV3Full is Script {
     address public ratImpl;
     address public validatorPoolProxy;
     address public validatorPoolImpl;
-    address public sequencerVaultProxy;
-    address public sequencerVaultImpl;
 
     function run() external virtual {
         uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
@@ -363,7 +359,7 @@ contract DeployV3Full is Script {
         v1_4Selectors[7] = SeigManagerV1_4.onBridgedTONChange.selector;
         v1_4Selectors[8] = SeigManagerV1_4.setMaxChallengers.selector;
         v1_4Selectors[9] = SeigManagerV1_4.setMaxFraudProofCost.selector;
-        v1_4Selectors[10] = SeigManagerV1_4.setSequencerVault.selector;
+        v1_4Selectors[10] = SeigManagerV1_4.setSequencerAdditionalReward.selector;
         // 로직 수정으로 V1_4로 오버라이드 (V1_2에도 있지만 V3 로직 적용)
         v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorage.selector;
         v1_4Selectors[12] = SeigManagerV1_4.updateSeigniorageLayer.selector;
@@ -383,9 +379,9 @@ contract DeployV3Full is Script {
         v1_4Selectors[24] = bytes4(keccak256("validatorReward()"));
         v1_4Selectors[25] = bytes4(keccak256("maxChallengers()"));
         v1_4Selectors[26] = bytes4(keccak256("maxFraudProofCost()"));
-        v1_4Selectors[27] = bytes4(keccak256("v3Migrated()"));
-        v1_4Selectors[28] = bytes4(keccak256("v3MigrationBlock()"));
-        v1_4Selectors[29] = bytes4(keccak256("sequencerVault()"));
+        v1_4Selectors[27] = bytes4(keccak256("sequencerAdditionalReward()"));
+        v1_4Selectors[28] = bytes4(keccak256("v3Migrated()"));
+        v1_4Selectors[29] = bytes4(keccak256("v3MigrationBlock()"));
         v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
 
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
@@ -526,30 +522,6 @@ contract DeployV3Full is Script {
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
         // console.log("ValidatorReward Proxy:", validatorPoolProxy);
         // console.log("ValidatorReward initialized");
-
-        // Deploy SequencerVault (Proxy + Implementation 패턴 - RAT/ValidatorReward와 다름)
-        // SequencerVaultProxy는 Proxy 상속으로 upgradeTo() 후 initialize() 호출
-        sequencerVaultImpl = address(new SequencerVault());
-        // console.log("SequencerVault Impl:", sequencerVaultImpl);
-
-        SequencerVaultProxy svProxy = new SequencerVaultProxy();
-        sequencerVaultProxy = address(svProxy);
-        // console.log("SequencerVault Proxy:", sequencerVaultProxy);
-
-        // upgradeTo (Proxy 패턴)
-        IProxy(sequencerVaultProxy).upgradeTo(sequencerVaultImpl);
-
-        // initialize
-        SequencerVault(sequencerVaultProxy).initialize(
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            l1BridgeRegistryProxy,
-            deployer
-        );
-        // console.log("SequencerVault initialized");
-        // console.log("");
     }
 
     // ==========================================
@@ -613,18 +585,12 @@ contract DeployV3Full is Script {
         // console.log("Layer2Manager V1_2 implementation set alive");
 
         // V1_2 함수 selectors 등록 (V3 신규 함수들)
-        bytes4[] memory l2mV1_2Selectors = new bytes4[](5);
+        bytes4[] memory l2mV1_2Selectors = new bytes4[](3);
         l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
         l2mV1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
         l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
-        l2mV1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
-        l2mV1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
         Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
-        // console.log("Layer2Manager V1_2 selectors registered (5 functions)");
-
-        // Layer2Manager.setSequencerVault (V3 - OperatorManager가 자동 조회)
-        Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
-        // console.log("Layer2Manager.setSequencerVault done");
+        // console.log("Layer2Manager V1_2 selectors registered (3 functions)");
 
         // L1BridgeRegistry.setAddresses (using V1_1 interface - Index 0)
         // L1BridgeRegistry uses V1_2 only (has all V1_1 functions + TYPE 3 support)
@@ -676,7 +642,6 @@ contract DeployV3Full is Script {
         console.log("V3 Contracts:");
         console.log("  RAT Proxy:", ratProxy);
         console.log("  ValidatorReward Proxy:", validatorPoolProxy);
-        console.log("  SequencerVault Proxy:", sequencerVaultProxy);
         console.log("");
         console.log("Factory:");
         console.log("  OperatorManagerFactory:", operatorManagerFactory);
@@ -695,8 +660,7 @@ contract DeployV3Full is Script {
             '  "l1BridgeRegistryProxy": "', vm.toString(l1BridgeRegistryProxy), '",\n',
             '  "operatorManagerFactory": "', vm.toString(operatorManagerFactory), '",\n',
             '  "ratProxy": "', vm.toString(ratProxy), '",\n',
-            '  "validatorPoolProxy": "', vm.toString(validatorPoolProxy), '",\n',
-            '  "sequencerVaultProxy": "', vm.toString(sequencerVaultProxy), '"\n',
+            '  "validatorPoolProxy": "', vm.toString(validatorPoolProxy), '"\n',
             "}"
         ));
 
@@ -760,7 +724,6 @@ contract DeployV3FullE2E is DeployV3Full {
         address operatorManagerFactory;
         address ratProxy;
         address validatorPoolProxy;
-        address sequencerVaultProxy;
     }
 
     function deployAll(address deployer) external returns (DeployedAddresses memory) {
@@ -787,8 +750,7 @@ contract DeployV3FullE2E is DeployV3Full {
             l1BridgeRegistryProxy: l1BridgeRegistryProxy,
             operatorManagerFactory: operatorManagerFactory,
             ratProxy: ratProxy,
-            validatorPoolProxy: validatorPoolProxy,
-            sequencerVaultProxy: sequencerVaultProxy
+            validatorPoolProxy: validatorPoolProxy
         });
     }
 }

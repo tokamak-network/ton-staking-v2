@@ -698,7 +698,7 @@ function _transferCoinageFromRAT(address validator, address systemConfig, uint25
 2. **유연한 정책 운영**: `relaxedValidatorCheck`로 단계적 보안 강화, DAO 거버넌스를 통한 파라미터 조정
 
 ### 기술적 가치
-1. **구조 단순화**: SequencerVault 제거로 컨트랙트 복잡도 감소, RAT 직접 예치 제거로 관리 포인트 축소, Coinage 기반 통합 설계
+1. **구조 단순화**: 컨트랙트 복잡도 감소, RAT 직접 예치 제거로 관리 포인트 축소, Coinage 기반 통합 설계
 2. **거버넌스 강화**: DAO 중심 의사결정 구조, 투명한 파라미터 관리, 단계적 업그레이드 지원
 3. **확장성 향상**: Multi-Sequencer 지원 준비, 향후 기능 추가 용이, 모듈화된 아키텍처
 

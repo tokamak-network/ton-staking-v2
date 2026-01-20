@@ -86,20 +86,6 @@ forge test --match-test test_multiValidatorScenario -vv
 - Different collateral amounts
 - Validator slashing interactions
 
-### 3. SequencerVault Integration
-
-SequencerVault reward distribution.
-
-```bash
-forge test --match-test test_sequencerVaultIntegration -vv
-```
-
-**Tests:**
-- SequencerVault deployment
-- Reward accumulation
-- Distribution to validators
-- Integration with ValidatorReward
-
 ### 4. V2 to V3 Transition
 
 Transition from V2 parameters to V3 parameters.

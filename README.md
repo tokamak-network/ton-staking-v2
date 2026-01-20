@@ -34,7 +34,6 @@ TON Staking V3 operates on Ethereum L1 and interacts with multiple L2 rollups (T
 | **L1BridgeRegistryV1_2** | Bridge/portal registration, TVL queries |
 | **RAT** | Validator registration, RAT tests, slashing |
 | **ValidatorRewardV1** | Validator reward distribution |
-| **SequencerVault** | Sequencer collateral management, slashing |
 
 ## V3 Core Parameters
 

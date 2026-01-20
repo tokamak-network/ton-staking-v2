@@ -16,7 +16,6 @@ import {IL1BridgeRegistry} from "../../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../../layer2/interfaces/ILayer2Manager.sol";
 import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
 import {IOptimismSystemConfig} from "../../layer2/interfaces/IOptimismSystemConfig.sol";
-import {ISequencerVault} from "../../sequencer/ISequencerVault.sol";
 import {IValidatorReward} from "../../validator/IValidatorReward.sol";
 import {IRAT} from "../../validator/IRAT.sol";
 
@@ -157,10 +156,6 @@ contract SeigManagerV1_4 is
         uint256 reward
     );
 
-    /// @notice SequencerVault 주소 변경 이벤트
-    /// @dev DEPRECATED: V3에서는 사용되지 않음
-    event SequencerVaultUpdated(address indexed vault);
-
     /// @notice 시퀀서 추가 보상 변경 이벤트
     event SequencerAdditionalRewardUpdated(uint256 delta);
 
@@ -229,15 +224,6 @@ contract SeigManagerV1_4 is
     /// @dev 백서 공식 (2): R_challenger = C_max + (Δ_sequencer / n)
     function setMaxFraudProofCost(uint256 cMax) external onlyOwner {
         maxFraudProofCost = cMax;
-    }
-
-    /// @notice SequencerVault 컨트랙트 주소 설정
-    /// @dev DEPRECATED: V3에서는 기존 스테이킹 시스템(coinage) 사용
-    /// @dev 이 함수는 호환성을 위해 유지됨, V3에서는 사용되지 않음
-    function setSequencerVault(address vault) external onlyOwner {
-        if (vault == address(0)) revert ZeroAddressError();
-        sequencerVault = vault;
-        emit SequencerVaultUpdated(vault);
     }
 
     /// @notice 시퀀서 추가 보상 설정
