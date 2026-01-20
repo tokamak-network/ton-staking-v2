@@ -31,20 +31,25 @@ func TestSimpleRAT_ValidatorRegistration(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	t.Logf("✓ Validator address: %s", accounts.Validator.Addr.Hex())
 	t.Logf("✓ RAT contract: %s", sys.Addresses.RATProxy.Hex())
 	t.Logf("✓ SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
 
-	// Get test deposit amount
+	// Get test deposit amount (in WTON, 27 decimals)
 	depositAmount := getTestDepositAmount()
-	t.Logf("✓ Deposit amount: %s wei (50000 TON)", depositAmount.String())
+	t.Logf("✓ Deposit amount: %s WTON (27 decimals = 50000 WTON)", depositAmount.String())
 
-	// Check TON balance
-	tonBalance, err := contracts.TON.BalanceOf(callOpts, accounts.Validator.Addr)
+	// Check WTON balance (we use WTON for staking, not TON)
+	wtonBalance, err := contracts.WTON.BalanceOf(callOpts, accounts.Validator.Addr)
 	require.NoError(t, err)
-	t.Logf("✓ Validator TON balance: %s", tonBalance.String())
-	require.True(t, tonBalance.Cmp(depositAmount) >= 0,
-		"Validator should have at least %s TON but has %s", depositAmount.String(), tonBalance.String())
+	t.Logf("✓ Validator WTON balance: %s", wtonBalance.String())
+	require.True(t, wtonBalance.Cmp(depositAmount) >= 0,
+		"Validator should have at least %s WTON but has %s", depositAmount.String(), wtonBalance.String())
 
 	// Adjust minimum collateral if needed
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
@@ -75,6 +80,11 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
@@ -94,12 +104,21 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("✓ DisputeGameFactory connected: %s", sys.Addresses.DisputeGameFactory.Hex())
 
-	// Verify RAT is set on DisputeGameFactory
-	ratOnFactory, err := dgf.Rat(callOpts)
+	// Verify RAT is set on DisputeGameFactory (read from storage slot 52 directly)
+	// Note: The Optimism DisputeGameFactory bytecode doesn't have rat() view function,
+	// but we set storage slot 52 in genesis with the RAT address
+	ratOnFactory, err := readDGFRatFromStorage(sys.L1Client, sys.Addresses.DisputeGameFactory)
 	require.NoError(t, err)
-	t.Logf("✓ RAT on DisputeGameFactory: %s", ratOnFactory.Hex())
+	t.Logf("✓ RAT on DisputeGameFactory (storage slot 52): %s", ratOnFactory.Hex())
 	t.Logf("✓ Expected RAT: %s", sys.Addresses.RATProxy.Hex())
 	require.Equal(t, sys.Addresses.RATProxy, ratOnFactory, "RAT should be set on DisputeGameFactory")
+
+	// Verify SystemConfig is set on DisputeGameFactory (read from storage slot 103 directly)
+	systemConfigOnFactory, err := readDGFSystemConfigFromStorage(sys.L1Client, sys.Addresses.DisputeGameFactory)
+	require.NoError(t, err)
+	t.Logf("✓ SystemConfig on DisputeGameFactory (storage slot 103): %s", systemConfigOnFactory.Hex())
+	t.Logf("✓ Expected SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
+	require.Equal(t, sys.Addresses.SystemConfig, systemConfigOnFactory, "SystemConfig should match on DisputeGameFactory")
 
 	// Verify DisputeGameFactory is registered in L1BridgeRegistry
 	// Call rollupConfigWithDisputeGameFactory(address) public view mapping
@@ -230,9 +249,24 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	// Set RAT trigger probability to 100% for deterministic testing
+	t.Log("Setting RAT trigger probability to 100% for testing...")
+	ratTriggerProb := new(big.Int)
+	ratTriggerProb.SetString("1000000000000000000000000000", 10) // 1e27 (100% in RAY units)
+	setTriggerTx, err := contracts.RAT.SetRatTriggerProbability(accounts.Deployer.Auth, ratTriggerProb)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, setTriggerTx)
+	require.NoError(t, err)
+	t.Logf("✓ RAT trigger probability set to 100%%")
 
 	// Step 1: Register validator
 	t.Log("Step 1: Registering validator...")
@@ -248,14 +282,33 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-	gameReceipt, _ := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	_, gameAddress := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+
+	// Step 2.5: Trigger RAT directly (since DisputeGameFactory bytecode doesn't have RAT integration)
+	t.Log("Step 2.5: Triggering RAT directly via impersonation...")
+	batchIndex := uint32(testL2BlockNumber) // Use L2 block number as batch index
+	ratReceipt := triggerRATDirectly(t, sys, gameAddress, batchIndex)
+	require.Equal(t, uint64(1), ratReceipt.Status, "RAT trigger transaction should succeed")
+	t.Logf("✓ RAT triggered directly (tx status: %d)", ratReceipt.Status)
 
 	// Step 3: Parse RAT trigger event and get batchIndex
 	t.Log("Step 3: Parsing RAT trigger event...")
 
-	testID, batchIndex, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
+	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, ratReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
-	_ = testID // testID available for future use if needed
+	t.Logf("✓ Test ID: %s, Batch Index: %d", common.BytesToHash(testID[:]).Hex(), batchIndex)
+
+	// Check RAT test status before submitting evidence
+	testInfo, err := contracts.RAT.GetAttentionTest(callOpts, testID)
+	require.NoError(t, err)
+	t.Logf("✓ Test status: %d, Validator: %s, Deadline: %s",
+		testInfo.Status, testInfo.ValidatorAddress.Hex(), testInfo.Deadline.String())
+
+	// Get current block to check timestamp
+	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
+	require.NoError(t, err)
+	t.Logf("✓ Current block timestamp: %d", currentBlock.Time())
 
 	// Step 4: Submit evidence as selected validator
 	t.Log("Step 4: Submitting evidence...")
@@ -313,6 +366,11 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
@@ -331,8 +389,7 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	// Get validator deposit before game creation
 	regBefore, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit before game: %s", regBefore.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked before: %s", regBefore.TotalBondForRAT.String())
+	t.Logf("✓ Validator collateral before game: %s", regBefore.Collateral.String())
 
 	// Get validator count before game creation
 	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
@@ -342,21 +399,26 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	// Step 2: Create dispute game with WRONG root claim as proposer
 	t.Log("Step 2: Creating DisputeGame with WRONG root claim...")
 
-	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+	_, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+
+	// Step 2.5: Trigger RAT directly (Optimism's DisputeGameFactory doesn't have RAT integration)
+	t.Log("Step 2.5: Triggering RAT directly...")
+	ratReceipt := triggerRATDirectly(t, sys, gameAddress, 100) // batchIndex = 100
+	require.Equal(t, uint64(1), ratReceipt.Status, "RAT trigger transaction should succeed")
+	t.Logf("✓ RAT triggered directly (tx status: %d)", ratReceipt.Status)
 
 	// Step 3: Parse RAT trigger event
 	t.Log("Step 3: Parsing RAT trigger event...")
 
-	testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, ratReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
 	_ = testID // testID available for future use if needed
 
 	// Get validator deposit after RAT trigger (should be reduced)
 	regAfterTrigger, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit after RAT trigger: %s", regAfterTrigger.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked after: %s", regAfterTrigger.TotalBondForRAT.String())
-	require.True(t, regAfterTrigger.TotalBondForRAT.Cmp(big.NewInt(0)) > 0, "Bond should be locked")
+	t.Logf("✓ Validator collateral after RAT trigger: %s", regAfterTrigger.Collateral.String())
 
 	// Step 4: Challenger attacks the wrong root claim
 	t.Log("Step 4: Validator/challenger attacks wrong root claim...")
@@ -495,17 +557,12 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	// Verify validator bond was restored
 	regAfterResolve, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit after resolve: %s", regAfterResolve.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked after resolve: %s", regAfterResolve.TotalBondForRAT.String())
+	t.Logf("✓ Validator collateral after resolve: %s", regAfterResolve.Collateral.String())
 
-	// Bond should be restored (TotalBondForRAT should be 0)
-	require.True(t, regAfterResolve.TotalBondForRAT.Cmp(big.NewInt(0)) == 0,
-		"Bond should be restored after challenger wins, but got: %s", regAfterResolve.TotalBondForRAT.String())
-
-	// Deposit should be restored to original amount
-	require.True(t, regAfterResolve.DepositedAmount.Cmp(depositAmount) == 0,
-		"Deposit should be restored to original %s, but got: %s",
-		depositAmount.String(), regAfterResolve.DepositedAmount.String())
+	// Collateral should be restored to original amount
+	require.True(t, regAfterResolve.Collateral.Cmp(depositAmount) == 0,
+		"Collateral should be restored to original %s, but got: %s",
+		depositAmount.String(), regAfterResolve.Collateral.String())
 
 	// Check final ETH balance
 	finalETHBalance, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)

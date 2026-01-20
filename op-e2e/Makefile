@@ -1,4 +1,4 @@
-.PHONY: all test test-rat help clean coverage deps fmt lint info build
+.PHONY: all test test-rat test-rat-simple help clean coverage deps fmt lint info build
 
 # Default target
 all: build test
@@ -51,6 +51,17 @@ test-rat:
 		exit 1; \
 	fi
 	GOWORK=off go test -v -run "TestRAT|TestTONStaking|TestAccount" ./faultproofs/...
+
+# Run SimpleRAT tests (game creation, evidence submission, etc.)
+test-rat-simple:
+	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
+		echo "Error: Genesis file not found"; \
+		echo ""; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs-offline"; \
+		exit 1; \
+	fi
+	GOWORK=off go test -v -run "TestSimpleRAT" ./faultproofs/...
 
 # Clean build artifacts
 clean:
