@@ -275,3 +275,39 @@ func setSlashingRewardRate(
 
 	t.Logf("✓ Slashing reward rate set to: %s", rate.String())
 }
+
+// delegatorDeposit deposits WTON for a delegator to a candidate
+func delegatorDeposit(
+	t *testing.T,
+	sys *rat.TONStakingSystem,
+	contracts *SlashingContracts,
+	delegatorAuth *bind.TransactOpts,
+	candidateAddOn common.Address,
+	amount *big.Int,
+) {
+	// 1. Approve WTON to DepositManager
+	wtonERC20, err := bindings.NewERC20(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err, "Failed to connect to WTON")
+
+	approveTx, err := wtonERC20.Approve(delegatorAuth, sys.Addresses.DepositManagerProxy, amount)
+	require.NoError(t, err, "Failed to approve WTON")
+
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
+	require.NoError(t, err, "Failed to wait for WTON approval")
+
+	t.Logf("✓ Delegator approved %s WTON", amount.String())
+
+	// 2. Deposit
+	tx, err := contracts.DepositManager.Deposit(
+		delegatorAuth,
+		candidateAddOn,
+		amount,
+	)
+	require.NoError(t, err, "Failed to deposit")
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+	require.NoError(t, err, "Failed to wait for deposit")
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Delegator deposit failed")
+
+	t.Logf("✓ Delegator deposited %s WTON", amount.String())
+}

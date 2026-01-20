@@ -6,6 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
 	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
@@ -181,4 +183,127 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 	t.Log("✅ Operator fully slashed")
 	t.Log("✅ Challenger received 10% reward")
 	t.Log("✅ 90% of stake burned")
+}
+
+// TestSlashing_DelegatorProtection tests that delegators are protected when an operator is slashed
+func TestSlashing_DelegatorProtection(t *testing.T) {
+	t.Parallel()
+
+	sys := rat.StartTONStakingSystem(t)
+	t.Log("=== Testing Delegator Protection ===")
+
+	accounts := rat.SetupTestAccounts(t, sys)
+	contracts := rat.ConnectTestContracts(t, sys)
+	slashingContracts := connectSlashingContracts(t, sys)
+
+	// Setup Delegator (Account #2)
+	delegatorPrivKey := "5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+	delegatorKey, _ := crypto.HexToECDSA(delegatorPrivKey)
+	delegatorAddr := crypto.PubkeyToAddress(delegatorKey.PublicKey)
+	chainID, err := sys.L1Client.ChainID(sys.Ctx)
+	require.NoError(t, err)
+	delegatorAuth, _ := bind.NewKeyedTransactorWithChainID(delegatorKey, chainID)
+	delegatorAuth.GasLimit = 3000000
+
+	t.Logf("✓ Delegator set up at %s", delegatorAddr.Hex())
+
+	// Amounts
+	operatorStake := new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)) // 10k TON
+	delegatorStake := new(big.Int).Mul(big.NewInt(5000), big.NewInt(1e18)) // 5k TON
+
+	// Adjust collateral
+	rat.AdjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, operatorStake)
+
+	// 1. Register Operator
+	t.Log("\n--- Step 1: Register Operator ---")
+	candidateAddOn, operatorManager := registerOperatorWithCandidateAddOn(
+		t, sys, slashingContracts, accounts.Validator.Auth, operatorStake,
+	)
+
+	// 2. Prepare Delegator funds
+	// Expectation: Delegator has TON in genesis. We need WTON.
+	t.Log("\n--- Step 2: Prepare Delegator Funds ---")
+	wtonBind, err := bindings.NewWTON(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err)
+
+	// Swap TON -> WTON
+	// First approve TON to WTON
+	tonBind, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
+	require.NoError(t, err)
+
+	// Transfer TON from Deployer to Delegator
+	t.Log("Transferring TON from Deployer to Delegator...")
+	transferTx, err := tonBind.Transfer(accounts.Deployer.Auth, delegatorAddr, delegatorStake)
+	require.NoError(t, err, "Failed to transfer TON to delegator")
+	transferReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, transferTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, transferReceipt.Status, "TON transfer failed")
+
+	approveTx, err := tonBind.Approve(delegatorAuth, sys.Addresses.WTON, delegatorStake)
+	require.NoError(t, err, "Delegator failed to approve TON to WTON")
+	approveReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, approveReceipt.Status, "Approve failed")
+
+	swapTx, err := wtonBind.SwapFromTONAndTransfer(delegatorAuth, delegatorAddr, delegatorStake)
+	require.NoError(t, err, "Delegator failed to swap TON to WTON")
+	swapReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, swapTx)
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, swapReceipt.Status, "Swap failed")
+	t.Logf("✓ Delegator swapped %s TON to WTON", delegatorStake.String())
+
+	// 3. Delegator Deposit
+	t.Log("\n--- Step 3: Delegator Deposit ---")
+	// Convert TON amount to WTON amount (x 10^9) for checking, but Deposit takes WTON (27 decimals)
+	// Wait, WTON is 27 decimals. TON is 18.
+	// swapFromTON takes TON amount (18 decimals) and mints WTON (27 decimals).
+	// So delegatorStake (18 decimals) becomes delegatorStake * 1e9 WTON.
+	// The `deposit` function in DepositManager takes WTON amount (27 decimals).
+	// So we need to deposit the swapped amount.
+
+	wtonAmount := new(big.Int).Mul(delegatorStake, big.NewInt(1e9))
+	delegatorDeposit(t, sys, slashingContracts, delegatorAuth, candidateAddOn, wtonAmount)
+
+	// Verify stake
+	delStakeBefore := getStakeBalance(t, sys, slashingContracts, candidateAddOn, delegatorAddr)
+	require.Equal(t, wtonAmount, delStakeBefore, "Delegator stake mismatch")
+	t.Logf("✓ Delegator stake verified: %s WTON", delStakeBefore.String())
+
+	// 4. Advance time (Seigniorage)
+	t.Log("\n--- Step 4: Advance Time ---")
+	rat.AdvanceTimeAndMine(t, sys, 1209600) // 14 days
+
+	// 5. Slashing
+	t.Log("\n--- Step 5: Execute Slashing ---")
+	// Setup Game
+	rootClaim := [32]byte{0xDE, 0xAD}
+	_, gameAddress := rat.CreateDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+
+	// Attack
+	correctClaim := [32]byte{0xBE, 0xEF}
+	rat.AttackClaim(t, sys, accounts.Challenger.Auth, gameAddress, correctClaim, rootClaim)
+
+	// Resolve
+	rat.AdvanceTimeAndMine(t, sys, 604800) // Resolve duration
+	rat.ResolveGame(t, sys, accounts.Challenger.Auth, gameAddress)
+
+	// Slash
+	l2BlockNumber := big.NewInt(100)
+	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
+	executeSlashing(t, sys, slashingContracts, accounts.Challenger.Auth, operatorManager, gameAddress, rootClaim, extraData)
+
+	// 6. Verification
+	t.Log("\n--- Step 6: Verify Protection ---")
+
+	// Operator should be 0
+	opStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
+	require.Equal(t, 0, opStake.Cmp(big.NewInt(0)), "Operator should be slashed to 0")
+
+	// Delegator should be preserved (>= initial stake)
+	delStakeAfter := getStakeBalance(t, sys, slashingContracts, candidateAddOn, delegatorAddr)
+	t.Logf("Delegator stake after slashing: %s WTON", delStakeAfter.String())
+
+	require.True(t, delStakeAfter.Cmp(wtonAmount) >= 0, "Delegator stake should be preserved")
+
+	t.Log("✅ Test Passed: Delegator assets protected")
 }
