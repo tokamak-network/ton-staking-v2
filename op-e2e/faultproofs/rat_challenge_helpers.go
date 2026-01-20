@@ -37,10 +37,12 @@ const (
 	eventAttentionTestTriggered = "0xcf68a8dafa7b2329d7d7fcde3af620c2a51f64345d1eb2d66ffe7c7f1e9b0c38"
 
 	// DisputeGameFactory storage slots (matching modified Optimism contract with RAT)
-	// Note: The Optimism DisputeGameFactory bytecode doesn't have rat()/systemConfig() view functions,
-	// but we set these storage slots in genesis. We read them directly using eth_getStorageAt.
-	dgfSlotRAT          = 52  // RAT address stored at slot 52
-	dgfSlotSystemConfig = 103 // SystemConfig address stored at slot 103
+	// Storage layout from forge inspect:
+	//   Slot 51: _owner, Slot 101: gameImpls, Slot 102: initBonds,
+	//   Slot 103: _disputeGames, Slot 104: _disputeGameList,
+	//   Slot 105: rat, Slot 106: systemConfig
+	dgfSlotRAT          = 105 // RAT address stored at slot 105
+	dgfSlotSystemConfig = 106 // SystemConfig address stored at slot 106
 )
 
 // TestAccounts holds all test account information
@@ -351,10 +353,11 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 	}
 
 	// ===========================================
-	// 2. DisputeGameFactory.setRAT()
+	// 2. DisputeGameFactory.setRAT() and setSystemConfig()
 	// ===========================================
 	dgfABI, err := abi.JSON(strings.NewReader(`[
 		{"inputs":[{"internalType":"address","name":"_rat","type":"address"}],"name":"setRAT","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"_systemConfig","type":"address"}],"name":"setSystemConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},
 		{"inputs":[{"internalType":"uint32","name":"_gameType","type":"uint32"},{"internalType":"uint256","name":"_initBond","type":"uint256"}],"name":"setInitBond","outputs":[],"stateMutability":"nonpayable","type":"function"}
 	]`))
 	require.NoError(t, err)
@@ -363,6 +366,11 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 	setRATData, err := dgfABI.Pack("setRAT", sys.Addresses.RATProxy)
 	require.NoError(t, err)
 	sendTx(sys.Addresses.DisputeGameFactory, setRATData, "DisputeGameFactory.setRAT")
+
+	// Set SystemConfig on DisputeGameFactory
+	setSystemConfigData, err := dgfABI.Pack("setSystemConfig", sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	sendTx(sys.Addresses.DisputeGameFactory, setSystemConfigData, "DisputeGameFactory.setSystemConfig")
 
 	// ===========================================
 	// 3. DisputeGameFactory.setInitBond()

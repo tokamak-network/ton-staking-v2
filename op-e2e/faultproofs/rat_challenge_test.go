@@ -104,19 +104,17 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("✓ DisputeGameFactory connected: %s", sys.Addresses.DisputeGameFactory.Hex())
 
-	// Verify RAT is set on DisputeGameFactory (read from storage slot 52 directly)
-	// Note: The Optimism DisputeGameFactory bytecode doesn't have rat() view function,
-	// but we set storage slot 52 in genesis with the RAT address
-	ratOnFactory, err := readDGFRatFromStorage(sys.L1Client, sys.Addresses.DisputeGameFactory)
+	// Verify RAT is set on DisputeGameFactory using public view function
+	ratOnFactory, err := dgf.Rat(callOpts)
 	require.NoError(t, err)
-	t.Logf("✓ RAT on DisputeGameFactory (storage slot 52): %s", ratOnFactory.Hex())
+	t.Logf("✓ RAT on DisputeGameFactory: %s", ratOnFactory.Hex())
 	t.Logf("✓ Expected RAT: %s", sys.Addresses.RATProxy.Hex())
 	require.Equal(t, sys.Addresses.RATProxy, ratOnFactory, "RAT should be set on DisputeGameFactory")
 
-	// Verify SystemConfig is set on DisputeGameFactory (read from storage slot 103 directly)
-	systemConfigOnFactory, err := readDGFSystemConfigFromStorage(sys.L1Client, sys.Addresses.DisputeGameFactory)
+	// Verify SystemConfig is set on DisputeGameFactory using public view function
+	systemConfigOnFactory, err := dgf.SystemConfig(callOpts)
 	require.NoError(t, err)
-	t.Logf("✓ SystemConfig on DisputeGameFactory (storage slot 103): %s", systemConfigOnFactory.Hex())
+	t.Logf("✓ SystemConfig on DisputeGameFactory: %s", systemConfigOnFactory.Hex())
 	t.Logf("✓ Expected SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
 	require.Equal(t, sys.Addresses.SystemConfig, systemConfigOnFactory, "SystemConfig should match on DisputeGameFactory")
 
