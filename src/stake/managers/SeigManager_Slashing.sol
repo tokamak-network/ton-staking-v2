@@ -59,7 +59,7 @@ contract SeigManager_Slashing is
     // Events
     //////////////////////////////
 
-    event Slashed(address layer2, address operator);
+    event onSlashed(address layer2, address operator);
 
     //////////////////////////////
     // onlyDepositManager
@@ -86,7 +86,7 @@ contract SeigManager_Slashing is
         // burn {v} {coinages[layer2]} tokens to the account
         _coinages[layer2].burnFrom(operator, operatorAmount);
 
-        emit Slashed(layer2, operator);
+        emit onSlashed(layer2, operator);
 
         return operatorAmount + totAmount;
     }
