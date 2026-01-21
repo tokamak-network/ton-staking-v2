@@ -484,7 +484,7 @@ contract MultiL2SeigniorageDistributionTest is Test, DeployV3Full {
 
     /// @notice 시퀀서 보상 계산 검증
     /// @dev o_i = (1 - α) × Seig_i
-    function test_sequencerReward_formula() public view {
+    function test_SD012_sequencerReward_formula() public view {
         uint256 l2Seigniorage = 1000e27;
         uint256 alpha = seigManager.validatorDistributionRatio(); // 0.2e27
 
@@ -499,7 +499,7 @@ contract MultiL2SeigniorageDistributionTest is Test, DeployV3Full {
 
     /// @notice DAO 분배 계산 검증
     /// @dev S_DAO = d × A₂
-    function test_daoDistribution_formula() public view {
+    function test_SD010_daoDistribution_formula() public view {
         // d = 10%, A₂ = 1000
         // S_DAO = 0.1 × 1000 = 100
         uint256 daoRatio = seigManager.daoDistributionRatio(); // 0.1e27

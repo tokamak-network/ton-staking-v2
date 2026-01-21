@@ -64,34 +64,31 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
     // hyperbolicSaturation 함수 테스트
     // ==========================================
 
-    function test_hyperbolicSaturation_zero() public view {
+    function test_SM001_hyperbolicSaturation_zero() public view {
         uint256 y = seigManager.hyperbolicSaturation(0, 1000e27);
         assertEq(y, 0, "y(0) should be 0");
     }
 
-    function test_hyperbolicSaturation_halfPoint() public {
-        // k 설정
+    function test_SM002_hyperbolicSaturation_halfPoint() public {
         seigManager.setHalfSaturationPoint(1000e27);
 
         uint256 k = seigManager.halfSaturationPoint();
         uint256 L = 1000e27;
         uint256 y = seigManager.hyperbolicSaturation(k, L);
 
-        // y(k) = L * k / (k + k) = L/2
         assertApproxEqRel(y, L / 2, 0.01e18, "y(k) should be L/2");
     }
 
-    function test_hyperbolicSaturation_large() public {
+    function test_SM003_hyperbolicSaturation_large() public {
         seigManager.setHalfSaturationPoint(1000e27);
 
         uint256 L = 1000e27;
         uint256 y = seigManager.hyperbolicSaturation(100000e27, L);
 
-        // y가 L에 근접해야 함
         assertGt(y, L * 99 / 100, "y(large) should approach L");
     }
 
-    function test_hyperbolicSaturation_monotonic() public {
+    function test_SM004_hyperbolicSaturation_monotonic() public {
         seigManager.setHalfSaturationPoint(1000e27);
 
         uint256 L = 1000e27;
@@ -104,7 +101,7 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
         }
     }
 
-    function testFuzz_hyperbolicSaturation_bounded(uint256 x, uint256 L) public {
+    function testFuzz_SM005_hyperbolicSaturation_bounded(uint256 x, uint256 L) public {
         seigManager.setHalfSaturationPoint(1000e27);
 
         x = bound(x, 0, 1e32);
@@ -119,20 +116,17 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
     // calculateSequencerReward 함수 테스트
     // ==========================================
 
-    function test_calculateSequencerReward_basic() public {
-        // α = 20% 설정
+    function test_SM010_calculateSequencerReward_basic() public {
         seigManager.setValidatorDistributionRatio(0.2e27);
 
         uint256 l2Seig = 1000e27;
 
-        // α = 20%, 시퀀서 = (1-α) = 80%
         uint256 sequencerReward = seigManager.calculateSequencerReward(l2Seig);
 
         assertEq(sequencerReward, 800e27, "Sequencer should get (1-alpha) * seig");
     }
 
-    function test_calculateSequencerReward_zeroAlpha() public {
-        // α = 0 설정
+    function test_SM011_calculateSequencerReward_zeroAlpha() public {
         seigManager.setValidatorDistributionRatio(0);
 
         uint256 l2Seig = 1000e27;
@@ -141,7 +135,7 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
         assertEq(sequencerReward, 1000e27, "Sequencer should get 100% when alpha=0");
     }
 
-    function testFuzz_calculateSequencerReward(uint256 l2Seig) public {
+    function testFuzz_SM012_calculateSequencerReward(uint256 l2Seig) public {
         seigManager.setValidatorDistributionRatio(0.2e27);
 
         l2Seig = bound(l2Seig, 0, 1e32);
@@ -149,7 +143,6 @@ contract SeigManagerV1_4RealTest is Test, DeployV3Full {
         uint256 sequencerReward = seigManager.calculateSequencerReward(l2Seig);
         uint256 validatorRatio = seigManager.validatorDistributionRatio();
 
-        // sequencerReward = (1 - alpha) * l2Seig
         uint256 expected = l2Seig - (l2Seig * validatorRatio / RAY);
         assertApproxEqAbs(sequencerReward, expected, 1e18, "Sequencer reward calculation");
     }

@@ -536,7 +536,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice V3 전체 플로우 테스트
-    function test_fullV3Scenario() public {
+    function test_E2E040_fullV3Scenario() public {
         // ==========================================
         // Step 1: V3 마이그레이션
         // ==========================================
@@ -595,7 +595,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     }
 
     /// @notice 검증자 탈퇴 후 재등록 시나리오
-    function test_validatorDeactivateAndReregister() public {
+    function test_E2E012_validatorDeactivateAndReregister() public {
         _migrateToV3();
 
         uint256 depositAmount = 2000 * RAY; // 2000 WTON

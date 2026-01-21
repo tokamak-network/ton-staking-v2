@@ -163,13 +163,13 @@ contract RATTest is Test {
     // 기본 테스트
     // ==========================================
 
-    function test_getDynamicMinimumCollateral() public view {
+    function test_RAT010_getDynamicMinimumCollateral() public view {
         // N=1 (기본값), attentionCost=0 이면 C_off = slashingPenalty
         uint256 minCollateral = rat.getDynamicMinimumCollateral(systemConfig1);
         assertEq(minCollateral, slashingPenalty + validatorBuffer);
     }
 
-    function test_getCoffWithRelaxedCheck_relaxedMode() public {
+    function test_RAT012_getCoffWithRelaxedCheck_relaxedMode() public {
         // relaxedValidatorCheck = true (기본값)
         // C_off는 항상 slashingPenalty
 
@@ -185,7 +185,7 @@ contract RATTest is Test {
         assertEq(coff, slashingPenalty);
     }
 
-    function test_getCoffWithRelaxedCheck_strictMode() public {
+    function test_RAT013_getCoffWithRelaxedCheck_strictMode() public {
         // relaxedValidatorCheck = false
         // C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
 
@@ -208,13 +208,13 @@ contract RATTest is Test {
         assertTrue(coff > slashingPenalty);
     }
 
-    function test_getDynamicCoff_withFormula() public view {
+    function test_RAT011_getDynamicCoff_withFormula() public view {
         // attentionCost=0 이므로 항상 slashingPenalty 반환
         uint256 coff = rat.getDynamicCoff(systemConfig1);
         assertEq(coff, slashingPenalty);
     }
 
-    function test_getDynamicCoff_withAttentionCost() public {
+    function test_RAT014_getDynamicCoff_withAttentionCost() public {
         // attentionCost 설정 후 formula 기반 계산
         rat.setAttentionCost(50e27);
 
@@ -233,7 +233,7 @@ contract RATTest is Test {
         assertEq(coff, expected);
     }
 
-    function test_getMinimumCollateralWithRelaxedCheck_relaxedMode() public {
+    function test_RAT012_getMinimumCollateralWithRelaxedCheck_relaxedMode() public {
         // relaxedValidatorCheck = true (기본값)
         // D_min = C_off + validatorBuffer = slashingPenalty + validatorBuffer
 
@@ -241,7 +241,7 @@ contract RATTest is Test {
         assertEq(dmin, slashingPenalty + validatorBuffer);
     }
 
-    function test_getMinimumCollateralWithRelaxedCheck_strictMode() public {
+    function test_RAT013_getMinimumCollateralWithRelaxedCheck_strictMode() public {
         // relaxedValidatorCheck = false
         // D_min = C_off(dynamic) + validatorBuffer
 
@@ -268,7 +268,7 @@ contract RATTest is Test {
     // 검증자 등록 테스트
     // ==========================================
 
-    function test_registerValidator_success() public {
+    function test_RAT001_registerValidator_success() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -281,7 +281,7 @@ contract RATTest is Test {
         assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
     }
 
-    function test_registerValidator_insufficientDeposit() public {
+    function test_RAT002_registerValidator_insufficientDeposit() public {
         mockSeigManager.setStake(layer2_1, validator1, minimumThreshold - 1);
 
         vm.prank(validator1);
@@ -289,7 +289,7 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1);
     }
 
-    function test_registerValidator_alreadyRegistered() public {
+    function test_RAT003_registerValidator_alreadyRegistered() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -298,7 +298,7 @@ contract RATTest is Test {
         rat.registerValidator(systemConfig1);
     }
 
-    function test_registerMultipleValidators() public {
+    function test_RAT006_registerMultipleValidators() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -315,7 +315,7 @@ contract RATTest is Test {
     // 검증자 비활성화 테스트
     // ==========================================
 
-    function test_deactivateValidator() public {
+    function test_RAT004_deactivateValidator() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -334,7 +334,7 @@ contract RATTest is Test {
     // RAT 트리거 테스트
     // ==========================================
 
-    function test_triggerAttentionTest() public {
+    function test_RAT020_triggerAttentionTest() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -354,7 +354,7 @@ contract RATTest is Test {
         assertEq(ratStake, slashingPenalty);
     }
 
-    function test_triggerAttentionTest_noValidators() public {
+    function test_RAT022_triggerAttentionTest_noValidators() public {
         uint32 batchIndex = 1;
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
@@ -369,7 +369,7 @@ contract RATTest is Test {
     // 증거 제출 테스트
     // ==========================================
 
-    function test_submitEvidence() public {
+    function test_RAT030_submitEvidence() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -395,7 +395,7 @@ contract RATTest is Test {
     // 상태 조회 테스트 (시간 기반)
     // ==========================================
 
-    function test_getAttentionTestStatus_evidencePeriod() public {
+    function test_RAT040_getAttentionTestStatus_evidencePeriod() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -410,7 +410,7 @@ contract RATTest is Test {
         assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.EvidencePeriod));
     }
 
-    function test_getAttentionTestStatus_challengePeriod() public {
+    function test_RAT041_getAttentionTestStatus_challengePeriod() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -431,7 +431,7 @@ contract RATTest is Test {
         assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
     }
 
-    function test_getAttentionTestStatus_slashed() public {
+    function test_RAT042_getAttentionTestStatus_slashed() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -452,7 +452,7 @@ contract RATTest is Test {
         assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 100e27);
     }
 
-    function test_getAttentionTestStatus_restoredByEvidence() public {
+    function test_RAT043_getAttentionTestStatus_restoredByEvidence() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -474,7 +474,7 @@ contract RATTest is Test {
     // Treasury 출금 테스트
     // ==========================================
 
-    function test_withdrawSlashingsToTreasury() public {
+    function test_RAT050_withdrawSlashingsToTreasury() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -502,7 +502,7 @@ contract RATTest is Test {
     // 확률적 트리거 테스트
     // ==========================================
 
-    function test_probabilisticTrigger() public {
+    function test_RAT021_probabilisticTrigger() public {
         // Set probability to 0 (should never trigger)
         rat.setRatTriggerProbability(0);
 
@@ -521,7 +521,7 @@ contract RATTest is Test {
     // resolveClaim 테스트 (챌린지 복구)
     // ==========================================
 
-    function test_resolveClaim_duringChallengePeriod() public {
+    function test_RAT033_resolveClaim_duringChallengePeriod() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -547,7 +547,7 @@ contract RATTest is Test {
         assertEq(mockSeigManager.stakeOf(layer2_1, address(rat)), 0);
     }
 
-    function test_resolveClaim_afterChallengePeriod_fails() public {
+    function test_RAT034_resolveClaim_afterChallengePeriod_fails() public {
         vm.prank(validator1);
         rat.registerValidator(systemConfig1);
 
@@ -575,7 +575,7 @@ contract RATTest is Test {
     // relaxedValidatorCheck 테스트
     // ==========================================
 
-    function test_relaxedValidatorCheck_true_removesAtCoff() public {
+    function test_RAT025_relaxedValidatorCheck_true_removesAtCoff() public {
         // relaxedValidatorCheck = true (기본값)
         // 본드 사용 후 remaining < C_off 이면 제거
 
@@ -599,7 +599,7 @@ contract RATTest is Test {
         assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
     }
 
-    function test_relaxedValidatorCheck_false_removesAtDmin() public {
+    function test_RAT025_relaxedValidatorCheck_false_removesAtDmin() public {
         // relaxedValidatorCheck = false 설정
         rat.setRelaxedValidatorCheck(false);
 
@@ -620,7 +620,7 @@ contract RATTest is Test {
         assertEq(rat.getActiveValidatorCount(systemConfig1), 0);
     }
 
-    function test_relaxedValidatorCheck_false_keepAboveDmin() public {
+    function test_RAT025_relaxedValidatorCheck_false_keepAboveDmin() public {
         // relaxedValidatorCheck = false 설정
         rat.setRelaxedValidatorCheck(false);
 
@@ -643,7 +643,7 @@ contract RATTest is Test {
     // 담보금 부족 시나리오 테스트
     // ==========================================
 
-    function test_triggerAttentionTest_zeroCollateral() public {
+    function test_RAT026_triggerAttentionTest_zeroCollateral() public {
         // 담보금 0으로 설정
         mockSeigManager.setStake(layer2_1, validator1, minimumThreshold);
 
@@ -667,7 +667,7 @@ contract RATTest is Test {
         assertEq(testId, bytes32(0));
     }
 
-    function test_triggerAttentionTest_partialBond() public {
+    function test_RAT024_triggerAttentionTest_partialBond() public {
         // 담보금을 C_off 미만으로 설정 (50e27)
         mockSeigManager.setStake(layer2_1, validator1, minimumThreshold);
 
@@ -699,7 +699,7 @@ contract RATTest is Test {
     // ==========================================
 
     /// @notice submitEvidence 후 자동 재활성화 테스트 (충분한 담보금)
-    function test_submitEvidence_reactivatesValidator() public {
+    function test_RAT035_submitEvidence_reactivatesValidator() public {
         // relaxedValidatorCheck = true (C_off 기준)
         vm.prank(owner);
         rat.setRelaxedValidatorCheck(true);
@@ -746,7 +746,7 @@ contract RATTest is Test {
     }
 
     /// @notice submitEvidence 후 재활성화 실패 (담보금 부족)
-    function test_submitEvidence_noReactivation_insufficientCollateral() public {
+    function test_RAT036_submitEvidence_noReactivation_insufficientCollateral() public {
         // relaxedValidatorCheck = true (C_off 기준)
         vm.prank(owner);
         rat.setRelaxedValidatorCheck(true);
@@ -781,7 +781,7 @@ contract RATTest is Test {
     }
 
     /// @notice resolveClaim 후 자동 재활성화 테스트
-    function test_resolveClaim_reactivatesValidator() public {
+    function test_RAT035_resolveClaim_reactivatesValidator() public {
         // relaxedValidatorCheck = true (C_off 기준)
         vm.prank(owner);
         rat.setRelaxedValidatorCheck(true);
@@ -813,7 +813,7 @@ contract RATTest is Test {
     }
 
     /// @notice relaxedValidatorCheck=false 일 때 재활성화 테스트 (D_min 기준)
-    function test_reactivation_strictMode_Dmin() public {
+    function test_RAT035_reactivation_strictMode_Dmin() public {
         // relaxedValidatorCheck = false (D_min 기준)
         vm.prank(owner);
         rat.setRelaxedValidatorCheck(false);

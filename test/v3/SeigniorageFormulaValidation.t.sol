@@ -714,7 +714,7 @@ contract SeigniorageFormulaValidation is Test {
     }
 
     /// @notice 자격 미달 L2는 분배에서 제외
-    function test_ineligibleL2Excluded() public {
+    function test_SD013_ineligibleL2Excluded() public {
         seigManager.setV3Parameters(
             0.1e27,
             0.1e27,  // θ = 10%
@@ -750,7 +750,7 @@ contract SeigniorageFormulaValidation is Test {
     // ==========================================
 
     /// @notice 슬래싱된 L2는 분배에서 제외
-    function test_slashedL2Excluded() public {
+    function test_SD014_slashedL2Excluded() public {
         seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
         seigManager.migrateToV3();
 
@@ -777,7 +777,7 @@ contract SeigniorageFormulaValidation is Test {
     }
 
     /// @notice 모든 L2 슬래싱 시 전액 DAO로
-    function test_allL2Slashed_allToDAO() public {
+    function test_SD015_allL2Slashed_allToDAO() public {
         seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
         seigManager.migrateToV3();
 
@@ -861,7 +861,7 @@ contract SeigniorageFormulaValidation is Test {
     // ==========================================
 
     /// @notice x가 증가할수록 y는 L에 수렴
-    function test_hyperbolicSaturationConvergence() public {
+    function test_EDGE003_hyperbolicSaturationConvergence() public {
         seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
         seigManager.migrateToV3();
 
@@ -894,7 +894,7 @@ contract SeigniorageFormulaValidation is Test {
     }
 
     /// @notice k=x일 때 y = L/2
-    function test_halfSaturationPoint() public {
+    function test_EDGE002_halfSaturationPoint() public {
         uint256 k = 500e27;
 
         seigManager.setV3Parameters(

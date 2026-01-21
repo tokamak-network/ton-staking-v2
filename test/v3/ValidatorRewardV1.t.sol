@@ -142,7 +142,7 @@ contract ValidatorRewardV1Test is Test {
     // ==========================================
 
     /// @notice 기본 L2 보상 분배 테스트
-    function test_distributeL2Rewards_basic() public {
+    function test_VR001_distributeL2Rewards_basic() public {
         // Setup: 1 validator
         mockRat.addValidator(systemConfig1, validator1);
 
@@ -162,7 +162,7 @@ contract ValidatorRewardV1Test is Test {
 
     /// @notice 여러 검증자에게 균등 분배 테스트
     /// @dev 백서 V3 공식 (13): v_j = (α · S_i) / |V_i|
-    function test_distributeL2Rewards_multipleValidators() public {
+    function test_VR003_distributeL2Rewards_multipleValidators() public {
         // Setup: 3 validators
         mockRat.addValidator(systemConfig1, validator1);
         mockRat.addValidator(systemConfig1, validator2);
@@ -181,7 +181,7 @@ contract ValidatorRewardV1Test is Test {
     }
 
     /// @notice 검증자 없을 때 DAO(daoVault)로 전송
-    function test_distributeL2Rewards_noValidators_toDAO() public {
+    function test_VR002_distributeL2Rewards_noValidators_toDAO() public {
         // No validators registered
         uint256 rewardAmount = 1000 * RAY;
         uint256 daoBefore = wton.balanceOf(dao);
@@ -305,7 +305,7 @@ contract ValidatorRewardV1Test is Test {
     // ==========================================
 
     /// @notice 보상 청구 성공
-    function test_claimAllRewards_success() public {
+    function test_VR004_claimAllRewards_success() public {
         mockRat.addValidator(systemConfig1, validator1);
 
         vm.prank(seigManager);

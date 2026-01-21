@@ -481,7 +481,7 @@ contract SeigniorageDistributionTest is Test {
     // ==========================================
 
     /// @notice V3 분배: d=10%, α=30% 검증
-    function test_v3Distribution_daoValidatorSequencer() public {
+    function test_SD012_v3Distribution_daoValidatorSequencer() public {
         seigManager.setStakedSeigFactor(0);           // λ = 0
         seigManager.setDaoDistributionRatio(0.1e27);  // d = 10%
         seigManager.setValidatorDistributionRatio(0.3e27); // α = 30%
@@ -561,7 +561,7 @@ contract SeigniorageDistributionTest is Test {
     // ==========================================
 
     /// @notice 슬래싱된 L2는 시뇨리지 분배에서 제외
-    function test_slashedSequencer_noSeigniorage() public {
+    function test_SD014_slashedSequencer_noSeigniorage() public {
         seigManager.setStakedSeigFactor(0);
         seigManager.setHalfSaturationPoint(500e27);
         seigManager.migrateToV3();
@@ -598,7 +598,7 @@ contract SeigniorageDistributionTest is Test {
     }
 
     /// @notice 모든 L2가 슬래싱되면 시뇨리지 전액 DAO로
-    function test_allSequencersSlashed_allToDao() public {
+    function test_SD015_allSequencersSlashed_allToDao() public {
         seigManager.setStakedSeigFactor(0);
         seigManager.setDaoDistributionRatio(0.1e27);
         seigManager.migrateToV3();
@@ -623,7 +623,7 @@ contract SeigniorageDistributionTest is Test {
     // ==========================================
 
     /// @notice 담보금 부족 (S_i < θ · B_i) 시 시뇨리지 미수령
-    function test_insufficientStaking_noSeigniorage() public {
+    function test_SD013_insufficientStaking_noSeigniorage() public {
         seigManager.setStakedSeigFactor(0);
         seigManager.setMinStakingRatio(0.1e27); // θ = 10%
         seigManager.setHalfSaturationPoint(500e27);
