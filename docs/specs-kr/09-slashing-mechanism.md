@@ -140,7 +140,7 @@ Slashing 메커니즘은 Tokamak Network에서 악의적이거나 부정확한 �
 
 5. **SeigManager에 슬래싱 처리 요청**
    ```solidity
-   require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+   uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator);
    ```
 
 6. **Challenger에게 보상 지급**
@@ -173,7 +173,7 @@ v = operator의 coinages[layer2] 잔액
 **구현**:
 
 ```solidity
-function onSlash(address layer2, address operator) external onlyDepositManager returns (bool) {
+function onSlash(address layer2, address operator) external onlyDepositManager returns (uint256 totalSlashedAmount) {
     uint256 operatorAmount = _coinages[layer2].balanceOf(operator);
 
     // burn {v + ⍺} {tot} tokens from the layer2 contract
@@ -185,7 +185,7 @@ function onSlash(address layer2, address operator) external onlyDepositManager r
 
     emit Slashed(layer2, operator);
 
-    return true;
+    return operatorAmount + totAmount;
 }
 ```
 
@@ -363,7 +363,7 @@ error SlashingError();
 require(operator == ILayer2(layer2).operator(), "operator is not an operator");
 require(challenger != address(0), "invalid challenger address");
 require(slashedAmount > 0, "no staked amount to slash");
-require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator);
 ```
 
 ### 6.3 SeigManager_Slashing
@@ -387,7 +387,7 @@ _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
 _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
 
 // 2. 외부 호출 (Interactions)
-require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator);
 IERC20(_wton).safeTransfer(challenger, rewardAmount);
 ```
 

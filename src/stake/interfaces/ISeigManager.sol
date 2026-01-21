@@ -16,5 +16,5 @@ interface ISeigManager {
         bool isCommissionRateNegative
     ) external returns (bool);
     function progressSnapshotId() external view returns (uint256);
-    function onSlash(address layer2, address operator) external returns (bool);
+    function onSlash(address layer2, address operator) external returns (uint256);
 }

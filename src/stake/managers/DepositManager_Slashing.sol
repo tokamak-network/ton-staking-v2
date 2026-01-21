@@ -106,7 +106,7 @@ contract DepositManager_Slashing is
         _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
 
         // SeigManager에 슬래싱 처리 요청
-        uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator, challenger)
+        uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator);
         require(totalSlashedAmount > 0, "Slashed Amount is 0");
         // require(
         //     ISeigManager(_seigManager).onSlash(layer2, operator, challenger),

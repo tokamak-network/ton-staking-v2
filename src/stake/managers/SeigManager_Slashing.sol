@@ -11,10 +11,6 @@ import {SeigManagerV1_1Storage} from "./SeigManagerV1_1Storage.sol";
 import {SeigManagerV1_3Storage} from "./SeigManagerV1_3Storage.sol";
 import {SeigManagerV1_4Storage} from "./SeigManagerV1_4Storage.sol";
 
-interface IDepositSlashing {
-    function slashingRewardRate() external view returns (uint256);
-}
-
 /**
  * @dev SeigManager_Slashing handles the slashing logic for operators in the Tokamak Network.
  * It is primarily called by the DepositManager when an operator's stake needs to be removed
@@ -69,12 +65,10 @@ contract SeigManager_Slashing is
      * @notice Slashing 시 호출되는 함수. Operator의 Coinage와 Tot 토큰을 소각
      * @param layer2 The layer2 address
      * @param operator The operator address to be slashed
-     * @param challenger The address of the challenger who proved the fraud
      */
     function onSlash(
         address layer2,
-        address operator,
-        address challenger
+        address operator
     ) external onlyDepositManager returns (uint256 totalSlashedAmount) {
         uint256 operatorAmount = _coinages[layer2].balanceOf(operator);
 
