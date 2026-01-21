@@ -78,10 +78,12 @@ contract RAT is RATStorage, IRAT {
     }
 
     /// @notice L1BridgeRegistry에 등록된 유효한 factory인지 검증
-    modifier onlyValidFactory() {
+    /// @dev systemConfig는 함수 파라미터에서 가져와 비교 (triggerAttentionTest 참조)
+    modifier onlyValidFactory(address systemConfig) {
         if (l1BridgeRegistry == address(0)) revert InvalidFactoryError();
         address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithDisputeGameFactory(msg.sender);
         if (rollupConfig == address(0)) revert InvalidFactoryError();
+        if (rollupConfig != systemConfig) revert InvalidFactoryError();
         _;
     }
 
@@ -549,7 +551,7 @@ contract RAT is RATStorage, IRAT {
         uint32 batchIndex,
         bytes32 batchHash,
         bytes32 blockHash
-    ) external onlyValidFactory whenNotPaused {
+    ) external onlyValidFactory(systemConfig) whenNotPaused {
         // 확률적 트리거 체크 (π_a: RAT 트리거 확률)
         uint256 randomValue = uint256(keccak256(abi.encodePacked(blockHash, block.timestamp))) % RAY;
         if (randomValue >= ratTriggerProbability) return;
