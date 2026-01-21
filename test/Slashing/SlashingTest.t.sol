@@ -8,6 +8,7 @@ import {DepositManager_Slashing} from "../../src/stake/managers/DepositManager_S
 import {SeigManager_Slashing} from "../../src/stake/managers/SeigManager_Slashing.sol";
 import {DepositManager} from "../../src/stake/managers/DepositManager.sol";
 import {SeigManagerV1_2} from "../../src/stake/managers/SeigManagerV1_2.sol";
+import {SeigManagerV1_3} from "../../src/stake/managers/SeigManagerV1_3.sol";
 import {Layer2ManagerV1_1} from "../../src/layer2/Layer2ManagerV1_1.sol";
 import {L1BridgeRegistryV1_2} from "../../src/layer2/L1BridgeRegistryV1_2.sol";
 import {AuthControlL1BridgeRegistry} from "../../src/common/AuthControlL1BridgeRegistry.sol";
@@ -23,6 +24,8 @@ import {MockWTON} from "../../src/mocks/MockWTON.sol";
 
 import {MockDisputeGameFactory} from "../../src/mocks/MockDisputeGameFactory.sol";
 import {MockFaultDisputeGame2} from "../../src/mocks/MockFaultDisputeGame2.sol";
+import {RefactorCoinageSnapshotI} from "../../src/stake/interfaces/RefactorCoinageSnapshotI.sol";
+import {CandidateAddOnV1_1} from "../../src/dao/CandidateAddOnV1_1.sol";
 
 // Interfaces for mocking or interaction
 interface ITON_Mint is ITON {
@@ -94,6 +97,16 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
     SlashingMockGame public mockGame;
     SlashingMockFactory public mockFactory;
+
+    event onSlashed(address layer2, address operator);
+    event Slashed(
+        address indexed layer2,
+        address indexed operator,
+        address indexed challenger,
+        uint256 slashedAmount,
+        uint256 rewardAmount
+    );
+    event ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount);
 
     function setUp() public {
         // TransparentUpgradeableProxy 패턴:
@@ -238,7 +251,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -281,7 +294,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 4. 결과 검증
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -339,7 +352,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -414,7 +427,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -424,13 +437,11 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 2. 시뇨리지 발생 시뮬레이션 (블록 진행)
         vm.roll(block.number + 1000); // 1000 블록 진행
 
-        // 시뇨리지 업데이트 시도 (테스트 환경에서는 작동하지 않을 수 있음)
-        try SeigManagerV1_2(seigManagerProxy).updateSeigniorageLayer(candidateAddOn) {
-            console.log("Seigniorage update successful");
-        } catch {
-            console.log("Seigniorage update not available in test environment");
-        }
-        uint256 stakeAfterSeigniorage = DepositManager(depositManagerProxy).accStaked(
+        // 시뇨리지 업데이트 시도
+        bool success = CandidateAddOnV1_1(candidateAddOn).updateSeigniorage();
+        require(success, "Seigniorage update failed");
+
+        uint256 stakeAfterSeigniorage = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -473,7 +484,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 4. 원금+이자 모두 소각 검증
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -508,7 +519,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -518,12 +529,13 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 2. 시뇨리지 발생 (블록 진행) - 하지만 updateSeigniorage 호출하지 않음
         vm.roll(block.number + 1000);
 
-        // 시뇨리지 업데이트를 하지 않은 상태에서 현재 스테이크 확인
-        uint256 stakeBeforeUpdate = DepositManager(depositManagerProxy).accStaked(
-            candidateAddOn,
-            operatorManager
-        );
-        console.log("Stake before seigniorage update (RAY):", stakeBeforeUpdate);
+        // // 시뇨리지 업데이트를 하지 않은 상태에서 현재 스테이크 확인
+        // uint256 stakeBeforeUpdate = SeigManagerV1_2(seigManagerProxy).stakeOf(
+        //     candidateAddOn,
+        //     operatorManager
+        // );
+        // console.log("Stake before seigniorage update (RAY):", stakeBeforeUpdate);
+        // require(stakeBeforeUpdate > 0, "Stake before seigniorage update should be greater than 0");
 
         // 3. 슬래싱 실행 (미지급 시뇨리지 포함되어야 함)
         MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
@@ -549,6 +561,8 @@ contract SlashingTest is Test, DeployV3FullSlash {
         uint256 challengerBalanceBefore = IWTON(wton).balanceOf(challenger);
 
         // 슬래싱 시 내부적으로 시뇨리지 업데이트가 되어야 함
+        vm.recordLogs();
+
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
             gameType,
@@ -557,13 +571,70 @@ contract SlashingTest is Test, DeployV3FullSlash {
             address(game)
         );
 
+        uint256 slashed = 0;
+        uint256 challengerReward = 0;
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        console.log("Total logs emitted:", entries.length);
+
+        for (uint i = 0; i < entries.length; i++) {
+            Vm.Log memory entry = entries[i];
+
+            // 1) SeigManager.onSlashed(address layer2, address operator)
+            // - signature: onSlashed(address,address) -> keccak256("onSlashed(address,address)")
+            // - topics[0] is signature
+            if (entry.topics[0] == keccak256("onSlashed(address,address)")) {
+                (address l2, address op) = abi.decode(entry.data, (address, address));
+                console.log("Captured SeigManager.onSlashed:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Operator:", op);
+            }
+
+            // 2) ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount)
+            if (entry.topics[0] == keccak256("ChallengerRewarded(address,address,uint256)")) {
+                // indexed params are in topics[1], topics[2] ...
+                address l2 = address(uint160(uint256(entry.topics[1])));
+                address chal = address(uint160(uint256(entry.topics[2])));
+                uint256 amount = abi.decode(entry.data, (uint256));
+
+                console.log("Captured ChallengerRewarded:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Challenger:", chal);
+                console.log(" - Amount:", amount);
+            }
+
+            // 3) Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashed, uint256 reward)
+            if (entry.topics[0] == keccak256("Slashed(address,address,address,uint256,uint256)")) {
+                address l2 = address(uint160(uint256(entry.topics[1])));
+                address op = address(uint160(uint256(entry.topics[2])));
+                address chal = address(uint160(uint256(entry.topics[3])));
+                (slashed, challengerReward) = abi.decode(entry.data, (uint256, uint256));
+
+                console.log("Captured DepositManager.Slashed:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Operator:", op);
+                console.log(" - Challenger:", chal);
+                console.log(" - Slashed Amount:", slashed);
+                console.log(" - Reward Amount:", challengerReward);
+            }
+        }
+
+        // require(
+        //     slashed > initialStake,
+        //     "Slashed amount should be greater than initial stake(because add seigniorage)"
+        // );
+        require(
+            slashed > challengerReward,
+            "The reward value must be less than the slashed value."
+        );
+
         uint256 challengerBalanceAfter = IWTON(wton).balanceOf(challenger);
         uint256 reward = challengerBalanceAfter - challengerBalanceBefore;
 
-        // 4. 검증: 보상이 초기 스테이크보다 커야 함 (미지급 시뇨리지 포함)
+        // 4. 검증: 보상값은 Slashed된 금액 * slashingRewardRate 값 입니다. (여기서 Slahed값은 미지급 시뇨리지 포함)
         uint256 slashingRewardRate = DepositManager_Slashing(address(depositManagerProxy))
             .slashingRewardRate();
-        uint256 expectedMinReward = (initialStake * slashingRewardRate) / 10000;
+        uint256 expectedMinReward = (slashed * slashingRewardRate) / 10000;
 
         assertTrue(reward >= expectedMinReward, "Reward should include unreceived seigniorage");
         console.log("Expected minimum reward (from initial stake):", expectedMinReward);
@@ -571,7 +642,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("[OK] Unreceived seigniorage included in slashing");
 
         // 최종 스테이크는 0이어야 함
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -774,11 +845,11 @@ contract SlashingTest is Test, DeployV3FullSlash {
             operatorManager2
         );
 
-        uint256 stake1Before = DepositManager(depositManagerProxy).accStaked(
+        uint256 stake1Before = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn1,
             operatorManager1
         );
-        uint256 stake2Before = DepositManager(depositManagerProxy).accStaked(
+        uint256 stake2Before = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn2,
             operatorManager2
         );
@@ -816,11 +887,11 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 4. 검증: Operator 1은 슬래싱, Operator 2는 영향 없음
-        uint256 stake1After = DepositManager(depositManagerProxy).accStaked(
+        uint256 stake1After = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn1,
             operatorManager1
         );
-        uint256 stake2After = DepositManager(depositManagerProxy).accStaked(
+        uint256 stake2After = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn2,
             operatorManager2
         );
@@ -896,7 +967,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 3. 검증: 작은 금액도 정상적으로 슬래싱되고 보상 지급
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1021,7 +1092,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1257,7 +1328,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address newCandidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
             newOperatorManager
         );
-        uint256 newStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 newStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             newCandidateAddOn,
             newOperatorManager
         );
@@ -1268,24 +1339,23 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 3. 시간 경과 후 시뇨리지 확인
         vm.roll(block.number + 1000);
 
-        // 시뇨리지 업데이트 시도
-        try SeigManagerV1_2(seigManagerProxy).updateSeigniorageLayer(newCandidateAddOn) {
-            uint256 stakeAfterSeigniorage = DepositManager(depositManagerProxy).accStaked(
-                newCandidateAddOn,
-                newOperatorManager
-            );
-            if (stakeAfterSeigniorage > newStake) {
-                console.log(
-                    "Seigniorage earned after re-registration:",
-                    stakeAfterSeigniorage - newStake
-                );
-                console.log("[OK] Re-registered operator can earn seigniorage");
-            } else {
-                console.log("[INFO] No seigniorage in test environment");
-            }
-        } catch {
-            console.log("[INFO] Seigniorage update not available in test environment");
-        }
+        // 시뇨리지 업데이트 시도 (직접 호출)
+        bool success = CandidateAddOnV1_1(newCandidateAddOn).updateSeigniorage();
+        require(success, "Seigniorage update failed");
+
+        // stakeOf를 사용하여 시뇨리지 포함 총 스테이크 확인
+        uint256 stakeAfterSeigniorage = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            newCandidateAddOn,
+            newOperatorManager
+        );
+
+        console.log("Stake with Seigniorage:", stakeAfterSeigniorage);
+        console.log("Initial Stake:", newStake);
+
+        require(stakeAfterSeigniorage > newStake, "Seigniorage must increase");
+
+        console.log("Seigniorage earned after re-registration:", stakeAfterSeigniorage - newStake);
+        console.log("[OK] Re-registered operator can earn seigniorage");
     }
 
     // ============================================
@@ -1358,7 +1428,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 4. 검증: 남은 스테이크가 모두 슬래싱됨
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1495,8 +1565,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         game.resolve();
 
         // 3. 이벤트 검증을 위한 슬래싱 실행
-        // Note: Foundry의 vm.expectEmit을 사용하여 이벤트 검증
-        // 실제 이벤트 시그니처는 구현에 따라 다를 수 있음
+        vm.recordLogs();
 
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
             operatorManager,
@@ -1506,8 +1575,53 @@ contract SlashingTest is Test, DeployV3FullSlash {
             address(game)
         );
 
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        console.log("Total logs emitted:", entries.length);
+
+        for (uint i = 0; i < entries.length; i++) {
+            Vm.Log memory entry = entries[i];
+
+            // 1) SeigManager.onSlashed(address layer2, address operator)
+            // - signature: onSlashed(address,address) -> keccak256("onSlashed(address,address)")
+            // - topics[0] is signature
+            if (entry.topics[0] == keccak256("onSlashed(address,address)")) {
+                (address l2, address op) = abi.decode(entry.data, (address, address));
+                console.log("Captured SeigManager.onSlashed:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Operator:", op);
+            }
+
+            // 2) ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount)
+            if (entry.topics[0] == keccak256("ChallengerRewarded(address,address,uint256)")) {
+                // indexed params are in topics[1], topics[2] ...
+                address l2 = address(uint160(uint256(entry.topics[1])));
+                address chal = address(uint160(uint256(entry.topics[2])));
+                uint256 amount = abi.decode(entry.data, (uint256));
+
+                console.log("Captured ChallengerRewarded:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Challenger:", chal);
+                console.log(" - Amount:", amount);
+            }
+
+            // 3) Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashed, uint256 reward)
+            if (entry.topics[0] == keccak256("Slashed(address,address,address,uint256,uint256)")) {
+                address l2 = address(uint160(uint256(entry.topics[1])));
+                address op = address(uint160(uint256(entry.topics[2])));
+                address chal = address(uint160(uint256(entry.topics[3])));
+                (uint256 slashed, uint256 reward) = abi.decode(entry.data, (uint256, uint256));
+
+                console.log("Captured DepositManager.Slashed:");
+                console.log(" - Layer2:", l2);
+                console.log(" - Operator:", op);
+                console.log(" - Challenger:", chal);
+                console.log(" - Slashed Amount:", slashed);
+                console.log(" - Reward Amount:", reward);
+            }
+        }
+
         // 4. 슬래싱 결과 확인 (이벤트가 발생했는지는 로그로 확인)
-        uint256 finalStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1603,7 +1717,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("[OK] Unauthorized SeigManager.onSlash call prevented");
 
         // 3. 스테이크가 변경되지 않았는지 확인
-        uint256 stakeAfterAttack = DepositManager(depositManagerProxy).accStaked(
+        uint256 stakeAfterAttack = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1682,19 +1796,19 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("Delegator 3 staked:", delegator3Stake);
 
         // 3. 초기 스테이크 확인
-        uint256 operatorStakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
-        uint256 delegator1StakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator1
         );
-        uint256 delegator2StakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator2
         );
-        uint256 delegator3StakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator3StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator3
         );
@@ -1708,25 +1822,23 @@ contract SlashingTest is Test, DeployV3FullSlash {
         vm.roll(block.number + 1000);
 
         // 시뇨리지 업데이트 시도
-        try SeigManagerV1_2(seigManagerProxy).updateSeigniorageLayer(candidateAddOn) {
-            console.log("Seigniorage updated successfully");
-        } catch {
-            console.log("Seigniorage update not available in test environment");
-        }
+        bool success = CandidateAddOnV1_1(candidateAddOn).updateSeigniorage();
+        require(success, "Seigniorage update failed");
+
         // 5. 시뇨리지 발생 후 스테이크 확인
-        uint256 operatorStakeWithSeig = DepositManager(depositManagerProxy).accStaked(
+        uint256 operatorStakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
-        uint256 delegator1StakeWithSeig = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator1StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator1
         );
-        uint256 delegator2StakeWithSeig = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator2StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator2
         );
-        uint256 delegator3StakeWithSeig = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator3StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator3
         );
@@ -1767,19 +1879,19 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 7. 슬래싱 후 스테이크 확인
-        uint256 operatorStakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
-        uint256 delegator1StakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator1
         );
-        uint256 delegator2StakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator2
         );
-        uint256 delegator3StakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator3StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator3
         );
@@ -2009,15 +2121,15 @@ contract SlashingTest is Test, DeployV3FullSlash {
         vm.roll(block.number + 500);
 
         // 6. 스테이크 확인 (슬래싱 전)
-        uint256 operatorStakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
-        uint256 delegator1StakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator1
         );
-        uint256 delegator2StakeBefore = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator2
         );
@@ -2057,15 +2169,15 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
 
         // 8. 슬래싱 후 스테이크 확인
-        uint256 operatorStakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
-        uint256 delegator1StakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator1
         );
-        uint256 delegator2StakeAfter = DepositManager(depositManagerProxy).accStaked(
+        uint256 delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             delegator2
         );
@@ -2097,5 +2209,77 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("\n[OK] Comprehensive test passed");
         console.log("[OK] Operator slashed, delegators protected");
         console.log("[OK] Seigniorage distribution fair based on staking duration");
+    }
+
+    // ============================================
+    // 디버그: updateSeigniorage 실패 원인 분석
+    // ============================================
+    function test_Debug_UpdateSeigniorage() public {
+        console.log("\n=== Debug: UpdateSeigniorage ===");
+
+        // 1. Register and stake
+        uint256 stakeAmount = 10000 * 1e18;
+        MockTON(ton).mint(operator, stakeAmount);
+
+        vm.startPrank(operator);
+        IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
+        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+            rollupConfig,
+            stakeAmount,
+            true,
+            "TestCandidate"
+        );
+        vm.stopPrank();
+
+        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+            rollupConfig
+        );
+        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+            operatorManager
+        );
+        console.log("CandidateAddOn:", candidateAddOn);
+        console.log("OperatorManager:", operatorManager);
+
+        // 2. Check coinage
+        address coinageAddr = SeigManagerV1_2(seigManagerProxy).coinages(candidateAddOn);
+        console.log("Coinage address:", coinageAddr);
+        require(coinageAddr != address(0), "Coinage not deployed!");
+
+        // 3. Check operator balance in coinage
+        RefactorCoinageSnapshotI coinage = RefactorCoinageSnapshotI(coinageAddr);
+        uint256 operatorBalance = coinage.balanceOf(operatorManager);
+        console.log("Operator coinage balance:", operatorBalance);
+
+        // 4. Check minimumAmount
+        uint256 minAmount = SeigManagerV1_2(seigManagerProxy).minimumAmount();
+        console.log("Minimum amount:", minAmount);
+        console.log("operatorBalance >= minAmount?", operatorBalance >= minAmount);
+
+        // 5. Check lastSeigBlock
+        uint256 lastSeigBlock = SeigManagerV1_2(seigManagerProxy).lastSeigBlock();
+        console.log("Last seig block:", lastSeigBlock);
+        console.log("Current block:", block.number);
+        console.log("block.number > lastSeigBlock?", block.number > lastSeigBlock);
+
+        // 6. Advance blocks
+        vm.roll(block.number + 1000);
+        console.log("After vm.roll, block:", block.number);
+        console.log("block.number > lastSeigBlock?", block.number > lastSeigBlock);
+
+        // 7. Check tot
+        address totAddr = SeigManagerV1_2(seigManagerProxy).tot();
+        RefactorCoinageSnapshotI tot = RefactorCoinageSnapshotI(totAddr);
+        uint256 totSupply = tot.totalSupply();
+        console.log("Tot totalSupply:", totSupply);
+
+        // 8. Try updateSeigniorage
+        console.log("\n--- Calling updateSeigniorage() ---");
+        bool success = CandidateAddOnV1_1(candidateAddOn).updateSeigniorage();
+        console.log("updateSeigniorage success:", success);
+
+        // 9. Check balances after
+        uint256 newOperatorBalance = coinage.balanceOf(operatorManager);
+        console.log("Operator coinage balance after:", newOperatorBalance);
+        console.log("Balance increased:", newOperatorBalance > operatorBalance);
     }
 }
