@@ -682,7 +682,7 @@ function _transferCoinageFromRAT(address validator, address systemConfig, uint25
 **A**: DAO 거버넌스가 `migrateToV3()`를 호출하면 즉시 V3 모드로 전환됩니다. 이후 모든 시뇨리지 분배는 V3 로직을 따릅니다.
 
 ### Q7. V3 전환 후 V2로 되돌릴 수 있나요?
-**A**: `v3Migrated` 플래그를 `false`로 변경하면 V2 로직으로 되돌릴 수 있습니다. 단, 신중한 검토가 필요합니다.
+**A**: 불가능합니다. `migrateToV3()` 실행 후에는 V2로 롤백할 수 없습니다. 컨트랙트에 `v3Migrated = false`로 변경하는 함수가 없으며, 이는 의도된 설계입니다.
 
 ---
 
