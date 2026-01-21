@@ -753,6 +753,10 @@ contract DeployV3SlashForDevnet is Script {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
 
+        // SeigManager -> L1BridgeRegistry (updateSeigniorage에서 layer2TVL 조회 필요)
+        SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
+        console.log("SeigManager.setL1BridgeRegistry done");
+
         SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
