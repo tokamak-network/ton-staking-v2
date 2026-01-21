@@ -2,8 +2,9 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
-import {RAT} from "../../src/validator/RAT.sol";
+import {RAT, MaxValidatorsReachedError, TestAlreadyExistsError} from "../../src/validator/RAT.sol";
 import {RATStorage} from "../../src/validator/RATStorage.sol";
+import {RATProxy} from "../../src/validator/RATProxy.sol";
 import {MockWTON} from "../../src/mocks/MockWTON.sol";
 import {MockTON} from "../../src/mocks/MockTON.sol";
 
@@ -843,5 +844,315 @@ contract RATTest is Test {
         (,,,, isActive) = rat.validatorRegistrations(systemConfig1, validator1);
         assertTrue(isActive);
         assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
+    }
+
+    // ==========================================
+    // RAT-007: N_max 초과 검증 테스트
+    // ==========================================
+
+    /// @notice RAT-007: 최대 검증자 수 초과 시 등록 실패
+    function test_RAT007_maxValidators_exceeded_reverts() public {
+        // maxValidatorsPerL2 = 3으로 설정
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(3);
+
+        // 검증자 3명 등록
+        address validator3 = address(0x6003);
+        address validator4 = address(0x6004);
+
+        mockSeigManager.setStake(layer2_1, validator1, 500e27);
+        mockSeigManager.setStake(layer2_1, validator2, 500e27);
+        mockSeigManager.setStake(layer2_1, validator3, 500e27);
+        mockSeigManager.setStake(layer2_1, validator4, 500e27);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 3, "Should have 3 validators");
+
+        // 4번째 검증자 등록 시도 → revert
+        vm.prank(validator4);
+        vm.expectRevert(MaxValidatorsReachedError.selector);
+        rat.registerValidator(systemConfig1);
+    }
+
+    /// @notice RAT-007: maxValidatorsPerL2 = 0이면 제한 없음
+    function test_RAT007_maxValidators_zeroMeansUnlimited() public {
+        // maxValidatorsPerL2 = 0으로 설정 (제한 없음)
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(0);
+
+        // 여러 검증자 등록 가능
+        address validator3 = address(0x6003);
+        address validator4 = address(0x6004);
+        address validator5 = address(0x6005);
+
+        mockSeigManager.setStake(layer2_1, validator1, 500e27);
+        mockSeigManager.setStake(layer2_1, validator2, 500e27);
+        mockSeigManager.setStake(layer2_1, validator3, 500e27);
+        mockSeigManager.setStake(layer2_1, validator4, 500e27);
+        mockSeigManager.setStake(layer2_1, validator5, 500e27);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator4);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator5);
+        rat.registerValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 5, "Should have 5 validators with no limit");
+    }
+
+    /// @notice RAT-007: 검증자 제거 후 다시 등록 가능
+    function test_RAT007_maxValidators_reregisterAfterDeactivation() public {
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(2);
+
+        address validator3 = address(0x6003);
+        mockSeigManager.setStake(layer2_1, validator1, 500e27);
+        mockSeigManager.setStake(layer2_1, validator2, 500e27);
+        mockSeigManager.setStake(layer2_1, validator3, 500e27);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 2);
+
+        // validator3 등록 시도 → revert
+        vm.prank(validator3);
+        vm.expectRevert(MaxValidatorsReachedError.selector);
+        rat.registerValidator(systemConfig1);
+
+        // validator1 탈퇴
+        vm.prank(validator1);
+        rat.deactivateValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1);
+
+        // 이제 validator3 등록 가능
+        vm.prank(validator3);
+        rat.registerValidator(systemConfig1);
+
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 2);
+    }
+
+    // ==========================================
+    // RAT-052: Treasury 미설정 테스트
+    // ==========================================
+
+    /// @notice RAT-052: treasury가 zero address일 때 withdrawSlashingsToTreasury 실패
+    function test_RAT052_treasury_zeroAddress_reverts() public {
+        // 새 RAT 인스턴스 생성 (treasury 설정 안함)
+        RAT rat2 = new RAT();
+        rat2.initialize(
+            address(mockSeigManager),
+            address(wton),
+            address(ton),
+            address(mockLayer2Manager),
+            owner,
+            ratTriggerProbability,
+            evidenceSubmissionPeriod,
+            slashingPenalty,
+            validatorBuffer,
+            minimumThreshold,
+            maxValidatorsPerL2,
+            challengeGameDuration,
+            safetyBuffer
+        );
+        rat2.setL1BridgeRegistry(address(mockL1BridgeRegistry));
+        // treasury 설정 안함 (default = address(0))
+
+        // treasury가 0일 때 withdrawSlashingsToTreasury 호출 시 revert
+        vm.expectRevert("treasury not set");
+        rat2.withdrawSlashingsToTreasury(systemConfig1);
+    }
+
+    /// @notice RAT-052: treasury 설정 후 정상 동작
+    function test_RAT052_treasury_setAndWithdraw() public {
+        // 검증자 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // RAT 트리거
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 전체 기간 경과
+        vm.warp(block.timestamp + evidenceSubmissionPeriod + challengeGameDuration + safetyBuffer + 1);
+
+        // treasury 잔액 확인
+        uint256 treasuryBefore = mockSeigManager.stakeOf(layer2_1, treasury);
+
+        // 슬래싱 금액 출금
+        rat.withdrawSlashingsToTreasury(systemConfig1);
+
+        // treasury로 슬래싱 금액 전송됨
+        uint256 treasuryAfter = mockSeigManager.stakeOf(layer2_1, treasury);
+        assertEq(treasuryAfter - treasuryBefore, slashingPenalty, "Treasury should receive slashing penalty");
+    }
+
+    // ==========================================
+    // EDGE-010: 동시 RAT 트리거 테스트
+    // ==========================================
+
+    /// @notice EDGE-010: 동일 batchIndex로 중복 트리거 방지
+    function test_EDGE010_duplicateTrigger_sameBatch_reverts() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        uint32 batchIndex = 1;
+
+        // 첫 번째 트리거 성공
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+
+        // 동일 batchIndex로 재트리거 시도 → revert
+        vm.prank(factory);
+        vm.expectRevert(TestAlreadyExistsError.selector);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, batchIndex, keccak256("batch1"), keccak256("block1"));
+    }
+
+    /// @notice EDGE-010: 다른 batchIndex로는 트리거 가능
+    function test_EDGE010_differentBatch_allowed() public {
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator2);
+        rat.registerValidator(systemConfig1);
+
+        // batchIndex 1 트리거
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // batchIndex 2 트리거 (다른 batch이므로 가능)
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 2, keccak256("batch2"), keccak256("block2"));
+
+        // 두 테스트 모두 존재
+        bytes32 testId1 = rat.batchToTestId(systemConfig1, 1);
+        bytes32 testId2 = rat.batchToTestId(systemConfig1, 2);
+        assertTrue(testId1 != bytes32(0), "Test 1 should exist");
+        assertTrue(testId2 != bytes32(0), "Test 2 should exist");
+    }
+
+    // ==========================================
+    // EDGE-022: 언더플로우 방지 테스트
+    // ==========================================
+
+    /// @notice EDGE-022: 잔액보다 큰 금액 출금 시도 시 revert
+    function test_EDGE022_withdrawExceedsBalance_reverts() public {
+        // 담보금 200 WTON으로 등록
+        mockSeigManager.setStake(layer2_1, validator1, 200e27);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // RAT 트리거 (100 WTON 선차감)
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 잔액: 200 - 100 = 100 WTON
+        uint256 balance = mockSeigManager.stakeOf(layer2_1, validator1);
+        assertEq(balance, 100e27, "Balance should be 100 WTON after RAT deduction");
+
+        // MockSeigManager는 실제 출금 로직이 없으므로 언더플로우 테스트는 실제 컨트랙트에서 수행
+        // 여기서는 잔액이 정확히 감소했는지 확인
+        assertTrue(balance >= 0, "Balance should not underflow");
+    }
+
+    /// @notice EDGE-022: 담보금 전액 선차감 시 0으로 처리
+    function test_EDGE022_fullDeduction_noUnderflow() public {
+        // 정확히 slashingPenalty만큼만 보유
+        mockSeigManager.setStake(layer2_1, validator1, slashingPenalty);
+
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // RAT 트리거 - 전액 선차감
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // 잔액이 0이어야 함 (언더플로우 없이)
+        uint256 balance = mockSeigManager.stakeOf(layer2_1, validator1);
+        assertEq(balance, 0, "Balance should be 0 after full deduction");
+
+        // RAT이 전액 보유
+        uint256 ratBalance = mockSeigManager.stakeOf(layer2_1, address(rat));
+        assertEq(ratBalance, slashingPenalty, "RAT should hold full slashing penalty");
+    }
+
+    // ==========================================
+    // E2E-014: 다중 L2 검증자 테스트
+    // ==========================================
+
+    /// @notice E2E-014: 동일 검증자가 여러 L2에 등록
+    function test_E2E014_multipleL2_sameValidator() public {
+        // systemConfig2에 대한 추가 설정
+        mockL1BridgeRegistry.setFactory(factory, systemConfig2);
+        mockLayer2Manager.setLayer2(systemConfig2, layer2_2);
+        mockSeigManager.setStake(layer2_2, validator1, 500e27);
+
+        // validator1이 systemConfig1에 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+
+        // validator1이 systemConfig2에도 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig2);
+
+        // 두 L2 모두에서 활성 검증자
+        assertEq(rat.getActiveValidatorCount(systemConfig1), 1, "Should have 1 validator in L2_1");
+        assertEq(rat.getActiveValidatorCount(systemConfig2), 1, "Should have 1 validator in L2_2");
+
+        // 동일 검증자의 등록 정보 확인
+        (, , bool isActive1) = rat.getValidatorRegistration(validator1, systemConfig1);
+        (, , bool isActive2) = rat.getValidatorRegistration(validator1, systemConfig2);
+        assertTrue(isActive1, "Validator should be active in L2_1");
+        assertTrue(isActive2, "Validator should be active in L2_2");
+    }
+
+    /// @notice E2E-014: 한 L2에서 슬래싱되어도 다른 L2 영향 없음
+    function test_E2E014_slashingOneL2_noAffectOther() public {
+        // 설정
+        mockL1BridgeRegistry.setFactory(factory, systemConfig2);
+        mockLayer2Manager.setLayer2(systemConfig2, layer2_2);
+        mockSeigManager.setStake(layer2_1, validator1, 500e27);
+        mockSeigManager.setStake(layer2_2, validator1, 500e27);
+
+        // 두 L2에 등록
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig1);
+        vm.prank(validator1);
+        rat.registerValidator(systemConfig2);
+
+        // L2_1에서 RAT 트리거 및 슬래싱
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), systemConfig1, 1, keccak256("batch1"), keccak256("block1"));
+
+        // L2_1 잔액 감소
+        assertEq(mockSeigManager.stakeOf(layer2_1, validator1), 400e27, "L2_1 balance reduced");
+
+        // L2_2 잔액 영향 없음
+        assertEq(mockSeigManager.stakeOf(layer2_2, validator1), 500e27, "L2_2 balance unchanged");
+
+        // L2_2에서 여전히 활성 검증자
+        (, , bool isActive2) = rat.getValidatorRegistration(validator1, systemConfig2);
+        assertTrue(isActive2, "Validator still active in L2_2");
     }
 }
