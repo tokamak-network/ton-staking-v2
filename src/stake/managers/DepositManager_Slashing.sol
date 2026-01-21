@@ -100,20 +100,25 @@ contract DepositManager_Slashing is
         uint256 slashedAmount = _accStaked[layer2][operator];
         require(slashedAmount > 0, "no staked amount to slash");
 
-        // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
-        uint256 rewardAmount = 0;
-        if (slashingRewardRate > 0) {
-            // 100% = 10000 단위로 계산: slashedAmount * slashingRewardRate / 10000
-            rewardAmount = (slashedAmount * slashingRewardRate) / 10000;
-        }
-
         // 회계 장부 초기화
         _accStaked[layer2][operator] = 0;
         _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
         _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
 
         // SeigManager에 슬래싱 처리 요청
-        require(ISeigManager(_seigManager).onSlash(layer2, operator), "fail onSlash");
+        uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator, challenger)
+        require(totalSlashedAmount > 0, "Slashed Amount is 0");
+        // require(
+        //     ISeigManager(_seigManager).onSlash(layer2, operator, challenger),
+        //     "fail onSlash"
+        // );
+
+        // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
+        uint256 rewardAmount = 0;
+        if (slashingRewardRate > 0) {
+            // 100% = 10000 단위로 계산: totalSlashedAmount * slashingRewardRate / 10000
+            rewardAmount = (totalSlashedAmount * slashingRewardRate) / 10000;
+        }
 
         // Challenger에게 보상 지급 (WTON 직접 전송)
         if (rewardAmount > 0) {

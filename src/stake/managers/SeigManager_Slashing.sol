@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {FullMath} from '../../libraries/FullMath.sol';
-import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {FullMath} from "../../libraries/FullMath.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import '../../proxy/ProxyStorage.sol';
-import {AuthControlSeigManager} from '../../common/AuthControlSeigManager.sol';
-import {SeigManagerStorage} from './SeigManagerStorage.sol';
-import {SeigManagerV1_1Storage} from './SeigManagerV1_1Storage.sol';
-import {SeigManagerV1_3Storage} from './SeigManagerV1_3Storage.sol';
-import {SeigManagerV1_4Storage} from './SeigManagerV1_4Storage.sol';
+import "../../proxy/ProxyStorage.sol";
+import {AuthControlSeigManager} from "../../common/AuthControlSeigManager.sol";
+import {SeigManagerStorage} from "./SeigManagerStorage.sol";
+import {SeigManagerV1_1Storage} from "./SeigManagerV1_1Storage.sol";
+import {SeigManagerV1_3Storage} from "./SeigManagerV1_3Storage.sol";
+import {SeigManagerV1_4Storage} from "./SeigManagerV1_4Storage.sol";
+
+interface IDepositSlashing {
+    function slashingRewardRate() external view returns (uint256);
+}
 
 /**
  * @dev SeigManager_Slashing handles the slashing logic for operators in the Tokamak Network.
@@ -47,7 +51,7 @@ contract SeigManager_Slashing is
     //////////////////////////////
 
     modifier onlyDepositManager() {
-        require(msg.sender == _depositManager, 'not onlyDepositManager');
+        require(msg.sender == _depositManager, "not onlyDepositManager");
         _;
     }
 
@@ -65,12 +69,18 @@ contract SeigManager_Slashing is
      * @notice Slashing 시 호출되는 함수. Operator의 Coinage와 Tot 토큰을 소각
      * @param layer2 The layer2 address
      * @param operator The operator address to be slashed
+     * @param challenger The address of the challenger who proved the fraud
      */
-    function onSlash(address layer2, address operator) external onlyDepositManager returns (bool) {
+    function onSlash(
+        address layer2,
+        address operator,
+        address challenger
+    ) external onlyDepositManager returns (uint256 totalSlashedAmount) {
         uint256 operatorAmount = _coinages[layer2].balanceOf(operator);
 
         // burn {v + ⍺} {tot} tokens to the layer2 contract,
         uint256 totAmount = _uncommittedOperatorSeigniorage(layer2, operatorAmount);
+
         _tot.burnFrom(layer2, operatorAmount + totAmount);
 
         // burn {v} {coinages[layer2]} tokens to the account
@@ -78,7 +88,7 @@ contract SeigManager_Slashing is
 
         emit Slashed(layer2, operator);
 
-        return true;
+        return operatorAmount + totAmount;
     }
 
     //////////////////////////////
