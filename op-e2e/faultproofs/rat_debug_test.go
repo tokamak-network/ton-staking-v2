@@ -6,29 +6,20 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-
-	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
 // TestRAT_DirectTrigger tests calling RAT.triggerAttentionTest() directly to see if it reverts
 func TestRAT_DirectTrigger(t *testing.T) {
 	t.Parallel()
 
-	sys := rat.StartTONStakingSystem(t)
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	// Use setupTestEnvironment for cleaner initialization
+	env := setupTestEnvironment(t, "Direct RAT Trigger")
+	sys := env.System
+	accounts := env.Accounts
+	contracts := env.Contracts
+	callOpts := env.CallOpts
 
-	t.Log("=== Testing Direct RAT Trigger ===")
-
-	// Setup
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
-
-	// Register SystemConfig in L1BridgeRegistry
-	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
-
-	// Get test deposit amount (corrected for 27 decimals)
 	depositAmount := getTestDepositAmount()
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
 	// Register validator
 	t.Log("Registering validator...")

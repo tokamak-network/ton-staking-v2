@@ -13,28 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
-	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
 // TestRAT_DetailedDebug performs detailed debugging of RAT trigger conditions
 func TestRAT_DetailedDebug(t *testing.T) {
 	t.Parallel()
 
-	sys := rat.StartTONStakingSystem(t)
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
-
-	t.Log("=== RAT Detailed Debug Test ===")
-
-	// Setup
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
-
-	// Register SystemConfig in L1BridgeRegistry
-	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+	// Use setupTestEnvironment for cleaner initialization
+	env := setupTestEnvironment(t, "RAT Detailed Debug")
+	sys := env.System
+	accounts := env.Accounts
+	contracts := env.Contracts
+	callOpts := env.CallOpts
 
 	// Register validator
 	depositAmount := getTestDepositAmount()
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
 
 	// === Step 1: Check validator pool state ===
@@ -44,21 +37,8 @@ func TestRAT_DetailedDebug(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("Active validator count: %d", activeCount.Uint64())
 
-	// Get validators list using getL2Validators
-	getL2ValidatorsABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"systemConfig","type":"address"}],"name":"getL2Validators","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"}]`))
-	require.NoError(t, err)
-
-	callData, err := getL2ValidatorsABI.Pack("getL2Validators", sys.Addresses.SystemConfig)
-	require.NoError(t, err)
-
-	result, err := sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
-		To:   &sys.Addresses.RATProxy,
-		Data: callData,
-	}, nil)
-	require.NoError(t, err)
-
-	var validators []common.Address
-	err = getL2ValidatorsABI.UnpackIntoInterface(&validators, "getL2Validators", result)
+	// Get validators list using binding
+	validators, err := contracts.RAT.GetL2Validators(callOpts, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	require.True(t, len(validators) > 0, "Expected at least one validator")
 	t.Logf("Validator at index 0: %s", validators[0].Hex())
@@ -113,10 +93,10 @@ func TestRAT_DetailedDebug(t *testing.T) {
 	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
 	require.NoError(t, err)
 
-	callData, err = l1BridgeRegistryABI.Pack("rollupConfigWithDisputeGameFactory", sys.Addresses.DisputeGameFactory)
+	callData, err := l1BridgeRegistryABI.Pack("rollupConfigWithDisputeGameFactory", sys.Addresses.DisputeGameFactory)
 	require.NoError(t, err)
 
-	result, err = sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
+	result, err := sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
 		To:   &sys.Addresses.L1BridgeRegistryProxy,
 		Data: callData,
 	}, nil)
@@ -139,21 +119,8 @@ func TestRAT_DetailedDebug(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("Is validator active: %v", isActive)
 
-	// Get validator deposit using getValidatorDeposit
-	getValidatorDepositABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"validator","type":"address"},{"internalType":"address","name":"systemConfig","type":"address"}],"name":"getValidatorDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
-	require.NoError(t, err)
-
-	callData, err = getValidatorDepositABI.Pack("getValidatorDeposit", accounts.Validator.Addr, sys.Addresses.SystemConfig)
-	require.NoError(t, err)
-
-	result, err = sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
-		To:   &sys.Addresses.RATProxy,
-		Data: callData,
-	}, nil)
-	require.NoError(t, err)
-
-	var collateral *big.Int
-	err = getValidatorDepositABI.UnpackIntoInterface(&collateral, "getValidatorDeposit", result)
+	// Get validator deposit using binding
+	collateral, err := contracts.RAT.GetValidatorDeposit(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	t.Logf("Validator deposit: %s WTON", collateral.String())
 

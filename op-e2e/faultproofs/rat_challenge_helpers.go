@@ -21,6 +21,101 @@ import (
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
+// ============================================================================
+// Package-level ABI definitions (initialized once to avoid repeated parsing)
+// ============================================================================
+
+var (
+	// stakeOfABI is used to query validator staking amounts from SeigManager
+	stakeOfABI abi.ABI
+
+	// layer2ManagerGetLayer2ABI is used to query Layer2 address from Layer2Manager
+	layer2ManagerGetLayer2ABI abi.ABI
+)
+
+func init() {
+	var err error
+
+	stakeOfABI, err = abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"address","name":"account","type":"address"}],"name":"stakeOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
+	if err != nil {
+		panic("failed to parse stakeOfABI: " + err.Error())
+	}
+
+	layer2ManagerGetLayer2ABI, err = abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"systemConfig","type":"address"}],"name":"getLayer2BySystemConfig","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
+	if err != nil {
+		panic("failed to parse layer2ManagerGetLayer2ABI: " + err.Error())
+	}
+}
+
+// ============================================================================
+// Utility functions (reduce code duplication)
+// ============================================================================
+
+// waitForTransactionReceipt polls for a transaction receipt with timeout.
+// Returns the receipt on success or fails the test on timeout.
+func waitForTransactionReceipt(
+	t *testing.T,
+	ctx context.Context,
+	client *ethclient.Client,
+	txHash common.Hash,
+	description string,
+) *types.Receipt {
+	for i := 0; i < 50; i++ {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		if err == nil && receipt != nil {
+			require.Equal(t, uint64(1), receipt.Status, description+" should succeed")
+			t.Logf("✓ %s", description)
+			return receipt
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for %s receipt", description)
+	return nil
+}
+
+// waitForTransactionReceiptNoLog polls for a transaction receipt without logging.
+// Returns the receipt on success or fails the test on timeout.
+func waitForTransactionReceiptNoLog(
+	t *testing.T,
+	ctx context.Context,
+	client *ethclient.Client,
+	txHash common.Hash,
+	description string,
+) *types.Receipt {
+	for i := 0; i < 50; i++ {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		if err == nil && receipt != nil {
+			return receipt
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for %s receipt", description)
+	return nil
+}
+
+// impersonateAccount starts impersonating an account on Anvil and returns a cleanup function.
+// Usage: cleanup := impersonateAccount(t, client, account); defer cleanup()
+func impersonateAccount(t *testing.T, client *ethclient.Client, account common.Address) func() {
+	var result any
+	err := client.Client().Call(&result, "anvil_impersonateAccount", account)
+	require.NoError(t, err, "Failed to impersonate account %s", account.Hex())
+
+	return func() {
+		client.Client().Call(&result, "anvil_stopImpersonatingAccount", account)
+	}
+}
+
+// fundAccount sets the balance of an account on Anvil.
+func fundAccount(t *testing.T, client *ethclient.Client, account common.Address, balanceHex string) {
+	var result any
+	err := client.Client().Call(&result, "anvil_setBalance", account, balanceHex)
+	require.NoError(t, err, "Failed to set balance for %s", account.Hex())
+}
+
+// ============================================================================
+// Common test constants
+// ============================================================================
+
 // Common test constants
 const (
 	// Test accounts private keys (Anvil test accounts)
@@ -154,15 +249,15 @@ func connectTestContracts(t *testing.T, sys *rat.TONStakingSystem) *TestContract
 // V3 Configuration Constants (matching DeployV3FullForDevnet.s.sol)
 const (
 	// V3 Seigniorage Distribution Parameters
-	daoDistributionRatio      = "200000000000000000000000000"  // 0.2e27 = 20%
-	minStakingRatio           = "100000000000000000000000000"  // 0.1e27 = 10%
-	validatorDistributionRatio = "200000000000000000000000000" // 0.2e27 = 20%
-	halfSaturationPoint       = "10000000000000000000000000000000000" // 10_000_000e27 = 10M TON
+	daoDistributionRatio       = "200000000000000000000000000"         // 0.2e27 = 20%
+	minStakingRatio            = "100000000000000000000000000"         // 0.1e27 = 10%
+	validatorDistributionRatio = "200000000000000000000000000"         // 0.2e27 = 20%
+	halfSaturationPoint        = "10000000000000000000000000000000000" // 10_000_000e27 = 10M TON
 
 	// V3 Sequencer Parameters
-	maxChallengers           = 10
-	maxFraudProofCost        = "1000000000000000000000000000000" // 1000e27 = 1000 WTON
-	sequencerAdditionalReward = "100000000000000000000000000000" // 100e27 = 100 WTON
+	maxChallengers            = 10
+	maxFraudProofCost         = "1000000000000000000000000000000" // 1000e27 = 1000 WTON
+	sequencerAdditionalReward = "100000000000000000000000000000"  // 100e27 = 100 WTON
 )
 
 // configureV3Parameters sets up SeigManager V3 parameters at runtime.
@@ -170,16 +265,12 @@ const (
 func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
 	t.Log("Configuring V3 parameters at runtime...")
 
-	// Impersonate deployer (owner of SeigManager)
-	var result any
 	deployer := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8") // TON Staking deployer
 
-	err := sys.L1Client.Client().Call(&result, "anvil_impersonateAccount", deployer)
-	require.NoError(t, err, "Failed to impersonate deployer")
-
-	// Fund deployer for gas
-	err = sys.L1Client.Client().Call(&result, "anvil_setBalance", deployer, "0x56BC75E2D63100000") // 100 ETH
-	require.NoError(t, err, "Failed to set deployer balance")
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, deployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, deployer, "0x56BC75E2D63100000") // 100 ETH
 
 	// SeigManagerV1_4 ABI for V3 functions
 	seigManagerABI, err := abi.JSON(strings.NewReader(`[
@@ -216,17 +307,7 @@ func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
 		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
 		require.NoError(t, err, "Failed to send "+method)
 
-		// Wait for receipt
-		for i := 0; i < 50; i++ {
-			receipt, err := sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
-			if err == nil && receipt != nil {
-				require.Equal(t, uint64(1), receipt.Status, method+" should succeed")
-				t.Logf("✓ %s", method)
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		t.Fatalf("Timeout waiting for %s receipt", method)
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, method)
 	}
 
 	// Check if already migrated
@@ -272,10 +353,6 @@ func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
 		sendTx("migrateToV3")
 	}
 
-	// Stop impersonation
-	err = sys.L1Client.Client().Call(&result, "anvil_stopImpersonatingAccount", deployer)
-	require.NoError(t, err)
-
 	t.Log("✓ V3 parameters configured")
 }
 
@@ -288,17 +365,13 @@ func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
 func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 	t.Log("Initializing Optimism contracts at runtime...")
 
-	var result any
 	// Use Optimism deployer (Account #0) for Optimism contracts
 	optimismDeployer := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
 
-	// Impersonate Optimism deployer
-	err := sys.L1Client.Client().Call(&result, "anvil_impersonateAccount", optimismDeployer)
-	require.NoError(t, err, "Failed to impersonate Optimism deployer")
-
-	// Fund deployer for gas
-	err = sys.L1Client.Client().Call(&result, "anvil_setBalance", optimismDeployer, "0x56BC75E2D63100000") // 100 ETH
-	require.NoError(t, err, "Failed to set deployer balance")
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, optimismDeployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, optimismDeployer, "0x56BC75E2D63100000") // 100 ETH
 
 	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
 	require.NoError(t, err)
@@ -317,17 +390,7 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 		err := sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
 		require.NoError(t, err, "Failed to send "+description)
 
-		// Wait for receipt
-		for i := 0; i < 50; i++ {
-			receipt, err := sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
-			if err == nil && receipt != nil {
-				require.Equal(t, uint64(1), receipt.Status, description+" should succeed")
-				t.Logf("✓ %s", description)
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		t.Fatalf("Timeout waiting for %s receipt", description)
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, description)
 	}
 
 	// ===========================================
@@ -383,10 +446,6 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 	require.NoError(t, err)
 	sendTx(sys.Addresses.DisputeGameFactory, setInitBondData, "DisputeGameFactory.setInitBond")
 
-	// Stop impersonation
-	err = sys.L1Client.Client().Call(&result, "anvil_stopImpersonatingAccount", optimismDeployer)
-	require.NoError(t, err)
-
 	t.Log("✓ Optimism contracts initialized")
 }
 
@@ -399,16 +458,12 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSystem, _ *bind.TransactOpts) {
 	t.Log("Setting up Optimism integration via transactions (SystemConfig registration)...")
 
-	var result any
 	deployer := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8") // TON Staking deployer
 
-	// Impersonate deployer (owner)
-	err := sys.L1Client.Client().Call(&result, "anvil_impersonateAccount", deployer)
-	require.NoError(t, err, "Failed to impersonate deployer")
-
-	// Fund deployer for gas
-	err = sys.L1Client.Client().Call(&result, "anvil_setBalance", deployer, "0x56BC75E2D63100000") // 100 ETH
-	require.NoError(t, err, "Failed to set deployer balance")
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, deployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, deployer, "0x56BC75E2D63100000") // 100 ETH
 
 	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
 	require.NoError(t, err)
@@ -442,15 +497,7 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
 	require.NoError(t, err, "Failed to send L1BridgeRegistry.addManager")
 
-	for i := 0; i < 50; i++ {
-		receipt, err := sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
-		if err == nil && receipt != nil {
-			require.Equal(t, uint64(1), receipt.Status, "L1BridgeRegistry.addManager should succeed")
-			t.Logf("✓ L1BridgeRegistry.addManager(%s)", deployer.Hex())
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addManager")
 
 	// ===========================================
 	// Call L1BridgeRegistry.registerRollupConfigByManager() via transaction
@@ -469,15 +516,7 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
 	require.NoError(t, err, "Failed to send L1BridgeRegistry.registerRollupConfigByManager")
 
-	for i := 0; i < 50; i++ {
-		receipt, err := sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
-		if err == nil && receipt != nil {
-			require.Equal(t, uint64(1), receipt.Status, "registerRollupConfigByManager should succeed")
-			t.Logf("✓ L1BridgeRegistry.registerRollupConfigByManager(%s, type=3)", sys.Addresses.SystemConfig.Hex())
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.registerRollupConfigByManager")
 
 	// ===========================================
 	// Call SeigManager.migrateToV3() for V3 migration
@@ -507,22 +546,10 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
 		require.NoError(t, err, "Failed to send SeigManager.migrateToV3")
 
-		for i := 0; i < 50; i++ {
-			receipt, err := sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
-			if err == nil && receipt != nil {
-				require.Equal(t, uint64(1), receipt.Status, "SeigManager.migrateToV3 should succeed")
-				t.Log("✓ SeigManager.migrateToV3() called - V3 migration complete")
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "SeigManager.migrateToV3")
 	} else {
 		t.Log("✓ SeigManager already migrated to V3, skipping migrateToV3()")
 	}
-
-	// Stop impersonation
-	err = sys.L1Client.Client().Call(&result, "anvil_stopImpersonatingAccount", deployer)
-	require.NoError(t, err)
 
 	// ===========================================
 	// Verification
@@ -969,9 +996,9 @@ func createMockLayer2(t *testing.T, sys *rat.TONStakingSystem) common.Address {
 		deployerAuth,
 		"registerCandidateAddOn",
 		sys.Addresses.SystemConfig, // rollupConfig
-		operatorDeposit,             // operatorDeposit
-		false,                       // flagTon (false = use WTON)
-		"OptimismL2",                // memo (string)
+		operatorDeposit,            // operatorDeposit
+		false,                      // flagTon (false = use WTON)
+		"OptimismL2",               // memo (string)
 	)
 	require.NoError(t, err)
 	registerReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
@@ -1032,18 +1059,69 @@ func registerValidatorWithTON(t *testing.T, sys *rat.TONStakingSystem, contracts
 	require.NoError(t, err)
 	t.Logf("✓ Deposited %s WTON to Layer2", adjustedAmount.String())
 
+	// Check actual staked amount immediately after deposit (using package-level stakeOfABI)
+	stakeOfCallData, _ := stakeOfABI.Pack("stakeOf", layer2, validatorAuth.From)
+	stakeOfResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var actualStaked *big.Int
+	stakeOfABI.UnpackIntoInterface(&actualStaked, "stakeOf", stakeOfResult)
+	t.Logf("✓ Actual staked amount immediately after deposit: %s WTON (deposited: %s WTON, diff: %s WTON)",
+		actualStaked.String(),
+		adjustedAmount.String(),
+		new(big.Int).Sub(actualStaked, adjustedAmount).String())
+
 	// Step 6: Register validator with RAT (no deposit needed, uses coinage balance)
+	// Check staking balance before registration
+	stakeBeforeReg, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var stakedBeforeReg *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakedBeforeReg, "stakeOf", stakeBeforeReg)
+	t.Logf("✓ Staking balance BEFORE RAT registration: %s WTON", stakedBeforeReg.String())
+
 	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
 	require.NoError(t, err)
 
-	t.Logf("✓ Validator registered with RAT (collateral from staking: %s WTON)", adjustedAmount.String())
+	// Check staking balance after registration
+	stakeAfterReg, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var stakedAfterReg *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakedAfterReg, "stakeOf", stakeAfterReg)
+	t.Logf("✓ Staking balance AFTER RAT registration: %s WTON", stakedAfterReg.String())
+
+	// Check if registration changed the staking balance
+	if stakedAfterReg.Cmp(stakedBeforeReg) != 0 {
+		diff := new(big.Int).Sub(stakedAfterReg, stakedBeforeReg)
+		t.Logf("⚠ WARNING: Staking balance changed during registration by %s WTON", diff.String())
+	}
+
+	t.Logf("✓ Validator registered with RAT (collateral from staking: %s WTON)", stakedAfterReg.String())
 }
 
 // createDisputeGameWithWrongClaim creates a DisputeGame with a wrong root claim
 func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts) (*types.Receipt, common.Address) {
 	callOpts := &bind.CallOpts{Context: sys.Ctx}
+
+	// Measure validator staking at START of this function (using package-level stakeOfABI)
+	accounts := setupTestAccounts(t, sys)
+	stakeCallData, _ := stakeOfABI.Pack("stakeOf", sys.Addresses.MockLayer2, accounts.Validator.Addr)
+	stakeStartResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeCallData,
+	}, nil)
+	var stakeStart *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakeStart, "stakeOf", stakeStartResult)
+	t.Logf("  [createDisputeGameWithWrongClaim START] Validator stake: %s WTON", stakeStart.String())
 
 	// Connect to DisputeGameFactory
 	dgf, err := bindings.NewDisputeGameFactory(sys.Addresses.DisputeGameFactory, sys.L1Client)
@@ -1090,6 +1168,21 @@ func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, pr
 	require.NotEqual(t, common.Address{}, gameAddress, "Should have game address")
 
 	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+
+	// Measure validator staking at END of this function
+	stakeEndResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeCallData,
+	}, nil)
+	var stakeEnd *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakeEnd, "stakeOf", stakeEndResult)
+	t.Logf("  [createDisputeGameWithWrongClaim END] Validator stake: %s WTON", stakeEnd.String())
+
+	// Calculate change
+	stakeChange := new(big.Int).Sub(stakeEnd, stakeStart)
+	if stakeChange.Sign() != 0 {
+		t.Logf("  ⚠️  STAKE CHANGED in createDisputeGameWithWrongClaim: %s WTON", stakeChange.String())
+	}
 
 	return receipt, gameAddress
 }
@@ -1176,15 +1269,11 @@ func parseDisputeGameCreatedEvent(_ *testing.T, receipt *types.Receipt) common.A
 // triggerRATDirectly triggers RAT.triggerAttentionTest directly by impersonating DisputeGameFactory
 // This is used for testing when the DisputeGameFactory bytecode doesn't have RAT integration
 func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress common.Address, batchIndex uint32) *types.Receipt {
-	// Enable impersonation for DisputeGameFactory
-	var result any
-	err := sys.L1Client.Client().Call(&result, "anvil_impersonateAccount", sys.Addresses.DisputeGameFactory)
-	require.NoError(t, err, "Failed to impersonate DisputeGameFactory")
+	// Impersonate and fund DisputeGameFactory
+	cleanup := impersonateAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory)
+	defer cleanup()
 	t.Logf("✓ Impersonating DisputeGameFactory: %s", sys.Addresses.DisputeGameFactory.Hex())
-
-	// Fund the impersonated account for gas
-	err = sys.L1Client.Client().Call(&result, "anvil_setBalance", sys.Addresses.DisputeGameFactory, "0x56BC75E2D63100000") // 100 ETH
-	require.NoError(t, err, "Failed to set balance for DisputeGameFactory")
+	fundAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory, "0x56BC75E2D63100000") // 100 ETH
 
 	// Get current block for blockHash
 	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
@@ -1220,9 +1309,8 @@ func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress com
 		t.Logf("   RAT.%s (slot %d): %s", name, slot, addr.Hex())
 	}
 
-	// Debug: Check if Layer2Manager.getLayer2BySystemConfig works
-	layer2ManagerABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"systemConfig","type":"address"}],"name":"getLayer2BySystemConfig","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
-	l2CallData, _ := layer2ManagerABI.Pack("getLayer2BySystemConfig", sys.Addresses.SystemConfig)
+	// Debug: Check if Layer2Manager.getLayer2BySystemConfig works (using package-level layer2ManagerGetLayer2ABI)
+	l2CallData, _ := layer2ManagerGetLayer2ABI.Pack("getLayer2BySystemConfig", sys.Addresses.SystemConfig)
 	l2Result, l2Err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
 		To:   &sys.Addresses.Layer2ManagerProxy,
 		Data: l2CallData,
@@ -1231,14 +1319,13 @@ func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress com
 	if l2Err != nil {
 		t.Logf("   ⚠️  Layer2Manager.getLayer2BySystemConfig failed: %v", l2Err)
 	} else {
-		layer2ManagerABI.UnpackIntoInterface(&layer2Addr, "getLayer2BySystemConfig", l2Result)
+		layer2ManagerGetLayer2ABI.UnpackIntoInterface(&layer2Addr, "getLayer2BySystemConfig", l2Result)
 		t.Logf("   Layer2Manager.getLayer2BySystemConfig(%s) = %s", sys.Addresses.SystemConfig.Hex(), layer2Addr.Hex())
 	}
 
-	// Debug: Check if SeigManager.stakeOf works (this is called by RAT._getValidatorCollateral)
+	// Debug: Check if SeigManager.stakeOf works (using package-level stakeOfABI)
 	accounts := setupTestAccounts(t, sys)
-	seigManagerABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"address","name":"account","type":"address"}],"name":"stakeOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
-	stakeCallData, _ := seigManagerABI.Pack("stakeOf", layer2Addr, accounts.Validator.Addr)
+	stakeCallData, _ := stakeOfABI.Pack("stakeOf", layer2Addr, accounts.Validator.Addr)
 	stakeResult, stakeErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
 		To:   &sys.Addresses.SeigManagerProxy,
 		Data: stakeCallData,
@@ -1247,7 +1334,7 @@ func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress com
 		t.Logf("   ⚠️  SeigManager.stakeOf failed: %v", stakeErr)
 	} else {
 		var stake *big.Int
-		seigManagerABI.UnpackIntoInterface(&stake, "stakeOf", stakeResult)
+		stakeOfABI.UnpackIntoInterface(&stake, "stakeOf", stakeResult)
 		t.Logf("   SeigManager.stakeOf(%s, %s) = %s", layer2Addr.Hex(), accounts.Validator.Addr.Hex(), stake.String())
 	}
 
@@ -1453,9 +1540,7 @@ func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress com
 
 	t.Logf("✓ Transaction mined (status: %d, gas used: %d)", receipt.Status, receipt.GasUsed)
 
-	// Stop impersonation
-	err = sys.L1Client.Client().Call(&result, "anvil_stopImpersonatingAccount", sys.Addresses.DisputeGameFactory)
-	require.NoError(t, err)
+	// Note: impersonation cleanup is handled by defer
 
 	return receipt
 }
@@ -1491,4 +1576,163 @@ func parseRATTriggerEventWithBatchIndex(t *testing.T, receipt *types.Receipt, ex
 	}
 
 	return [32]byte{}, 0, false
+}
+// High-Level Test Setup Helpers (Pattern 1)
+// ============================================================================
+
+type TestEnvironment struct {
+	System    *rat.TONStakingSystem
+	Accounts  *TestAccounts
+	Contracts *TestContracts
+	CallOpts  *bind.CallOpts
+}
+
+func setupTestEnvironment(t *testing.T, testName string) *TestEnvironment {
+	t.Logf("=== Testing %s ===", testName)
+
+	sys := rat.StartTONStakingSystem(t)
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
+
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
+	depositAmount := getTestDepositAmount()
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	return &TestEnvironment{
+		System:    sys,
+		Accounts:  accounts,
+		Contracts: contracts,
+		CallOpts:  callOpts,
+	}
+}
+
+// ============================================================================
+// Contract Query Helpers (Pattern 3, 4)
+// ============================================================================
+
+func getValidatorStake(t *testing.T, sys *rat.TONStakingSystem, layer2, validator common.Address) *big.Int {
+	// Using package-level stakeOfABI
+	callData, err := stakeOfABI.Pack("stakeOf", layer2, validator)
+	require.NoError(t, err)
+
+	result, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: callData,
+	}, nil)
+	require.NoError(t, err)
+
+	var stake *big.Int
+	err = stakeOfABI.UnpackIntoInterface(&stake, "stakeOf", result)
+	require.NoError(t, err)
+
+	return stake
+}
+
+type AttentionTestInfo struct {
+	ValidatorAddress common.Address
+	SystemConfig     common.Address
+	BatchIndex       uint32
+	BatchHash        [32]byte
+	BondAmount       *big.Int
+	CreatedAt        *big.Int
+	Deadline         *big.Int
+	Status           uint8
+}
+
+func getAttentionTestInfo(t *testing.T, sys *rat.TONStakingSystem, testID [32]byte) *AttentionTestInfo {
+	getTestABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"bytes32","name":"testId","type":"bytes32"}],"name":"getAttentionTest","outputs":[{"internalType":"address","name":"validatorAddress","type":"address"},{"internalType":"address","name":"systemConfig","type":"address"},{"internalType":"uint32","name":"batchIndex","type":"uint32"},{"internalType":"bytes32","name":"batchHash","type":"bytes32"},{"internalType":"uint256","name":"bondAmount","type":"uint256"},{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"}]`))
+	require.NoError(t, err)
+
+	callData, err := getTestABI.Pack("getAttentionTest", testID)
+	require.NoError(t, err)
+
+	result, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.RATProxy,
+		Data: callData,
+	}, nil)
+	require.NoError(t, err)
+
+	var info AttentionTestInfo
+	err = getTestABI.UnpackIntoInterface(&info, "getAttentionTest", result)
+	require.NoError(t, err)
+
+	return &info
+}
+
+// ============================================================================
+// Game Resolution Helpers (Pattern 5)
+// ============================================================================
+
+type GameResolutionResult struct {
+	ClaimReceipts []*types.Receipt
+	GameReceipt   *types.Receipt
+}
+
+func resolveGameWithClaims(
+	t *testing.T,
+	sys *rat.TONStakingSystem,
+	game *bindings.FaultDisputeGame,
+	auth *bind.TransactOpts,
+	claimIndices []int64,
+) *GameResolutionResult {
+	result := &GameResolutionResult{
+		ClaimReceipts: make([]*types.Receipt, 0, len(claimIndices)),
+	}
+
+	for _, idx := range claimIndices {
+		tx, err := game.ResolveClaim(auth, big.NewInt(idx), big.NewInt(0))
+		require.NoError(t, err)
+
+		receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+		require.NoError(t, err)
+
+		result.ClaimReceipts = append(result.ClaimReceipts, receipt)
+		t.Logf("✓ Resolved claim %d", idx)
+	}
+
+	tx, err := game.Resolve(auth)
+	require.NoError(t, err)
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+	require.NoError(t, err)
+
+	result.GameReceipt = receipt
+	t.Logf("✓ Game resolved (tx: %s)", tx.Hash().Hex())
+
+	return result
+}
+
+// ============================================================================
+// Event Parsing Helpers (Pattern 6)
+// ============================================================================
+
+type BondRestoredEventData struct {
+	Found  bool
+	Amount *big.Int
+	TxName string
+}
+
+func findBondRestoredEvent(receipts []*types.Receipt, receiptNames []string) *BondRestoredEventData {
+	bondRestoredEventSig := crypto.Keccak256Hash([]byte("BondRestored(bytes32,address,address,address,uint256)"))
+	result := &BondRestoredEventData{Found: false}
+
+	for idx, receipt := range receipts {
+		for _, log := range receipt.Logs {
+			if len(log.Topics) > 0 && log.Topics[0] == bondRestoredEventSig {
+				result.Found = true
+				result.TxName = receiptNames[idx]
+				if len(log.Data) >= 32 {
+					result.Amount = new(big.Int).SetBytes(log.Data[len(log.Data)-32:])
+				}
+				return result
+			}
+		}
+	}
+
+	return result
 }

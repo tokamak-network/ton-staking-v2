@@ -1,13 +1,11 @@
 package faultproofs
 
 import (
-	"context"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
@@ -99,35 +97,23 @@ func TestRATContractCall(t *testing.T) {
 	t.Parallel()
 
 	sys := rat.StartTONStakingSystem(t)
-	ctx := context.Background()
 
 	t.Log("=== Testing RAT Contract Calls ===")
 
-	// Create a read-only call opts
-	callOpts := &bind.CallOpts{
-		Context: ctx,
-	}
+	// Connect to RAT contract using bindings
+	contracts := connectTestContracts(t, sys)
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
-	// Try to call a view function on RAT
-	// Note: You'll need to have RAT bindings generated for this
-	// For now, just verify we can send a transaction to it
-
-	// Get deployer private key (Anvil account #1)
-	deployerKey, err := crypto.HexToECDSA("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
+	// Test view function calls
+	minCollateral, err := contracts.RAT.GetMinimumCollateral(callOpts)
 	require.NoError(t, err)
+	t.Logf("✓ RAT.getMinimumCollateral(): %s WTON", minCollateral.String())
 
-	// Create transactor
-	chainID, err := sys.L1Client.ChainID(ctx)
+	// Test getActiveValidatorCount (should be 0 initially)
+	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
+	t.Logf("✓ RAT.getActiveValidatorCount(): %d", validatorCount.Uint64())
 
-	auth, err := bind.NewKeyedTransactorWithChainID(deployerKey, chainID)
-	require.NoError(t, err)
-
-	_ = auth
-	_ = callOpts
-
-	// TODO: Add actual RAT contract calls when bindings are available
-	// For now, just verify the contract exists
 	t.Logf("✓ RAT contract ready for calls at %s", sys.Addresses.RATProxy.Hex())
 
 	t.Log("=== RAT Contract Call Test Complete ===")
