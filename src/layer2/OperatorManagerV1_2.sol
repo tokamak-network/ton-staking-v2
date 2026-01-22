@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { IWTON } from "../stake/interfaces/IWTON.sol";
 import { IRollupConfig } from "../layer2/interfaces/IRollupConfig.sol";
 import { ILayer2Manager } from "../layer2/interfaces/ILayer2Manager.sol";
 import { IDepositManager } from "../stake/interfaces/IDepositManager.sol";
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./OperatorManagerStorage.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OperatorManagerStorage} from "./OperatorManagerStorage.sol";
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -53,8 +52,12 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
     // ==========================================
 
     modifier onlyOwnerOrManager() {
-        require(owner() == msg.sender || msg.sender == manager(), "not onlyOwnerOrManager");
+        _onlyOwnerOrManager();
         _;
+    }
+
+    function _onlyOwnerOrManager() internal view {
+        require(owner() == msg.sender || msg.sender == manager(), "not onlyOwnerOrManager");
     }
 
     // ==========================================
@@ -95,7 +98,7 @@ contract OperatorManagerV1_2 is Ownable, OperatorManagerStorage {
         emit TransferredManager(_manager, newManager);
     }
 
-    function claimETH() external onlyOwnerOrManager {
+    function claimEth() external onlyOwnerOrManager {
         _claim(address(0), manager(), address(this).balance);
     }
 

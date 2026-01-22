@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {RATStorage} from "./RATStorage.sol";
 import {IRAT} from "./IRAT.sol";
+import {RATInitParams, RATConfigParams} from "./RATTypes.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 
@@ -35,6 +36,8 @@ error NotSelectedValidatorError();
 error InvalidFactoryError();
 error MaxValidatorsReachedError();
 error Layer2NotFoundError();
+
+// RATInitParams, RATConfigParams는 RATTypes.sol에서 정의됨 (순환 참조 방지)
 
 /**
  * @title RAT (Randomized Attention Test)
@@ -91,55 +94,39 @@ contract RAT is RATStorage, IRAT {
     // Constructor / Initializer
     // ==========================================
 
-    /// @notice RAT 컨트랙트 초기화
-    /// @param _seigManager SeigManager 주소
-    /// @param _wton WTON 주소
-    /// @param _ton TON 주소
-    /// @param _layer2Manager Layer2Manager 주소
-    /// @param _owner Owner 주소
-    /// @param _ratTriggerProbability RAT 트리거 확률 (RAY 단위, 1e27 = 100%)
-    /// @param _evidenceSubmissionPeriod 증거 제출 기간 (초)
-    /// @param _slashingPenalty 슬래싱 페널티 C_off (WTON 단위, 27 decimals)
-    /// @param _validatorBuffer 검증자 버퍼 Δ_validator (WTON 단위, 27 decimals)
-    /// @param _minimumThreshold 최소 담보금 D_min (WTON 단위, 27 decimals)
-    /// @param _maxValidatorsPerL2 L2별 최대 검증자 수 N_max
-    /// @param _challengeGameDuration 챌린지 게임 기간 (초)
-    /// @param _safetyBuffer 안전 버퍼 시간 (초, 기본값: 1일)
-    function initialize(
-        address _seigManager,
-        address _wton,
-        address _ton,
-        address _layer2Manager,
-        address _owner,
-        uint256 _ratTriggerProbability,
-        uint256 _evidenceSubmissionPeriod,
-        uint256 _slashingPenalty,
-        uint256 _validatorBuffer,
-        uint256 _minimumThreshold,
-        uint256 _maxValidatorsPerL2,
-        uint256 _challengeGameDuration,
-        uint256 _safetyBuffer
-    ) external {
+    /// @notice RAT 컨트랙트 초기화 (핵심 주소만 설정)
+    /// @param params 초기화 파라미터 구조체
+    /// @dev 초기화 후 반드시 setConfig()를 호출하여 설정 파라미터 설정 필요
+    function initialize(RATInitParams calldata params) external {
         require(seigManager == address(0), "already initialized");
-        require(_ratTriggerProbability > 0 && _ratTriggerProbability <= RAY, "invalid probability");
-        require(_evidenceSubmissionPeriod > 0, "invalid evidence period");
-        require(_slashingPenalty > 0, "invalid slashing penalty");
-        require(_minimumThreshold >= _slashingPenalty + _validatorBuffer, "invalid minimum threshold");
 
-        seigManager = _seigManager;
-        wton = _wton;
-        ton = _ton;
-        layer2Manager = _layer2Manager;
-        owner = _owner;
+        seigManager = params.seigManager;
+        wton = params.wton;
+        ton = params.ton;
+        layer2Manager = params.layer2Manager;
+        l1BridgeRegistry = params.l1BridgeRegistry;
+        owner = params.owner;
+    }
 
-        ratTriggerProbability = _ratTriggerProbability;
-        evidenceSubmissionPeriod = _evidenceSubmissionPeriod;
-        slashingPenalty = _slashingPenalty;
-        validatorBuffer = _validatorBuffer;
-        minimumThreshold = _minimumThreshold;
-        maxValidatorsPerL2 = _maxValidatorsPerL2;
-        challengeGameDuration = _challengeGameDuration;
-        safetyBuffer = _safetyBuffer;
+    /// @notice RAT 설정 파라미터 설정 (owner만 호출 가능)
+    /// @param config 설정 파라미터 구조체
+    function setConfig(RATConfigParams calldata config) external onlyOwner {
+        require(config.ratTriggerProbability > 0 && config.ratTriggerProbability <= RAY, "invalid probability");
+        require(config.evidenceSubmissionPeriod > 0, "invalid evidence period");
+        require(config.slashingPenalty > 0, "invalid slashing penalty");
+        require(config.minimumThreshold >= config.slashingPenalty + config.validatorBuffer, "invalid minimum threshold");
+
+        ratTriggerProbability = config.ratTriggerProbability;
+        evidenceSubmissionPeriod = config.evidenceSubmissionPeriod;
+        slashingPenalty = config.slashingPenalty;
+        validatorBuffer = config.validatorBuffer;
+        minimumThreshold = config.minimumThreshold;
+        maxValidatorsPerL2 = config.maxValidatorsPerL2;
+        challengeGameDuration = config.challengeGameDuration;
+        safetyBuffer = config.safetyBuffer;
+        treasury = config.treasury;
+        attentionCost = config.attentionCost;
+        relaxedValidatorCheck = config.relaxedValidatorCheck;
     }
 
     // ==========================================
@@ -567,20 +554,25 @@ contract RAT is RATStorage, IRAT {
         address selectedValidator = _selectRandomValidator(systemConfig, blockHash);
         if (selectedValidator == address(0)) return;
 
+        _processAttentionTest(gameAddress, systemConfig, batchIndex, batchHash, selectedValidator);
+    }
+
+    function _processAttentionTest(
+        address gameAddress,
+        address systemConfig,
+        uint32 batchIndex,
+        bytes32 batchHash,
+        address selectedValidator
+    ) internal {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][selectedValidator];
 
         // V3: 사용 가능한 담보금 확인
         (uint256 available, address layer2) = _getValidatorCollateral(selectedValidator, systemConfig);
 
         // 동적 C_off 계산 (현재 L2의 검증자 수 기준)
-        // relaxedValidatorCheck를 반영하여 본드 금액 계산
         uint256 n = getActiveValidatorCount(systemConfig);
         if (n == 0) n = 1;
         uint256 bondAmount = _calculateCoffWithRelaxedCheck(n);
-
-        // testId 먼저 계산 (ValidatorSlashed 이벤트에서 사용)
-        bytes32 testId = keccak256(abi.encodePacked(systemConfig, batchIndex, selectedValidator, block.timestamp));
-        uint256 deadline = block.timestamp + evidenceSubmissionPeriod;
 
         // 담보금이 0이면 테스트 없이 종료
         if (available == 0) {
@@ -589,30 +581,37 @@ contract RAT is RATStorage, IRAT {
         }
 
         // bondAmount 조정 (available보다 클 수 없음)
-        if (available < bondAmount) {
-            bondAmount = available;
-        }
-
-        // 본드 사용 후 남은 담보금 계산
-        uint256 remaining = available - bondAmount;
-
-        // relaxedValidatorCheck에 따라 검증자 제거 기준이 다름
-        // true: C_off (완화)
-        // false: D_min = C_off + validatorBuffer (엄격)
-        uint256 removalThreshold = _calculateCoffWithRelaxedCheck(n)
-            + (relaxedValidatorCheck ? 0 : validatorBuffer);
+        if (available < bondAmount) bondAmount = available;
 
         // 본드 사용 후 남은 담보금이 removalThreshold 미만이면 검증자 제거
-        if (remaining < removalThreshold) {
-            _removeValidator(systemConfig, selectedValidator, reg, layer2);
+        {
+            uint256 removalThreshold = _calculateCoffWithRelaxedCheck(n)
+                + (relaxedValidatorCheck ? 0 : validatorBuffer);
+            if (available - bondAmount < removalThreshold) {
+                _removeValidator(systemConfig, selectedValidator, reg, layer2);
+            }
         }
 
-        // === Effects: 상태 업데이트 ===
+        _createAttentionTest(gameAddress, systemConfig, batchIndex, batchHash, selectedValidator, bondAmount, reg, layer2);
+    }
+
+    function _createAttentionTest(
+        address gameAddress,
+        address systemConfig,
+        uint32 batchIndex,
+        bytes32 batchHash,
+        address selectedValidator,
+        uint256 bondAmount,
+        ValidatorRegistration storage reg,
+        address layer2
+    ) internal {
+        bytes32 testId = keccak256(abi.encodePacked(systemConfig, batchIndex, selectedValidator, block.timestamp));
+        uint256 deadline = block.timestamp + evidenceSubmissionPeriod;
 
         // factory 주소 저장 (msg.sender = DisputeGameFactory)
         factoryByGame[gameAddress] = msg.sender;
 
-        // 검증자별 최신 테스트 마감 시간 업데이트 (기록용)
+        // 검증자별 최신 테스트 마감 시간 업데이트
         if (uint64(deadline) > reg.latestTestDeadline) {
             reg.latestTestDeadline = uint64(deadline);
         }
@@ -630,18 +629,13 @@ contract RAT is RATStorage, IRAT {
 
         batchToTestId[systemConfig][batchIndex] = testId;
 
-        // systemConfig별 가장 늦은 마감 시간 업데이트
         if (deadline > latestDeadlineTest[systemConfig]) {
             latestDeadlineTest[systemConfig] = deadline;
         }
 
-        // 게임 주소 → testId 매핑 저장 (resolveClaim에서 조회용)
         gameToTestId[gameAddress] = testId;
 
-        // === Interactions: 외부 호출 ===
-
         // V3: 선차감 = validator coinage → RAT coinage 전송
-        // (validator에서 burn, RAT에 mint)
         _transferCoinageToRAT(layer2, selectedValidator, bondAmount);
 
         emit AttentionTestTriggered(testId, selectedValidator, systemConfig, gameAddress, batchIndex, deadline);
@@ -741,7 +735,7 @@ contract RAT is RATStorage, IRAT {
     }
 
     /// @notice 증거 검증
-    function _verifyEvidence(bytes32 batchHash, bytes calldata evidence)
+    function _verifyEvidence(bytes32 /* batchHash */, bytes calldata evidence)
         internal
         pure
         returns (bool)

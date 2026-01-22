@@ -23,11 +23,11 @@ interface ILayer2Manager {
 
     /// @notice rollupConfig의 Bridged TON 조회
     /// @param rollupConfig L2의 SystemConfig 주소
-    /// @return bridgedTON Bridged TON 양 (TON 단위)
-    function getBridgedTON(address rollupConfig) external view returns (uint256 bridgedTON);
+    /// @return bridgedTon Bridged TON 양 (TON 단위)
+    function getBridgedTon(address rollupConfig) external view returns (uint256 bridgedTon);
 
     /// @notice Layer2 주소로 Bridged TON 조회
     /// @param layer2 L2 주소 (candidate)
-    /// @return bridgedTON Bridged TON 양 (TON 단위)
-    function getBridgedTONByLayer(address layer2) external view returns (uint256 bridgedTON);
+    /// @return bridgedTon Bridged TON 양 (TON 단위)
+    function getBridgedTonByLayer(address layer2) external view returns (uint256 bridgedTon);
 }

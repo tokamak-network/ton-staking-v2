@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {SeigManagerV1_3} from '../stake/managers/SeigManagerV1_3.sol';
+import {SeigManagerV3_1} from '../stake/managers/SeigManagerV3_1.sol';
 
 contract InvalidCandidateAddOn {
     address public operator1;
@@ -32,7 +32,7 @@ contract InvalidCandidateAddOn {
     }
 
     function updateSeigniorage() external {
-        SeigManagerV1_3(seigManager).updateSeigniorage();
+        SeigManagerV3_1(seigManager).updateSeigniorage();
     }
 
      /// @notice Checks whether this contract is a candidate contract
@@ -45,7 +45,7 @@ contract InvalidCandidateAddOn {
         return true;
     }
 
-    function lastEpoch(uint256 forkNumber) external pure returns (uint256) { return 1; }
+    function lastEpoch(uint256 /* forkNumber */) external pure returns (uint256) { return 1; }
 
 
 }

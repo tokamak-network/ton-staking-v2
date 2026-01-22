@@ -21,14 +21,13 @@ contract MockAnchorStateRegistry {
     /// @notice Initializes the contract
     /// @param _systemConfig The address of the SystemConfig contract
     /// @param _disputeGameFactory The address of the DisputeGameFactory contract
-    /// @param _startingAnchorRoot The starting anchor root (ignored in mock)
-    /// @param _startingRespectedGameType The starting respected game type (ignored in mock)
     /// @dev Simplified version - only stores systemConfig and disputeGameFactory
+    ///      _startingAnchorRoot and _startingRespectedGameType are ignored in mock
     function initialize(
         address _systemConfig,
         address _disputeGameFactory,
-        bytes32 _startingAnchorRoot,  // Simplified - actual uses Proposal struct
-        uint32 _startingRespectedGameType  // Simplified - actual uses GameType
+        bytes32 /* _startingAnchorRoot */,  // Simplified - actual uses Proposal struct
+        uint32 /* _startingRespectedGameType */  // Simplified - actual uses GameType
     ) external {
         require(!_initialized, "Already initialized");
 

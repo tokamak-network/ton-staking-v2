@@ -88,7 +88,7 @@ interface ISeigManagerV3 {
     // ==========================================
 
     /// @notice 유효 Bridged TON 조회 (자격 없으면 0)
-    function getEffectiveBridgedTON(address layer2) external view returns (uint256);
+    function getEffectiveBridgedTon(address layer2) external view returns (uint256);
 
     /// @notice L2 자격 실시간 확인 (L1 브리지에서 직접 조회)
     /// @dev B_i는 L1 브리지에서 동적으로 조회, S_i는 coinage에서 동적으로 조회
@@ -143,7 +143,7 @@ interface ISeigManagerV3 {
     /// @dev OptimismPortal에서 TON 입금/출금 시 SeigManager를 직접 호출
     ///      호출자(msg.sender)로부터 L1BridgeRegistry.rollupConfigWithPortal로 rollupConfig 조회
     ///      트리거 함수이므로 revert 대신 early return 사용
-    function onBridgedTONChange() external;
+    function onBridgedTonChange() external;
 
     /// @notice L2의 스테이킹 금액 변경 시 호출
     /// @dev DepositManager에서 deposit/withdraw 시 호출
@@ -190,26 +190,26 @@ interface ISeigManagerV3 {
     // ==========================================
 
     /// @notice RAT 컨트랙트 주소 설정
-    function setRATContract(address rat) external;
+    function setRatContract(address rat) external;
 
     /// @notice RAT 선차감: validator coinage → RAT coinage 전송
     /// @dev RAT 컨트랙트에서만 호출 가능
     /// @param layer2 L2 주소
     /// @param validator 검증자 주소
     /// @param amount 전송 금액 (WTON 단위, 27 decimals)
-    function transferCoinageToRAT(address layer2, address validator, uint256 amount) external;
+    function transferCoinageToRat(address layer2, address validator, uint256 amount) external;
 
     /// @notice RAT 복구: RAT coinage → validator coinage 전송
     /// @dev RAT 컨트랙트에서만 호출 가능
     /// @param layer2 L2 주소
     /// @param validator 검증자 주소
     /// @param amount 전송 금액 (WTON 단위, 27 decimals)
-    function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external;
+    function transferCoinageFromRat(address layer2, address validator, uint256 amount) external;
 
     /// @notice RAT 슬래싱 확정: RAT coinage → recipient coinage 전송
     /// @dev RAT 컨트랙트에서만 호출 가능 (treasury로 전송용)
     /// @param layer2 L2 주소
     /// @param recipient 수신자 주소 (treasury)
     /// @param amount 전송 금액 (WTON 단위, 27 decimals)
-    function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external;
+    function transferCoinageFromRatTo(address layer2, address recipient, uint256 amount) external;
 }

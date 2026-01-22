@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import {RATConfigParams} from "./RATTypes.sol";
+
 /// @title IRAT
 /// @notice Randomized Attention Test (RAT) 인터페이스
 /// @dev Tokamak Economics Whitepaper V3 (December 16, 2025) 기준
@@ -281,6 +283,10 @@ interface IRAT {
     // - 검증자는 ValidatorRegistered 이벤트를 모니터링하여 자격 상태 확인
     // - 담보금 부족 시 충분한 유예 기간 제공 또는 소급 적용하지 않는 방식 적용
     // ==========================================
+
+    /// @notice RAT 설정 파라미터 일괄 설정 (owner만 호출 가능)
+    /// @param config 설정 파라미터 구조체
+    function setConfig(RATConfigParams calldata config) external;
 
     /// @notice Attention Cost 설정 (c_m) - 모니터링 비용
     function setAttentionCost(uint256 cost) external;

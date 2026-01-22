@@ -115,4 +115,13 @@ contract SeigManagerV1_4Storage {
     /// @dev RAT 슬래싱/복구 시 coinage 전송을 위해 사용
     address public ratContract;
 
+    // ==========================================
+    // V2 호환 로직 컨트랙트
+    // ==========================================
+
+    /// @notice V2 로직 컨트랙트 주소 (SeigManagerV3_2)
+    /// @dev v3Migrated == false일 때 delegatecall로 V2 로직 호출
+    address public v2Logic;
+
 }
+
