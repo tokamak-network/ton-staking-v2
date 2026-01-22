@@ -37,18 +37,17 @@
 #### 3. 핵심 매니저 (프록시 패턴)
 | 프록시 | 구현체 | V3 |
 |--------|--------|-----|
-| SeigManagerProxy | SeigManager → V1_2 → V1_3 → V1_4 | 🔄 V1_4 추가 |
-| DepositManagerProxy | DepositManager → V1_1 → V1_2 | 🔄 V1_2 추가 |
+| SeigManagerProxy | **SeigManagerV1_2** (기본) + **V3_1, V3_2** | 🆕 V3 추가 |
+| DepositManagerProxy | **DepositManagerV3** | 🆕 단일 구현체 |
 | Layer2RegistryProxy | Layer2Registry | - |
-| Layer2ManagerProxy | Layer2ManagerV1_1 → V1_2 | 🔄 V1_2 추가 |
-| L1BridgeRegistryProxy | L1BridgeRegistryV1_2 | 🔄 V1_2 단일 구현체 |
+| Layer2ManagerProxy | **Layer2ManagerV3** | 🆕 단일 구현체 |
+| L1BridgeRegistryProxy | **L1BridgeRegistryV1_2** | 🔄 단일 구현체 |
 
 #### 4. 오퍼레이터
 | 컨트랙트 | 설명 | V3 |
 |----------|------|-----|
 | OperatorManagerFactory | 오퍼레이터 매니저 생성 | 🔄 V1_2 기본 |
-| OperatorManagerV1_1 | 레거시 로직 | - |
-| OperatorManagerV1_2 | V3 기본 로직 | 🆕 |
+| OperatorManagerV1_2 | **V3 단일 구현체** | 🆕 |
 
 #### 5. 🆕 V3 신규 컨트랙트 (프록시 패턴)
 | 프록시 | 구현체 | 설명 |
@@ -113,20 +112,17 @@ export RPC_URL=http://localhost:8545
     - upgradeTo(seigManagerV1_2)
     - initialize(...)
     - setData(...)
-    - V1_3, V1_4 Selector Routing
+    - V3_1, V3_2 Selector Routing
 
-11. DepositManager
-    - upgradeTo(depositManagerBase)
+11. DepositManagerV3 (단일 구현체)
+    - upgradeTo(depositManagerV3)
     - initialize(...)
-    - V1_1, V1_2 Selector Routing
 
-12. Layer2ManagerV1_1
-    - upgradeTo(layer2ManagerV1_1)
-    - (나중에 setAddresses 후 V1_2 Selector Routing)
+12. Layer2ManagerV3 (단일 구현체)
+    - upgradeTo(layer2ManagerV3)
 
-13. L1BridgeRegistryV1_2
+13. L1BridgeRegistryV1_2 (단일 구현체)
     - upgradeTo(l1BridgeRegistryV1_2)
-    - V1_2가 V1_1 기능을 모두 포함 (단일 구현체)
 ```
 
 ### Phase 5.5: Minter 권한 설정
@@ -139,37 +135,33 @@ export RPC_URL=http://localhost:8545
 ### Phase 6: OperatorManagerFactory
 
 ```
-16. OperatorManagerV1_1 (구현체) - 레거시용
-17. OperatorManagerV1_2 (구현체) - V3 기본 구현체
-18. OperatorManagerFactory(operatorManagerV1_2Impl)
+16. OperatorManagerV1_2 (단일 구현체) - V3 기본 구현체
+17. OperatorManagerFactory(operatorManagerV1_2Impl)
 ```
 
 ### Phase 7: V3 신규 컨트랙트
 
 ```
-19. RAT (Proxy + Implementation)
-    - initialize(seigManager, wton, ton, layer2Manager, owner, ratTriggerProbability)
-    - 파라미터 설정 (slashingPenalty, validatorBuffer, minimumThreshold, evidenceSubmissionPeriod)
-    - setRelaxedValidatorCheck(true) - 초기에는 완화된 검증자 유효성 검사
+18. RAT (Proxy + Implementation)
+    - initialize(RATInitParams) - 구조체로 모든 파라미터 전달
 
-20. ValidatorReward (Proxy + Implementation)
+19. ValidatorReward (Proxy + Implementation)
     - initialize(seigManager, wton, rat, owner)
 ```
 
 ### Phase 8: Cross-Reference 설정
 
 ```
-21. SeigManager.setLayer2Manager(layer2Manager)
-22. SeigManager.setValidatorReward(validatorReward)
-23. SeigManager.setRAT(ratProxy)
+20. SeigManager.setLayer2Manager(layer2Manager)
+21. SeigManager.setValidatorReward(validatorReward)
+22. SeigManager.setRAT(ratProxy)
 
-24. Layer2Manager.setAddresses(...)
-    - V1_2 활성화 및 Selector Routing
+23. Layer2ManagerV3.setAddresses(...)
 
-25. L1BridgeRegistry.setAddresses(...)
+24. L1BridgeRegistryV1_2.setAddresses(...)
 
-26. OperatorManagerFactory.setAddresses(...)
-27. DepositManager.setAddresses(l1BridgeRegistry, layer2Manager)
+25. OperatorManagerFactory.setAddresses(...)
+26. DepositManagerV3.setAddresses(l1BridgeRegistry, layer2Manager)
 ```
 
 ---
@@ -182,13 +174,9 @@ export RPC_URL=http://localhost:8545
 // Step 1: L1BridgeRegistry에서 TYPE 업그레이드
 L1BridgeRegistry(l1BridgeRegistryProxy).upgradeToType3(rollupConfig);
 
-// Step 2: OperatorManager를 V1_2로 업그레이드
-address operatorManager = OperatorManagerFactory(factory).getAddress(rollupConfig);
-OperatorManagerProxy(operatorManager).upgradeTo(address(operatorManagerV1_2Impl));
-
-// Step 3: 시퀀서 담보금 예치 (기존 스테이킹 시스템 사용)
-// 시퀀서는 DepositManager를 통해 스테이킹합니다.
-DepositManager(depositManagerProxy).deposit(layer2, operator, amount);
+// Step 2: 시퀀서 담보금 예치 (기존 스테이킹 시스템 사용)
+// 시퀀서는 DepositManagerV3를 통해 스테이킹합니다.
+DepositManagerV3(depositManagerProxy).deposit(layer2, operator, amount);
 
 // 담보금 조회
 SeigManager(seigManagerProxy).getSequencerStaked(layer2);

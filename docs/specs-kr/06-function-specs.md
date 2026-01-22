@@ -44,6 +44,115 @@ function updateSeigniorage() external whenNotPaused returns (bool)
 - `SeigGiven2`: 시뇨리지 분배 상세 정보
 - `V3SeigniorageDistributed`: V3 분배 정보 (V3 모드에서만)
 
+#### 1.1.1 V2 시뇨리지 분배 메커니즘 (상세)
+
+V2 모드에서 시퀀서가 시뇨리지를 받기 위한 전체 흐름입니다.
+
+**전제 조건**:
+
+```
+1. Layer2 등록 완료
+   - L1BridgeRegistry에 rollupConfig 등록
+   - Layer2Manager에 registerCandidateAddOn() 호출
+   - Operator가 minimumAmount 이상 스테이킹
+
+2. Bridged TON 필요 (layer2TVL > 0)
+   - Portal에 TON이 있어야 layer2TVL이 잡힘
+   - layer2TVL = IERC20(ton).balanceOf(portal)
+   - layer2TVL이 0이면 시뇨리지 분배 없음
+```
+
+**updateSeigniorage 두 단계 프로세스**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 첫 번째 updateSeigniorage() 호출                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ • startBlock 설정 (layer2RewardInfo[layer2].startBlock)         │
+│ • 실제 시뇨리지 분배 없음                                         │
+│ • 이후 호출부터 시뇨리지 계산 시작점으로 사용                      │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+                     (블록 진행 필요)
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 두 번째 이후 updateSeigniorage() 호출                            │
+├─────────────────────────────────────────────────────────────────┤
+│ • 실제 시뇨리지 분배 실행                                         │
+│ • l2RewardPerUint 누적 (선형 방식)                               │
+│ • Coinage factor를 통해 스테이커 잔액 자동 증가                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**V2 시뇨리지 분배 공식**:
+
+```solidity
+// 1. 전체 L2 시뇨리지 계산
+l2TotalSeigs = rmul(maxSeig, tempTotalLayer2TVL) / tos
+
+// 2. 단위당 보상 누적 (선형 방식)
+l2RewardPerUint += (l2TotalSeigs × WEI_UNIT) / totalLayer2TVL
+
+// 3. 개별 L2 시뇨리지 계산
+layer2Seigs = (l2RewardPerUint × layer2Tvl / WEI_UNIT) - initialDebt
+
+// layer2Tvl = L1BridgeRegistry.layer2TVL(rollupConfig)
+//           = IERC20(ton).balanceOf(portal)
+```
+
+**시퀀서/스테이커 시뇨리지 수령 방식**:
+
+V2에서는 시뇨리지 수령 방식이 두 가지로 나뉩니다:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Layer2 시퀀서 시뇨리지 (layer2Seigs)                          │
+├─────────────────────────────────────────────────────────────────┤
+│ • SeigManager에서 계산: layer2Seigs                              │
+│ • Layer2Manager.transferL2Seigniorage() 호출                    │
+│ • OperatorManager 주소로 WTON 직접 전송 (IERC20.transfer)       │
+│ • Coinage 스테이킹과 별도로 WTON 잔액 증가                        │
+│                                                                  │
+│ 코드 흐름:                                                       │
+│ SeigManagerV1_2.updateSeigniorageLayer()                        │
+│   → layer2Seigs 계산                                            │
+│   → ILayer2Manager.transferL2Seigniorage(layer2, layer2Seigs)  │
+│      → Layer2ManagerV1_1.transferL2Seigniorage()               │
+│         → address operator = operatorOfLayer[layer2]           │
+│         → IERC20(wton).safeTransfer(operator, amount)          │
+│                                                                  │
+│ 주의: operator 주소는 OperatorManager 컨트랙트 주소              │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. Operator/Staker 스테이킹 시뇨리지 (Coinage Factor)            │
+├─────────────────────────────────────────────────────────────────┤
+│ • updateSeigniorage() 호출 시 coinage.factor 증가               │
+│ • 스테이커 잔액 = 예치량 × factor                                │
+│ • factor 증가 → 스테이커 잔액 자동 증가 (시뇨리지 수령)          │
+│                                                                  │
+│ 예시:                                                            │
+│ - 초기: 예치 100 WTON, factor = 1.0 → 잔액 100 WTON              │
+│ - 시뇨리지 후: factor = 1.05 → 잔액 105 WTON (+5% 시뇨리지)       │
+│                                                                  │
+│ 적용 대상: Operator와 일반 Staker 모두                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**중요**: V2에서 Layer2 시퀀서는 두 가지 형태로 시뇨리지를 받습니다:
+1. **OperatorManager로 직접 전송되는 WTON** (`layer2Seigs`)
+2. **Operator 계정의 Coinage 스테이킹 증가** (factor를 통한 자동 증가)
+
+**V2 vs V3 핵심 차이**:
+
+| 항목 | V2 모드 | V3 모드 |
+|------|---------|---------|
+| **분배 기준** | `layer2TVL` (Portal TON 잔액) | `effectiveBridgedTON` (자격 조건 포함) |
+| **분배 함수** | 선형 누적 (`l2RewardPerUint`) | 쌍곡선 `y(x) = L·x/(k+x)` |
+| **스테이커 시뇨리지** | ✅ 받음 (coinage factor) | ❌ 안 받음 |
+| **검증자 보상** | ❌ 없음 | ✅ α×S_i / \|V_i\| |
+| **자격 조건** | `minimumAmount` 만 체크 | `T_i ≥ max(θ×B_i, D_seq)` |
+
 ---
 
 ### 1.2 checkCurrentEligibility
