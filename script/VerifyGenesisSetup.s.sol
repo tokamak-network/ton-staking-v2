@@ -7,13 +7,18 @@ import "forge-std/console.sol";
 // Import interfaces
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// Import contracts for verification
+// Import contracts for verification - V3
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
-import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
-import {SeigManagerV1_4} from "../src/stake/managers/SeigManagerV1_4.sol";
+import {Layer2ManagerV3} from "../src/layer2/Layer2ManagerV3.sol";
+import {SeigManagerV3_1} from "../src/stake/managers/SeigManagerV3_1.sol";
 import {RAT} from "../src/validator/RAT.sol";
-import {IDisputeGameFactory} from "interfaces/dispute/IDisputeGameFactory.sol";
-import "@optimism-bedrock/dispute/lib/Types.sol";
+
+/// @notice Minimal interface for DisputeGameFactory verification
+interface IDisputeGameFactoryMinimal {
+    function rat() external view returns (address);
+    function systemConfig() external view returns (address);
+    function initBonds(uint32 gameType) external view returns (uint256);
+}
 
 /**
  * @title VerifyGenesisSetup
@@ -230,7 +235,7 @@ contract VerifyGenesisSetup is Script {
     function _verifyDisputeGameFactoryStorage() internal {
         console.log("--- Verifying DisputeGameFactory Storage ---");
 
-        IDisputeGameFactory dgf = IDisputeGameFactory(disputeGameFactory);
+        IDisputeGameFactoryMinimal dgf = IDisputeGameFactoryMinimal(disputeGameFactory);
 
         // RAT address
         address dgfRat = dgf.rat();
@@ -243,7 +248,7 @@ contract VerifyGenesisSetup is Script {
         console.log("  systemConfig:", dgfSystemConfig);
 
         // initBonds[GameType 0]
-        uint256 initBond = dgf.initBonds(GameType.wrap(0));
+        uint256 initBond = dgf.initBonds(0);
         _check("DGF.initBonds(0) = 0.08 ETH", initBond == 0.08 ether);
         console.log("  initBonds(0):", initBond / 1e18, "ETH");
 
@@ -271,7 +276,7 @@ contract VerifyGenesisSetup is Script {
     function _verifyLayer2ManagerStorage() internal {
         console.log("--- Verifying Layer2Manager Storage ---");
 
-        Layer2ManagerV1_2 layer2Manager = Layer2ManagerV1_2(layer2ManagerProxy);
+        Layer2ManagerV3 layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
 
         // Check getLayer2BySystemConfig via function call
         address registeredLayer2 = layer2Manager.getLayer2BySystemConfig(systemConfig);
@@ -299,7 +304,7 @@ contract VerifyGenesisSetup is Script {
     function _verifySeigManagerV3() internal {
         console.log("--- Verifying SeigManager V3 Configuration (Runtime) ---");
 
-        SeigManagerV1_4 seigManager = SeigManagerV1_4(seigManagerProxy);
+        SeigManagerV3_1 seigManager = SeigManagerV3_1(seigManagerProxy);
 
         // Check v3Migrated
         bool v3Migrated = seigManager.v3Migrated();
