@@ -127,9 +127,20 @@ contract DeployV3Full is Script {
     address public validatorPoolProxy;
     address public validatorPoolImpl;
 
+    // Proxy Admin for TransparentUpgradeableProxy contracts (RAT, ValidatorReward)
+    // Using a separate admin to avoid "admin cannot fallback to proxy target" issue
+    address public proxyAdmin;
+
+    /// @notice Returns the proxy admin address
+    /// @dev Override this in tests to use a different admin (e.g., address(1))
+    function _getProxyAdmin(address deployer) internal view virtual returns (address) {
+        return deployer; // Default: deployer is admin (for production)
+    }
+
     function run() external virtual {
         uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
         address deployer = vm.addr(deployerPrivateKey);
+        proxyAdmin = _getProxyAdmin(deployer);
 
         vm.startBroadcast(deployerPrivateKey);
         _deployTokens();
@@ -334,39 +345,66 @@ contract DeployV3Full is Script {
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
     }
 
-    // NOTE: 전체 V3_1 함수 등록 (production 시 사용)
-    // production 프로필에서 via_ir=true로 컴파일 후 사용
-    /*
-    function _setupSeigManagerV3AllSelectors() internal {
-        // Governance 함수들
-        // setDaoDistributionRatio, setMinStakingRatio, setValidatorDistributionRatio,
-        // setHalfSaturationPoint, setValidatorReward, setStakedSeigFactor,
-        // setMaxChallengers, setMaxFraudProofCost, setSequencerAdditionalReward, setV2Logic
-
-        // Pausable 함수들
-        // pause, unpause
-
-        // L2 Seigniorage 함수들
-        // excludeFromL2Seigniorage, includeFromL2Seigniorage
-
-        // 콜백 함수들
-        // onBridgedTonChange, onStakingChange, onDeposit, onWithdraw
-
-        // View 함수들
-        // getEffectiveBridgedTon, checkCurrentEligibility, getSequencerStaked,
-        // hyperbolicSaturation, calculateL2Seigniorage, calculateSequencerReward,
-        // estimateL2Seigniorage, estimatedDistribute, claimableL2Seigniorage
-
-        // Seigniorage 함수들
-        // updateSeigniorage, updateSeigniorageLayer, migrateToV3
-
-        // RAT 통합 함수들
-        // setRatContract, transferCoinageToRat, transferCoinageFromRat, transferCoinageFromRatTo
-
-        // Storage getters
-        // v3Migrated(), v3MigrationBlock(), ratContract()
+    /// @notice Register additional V3 selectors for parameter setters and view functions
+    /// @dev Call this in test setUp() after _deployManagerImplementations() to enable V3 functions
+    function _setupSeigManagerV3ParameterSelectors() internal virtual {
+        // V3 Parameter setter functions (9개)
+        bytes4[] memory setters = new bytes4[](9);
+        setters[0] = SeigManagerV3_1.setDaoDistributionRatio.selector;
+        setters[1] = SeigManagerV3_1.setMinStakingRatio.selector;
+        setters[2] = SeigManagerV3_1.setValidatorDistributionRatio.selector;
+        setters[3] = SeigManagerV3_1.setHalfSaturationPoint.selector;
+        setters[4] = SeigManagerV3_1.setStakedSeigFactor.selector;
+        setters[5] = SeigManagerV3_1.setMaxChallengers.selector;
+        setters[6] = SeigManagerV3_1.setMaxFraudProofCost.selector;
+        setters[7] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
+        setters[8] = SeigManagerV3_1.excludeFromL2Seigniorage.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(setters, seigManagerV3_1Impl);
     }
-    */
+
+    /// @notice Register V3 view function selectors
+    /// @dev Call this in test setUp() for tests that need V3 view functions
+    function _setupSeigManagerV3ViewSelectors() internal virtual {
+        // V3 View functions (20개)
+        bytes4[] memory views = new bytes4[](20);
+        views[0] = SeigManagerV3_1.getEffectiveBridgedTon.selector;
+        views[1] = SeigManagerV3_1.checkCurrentEligibility.selector;
+        views[2] = SeigManagerV3_1.getSequencerStaked.selector;
+        views[3] = SeigManagerV3_1.hyperbolicSaturation.selector;
+        views[4] = SeigManagerV3_1.calculateL2Seigniorage.selector;
+        views[5] = SeigManagerV3_1.calculateSequencerReward.selector;
+        views[6] = SeigManagerV3_1.estimateL2Seigniorage.selector;
+        views[7] = SeigManagerV3_1.claimableL2Seigniorage.selector;
+        views[8] = bytes4(keccak256("daoDistributionRatio()"));
+        views[9] = bytes4(keccak256("halfSaturationPoint()"));
+        views[10] = bytes4(keccak256("totalEffectiveBridgedTON()"));
+        views[11] = bytes4(keccak256("v3MigrationBlock()"));
+        views[12] = bytes4(keccak256("ratContract()"));
+        views[13] = bytes4(keccak256("validatorReward()"));
+        views[14] = bytes4(keccak256("minStakingRatio()"));
+        views[15] = bytes4(keccak256("validatorDistributionRatio()"));
+        views[16] = bytes4(keccak256("stakedSeigFactor()"));
+        views[17] = bytes4(keccak256("maxChallengers()"));
+        views[18] = bytes4(keccak256("maxFraudProofCost()"));
+        views[19] = bytes4(keccak256("sequencerAdditionalReward()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(views, seigManagerV3_1Impl);
+    }
+
+    /// @notice Register all V3 selectors including callbacks
+    /// @dev Call this in test setUp() for comprehensive V3 functionality
+    function _setupSeigManagerV3AllTestSelectors() internal virtual {
+        _setupSeigManagerV3ParameterSelectors();
+        _setupSeigManagerV3ViewSelectors();
+
+        // Callback and additional functions (5개)
+        bytes4[] memory callbacks = new bytes4[](5);
+        callbacks[0] = SeigManagerV3_1.onBridgedTonChange.selector;
+        callbacks[1] = SeigManagerV3_1.onStakingChange.selector;
+        callbacks[2] = SeigManagerV3_1.transferCoinageToRat.selector;
+        callbacks[3] = SeigManagerV3_1.transferCoinageFromRat.selector;
+        callbacks[4] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(callbacks, seigManagerV3_1Impl);
+    }
 
     // ==========================================
     // Step 6.5: Setup Minter Permissions (Phase 5.5)
@@ -432,8 +470,9 @@ contract DeployV3Full is Script {
             deployer    // owner
         );
 
-        // Deploy ValidatorReward proxy with deployer as admin
-        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, deployer, validatorRewardInitData));
+        // Deploy ValidatorReward proxy with proxyAdmin as admin (not deployer)
+        // This allows deployer to call through the proxy without admin fallback issue
+        validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, proxyAdmin, validatorRewardInitData));
         // console.log("ValidatorReward Proxy:", validatorPoolProxy);
         // console.log("ValidatorReward initialized");
     }
@@ -485,6 +524,8 @@ contract DeployV3Full is Script {
             l1BridgeRegistryProxy,
             layer2ManagerProxy
         );
+        // SeigManager에 L1BridgeRegistry 설정 (V2 seigniorage에 필요)
+        SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
     }
 
     // ==========================================
@@ -555,7 +596,8 @@ contract DeployV3Full is Script {
             owner: deployer
         });
         bytes memory initData = abi.encodeWithSelector(RAT.initialize.selector, params);
-        address proxy = address(new RATProxy(ratImpl, deployer, initData));
+        // Use proxyAdmin instead of deployer to avoid admin fallback issue
+        address proxy = address(new RATProxy(ratImpl, proxyAdmin, initData));
 
         // Step 2: 설정 파라미터 설정
         _configureRAT(proxy, deployer);
@@ -630,7 +672,10 @@ contract DeployV3Full is Script {
 
     function _setV3ParamsCore() internal {
         SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(1000e27);
-        SeigManagerV3_1(seigManagerProxy).setMinStakingRatio(0.5e27);
+        // minStakingRatio = 1% (0.01e27)
+        // required = max(D_sequencer, θ×B_i) = max(100, 0.01×10000) = max(100, 100) = 100 WTON
+        // operator stake = 100 WTON이므로 eligible
+        SeigManagerV3_1(seigManagerProxy).setMinStakingRatio(0.01e27);
         SeigManagerV3_1(seigManagerProxy).setDaoDistributionRatio(0.1e27);
         SeigManagerV3_1(seigManagerProxy).setValidatorDistributionRatio(0.2e27);
     }
