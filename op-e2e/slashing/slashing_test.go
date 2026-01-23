@@ -2,8 +2,10 @@ package slashing
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -440,12 +442,92 @@ func TestSlashing_ReRegistrationAfterSlashing(t *testing.T) {
 	t.Logf("Operator Stake Final: %s", opStakeFinal.String())
 
 	// Assuming seigniorage rate > 0 and 14 days passed, stake should increase.
-	if opStakeFinal.Cmp(opStakeResumed) > 0 {
-		t.Log("✓ Seigniorage accrued as expected")
-	} else {
-		t.Log("⚠️ Seigniorage did not accrue (Rate might be 0 or uncommitted). Skipping strict assertion.")
-		t.Logf("Initial: %s, Final: %s", opStakeResumed.String(), opStakeFinal.String())
+	// Assuming seigniorage rate > 0 and 14 days passed, stake should increase.
+	// User request: Verify seigniorage increases after re-staking by advancing blocks.
+
+	// Advance 1000 blocks (simulating vm.roll(block.number + 1000) in Solidity)
+	t.Log("Advancing 1000 blocks...")
+	AdvanceBlocks(t, sys, 1000)
+
+	// Trigger Seigniorage Update
+	// Reference: CandidateAddOnV1_1.updateSeigniorage() calls SeigManager.updateSeigniorage()
+	t.Log("Triggering Seigniorage Update via CandidateAddOn.updateSeigniorage()...")
+	updateSuccess := UpdateSeigniorage(t, sys, candidateAddOn, accounts)
+	if !updateSuccess {
+		t.Log("[INFO] Seigniorage update reverted - checking stake balance anyway")
 	}
 
-	t.Log("✅ Test Passed: Re-staking successful and seigniorage resumed")
+	// Get stake WITH seigniorage (not just principal)
+	opStakeWithSeig := getStakeWithSeigniorage(t, sys, candidateAddOn, operatorManager)
+	t.Logf("Operator Stake with Seigniorage (After 1000 Blocks): %s", opStakeWithSeig.String())
+
+	// Seigniorage MUST increase - fail the test if it doesn't
+	require.True(t, opStakeWithSeig.Cmp(opStakeFinal) > 0,
+		"Seigniorage must increase after updateSeigniorage. Got: %s, Expected > %s",
+		opStakeWithSeig.String(), opStakeFinal.String())
+
+	seigniorageAmount := new(big.Int).Sub(opStakeWithSeig, opStakeFinal)
+	t.Logf("✓ Seigniorage increased: %s", seigniorageAmount.String())
+	t.Log("[OK] Re-registered operator can earn seigniorage")
+
+	t.Log("✅ Test Passed: Re-staking and seigniorage verification complete")
+}
+
+// UpdateSeigniorage calls CandidateAddOnV1_1.updateSeigniorage() to trigger seigniorage update.
+// This is the correct way to update seigniorage as per the contract design.
+func UpdateSeigniorage(t *testing.T, sys *rat.TONStakingSystem, candidateAddOn common.Address, accounts *rat.TestAccounts) bool {
+	// Function signature: updateSeigniorage() returns (bool)
+	const abiJSON = `[{"constant":false,"inputs":[],"name":"updateSeigniorage","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
+	parsed, err := abi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		t.Logf("[WARN] Failed to parse ABI: %v", err)
+		return false
+	}
+
+	bound := bind.NewBoundContract(candidateAddOn, parsed, sys.L1Client, sys.L1Client, sys.L1Client)
+	tx, err := bound.Transact(accounts.Validator.Auth, "updateSeigniorage")
+	if err != nil {
+		t.Logf("[INFO] Seigniorage update call failed: %v", err)
+		return false
+	}
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+	if err != nil {
+		t.Logf("[WARN] Failed to wait for tx: %v", err)
+		return false
+	}
+
+	if receipt.Status == 0 {
+		t.Log("[INFO] Seigniorage update failed (tx reverted)")
+		return false
+	}
+
+	t.Log("[OK] Seigniorage update called successfully")
+	return true
+}
+
+// AdvanceBlocks mines multiple blocks in Anvil (simulates vm.roll in Solidity)
+func AdvanceBlocks(t *testing.T, sys *rat.TONStakingSystem, numBlocks int) {
+	var result interface{}
+	// anvil_mine takes the number of blocks to mine
+	err := sys.L1Client.Client().Call(&result, "anvil_mine", numBlocks)
+	require.NoError(t, err, "Failed to mine blocks")
+	t.Logf("✓ Mined %d blocks", numBlocks)
+}
+
+// getStakeWithSeigniorage returns the total stake including seigniorage for an operator
+// This calls SeigManager.stakeOf(layer2, account) which includes accrued seigniorage
+func getStakeWithSeigniorage(t *testing.T, sys *rat.TONStakingSystem, layer2 common.Address, account common.Address) *big.Int {
+	// Function signature: stakeOf(address layer2, address account) returns (uint256)
+	const abiJSON = `[{"constant":true,"inputs":[{"name":"layer2","type":"address"},{"name":"account","type":"address"}],"name":"stakeOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}]`
+	parsed, err := abi.JSON(strings.NewReader(abiJSON))
+	require.NoError(t, err, "Failed to parse ABI")
+
+	bound := bind.NewBoundContract(sys.Addresses.SeigManagerProxy, parsed, sys.L1Client, sys.L1Client, sys.L1Client)
+	var out []interface{}
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	err = bound.Call(callOpts, &out, "stakeOf", layer2, account)
+	require.NoError(t, err, "Failed to call stakeOf")
+
+	return out[0].(*big.Int)
 }
