@@ -11,10 +11,11 @@ import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 interface ISeigManagerForRAT {
     function coinages(address layer2) external view returns (address);
     function stakeOf(address layer2, address account) external view returns (uint256);
+    function v3Migrated() external view returns (bool);
     // RAT용 coinage 전송 함수
-    function transferCoinageToRAT(address layer2, address validator, uint256 amount) external;
-    function transferCoinageFromRAT(address layer2, address validator, uint256 amount) external;
-    function transferCoinageFromRATTo(address layer2, address recipient, uint256 amount) external;
+    function transferCoinageToRat(address layer2, address validator, uint256 amount) external;
+    function transferCoinageFromRat(address layer2, address validator, uint256 amount) external;
+    function transferCoinageFromRatTo(address layer2, address recipient, uint256 amount) external;
 }
 
 // ERC20 interface for TON token transfers
@@ -36,6 +37,7 @@ error NotSelectedValidatorError();
 error InvalidFactoryError();
 error MaxValidatorsReachedError();
 error Layer2NotFoundError();
+error NotMigratedError();
 
 // RATInitParams, RATConfigParams는 RATTypes.sol에서 정의됨 (순환 참조 방지)
 
@@ -399,7 +401,7 @@ contract RAT is RATStorage, IRAT {
     /// @param validator 검증자 주소
     /// @param amount 전송 금액 (WTON 단위, 27 decimals)
     function _transferCoinageToRAT(address layer2, address validator, uint256 amount) internal {
-        ISeigManagerForRAT(seigManager).transferCoinageToRAT(layer2, validator, amount);
+        ISeigManagerForRAT(seigManager).transferCoinageToRat(layer2, validator, amount);
     }
 
     /// @notice RAT coinage → 검증자 coinage 전송 (복구)
@@ -408,7 +410,7 @@ contract RAT is RATStorage, IRAT {
     /// @param validator 검증자 주소
     /// @param amount 전송 금액 (WTON 단위, 27 decimals)
     function _transferCoinageFromRAT(address layer2, address validator, uint256 amount) internal {
-        ISeigManagerForRAT(seigManager).transferCoinageFromRAT(layer2, validator, amount);
+        ISeigManagerForRAT(seigManager).transferCoinageFromRat(layer2, validator, amount);
     }
 
     /// @notice RAT의 coinage 잔액 조회 (특정 L2)
@@ -433,6 +435,8 @@ contract RAT is RATStorage, IRAT {
         ifFree
         whenNotPaused
     {
+        // V3 마이그레이션 후에만 검증자 등록 가능
+        if (!ISeigManagerForRAT(seigManager).v3Migrated()) revert NotMigratedError();
         if (systemConfig == address(0)) revert InvalidSystemConfigError();
 
         // 이미 등록된 검증자인지 먼저 확인 (빠른 실패)
@@ -912,7 +916,7 @@ contract RAT is RATStorage, IRAT {
         require(ratBalance > 0, "no slashings to withdraw");
 
         // SeigManager를 통해 RAT coinage → Treasury coinage 전송
-        ISeigManagerForRAT(seigManager).transferCoinageFromRATTo(layer2, treasury, ratBalance);
+        ISeigManagerForRAT(seigManager).transferCoinageFromRatTo(layer2, treasury, ratBalance);
 
         emit SlashingsWithdrawn(systemConfig, layer2, treasury, ratBalance);
     }
