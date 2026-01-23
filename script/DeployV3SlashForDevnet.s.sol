@@ -11,18 +11,12 @@ import {RefactorCoinageSnapshotProxy} from "../src/stake/tokens/RefactorCoinageS
 import {Layer2Registry} from "../src/stake/Layer2Registry.sol";
 import {Layer2RegistryProxy} from "../src/stake/Layer2RegistryProxy.sol";
 
-// Manager Implementations
+// Manager Implementations - V3
 import {SeigManagerV1_2} from "../src/stake/managers/SeigManagerV1_2.sol";
-import {SeigManagerV1_3} from "../src/stake/managers/SeigManagerV1_3.sol";
-import {SeigManagerV1_4} from "../src/stake/managers/SeigManagerV1_4.sol";
-import {DepositManager} from "../src/stake/managers/DepositManager.sol";
-import {
-    DepositManager_setWithdrawalDelay
-} from "../src/stake/managers/DepositManager_setWithdrawalDelay.sol";
-import {DepositManagerV1_1} from "../src/stake/managers/DepositManagerV1_1.sol";
-import {DepositManagerV1_2} from "../src/stake/managers/DepositManagerV1_2.sol";
-import {Layer2ManagerV1_1} from "../src/layer2/Layer2ManagerV1_1.sol";
-import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
+import {SeigManagerV3_1} from "../src/stake/managers/SeigManagerV3_1.sol";
+import {SeigManagerV3_2} from "../src/stake/managers/SeigManagerV3_2.sol";
+import {DepositManagerV3} from "../src/stake/managers/DepositManagerV3.sol";
+import {Layer2ManagerV3} from "../src/layer2/Layer2ManagerV3.sol";
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
 
 // Slashing Implementations
@@ -42,11 +36,13 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
+import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
-import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
-import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
+// TODO: SequencerVault 파일이 존재하지 않음 - 필요시 구현 후 활성화
+// import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
+// import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
 
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
@@ -132,6 +128,11 @@ contract DeployV3SlashForDevnet is Script {
     uint256 constant RAT_SLASHING_PENALTY = 100 * RAY; // 100 WTON
     uint256 constant RAT_VALIDATOR_BUFFER = 100 * RAY; // 100 WTON
     uint256 constant RAT_MINIMUM_THRESHOLD = 0; // 0 for testing (always trigger if any stake exists)
+    uint256 constant RAT_MAX_VALIDATORS_PER_L2 = 100; // Maximum validators per L2
+    uint256 constant RAT_CHALLENGE_GAME_DURATION = 7 days; // Challenge game period
+    uint256 constant RAT_SAFETY_BUFFER = 1 days; // Safety buffer period
+    uint256 constant RAT_ATTENTION_COST = 1e27; // c_m: 1 TON per epoch (RAY unit)
+    bool constant RAT_RELAXED_VALIDATOR_CHECK = true; // V3: 초기에는 C_off 기준으로 완화
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
@@ -161,15 +162,18 @@ contract DeployV3SlashForDevnet is Script {
     address public l1BridgeRegistryProxy;
 
     // Manager Implementations
-    address public seigManagerV1_3Impl;
-    address public seigManagerImpl;
-    address public depositManagerBaseImpl;
-    address public depositManagerSetDelayImpl;
-    address public depositManagerV1_1Impl;
-    address public depositManagerV1_2Impl;
-    address public layer2ManagerV1_1Impl;
-    address public layer2ManagerImpl;
-    address public l1BridgeRegistryImpl;
+    // SeigManager 다중 구현체 (V3: V1_2 기본 + V3_1, V3_2 추가)
+    address public seigManagerV3_1Impl; // V3_1: V3 메인 기능
+    address public seigManagerV3_2Impl; // V3_2: V2 호환 로직
+
+    // DepositManager 단일 구현체 (V3)
+    address public depositManagerImpl; // DepositManagerV3 단일 구현체
+
+    // Layer2Manager 단일 구현체 (V3)
+    address public layer2ManagerImpl; // Layer2ManagerV3 단일 구현체
+
+    // L1BridgeRegistry 단일 구현체
+    address public l1BridgeRegistryImpl; // L1BridgeRegistryV1_2 단일 구현체
 
     // Slashing Implementations
     address public seigManagerSlashingImpl;
@@ -266,12 +270,12 @@ contract DeployV3SlashForDevnet is Script {
         _deployOperatorManagerFactory(deployer);
         _deployV3Contracts(deployer);
         _configureV3Contracts(deployer);
-        _setupCrossReferences(deployer);
-        _connectToOptimism();
-        _mintTestTokens();
         _deployDAOVault();
         _deployDAOAgendaManager();
         _deployDAOCommittee();
+        _setupCrossReferences(deployer);
+        _connectToOptimism();
+        _mintTestTokens();
         _addMinterSetting();
         _addSeigManagerSetting();
         _setupContractOwner();
@@ -406,38 +410,29 @@ contract DeployV3SlashForDevnet is Script {
     function _deployManagerImplementations() internal {
         console.log("--- Step 5: Deploy Manager Implementations ---");
 
-        // SeigManager
+        // SeigManager: V1_2를 기본 구현체로 사용
+        // V3_1, V3_2는 selector routing으로 추가 (V3 신규 함수)
         address seigManagerV1_2Impl = address(new SeigManagerV1_2());
         console.log("SeigManagerV1_2 Impl:", seigManagerV1_2Impl);
         IProxy(seigManagerProxy).upgradeTo(seigManagerV1_2Impl);
 
-        seigManagerV1_3Impl = address(new SeigManagerV1_3());
-        console.log("SeigManagerV1_3 Impl:", seigManagerV1_3Impl);
+        // V3_1: V3 메인 기능 (pause/unpause, updateSeigniorage V3, RAT 통합 등)
+        seigManagerV3_1Impl = address(new SeigManagerV3_1());
+        console.log("SeigManagerV3_1 Impl:", seigManagerV3_1Impl);
 
-        seigManagerImpl = address(new SeigManagerV1_4());
-        console.log("SeigManagerV1_4 Impl:", seigManagerImpl);
+        // V3_2: V2 호환 로직 (delegatecall로 호출됨)
+        seigManagerV3_2Impl = address(new SeigManagerV3_2());
+        console.log("SeigManagerV3_2 Impl:", seigManagerV3_2Impl);
 
-        // DepositManager
-        depositManagerBaseImpl = address(new DepositManager());
-        console.log("DepositManager Base Impl:", depositManagerBaseImpl);
-        IProxy(depositManagerProxy).upgradeTo(depositManagerBaseImpl);
+        // DepositManager: V3 단일 구현체
+        depositManagerImpl = address(new DepositManagerV3());
+        console.log("DepositManagerV3 Impl:", depositManagerImpl);
+        IProxy(depositManagerProxy).upgradeTo(depositManagerImpl);
 
-        depositManagerSetDelayImpl = address(new DepositManager_setWithdrawalDelay());
-        console.log("DepositManager_setWithdrawalDelay Impl:", depositManagerSetDelayImpl);
-
-        depositManagerV1_1Impl = address(new DepositManagerV1_1());
-        console.log("DepositManagerV1_1 Impl:", depositManagerV1_1Impl);
-
-        depositManagerV1_2Impl = address(new DepositManagerV1_2());
-        console.log("DepositManagerV1_2 Impl:", depositManagerV1_2Impl);
-
-        // Layer2Manager
-        layer2ManagerV1_1Impl = address(new Layer2ManagerV1_1());
-        console.log("Layer2ManagerV1_1 Impl:", layer2ManagerV1_1Impl);
-        IProxy(layer2ManagerProxy).upgradeTo(layer2ManagerV1_1Impl);
-
-        layer2ManagerImpl = address(new Layer2ManagerV1_2());
-        console.log("Layer2ManagerV1_2 Impl:", layer2ManagerImpl);
+        // Layer2Manager: V3 단일 구현체
+        layer2ManagerImpl = address(new Layer2ManagerV3());
+        console.log("Layer2ManagerV3 Impl:", layer2ManagerImpl);
+        IProxy(layer2ManagerProxy).upgradeTo(layer2ManagerImpl);
 
         // L1BridgeRegistry
         l1BridgeRegistryImpl = address(new L1BridgeRegistryV1_2());
@@ -488,63 +483,10 @@ contract DeployV3SlashForDevnet is Script {
         // );
         // console.log("SeigManager setData done");
 
-        // Setup SeigManager multi-implementation routing
-        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
-            seigManagerV1_3Impl,
-            true
-        );
-        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerImpl, true);
-
-        // V1_3 selectors
-        bytes4[] memory v1_3Selectors = new bytes4[](6);
-        v1_3Selectors[0] = SeigManagerV1_3.pause.selector;
-        v1_3Selectors[1] = SeigManagerV1_3.unpause.selector;
-        v1_3Selectors[2] = SeigManagerV1_3.excludeFromL2Seigniorage.selector;
-        v1_3Selectors[3] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
-        v1_3Selectors[4] = SeigManagerV1_3.claimableL2Seigniorage.selector;
-        v1_3Selectors[5] = SeigManagerV1_3.estimatedDistribute.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
-            v1_3Selectors,
-            seigManagerV1_3Impl
-        );
-
-        // V1_4 selectors
-        bytes4[] memory v1_4Selectors = new bytes4[](31);
-        v1_4Selectors[0] = SeigManagerV1_4.setValidatorReward.selector;
-        v1_4Selectors[1] = SeigManagerV1_4.setDaoDistributionRatio.selector;
-        v1_4Selectors[2] = SeigManagerV1_4.setMinStakingRatio.selector;
-        v1_4Selectors[3] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
-        v1_4Selectors[4] = SeigManagerV1_4.setHalfSaturationPoint.selector;
-        v1_4Selectors[5] = SeigManagerV1_4.setStakedSeigFactor.selector;
-        v1_4Selectors[6] = SeigManagerV1_4.migrateToV3.selector;
-        v1_4Selectors[7] = SeigManagerV1_4.onBridgedTONChange.selector;
-        v1_4Selectors[8] = SeigManagerV1_4.setMaxChallengers.selector;
-        v1_4Selectors[9] = SeigManagerV1_4.setMaxFraudProofCost.selector;
-        v1_4Selectors[10] = SeigManagerV1_4.setSequencerVault.selector;
-        v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorage.selector;
-        v1_4Selectors[12] = SeigManagerV1_4.updateSeigniorageLayer.selector;
-        v1_4Selectors[13] = SeigManagerV1_4.hyperbolicSaturation.selector;
-        v1_4Selectors[14] = SeigManagerV1_4.checkCurrentEligibility.selector;
-        v1_4Selectors[15] = SeigManagerV1_4.calculateL2Seigniorage.selector;
-        v1_4Selectors[16] = SeigManagerV1_4.calculateSequencerReward.selector;
-        v1_4Selectors[17] = bytes4(keccak256("daoDistributionRatio()"));
-        v1_4Selectors[18] = bytes4(keccak256("minStakingRatio()"));
-        v1_4Selectors[19] = bytes4(keccak256("validatorDistributionRatio()"));
-        v1_4Selectors[20] = bytes4(keccak256("halfSaturationPoint()"));
-        v1_4Selectors[21] = bytes4(keccak256("stakedSeigFactor()"));
-        v1_4Selectors[22] = bytes4(keccak256("totalEffectiveBridgedTON()"));
-        v1_4Selectors[23] = bytes4(keccak256("bridgedTONInfo(address)"));
-        v1_4Selectors[24] = bytes4(keccak256("validatorReward()"));
-        v1_4Selectors[25] = bytes4(keccak256("maxChallengers()"));
-        v1_4Selectors[26] = bytes4(keccak256("maxFraudProofCost()"));
-        v1_4Selectors[27] = bytes4(keccak256("v3Migrated()"));
-        v1_4Selectors[28] = bytes4(keccak256("v3MigrationBlock()"));
-        v1_4Selectors[29] = bytes4(keccak256("sequencerVault()"));
-        v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
-            v1_4Selectors,
-            seigManagerImpl
-        );
+        // =====================================================
+        // SeigManager 다중 구현체 설정 (V3: V1_2 기본 + V3_1, V3_2)
+        // =====================================================
+        _setupSeigManagerV3Routing();
 
         // SeigManager Slashing routing
         SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
@@ -560,8 +502,8 @@ contract DeployV3SlashForDevnet is Script {
 
         console.log("SeigManager multi-implementation configured");
 
-        // Initialize DepositManager
-        DepositManager(depositManagerProxy).initialize(
+        // Initialize DepositManager (V3 단일 구현체)
+        DepositManagerV3(depositManagerProxy).initialize(
             wton,
             layer2RegistryProxy,
             seigManagerProxy,
@@ -569,46 +511,6 @@ contract DeployV3SlashForDevnet is Script {
             address(0)
         );
         console.log("DepositManager initialized");
-
-        // Setup DepositManager multi-implementation routing
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
-            depositManagerSetDelayImpl,
-            true
-        );
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
-            depositManagerV1_1Impl,
-            true
-        );
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
-            depositManagerV1_2Impl,
-            true
-        );
-
-        bytes4[] memory dmIndex1Selectors = new bytes4[](2);
-        dmIndex1Selectors[0] = DepositManager_setWithdrawalDelay.setWithdrawalDelay.selector;
-        dmIndex1Selectors[1] = DepositManager_setWithdrawalDelay.setWithdrawalDelayByOwner.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
-            dmIndex1Selectors,
-            depositManagerSetDelayImpl
-        );
-
-        bytes4[] memory dmIndex2Selectors = new bytes4[](3);
-        dmIndex2Selectors[0] = DepositManagerV1_1.setMinDepositGasLimit.selector;
-        dmIndex2Selectors[1] = DepositManagerV1_1.setAddresses.selector;
-        dmIndex2Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
-            dmIndex2Selectors,
-            depositManagerV1_1Impl
-        );
-
-        bytes4[] memory dmIndex3Selectors = new bytes4[](3);
-        dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
-        dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;
-        dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(
-            dmIndex3Selectors,
-            depositManagerV1_2Impl
-        );
 
         // DepositManager Slashing routing
         DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(
@@ -629,9 +531,43 @@ contract DeployV3SlashForDevnet is Script {
             SLASHING_REWARD_RATE
         );
         console.log("SlashingRewardRate set to:", SLASHING_REWARD_RATE);
-
-        console.log("DepositManager multi-implementation configured");
         console.log("");
+    }
+
+    // ==========================================
+    // SeigManager V3 Selector Routing (분리하여 stack too deep 회피)
+    // ==========================================
+    function _setupSeigManagerV3Routing() internal {
+        // V3_1, V3_2를 alive 상태로 설정
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
+            seigManagerV3_1Impl,
+            true
+        );
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(
+            seigManagerV3_2Impl,
+            true
+        );
+
+        // 핵심 함수만 등록 (stack too deep 회피)
+        _setupSeigManagerV3CoreSelectors();
+
+        // V3_1에 v2Logic 주소 설정 (V2 호환성을 위해)
+        SeigManagerV3_1(seigManagerProxy).setV2Logic(seigManagerV3_2Impl);
+    }
+
+    function _setupSeigManagerV3CoreSelectors() internal {
+        // 핵심 함수만 등록 (6개) - 테스트/배포에 필요한 최소 함수
+        bytes4[] memory s = new bytes4[](6);
+        s[0] = SeigManagerV3_1.setValidatorReward.selector;
+        s[1] = SeigManagerV3_1.setV2Logic.selector;
+        s[2] = SeigManagerV3_1.migrateToV3.selector;
+        s[3] = SeigManagerV3_1.updateSeigniorage.selector;
+        s[4] = SeigManagerV3_1.setRatContract.selector;
+        s[5] = bytes4(keccak256("v3Migrated()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(
+            s,
+            seigManagerV3_1Impl
+        );
     }
 
     // ==========================================
@@ -645,6 +581,10 @@ contract DeployV3SlashForDevnet is Script {
 
         MockWTON(wton).addMinter(seigManagerProxy);
         console.log("WTON.addMinter(seigManagerProxy) done");
+
+        // Add DepositManager as WTON minter (for withdrawal processing)
+        MockWTON(wton).addMinter(depositManagerProxy);
+        console.log("WTON.addMinter(depositManagerProxy) done");
         console.log("");
     }
 
@@ -672,18 +612,11 @@ contract DeployV3SlashForDevnet is Script {
         ratImpl = address(new RAT());
         console.log("RAT Impl:", ratImpl);
 
-        bytes memory ratInitData = abi.encodeWithSelector(
-            RAT.initialize.selector,
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            deployer,
-            RAT_TRIGGER_PROBABILITY
-        );
-
-        // Deploy RAT proxy with separate admin (not deployer to avoid TransparentUpgradeableProxy admin restriction)
-        ratProxy = address(new RATProxy(ratImpl, PROXY_ADMIN, ratInitData));
+        // RAT 프록시는 별도 배포 (stack too deep 회피)
+        ratProxy = _deployRATProxy(deployer);
+        console.log("RAT Proxy:", ratProxy);
+        console.log("RAT initialized");
+        // RAT proxy는 _deployRATProxy에서 이미 배포됨
         console.log("RAT Proxy:", ratProxy);
 
         // Deploy ValidatorReward
@@ -704,25 +637,23 @@ contract DeployV3SlashForDevnet is Script {
         );
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
-        // Deploy SequencerVault
-        sequencerVaultImpl = address(new SequencerVault());
-        console.log("SequencerVault Impl:", sequencerVaultImpl);
-
-        SequencerVaultProxy svProxy = new SequencerVaultProxy();
-        sequencerVaultProxy = address(svProxy);
-        console.log("SequencerVault Proxy:", sequencerVaultProxy);
-
-        IProxy(sequencerVaultProxy).upgradeTo(sequencerVaultImpl);
-
-        SequencerVault(sequencerVaultProxy).initialize(
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            l1BridgeRegistryProxy,
-            deployer
-        );
-        console.log("SequencerVault initialized");
+        // TODO: SequencerVault 파일이 존재하지 않음 - 필요시 구현 후 활성화
+        // Deploy SequencerVault (Proxy + Implementation 패턴 - RAT/ValidatorReward와 다름)
+        // sequencerVaultImpl = address(new SequencerVault());
+        // SequencerVaultProxy svProxy = new SequencerVaultProxy();
+        // sequencerVaultProxy = address(svProxy);
+        // IProxy(sequencerVaultProxy).upgradeTo(sequencerVaultImpl);
+        // SequencerVault(sequencerVaultProxy).initialize(
+        //     seigManagerProxy,
+        //     wton,
+        //     ton,
+        //     layer2ManagerProxy,
+        //     l1BridgeRegistryProxy,
+        //     deployer
+        // );
+        sequencerVaultProxy = address(0); // Placeholder until SequencerVault is implemented
+        sequencerVaultImpl = address(0);
+        console.log("SequencerVault placeholder set (not implemented yet)");
         console.log("");
     }
 
@@ -730,18 +661,50 @@ contract DeployV3SlashForDevnet is Script {
     // Step 9: Configure V3 Contracts
     // ==========================================
     function _configureV3Contracts(address deployer) internal {
+        // RAT configuration is done in _deployRATProxy -> _configureRAT
+        // This function is kept for compatibility but RAT is already configured
         console.log("--- Step 9: Configure V3 Parameters ---");
-
-        // RAT parameters (devnet-optimized)
-        RAT(ratProxy).setRatTriggerProbability(RAT_TRIGGER_PROBABILITY);
-        RAT(ratProxy).setSlashingPenalty(RAT_SLASHING_PENALTY);
-        RAT(ratProxy).setValidatorBuffer(RAT_VALIDATOR_BUFFER);
-        RAT(ratProxy).setMinimumThreshold(RAT_MINIMUM_THRESHOLD);
-        RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
-        RAT(ratProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
-        RAT(ratProxy).setTreasury(deployer);
-        console.log("RAT parameters configured");
+        console.log("RAT already configured during deployment");
         console.log("");
+    }
+
+    // ==========================================
+    // RAT 2단계 초기화 (stack too deep 회피)
+    // ==========================================
+    function _deployRATProxy(address deployer) internal returns (address) {
+        // Step 1: 핵심 주소만으로 프록시 배포
+        RATInitParams memory params = RATInitParams({
+            seigManager: seigManagerProxy,
+            wton: wton,
+            ton: ton,
+            layer2Manager: layer2ManagerProxy,
+            l1BridgeRegistry: l1BridgeRegistryProxy,
+            owner: deployer
+        });
+        bytes memory initData = abi.encodeWithSelector(RAT.initialize.selector, params);
+        // Use PROXY_ADMIN instead of deployer to avoid admin fallback issue
+        address proxy = address(new RATProxy(ratImpl, PROXY_ADMIN, initData));
+
+        // Step 2: 설정 파라미터 설정
+        _configureRAT(proxy, deployer);
+        return proxy;
+    }
+
+    function _configureRAT(address proxy, address deployer) internal {
+        RATConfigParams memory config = RATConfigParams({
+            ratTriggerProbability: RAT_TRIGGER_PROBABILITY,
+            evidenceSubmissionPeriod: RAT_EVIDENCE_PERIOD,
+            slashingPenalty: RAT_SLASHING_PENALTY,
+            validatorBuffer: RAT_VALIDATOR_BUFFER,
+            minimumThreshold: RAT_MINIMUM_THRESHOLD,
+            maxValidatorsPerL2: RAT_MAX_VALIDATORS_PER_L2,
+            challengeGameDuration: RAT_CHALLENGE_GAME_DURATION,
+            safetyBuffer: RAT_SAFETY_BUFFER,
+            treasury: deployer,
+            attentionCost: RAT_ATTENTION_COST,
+            relaxedValidatorCheck: RAT_RELAXED_VALIDATOR_CHECK
+        });
+        RAT(proxy).setConfig(config);
     }
 
     // ==========================================
@@ -757,37 +720,27 @@ contract DeployV3SlashForDevnet is Script {
         SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
         console.log("SeigManager.setL1BridgeRegistry done");
 
-        SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+        SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
-        // Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
-        //     l1BridgeRegistryProxy,
-        //     operatorManagerFactory,
-        //     ton,
-        //     wton,
-        //     deployer,
-        //     depositManagerProxy,
-        //     seigManagerProxy,
-        //     address(0)
-        // );
-        // console.log("Layer2Manager.setAddresses done");
-
-        // Layer2Manager multi-implementation
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(
-            layer2ManagerImpl,
-            true
+        // Layer2Manager V3: setAddresses1, setAddresses2로 분리
+        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
+            l1BridgeRegistryProxy,
+            operatorManagerFactory,
+            ton,
+            wton
         );
-
-        bytes4[] memory l2mV1_2Selectors = new bytes4[](5);
-        l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
-        l2mV1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
-        l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
-        l2mV1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
-        l2mV1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(
-            l2mV1_2Selectors,
-            layer2ManagerImpl
+        Layer2ManagerV3(layer2ManagerProxy).setAddresses2(
+            daoCommitteeProxy, // Use DAO proxy instead of deployer
+            depositManagerProxy,
+            seigManagerProxy,
+            address(0)
         );
+        console.log("Layer2Manager.setAddresses done (dao:", daoCommitteeProxy, ")");
+
+        // Set minimumInitialDepositAmount to a very low value for devnet testing
+        Layer2ManagerV3(layer2ManagerProxy).setMinimumInitialDepositAmount(1); // 1 wei minimum (very low for testing)
+        console.log("Layer2Manager.setMinimumInitialDepositAmount(1 wei) done");
 
         // Layer2Manager Slashing routing
         Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(
@@ -801,8 +754,9 @@ contract DeployV3SlashForDevnet is Script {
             layer2ManagerSlashingImpl
         );
 
-        Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
-        console.log("Layer2Manager.setSequencerVault done");
+        // TODO: SequencerVault 구현 후 활성화
+        // Layer2ManagerV3(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
+        // console.log("Layer2Manager.setSequencerVault done");
 
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
             layer2ManagerProxy,
@@ -819,7 +773,7 @@ contract DeployV3SlashForDevnet is Script {
         );
         console.log("OperatorManagerFactory.setAddresses done");
 
-        DepositManagerV1_1(depositManagerProxy).setAddresses(
+        DepositManagerV3(depositManagerProxy).setAddresses(
             l1BridgeRegistryProxy,
             layer2ManagerProxy
         );
@@ -828,6 +782,22 @@ contract DeployV3SlashForDevnet is Script {
         // Set default slashing reward rate (e.g., 10% = 1000)
         DepositManager_Slashing(depositManagerProxy).setSlashingRewardRate(1000);
         console.log("DepositManager.setSlashingRewardRate(1000) done");
+
+        // Update SeigManager DAO address (was set to deployer in _initializeManagers)
+        SeigManagerV1_2(seigManagerProxy).setData(
+            address(0), // powerTON
+            daoCommitteeProxy, // dao (updated from deployer)
+            0, // powerTONSeigRate: 0%
+            0.5e27, // daoSeigRate: 50%
+            0.5e27, // relativeSeigRate: 50%
+            10, // adjustCommissionDelay (fast for testing)
+            1000.1e27 // minimumAmount: 1000.1 WTON
+        );
+        console.log("SeigManager DAO updated to:", daoCommitteeProxy);
+
+        // Set RAT treasury to DAO
+        RAT(ratProxy).setTreasury(daoCommitteeProxy);
+        console.log("RAT.setTreasury done:", daoCommitteeProxy);
 
         console.log("");
     }
@@ -1114,18 +1084,7 @@ contract DeployV3SlashForDevnet is Script {
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(address(layer2ManagerProxy));
         DAOCommitteeOwner(daoCommitteeProxy).setWton(wton);
         console.log("DAOCommittee final configuration complete");
-
-        Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
-            l1BridgeRegistryProxy,
-            operatorManagerFactory,
-            ton,
-            wton,
-            daoCommitteeProxy,
-            depositManagerProxy,
-            seigManagerProxy,
-            address(0) // swapProxy (not used)
-        );
-        console.log("Layer2Manager.setAddresses done");
+        // Note: Layer2Manager.setAddresses is called in _setupCrossReferences() after DAO deployment
     }
 
     // ==========================================
@@ -1144,19 +1103,10 @@ contract DeployV3SlashForDevnet is Script {
     // ==========================================
     function _addSeigManagerSetting() internal {
         console.log("--- Step 17: Add SeigManager Setting ---");
-        // Set SeigManager data
-        // prettier-ignore
-        SeigManagerV1_2(address(seigManagerProxy)).setData(
-            address(0),                 //powerTON
-            address(daoCommitteeProxy), //DAOCommitteeProxy Address
-            0,                          //powerTONSeigRate_
-            0.5e27,                     //daoSeigRate_
-            0.5e27,                     //relativeSeigRate_
-            93096,                      //adjustDelay_
-            1000.1e27 //minimumAmount_
-        );
+        // Note: SeigManager DAO is already set in _setupCrossReferences()
+        // Only set seigStartBlock here
         SeigManagerV1_2(address(seigManagerProxy)).setSeigStartBlock(1);
-        console.log("SeigManagerV1_2 setData complete and seigStartBlock set to 1");
+        console.log("SeigManagerV1_2 seigStartBlock set to 1");
     }
 
     // ==========================================
@@ -1179,8 +1129,8 @@ contract DeployV3SlashForDevnet is Script {
 
         // Set the minimum deposit amount to 0 for E2E tests to avoid decimal mismatch reverts
         // IMPORTANT: Must be done BEFORE transferring ownership to DAOCommittee
-        if (Layer2ManagerV1_1(layer2ManagerProxy).minimumInitialDepositAmount() != 0) {
-            Layer2ManagerV1_1(layer2ManagerProxy).setMinimumInitialDepositAmount(0);
+        if (Layer2ManagerV3(layer2ManagerProxy).minimumInitialDepositAmount() != 0) {
+            Layer2ManagerV3(layer2ManagerProxy).setMinimumInitialDepositAmount(0);
             console.log("Layer2Manager minimumInitialDepositAmount set to 0");
         } else {
             console.log("Layer2Manager minimumInitialDepositAmount is already 0");
@@ -1301,30 +1251,41 @@ contract DeployV3SlashForDevnet is Script {
 
     // prettier-ignore
     function _buildJsonPart4() internal view returns (string memory) {
-        return string(abi.encodePacked(
+        // Split into smaller parts to avoid stack too deep
+        string memory p1 = string.concat(
             '  "disputeGameFactory": "', vm.toString(disputeGameFactory), '",\n',
-            '  "systemConfig": "', vm.toString(systemConfig), '",\n',
+            '  "systemConfig": "', vm.toString(systemConfig), '",\n'
+        );
+        string memory p2 = string.concat(
             '  "mockSystemConfig": "', vm.toString(mockSystemConfig), '",\n',
-            '  "accounts": {\n',
-            '    "optimismDeployer": "', vm.toString(OPTIMISM_DEPLOYER), '",\n',
-            '    "tonStakingDeployer": "', vm.toString(DEPLOYER), '",\n',
-            '    "validator": "', vm.toString(VALIDATOR), '",\n',
-            '    "proposer": "', vm.toString(PROPOSER), '",\n',
-            '    "challenger": "', vm.toString(CHALLENGER), '"\n',
-            '  }\n',
-            "}"
-        ));
+            '  "accounts": {\n'
+        );
+        string memory p3 = _buildAccountsJson();
+        return string.concat(p1, p2, p3);
+    }
+
+    function _buildAccountsJson() internal view returns (string memory) {
+        string memory a1 = string.concat(
+            '    "optimismDeployer": "',
+            vm.toString(OPTIMISM_DEPLOYER),
+            '",\n'
+        );
+        string memory a2 = string.concat(
+            '    "tonStakingDeployer": "',
+            vm.toString(DEPLOYER),
+            '",\n'
+        );
+        string memory a3 = string.concat('    "validator": "', vm.toString(VALIDATOR), '",\n');
+        string memory a4 = string.concat('    "proposer": "', vm.toString(PROPOSER), '",\n');
+        string memory a5 = string.concat('    "challenger": "', vm.toString(CHALLENGER), '"\n');
+        return string.concat(a1, a2, a3, a4, a5, "  }\n", "}");
     }
 
     function _saveDeployment() internal {
-        // Build JSON in parts to avoid stack too deep
-        // prettier-ignore
-        string memory json = string(abi.encodePacked(
-            _buildJsonPart1(),
-            _buildJsonPart2(),
-            _buildJsonPart3(),
-            _buildJsonPart4()
-        ));
+        // Build JSON in parts using string.concat to avoid stack too deep
+        string memory json = string.concat(_buildJsonPart1(), _buildJsonPart2());
+        json = string.concat(json, _buildJsonPart3());
+        json = string.concat(json, _buildJsonPart4());
 
         // Print JSON for bash script to save
         console.log("\n=== DEPLOYMENT_JSON_START ===");
