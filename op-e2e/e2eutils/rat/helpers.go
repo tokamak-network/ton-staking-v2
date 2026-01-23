@@ -59,8 +59,9 @@ type TestAccounts struct {
 
 // TestContracts holds all contract instances
 type TestContracts struct {
-	RAT *bindings.RAT
-	TON *bindings.ERC20
+	RAT  *bindings.RAT
+	TON  *bindings.ERC20
+	WTON *bindings.WTON
 }
 
 // SetupTestAccounts creates and configures all test accounts
@@ -105,7 +106,7 @@ func SetupTestAccounts(t *testing.T, sys *TONStakingSystem) *TestAccounts {
 	return accounts
 }
 
-// ConnectTestContracts connects to RAT and TON contracts
+// ConnectTestContracts connects to RAT, TON, and WTON contracts
 func ConnectTestContracts(t *testing.T, sys *TONStakingSystem) *TestContracts {
 	contracts := &TestContracts{}
 
@@ -114,6 +115,9 @@ func ConnectTestContracts(t *testing.T, sys *TONStakingSystem) *TestContracts {
 	require.NoError(t, err)
 
 	contracts.TON, err = bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
+	require.NoError(t, err)
+
+	contracts.WTON, err = bindings.NewWTON(sys.Addresses.WTON, sys.L1Client)
 	require.NoError(t, err)
 
 	return contracts
@@ -151,21 +155,52 @@ func AdjustMinimumCollateral(t *testing.T, sys *TONStakingSystem, contracts *Tes
 	t.Logf("✓ Collateral requirements adjusted")
 }
 
-// RegisterValidatorWithTON registers a validator with TON deposit
+// RegisterValidatorWithTON registers a validator with TON deposit (V3 method)
+// This uses the new flow: mint WTON -> deposit to DepositManager -> register with RAT
 func RegisterValidatorWithTON(t *testing.T, sys *TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, depositAmount *big.Int) {
-	// Approve TON to RAT
-	approveTx, err := contracts.TON.Approve(validatorAuth, sys.Addresses.RATProxy, depositAmount)
+	// Step 1: Get MockLayer2 address
+	layer2 := sys.Addresses.MockLayer2
+	if layer2 == (common.Address{}) {
+		t.Fatal("MockLayer2 address not found in system addresses")
+	}
+	t.Logf("Using MockLayer2: %s", layer2.Hex())
+
+	// Step 2: Increase deposit amount by 1% to account for coinage rounding
+	adjustedAmount := new(big.Int).Mul(depositAmount, big.NewInt(101))
+	adjustedAmount.Div(adjustedAmount, big.NewInt(100))
+	t.Logf("Adjusted deposit amount: %s WTON (original: %s)", adjustedAmount.String(), depositAmount.String())
+
+	// Step 3: Mint WTON to validator
+	mintTx, err := contracts.WTON.Mint(validatorAuth, validatorAuth.From, adjustedAmount)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, mintTx)
+	require.NoError(t, err)
+	t.Logf("✓ Minted %s WTON to validator", adjustedAmount.String())
+
+	// Step 4: Approve WTON to DepositManager
+	depositManager, err := bindings.NewDepositManager(sys.Addresses.DepositManagerProxy, sys.L1Client)
+	require.NoError(t, err)
+
+	approveTx, err := contracts.WTON.Approve(validatorAuth, sys.Addresses.DepositManagerProxy, adjustedAmount)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
 	require.NoError(t, err)
+	t.Logf("✓ Approved %s WTON to DepositManager", adjustedAmount.String())
 
-	// Register validator
-	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig, depositAmount)
+	// Step 5: Deposit WTON to Layer2 via DepositManager
+	depositTx, err := depositManager.Deposit(validatorAuth, layer2, adjustedAmount)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, depositTx)
+	require.NoError(t, err)
+	t.Logf("✓ Deposited %s WTON to Layer2", adjustedAmount.String())
+
+	// Step 6: Register validator with RAT (no deposit parameter in V3)
+	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
 	require.NoError(t, err)
 
-	t.Logf("✓ Validator registered with deposit: %s TON", depositAmount.String())
+	t.Logf("✓ Validator registered with RAT (using coinage balance)")
 }
 
 // CreateDisputeGameWithWrongClaim creates a DisputeGame with a wrong root claim

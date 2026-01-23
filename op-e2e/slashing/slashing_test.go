@@ -90,19 +90,8 @@ func TestSlashing_BasicOperatorSlashing(t *testing.T) {
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, thresholdTx)
 	require.NoError(t, err)
 
-	// Approve TON for RAT registration
-	ton, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
-	require.NoError(t, err)
-	approveTx, err := ton.Approve(accounts.Validator.Auth, sys.Addresses.RATProxy, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
-	require.NoError(t, err)
-
-	// Register in RAT
-	registerValidatorTx, err := ratInstance.RegisterValidator(accounts.Validator.Auth, sysConfigAddr, depositAmount)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerValidatorTx)
-	require.NoError(t, err)
+	// Register validator with RAT using V3 method
+	rat.RegisterValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
 
 	// Verify validator is active in RAT
 	isActive, err := ratInstance.IsValidatorActive(nil, accounts.Validator.Addr, sysConfigAddr)
