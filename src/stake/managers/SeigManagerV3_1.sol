@@ -279,6 +279,10 @@ contract SeigManagerV3_1 is
         SeigManagerV1_4Storage.BridgedTONInfo storage info = bridgedTONInfo[layer2];
         bool oldEligible = info.isEligible;
 
+        // Layer2Manager에서 현재 bridgedTON 읽어서 저장 (TON → WTON 변환: * GWEI_UNIT)
+        uint256 bridgedTon = ILayer2Manager(layer2Manager).getBridgedTonByLayer(layer2);
+        info.currentBridgedTON = bridgedTon * GWEI_UNIT;
+
         bool newEligible;
         (newEligible, , ) = checkCurrentEligibility(layer2);
 
@@ -312,18 +316,31 @@ contract SeigManagerV3_1 is
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake)
     {
+        currentStake = getSequencerStaked(layer2);
+
         if (!v3Migrated) {
-            currentStake = getSequencerStaked(layer2);
             requiredStake = 0;
             eligible = false;
             return (eligible, requiredStake, currentStake);
+        }
+
+        // rollupType 3만 V3 eligibility 적용
+        if (l1BridgeRegistry != address(0) && layer2Manager != address(0)) {
+            (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
+            if (rollupConfig != address(0)) {
+                uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
+                if (rollupType != 3) {
+                    requiredStake = 0;
+                    eligible = false;
+                    return (eligible, requiredStake, currentStake);
+                }
+            }
         }
 
         uint256 bridgedTon = ILayer2Manager(layer2Manager).getBridgedTonByLayer(layer2);
         uint256 minForSeigniorage = (bridgedTon * GWEI_UNIT * minStakingRatio) / RAY_UNIT;
         uint256 minForFraudProof = maxChallengers * maxFraudProofCost + sequencerAdditionalReward;
         requiredStake = minForSeigniorage > minForFraudProof ? minForSeigniorage : minForFraudProof;
-        currentStake = getSequencerStaked(layer2);
         eligible = currentStake >= requiredStake;
     }
 
