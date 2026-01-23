@@ -629,6 +629,11 @@ contract SlashingE2E_improved_Deploy is Test {
         );
         SeigManagerV1_2(address(seigManagerProxy)).setSeigStartBlock(1);
         console.log('SeigManagerV1_2 setData complete and seigStartBlock set to 1');
+
+        SeigManagerV1_2(address(seigManagerProxy)).setL1BridgeRegistry(
+            address(l1BridgeRegistryProxy)
+        );
+        console.log('SeigManager.setL1BridgeRegistry done');
     }
 
     /// @notice 15. Contract Owner 설정
