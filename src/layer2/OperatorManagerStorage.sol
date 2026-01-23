@@ -30,9 +30,6 @@ contract OperatorManagerStorage {
     // uint256(keccak256("MANAGER")) - 1
     uint256 internal constant _MANAGER_SLOT =
         0xaf290d8680820aad922855f39b306097b20e28774d6c1ad35a20325630c3a02b;
-    // uint256(keccak256("SEQUENCER_VAULT")) - 1
-    uint256 internal constant _SEQUENCER_VAULT_SLOT =
-        0x8d0bf1fd623d628c741362c1289948e57b3e2905e7f8e34729f8e1e1d6f5d4aa;
 
     function ton() public view returns (address addr) {
         assembly {
@@ -69,12 +66,6 @@ contract OperatorManagerStorage {
     function manager() public view returns (address addr) {
         assembly {
             addr := sload(_MANAGER_SLOT)
-        }
-    }
-
-    function sequencerVault() public view returns (address addr) {
-        assembly {
-            addr := sload(_SEQUENCER_VAULT_SLOT)
         }
     }
 

@@ -46,6 +46,8 @@ type DeploymentAddresses struct {
 	SequencerVaultProxy    common.Address            `json:"sequencerVaultProxy"`
 	DisputeGameFactory     common.Address            `json:"disputeGameFactory"`
 	SystemConfig           common.Address            `json:"systemConfig"`
+	AnchorStateRegistry    common.Address            `json:"anchorStateRegistry"`
+	MockLayer2             common.Address            `json:"mockLayer2"`
 	MockSystemConfig       common.Address            `json:"mockSystemConfig"` // For E2E tests
 	Accounts               map[string]common.Address `json:"accounts"`
 }

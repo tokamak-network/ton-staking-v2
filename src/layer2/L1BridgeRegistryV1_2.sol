@@ -5,10 +5,10 @@ import {IOptimismSystemConfig} from "../layer2/interfaces/IOptimismSystemConfig.
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "../proxy/ProxyStorage.sol";
+import {ProxyStorage} from "../proxy/ProxyStorage.sol";
 import {AuthControlL1BridgeRegistry} from "../common/AuthControlL1BridgeRegistry.sol";
-import "./L1BridgeRegistryStorage.sol";
-import "./L1BridgeRegistryV1_2Storage.sol";
+import {L1BridgeRegistryStorage} from "./L1BridgeRegistryStorage.sol";
+import {L1BridgeRegistryV1_2Storage} from "./L1BridgeRegistryV1_2Storage.sol";
 
 /**
  * @notice  Error when executing registerRollupConfig function
@@ -60,10 +60,10 @@ contract L1BridgeRegistryV1_2 is
      * @notice  Event occurs when registering rollupConfig
      * @param   rollupConfig      the rollupConfig address
      * @param   type_         0: none, 1: legacy, 2: bedrock with nativeTON
-     * @param   l2TON        the L2 TON address
+     * @param   l2Ton        the L2 TON address
      * @param   name         the candidate name
      */
-    event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2TON, string name);
+    event RegisteredRollupConfig(address rollupConfig, uint8 type_, address l2Ton, string name);
 
     /**
      * @notice  Event occurs when onlySeigniorageCommittee stops issuing seigniorage
@@ -142,8 +142,12 @@ contract L1BridgeRegistryV1_2 is
     // ==========================================
 
     modifier onlySeigniorageCommittee() {
-        require(seigniorageCommittee == msg.sender, 'PermissionError');
+        _onlySeigniorageCommittee();
         _;
+    }
+
+    function _onlySeigniorageCommittee() internal view {
+        require(seigniorageCommittee == msg.sender, 'PermissionError');
     }
 
     /**
@@ -151,13 +155,17 @@ contract L1BridgeRegistryV1_2 is
      * @dev Manager이거나 해당 타입의 등록 권한자만 허용
      */
     modifier onlyTypeRegistrant(uint8 _type) {
+        _onlyTypeRegistrant(_type);
+        _;
+    }
+
+    function _onlyTypeRegistrant(uint8 _type) internal view {
         address registrant = typeRegistrant[_type];
         if (registrant == address(0)) {
             if (!isManager(msg.sender)) revert NotAuthorizedError();
         } else {
             if (!isManager(msg.sender) && msg.sender != registrant) revert NotAuthorizedError();
         }
-        _;
     }
 
     /* ========== onlyOwner ========== */
@@ -243,20 +251,20 @@ contract L1BridgeRegistryV1_2 is
     function registerRollupConfigByManager(
         address rollupConfig,
         uint8 _type,
-        address _l2TON,
+        address _l2Ton,
         string calldata _name
     ) external onlyManager {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, _name);
     }
 
     function registerRollupConfigByManager(
         address rollupConfig,
         uint8 _type,
-        address _l2TON
+        address _l2Ton
     ) external onlyManager {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, '');
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, '');
     }
 
     /**
@@ -328,20 +336,20 @@ contract L1BridgeRegistryV1_2 is
     function registerRollupConfig(
         address rollupConfig,
         uint8 _type,
-        address _l2TON,
+        address _l2Ton,
         string calldata _name
     ) external onlyRegistrant {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, _name);
     }
 
     function registerRollupConfig(
         address rollupConfig,
         uint8 _type,
-        address _l2TON
+        address _l2Ton
     ) external onlyRegistrant {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, '');
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, '');
     }
 
     /* ========== onlyTypeRegistrant ========== */
@@ -355,20 +363,20 @@ contract L1BridgeRegistryV1_2 is
     function registerRollupConfigByType(
         address rollupConfig,
         uint8 _type,
-        address _l2TON,
+        address _l2Ton,
         string calldata _name
     ) external onlyTypeRegistrant(_type) {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, _name);
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, _name);
     }
 
     function registerRollupConfigByType(
         address rollupConfig,
         uint8 _type,
-        address _l2TON
+        address _l2Ton
     ) external onlyTypeRegistrant(_type) {
         _nonRejected(rollupConfig);
-        _registerRollupConfig(rollupConfig, _type, _l2TON, '');
+        _registerRollupConfig(rollupConfig, _type, _l2Ton, '');
     }
 
     /* ========== public ========== */
@@ -416,7 +424,7 @@ contract L1BridgeRegistryV1_2 is
      * @param rollupConfig the rollup address
      * @return l2TonAddress  the l2 ton address
      */
-    function l2TON(address rollupConfig) external view returns (address l2TonAddress) {
+    function l2Ton(address rollupConfig) external view returns (address l2TonAddress) {
         return rollupInfo[rollupConfig].l2TON;
     }
 
@@ -424,7 +432,7 @@ contract L1BridgeRegistryV1_2 is
      * @notice View the l2 ton address of rollupConfig
      * @param rollupConfig          the rollup address
      * @return type_                the layer 2 type ( 1: legacy optimism, 2: bedrock optimism with TON native token, 3: bedrock with DisputeGame)
-     * @return l2TON_               the L2 TON address
+     * @return l2Ton_               the L2 TON address
      * @return rejectedSeigs_       If it is true, Seigniorage issuance has been stopped for this layer2.
      * @return rejectedL2Deposit_    If it is true, stop depositing at this layer.
      * @return name_                the candidate name
@@ -436,7 +444,7 @@ contract L1BridgeRegistryV1_2 is
         view
         returns (
             uint8 type_,
-            address l2TON_,
+            address l2Ton_,
             bool rejectedSeigs_,
             bool rejectedL2Deposit_,
             string memory name_
@@ -450,7 +458,7 @@ contract L1BridgeRegistryV1_2 is
      * @notice View the liquidity of Layer2 TON for a specific rollupConfig.
      * @param rollupConfig the rollupConfig address
      */
-    function layer2TVL(address rollupConfig) public view returns (uint256 amount) {
+    function layer2Tvl(address rollupConfig) public view returns (uint256 amount) {
         uint _type = rollupInfo[rollupConfig].rollupType;
 
         if (_type == 1) {
@@ -493,10 +501,10 @@ contract L1BridgeRegistryV1_2 is
     function _registerRollupConfig(
         address rollupConfig,
         uint8 _type,
-        address _l2TON,
+        address _l2Ton,
         string memory _name
     ) internal {
-        if (_l2TON == address(0)) revert RegisterError(4);
+        if (_l2Ton == address(0)) revert RegisterError(4);
         if (_type == 0 || _type > uint8(type(TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
 
         ROLLUP_INFO storage info = rollupInfo[rollupConfig];
@@ -535,11 +543,11 @@ contract L1BridgeRegistryV1_2 is
         }
 
         info.rollupType = _type;
-        info.l2TON = _l2TON;
+        info.l2TON = _l2Ton;
         if (bytes(_name).length != 0) info.name = _name;
         // registeredNames[bytes32(bytes(_name))] = true;
 
-        emit RegisteredRollupConfig(rollupConfig, _type, _l2TON, _name);
+        emit RegisteredRollupConfig(rollupConfig, _type, _l2Ton, _name);
     }
 
 

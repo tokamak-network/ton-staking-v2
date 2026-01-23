@@ -169,7 +169,7 @@ contract CandidateAddOnV1_1 is
     function operator() external view returns (address) { return candidate(); }
     function isLayer2() external pure returns (bool) { return true; }
     function currentFork() external pure returns (uint256) { return 1; }
-    function lastEpoch(uint256 forkNumber) external pure returns (uint256) { return 1; }
+    function lastEpoch(uint256 /* forkNumber */) external pure returns (uint256) { return 1; }
 
     /* ========== internal ========== */
 

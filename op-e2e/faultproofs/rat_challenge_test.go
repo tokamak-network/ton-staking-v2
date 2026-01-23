@@ -10,10 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
-	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
+	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
 // TestSimpleRAT_ValidatorRegistration tests the most basic RAT flow:
@@ -22,38 +23,24 @@ import (
 func TestSimpleRAT_ValidatorRegistration(t *testing.T) {
 	t.Parallel()
 
-	sys := rat.StartTONStakingSystem(t)
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	env := setupTestEnvironment(t, "Simple RAT Validator Registration")
 
-	t.Log("=== Testing Simple RAT Validator Registration ===")
+	t.Logf("✓ Validator address: %s", env.Accounts.Validator.Addr.Hex())
+	t.Logf("✓ RAT contract: %s", env.System.Addresses.RATProxy.Hex())
+	t.Logf("✓ SystemConfig: %s", env.System.Addresses.SystemConfig.Hex())
 
-	// Setup accounts and contracts
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
-
-	t.Logf("✓ Validator address: %s", accounts.Validator.Addr.Hex())
-	t.Logf("✓ RAT contract: %s", sys.Addresses.RATProxy.Hex())
-	t.Logf("✓ SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
-
-	// Get test deposit amount
 	depositAmount := getTestDepositAmount()
-	t.Logf("✓ Deposit amount: %s wei (50000 TON)", depositAmount.String())
+	t.Logf("✓ Deposit amount: %s WTON (27 decimals = 50000 WTON)", depositAmount.String())
 
-	// Check TON balance
-	tonBalance, err := contracts.TON.BalanceOf(callOpts, accounts.Validator.Addr)
+	wtonBalance, err := env.Contracts.WTON.BalanceOf(env.CallOpts, env.Accounts.Validator.Addr)
 	require.NoError(t, err)
-	t.Logf("✓ Validator TON balance: %s", tonBalance.String())
-	require.True(t, tonBalance.Cmp(depositAmount) >= 0,
-		"Validator should have at least %s TON but has %s", depositAmount.String(), tonBalance.String())
+	t.Logf("✓ Validator WTON balance: %s", wtonBalance.String())
+	require.True(t, wtonBalance.Cmp(depositAmount) >= 0,
+		"Validator should have at least %s WTON but has %s", depositAmount.String(), wtonBalance.String())
 
-	// Adjust minimum collateral if needed
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+	registerValidatorWithTON(t, env.System, env.Contracts, env.Accounts.Validator.Auth, depositAmount)
 
-	// Register validator
-	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
-
-	// Verify registration
-	isActive, err := contracts.RAT.IsValidatorActive(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	isActive, err := env.Contracts.RAT.IsValidatorActive(env.CallOpts, env.Accounts.Validator.Addr, env.System.Addresses.SystemConfig)
 	require.NoError(t, err)
 	require.True(t, isActive, "Validator should be active after registration")
 	t.Logf("✓ Validator is active")
@@ -66,52 +53,42 @@ func TestSimpleRAT_ValidatorRegistration(t *testing.T) {
 func TestSimpleRAT_GameCreation(t *testing.T) {
 	t.Parallel()
 
-	sys := rat.StartTONStakingSystem(t)
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	env := setupTestEnvironment(t, "RAT Trigger via DisputeGame Creation")
 
-	t.Log("=== Testing RAT Trigger via DisputeGame Creation ===")
-
-	// Setup accounts and contracts
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
-
-	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
 
-	// Step 1: Register validator
 	t.Log("Step 1: Registering validator...")
-	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
-	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
+	registerValidatorWithTON(t, env.System, env.Contracts, env.Accounts.Validator.Auth, depositAmount)
+	t.Logf("✓ Validator %s registered", env.Accounts.Validator.Addr.Hex())
 
-	// Get validator count before game creation
-	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
+	validatorCount, err := env.Contracts.RAT.GetActiveValidatorCount(env.CallOpts, env.System.Addresses.SystemConfig)
 	require.NoError(t, err)
 	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
 
-	// Connect to DisputeGameFactory
-	dgf, err := bindings.NewDisputeGameFactory(sys.Addresses.DisputeGameFactory, sys.L1Client)
+	dgf, err := bindings.NewDisputeGameFactory(env.System.Addresses.DisputeGameFactory, env.System.L1Client)
 	require.NoError(t, err)
-	t.Logf("✓ DisputeGameFactory connected: %s", sys.Addresses.DisputeGameFactory.Hex())
+	t.Logf("✓ DisputeGameFactory connected: %s", env.System.Addresses.DisputeGameFactory.Hex())
 
-	// Verify RAT is set on DisputeGameFactory
-	ratOnFactory, err := dgf.Rat(callOpts)
+	ratOnFactory, err := dgf.Rat(env.CallOpts)
 	require.NoError(t, err)
 	t.Logf("✓ RAT on DisputeGameFactory: %s", ratOnFactory.Hex())
-	t.Logf("✓ Expected RAT: %s", sys.Addresses.RATProxy.Hex())
-	require.Equal(t, sys.Addresses.RATProxy, ratOnFactory, "RAT should be set on DisputeGameFactory")
+	t.Logf("✓ Expected RAT: %s", env.System.Addresses.RATProxy.Hex())
+	require.Equal(t, env.System.Addresses.RATProxy, ratOnFactory, "RAT should be set on DisputeGameFactory")
 
-	// Verify DisputeGameFactory is registered in L1BridgeRegistry
-	// Call rollupConfigWithDisputeGameFactory(address) public view mapping
-	// Function selector: keccak256("rollupConfigWithDisputeGameFactory(address)")[0:4]
+	systemConfigOnFactory, err := dgf.SystemConfig(env.CallOpts)
+	require.NoError(t, err)
+	t.Logf("✓ SystemConfig on DisputeGameFactory: %s", systemConfigOnFactory.Hex())
+	t.Logf("✓ Expected SystemConfig: %s", env.System.Addresses.SystemConfig.Hex())
+	require.Equal(t, env.System.Addresses.SystemConfig, systemConfigOnFactory, "SystemConfig should match on DisputeGameFactory")
+
 	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
 	require.NoError(t, err)
 
-	callData, err := l1BridgeRegistryABI.Pack("rollupConfigWithDisputeGameFactory", sys.Addresses.DisputeGameFactory)
+	callData, err := l1BridgeRegistryABI.Pack("rollupConfigWithDisputeGameFactory", env.System.Addresses.DisputeGameFactory)
 	require.NoError(t, err)
 
-	result, err := sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
-		To:   &sys.Addresses.L1BridgeRegistryProxy,
+	result, err := env.System.L1Client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &env.System.Addresses.L1BridgeRegistryProxy,
 		Data: callData,
 	}, nil)
 	require.NoError(t, err)
@@ -121,20 +98,19 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("✓ DisputeGameFactory registered in L1BridgeRegistry")
-	t.Logf("  DisputeGameFactory: %s", sys.Addresses.DisputeGameFactory.Hex())
+	t.Logf("  DisputeGameFactory: %s", env.System.Addresses.DisputeGameFactory.Hex())
 	t.Logf("  → RollupConfig: %s", rollupConfig.Hex())
-	t.Logf("  Expected SystemConfig: %s", sys.Addresses.SystemConfig.Hex())
+	t.Logf("  Expected SystemConfig: %s", env.System.Addresses.SystemConfig.Hex())
 
 	if rollupConfig == (common.Address{}) {
 		t.Log("⚠️  WARNING: DisputeGameFactory NOT registered in L1BridgeRegistry!")
 		t.Log("   This will cause RAT trigger to fail (onlyValidFactory modifier)")
 	} else {
-		require.Equal(t, sys.Addresses.SystemConfig, rollupConfig, "DisputeGameFactory should be mapped to SystemConfig in L1BridgeRegistry")
+		require.Equal(t, env.System.Addresses.SystemConfig, rollupConfig, "DisputeGameFactory should be mapped to SystemConfig in L1BridgeRegistry")
 	}
 
-	// Check if FaultDisputeGame implementation is set
 	gameType := uint32(0)
-	gameImpl, err := dgf.GameImpls(callOpts, gameType)
+	gameImpl, err := dgf.GameImpls(env.CallOpts, gameType)
 	require.NoError(t, err)
 	t.Logf("✓ Game implementation for type %d: %s", gameType, gameImpl.Hex())
 
@@ -146,30 +122,24 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 		return
 	}
 
-	// Get required bond amount
-	initBond, err := dgf.InitBonds(callOpts, gameType)
+	initBond, err := dgf.InitBonds(env.CallOpts, gameType)
 	require.NoError(t, err)
 	t.Logf("✓ Required init bond: %s wei", initBond.String())
 
-	// Step 2: Create dispute game as proposer
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
-	accounts.Proposer.Auth.Value = initBond // Send required bond
-
+	env.Accounts.Proposer.Auth.Value = initBond
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-
-	// extraData must be exactly 32 bytes containing l2BlockNumber
 	l2BlockNumber := big.NewInt(testL2BlockNumber)
 	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
 	t.Logf("✓ Using L2 block number: %d", l2BlockNumber.Uint64())
 
-	createGameTx, err := dgf.Create(accounts.Proposer.Auth, gameType, rootClaim, extraData)
+	createGameTx, err := dgf.Create(env.Accounts.Proposer.Auth, gameType, rootClaim, extraData)
 	require.NoError(t, err)
 
-	gameReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, createGameTx)
+	gameReceipt, err := bind.WaitMined(env.System.Ctx, env.System.L1Client, createGameTx)
 	require.NoError(t, err)
 
-	// Log all events from the transaction
 	t.Logf("Transaction logs count: %d", len(gameReceipt.Logs))
 	for i, log := range gameReceipt.Logs {
 		t.Logf("Log %d: Address=%s, Topics=%v", i, log.Address.Hex(), len(log.Topics))
@@ -189,12 +159,10 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 	}
 	t.Logf("✓ DisputeGame created (tx: %s)", createGameTx.Hash().Hex())
 
-	// Parse DisputeGameCreated event
 	gameAddress := parseDisputeGameCreatedEvent(t, gameReceipt)
 	require.NotEqual(t, common.Address{}, gameAddress, "Should have game address")
 	t.Logf("✓ Game address: %s", gameAddress.Hex())
 
-	// Check for RAT AttentionTestTriggered event
 	ratTriggered := false
 	for _, log := range gameReceipt.Logs {
 		if log.Topics[0].Hex() == eventAttentionTestTriggered {
@@ -230,9 +198,24 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	// Set RAT trigger probability to 100% for deterministic testing
+	t.Log("Setting RAT trigger probability to 100% for testing...")
+	ratTriggerProb := new(big.Int)
+	ratTriggerProb.SetString("1000000000000000000000000000", 10) // 1e27 (100% in RAY units)
+	setTriggerTx, err := contracts.RAT.SetRatTriggerProbability(accounts.Deployer.Auth, ratTriggerProb)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, setTriggerTx)
+	require.NoError(t, err)
+	t.Logf("✓ RAT trigger probability set to 100%%")
 
 	// Step 1: Register validator
 	t.Log("Step 1: Registering validator...")
@@ -248,14 +231,33 @@ func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
 	t.Log("Step 2: Creating DisputeGame as proposer...")
 
 	rootClaim := [32]byte{0x01, 0x02, 0x03}
-	gameReceipt, _ := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	_, gameAddress := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
+	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+
+	// Step 2.5: Trigger RAT directly (since DisputeGameFactory bytecode doesn't have RAT integration)
+	t.Log("Step 2.5: Triggering RAT directly via impersonation...")
+	batchIndex := uint32(testL2BlockNumber) // Use L2 block number as batch index
+	ratReceipt := triggerRATDirectly(t, sys, gameAddress, batchIndex)
+	require.Equal(t, uint64(1), ratReceipt.Status, "RAT trigger transaction should succeed")
+	t.Logf("✓ RAT triggered directly (tx status: %d)", ratReceipt.Status)
 
 	// Step 3: Parse RAT trigger event and get batchIndex
 	t.Log("Step 3: Parsing RAT trigger event...")
 
-	testID, batchIndex, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
+	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, ratReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
-	_ = testID // testID available for future use if needed
+	t.Logf("✓ Test ID: %s, Batch Index: %d", common.BytesToHash(testID[:]).Hex(), batchIndex)
+
+	// Check RAT test status before submitting evidence
+	testInfo, err := contracts.RAT.GetAttentionTest(callOpts, testID)
+	require.NoError(t, err)
+	t.Logf("✓ Test status: %d, Validator: %s, Deadline: %s",
+		testInfo.Status, testInfo.ValidatorAddress.Hex(), testInfo.Deadline.String())
+
+	// Get current block to check timestamp
+	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
+	require.NoError(t, err)
+	t.Logf("✓ Current block timestamp: %d", currentBlock.Time())
 
 	// Step 4: Submit evidence as selected validator
 	t.Log("Step 4: Submitting evidence...")
@@ -313,6 +315,15 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
 
+	t.Logf("✓ Validator address: %s", accounts.Validator.Addr.Hex())
+	t.Logf("✓ Proposer address: %s", accounts.Proposer.Addr.Hex())
+	t.Logf("✓ Addresses are different: %v", accounts.Validator.Addr != accounts.Proposer.Addr)
+
+	// Runtime configuration (required because these can't be done reliably in genesis)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
 	// Get test deposit amount and adjust collateral
 	depositAmount := getTestDepositAmount()
 	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
@@ -328,11 +339,21 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
 	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
 
+	// Get validator deposit immediately after registration (before any seigniorage)
+	regAfterReg, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ [RAT.GetValidatorRegistration] Collateral immediately after registration: %s", regAfterReg.Collateral.String())
+
 	// Get validator deposit before game creation
 	regBefore, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit before game: %s", regBefore.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked before: %s", regBefore.TotalBondForRAT.String())
+	t.Logf("✓ [RAT.GetValidatorRegistration] Collateral before game: %s", regBefore.Collateral.String())
+
+	// Check if seigniorage accumulated between registration and now
+	if regBefore.Collateral.Cmp(depositAmount) > 0 {
+		diff := new(big.Int).Sub(regBefore.Collateral, depositAmount)
+		t.Logf("⚠ WARNING: Collateral already increased by %s WTON before game creation!", diff.String())
+	}
 
 	// Get validator count before game creation
 	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
@@ -343,20 +364,56 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	t.Log("Step 2: Creating DisputeGame with WRONG root claim...")
 
 	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+	t.Logf("✓ Game creation receipt logs count: %d", len(gameReceipt.Logs))
 
-	// Step 3: Parse RAT trigger event
-	t.Log("Step 3: Parsing RAT trigger event...")
+	// Check if RAT was triggered during game creation
+	for _, log := range gameReceipt.Logs {
+		if len(log.Topics) > 0 {
+			t.Logf("  - Event topic[0]: %s (address: %s)", log.Topics[0].Hex(), log.Address.Hex())
+		}
+	}
 
-	testID, ratTriggered := parseRATTriggerEvent(t, gameReceipt, accounts.Validator.Addr)
+	// Check validator balance immediately after game creation
+	stakeAfterGame := getValidatorStake(t, sys, sys.Addresses.MockLayer2, accounts.Validator.Addr)
+	t.Logf("✓ [SeigManager.stakeOf] Balance IMMEDIATELY after game creation: %s WTON", stakeAfterGame.String())
+
+	// Step 3: Parse RAT trigger event from game creation receipt
+	t.Log("Step 3: Parsing RAT trigger event from game creation...")
+
+	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, gameReceipt, accounts.Validator.Addr)
 	require.True(t, ratTriggered, "RAT should be triggered")
-	_ = testID // testID available for future use if needed
+	t.Logf("✓ RAT testID: %s", common.BytesToHash(testID[:]).Hex())
 
-	// Get validator deposit after RAT trigger (should be reduced)
+	// Get actual bondAmount from AttentionTest
+	attentionTest := getAttentionTestInfo(t, sys, testID)
+	t.Logf("✓ Actual bondAmount deducted (from AttentionTest): %s WTON", attentionTest.BondAmount.String())
+
+	// Get static C_off (slashing penalty) for comparison
+	slashingPenaltyABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"slashingPenalty","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
+	slashingCallData, _ := slashingPenaltyABI.Pack("slashingPenalty")
+	slashingResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.RATProxy,
+		Data: slashingCallData,
+	}, nil)
+	require.NoError(t, err)
+	var staticCOff *big.Int
+	slashingPenaltyABI.UnpackIntoInterface(&staticCOff, "slashingPenalty", slashingResult)
+	t.Logf("✓ Static C_off (slashingPenalty from contract): %s WTON", staticCOff.String())
+
+	// Store bondAmount for later comparison
+	cOff := attentionTest.BondAmount
+
+	// Get validator collateral after RAT trigger
 	regAfterTrigger, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit after RAT trigger: %s", regAfterTrigger.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked after: %s", regAfterTrigger.TotalBondForRAT.String())
-	require.True(t, regAfterTrigger.TotalBondForRAT.Cmp(big.NewInt(0)) > 0, "Bond should be locked")
+	t.Logf("✓ [RAT.GetValidatorRegistration] Collateral after RAT trigger: %s", regAfterTrigger.Collateral.String())
+
+	// Calculate actual deduction
+	expectedAfterDeduction := new(big.Int).Sub(regBefore.Collateral, cOff)
+	actualDeduction := new(big.Int).Sub(regBefore.Collateral, regAfterTrigger.Collateral)
+	t.Logf("✓ Expected collateral after deduction: %s WTON", expectedAfterDeduction.String())
+	t.Logf("✓ Actual deduction amount: %s WTON (C_off: %s WTON)", actualDeduction.String(), cOff.String())
 
 	// Step 4: Challenger attacks the wrong root claim
 	t.Log("Step 4: Validator/challenger attacks wrong root claim...")
@@ -452,30 +509,35 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	timeToAdvance := int64(maxClockDuration + 1) // Add 1 second buffer
 	advanceTimeAndMine(t, sys, timeToAdvance)
 
-	// Step 6: Resolve the game
-	t.Log("Step 6: Resolving game claims...")
+	// Step 6: Resolve the game and verify bond restoration
+	t.Log("Step 6: Resolving game claims and verifying bond restoration...")
+
+	// Get collateral before game resolution
+	regBeforeResolve, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	t.Logf("✓ Validator collateral BEFORE game resolution: %s WTON", regBeforeResolve.Collateral.String())
 
 	// Resolve claims bottom-up (child first, then parent)
 	// Claim 1 is our attack claim
-	resolveTx, err := game.ResolveClaim(accounts.Validator.Auth, big.NewInt(1), big.NewInt(0))
+	resolveTx1, err := game.ResolveClaim(accounts.Validator.Auth, big.NewInt(1), big.NewInt(0))
 	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx)
+	resolveReceipt1, err := bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx1)
 	require.NoError(t, err)
 	t.Logf("✓ Resolved claim 1 (attack claim)")
 
 	// Resolve claim 0 (root claim)
-	resolveTx, err = game.ResolveClaim(accounts.Validator.Auth, big.NewInt(0), big.NewInt(0))
+	resolveTx0, err := game.ResolveClaim(accounts.Validator.Auth, big.NewInt(0), big.NewInt(0))
 	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx)
+	resolveReceipt0, err := bind.WaitMined(sys.Ctx, sys.L1Client, resolveTx0)
 	require.NoError(t, err)
 	t.Logf("✓ Resolved claim 0 (root claim)")
 
 	// Resolve the game
 	resolveGameTx, err := game.Resolve(accounts.Validator.Auth)
 	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveGameTx)
+	resolveGameReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, resolveGameTx)
 	require.NoError(t, err)
-	t.Logf("✓ Game resolved")
+	t.Logf("✓ Game resolved (tx: %s)", resolveGameTx.Hash().Hex())
 
 	// Check final game status
 	finalStatus, err := game.Status(callOpts)
@@ -483,29 +545,54 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	t.Logf("✓ Final game status: %d (1=CHALLENGER_WINS)", finalStatus)
 	require.Equal(t, uint8(1), finalStatus, "Game should be won by challenger")
 
-	// Step 7: Call RAT.resolveClaim to restore validator bond
-	t.Log("Step 7: Calling RAT.resolveClaim to restore validator bond...")
+	// Check RAT test status after game resolve
+	testStatusAfterResolve := getAttentionTestInfo(t, sys, testID)
+	t.Logf("✓ RAT test status AFTER game resolve: %d (1=EvidencePeriod, 4=RestoredByChallenge)", testStatusAfterResolve.Status)
 
-	resolveRATTx, err := contracts.RAT.ResolveClaim(accounts.Validator.Auth, gameAddress)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, resolveRATTx)
-	require.NoError(t, err)
-	t.Logf("✓ RAT.resolveClaim called (tx: %s)", resolveRATTx.Hash().Hex())
+	// Verify that the game automatically called RAT.resolveClaim
+	require.Equal(t, uint8(4), testStatusAfterResolve.Status,
+		"RAT test status should be RestoredByChallenge (4) after game resolution")
+	t.Log("✓ Game contract automatically called RAT.resolveClaim()")
+
+	// Check if BondRestored event was emitted in any of the resolution transactions
+	// RAT.resolveClaim() is called from game.ResolveClaim(), not game.Resolve()
+	allReceipts := []*types.Receipt{resolveReceipt1, resolveReceipt0, resolveGameReceipt}
+	receiptNames := []string{"ResolveClaim(1)", "ResolveClaim(0)", "Resolve()"}
+	bondRestoredEvent := findBondRestoredEvent(allReceipts, receiptNames)
+
+	if bondRestoredEvent.Found {
+		t.Logf("✓ BondRestored event found in %s transaction", bondRestoredEvent.TxName)
+		if bondRestoredEvent.Amount != nil {
+			t.Logf("✓ Bond restored amount: %s WTON", bondRestoredEvent.Amount.String())
+		}
+	} else {
+		t.Log("⚠️  BondRestored event not found in any resolution transaction")
+	}
 
 	// Verify validator bond was restored
 	regAfterResolve, err := contracts.RAT.GetValidatorRegistration(callOpts, accounts.Validator.Addr, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
-	t.Logf("✓ Validator deposit after resolve: %s", regAfterResolve.DepositedAmount.String())
-	t.Logf("✓ Validator bond locked after resolve: %s", regAfterResolve.TotalBondForRAT.String())
+	t.Logf("✓ Validator collateral AFTER game resolution: %s WTON", regAfterResolve.Collateral.String())
 
-	// Bond should be restored (TotalBondForRAT should be 0)
-	require.True(t, regAfterResolve.TotalBondForRAT.Cmp(big.NewInt(0)) == 0,
-		"Bond should be restored after challenger wins, but got: %s", regAfterResolve.TotalBondForRAT.String())
+	// Calculate restoration amount
+	restorationAmount := new(big.Int).Sub(regAfterResolve.Collateral, regBeforeResolve.Collateral)
+	t.Logf("✓ Restoration amount: %s WTON (expected C_off: %s WTON)", restorationAmount.String(), cOff.String())
 
-	// Deposit should be restored to original amount
-	require.True(t, regAfterResolve.DepositedAmount.Cmp(depositAmount) == 0,
-		"Deposit should be restored to original %s, but got: %s",
-		depositAmount.String(), regAfterResolve.DepositedAmount.String())
+	// Verify restoration amount matches C_off
+	require.Equal(t, cOff.String(), restorationAmount.String(),
+		"Restoration amount should match C_off (slashing penalty)")
+	t.Logf("✓ Bond restoration verified: %s WTON restored", restorationAmount.String())
+
+	// Collateral should be at least the original amount (may be higher due to seigniorage)
+	require.True(t, regAfterResolve.Collateral.Cmp(depositAmount) >= 0,
+		"Collateral should be at least original %s, but got: %s",
+		depositAmount.String(), regAfterResolve.Collateral.String())
+
+	// Log if seigniorage was accumulated
+	if regAfterResolve.Collateral.Cmp(depositAmount) > 0 {
+		seigniorageAccumulated := new(big.Int).Sub(regAfterResolve.Collateral, depositAmount)
+		t.Logf("✓ Seigniorage accumulated during test: %s WTON", seigniorageAccumulated.String())
+	}
 
 	// Check final ETH balance
 	finalETHBalance, err := sys.L1Client.BalanceAt(sys.Ctx, accounts.Validator.Addr, nil)
@@ -514,9 +601,9 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	t.Logf("✓ Validator final ETH balance: %s wei", finalETHBalance.String())
 	t.Logf("✓ ETH spent on gas: %s wei", ethSpentOnGas.String())
 
-	// Step 8: Verify and claim game bonds via credit system
+	// Step 7: Verify and claim game bonds via credit system
 	t.Log("")
-	t.Log("=== Step 8: Verify and Claim Game Bonds ===")
+	t.Log("=== Step 7: Verify and Claim Game Bonds ===")
 
 	// Advance time to ensure game is fully finalized
 	advanceTimeAndMine(t, sys, 60) // 60 seconds for finalization

@@ -22,20 +22,20 @@
 │  │                        └────────┬─────────┘     └─────────────────┘             │ │
 │  │                                │                                                │ │
 │  │           ┌────────────────────┼────────────────────┐                          │ │
-│  │           │                    │                    │                          │ │
-│  │           ▼                    ▼                    ▼                          │ │
-│  │  ┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐              │ │
-│  │  │  Layer2Manager  │  │ ValidatorReward  │  │   SequencerVault │              │ │
-│  │  │   (L2 관리)      │  │  (검증자 보상)    │  │   (시퀀서 담보)    │              │ │
-│  │  └────────┬────────┘  └────────┬─────────┘  └────────┬─────────┘              │ │
-│  │           │                    │                    │                          │ │
-│  └───────────┼────────────────────┼────────────────────┼──────────────────────────┘ │
-│              │                    │                    │                            │
-│  ┌───────────┼────────────────────┼────────────────────┼──────────────────────────┐ │
-│  │           ▼                    ▼                    ▼                          │ │
+│  │           │                    │                                              │ │
+│  │           ▼                    ▼                                              │ │
+│  │  ┌─────────────────┐  ┌──────────────────┐                                    │ │
+│  │  │  Layer2Manager  │  │ ValidatorReward  │                                    │ │
+│  │  │   (L2 관리)      │  │  (검증자 보상)    │                                    │ │
+│  │  └────────┬────────┘  └────────┬─────────┘                                    │ │
+│  │           │                    │                                              │ │
+│  └───────────┼────────────────────┼──────────────────────────────────────────────┘ │
+│              │                    │                                                │
+│  ┌───────────┼────────────────────┼──────────────────────────────────────────────┐ │
+│  │           ▼                    ▼                                              │ │
 │  │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐       │ │
 │  │  │L1BridgeRegistry │  │       RAT        │  │  Optimism Contracts      │       │ │
-│  │  │(브릿지/TVL 조회) │  │ (검증자/슬래싱)   │  │  - DisputeGameFactory    │       │ │
+│  │  │(브릿지/TVL 조회) │  │ (검증자/C_off)   │  │  - DisputeGameFactory    │       │ │
 │  │  └────────┬────────┘  └──────────────────┘  │  - FaultDisputeGame      │       │ │
 │  │           │                                  │  - OptimismPortal        │       │ │
 │  │           │           Validator/Bridge       │  - SystemConfig          │       │ │
@@ -100,22 +100,21 @@
 │                      ▼                           │                 │         │
 │  ┌─────────────────────────────────────────┐     │ V3 분배 로직:    │         │
 │  │           L1BridgeRegistry              │────►│ - y(x)=L·x/(k+x)│         │
-│  │                                          │     │ - S_i ≥ θ·B_i   │         │
+│  │                                          │     │ - T_i ≥ max(θ·B_i, D_seq) │
 │  │  - rollupType[config]                   │     │ - α 검증자 분배  │         │
 │  │  - layer2TVL(config)                    │     └────────┬────────┘         │
 │  └─────────────────────────────────────────┘              │                  │
 │                                                           │                  │
-│  ┌────────────────────────────────────────────────────────┼──────────────┐   │
-│  │                                                        │              │   │
-│  ▼                                                        ▼              ▼   │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐           │
-│  │ SequencerVault   │  │ ValidatorReward  │  │       RAT        │           │
-│  │                  │  │                  │  │                  │           │
-│  │ - 시퀀서 담보금    │  │ - 검증자 보상     │  │ - 검증자 등록     │           │
-│  │ - 슬래싱 처리     │  │ - Per-L2 분배    │◄─┤ - RAT 테스트      │           │
-│  └──────────────────┘  └──────────────────┘  │ - 슬래싱          │           │
-│                                               └──────────────────┘           │
-└──────────────────────────────────────────────────────────────────────────────┘
+│                                                          │                  │
+│                                                          ▼                  │
+│                          ┌──────────────────┐  ┌──────────────────┐         │
+│                          │ ValidatorReward  │  │       RAT        │         │
+│                          │                  │  │                  │         │
+│                          │ - 검증자 보상     │  │ - 검증자 등록     │         │
+│                          │ - Per-L2 분배    │◄─┤ - RAT 테스트      │         │
+│                          └──────────────────┘  │ - C_off 페널티    │         │
+│                                                └──────────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 호출 방향
@@ -135,14 +134,14 @@
 │  SeigManager ──► ValidatorReward.distributeL2Rewards()                  │
 │              ──► Layer2Manager.transferL2Seigniorage()                  │
 │              ──► L1BridgeRegistry.layer2TVL()                           │
-│              ──► SequencerVault.getSequencerDepositByLayer2()           │
+│              ──► Coinage.balanceOf(operator) (시퀀서 담보금)            │
 │                                                                          │
 │  ValidatorReward ──► RAT.getL2Validators()                              │
 │                  ──► RAT.isValidatorActive()                             │
 │                                                                          │
 │  FaultDisputeGame ──► RAT.resolveClaim()                                │
 │                                                                          │
-│  누구나 ──► SequencerVault.slashSequencerByGame() (Permissionless)       │
+│  누구나 ──► SeigManager.slashSequencerByGame() (Permissionless)          │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -181,7 +180,6 @@
 │  - DepositManager (Base 기본, SetDelay/V1_1/V1_2 라우팅)             │
 │  - Layer2Manager (V1_1 기본, V1_2 라우팅)                            │
 │  - L1BridgeRegistry (V1_2 단독 - V1_1 함수 모두 포함)               │
-│  - SequencerVault (단일 구현체)                                       │
 │                                                                      │
 │  관리: DAOCommittee (upgradeTo, setSelectorImplementations2)         │
 └─────────────────────────────────────────────────────────────────────┘
@@ -321,10 +319,10 @@ contract SeigManagerV1_4 is
 │  2. L1BridgeRegistry.layer2TVL() ──► Bridged TON 조회                      │
 │     │                                                                       │
 │     ▼                                                                       │
-│  3. SequencerVault.getSequencerDepositByLayer2() ──► 예치금 조회               │
+│  3. SeigManager.getSequencerStaked() ──► 스테이킹 조회                 │
 │     │                                                                       │
 │     ▼                                                                       │
-│  4. 자격 확인: S_i ≥ θ · B_i                                               │
+│  4. 자격 확인: T_i ≥ max(θ·B_i, D_sequencer)                               │
 │     │                                                                       │
 │     ▼                                                                       │
 │  5. 쌍곡선 계산: y(x) = L · (x / (k + x))                                  │
@@ -350,34 +348,115 @@ contract SeigManagerV1_4 is
 │                           검증자 등록 흐름                                   │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  방법 1: approveAndCall 사용                                                │
-│  1. 검증자가 TON.approveAndCall(RAT, amount, data) 호출                    │
+│  방법 1: registerValidator 직접 호출                                        │
+│  1. RAT.registerValidator(systemConfig) 호출                               │
+│     │                                                                       │
+│     ▼                                                                       │
+│  2. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)                     │
+│     │                                                                       │
+│     ├─ 스테이킹 금액 >= D_min: 바로 검증자 등록                             │
+│     │   │                                                                   │
+│     │   ▼                                                                   │
+│     │   검증자 활성화 + 이벤트 발생: ValidatorRegistered                    │
+│     │                                                                       │
+│     └─ 스테이킹 금액 < D_min: 등록 실패 (담보금 부족)                       │
+│                                                                             │
+│  방법 2: approveAndCall 사용 (담보금 부족 시)                               │
+│  1. TON.approveAndCall(RAT, amount, data) 호출                             │
 │     │                                                                       │
 │     │ data = [SystemConfig 주소] (32바이트)                                │
 │     ▼                                                                       │
-│  2. TON 컨트랙트가 RAT로 TON 전송 + RAT.onApprove() 호출                   │
+│  2. RAT.onApprove() 호출됨                                                  │
 │     │                                                                       │
 │     ▼                                                                       │
-│  3. RAT가 담보금 저장 + 검증자 활성화                                       │
+│  3. RAT가 TON을 DepositManager를 통해 스테이킹 예치                         │
 │     │                                                                       │
-│     │ - validatorRegistrations[systemConfig][validator]                    │
-│     │ - validatorPools[systemConfig].validators.push()                     │
 │     ▼                                                                       │
-│  4. 이벤트 발생: ValidatorRegistered                                        │
-│                                                                             │
-│  방법 2: approve + registerValidator 사용                                   │
-│  1. 검증자가 TON.approve(RAT, amount) 호출                                 │
-│     ▼                                                                       │
-│  2. 검증자가 RAT.registerValidator(systemConfig, amount) 호출               │
-│     ▼                                                                       │
-│  3. RAT가 TON을 transferFrom으로 받음                                      │
-│     ▼                                                                       │
-│  4. RAT가 담보금 저장 + 검증자 활성화                                       │
+│  4. 검증자 활성화 + 이벤트 발생: ValidatorRegistered                        │
 │                                                                             │
 │  주요 특징:                                                                 │
-│  - V3: TON 직접 사용 (18 decimals), WTON 변환 없음                         │
-│  - RAT에서 TON 직접 보관 (DepositManager 미사용)                           │
-│  - 즉시 출금 가능 (2주 대기 불필요)                                         │
+│  - V3: 기존 스테이킹 금액(coinage)을 검증자 담보금으로 사용                 │
+│  - 담보금 부족 시 DepositManager를 통해 스테이킹 예치                       │
+│  - RAT는 담보금을 직접 보관하지 않음                                        │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.3 검증자 탈퇴/재등록 데이터 흐름
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        검증자 탈퇴/재등록 흐름                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  검증자 탈퇴 (자발적):                                                       │
+│  1. RAT.deactivateValidator(systemConfig) 호출                             │
+│     │                                                                       │
+│     ▼                                                                       │
+│  2. validators 배열에서 제거 (O(n) - 탈퇴자가 가스비 부담)                  │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. isActive = false                                                        │
+│     │                                                                       │
+│     ▼                                                                       │
+│  4. 이벤트 발생: ValidatorDeactivated                                       │
+│                                                                             │
+│  - 진행 중인 RAT 테스트가 있어도 탈퇴 가능                                  │
+│  - bondAmount 이미 선차감되어 슬래싱 보장됨                                 │
+│  - 담보금은 coinage에 남아있음 (DepositManager를 통해 출금)                │
+│                                                                             │
+│  ─────────────────────────────────────────────────────────────────────────│
+│                                                                             │
+│  검증자 제거 (자동):                                                         │
+│  1. triggerAttentionTest 시점:                                             │
+│     bondAmount 차감 후 remaining < threshold                               │
+│     │                                                                       │
+│     ├─ threshold = C_off (relaxedValidatorCheck=true)                      │
+│     └─ threshold = D_min (relaxedValidatorCheck=false)                     │
+│                                                                             │
+│  2. validators 배열에서 제거                                                │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. isActive = false                                                        │
+│                                                                             │
+│  - SeigManager.onWithdraw는 출금을 거부하지만 검증자를 제거하지 않음        │
+│    (출금 후 잔액 >= D_min 조건 강제)                                        │
+│                                                                             │
+│  ─────────────────────────────────────────────────────────────────────────│
+│                                                                             │
+│  검증자 재등록 (수동):                                                       │
+│  1. 담보금 보충: DepositManager.deposit()로 D_min 이상 예치                 │
+│     │                                                                       │
+│     ▼                                                                       │
+│  2. RAT.registerValidator(systemConfig) 호출                               │
+│     │                                                                       │
+│     ├─ isActive = false 상태 확인                                          │
+│     ├─ 담보금 >= D_min 확인                                                │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. isActive = true (재활성화)                                             │
+│                                                                             │
+│  - 진행 중인 RAT 테스트가 있어도 재등록 가능                                │
+│  - 담보금이 coinage에 있으므로 슬래싱 처리 가능                             │
+│  - V3: 검증자 보상은 ValidatorReward 컨트랙트에서 별도 관리                 │
+│                                                                             │
+│  ─────────────────────────────────────────────────────────────────────────│
+│                                                                             │
+│  검증자 재활성화 (자동):                                                     │
+│  1. 담보금 복구 (증거 제출 또는 챌린지 승리)                                │
+│     │                                                                       │
+│     ▼                                                                       │
+│  2. submitEvidence() 또는 resolveClaim() 내부에서 자동 재활성화 시도       │
+│     │                                                                       │
+│     ├─ isActive = false 확인                                               │
+│     ├─ 복구 후 담보금 >= 임계값 확인                                       │
+│     │  └─ 임계값: relaxedValidatorCheck ? C_off : D_min                    │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. isActive = true (자동 재활성화)                                        │
+│                                                                             │
+│  - 담보금이 임계값 미만이면 재활성화되지 않음 (수동 재등록 필요)            │
+│  - 재활성화 시 ValidatorReactivated 이벤트 발생                             │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -396,7 +475,7 @@ contract SeigManagerV1_4 is
 | RAT | `EvidenceSubmitted` | 증거 제출 완료 |
 | RAT | `ValidatorSlashed` | 검증자 슬래싱 |
 | ValidatorReward | `L2RewardDistributed` | 검증자 보상 분배 |
-| SequencerVault | `SequencerSlashed` | 시퀀서 슬래싱 |
+| SeigManager | `SequencerSlashed` | 시퀀서 슬래싱 |
 
 ### 6.2 오프체인 모니터링
 
@@ -428,7 +507,7 @@ contract SeigManagerV1_4 is
 │  │    → 자격 상태(eligible) 변경 감지                                   │   │
 │  │    → eligible=false 시 담보금 추가 필요                              │   │
 │  │                                                                      │   │
-│  │ 2. SequencerVault.SequencerSlashed 이벤트                           │   │
+│  │ 2. SeigManager.SequencerSlashed 이벤트                              │   │
 │  │    → 슬래싱 발생, isActive=false 됨                                  │   │
 │  │    → 재등록 필요                                                     │   │
 │  │                                                                      │   │
@@ -445,8 +524,8 @@ contract SeigManagerV1_4 is
 │  │    - 시퀀서로 등록되어 있는지 여부                                    │   │
 │  │                                                                      │   │
 │  │ 2. 시뇨리지 자격상태 (eligible)                                      │   │
-│  │    - S_i < θ·B_i 시 false                                           │   │
-│  │    - 담보금 조건 충족 여부                                            │   │
+│  │    - T_i < θ·B_i 시 false                                           │   │
+│  │    - 스테이킹 조건 충족 여부                                          │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
 │  │ isActive │ eligible │ 상태                                          │   │
 │  │──────────┼──────────┼───────────────────────────────────────────────│   │
@@ -518,8 +597,7 @@ contract SeigManagerV1_4 is
 │                                                                             │
 │  Permissionless:                                                            │
 │  - SeigManager.updateSeigniorage()                                         │
-│  - SequencerVault.slashSequencerByGame()                                   │
-│  - SequencerVault.registerSequencer()                                      │
+│  - SeigManager.slashSequencerByGame()                                      │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

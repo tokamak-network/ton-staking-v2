@@ -27,24 +27,7 @@ var (
 )
 
 // RATABI is the input ABI used to generate the binding from.
-const RATABI = "[{\"type\":\"function\",\"name\":\"accumulatedSlashings\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"activeTestCount\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"addDeposit\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"attentionCost\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"attentionTests\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"validatorAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"bondAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumRATStorage.AttentionTestStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizedTrigger\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"batchToTestId\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deactivateValidator\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyWithdraw\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"evidenceSubmissionPeriod\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"factoryByGame\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"gameToTestId\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getActiveValidatorCount\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAttentionTest\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"validatorAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"bondAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumRATStorage.AttentionTestStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getL2Validators\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getMinimumCollateral\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorCount\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorDeposit\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorRegistration\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"depositedAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalBondForRAT\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"validatorIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"_seigManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_wton\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_ton\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_layer2Manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_ratTriggerProbability\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isValidatorActive\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"l1BridgeRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"layer2Manager\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxValidatorsPerL2\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minimumThreshold\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"onApprove\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"ratTriggerProbability\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"registerValidator\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"depositAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"resolveClaim\",\"inputs\":[{\"name\":\"_claimant\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"seigManager\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"setAttentionCost\",\"inputs\":[{\"name\":\"cost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAuthorizedTrigger\",\"inputs\":[{\"name\":\"trigger\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEvidenceSubmissionPeriod\",\"inputs\":[{\"name\":\"period\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setL1BridgeRegistry\",\"inputs\":[{\"name\":\"_l1BridgeRegistry\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxValidatorsPerL2\",\"inputs\":[{\"name\":\"maxValidators\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMinimumThreshold\",\"inputs\":[{\"name\":\"threshold\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPaused\",\"inputs\":[{\"name\":\"_paused\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setRatTriggerProbability\",\"inputs\":[{\"name\":\"probability\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSlashingPenalty\",\"inputs\":[{\"name\":\"penalty\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTreasury\",\"inputs\":[{\"name\":\"_treasury\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setValidatorBuffer\",\"inputs\":[{\"name\":\"buffer\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"slashingPenalty\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"submitEvidence\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"evidence\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ton\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"treasury\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"triggerAttentionTest\",\"inputs\":[{\"name\":\"gameAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"blockHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validateSlashingPenalty\",\"inputs\":[{\"name\":\"n\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorBuffer\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorIndexes\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorRegistrations\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"depositedAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalBondForRAT\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"pendingRewards\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"latestTestDeadline\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"validatorIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorSystemConfigs\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"withdrawSlashingsToTreasury\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"wton\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AttentionTestTriggered\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"gameAddress\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"BondRestored\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"restoredAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositAdded\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EvidenceSubmitted\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxValidatorsPerL2Updated\",\"inputs\":[{\"name\":\"newMaxValidators\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorDeactivated\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"returnedAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRegistered\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"depositAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"registrationId\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRestored\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorSlashed\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"slashedAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"removedFromSet\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false}]"
-
-// RATBin is the compiled bytecode used for deploying new contracts.
-var RATBin = "0x608080604052346100165761264e908161001c8239f35b600080fdfe60806040908082526004908136101561001757600080fd5b600092833560e01c9182624fe2b414611679575081630322587914611627578163068c2e6e146115795781630bec56911461152a5781630c1da8df146114e2578163116c4fcc1461146d57816316b5d5bd1461144457816316c38b3c146113f15781632c9e3798146113d25781632d6f496914611397578163319ad32714610f5057816333026bb61461128d57816336c63d461461125e578163370e9e181461121657816339b62bd1146111cf5781634273ca16146110975781634a859247146110075781634e4a9a1b14610fbe5781634eecc64514610f5057816351567bc214610f315781635c975abb14610f0a57816361d027b314610ee15781636259243314610ea657816367058d2914610e775781636ad83f9114610e485781636fb7f55814610e1f57816375da30d014610e0057816389f1ea6414610de15781638d62d94914610db85781638da5cb5b14610d8f5781638dc3b28e14610d3657816394d645a814610d1457816395b6ef0c14610b9f57816395ccea6714610b5a5781639abee7d014610aaa578163a0bfe1c614610a4e578163acccb08f14610a2f578163ba50b8791461087c578163c0a08bde1461084d578163cc48b94714610824578163cd15681914610805578163cdf7cf13146107cd578163cf8f9110146107a4578163cfa424ea14610785578163d0d6b9b51461075b578163d2e5bc7214610707578163d8c0ba59146106dc578163ddef8e85146106a4578163e1705cb61461067b578163e54f62371461045d578163f0f4426014610412578163f2fde38b1461038a578163f7107b441461036b578163f92879db146102f6578163f9560e45146102be575063f983386b1461028d57600080fd5b346102ba5760203660031901126102ba576102b360018060a01b036014541633146125e0565b3560095580f35b5080fd5b8390346102ba5760203660031901126102ba5760209181906001600160a01b036102e661177f565b1681526001845220549051908152f35b8390346102ba57806003193601126102ba5760ff8160809361031661177f565b6001600160a01b038061032761179a565b16835282602052838320911682526020522080549260036001830154920154918151948552602085015263ffffffff82821c169084015260601c1615156060820152f35b8390346102ba57816003193601126102ba57602090600a549051908152f35b9190503461040e57602036600319011261040e576103a661177f565b60145491906001600160a01b03906103c133838616146125e0565b169283156103dc5750506001600160a01b0319161760145580f35b906020606492519162461bcd60e51b8352820152600c60248201526b7a65726f206164647265737360a01b6044820152fd5b8280fd5b833461045a57602036600319011261045a5761042c61177f565b6014546001600160a01b03919061044690831633146125e0565b1660018060a01b0319601654161760165580f35b80fd5b9190503461040e57606036600319011261040e5761047961177f565b906104826117b0565b906044356001600160401b038111610677576104a19036908301611828565b5050601654936104b760ff8660a01c1615611966565b60ff60a01b19948516600160a01b1760168190556104db9060a81c60ff161561199b565b60018060a01b0390818516948588526020926005845263ffffffff838a20961695868a5284528289205494851561066957858a52808552838a2091825416330361065b57600682019060ff825416818110156106485761063a576005830154421161062c5750907fbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c994939291888b528a8552838b20338c5285526003848c209201610588815484546118ac565b83555461059a60018401918254611c4f565b9055600160ff19825416179055878a5260068452828a206105bb8154611c42565b905560ff600382015460601c16158061061f575b6105e7575b5050519384523393a46016541660165580f35b6105f2913390612563565b85337facf682cec5d019e69bf9a11a0ee8d582373446ed7815c383edf30b5b400566998a80a338806105d4565b508054600c5411156105cf565b845163022e778360e61b8152fd5b8451634136d4f760e01b8152fd5b634e487b7160e01b8c526021825260248cfd5b835163911feff760e01b8152fd5b835163dc87ad5960e01b8152fd5b8580fd5b8390346102ba57816003193601126102ba5760135490516001600160a01b039091168152602090f35b8390346102ba5760203660031901126102ba5760209181906001600160a01b036106cc61177f565b1681526007845220549051908152f35b8390346102ba57816003193601126102ba57602090610700600954600a54906118ac565b9051908152f35b9190503461040e57602036600319011261040e5780359161073360018060a01b036014541633146125e0565b6b033b2e3c9fd0803ce8000000831161074e575050600b5580f35b5163818a07b160e01b8152fd5b9050823461045a57602036600319011261045a575061077c602092356118b9565b90519015158152f35b8390346102ba57816003193601126102ba57602090600d549051908152f35b8390346102ba57816003193601126102ba5760175490516001600160a01b039091168152602090f35b8390346102ba5760203660031901126102ba5760209181906001600160a01b036107f561177f565b1681526006845220549051908152f35b8390346102ba57816003193601126102ba576020906015549051908152f35b8390346102ba57816003193601126102ba5760115490516001600160a01b039091168152602090f35b5050346102ba5760203660031901126102ba5761087560018060a01b036014541633146125e0565b3560085580f35b9190503461040e5760209081600319360112610a2b5761089a61177f565b91601654936108af60ff8660a01c1615611966565b60ff60a01b19948516600160a01b176016556001600160a01b039384168087528683528187203388528352818720600381018054929691959192909190606081901c60ff1615610a1c576001600160401b031642106109e55750907fffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a93929188600187018054806109cd575b50505060ff60601b19815416905585885260018352818820600181016109618154611c42565b9055610974600287549201918254611c4f565b90556002855495898155866109b9575b018881549155806109a3575b5050519283523392a36016541660165580f35b6109b291339060105416611c5c565b3880610990565b6109c887338560115416611c5c565b610984565b6109d9906015546118ac565b6015555588388061093b565b835162461bcd60e51b8152908101859052601160248201527070656e64696e672052415420746573747360781b6044820152606490fd5b508351634385fe5160e11b8152fd5b8380fd5b8390346102ba57816003193601126102ba57602090600e549051908152f35b9190503461040e57602036600319011261040e577fa03f0d48c0ef0e0b6916f6c0f9e415d7319a1ea4a09ca66e68f473939ee2b10c916020913590610a9e60018060a01b036014541633146125e0565b81600d5551908152a180f35b90503461040e578060031936011261040e57610ac461177f565b6024359160165493610adc60ff8660a01c1615611966565b60ff60a01b19948516600160a01b176016819055610b009060a81c60ff161561199b565b6001600160a01b039183831615610b4d578415610b4057505090610b3083610b36949360115416309033906119d0565b33611ce4565b6016541660165580f35b51636e0ccc0760e01b8152fd5b5163e867588d60e01b8152fd5b8390346102ba5736600319011261045a57610b9c610b7661177f565b6014546001600160a01b039190610b9090831633146125e0565b60243591339116611c5c565b80f35b90503461040e5760c036600319011261040e57610bba61177f565b90610bc361179a565b6001600160a01b0391906044358381169190829003610d105760643592848416809403610d0c5760843595858716809703610d085760a43597600f5492878416610ccf5789151580610cb9575b15610c805750509085929160018060a01b031996879116911617600f55168360105416176010558260115416176011558160125416176012556014541617601455600b55610e10600e5568056bc75e2d6310000080600955600a55683635c9adc5dea00000600c556064600d5580f35b906020606492519162461bcd60e51b83528201526013602482015272696e76616c69642070726f626162696c69747960681b6044820152fd5b506b033b2e3c9fd0803ce80000008a1115610c10565b906020606492519162461bcd60e51b83528201526013602482015272185b1c9958591e481a5b9a5d1a585b1a5e9959606a1b6044820152fd5b8880fd5b8780fd5b8680fd5b833461045a57602036600319011261045a57610b9c610d3161177f565b6122e6565b8390346102ba57806003193601126102ba57610d5061177f565b6001600160a01b03908116835260036020528183208054602435949085101561045a5750602093610d8091611855565b90549060031b1c169051908152f35b8390346102ba57816003193601126102ba5760145490516001600160a01b039091168152602090f35b8390346102ba57816003193601126102ba5760105490516001600160a01b039091168152602090f35b8390346102ba57816003193601126102ba576020906009549051908152f35b8390346102ba57816003193601126102ba57602090600c549051908152f35b8390346102ba57816003193601126102ba57600f5490516001600160a01b039091168152602090f35b5050346102ba5760203660031901126102ba57610e7060018060a01b036014541633146125e0565b35600a5580f35b5050346102ba5760203660031901126102ba57610e9f60018060a01b036014541633146125e0565b35600c5580f35b8390346102ba5760203660031901126102ba576020916001600160a01b0390829082610ed061177f565b168152601885522054169051908152f35b8390346102ba57816003193601126102ba5760165490516001600160a01b039091168152602090f35b8390346102ba57816003193601126102ba5760209060ff60165460a81c1690519015158152f35b8390346102ba57816003193601126102ba57602090600b549051908152f35b9050823461045a57602036600319011261045a5781610fba918435815284602052209160018060a01b0392838154169460018201549060028301546003840154918401549260ff6006600587015496015416955198899863ffffffff8360a01c16921690896117c3565b0390f35b8390346102ba57806003193601126102ba5780602092610fdc61177f565b610fe461179a565b6001600160a01b0391821683526002865283832091168252845220549051908152f35b8390346102ba57806003193601126102ba5760ff8160c09361102761177f565b61102f61179a565b9060018060a01b03809116835282602052838320911682526020522063ffffffff8154936001830154906003600285015494015493849282519788526020880152818701526001600160401b03821660608701521c16608084015260601c16151560a0820152f35b9050823461045a57608036600319011261045a576110b361177f565b926110bc61179a565b506064356001600160401b03811161040e576110db9036908301611828565b90601654936110f060ff8660a01c1615611966565b60ff60a01b19948516600160a01b1760168190556111149060a81c60ff161561199b565b6011546001600160a01b039390841633036111a1576020811061116f5760201161045a5750351690811561116157506020936111539160443591611ce4565b601654166016555160018152f35b835163e867588d60e01b8152fd5b865162461bcd60e51b8152602081870152600c60248201526b696e76616c6964206461746160a01b6044820152606490fd5b865162461bcd60e51b8152602081870152600860248201526737b7363c902a27a760c11b6044820152606490fd5b8390346102ba57806003193601126102ba57806020926111ed61177f565b6001600160a01b03806111fe61179a565b16835282865283832091168252845220549051908152f35b833461045a57602036600319011261045a5761123061177f565b6014546001600160a01b03919061124a90831633146125e0565b1660018060a01b0319601354161760135580f35b5050346102ba5760203660031901126102ba5761128660018060a01b036014541633146125e0565b35600e5580f35b90503461040e578060031936011261040e576112a761177f565b9060243590601654936112c060ff8660a01c1615611966565b60ff60a01b19948516600160a01b176016556001600160a01b0393841680875260208781528388203389529052828720600381015491959092909160601c60ff161561138957841561137b57508361131f9160115416309033906119d0565b61132a8382546118ac565b905582855260016020526002818620016113458382546118ac565b9055519081527f63d8d7d5e63e9840ec91a12a160d27b7cfab294f6ba070b7359692acfe6b03bf60203392a36016541660165580f35b8351636e0ccc0760e01b8152fd5b8351634385fe5160e11b8152fd5b8390346102ba5760203660031901126102ba5760209160019082906001600160a01b036113c261177f565b1681528285522001549051908152f35b8390346102ba57816003193601126102ba576020906008549051908152f35b5050346102ba5760203660031901126102ba57358015158091036102ba5761142460018060a01b036014541633146125e0565b6016805460ff60a81b191660a89290921b60ff60a81b1691909117905580f35b8390346102ba57816003193601126102ba5760125490516001600160a01b039091168152602090f35b8383346102ba57816003193601126102ba576016546001600160a01b03919082169081156114ac575090610b9c91601554918460155560115416611c5c565b606490602086519162461bcd60e51b8352820152601060248201526f1d1c99585cdd5c9e481b9bdd081cd95d60821b6044820152fd5b833461045a57602036600319011261045a576114fc61177f565b6014546001600160a01b03919061151690831633146125e0565b1660018060a01b0319601754161760175580f35b8390346102ba57806003193601126102ba578060209261154861177f565b6115506117b0565b6001600160a01b0390911682526005855282822063ffffffff9091168252845220549051908152f35b8390346102ba576020918260031936011261045a576001600160a01b0390816115a061177f565b16815260019182855283822094845191828288549182815201908198865283862090865b81811061161257505050836115da910384611945565b855195828701938388525180945286019693905b8382106115fb5786880387f35b8451811688529682019693820193908501906115ee565b825485168452928501929188019188016115c4565b8390346102ba57806003193601126102ba5760ff60038260209461164961177f565b6001600160a01b038061165a61179a565b16835282885283832091168252865220015460601c1690519015158152f35b8492503461040e5760a036600319011261040e5761169561177f565b9061169e61179a565b926044359163ffffffff83168303610677576017546001600160a01b03919082169081156117715750602060249184519283809263ebbbfdb560e01b8252338d8301525afa90811561176757879161172d575b50161561171e5750610b9c93945061171160ff60165460a81c161561199b565b6084359260643592611ed4565b51633785806960e11b81528590fd5b90506020813d821161175f575b8161174760209383611945565b81010312610d1057518181168103610d1057886116f1565b3d915061173a565b83513d89823e3d90fd5b633785806960e11b81528890fd5b600435906001600160a01b038216820361179557565b600080fd5b602435906001600160a01b038216820361179557565b6024359063ffffffff8216820361179557565b959391989796949263ffffffff9161010088019a60018060a01b0380921689521660208801521660408601526060850152608084015260a083015260c082015260048210156118125760e00152565b634e487b7160e01b600052602160045260246000fd5b9181601f84011215611795578235916001600160401b038311611795576020838186019501011161179557565b805482101561186d5760005260206000200190600090565b634e487b7160e01b600052603260045260246000fd5b8181029291811591840414171561189657565b634e487b7160e01b600052601160045260246000fd5b9190820180921161189657565b600b548015801561190c575b611905576118d86118e191600954611883565b91600854611883565b906b033b2e3c9fd0803ce80000009182810292818404149015171561189657101590565b5050600090565b5081156118c5565b608081019081106001600160401b0382111761192f57604052565b634e487b7160e01b600052604160045260246000fd5b90601f801991011681019081106001600160401b0382111761192f57604052565b1561196d57565b60405162461bcd60e51b81526020600482015260066024820152651b1bd8dad95960d21b6044820152606490fd5b156119a257565b60405162461bcd60e51b81526020600482015260066024820152651c185d5cd95960d21b6044820152606490fd5b6040516323b872dd60e01b60208201526001600160a01b03928316602482015292909116604483015260648083019390935291815260a08101918183106001600160401b0384111761192f57611a2892604052611a2a565b565b60018060a01b031690604051604081016001600160401b03908281108282111761192f576040526020938483527f5361666545524332303a206c6f772d6c6576656c2063616c6c206661696c6564858401526000808587829751910182855af1903d15611b63573d928311611b4f5790611ac493929160405192611ab788601f19601f8401160185611945565b83523d868885013e611b6e565b805180611ad2575b50505050565b818491810103126102ba578201519081159182150361045a5750611af857808080611acc565b6084906040519062461bcd60e51b82526004820152602a60248201527f5361666545524332303a204552433230206f7065726174696f6e20646964206e6044820152691bdd081cdd58d8d9595960b21b6064820152fd5b634e487b7160e01b85526041600452602485fd5b90611ac49392506060915b91929015611bd05750815115611b82575090565b3b15611b8b5790565b60405162461bcd60e51b815260206004820152601d60248201527f416464726573733a2063616c6c20746f206e6f6e2d636f6e74726163740000006044820152606490fd5b825190915015611be35750805190602001fd5b6040519062461bcd60e51b82528160208060048301528251908160248401526000935b828510611c29575050604492506000838284010152601f80199101168101030190fd5b8481018201518686016044015293810193859350611c06565b8015611896576000190190565b9190820391821161189657565b60405163a9059cbb60e01b60208201526001600160a01b039092166024830152604480830193909352918152611a2891611c9582611914565b611a2a565b8054600160401b81101561192f57611cb791600182018155611855565b819291549060031b9160018060a01b03809116831b921b1916179055565b60001981146118965760010190565b90929160018060a01b03908185169260008481526020908082526040938482209584169586835283528482209860038a019260ff845460601c16611ec357611d31600954600a54906118ac565b95611d3e8c5494856118ac565b968710611eb257898252600186528782209315611dc85750505090837fc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe96979899600284600163ffffffff9601611d958154611cd5565b905501611da38382546118ac565b905555805460ff60601b1916600160601b1781555b54841c16908351928352820152a3565b919a9092805492600d548015159081611ea7575b50611e965793611e91938160027fc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe9c9d9e9f958186611e238f989b63ffffffff9d9c611c9a565b60018101611e318154611cd5565b905501611e3f8d82546118ac565b90558b81556001810183905501558554600160601b64ffffffffff60401b1990911663ffffffff60401b89841660401b16171786558c8252600288528282208c83528852828220556003875220611c9a565b611db8565b885163ad8f042960e01b8152600490fd5b905084101538611ddc565b87516369cf0eaf60e01b8152600490fd5b865163173f3ea160e21b8152600490fd5b6001600160a01b03808216600090815260186020908152604080832080546001600160a01b03191633179055928516825260019081905291902001549294909392156122cd576005602052604060002063ffffffff86166000526020526040600020546122d457611f459082612470565b936001600160a01b038516156122cd576001600160a01b0382811660009081526020818152604080832093891683529290522060038101549490606086901c60ff16156122c4576009549581548781106122bc575b87611fa491611c4f565b9384835560018301611fb78982546118ac565b905560405160208101906bffffffffffffffffffffffff19808960601b16835263ffffffff60e01b8460e01b1660348301528b60601b16603882015242604c820152604c815261200681611914565b51902096612016600e54426118ac565b936001600160401b03938486169085811682116122a4575b5050600096600c541161224e575b506040519283610100810110906101008501111761192f57610100830160405260018060a01b038a16835260018060a01b038716602084015263ffffffff8216604084015260608301528760808301524260a08301528260c0830152600060e083015286600052600460205260e06006604060002060018060a01b0385511660018060a01b03198254161781556001810160018060a01b0360208701511681549063ffffffff60a01b604089015160a01b16916001600160401b0360c01b1617179055606085015160028201556080850151600382015560a0850151600482015560c08501516005820155019201519160048310156118125763ffffffff9260ff8019835416911617905560018060a01b038616600052600560205260406000208282166000526020528660406000205560018060a01b0386166000526006602052604060002061218d8154611cd5565b905560018060a01b0384166000526007602052866040600020556040519360018060a01b03168452166020830152604082015260018060a01b03831690847fcf68a8dafa7b2329d7d7fcde3af620c2a51f64345d1eb2d66ffe7c7f1e9b0c38606060018060a01b038a1693a46122035750505050565b60408051938452600160208501526001600160a01b0391821694909116927fb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe89190a438808080611acc565b90955060ff60601b19600382015416600382015560018060a01b038716600052600160205261229960026040600020926001840161228c8154611c42565b9055549201918254611c4f565b90556001943861203c565b67ffffffffffffffff1916176003820155388061202e565b965086611f9a565b50505050505050565b5050505050565b6040516303e3427560e01b8152600490fd5b6000903382526020916018835260018060a01b0390604093828583205416156122cd576007815284822054928315612468578383526004825285832090808254169581811680970361245e57600683019485549560ff8716600481101561244a5761243e5760017f8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b9760ff19161790556001840191838354168252600686528982206123928154611c42565b9055838354168252818652898220898352865260038a8320950154946123b98682546118ac565b808255600182016123cb888254611c4f565b905560ff600383015460601c16159081612431575b506123f3575b50505054169551908152a4565b6124009185855416612563565b877facf682cec5d019e69bf9a11a0ee8d582373446ed7815c383edf30b5b40056699848454169280a33880806123e6565b9050600c541115386123e0565b50505050505050505050565b634e487b7160e01b83526021600452602483fd5b5050505050505050565b505050505050565b9060018060a01b0380921690600092828452602060018152604092838620906001820154801561255957855191848301908152428784015260609244848201528381526124bc81611914565b51902006908254958897895b8881106124dc575050505050505050505090565b818b528a8752828b2060ff8c856124f3858b611855565b9054600391821b1c8d168352938b529020820154861c1661251e575b5061251990611cd5565b6124c8565b858b929b1461253b575061253461251991611cd5565b999061250f565b99979a50505050505090506125509250611855565b9054911b1c1690565b5050505050505090565b916125db611a28936003830190600160601b60ff60601b1983541617825560018060a01b03166000526001602052604060002092600184016125a58154611cd5565b9055546125b7600285019182546118ac565b90558254815463ffffffff60401b191660409190911b63ffffffff60401b16179055565b611c9a565b156125e757565b60405162461bcd60e51b81526020600482015260096024820152683737ba1037bbb732b960b91b6044820152606490fdfea2646970667358221220ff0ef92cb8ff9815282461110e37155a5a353991b3266e3da5d869270abb9cc964736f6c63430008130033"
-
-// DeployRAT deploys a new Ethereum contract, binding an instance of RAT to it.
-func DeployRAT(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *RAT, error) {
-	parsed, err := abi.JSON(strings.NewReader(RATABI))
-	if err != nil {
-		return common.Address{}, nil, nil, err
-	}
-
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(RATBin), backend)
-	if err != nil {
-		return common.Address{}, nil, nil, err
-	}
-	return address, tx, &RAT{RATCaller: RATCaller{contract: contract}, RATTransactor: RATTransactor{contract: contract}, RATFilterer: RATFilterer{contract: contract}}, nil
-}
+const RATABI = "[{\"type\":\"function\",\"name\":\"accumulatedSlashings\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"activeTestCount\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"attentionCost\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"attentionTests\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"validatorAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"bondAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumRATStorage.AttentionTestStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizedTrigger\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"batchToTestId\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"challengeGameDuration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deactivateValidator\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"evidenceSubmissionPeriod\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"factoryByGame\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"gameToTestId\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getActiveValidatorCount\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAttentionTest\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"validatorAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"bondAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumRATStorage.AttentionTestStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAttentionTestStatus\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumRATStorage.AttentionTestStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAvailableCollateral\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCoffWithRelaxedCheck\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDynamicCoff\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDynamicMinimumCollateral\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getL2Validators\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getMinimumCollateral\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getMinimumCollateralWithRelaxedCheck\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRATCoinageBalance\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorCount\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorDeposit\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorMinCollateralForLayer2\",\"inputs\":[{\"name\":\"layer2\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidatorRegistration\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"collateral\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"validatorIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"_seigManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_wton\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_ton\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_layer2Manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_ratTriggerProbability\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_evidenceSubmissionPeriod\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_slashingPenalty\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_validatorBuffer\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_minimumThreshold\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_maxValidatorsPerL2\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_challengeGameDuration\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"_safetyBuffer\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isValidatorActive\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"l1BridgeRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"latestDeadlineTest\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"layer2Manager\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxValidatorsPerL2\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minimumThreshold\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"ratTriggerProbability\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"registerValidator\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerValidatorV2Compat\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"depositAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"relaxedValidatorCheck\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"resolveClaim\",\"inputs\":[{\"name\":\"_claimant\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"safetyBuffer\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"seigManager\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"setAttentionCost\",\"inputs\":[{\"name\":\"cost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAuthorizedTrigger\",\"inputs\":[{\"name\":\"trigger\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setChallengeGameDuration\",\"inputs\":[{\"name\":\"duration\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEvidenceSubmissionPeriod\",\"inputs\":[{\"name\":\"period\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setL1BridgeRegistry\",\"inputs\":[{\"name\":\"_l1BridgeRegistry\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxValidatorsPerL2\",\"inputs\":[{\"name\":\"maxValidators\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMinimumThreshold\",\"inputs\":[{\"name\":\"threshold\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPaused\",\"inputs\":[{\"name\":\"_paused\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setRatTriggerProbability\",\"inputs\":[{\"name\":\"probability\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setRelaxedValidatorCheck\",\"inputs\":[{\"name\":\"relaxed\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSafetyBuffer\",\"inputs\":[{\"name\":\"buffer\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSlashingPenalty\",\"inputs\":[{\"name\":\"penalty\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTreasury\",\"inputs\":[{\"name\":\"_treasury\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setValidatorBuffer\",\"inputs\":[{\"name\":\"buffer\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"slashingPenalty\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"submitEvidence\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"evidence\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ton\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"treasury\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"triggerAttentionTest\",\"inputs\":[{\"name\":\"gameAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"batchHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"blockHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validateSlashingPenalty\",\"inputs\":[{\"name\":\"n\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorBuffer\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorIndexes\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorRegistrations\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"lockedForRAT\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"pendingRewards\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"latestTestDeadline\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"validatorIndex\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validatorSystemConfigs\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"withdrawSlashingsToTreasury\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"wton\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AccumulatedSlashingsReset\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AttentionTestTriggered\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"gameAddress\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"BondRestored\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"restoredAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositAdded\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EvidenceSubmitted\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"batchIndex\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxValidatorsPerL2Updated\",\"inputs\":[{\"name\":\"newMaxValidators\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RelaxedValidatorCheckUpdated\",\"inputs\":[{\"name\":\"relaxed\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SlashingsWithdrawn\",\"inputs\":[{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"treasury\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorDeactivated\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorReactivated\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"collateral\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRegistered\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"depositAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"registrationId\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRestored\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorSlashed\",\"inputs\":[{\"name\":\"testId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"systemConfig\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"layer2\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"slashedAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"removedFromSet\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false}]"
 
 // RAT is an auto generated Go binding around an Ethereum contract.
 type RAT struct {
@@ -415,6 +398,37 @@ func (_RAT *RATCallerSession) BatchToTestId(arg0 common.Address, arg1 uint32) ([
 	return _RAT.Contract.BatchToTestId(&_RAT.CallOpts, arg0, arg1)
 }
 
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATCaller) ChallengeGameDuration(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "challengeGameDuration")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATSession) ChallengeGameDuration() (*big.Int, error) {
+	return _RAT.Contract.ChallengeGameDuration(&_RAT.CallOpts)
+}
+
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATCallerSession) ChallengeGameDuration() (*big.Int, error) {
+	return _RAT.Contract.ChallengeGameDuration(&_RAT.CallOpts)
+}
+
 // EvidenceSubmissionPeriod is a free data retrieval call binding the contract method 0xacccb08f.
 //
 // Solidity: function evidenceSubmissionPeriod() view returns(uint256)
@@ -611,6 +625,161 @@ func (_RAT *RATCallerSession) GetAttentionTest(testId [32]byte) (struct {
 	return _RAT.Contract.GetAttentionTest(&_RAT.CallOpts, testId)
 }
 
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATCaller) GetAttentionTestStatus(opts *bind.CallOpts, testId [32]byte) (uint8, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getAttentionTestStatus", testId)
+
+	if err != nil {
+		return *new(uint8), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
+
+	return out0, err
+
+}
+
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATSession) GetAttentionTestStatus(testId [32]byte) (uint8, error) {
+	return _RAT.Contract.GetAttentionTestStatus(&_RAT.CallOpts, testId)
+}
+
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATCallerSession) GetAttentionTestStatus(testId [32]byte) (uint8, error) {
+	return _RAT.Contract.GetAttentionTestStatus(&_RAT.CallOpts, testId)
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetAvailableCollateral(opts *bind.CallOpts, validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getAvailableCollateral", validator, systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetAvailableCollateral(validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetAvailableCollateral(&_RAT.CallOpts, validator, systemConfig)
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetAvailableCollateral(validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetAvailableCollateral(&_RAT.CallOpts, validator, systemConfig)
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetCoffWithRelaxedCheck(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getCoffWithRelaxedCheck", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetCoffWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetCoffWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetCoffWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetCoffWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetDynamicCoff(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getDynamicCoff", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetDynamicCoff(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicCoff(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetDynamicCoff(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicCoff(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetDynamicMinimumCollateral(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getDynamicMinimumCollateral", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetDynamicMinimumCollateral(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicMinimumCollateral(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetDynamicMinimumCollateral(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicMinimumCollateral(&_RAT.CallOpts, systemConfig)
+}
+
 // GetL2Validators is a free data retrieval call binding the contract method 0x068c2e6e.
 //
 // Solidity: function getL2Validators(address systemConfig) view returns(address[])
@@ -671,6 +840,68 @@ func (_RAT *RATSession) GetMinimumCollateral() (*big.Int, error) {
 // Solidity: function getMinimumCollateral() view returns(uint256)
 func (_RAT *RATCallerSession) GetMinimumCollateral() (*big.Int, error) {
 	return _RAT.Contract.GetMinimumCollateral(&_RAT.CallOpts)
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetMinimumCollateralWithRelaxedCheck(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getMinimumCollateralWithRelaxedCheck", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetMinimumCollateralWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetMinimumCollateralWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetMinimumCollateralWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetMinimumCollateralWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetRATCoinageBalance(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getRATCoinageBalance", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetRATCoinageBalance(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetRATCoinageBalance(&_RAT.CallOpts, systemConfig)
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetRATCoinageBalance(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetRATCoinageBalance(&_RAT.CallOpts, systemConfig)
 }
 
 // GetValidatorCount is a free data retrieval call binding the contract method 0xf9560e45.
@@ -735,29 +966,57 @@ func (_RAT *RATCallerSession) GetValidatorDeposit(validator common.Address, syst
 	return _RAT.Contract.GetValidatorDeposit(&_RAT.CallOpts, validator, systemConfig)
 }
 
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATCaller) GetValidatorMinCollateralForLayer2(opts *bind.CallOpts, layer2 common.Address, validator common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getValidatorMinCollateralForLayer2", layer2, validator)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATSession) GetValidatorMinCollateralForLayer2(layer2 common.Address, validator common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetValidatorMinCollateralForLayer2(&_RAT.CallOpts, layer2, validator)
+}
+
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATCallerSession) GetValidatorMinCollateralForLayer2(layer2 common.Address, validator common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetValidatorMinCollateralForLayer2(&_RAT.CallOpts, layer2, validator)
+}
+
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCaller) GetValidatorRegistration(opts *bind.CallOpts, validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	var out []interface{}
 	err := _RAT.contract.Call(opts, &out, "getValidatorRegistration", validator, systemConfig)
 
 	outstruct := new(struct {
-		DepositedAmount *big.Int
-		TotalBondForRAT *big.Int
-		ValidatorIndex  uint32
-		IsActive        bool
+		Collateral     *big.Int
+		ValidatorIndex uint32
+		IsActive       bool
 	})
 
-	outstruct.DepositedAmount = out[0].(*big.Int)
-	outstruct.TotalBondForRAT = out[1].(*big.Int)
-	outstruct.ValidatorIndex = out[2].(uint32)
-	outstruct.IsActive = out[3].(bool)
+	outstruct.Collateral = out[0].(*big.Int)
+	outstruct.ValidatorIndex = out[1].(uint32)
+	outstruct.IsActive = out[2].(bool)
 
 	return *outstruct, err
 
@@ -765,24 +1024,22 @@ func (_RAT *RATCaller) GetValidatorRegistration(opts *bind.CallOpts, validator c
 
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATSession) GetValidatorRegistration(validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	return _RAT.Contract.GetValidatorRegistration(&_RAT.CallOpts, validator, systemConfig)
 }
 
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCallerSession) GetValidatorRegistration(validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	return _RAT.Contract.GetValidatorRegistration(&_RAT.CallOpts, validator, systemConfig)
 }
@@ -847,6 +1104,37 @@ func (_RAT *RATSession) L1BridgeRegistry() (common.Address, error) {
 // Solidity: function l1BridgeRegistry() view returns(address)
 func (_RAT *RATCallerSession) L1BridgeRegistry() (common.Address, error) {
 	return _RAT.Contract.L1BridgeRegistry(&_RAT.CallOpts)
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATCaller) LatestDeadlineTest(opts *bind.CallOpts, arg0 common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "latestDeadlineTest", arg0)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATSession) LatestDeadlineTest(arg0 common.Address) (*big.Int, error) {
+	return _RAT.Contract.LatestDeadlineTest(&_RAT.CallOpts, arg0)
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATCallerSession) LatestDeadlineTest(arg0 common.Address) (*big.Int, error) {
+	return _RAT.Contract.LatestDeadlineTest(&_RAT.CallOpts, arg0)
 }
 
 // Layer2Manager is a free data retrieval call binding the contract method 0x16b5d5bd.
@@ -1033,6 +1321,68 @@ func (_RAT *RATSession) RatTriggerProbability() (*big.Int, error) {
 // Solidity: function ratTriggerProbability() view returns(uint256)
 func (_RAT *RATCallerSession) RatTriggerProbability() (*big.Int, error) {
 	return _RAT.Contract.RatTriggerProbability(&_RAT.CallOpts)
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATCaller) RelaxedValidatorCheck(opts *bind.CallOpts) (bool, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "relaxedValidatorCheck")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATSession) RelaxedValidatorCheck() (bool, error) {
+	return _RAT.Contract.RelaxedValidatorCheck(&_RAT.CallOpts)
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATCallerSession) RelaxedValidatorCheck() (bool, error) {
+	return _RAT.Contract.RelaxedValidatorCheck(&_RAT.CallOpts)
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATCaller) SafetyBuffer(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "safetyBuffer")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATSession) SafetyBuffer() (*big.Int, error) {
+	return _RAT.Contract.SafetyBuffer(&_RAT.CallOpts)
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATCallerSession) SafetyBuffer() (*big.Int, error) {
+	return _RAT.Contract.SafetyBuffer(&_RAT.CallOpts)
 }
 
 // SeigManager is a free data retrieval call binding the contract method 0x6fb7f558.
@@ -1254,10 +1604,9 @@ func (_RAT *RATCallerSession) ValidatorIndexes(arg0 common.Address, arg1 common.
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1267,20 +1616,18 @@ func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.A
 	err := _RAT.contract.Call(opts, &out, "validatorRegistrations", arg0, arg1)
 
 	outstruct := new(struct {
-		DepositedAmount    *big.Int
-		TotalBondForRAT    *big.Int
+		LockedForRAT       *big.Int
 		PendingRewards     *big.Int
 		LatestTestDeadline uint64
 		ValidatorIndex     uint32
 		IsActive           bool
 	})
 
-	outstruct.DepositedAmount = out[0].(*big.Int)
-	outstruct.TotalBondForRAT = out[1].(*big.Int)
-	outstruct.PendingRewards = out[2].(*big.Int)
-	outstruct.LatestTestDeadline = out[3].(uint64)
-	outstruct.ValidatorIndex = out[4].(uint32)
-	outstruct.IsActive = out[5].(bool)
+	outstruct.LockedForRAT = out[0].(*big.Int)
+	outstruct.PendingRewards = out[1].(*big.Int)
+	outstruct.LatestTestDeadline = out[2].(uint64)
+	outstruct.ValidatorIndex = out[3].(uint32)
+	outstruct.IsActive = out[4].(bool)
 
 	return *outstruct, err
 
@@ -1288,10 +1635,9 @@ func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.A
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATSession) ValidatorRegistrations(arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1302,10 +1648,9 @@ func (_RAT *RATSession) ValidatorRegistrations(arg0 common.Address, arg1 common.
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCallerSession) ValidatorRegistrations(arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1376,27 +1721,6 @@ func (_RAT *RATCallerSession) Wton() (common.Address, error) {
 	return _RAT.Contract.Wton(&_RAT.CallOpts)
 }
 
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATTransactor) AddDeposit(opts *bind.TransactOpts, systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "addDeposit", systemConfig, amount)
-}
-
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATSession) AddDeposit(systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.AddDeposit(&_RAT.TransactOpts, systemConfig, amount)
-}
-
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATTransactorSession) AddDeposit(systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.AddDeposit(&_RAT.TransactOpts, systemConfig, amount)
-}
-
 // DeactivateValidator is a paid mutator transaction binding the contract method 0xba50b879.
 //
 // Solidity: function deactivateValidator(address systemConfig) returns()
@@ -1418,88 +1742,67 @@ func (_RAT *RATTransactorSession) DeactivateValidator(systemConfig common.Addres
 	return _RAT.Contract.DeactivateValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATTransactor) EmergencyWithdraw(opts *bind.TransactOpts, token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "emergencyWithdraw", token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATTransactor) Initialize(opts *bind.TransactOpts, _seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "initialize", _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATSession) EmergencyWithdraw(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.EmergencyWithdraw(&_RAT.TransactOpts, token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATTransactorSession) EmergencyWithdraw(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.EmergencyWithdraw(&_RAT.TransactOpts, token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATTransactorSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATTransactor) Initialize(opts *bind.TransactOpts, _seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "initialize", _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATTransactor) RegisterValidator(opts *bind.TransactOpts, systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "registerValidator", systemConfig)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATSession) RegisterValidator(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATTransactorSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATTransactorSession) RegisterValidator(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATTransactor) OnApprove(opts *bind.TransactOpts, owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "onApprove", owner, spender, amount, data)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATTransactor) RegisterValidatorV2Compat(opts *bind.TransactOpts, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "registerValidatorV2Compat", systemConfig, depositAmount)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATSession) OnApprove(owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.Contract.OnApprove(&_RAT.TransactOpts, owner, spender, amount, data)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATSession) RegisterValidatorV2Compat(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidatorV2Compat(&_RAT.TransactOpts, systemConfig, depositAmount)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATTransactorSession) OnApprove(owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.Contract.OnApprove(&_RAT.TransactOpts, owner, spender, amount, data)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATTransactor) RegisterValidator(opts *bind.TransactOpts, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "registerValidator", systemConfig, depositAmount)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATSession) RegisterValidator(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig, depositAmount)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATTransactorSession) RegisterValidator(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig, depositAmount)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATTransactorSession) RegisterValidatorV2Compat(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidatorV2Compat(&_RAT.TransactOpts, systemConfig, depositAmount)
 }
 
 // ResolveClaim is a paid mutator transaction binding the contract method 0x94d645a8.
@@ -1563,6 +1866,27 @@ func (_RAT *RATSession) SetAuthorizedTrigger(trigger common.Address) (*types.Tra
 // Solidity: function setAuthorizedTrigger(address trigger) returns()
 func (_RAT *RATTransactorSession) SetAuthorizedTrigger(trigger common.Address) (*types.Transaction, error) {
 	return _RAT.Contract.SetAuthorizedTrigger(&_RAT.TransactOpts, trigger)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATTransactor) SetChallengeGameDuration(opts *bind.TransactOpts, duration *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setChallengeGameDuration", duration)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATSession) SetChallengeGameDuration(duration *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetChallengeGameDuration(&_RAT.TransactOpts, duration)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATTransactorSession) SetChallengeGameDuration(duration *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetChallengeGameDuration(&_RAT.TransactOpts, duration)
 }
 
 // SetEvidenceSubmissionPeriod is a paid mutator transaction binding the contract method 0x36c63d46.
@@ -1691,6 +2015,48 @@ func (_RAT *RATTransactorSession) SetRatTriggerProbability(probability *big.Int)
 	return _RAT.Contract.SetRatTriggerProbability(&_RAT.TransactOpts, probability)
 }
 
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATTransactor) SetRelaxedValidatorCheck(opts *bind.TransactOpts, relaxed bool) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setRelaxedValidatorCheck", relaxed)
+}
+
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATSession) SetRelaxedValidatorCheck(relaxed bool) (*types.Transaction, error) {
+	return _RAT.Contract.SetRelaxedValidatorCheck(&_RAT.TransactOpts, relaxed)
+}
+
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATTransactorSession) SetRelaxedValidatorCheck(relaxed bool) (*types.Transaction, error) {
+	return _RAT.Contract.SetRelaxedValidatorCheck(&_RAT.TransactOpts, relaxed)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATTransactor) SetSafetyBuffer(opts *bind.TransactOpts, buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setSafetyBuffer", buffer)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATSession) SetSafetyBuffer(buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetSafetyBuffer(&_RAT.TransactOpts, buffer)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATTransactorSession) SetSafetyBuffer(buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetSafetyBuffer(&_RAT.TransactOpts, buffer)
+}
+
 // SetSlashingPenalty is a paid mutator transaction binding the contract method 0xf983386b.
 //
 // Solidity: function setSlashingPenalty(uint256 penalty) returns()
@@ -1817,25 +2183,159 @@ func (_RAT *RATTransactorSession) TriggerAttentionTest(gameAddress common.Addres
 	return _RAT.Contract.TriggerAttentionTest(&_RAT.TransactOpts, gameAddress, systemConfig, batchIndex, batchHash, blockHash)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATTransactor) WithdrawSlashingsToTreasury(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "withdrawSlashingsToTreasury")
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATTransactor) WithdrawSlashingsToTreasury(opts *bind.TransactOpts, systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "withdrawSlashingsToTreasury", systemConfig)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATSession) WithdrawSlashingsToTreasury() (*types.Transaction, error) {
-	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts)
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATSession) WithdrawSlashingsToTreasury(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts, systemConfig)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATTransactorSession) WithdrawSlashingsToTreasury() (*types.Transaction, error) {
-	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts)
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATTransactorSession) WithdrawSlashingsToTreasury(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts, systemConfig)
+}
+
+// RATAccumulatedSlashingsResetIterator is returned from FilterAccumulatedSlashingsReset and is used to iterate over the raw logs and unpacked data for AccumulatedSlashingsReset events raised by the RAT contract.
+type RATAccumulatedSlashingsResetIterator struct {
+	Event *RATAccumulatedSlashingsReset // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATAccumulatedSlashingsResetIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATAccumulatedSlashingsReset)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATAccumulatedSlashingsReset)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATAccumulatedSlashingsResetIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATAccumulatedSlashingsResetIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATAccumulatedSlashingsReset represents a AccumulatedSlashingsReset event raised by the RAT contract.
+type RATAccumulatedSlashingsReset struct {
+	Amount *big.Int
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterAccumulatedSlashingsReset is a free log retrieval operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) FilterAccumulatedSlashingsReset(opts *bind.FilterOpts) (*RATAccumulatedSlashingsResetIterator, error) {
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "AccumulatedSlashingsReset")
+	if err != nil {
+		return nil, err
+	}
+	return &RATAccumulatedSlashingsResetIterator{contract: _RAT.contract, event: "AccumulatedSlashingsReset", logs: logs, sub: sub}, nil
+}
+
+// WatchAccumulatedSlashingsReset is a free log subscription operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) WatchAccumulatedSlashingsReset(opts *bind.WatchOpts, sink chan<- *RATAccumulatedSlashingsReset) (event.Subscription, error) {
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "AccumulatedSlashingsReset")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATAccumulatedSlashingsReset)
+				if err := _RAT.contract.UnpackLog(event, "AccumulatedSlashingsReset", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseAccumulatedSlashingsReset is a log parse operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) ParseAccumulatedSlashingsReset(log types.Log) (*RATAccumulatedSlashingsReset, error) {
+	event := new(RATAccumulatedSlashingsReset)
+	if err := _RAT.contract.UnpackLog(event, "AccumulatedSlashingsReset", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // RATAttentionTestTriggeredIterator is returned from FilterAttentionTestTriggered and is used to iterate over the raw logs and unpacked data for AttentionTestTriggered events raised by the RAT contract.
@@ -2075,13 +2575,14 @@ type RATBondRestored struct {
 	TestId         [32]byte
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	RestoredAmount *big.Int
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterBondRestored is a free log retrieval operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// FilterBondRestored is a free log retrieval operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) FilterBondRestored(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATBondRestoredIterator, error) {
 
 	var testIdRule []interface{}
@@ -2104,9 +2605,9 @@ func (_RAT *RATFilterer) FilterBondRestored(opts *bind.FilterOpts, testId [][32]
 	return &RATBondRestoredIterator{contract: _RAT.contract, event: "BondRestored", logs: logs, sub: sub}, nil
 }
 
-// WatchBondRestored is a free log subscription operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// WatchBondRestored is a free log subscription operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) WatchBondRestored(opts *bind.WatchOpts, sink chan<- *RATBondRestored, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -2154,9 +2655,9 @@ func (_RAT *RATFilterer) WatchBondRestored(opts *bind.WatchOpts, sink chan<- *RA
 	}), nil
 }
 
-// ParseBondRestored is a log parse operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// ParseBondRestored is a log parse operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) ParseBondRestored(log types.Log) (*RATBondRestored, error) {
 	event := new(RATBondRestored)
 	if err := _RAT.contract.UnpackLog(event, "BondRestored", log); err != nil {
@@ -2392,13 +2893,14 @@ type RATEvidenceSubmitted struct {
 	TestId       [32]byte
 	Validator    common.Address
 	SystemConfig common.Address
+	Layer2       common.Address
 	BatchIndex   uint32
 	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterEvidenceSubmitted is a free log retrieval operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// FilterEvidenceSubmitted is a free log retrieval operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) FilterEvidenceSubmitted(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATEvidenceSubmittedIterator, error) {
 
 	var testIdRule []interface{}
@@ -2421,9 +2923,9 @@ func (_RAT *RATFilterer) FilterEvidenceSubmitted(opts *bind.FilterOpts, testId [
 	return &RATEvidenceSubmittedIterator{contract: _RAT.contract, event: "EvidenceSubmitted", logs: logs, sub: sub}, nil
 }
 
-// WatchEvidenceSubmitted is a free log subscription operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// WatchEvidenceSubmitted is a free log subscription operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) WatchEvidenceSubmitted(opts *bind.WatchOpts, sink chan<- *RATEvidenceSubmitted, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -2471,9 +2973,9 @@ func (_RAT *RATFilterer) WatchEvidenceSubmitted(opts *bind.WatchOpts, sink chan<
 	}), nil
 }
 
-// ParseEvidenceSubmitted is a log parse operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// ParseEvidenceSubmitted is a log parse operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) ParseEvidenceSubmitted(log types.Log) (*RATEvidenceSubmitted, error) {
 	event := new(RATEvidenceSubmitted)
 	if err := _RAT.contract.UnpackLog(event, "EvidenceSubmitted", log); err != nil {
@@ -2617,6 +3119,303 @@ func (_RAT *RATFilterer) ParseMaxValidatorsPerL2Updated(log types.Log) (*RATMaxV
 	return event, nil
 }
 
+// RATRelaxedValidatorCheckUpdatedIterator is returned from FilterRelaxedValidatorCheckUpdated and is used to iterate over the raw logs and unpacked data for RelaxedValidatorCheckUpdated events raised by the RAT contract.
+type RATRelaxedValidatorCheckUpdatedIterator struct {
+	Event *RATRelaxedValidatorCheckUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATRelaxedValidatorCheckUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATRelaxedValidatorCheckUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATRelaxedValidatorCheckUpdated represents a RelaxedValidatorCheckUpdated event raised by the RAT contract.
+type RATRelaxedValidatorCheckUpdated struct {
+	Relaxed bool
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterRelaxedValidatorCheckUpdated is a free log retrieval operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) FilterRelaxedValidatorCheckUpdated(opts *bind.FilterOpts) (*RATRelaxedValidatorCheckUpdatedIterator, error) {
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "RelaxedValidatorCheckUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return &RATRelaxedValidatorCheckUpdatedIterator{contract: _RAT.contract, event: "RelaxedValidatorCheckUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchRelaxedValidatorCheckUpdated is a free log subscription operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) WatchRelaxedValidatorCheckUpdated(opts *bind.WatchOpts, sink chan<- *RATRelaxedValidatorCheckUpdated) (event.Subscription, error) {
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "RelaxedValidatorCheckUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATRelaxedValidatorCheckUpdated)
+				if err := _RAT.contract.UnpackLog(event, "RelaxedValidatorCheckUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRelaxedValidatorCheckUpdated is a log parse operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) ParseRelaxedValidatorCheckUpdated(log types.Log) (*RATRelaxedValidatorCheckUpdated, error) {
+	event := new(RATRelaxedValidatorCheckUpdated)
+	if err := _RAT.contract.UnpackLog(event, "RelaxedValidatorCheckUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RATSlashingsWithdrawnIterator is returned from FilterSlashingsWithdrawn and is used to iterate over the raw logs and unpacked data for SlashingsWithdrawn events raised by the RAT contract.
+type RATSlashingsWithdrawnIterator struct {
+	Event *RATSlashingsWithdrawn // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATSlashingsWithdrawnIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATSlashingsWithdrawn)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATSlashingsWithdrawn)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATSlashingsWithdrawnIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATSlashingsWithdrawnIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATSlashingsWithdrawn represents a SlashingsWithdrawn event raised by the RAT contract.
+type RATSlashingsWithdrawn struct {
+	SystemConfig common.Address
+	Layer2       common.Address
+	Treasury     common.Address
+	Amount       *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterSlashingsWithdrawn is a free log retrieval operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) FilterSlashingsWithdrawn(opts *bind.FilterOpts, systemConfig []common.Address, layer2 []common.Address, treasury []common.Address) (*RATSlashingsWithdrawnIterator, error) {
+
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+	var treasuryRule []interface{}
+	for _, treasuryItem := range treasury {
+		treasuryRule = append(treasuryRule, treasuryItem)
+	}
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "SlashingsWithdrawn", systemConfigRule, layer2Rule, treasuryRule)
+	if err != nil {
+		return nil, err
+	}
+	return &RATSlashingsWithdrawnIterator{contract: _RAT.contract, event: "SlashingsWithdrawn", logs: logs, sub: sub}, nil
+}
+
+// WatchSlashingsWithdrawn is a free log subscription operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) WatchSlashingsWithdrawn(opts *bind.WatchOpts, sink chan<- *RATSlashingsWithdrawn, systemConfig []common.Address, layer2 []common.Address, treasury []common.Address) (event.Subscription, error) {
+
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+	var treasuryRule []interface{}
+	for _, treasuryItem := range treasury {
+		treasuryRule = append(treasuryRule, treasuryItem)
+	}
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "SlashingsWithdrawn", systemConfigRule, layer2Rule, treasuryRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATSlashingsWithdrawn)
+				if err := _RAT.contract.UnpackLog(event, "SlashingsWithdrawn", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSlashingsWithdrawn is a log parse operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) ParseSlashingsWithdrawn(log types.Log) (*RATSlashingsWithdrawn, error) {
+	event := new(RATSlashingsWithdrawn)
+	if err := _RAT.contract.UnpackLog(event, "SlashingsWithdrawn", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // RATValidatorDeactivatedIterator is returned from FilterValidatorDeactivated and is used to iterate over the raw logs and unpacked data for ValidatorDeactivated events raised by the RAT contract.
 type RATValidatorDeactivatedIterator struct {
 	Event *RATValidatorDeactivated // Event containing the contract specifics and raw log
@@ -2686,16 +3485,16 @@ func (it *RATValidatorDeactivatedIterator) Close() error {
 
 // RATValidatorDeactivated represents a ValidatorDeactivated event raised by the RAT contract.
 type RATValidatorDeactivated struct {
-	Validator      common.Address
-	SystemConfig   common.Address
-	ReturnedAmount *big.Int
-	Raw            types.Log // Blockchain specific contextual infos
+	Validator    common.Address
+	SystemConfig common.Address
+	Layer2       common.Address
+	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorDeactivated is a free log retrieval operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// FilterValidatorDeactivated is a free log retrieval operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
-func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address) (*RATValidatorDeactivatedIterator, error) {
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
+func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorDeactivatedIterator, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2705,18 +3504,22 @@ func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, valid
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
 	return &RATValidatorDeactivatedIterator{contract: _RAT.contract, event: "ValidatorDeactivated", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorDeactivated is a free log subscription operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// WatchValidatorDeactivated is a free log subscription operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
-func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorDeactivated, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
+func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorDeactivated, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2726,8 +3529,12 @@ func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink ch
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
@@ -2759,12 +3566,175 @@ func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink ch
 	}), nil
 }
 
-// ParseValidatorDeactivated is a log parse operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// ParseValidatorDeactivated is a log parse operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
 func (_RAT *RATFilterer) ParseValidatorDeactivated(log types.Log) (*RATValidatorDeactivated, error) {
 	event := new(RATValidatorDeactivated)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorDeactivated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RATValidatorReactivatedIterator is returned from FilterValidatorReactivated and is used to iterate over the raw logs and unpacked data for ValidatorReactivated events raised by the RAT contract.
+type RATValidatorReactivatedIterator struct {
+	Event *RATValidatorReactivated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATValidatorReactivatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATValidatorReactivated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATValidatorReactivated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATValidatorReactivatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATValidatorReactivatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATValidatorReactivated represents a ValidatorReactivated event raised by the RAT contract.
+type RATValidatorReactivated struct {
+	Validator    common.Address
+	SystemConfig common.Address
+	Layer2       common.Address
+	Collateral   *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterValidatorReactivated is a free log retrieval operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) FilterValidatorReactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorReactivatedIterator, error) {
+
+	var validatorRule []interface{}
+	for _, validatorItem := range validator {
+		validatorRule = append(validatorRule, validatorItem)
+	}
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorReactivated", validatorRule, systemConfigRule, layer2Rule)
+	if err != nil {
+		return nil, err
+	}
+	return &RATValidatorReactivatedIterator{contract: _RAT.contract, event: "ValidatorReactivated", logs: logs, sub: sub}, nil
+}
+
+// WatchValidatorReactivated is a free log subscription operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) WatchValidatorReactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorReactivated, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
+
+	var validatorRule []interface{}
+	for _, validatorItem := range validator {
+		validatorRule = append(validatorRule, validatorItem)
+	}
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorReactivated", validatorRule, systemConfigRule, layer2Rule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATValidatorReactivated)
+				if err := _RAT.contract.UnpackLog(event, "ValidatorReactivated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseValidatorReactivated is a log parse operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) ParseValidatorReactivated(log types.Log) (*RATValidatorReactivated, error) {
+	event := new(RATValidatorReactivated)
+	if err := _RAT.contract.UnpackLog(event, "ValidatorReactivated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -2842,15 +3812,16 @@ func (it *RATValidatorRegisteredIterator) Close() error {
 type RATValidatorRegistered struct {
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	DepositAmount  *big.Int
 	RegistrationId *big.Int
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorRegistered is a free log retrieval operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// FilterValidatorRegistered is a free log retrieval operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
-func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address) (*RATValidatorRegisteredIterator, error) {
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
+func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorRegisteredIterator, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2860,18 +3831,22 @@ func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, valida
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
 	return &RATValidatorRegisteredIterator{contract: _RAT.contract, event: "ValidatorRegistered", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorRegistered is a free log subscription operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// WatchValidatorRegistered is a free log subscription operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
-func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink chan<- *RATValidatorRegistered, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
+func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink chan<- *RATValidatorRegistered, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2881,8 +3856,12 @@ func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink cha
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
@@ -2914,9 +3893,9 @@ func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink cha
 	}), nil
 }
 
-// ParseValidatorRegistered is a log parse operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// ParseValidatorRegistered is a log parse operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
 func (_RAT *RATFilterer) ParseValidatorRegistered(log types.Log) (*RATValidatorRegistered, error) {
 	event := new(RATValidatorRegistered)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorRegistered", log); err != nil {
@@ -3151,14 +4130,15 @@ type RATValidatorSlashed struct {
 	TestId         [32]byte
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	SlashedAmount  *big.Int
 	RemovedFromSet bool
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorSlashed is a free log retrieval operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// FilterValidatorSlashed is a free log retrieval operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) FilterValidatorSlashed(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATValidatorSlashedIterator, error) {
 
 	var testIdRule []interface{}
@@ -3181,9 +4161,9 @@ func (_RAT *RATFilterer) FilterValidatorSlashed(opts *bind.FilterOpts, testId []
 	return &RATValidatorSlashedIterator{contract: _RAT.contract, event: "ValidatorSlashed", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorSlashed is a free log subscription operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// WatchValidatorSlashed is a free log subscription operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) WatchValidatorSlashed(opts *bind.WatchOpts, sink chan<- *RATValidatorSlashed, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -3231,9 +4211,9 @@ func (_RAT *RATFilterer) WatchValidatorSlashed(opts *bind.WatchOpts, sink chan<-
 	}), nil
 }
 
-// ParseValidatorSlashed is a log parse operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// ParseValidatorSlashed is a log parse operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) ParseValidatorSlashed(log types.Log) (*RATValidatorSlashed, error) {
 	event := new(RATValidatorSlashed)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorSlashed", log); err != nil {

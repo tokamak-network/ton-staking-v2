@@ -27,11 +27,11 @@ contract MockL1StandardBridge {
 
     function depositERC20To(
         address _l1Token,
-        address _l2Token,
-        address _to,
+        address /* _l2Token */,
+        address /* _to */,
         uint256 _amount,
-        uint32 _l2Gas,
-        bytes calldata _data
+        uint32 /* _l2Gas */,
+        bytes calldata /* _data */
     ) external {
         require(
             IERC20(_l1Token).transferFrom(msg.sender, address(this), _amount),
@@ -41,10 +41,10 @@ contract MockL1StandardBridge {
     }
 
     function bridgeNativeTokenTo(
-        address _to,
+        address /* _to */,
         uint256 _amount,
-        uint32 _l2Gas,
-        bytes calldata _data
+        uint32 /* _l2Gas */,
+        bytes calldata /* _data */
     ) external {
         // sepolia ton
         address l1token = 0xa30fe40285B8f5c0457DbC3B7C8A280373c40044;

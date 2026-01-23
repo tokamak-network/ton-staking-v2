@@ -1,21 +1,120 @@
 package faultproofs
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
+
+// ============================================================================
+// Package-level ABI definitions (initialized once to avoid repeated parsing)
+// ============================================================================
+
+var (
+	// stakeOfABI is used to query validator staking amounts from SeigManager
+	stakeOfABI abi.ABI
+
+	// layer2ManagerGetLayer2ABI is used to query Layer2 address from Layer2Manager
+	layer2ManagerGetLayer2ABI abi.ABI
+)
+
+func init() {
+	var err error
+
+	stakeOfABI, err = abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"address","name":"account","type":"address"}],"name":"stakeOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
+	if err != nil {
+		panic("failed to parse stakeOfABI: " + err.Error())
+	}
+
+	layer2ManagerGetLayer2ABI, err = abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"systemConfig","type":"address"}],"name":"getLayer2BySystemConfig","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
+	if err != nil {
+		panic("failed to parse layer2ManagerGetLayer2ABI: " + err.Error())
+	}
+}
+
+// ============================================================================
+// Utility functions (reduce code duplication)
+// ============================================================================
+
+// waitForTransactionReceipt polls for a transaction receipt with timeout.
+// Returns the receipt on success or fails the test on timeout.
+func waitForTransactionReceipt(
+	t *testing.T,
+	ctx context.Context,
+	client *ethclient.Client,
+	txHash common.Hash,
+	description string,
+) *types.Receipt {
+	for i := 0; i < 50; i++ {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		if err == nil && receipt != nil {
+			require.Equal(t, uint64(1), receipt.Status, description+" should succeed")
+			t.Logf("✓ %s", description)
+			return receipt
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for %s receipt", description)
+	return nil
+}
+
+// waitForTransactionReceiptNoLog polls for a transaction receipt without logging.
+// Returns the receipt on success or fails the test on timeout.
+func waitForTransactionReceiptNoLog(
+	t *testing.T,
+	ctx context.Context,
+	client *ethclient.Client,
+	txHash common.Hash,
+	description string,
+) *types.Receipt {
+	for i := 0; i < 50; i++ {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		if err == nil && receipt != nil {
+			return receipt
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for %s receipt", description)
+	return nil
+}
+
+// impersonateAccount starts impersonating an account on Anvil and returns a cleanup function.
+// Usage: cleanup := impersonateAccount(t, client, account); defer cleanup()
+func impersonateAccount(t *testing.T, client *ethclient.Client, account common.Address) func() {
+	var result any
+	err := client.Client().Call(&result, "anvil_impersonateAccount", account)
+	require.NoError(t, err, "Failed to impersonate account %s", account.Hex())
+
+	return func() {
+		client.Client().Call(&result, "anvil_stopImpersonatingAccount", account)
+	}
+}
+
+// fundAccount sets the balance of an account on Anvil.
+func fundAccount(t *testing.T, client *ethclient.Client, account common.Address, balanceHex string) {
+	var result any
+	err := client.Client().Call(&result, "anvil_setBalance", account, balanceHex)
+	require.NoError(t, err, "Failed to set balance for %s", account.Hex())
+}
+
+// ============================================================================
+// Common test constants
+// ============================================================================
 
 // Common test constants
 const (
@@ -31,6 +130,14 @@ const (
 	// Event signatures
 	eventDisputeGameCreated     = "0x5b565efe82411da98814f356d0e7bcb8f0219b8d970307c5afb4a6903a8b2e35"
 	eventAttentionTestTriggered = "0xcf68a8dafa7b2329d7d7fcde3af620c2a51f64345d1eb2d66ffe7c7f1e9b0c38"
+
+	// DisputeGameFactory storage slots (matching modified Optimism contract with RAT)
+	// Storage layout from forge inspect:
+	//   Slot 51: _owner, Slot 101: gameImpls, Slot 102: initBonds,
+	//   Slot 103: _disputeGames, Slot 104: _disputeGameList,
+	//   Slot 105: rat, Slot 106: systemConfig
+	dgfSlotRAT          = 105 // RAT address stored at slot 105
+	dgfSlotSystemConfig = 106 // SystemConfig address stored at slot 106
 )
 
 // TestAccounts holds all test account information
@@ -54,8 +161,32 @@ type TestAccounts struct {
 
 // TestContracts holds all contract instances
 type TestContracts struct {
-	RAT *bindings.RAT
-	TON *bindings.ERC20
+	RAT            *bindings.RAT
+	TON            *bindings.ERC20
+	WTON           *bindings.WTON
+	DepositManager *bind.BoundContract // Raw contract binding for DepositManager
+}
+
+// readDGFRatFromStorage reads the RAT address from DisputeGameFactory storage slot 52
+// This is needed because the Optimism DisputeGameFactory bytecode doesn't have a rat() view function
+func readDGFRatFromStorage(client *ethclient.Client, dgfAddress common.Address) (common.Address, error) {
+	slot := common.BigToHash(big.NewInt(dgfSlotRAT))
+	data, err := client.StorageAt(context.Background(), dgfAddress, slot, nil)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return common.BytesToAddress(data), nil
+}
+
+// readDGFSystemConfigFromStorage reads the SystemConfig address from DisputeGameFactory storage slot 103
+// This is needed because the Optimism DisputeGameFactory bytecode doesn't have a systemConfig() view function
+func readDGFSystemConfigFromStorage(client *ethclient.Client, dgfAddress common.Address) (common.Address, error) {
+	slot := common.BigToHash(big.NewInt(dgfSlotSystemConfig))
+	data, err := client.StorageAt(context.Background(), dgfAddress, slot, nil)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return common.BytesToAddress(data), nil
 }
 
 // setupTestAccounts creates and configures all test accounts
@@ -92,7 +223,7 @@ func setupTestAccounts(t *testing.T, sys *rat.TONStakingSystem) *TestAccounts {
 	return accounts
 }
 
-// connectTestContracts connects to RAT and TON contracts
+// connectTestContracts connects to RAT, TON, WTON, and DepositManager contracts
 func connectTestContracts(t *testing.T, sys *rat.TONStakingSystem) *TestContracts {
 	contracts := &TestContracts{}
 
@@ -103,13 +234,352 @@ func connectTestContracts(t *testing.T, sys *rat.TONStakingSystem) *TestContract
 	contracts.TON, err = bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
 	require.NoError(t, err)
 
+	contracts.WTON, err = bindings.NewWTON(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err)
+
+	// DepositManager ABI (minimal interface)
+	depositManagerABI := `[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"deposit","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]`
+	parsedABI, err := abi.JSON(strings.NewReader(depositManagerABI))
+	require.NoError(t, err)
+	contracts.DepositManager = bind.NewBoundContract(sys.Addresses.DepositManagerProxy, parsedABI, sys.L1Client, sys.L1Client, sys.L1Client)
+
 	return contracts
 }
 
-// getTestDepositAmount returns the standard test deposit amount (50000 TON in wei)
+// V3 Configuration Constants (matching DeployV3FullForDevnet.s.sol)
+const (
+	// V3 Seigniorage Distribution Parameters
+	daoDistributionRatio       = "200000000000000000000000000"         // 0.2e27 = 20%
+	minStakingRatio            = "100000000000000000000000000"         // 0.1e27 = 10%
+	validatorDistributionRatio = "200000000000000000000000000"         // 0.2e27 = 20%
+	halfSaturationPoint        = "10000000000000000000000000000000000" // 10_000_000e27 = 10M TON
+
+	// V3 Sequencer Parameters
+	maxChallengers            = 10
+	maxFraudProofCost         = "1000000000000000000000000000000" // 1000e27 = 1000 WTON
+	sequencerAdditionalReward = "100000000000000000000000000000"  // 100e27 = 100 WTON
+)
+
+// configureV3Parameters sets up SeigManager V3 parameters at runtime.
+// This is called at test start because these function calls may not work reliably in offline genesis mode.
+func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
+	t.Log("Configuring V3 parameters at runtime...")
+
+	deployer := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8") // TON Staking deployer
+
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, deployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, deployer, "0x56BC75E2D63100000") // 100 ETH
+
+	// SeigManagerV1_4 ABI for V3 functions
+	seigManagerABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"uint256","name":"_ratio","type":"uint256"}],"name":"setDaoDistributionRatio","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_ratio","type":"uint256"}],"name":"setMinStakingRatio","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_ratio","type":"uint256"}],"name":"setValidatorDistributionRatio","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_point","type":"uint256"}],"name":"setHalfSaturationPoint","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_max","type":"uint256"}],"name":"setMaxChallengers","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_max","type":"uint256"}],"name":"setMaxFraudProofCost","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint256","name":"_reward","type":"uint256"}],"name":"setSequencerAdditionalReward","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"_rat","type":"address"}],"name":"setRATContract","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"migrateToV3","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"v3Migrated","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// Helper to send transaction
+	sendTx := func(method string, args ...interface{}) {
+		callData, err := seigManagerABI.Pack(method, args...)
+		require.NoError(t, err, "Failed to pack "+method)
+
+		txArgs := map[string]any{
+			"from":     deployer,
+			"to":       sys.Addresses.SeigManagerProxy,
+			"gas":      "0x100000", // 1M gas
+			"gasPrice": "0x" + gasPrice.Text(16),
+			"data":     "0x" + common.Bytes2Hex(callData),
+		}
+
+		var txHash common.Hash
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send "+method)
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, method)
+	}
+
+	// Check if already migrated
+	callData, _ := seigManagerABI.Pack("v3Migrated")
+	resultBytes, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: callData,
+	}, nil)
+
+	var migrated bool
+	if err == nil && len(resultBytes) > 0 {
+		seigManagerABI.UnpackIntoInterface(&migrated, "v3Migrated", resultBytes)
+	}
+
+	if migrated {
+		t.Log("✓ V3 already migrated, skipping configuration")
+	} else {
+		// Set V3 parameters
+		daoRatio, _ := new(big.Int).SetString(daoDistributionRatio, 10)
+		sendTx("setDaoDistributionRatio", daoRatio)
+
+		minRatio, _ := new(big.Int).SetString(minStakingRatio, 10)
+		sendTx("setMinStakingRatio", minRatio)
+
+		validatorRatio, _ := new(big.Int).SetString(validatorDistributionRatio, 10)
+		sendTx("setValidatorDistributionRatio", validatorRatio)
+
+		halfSat, _ := new(big.Int).SetString(halfSaturationPoint, 10)
+		sendTx("setHalfSaturationPoint", halfSat)
+
+		sendTx("setMaxChallengers", big.NewInt(maxChallengers))
+
+		maxFraud, _ := new(big.Int).SetString(maxFraudProofCost, 10)
+		sendTx("setMaxFraudProofCost", maxFraud)
+
+		seqReward, _ := new(big.Int).SetString(sequencerAdditionalReward, 10)
+		sendTx("setSequencerAdditionalReward", seqReward)
+
+		// Set RAT contract
+		sendTx("setRATContract", sys.Addresses.RATProxy)
+
+		// Migrate to V3
+		sendTx("migrateToV3")
+	}
+
+	t.Log("✓ V3 parameters configured")
+}
+
+// initializeOptimismContracts initializes Optimism contracts at runtime.
+//
+// This function initializes:
+// - MockAnchorStateRegistry.initialize(systemConfig, disputeGameFactory, anchorRoot, gameType)
+// - DisputeGameFactory.setRAT(ratProxy)
+// - DisputeGameFactory.setInitBond(gameType, bond)
+func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
+	t.Log("Initializing Optimism contracts at runtime...")
+
+	// Use Optimism deployer (Account #0) for Optimism contracts
+	optimismDeployer := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, optimismDeployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, optimismDeployer, "0x56BC75E2D63100000") // 100 ETH
+
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// Helper to send transaction
+	sendTx := func(to common.Address, callData []byte, description string) {
+		txArgs := map[string]any{
+			"from":     optimismDeployer,
+			"to":       to,
+			"gas":      "0x100000", // 1M gas
+			"gasPrice": "0x" + gasPrice.Text(16),
+			"data":     "0x" + common.Bytes2Hex(callData),
+		}
+
+		var txHash common.Hash
+		err := sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send "+description)
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, description)
+	}
+
+	// ===========================================
+	// 1. Initialize MockAnchorStateRegistry
+	// ===========================================
+	if sys.Addresses.AnchorStateRegistry != (common.Address{}) {
+		asrABI, err := abi.JSON(strings.NewReader(`[
+			{"inputs":[{"internalType":"address","name":"_systemConfig","type":"address"},{"internalType":"address","name":"_disputeGameFactory","type":"address"},{"internalType":"bytes32","name":"_startingAnchorRoot","type":"bytes32"},{"internalType":"uint32","name":"_startingRespectedGameType","type":"uint32"}],"name":"initialize","outputs":[],"stateMutability":"nonpayable","type":"function"}
+		]`))
+		require.NoError(t, err)
+
+		// Initialize with systemConfig, disputeGameFactory, zero anchor root, game type 0
+		initData, err := asrABI.Pack("initialize",
+			sys.Addresses.SystemConfig,
+			sys.Addresses.DisputeGameFactory,
+			[32]byte{}, // startingAnchorRoot (zero for devnet)
+			uint32(0),  // startingRespectedGameType
+		)
+		require.NoError(t, err)
+		sendTx(sys.Addresses.AnchorStateRegistry, initData, "MockAnchorStateRegistry.initialize")
+	} else {
+		t.Log("Note: AnchorStateRegistry address not available, skipping initialization")
+	}
+
+	// ===========================================
+	// 2. DisputeGameFactory.setRAT() and setSystemConfig()
+	// ===========================================
+	dgfABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"_rat","type":"address"}],"name":"setRAT","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"_systemConfig","type":"address"}],"name":"setSystemConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"uint32","name":"_gameType","type":"uint32"},{"internalType":"uint256","name":"_initBond","type":"uint256"}],"name":"setInitBond","outputs":[],"stateMutability":"nonpayable","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	// Set RAT on DisputeGameFactory
+	setRATData, err := dgfABI.Pack("setRAT", sys.Addresses.RATProxy)
+	require.NoError(t, err)
+	sendTx(sys.Addresses.DisputeGameFactory, setRATData, "DisputeGameFactory.setRAT")
+
+	// Set SystemConfig on DisputeGameFactory
+	setSystemConfigData, err := dgfABI.Pack("setSystemConfig", sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	sendTx(sys.Addresses.DisputeGameFactory, setSystemConfigData, "DisputeGameFactory.setSystemConfig")
+
+	// ===========================================
+	// 3. DisputeGameFactory.setInitBond()
+	// ===========================================
+	// Game type 0, init bond 0.08 ETH
+	gameType := uint32(0)
+	initBond := big.NewInt(80000000000000000) // 0.08 ETH
+
+	setInitBondData, err := dgfABI.Pack("setInitBond", gameType, initBond)
+	require.NoError(t, err)
+	sendTx(sys.Addresses.DisputeGameFactory, setInitBondData, "DisputeGameFactory.setInitBond")
+
+	t.Log("✓ Optimism contracts initialized")
+}
+
+// registerSystemConfigInL1BridgeRegistry sets up runtime configuration for Optimism integration via transactions.
+//
+// NOTE: RAT.setL1BridgeRegistry() is already called in Genesis (pure TON staking config).
+// This function only handles SystemConfig registration (Optimism integration):
+// - L1BridgeRegistry.addManager() - grants manager role to deployer
+// - L1BridgeRegistry.registerRollupConfigByManager() - registers SystemConfig with DisputeGameFactory mapping
+func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSystem, _ *bind.TransactOpts) {
+	t.Log("Setting up Optimism integration via transactions (SystemConfig registration)...")
+
+	deployer := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8") // TON Staking deployer
+
+	// Impersonate and fund deployer
+	cleanup := impersonateAccount(t, sys.L1Client, deployer)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, deployer, "0x56BC75E2D63100000") // 100 ETH
+
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// NOTE: RAT.setL1BridgeRegistry() is already called in Genesis script (_setupCrossReferences)
+	// No need to call it again at runtime.
+
+	// ===========================================
+	// Call L1BridgeRegistry.addManager() to grant manager role
+	// ===========================================
+	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"addManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"uint8","name":"rollupType","type":"uint8"},{"internalType":"address","name":"l2TON","type":"address"},{"internalType":"string","name":"name","type":"string"}],"name":"registerRollupConfigByManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	// Add deployer as manager
+	callData, err := l1BridgeRegistryABI.Pack("addManager", deployer)
+	require.NoError(t, err)
+
+	txArgs := map[string]any{
+		"from":     deployer,
+		"to":       sys.Addresses.L1BridgeRegistryProxy,
+		"gas":      "0x100000",
+		"gasPrice": "0x" + gasPrice.Text(16),
+		"data":     "0x" + common.Bytes2Hex(callData),
+	}
+
+	var txHash common.Hash
+	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+	require.NoError(t, err, "Failed to send L1BridgeRegistry.addManager")
+
+	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addManager")
+
+	// ===========================================
+	// Call L1BridgeRegistry.registerRollupConfigByManager() via transaction
+	// ===========================================
+	// TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+	callData, err = l1BridgeRegistryABI.Pack("registerRollupConfigByManager",
+		sys.Addresses.SystemConfig, // rollupConfig
+		uint8(3),                   // rollupType = OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+		sys.Addresses.TON,          // l2TON
+		"DevnetOptimism",           // name
+	)
+	require.NoError(t, err)
+
+	txArgs["data"] = "0x" + common.Bytes2Hex(callData)
+
+	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+	require.NoError(t, err, "Failed to send L1BridgeRegistry.registerRollupConfigByManager")
+
+	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.registerRollupConfigByManager")
+
+	// ===========================================
+	// Call SeigManager.migrateToV3() for V3 migration
+	// ===========================================
+	seigManagerMigrateABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"migrateToV3","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"v3Migrated","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	// Check if already migrated
+	checkMigrateData, _ := seigManagerMigrateABI.Pack("v3Migrated")
+	migrateCheckResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: checkMigrateData,
+	}, nil)
+	require.NoError(t, err)
+
+	var alreadyMigrated bool
+	seigManagerMigrateABI.UnpackIntoInterface(&alreadyMigrated, "v3Migrated", migrateCheckResult)
+
+	if !alreadyMigrated {
+		migrateData, _ := seigManagerMigrateABI.Pack("migrateToV3")
+		txArgs["to"] = sys.Addresses.SeigManagerProxy
+		txArgs["data"] = "0x" + common.Bytes2Hex(migrateData)
+
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send SeigManager.migrateToV3")
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "SeigManager.migrateToV3")
+	} else {
+		t.Log("✓ SeigManager already migrated to V3, skipping migrateToV3()")
+	}
+
+	// ===========================================
+	// Verification
+	// ===========================================
+	verifyCallData, err := l1BridgeRegistryABI.Pack("rollupConfigWithDisputeGameFactory", sys.Addresses.DisputeGameFactory)
+	require.NoError(t, err)
+
+	resultBytes, err := sys.L1Client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &sys.Addresses.L1BridgeRegistryProxy,
+		Data: verifyCallData,
+	}, nil)
+	require.NoError(t, err)
+
+	var rollupConfigFromCall common.Address
+	err = l1BridgeRegistryABI.UnpackIntoInterface(&rollupConfigFromCall, "rollupConfigWithDisputeGameFactory", resultBytes)
+	require.NoError(t, err)
+
+	require.Equal(t, sys.Addresses.SystemConfig, rollupConfigFromCall,
+		"rollupConfigWithDisputeGameFactory should return SystemConfig")
+	t.Logf("✓ Verified: rollupConfigWithDisputeGameFactory[%s] = %s",
+		sys.Addresses.DisputeGameFactory.Hex(), rollupConfigFromCall.Hex())
+	t.Log("✓ L1BridgeRegistry configured via transactions")
+}
+
+// getTestDepositAmount returns the standard test deposit amount (50000 WTON in RAY, 27 decimals)
 func getTestDepositAmount() *big.Int {
 	depositAmount := new(big.Int).SetUint64(testDepositAmountTON)
-	depositAmount.Mul(depositAmount, big.NewInt(1e18)) // Convert to wei
+	// WTON uses 27 decimals (RAY scale), not 18
+	depositAmount.Mul(depositAmount, big.NewInt(1e18))
+	depositAmount.Mul(depositAmount, big.NewInt(1e9)) // 1e27 total = 1e18 * 1e9
 	return depositAmount
 }
 
@@ -138,30 +608,532 @@ func adjustMinimumCollateral(t *testing.T, sys *rat.TONStakingSystem, contracts 
 	t.Logf("✓ Collateral requirements adjusted")
 }
 
-// registerValidatorWithTON registers a validator with TON deposit
-func registerValidatorWithTON(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, depositAmount *big.Int) {
-	// Approve TON to RAT
-	approveTx, err := contracts.TON.Approve(validatorAuth, sys.Addresses.RATProxy, depositAmount)
+// createMockLayer2 dynamically creates a Layer2 (CandidateAddOn) for testing
+func createMockLayer2(t *testing.T, sys *rat.TONStakingSystem) common.Address {
+	// Get deployer auth using setupTestAccounts
+	chainID, err := sys.L1Client.ChainID(context.Background())
+	require.NoError(t, err)
+
+	deployerKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	require.NoError(t, err)
+
+	deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerKey, chainID)
+	require.NoError(t, err)
+	deployerAuth.GasLimit = 10000000 // 10M gas - high limit for complex contract deployment
+
+	// Connect to contracts
+	wton, err := bindings.NewWTON(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err)
+
+	layer2ManagerABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"uint256","name":"operatorDeposit","type":"uint256"},{"internalType":"bool","name":"flagTon","type":"bool"},{"internalType":"string","name":"memo","type":"string"}],"name":"registerCandidateAddOn","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"}],"name":"getLayer2BySystemConfig","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	layer2Manager := bind.NewBoundContract(
+		sys.Addresses.Layer2ManagerProxy,
+		layer2ManagerABI,
+		sys.L1Client, sys.L1Client, sys.L1Client,
+	)
+
+	// Calculate operator deposit (using the same logic as deployment script)
+	// SeigManager minimumAmount = 1000.1e27 WTON (from deployment)
+	// Minimum deposit: must be >= SeigManager minimumAmount
+	operatorDeposit := new(big.Int)
+	operatorDeposit.SetString("1001000000000000000000000000000", 10) // ~1001 WTON in RAY (27 decimals) > 1000.1 WTON minimum
+
+	t.Logf("Creating MockLayer2 with operator deposit: %s WTON", operatorDeposit.String())
+
+	// Debug: Check Layer2Manager storage variables
+	layer2ManagerDebugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"dao","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"operatorManagerFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"depositManager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	layer2ManagerDebug := bind.NewBoundContract(sys.Addresses.Layer2ManagerProxy, layer2ManagerDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var daoResult, operatorFactoryResult, depositManagerResult []interface{}
+	debugOpts := &bind.CallOpts{Context: sys.Ctx}
+	layer2ManagerDebug.Call(debugOpts, &daoResult, "dao")
+	layer2ManagerDebug.Call(debugOpts, &operatorFactoryResult, "operatorManagerFactory")
+	layer2ManagerDebug.Call(debugOpts, &depositManagerResult, "depositManager")
+	if len(daoResult) > 0 {
+		t.Logf("DEBUG: Layer2Manager.dao = %s", daoResult[0].(common.Address).Hex())
+	}
+	if len(operatorFactoryResult) > 0 {
+		t.Logf("DEBUG: Layer2Manager.operatorManagerFactory = %s", operatorFactoryResult[0].(common.Address).Hex())
+	}
+	if len(depositManagerResult) > 0 {
+		t.Logf("DEBUG: Layer2Manager.depositManager = %s", depositManagerResult[0].(common.Address).Hex())
+	}
+
+	// Debug: Check DAO storage variables
+	daoDebugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"candidateAddOnFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"layer2Manager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"layer2Registry","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"seigManager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	if len(daoResult) > 0 {
+		daoAddress := daoResult[0].(common.Address)
+		daoDebug := bind.NewBoundContract(daoAddress, daoDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+		var candidateAddOnFactoryResult, daoLayer2ManagerResult, layer2RegistryResult, seigManagerResult []any
+		daoDebug.Call(debugOpts, &candidateAddOnFactoryResult, "candidateAddOnFactory")
+		daoDebug.Call(debugOpts, &daoLayer2ManagerResult, "layer2Manager")
+		daoDebug.Call(debugOpts, &layer2RegistryResult, "layer2Registry")
+		daoDebug.Call(debugOpts, &seigManagerResult, "seigManager")
+		if len(candidateAddOnFactoryResult) > 0 {
+			t.Logf("DEBUG: DAO.candidateAddOnFactory = %s", candidateAddOnFactoryResult[0].(common.Address).Hex())
+		}
+		if len(daoLayer2ManagerResult) > 0 {
+			t.Logf("DEBUG: DAO.layer2Manager = %s (expected: %s)", daoLayer2ManagerResult[0].(common.Address).Hex(), sys.Addresses.Layer2ManagerProxy.Hex())
+		}
+		if len(layer2RegistryResult) > 0 {
+			t.Logf("DEBUG: DAO.layer2Registry = %s", layer2RegistryResult[0].(common.Address).Hex())
+		}
+		if len(seigManagerResult) > 0 {
+			t.Logf("DEBUG: DAO.seigManager = %s", seigManagerResult[0].(common.Address).Hex())
+		}
+
+		// Debug: Check CandidateAddOnFactory storage (inside daoResult block)
+		if len(candidateAddOnFactoryResult) > 0 {
+			caofAddress := candidateAddOnFactoryResult[0].(common.Address)
+			caofDebugABI, _ := abi.JSON(strings.NewReader(`[
+				{"inputs":[],"name":"daoCommittee","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+				{"inputs":[],"name":"candidateAddOnImp","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+				{"inputs":[],"name":"depositManager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+				{"inputs":[],"name":"ton","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+				{"inputs":[],"name":"wton","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+				{"inputs":[],"name":"onDemandL1BridgeRegistry","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+			]`))
+			caofDebug := bind.NewBoundContract(caofAddress, caofDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+			var caofDaoCommittee, caofCandidateImpl, caofDepositMgr, caofTon, caofWton, caofL1Bridge []any
+			caofDebug.Call(debugOpts, &caofDaoCommittee, "daoCommittee")
+			caofDebug.Call(debugOpts, &caofCandidateImpl, "candidateAddOnImp")
+			caofDebug.Call(debugOpts, &caofDepositMgr, "depositManager")
+			caofDebug.Call(debugOpts, &caofTon, "ton")
+			caofDebug.Call(debugOpts, &caofWton, "wton")
+			caofDebug.Call(debugOpts, &caofL1Bridge, "onDemandL1BridgeRegistry")
+			if len(caofDaoCommittee) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.daoCommittee = %s (expected: %s)", caofDaoCommittee[0].(common.Address).Hex(), daoAddress.Hex())
+			}
+			if len(caofCandidateImpl) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.candidateAddOnImp = %s", caofCandidateImpl[0].(common.Address).Hex())
+			}
+			if len(caofDepositMgr) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.depositManager = %s", caofDepositMgr[0].(common.Address).Hex())
+			}
+			if len(caofTon) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.ton = %s", caofTon[0].(common.Address).Hex())
+			}
+			if len(caofWton) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.wton = %s", caofWton[0].(common.Address).Hex())
+			}
+			if len(caofL1Bridge) > 0 {
+				t.Logf("DEBUG: CandidateAddOnFactory.onDemandL1BridgeRegistry = %s", caofL1Bridge[0].(common.Address).Hex())
+			}
+		}
+
+		// Debug: Check Layer2Registry MINTER_ROLE for DAO
+		if len(layer2RegistryResult) > 0 {
+			layer2RegistryAddr := layer2RegistryResult[0].(common.Address)
+			// MINTER_ROLE = keccak256("MINTER") - from AuthRole.sol
+			minterRole := crypto.Keccak256Hash([]byte("MINTER"))
+			// DEFAULT_ADMIN_ROLE = 0x00
+			defaultAdminRole := common.Hash{}
+			l2rDebugABI, _ := abi.JSON(strings.NewReader(`[
+				{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+				{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isAdmin","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+			]`))
+			l2rDebug := bind.NewBoundContract(layer2RegistryAddr, l2rDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+			var hasRoleResult, isAdminResult, hasAdminRoleDeployer []any
+			// tonStakingDeployer = Account #1
+			tonStakingDeployer := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+			l2rDebug.Call(debugOpts, &hasRoleResult, "hasRole", minterRole, daoAddress)
+			l2rDebug.Call(debugOpts, &isAdminResult, "isAdmin", daoAddress)
+			l2rDebug.Call(debugOpts, &hasAdminRoleDeployer, "hasRole", defaultAdminRole, tonStakingDeployer)
+			if len(hasRoleResult) > 0 {
+				t.Logf("DEBUG: Layer2Registry.hasRole(MINTER_ROLE, DAO=%s) = %v", daoAddress.Hex(), hasRoleResult[0].(bool))
+			}
+			if len(isAdminResult) > 0 {
+				t.Logf("DEBUG: Layer2Registry.isAdmin(DAO=%s) = %v", daoAddress.Hex(), isAdminResult[0].(bool))
+			}
+			if len(hasAdminRoleDeployer) > 0 {
+				t.Logf("DEBUG: Layer2Registry.hasRole(DEFAULT_ADMIN_ROLE, deployer=%s) = %v", tonStakingDeployer.Hex(), hasAdminRoleDeployer[0].(bool))
+			}
+			// Also check SeigManager MINTER_ROLE
+			var hasMinterRoleSeigManager []any
+			l2rDebug.Call(debugOpts, &hasMinterRoleSeigManager, "hasRole", minterRole, seigManagerResult[0].(common.Address))
+			if len(hasMinterRoleSeigManager) > 0 {
+				t.Logf("DEBUG: Layer2Registry.hasRole(MINTER_ROLE, SeigManager=%s) = %v", seigManagerResult[0].(common.Address).Hex(), hasMinterRoleSeigManager[0].(bool))
+			}
+		}
+	}
+
+	// Debug: Check L1BridgeRegistry.getRollupInfo before creating Layer2
+	debugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"}],"name":"getRollupInfo","outputs":[{"internalType":"uint8","name":"type_","type":"uint8"},{"internalType":"address","name":"l2TON_","type":"address"},{"internalType":"bool","name":"rejectedSeigs_","type":"bool"},{"internalType":"bool","name":"rejectedL2Deposit_","type":"bool"},{"internalType":"string","name":"name_","type":"string"}],"stateMutability":"view","type":"function"}
+	]`))
+	debugContract := bind.NewBoundContract(sys.Addresses.L1BridgeRegistryProxy, debugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var rollupInfoResult []any
+	debugCallOpts := &bind.CallOpts{Context: sys.Ctx}
+	debugErr := debugContract.Call(debugCallOpts, &rollupInfoResult, "getRollupInfo", sys.Addresses.SystemConfig)
+	if debugErr != nil {
+		t.Logf("⚠️ getRollupInfo error: %v", debugErr)
+	} else {
+		rollupType := rollupInfoResult[0].(uint8)
+		l2TON := rollupInfoResult[1].(common.Address)
+		t.Logf("DEBUG: L1BridgeRegistry.getRollupInfo(%s) = type=%d, l2TON=%s", sys.Addresses.SystemConfig.Hex(), rollupType, l2TON.Hex())
+	}
+
+	// Runtime permission setup: Grant MINTER_ROLE to DAO on Layer2Registry
+	// (This should be done in genesis but vm.dumpState doesn't capture broadcast transactions)
+	// Use TON Staking deployer (Account #1) who has DEFAULT_ADMIN_ROLE on Layer2Registry
+	if len(daoResult) > 0 {
+		daoAddr := daoResult[0].(common.Address)
+		// MINTER_ROLE = keccak256("MINTER") - from AuthRole.sol
+		minterRole := crypto.Keccak256Hash([]byte("MINTER"))
+
+		// Check if DAO already has MINTER_ROLE
+		hasRoleABI, _ := abi.JSON(strings.NewReader(`[
+			{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+			{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"addMinter","outputs":[],"stateMutability":"nonpayable","type":"function"}
+		]`))
+		layer2RegistryContract := bind.NewBoundContract(sys.Addresses.Layer2RegistryProxy, hasRoleABI, sys.L1Client, sys.L1Client, sys.L1Client)
+
+		var hasMinterRoleResult []any
+		checkOpts := &bind.CallOpts{Context: sys.Ctx}
+		layer2RegistryContract.Call(checkOpts, &hasMinterRoleResult, "hasRole", minterRole, daoAddr)
+
+		daoHasMinterRole := len(hasMinterRoleResult) > 0 && hasMinterRoleResult[0].(bool)
+		t.Logf("DEBUG: Layer2Registry.hasRole(MINTER_ROLE, DAO=%s) = %v (before addMinter)", daoAddr.Hex(), daoHasMinterRole)
+
+		if !daoHasMinterRole {
+			// Account #1 = TON Staking deployer (has admin on Layer2Registry)
+			tonDeployerKey, _ := crypto.HexToECDSA("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
+			tonDeployerAuth, _ := bind.NewKeyedTransactorWithChainID(tonDeployerKey, chainID)
+			tonDeployerAuth.GasLimit = 500000
+
+			addMinterTx, err := layer2RegistryContract.Transact(tonDeployerAuth, "addMinter", daoAddr)
+			require.NoError(t, err)
+			addMinterReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, addMinterTx)
+			require.NoError(t, err)
+			require.Equal(t, uint64(1), addMinterReceipt.Status, "Layer2Registry.addMinter(DAO) should succeed")
+			t.Logf("✓ Runtime: Layer2Registry.addMinter(DAO=%s) done by tonDeployer", daoAddr.Hex())
+		} else {
+			t.Logf("✓ DAO already has MINTER_ROLE on Layer2Registry, skipping addMinter")
+		}
+	}
+
+	// Additional permission checks
+	t.Log("=== Additional Permission Checks ===")
+
+	// 1. SeigManager.registry() should return Layer2RegistryProxy
+	seigDebugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"registry","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"factory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	seigDebug := bind.NewBoundContract(sys.Addresses.SeigManagerProxy, seigDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var seigRegistryResult, seigFactoryResult []any
+	checkOpts := &bind.CallOpts{Context: sys.Ctx}
+	seigDebug.Call(checkOpts, &seigRegistryResult, "registry")
+	seigDebug.Call(checkOpts, &seigFactoryResult, "factory")
+	if len(seigRegistryResult) > 0 {
+		registryAddr := seigRegistryResult[0].(common.Address)
+		t.Logf("DEBUG: SeigManager.registry = %s (expected: %s) [match: %v]",
+			registryAddr.Hex(), sys.Addresses.Layer2RegistryProxy.Hex(),
+			registryAddr == sys.Addresses.Layer2RegistryProxy)
+	}
+	if len(seigFactoryResult) > 0 {
+		coinageFactoryAddr := seigFactoryResult[0].(common.Address)
+		t.Logf("DEBUG: SeigManager.factory (CoinageFactory) = %s", coinageFactoryAddr.Hex())
+
+		// Check CoinageFactory.autoCoinageLogic
+		cfDebugABI, _ := abi.JSON(strings.NewReader(`[
+			{"inputs":[],"name":"autoCoinageLogic","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+		]`))
+		cfDebug := bind.NewBoundContract(coinageFactoryAddr, cfDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+		var coinageLogicResult []any
+		cfDebug.Call(checkOpts, &coinageLogicResult, "autoCoinageLogic")
+		if len(coinageLogicResult) > 0 {
+			t.Logf("DEBUG: CoinageFactory.autoCoinageLogic = %s", coinageLogicResult[0].(common.Address).Hex())
+		}
+	}
+
+	// Check SeigManager.minimumAmount
+	seigMinAmountABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"minimumAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+	]`))
+	seigMinAmountContract := bind.NewBoundContract(sys.Addresses.SeigManagerProxy, seigMinAmountABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var seigMinAmountResult []any
+	seigMinAmountContract.Call(checkOpts, &seigMinAmountResult, "minimumAmount")
+	if len(seigMinAmountResult) > 0 {
+		t.Logf("DEBUG: SeigManager.minimumAmount = %s WTON", seigMinAmountResult[0].(*big.Int).String())
+	}
+
+	// 2. WTON.isMinter(SeigManager)
+	wtonDebugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isMinter","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+	]`))
+	wtonDebug := bind.NewBoundContract(sys.Addresses.WTON, wtonDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var wtonIsMinterResult []any
+	wtonDebug.Call(checkOpts, &wtonIsMinterResult, "isMinter", sys.Addresses.SeigManagerProxy)
+	if len(wtonIsMinterResult) > 0 {
+		t.Logf("DEBUG: WTON.isMinter(SeigManager=%s) = %v", sys.Addresses.SeigManagerProxy.Hex(), wtonIsMinterResult[0].(bool))
+	}
+
+	// 3. OperatorManagerFactory.layer2Manager() should return Layer2ManagerProxy
+	if len(operatorFactoryResult) > 0 {
+		opFactoryAddr := operatorFactoryResult[0].(common.Address)
+		opFactoryDebugABI, _ := abi.JSON(strings.NewReader(`[
+			{"inputs":[],"name":"layer2Manager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+			{"inputs":[],"name":"depositManager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+			{"inputs":[],"name":"operatorManagerImp","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+		]`))
+		opFactoryDebug := bind.NewBoundContract(opFactoryAddr, opFactoryDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+		var opFactoryL2MResult, opFactoryDepositResult, opFactoryImpResult []any
+		opFactoryDebug.Call(checkOpts, &opFactoryL2MResult, "layer2Manager")
+		opFactoryDebug.Call(checkOpts, &opFactoryDepositResult, "depositManager")
+		opFactoryDebug.Call(checkOpts, &opFactoryImpResult, "operatorManagerImp")
+		if len(opFactoryL2MResult) > 0 {
+			l2mAddr := opFactoryL2MResult[0].(common.Address)
+			t.Logf("DEBUG: OperatorManagerFactory.layer2Manager = %s (expected: %s) [match: %v]",
+				l2mAddr.Hex(), sys.Addresses.Layer2ManagerProxy.Hex(),
+				l2mAddr == sys.Addresses.Layer2ManagerProxy)
+		}
+		if len(opFactoryDepositResult) > 0 {
+			t.Logf("DEBUG: OperatorManagerFactory.depositManager = %s", opFactoryDepositResult[0].(common.Address).Hex())
+		}
+		if len(opFactoryImpResult) > 0 {
+			t.Logf("DEBUG: OperatorManagerFactory.operatorManagerImp = %s", opFactoryImpResult[0].(common.Address).Hex())
+		}
+	}
+
+	// 4. SystemConfig.unsafeBlockSigner() - needed for OperatorManager creation
+	sysConfigDebugABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"unsafeBlockSigner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	sysConfigDebug := bind.NewBoundContract(sys.Addresses.SystemConfig, sysConfigDebugABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	var unsafeBlockSignerResult []any
+	sysConfigDebug.Call(checkOpts, &unsafeBlockSignerResult, "unsafeBlockSigner")
+	if len(unsafeBlockSignerResult) > 0 {
+		t.Logf("DEBUG: SystemConfig.unsafeBlockSigner = %s", unsafeBlockSignerResult[0].(common.Address).Hex())
+	}
+
+	t.Log("=== End Permission Checks ===")
+
+	// Mint WTON to deployer
+	mintTx, err := wton.Mint(deployerAuth, deployerAuth.From, operatorDeposit)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, mintTx)
+	require.NoError(t, err)
+	t.Logf("✓ Minted %s WTON to deployer", operatorDeposit.String())
+
+	// Approve WTON to Layer2Manager
+	approveTx, err := wton.Approve(deployerAuth, sys.Addresses.Layer2ManagerProxy, operatorDeposit)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
 	require.NoError(t, err)
+	t.Log("✓ Approved WTON to Layer2Manager")
 
-	// Register validator
-	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig, depositAmount)
+	// Step-by-step debugging
+	t.Log("=== Step-by-step Debug ===")
+	simulateOpts := &bind.CallOpts{
+		Context: sys.Ctx,
+		From:    deployerAuth.From,
+	}
+
+	// 1. Check availableRegister
+	var availableResult []any
+	layer2Manager.Call(simulateOpts, &availableResult, "availableRegister", sys.Addresses.SystemConfig)
+	if len(availableResult) > 0 {
+		t.Logf("DEBUG: Layer2Manager.availableRegister(%s) = %v", sys.Addresses.SystemConfig.Hex(), availableResult[0].(bool))
+	}
+
+	// 2. Check WTON balance of deployer
+	var wtonBalance []any
+	wtonABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+	]`))
+	wtonContract := bind.NewBoundContract(sys.Addresses.WTON, wtonABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	wtonContract.Call(simulateOpts, &wtonBalance, "balanceOf", deployerAuth.From)
+	if len(wtonBalance) > 0 {
+		t.Logf("DEBUG: WTON.balanceOf(deployer) = %s", wtonBalance[0].(*big.Int).String())
+	}
+
+	// 3. Check WTON allowance to Layer2Manager
+	var wtonAllowance []any
+	wtonContract.Call(simulateOpts, &wtonAllowance, "allowance", deployerAuth.From, sys.Addresses.Layer2ManagerProxy)
+	if len(wtonAllowance) > 0 {
+		t.Logf("DEBUG: WTON.allowance(deployer, Layer2Manager) = %s", wtonAllowance[0].(*big.Int).String())
+	}
+
+	// 4. Check Layer2Manager.minimumInitialDepositAmount (it's public)
+	var minDepositResult []any
+	minDepositABI, _ := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"minimumInitialDepositAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+	]`))
+	minDepositContract := bind.NewBoundContract(sys.Addresses.Layer2ManagerProxy, minDepositABI, sys.L1Client, sys.L1Client, sys.L1Client)
+	minDepositContract.Call(simulateOpts, &minDepositResult, "minimumInitialDepositAmount")
+	if len(minDepositResult) > 0 {
+		t.Logf("DEBUG: Layer2Manager.minimumInitialDepositAmount = %s", minDepositResult[0].(*big.Int).String())
+	}
+
+	// 5. Simulate registerCandidateAddOn
+	t.Log("=== Simulating registerCandidateAddOn with eth_call ===")
+	var simulateResult []any
+	simulateErr := layer2Manager.Call(simulateOpts, &simulateResult, "registerCandidateAddOn",
+		sys.Addresses.SystemConfig, operatorDeposit, false, "OptimismL2")
+	if simulateErr != nil {
+		t.Logf("⚠️ Simulation failed: %v", simulateErr)
+	} else {
+		t.Log("✓ Simulation succeeded")
+	}
+
+	// Call registerCandidateAddOn
+	registerTx, err := layer2Manager.Transact(
+		deployerAuth,
+		"registerCandidateAddOn",
+		sys.Addresses.SystemConfig, // rollupConfig
+		operatorDeposit,            // operatorDeposit
+		false,                      // flagTon (false = use WTON)
+		"OptimismL2",               // memo (string)
+	)
+	require.NoError(t, err)
+	registerReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), registerReceipt.Status, "registerCandidateAddOn should succeed")
+	t.Log("✓ Called Layer2Manager.registerCandidateAddOn")
+
+	// Get created Layer2 address
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	var result []interface{}
+	err = layer2Manager.Call(callOpts, &result, "getLayer2BySystemConfig", sys.Addresses.SystemConfig)
+	require.NoError(t, err)
+	layer2Address := result[0].(common.Address)
+
+	t.Logf("✓ MockLayer2 created: %s", layer2Address.Hex())
+	return layer2Address
+}
+
+// registerValidatorWithTON registers a validator with TON deposit (V3 method)
+func registerValidatorWithTON(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, depositAmount *big.Int) {
+	// Step 1: Get or create MockLayer2 address
+	layer2 := sys.Addresses.MockLayer2
+
+	// If MockLayer2 not in genesis (offline mode), create it dynamically
+	if layer2 == (common.Address{}) {
+		t.Log("MockLayer2 not in genesis, creating dynamically...")
+		layer2 = createMockLayer2(t, sys)
+		sys.Addresses.MockLayer2 = layer2 // Update for future use
+	}
+
+	t.Logf("Layer2 address: %s", layer2.Hex())
+
+	// Step 2: Increase deposit amount by 1% to account for coinage rounding
+	// When staking 100, the actual staked amount may be slightly less due to share calculation
+	adjustedAmount := new(big.Int).Mul(depositAmount, big.NewInt(101))
+	adjustedAmount.Div(adjustedAmount, big.NewInt(100))
+	t.Logf("Adjusted deposit amount: %s WTON (original: %s)", adjustedAmount.String(), depositAmount.String())
+
+	// Step 3: Mint WTON to validator (for testing, we directly mint WTON instead of swapping TON)
+	// In production, user would swap TON to WTON first
+	mintTx, err := contracts.WTON.Mint(validatorAuth, validatorAuth.From, adjustedAmount)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, mintTx)
+	require.NoError(t, err)
+	t.Logf("✓ Minted %s WTON to validator", adjustedAmount.String())
+
+	// Step 4: Approve WTON to DepositManager using WTON's Approve method
+	approveTx, err := contracts.WTON.Approve(validatorAuth, sys.Addresses.DepositManagerProxy, adjustedAmount)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
+	require.NoError(t, err)
+	t.Logf("✓ Approved %s WTON to DepositManager", adjustedAmount.String())
+
+	// Step 5: Deposit WTON to Layer2 via DepositManager
+	depositTx, err := contracts.DepositManager.Transact(validatorAuth, "deposit", layer2, adjustedAmount)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, depositTx)
+	require.NoError(t, err)
+	t.Logf("✓ Deposited %s WTON to Layer2", adjustedAmount.String())
+
+	// Check actual staked amount immediately after deposit (using package-level stakeOfABI)
+	stakeOfCallData, _ := stakeOfABI.Pack("stakeOf", layer2, validatorAuth.From)
+	stakeOfResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var actualStaked *big.Int
+	stakeOfABI.UnpackIntoInterface(&actualStaked, "stakeOf", stakeOfResult)
+	t.Logf("✓ Actual staked amount immediately after deposit: %s WTON (deposited: %s WTON, diff: %s WTON)",
+		actualStaked.String(),
+		adjustedAmount.String(),
+		new(big.Int).Sub(actualStaked, adjustedAmount).String())
+
+	// Step 6: Register validator with RAT (no deposit needed, uses coinage balance)
+	// Check staking balance before registration
+	stakeBeforeReg, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var stakedBeforeReg *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakedBeforeReg, "stakeOf", stakeBeforeReg)
+	t.Logf("✓ Staking balance BEFORE RAT registration: %s WTON", stakedBeforeReg.String())
+
+	registerTx, err := contracts.RAT.RegisterValidator(validatorAuth, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, registerTx)
 	require.NoError(t, err)
 
-	t.Logf("✓ Validator registered with deposit: %s TON", depositAmount.String())
+	// Check staking balance after registration
+	stakeAfterReg, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeOfCallData,
+	}, nil)
+	require.NoError(t, err)
+	var stakedAfterReg *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakedAfterReg, "stakeOf", stakeAfterReg)
+	t.Logf("✓ Staking balance AFTER RAT registration: %s WTON", stakedAfterReg.String())
+
+	// Check if registration changed the staking balance
+	if stakedAfterReg.Cmp(stakedBeforeReg) != 0 {
+		diff := new(big.Int).Sub(stakedAfterReg, stakedBeforeReg)
+		t.Logf("⚠ WARNING: Staking balance changed during registration by %s WTON", diff.String())
+	}
+
+	t.Logf("✓ Validator registered with RAT (collateral from staking: %s WTON)", stakedAfterReg.String())
 }
 
 // createDisputeGameWithWrongClaim creates a DisputeGame with a wrong root claim
 func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bind.TransactOpts) (*types.Receipt, common.Address) {
 	callOpts := &bind.CallOpts{Context: sys.Ctx}
 
+	// Measure validator staking at START of this function (using package-level stakeOfABI)
+	accounts := setupTestAccounts(t, sys)
+	stakeCallData, _ := stakeOfABI.Pack("stakeOf", sys.Addresses.MockLayer2, accounts.Validator.Addr)
+	stakeStartResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeCallData,
+	}, nil)
+	var stakeStart *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakeStart, "stakeOf", stakeStartResult)
+	t.Logf("  [createDisputeGameWithWrongClaim START] Validator stake: %s WTON", stakeStart.String())
+
 	// Connect to DisputeGameFactory
 	dgf, err := bindings.NewDisputeGameFactory(sys.Addresses.DisputeGameFactory, sys.L1Client)
 	require.NoError(t, err)
+
+	// Verify RAT is set on DisputeGameFactory (read from storage slot 52 directly)
+	// Note: The Optimism DisputeGameFactory bytecode doesn't have rat() view function
+	ratAddr, err := readDGFRatFromStorage(sys.L1Client, sys.Addresses.DisputeGameFactory)
+	require.NoError(t, err)
+	t.Logf("DisputeGameFactory RAT address (storage slot 52): %s", ratAddr.Hex())
+	t.Logf("Expected RAT address: %s", sys.Addresses.RATProxy.Hex())
+	require.Equal(t, sys.Addresses.RATProxy, ratAddr, "RAT address mismatch on DisputeGameFactory")
 
 	// Get required init bond
 	gameType := uint32(0)
@@ -196,6 +1168,21 @@ func createDisputeGameWithWrongClaim(t *testing.T, sys *rat.TONStakingSystem, pr
 	require.NotEqual(t, common.Address{}, gameAddress, "Should have game address")
 
 	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
+
+	// Measure validator staking at END of this function
+	stakeEndResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeCallData,
+	}, nil)
+	var stakeEnd *big.Int
+	stakeOfABI.UnpackIntoInterface(&stakeEnd, "stakeOf", stakeEndResult)
+	t.Logf("  [createDisputeGameWithWrongClaim END] Validator stake: %s WTON", stakeEnd.String())
+
+	// Calculate change
+	stakeChange := new(big.Int).Sub(stakeEnd, stakeStart)
+	if stakeChange.Sign() != 0 {
+		t.Logf("  ⚠️  STAKE CHANGED in createDisputeGameWithWrongClaim: %s WTON", stakeChange.String())
+	}
 
 	return receipt, gameAddress
 }
@@ -269,7 +1256,7 @@ func createDisputeGame(t *testing.T, sys *rat.TONStakingSystem, proposerAuth *bi
 }
 
 // parseDisputeGameCreatedEvent parses the DisputeGameCreated event from receipt
-func parseDisputeGameCreatedEvent(t *testing.T, receipt *types.Receipt) common.Address {
+func parseDisputeGameCreatedEvent(_ *testing.T, receipt *types.Receipt) common.Address {
 	for _, log := range receipt.Logs {
 		if log.Topics[0].Hex() == eventDisputeGameCreated {
 			gameAddress := common.HexToAddress(log.Topics[1].Hex())
@@ -277,6 +1264,285 @@ func parseDisputeGameCreatedEvent(t *testing.T, receipt *types.Receipt) common.A
 		}
 	}
 	return common.Address{}
+}
+
+// triggerRATDirectly triggers RAT.triggerAttentionTest directly by impersonating DisputeGameFactory
+// This is used for testing when the DisputeGameFactory bytecode doesn't have RAT integration
+func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress common.Address, batchIndex uint32) *types.Receipt {
+	// Impersonate and fund DisputeGameFactory
+	cleanup := impersonateAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory)
+	defer cleanup()
+	t.Logf("✓ Impersonating DisputeGameFactory: %s", sys.Addresses.DisputeGameFactory.Hex())
+	fundAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory, "0x56BC75E2D63100000") // 100 ETH
+
+	// Get current block for blockHash
+	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
+	require.NoError(t, err)
+	blockHash := currentBlock.Hash()
+
+	// Create batchHash (using game address and batch index)
+	batchHash := crypto.Keccak256Hash(gameAddress.Bytes(), big.NewInt(int64(batchIndex)).Bytes())
+
+	// Build triggerAttentionTest call data
+	ratABI, err := abi.JSON(strings.NewReader(bindings.RATABI))
+	require.NoError(t, err)
+
+	callData, err := ratABI.Pack("triggerAttentionTest",
+		gameAddress,
+		sys.Addresses.SystemConfig,
+		batchIndex,
+		batchHash,
+		blockHash,
+	)
+	require.NoError(t, err)
+
+	// Get gas price
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// Debug: Verify RAT storage values before calling
+	t.Log("Debug: Verifying RAT storage values...")
+	for slot, name := range map[int64]string{18: "seigManager", 21: "layer2Manager", 26: "l1BridgeRegistry"} {
+		slotHash := common.BigToHash(big.NewInt(slot))
+		value, _ := sys.L1Client.StorageAt(sys.Ctx, sys.Addresses.RATProxy, slotHash, nil)
+		addr := common.BytesToAddress(value)
+		t.Logf("   RAT.%s (slot %d): %s", name, slot, addr.Hex())
+	}
+
+	// Debug: Check if Layer2Manager.getLayer2BySystemConfig works (using package-level layer2ManagerGetLayer2ABI)
+	l2CallData, _ := layer2ManagerGetLayer2ABI.Pack("getLayer2BySystemConfig", sys.Addresses.SystemConfig)
+	l2Result, l2Err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.Layer2ManagerProxy,
+		Data: l2CallData,
+	}, nil)
+	var layer2Addr common.Address
+	if l2Err != nil {
+		t.Logf("   ⚠️  Layer2Manager.getLayer2BySystemConfig failed: %v", l2Err)
+	} else {
+		layer2ManagerGetLayer2ABI.UnpackIntoInterface(&layer2Addr, "getLayer2BySystemConfig", l2Result)
+		t.Logf("   Layer2Manager.getLayer2BySystemConfig(%s) = %s", sys.Addresses.SystemConfig.Hex(), layer2Addr.Hex())
+	}
+
+	// Debug: Check if SeigManager.stakeOf works (using package-level stakeOfABI)
+	accounts := setupTestAccounts(t, sys)
+	stakeCallData, _ := stakeOfABI.Pack("stakeOf", layer2Addr, accounts.Validator.Addr)
+	stakeResult, stakeErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: stakeCallData,
+	}, nil)
+	if stakeErr != nil {
+		t.Logf("   ⚠️  SeigManager.stakeOf failed: %v", stakeErr)
+	} else {
+		var stake *big.Int
+		stakeOfABI.UnpackIntoInterface(&stake, "stakeOf", stakeResult)
+		t.Logf("   SeigManager.stakeOf(%s, %s) = %s", layer2Addr.Hex(), accounts.Validator.Addr.Hex(), stake.String())
+	}
+
+	// Debug: Check RAT initialization parameters (slots 10-17 and 28)
+	t.Log("Debug: Checking RAT initialization parameters...")
+	initSlots := map[int64]string{
+		10: "slashingPenalty",
+		11: "validatorBuffer",
+		12: "ratTriggerProbability",
+		13: "minimumThreshold",
+		14: "maxValidatorsPerL2",
+		15: "evidenceSubmissionPeriod",
+		16: "challengeGameDuration",
+		17: "safetyBuffer",
+		28: "relaxedValidatorCheck",
+	}
+	for slot, name := range initSlots {
+		slotHash := common.BigToHash(big.NewInt(slot))
+		value, _ := sys.L1Client.StorageAt(sys.Ctx, sys.Addresses.RATProxy, slotHash, nil)
+		t.Logf("   RAT.%s (slot %d): 0x%s", name, slot, common.Bytes2Hex(value))
+	}
+
+	// Debug: Check RAT.validatorPools[systemConfig] to see if validator is registered
+	ratDebugABI, _ := abi.JSON(strings.NewReader(bindings.RATABI))
+	activeCountData, _ := ratDebugABI.Pack("getActiveValidatorCount", sys.Addresses.SystemConfig)
+	activeCountResult, activeCountErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.RATProxy,
+		Data: activeCountData,
+	}, nil)
+	if activeCountErr != nil {
+		t.Logf("   ⚠️  RAT.getActiveValidatorCount failed: %v", activeCountErr)
+	} else {
+		var count *big.Int
+		ratDebugABI.UnpackIntoInterface(&count, "getActiveValidatorCount", activeCountResult)
+		t.Logf("   RAT.getActiveValidatorCount(%s) = %s", sys.Addresses.SystemConfig.Hex(), count.String())
+	}
+
+	// Debug: Check RAT.paused (slot 25, offset 21 bytes)
+	slot25, _ := sys.L1Client.StorageAt(sys.Ctx, sys.Addresses.RATProxy, common.BigToHash(big.NewInt(25)), nil)
+	paused := slot25[21] != 0
+	t.Logf("   RAT.paused: %v (slot 25 raw: 0x%s)", paused, common.Bytes2Hex(slot25))
+
+	// Debug: Check SeigManager.ratContract (slot 62)
+	seigManagerRATSlot := common.BigToHash(big.NewInt(62))
+	seigManagerRAT, _ := sys.L1Client.StorageAt(sys.Ctx, sys.Addresses.SeigManagerProxy, seigManagerRATSlot, nil)
+	t.Logf("   SeigManager.ratContract (slot 62): %s", common.BytesToAddress(seigManagerRAT).Hex())
+
+	// Debug: Check SeigManager proxy implementation slot
+	// EIP-1967 implementation slot: 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
+	implSlot := common.HexToHash("0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc")
+	seigManagerImpl, _ := sys.L1Client.StorageAt(sys.Ctx, sys.Addresses.SeigManagerProxy, implSlot, nil)
+	t.Logf("   SeigManager implementation (EIP-1967): %s", common.BytesToAddress(seigManagerImpl).Hex())
+
+	// Debug: Check if SeigManager._coinages[layer2] exists
+	seigManagerCoinagesABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"}],"name":"coinages","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
+	coinagesCallData, _ := seigManagerCoinagesABI.Pack("coinages", layer2Addr)
+	coinagesResult, coinagesErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: coinagesCallData,
+	}, nil)
+	var coinageAddr common.Address
+	if coinagesErr != nil {
+		t.Logf("   ⚠️  SeigManager.coinages failed: %v", coinagesErr)
+	} else {
+		seigManagerCoinagesABI.UnpackIntoInterface(&coinageAddr, "coinages", coinagesResult)
+		t.Logf("   SeigManager.coinages(%s) = %s", layer2Addr.Hex(), coinageAddr.Hex())
+	}
+
+	// Debug: Check if SeigManager is a minter on the coinage
+	if coinageAddr != (common.Address{}) {
+		coinageMinterABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isMinter","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}]`))
+		isMinterCallData, _ := coinageMinterABI.Pack("isMinter", sys.Addresses.SeigManagerProxy)
+		isMinterResult, isMinterErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+			To:   &coinageAddr,
+			Data: isMinterCallData,
+		}, nil)
+		if isMinterErr != nil {
+			t.Logf("   ⚠️  coinage.isMinter(SeigManager) failed: %v", isMinterErr)
+		} else {
+			var isMinter bool
+			coinageMinterABI.UnpackIntoInterface(&isMinter, "isMinter", isMinterResult)
+			t.Logf("   coinage.isMinter(SeigManager=%s) = %v", sys.Addresses.SeigManagerProxy.Hex(), isMinter)
+		}
+	}
+
+	// Debug: Try calling SeigManager.transferCoinageToRAT directly (from RAT)
+	// This requires impersonating RAT
+	t.Log("Debug: Testing SeigManager.transferCoinageToRAT directly from RAT...")
+	var debugResult any
+	err = sys.L1Client.Client().Call(&debugResult, "anvil_impersonateAccount", sys.Addresses.RATProxy)
+	require.NoError(t, err)
+
+	testBondAmount := big.NewInt(1e18) // 1 WTON (much smaller than actual)
+	testBondAmount.Mul(testBondAmount, big.NewInt(1e9))
+	seigTransferABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"address","name":"validator","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferCoinageToRAT","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
+	seigTransferCallData, _ := seigTransferABI.Pack("transferCoinageToRAT", layer2Addr, accounts.Validator.Addr, testBondAmount)
+
+	_, seigTransferErr := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		From: sys.Addresses.RATProxy,
+		To:   &sys.Addresses.SeigManagerProxy,
+		Gas:  1000000,
+		Data: seigTransferCallData,
+	}, nil)
+	if seigTransferErr != nil {
+		t.Logf("   ⚠️  SeigManager.transferCoinageToRAT direct call failed: %v", seigTransferErr)
+	} else {
+		t.Log("   ✓ SeigManager.transferCoinageToRAT direct call succeeded")
+	}
+
+	err = sys.L1Client.Client().Call(&debugResult, "anvil_stopImpersonatingAccount", sys.Addresses.RATProxy)
+	require.NoError(t, err)
+
+	// Debug: Try eth_call first to see the revert reason
+	callMsg := ethereum.CallMsg{
+		From: sys.Addresses.DisputeGameFactory,
+		To:   &sys.Addresses.RATProxy,
+		Gas:  3000000,
+		Data: callData,
+	}
+	callResult, callErr := sys.L1Client.CallContract(sys.Ctx, callMsg, nil)
+	if callErr != nil {
+		t.Logf("⚠️  eth_call simulation failed: %v", callErr)
+		t.Logf("   Call result hex: 0x%s", common.Bytes2Hex(callResult))
+
+		// Try to decode the error
+		// Common error selectors:
+		// 0x6f0b00d2 = InvalidFactoryError()
+		// 0x08c379a0 = Error(string)
+		// 0x4e487b71 = Panic(uint256)
+		if len(callResult) >= 4 {
+			selector := common.Bytes2Hex(callResult[:4])
+			t.Logf("   Error selector: 0x%s", selector)
+			switch selector {
+			case "6f0b00d2":
+				t.Log("   → InvalidFactoryError()")
+			case "08c379a0":
+				if len(callResult) > 68 {
+					msgLen := new(big.Int).SetBytes(callResult[36:68]).Uint64()
+					if len(callResult) >= 68+int(msgLen) {
+						t.Logf("   → Error(string): %s", string(callResult[68:68+msgLen]))
+					}
+				}
+			case "4e487b71":
+				if len(callResult) >= 36 {
+					panicCode := new(big.Int).SetBytes(callResult[4:36])
+					t.Logf("   → Panic(uint256): %d", panicCode.Uint64())
+					switch panicCode.Uint64() {
+					case 0x01:
+						t.Log("      (assert failure)")
+					case 0x11:
+						t.Log("      (arithmetic overflow/underflow)")
+					case 0x12:
+						t.Log("      (division by zero)")
+					case 0x21:
+						t.Log("      (invalid enum conversion)")
+					case 0x22:
+						t.Log("      (access to incorrectly encoded storage)")
+					case 0x31:
+						t.Log("      (pop on empty array)")
+					case 0x32:
+						t.Log("      (array out of bounds)")
+					case 0x41:
+						t.Log("      (too much memory allocation)")
+					case 0x51:
+						t.Log("      (zero-initialized function pointer)")
+					}
+				}
+			default:
+				t.Logf("   → Unknown error selector: 0x%s", selector)
+			}
+		}
+	} else {
+		t.Log("✓ eth_call simulation succeeded")
+	}
+
+	// For impersonated accounts, use eth_sendTransaction directly (no signature needed)
+	txArgs := map[string]any{
+		"from":     sys.Addresses.DisputeGameFactory,
+		"to":       sys.Addresses.RATProxy,
+		"gas":      "0x2DC6C0", // 3000000
+		"gasPrice": "0x" + gasPrice.Text(16),
+		"value":    "0x0",
+		"data":     "0x" + common.Bytes2Hex(callData),
+	}
+
+	var txHash common.Hash
+	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+	require.NoError(t, err, "Failed to send triggerAttentionTest transaction")
+
+	t.Logf("✓ Sent triggerAttentionTest tx: %s", txHash.Hex())
+
+	// Wait for receipt by polling
+	var receipt *types.Receipt
+	for i := 0; i < 50; i++ {
+		receipt, err = sys.L1Client.TransactionReceipt(sys.Ctx, txHash)
+		if err == nil && receipt != nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.NoError(t, err, "Failed to get receipt")
+	require.NotNil(t, receipt, "Receipt should not be nil")
+
+	t.Logf("✓ Transaction mined (status: %d, gas used: %d)", receipt.Status, receipt.GasUsed)
+
+	// Note: impersonation cleanup is handled by defer
+
+	return receipt
 }
 
 // parseRATTriggerEventWithBatchIndex parses the AttentionTestTriggered event with batchIndex from receipt
@@ -310,4 +1576,163 @@ func parseRATTriggerEventWithBatchIndex(t *testing.T, receipt *types.Receipt, ex
 	}
 
 	return [32]byte{}, 0, false
+}
+// High-Level Test Setup Helpers (Pattern 1)
+// ============================================================================
+
+type TestEnvironment struct {
+	System    *rat.TONStakingSystem
+	Accounts  *TestAccounts
+	Contracts *TestContracts
+	CallOpts  *bind.CallOpts
+}
+
+func setupTestEnvironment(t *testing.T, testName string) *TestEnvironment {
+	t.Logf("=== Testing %s ===", testName)
+
+	sys := rat.StartTONStakingSystem(t)
+	callOpts := &bind.CallOpts{Context: sys.Ctx}
+
+	accounts := setupTestAccounts(t, sys)
+	contracts := connectTestContracts(t, sys)
+
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
+	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
+
+	depositAmount := getTestDepositAmount()
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	return &TestEnvironment{
+		System:    sys,
+		Accounts:  accounts,
+		Contracts: contracts,
+		CallOpts:  callOpts,
+	}
+}
+
+// ============================================================================
+// Contract Query Helpers (Pattern 3, 4)
+// ============================================================================
+
+func getValidatorStake(t *testing.T, sys *rat.TONStakingSystem, layer2, validator common.Address) *big.Int {
+	// Using package-level stakeOfABI
+	callData, err := stakeOfABI.Pack("stakeOf", layer2, validator)
+	require.NoError(t, err)
+
+	result, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: callData,
+	}, nil)
+	require.NoError(t, err)
+
+	var stake *big.Int
+	err = stakeOfABI.UnpackIntoInterface(&stake, "stakeOf", result)
+	require.NoError(t, err)
+
+	return stake
+}
+
+type AttentionTestInfo struct {
+	ValidatorAddress common.Address
+	SystemConfig     common.Address
+	BatchIndex       uint32
+	BatchHash        [32]byte
+	BondAmount       *big.Int
+	CreatedAt        *big.Int
+	Deadline         *big.Int
+	Status           uint8
+}
+
+func getAttentionTestInfo(t *testing.T, sys *rat.TONStakingSystem, testID [32]byte) *AttentionTestInfo {
+	getTestABI, err := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"bytes32","name":"testId","type":"bytes32"}],"name":"getAttentionTest","outputs":[{"internalType":"address","name":"validatorAddress","type":"address"},{"internalType":"address","name":"systemConfig","type":"address"},{"internalType":"uint32","name":"batchIndex","type":"uint32"},{"internalType":"bytes32","name":"batchHash","type":"bytes32"},{"internalType":"uint256","name":"bondAmount","type":"uint256"},{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"}]`))
+	require.NoError(t, err)
+
+	callData, err := getTestABI.Pack("getAttentionTest", testID)
+	require.NoError(t, err)
+
+	result, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.RATProxy,
+		Data: callData,
+	}, nil)
+	require.NoError(t, err)
+
+	var info AttentionTestInfo
+	err = getTestABI.UnpackIntoInterface(&info, "getAttentionTest", result)
+	require.NoError(t, err)
+
+	return &info
+}
+
+// ============================================================================
+// Game Resolution Helpers (Pattern 5)
+// ============================================================================
+
+type GameResolutionResult struct {
+	ClaimReceipts []*types.Receipt
+	GameReceipt   *types.Receipt
+}
+
+func resolveGameWithClaims(
+	t *testing.T,
+	sys *rat.TONStakingSystem,
+	game *bindings.FaultDisputeGame,
+	auth *bind.TransactOpts,
+	claimIndices []int64,
+) *GameResolutionResult {
+	result := &GameResolutionResult{
+		ClaimReceipts: make([]*types.Receipt, 0, len(claimIndices)),
+	}
+
+	for _, idx := range claimIndices {
+		tx, err := game.ResolveClaim(auth, big.NewInt(idx), big.NewInt(0))
+		require.NoError(t, err)
+
+		receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+		require.NoError(t, err)
+
+		result.ClaimReceipts = append(result.ClaimReceipts, receipt)
+		t.Logf("✓ Resolved claim %d", idx)
+	}
+
+	tx, err := game.Resolve(auth)
+	require.NoError(t, err)
+
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+	require.NoError(t, err)
+
+	result.GameReceipt = receipt
+	t.Logf("✓ Game resolved (tx: %s)", tx.Hash().Hex())
+
+	return result
+}
+
+// ============================================================================
+// Event Parsing Helpers (Pattern 6)
+// ============================================================================
+
+type BondRestoredEventData struct {
+	Found  bool
+	Amount *big.Int
+	TxName string
+}
+
+func findBondRestoredEvent(receipts []*types.Receipt, receiptNames []string) *BondRestoredEventData {
+	bondRestoredEventSig := crypto.Keccak256Hash([]byte("BondRestored(bytes32,address,address,address,uint256)"))
+	result := &BondRestoredEventData{Found: false}
+
+	for idx, receipt := range receipts {
+		for _, log := range receipt.Logs {
+			if len(log.Topics) > 0 && log.Topics[0] == bondRestoredEventSig {
+				result.Found = true
+				result.TxName = receiptNames[idx]
+				if len(log.Data) >= 32 {
+					result.Amount = new(big.Int).SetBytes(log.Data[len(log.Data)-32:])
+				}
+				return result
+			}
+		}
+	}
+
+	return result
 }

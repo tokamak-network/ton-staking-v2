@@ -1,0 +1,1992 @@
+{
+  "timestamp": "2026-01-21T15:40:11.104Z",
+  "summary": {
+    "totalTestIDs": 138,
+    "foundTestIDs": 102,
+    "totalFunctions": 302,
+    "matchedFunctions": 302,
+    "coverage": "73.91%"
+  },
+  "testIDs": {
+    "SM-001": {
+      "id": "SM-001",
+      "prefix": "SM",
+      "num": "001",
+      "name": "`hyperbolicSaturation(0, L)`",
+      "description": "x=0일 때 y=0 반환",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM001_hyperbolicSaturation_zero",
+        "test_SM001_hyperbolicSaturation_zero"
+      ]
+    },
+    "SM-002": {
+      "id": "SM-002",
+      "prefix": "SM",
+      "num": "002",
+      "name": "`hyperbolicSaturation(k, L)`",
+      "description": "x=k일 때 y=L/2 반환 (반포화점)",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM002_hyperbolicSaturation_halfPoint",
+        "test_SM002_hyperbolicSaturation_halfPoint"
+      ]
+    },
+    "SM-003": {
+      "id": "SM-003",
+      "prefix": "SM",
+      "num": "003",
+      "name": "`hyperbolicSaturation(∞, L)`",
+      "description": "x→∞일 때 y→L 수렴",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM003_hyperbolicSaturation_large",
+        "test_SM003_hyperbolicSaturation_large"
+      ]
+    },
+    "SM-004": {
+      "id": "SM-004",
+      "prefix": "SM",
+      "num": "004",
+      "name": "단조 증가 검증",
+      "description": "x 증가 시 y 단조 증가",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM004_hyperbolicSaturation_monotonic",
+        "test_SM004_hyperbolicSaturation_monotonic"
+      ]
+    },
+    "SM-005": {
+      "id": "SM-005",
+      "prefix": "SM",
+      "num": "005",
+      "name": "Fuzz 테스트",
+      "description": "임의 x, L에서 y ≤ L 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "testFuzz_SM005_hyperbolicSaturation_bounded"
+      ]
+    },
+    "SM-010": {
+      "id": "SM-010",
+      "prefix": "SM",
+      "num": "010",
+      "name": "`calculateSequencerReward()` 기본",
+      "description": "α=20%일 때 시퀀서 80% 수령",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM010_calculateSequencerReward_basic",
+        "test_SM010_calculateSequencerReward_basic"
+      ]
+    },
+    "SM-011": {
+      "id": "SM-011",
+      "prefix": "SM",
+      "num": "011",
+      "name": "α=0 검증",
+      "description": "검증자 없을 때 시퀀서 100% 수령",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM011_calculateSequencerReward_zeroAlpha",
+        "test_SM011_calculateSequencerReward_zeroAlpha"
+      ]
+    },
+    "SM-012": {
+      "id": "SM-012",
+      "prefix": "SM",
+      "num": "012",
+      "name": "Fuzz 테스트",
+      "description": "임의 α, seig에서 정확성 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "testFuzz_SM012_calculateSequencerReward"
+      ]
+    },
+    "SM-020": {
+      "id": "SM-020",
+      "prefix": "SM",
+      "num": "020",
+      "name": "`checkCurrentEligibility()` 충족",
+      "description": "T_i ≥ max(D_seq, θ×B_i) 시 eligible=true",
+      "status": "⚠️",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-021": {
+      "id": "SM-021",
+      "prefix": "SM",
+      "num": "021",
+      "name": "`checkCurrentEligibility()` 미달",
+      "description": "T_i < max(D_seq, θ×B_i) 시 eligible=false",
+      "status": "⚠️",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-022": {
+      "id": "SM-022",
+      "prefix": "SM",
+      "num": "022",
+      "name": "D_sequencer 계산",
+      "description": "H_max × C_max + Δ_sequencer 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM022_DSequencer_calculation",
+        "test_SM022_DSequencer_calculation",
+        "test_SM022_DSequencer_allZero",
+        "test_SM022_DSequencer_allZero",
+        "test_SM022_DSequencer_largeValues",
+        "test_SM022_DSequencer_largeValues",
+        "testFuzz_SM022_DSequencer"
+      ]
+    },
+    "SM-023": {
+      "id": "SM-023",
+      "prefix": "SM",
+      "num": "023",
+      "name": "θ×B_i 계산",
+      "description": "TON→WTON 단위 변환 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM023_thetaBi_calculation",
+        "test_SM023_thetaBi_calculation",
+        "test_SM023_thetaBi_unitConversion",
+        "test_SM023_thetaBi_unitConversion",
+        "test_SM023_thetaBi_zeroTheta",
+        "test_SM023_thetaBi_zeroTheta",
+        "test_SM023_thetaBi_zeroBridgedTON",
+        "test_SM023_thetaBi_zeroBridgedTON",
+        "testFuzz_SM023_thetaBi"
+      ]
+    },
+    "SM-030": {
+      "id": "SM-030",
+      "prefix": "SM",
+      "num": "030",
+      "name": "`setDaoDistributionRatio()`",
+      "description": "d 설정 (0 < d < 1)",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-031": {
+      "id": "SM-031",
+      "prefix": "SM",
+      "num": "031",
+      "name": "`setMinStakingRatio()`",
+      "description": "θ 설정 (0 < θ ≤ 1)",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-032": {
+      "id": "SM-032",
+      "prefix": "SM",
+      "num": "032",
+      "name": "`setValidatorDistributionRatio()`",
+      "description": "α 설정 (0 < α < 1)",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-033": {
+      "id": "SM-033",
+      "prefix": "SM",
+      "num": "033",
+      "name": "`setHalfSaturationPoint()`",
+      "description": "k 설정 (k > 0)",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-034": {
+      "id": "SM-034",
+      "prefix": "SM",
+      "num": "034",
+      "name": "~~`setStakedSeigFactor()`~~",
+      "description": "~~λ 설정~~",
+      "status": "N/A (V3에서 제거)",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-035": {
+      "id": "SM-035",
+      "prefix": "SM",
+      "num": "035",
+      "name": "범위 초과 revert",
+      "description": "파라미터 범위 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_requestWithdrawal_zeroAmount_reverts (semantic)"
+      ]
+    },
+    "SM-040": {
+      "id": "SM-040",
+      "prefix": "SM",
+      "num": "040",
+      "name": "`transferCoinageToRAT()`",
+      "description": "validator→RAT coinage 전송",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM040_transferCoinageToRAT",
+        "test_SM040_transferCoinageToRAT"
+      ]
+    },
+    "SM-041": {
+      "id": "SM-041",
+      "prefix": "SM",
+      "num": "041",
+      "name": "`transferCoinageFromRAT()`",
+      "description": "RAT→validator coinage 복구",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM041_transferCoinageFromRAT",
+        "test_SM041_transferCoinageFromRAT"
+      ]
+    },
+    "SM-042": {
+      "id": "SM-042",
+      "prefix": "SM",
+      "num": "042",
+      "name": "`transferCoinageFromRATTo()`",
+      "description": "RAT→Treasury coinage 전송",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM042_transferCoinageFromRATTo",
+        "test_SM042_transferCoinageFromRATTo"
+      ]
+    },
+    "SM-043": {
+      "id": "SM-043",
+      "prefix": "SM",
+      "num": "043",
+      "name": "onlyRAT 권한 검증",
+      "description": "RAT 외 호출 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SM043_onlyRAT_revert",
+        "test_SM043_onlyRAT_revert"
+      ]
+    },
+    "SM-050": {
+      "id": "SM-050",
+      "prefix": "SM",
+      "num": "050",
+      "name": "`migrateToV3()` 실행",
+      "description": "v3Migrated=true 설정",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-051": {
+      "id": "SM-051",
+      "prefix": "SM",
+      "num": "051",
+      "name": "중복 마이그레이션 방지",
+      "description": "이미 마이그레이션된 상태에서 revert",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SM-052": {
+      "id": "SM-052",
+      "prefix": "SM",
+      "num": "052",
+      "name": "마이그레이션 블록 기록",
+      "description": "v3MigrationBlock 설정 검증",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-001": {
+      "id": "RAT-001",
+      "prefix": "RAT",
+      "num": "001",
+      "name": "`registerValidator()` 성공",
+      "description": "D_min 이상 담보금으로 등록",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT001_registerValidator_success",
+        "test_RAT001_registerValidator_success"
+      ]
+    },
+    "RAT-002": {
+      "id": "RAT-002",
+      "prefix": "RAT",
+      "num": "002",
+      "name": "`registerValidator()` 담보금 부족",
+      "description": "D_min 미만 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT002_registerValidator_insufficientDeposit",
+        "test_RAT002_registerValidator_insufficientDeposit"
+      ]
+    },
+    "RAT-003": {
+      "id": "RAT-003",
+      "prefix": "RAT",
+      "num": "003",
+      "name": "`registerValidator()` 중복 등록",
+      "description": "이미 등록된 검증자 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT003_registerValidator_alreadyRegistered",
+        "test_RAT003_registerValidator_alreadyRegistered"
+      ]
+    },
+    "RAT-004": {
+      "id": "RAT-004",
+      "prefix": "RAT",
+      "num": "004",
+      "name": "`deactivateValidator()` 성공",
+      "description": "활성 검증자 탈퇴",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT004_deactivateValidator",
+        "test_RAT004_deactivateValidator"
+      ]
+    },
+    "RAT-005": {
+      "id": "RAT-005",
+      "prefix": "RAT",
+      "num": "005",
+      "name": "`deactivateValidator()` 비활성",
+      "description": "비활성 검증자 탈퇴 시 revert",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-006": {
+      "id": "RAT-006",
+      "prefix": "RAT",
+      "num": "006",
+      "name": "다중 검증자 등록",
+      "description": "동일 L2에 여러 검증자 등록",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT006_registerMultipleValidators",
+        "test_RAT006_registerMultipleValidators"
+      ]
+    },
+    "RAT-007": {
+      "id": "RAT-007",
+      "prefix": "RAT",
+      "num": "007",
+      "name": "N_max 초과 검증",
+      "description": "최대 검증자 수 초과 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT007_maxValidators_exceeded_reverts",
+        "test_RAT007_maxValidators_exceeded_reverts",
+        "test_RAT007_maxValidators_zeroMeansUnlimited",
+        "test_RAT007_maxValidators_zeroMeansUnlimited",
+        "test_RAT007_maxValidators_reregisterAfterDeactivation",
+        "test_RAT007_maxValidators_reregisterAfterDeactivation"
+      ]
+    },
+    "RAT-010": {
+      "id": "RAT-010",
+      "prefix": "RAT",
+      "num": "010",
+      "name": "`getDynamicMinimumCollateral()`",
+      "description": "D_min = C_off + Δ_validator",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT010_getDynamicMinimumCollateral",
+        "test_RAT010_getDynamicMinimumCollateral"
+      ]
+    },
+    "RAT-011": {
+      "id": "RAT-011",
+      "prefix": "RAT",
+      "num": "011",
+      "name": "`getDynamicCoff()`",
+      "description": "C_off = max(slashingPenalty, (c_m×N)/π_a)",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT011_getDynamicCoff_withFormula",
+        "test_RAT011_getDynamicCoff_withFormula"
+      ]
+    },
+    "RAT-012": {
+      "id": "RAT-012",
+      "prefix": "RAT",
+      "num": "012",
+      "name": "`getCoffWithRelaxedCheck()` relaxed",
+      "description": "relaxed=true 시 slashingPenalty 반환",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT012_getCoffWithRelaxedCheck_relaxedMode",
+        "test_RAT012_getCoffWithRelaxedCheck_relaxedMode",
+        "test_RAT012_getMinimumCollateralWithRelaxedCheck_relaxedMode",
+        "test_RAT012_getMinimumCollateralWithRelaxedCheck_relaxedMode"
+      ]
+    },
+    "RAT-013": {
+      "id": "RAT-013",
+      "prefix": "RAT",
+      "num": "013",
+      "name": "`getCoffWithRelaxedCheck()` strict",
+      "description": "relaxed=false 시 동적 C_off 반환",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT013_getCoffWithRelaxedCheck_strictMode",
+        "test_RAT013_getCoffWithRelaxedCheck_strictMode",
+        "test_RAT013_getMinimumCollateralWithRelaxedCheck_strictMode",
+        "test_RAT013_getMinimumCollateralWithRelaxedCheck_strictMode"
+      ]
+    },
+    "RAT-014": {
+      "id": "RAT-014",
+      "prefix": "RAT",
+      "num": "014",
+      "name": "attentionCost 설정",
+      "description": "c_m 설정 후 공식 적용 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT014_getDynamicCoff_withAttentionCost",
+        "test_RAT014_getDynamicCoff_withAttentionCost"
+      ]
+    },
+    "RAT-020": {
+      "id": "RAT-020",
+      "prefix": "RAT",
+      "num": "020",
+      "name": "`triggerAttentionTest()` 성공",
+      "description": "유효 factory에서 트리거",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT020_triggerAttentionTest",
+        "test_RAT020_triggerAttentionTest"
+      ]
+    },
+    "RAT-021": {
+      "id": "RAT-021",
+      "prefix": "RAT",
+      "num": "021",
+      "name": "확률적 트리거",
+      "description": "π_a=0 시 트리거 안 됨",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT021_probabilisticTrigger",
+        "test_RAT021_probabilisticTrigger"
+      ]
+    },
+    "RAT-022": {
+      "id": "RAT-022",
+      "prefix": "RAT",
+      "num": "022",
+      "name": "검증자 없을 때",
+      "description": "activeCount=0 시 무시",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT022_triggerAttentionTest_noValidators",
+        "test_RAT022_triggerAttentionTest_noValidators"
+      ]
+    },
+    "RAT-023": {
+      "id": "RAT-023",
+      "prefix": "RAT",
+      "num": "023",
+      "name": "중복 테스트 방지",
+      "description": "동일 batchIndex 재트리거 시 revert",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-024": {
+      "id": "RAT-024",
+      "prefix": "RAT",
+      "num": "024",
+      "name": "선차감 검증",
+      "description": "validator coinage→RAT coinage 전송",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT024_triggerAttentionTest_partialBond",
+        "test_RAT024_triggerAttentionTest_partialBond"
+      ]
+    },
+    "RAT-025": {
+      "id": "RAT-025",
+      "prefix": "RAT",
+      "num": "025",
+      "name": "담보금 부족 시 제거",
+      "description": "remaining < threshold 시 검증자 제거",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT025_relaxedValidatorCheck_true_removesAtCoff",
+        "test_RAT025_relaxedValidatorCheck_true_removesAtCoff",
+        "test_RAT025_relaxedValidatorCheck_false_removesAtDmin",
+        "test_RAT025_relaxedValidatorCheck_false_removesAtDmin",
+        "test_RAT025_relaxedValidatorCheck_false_keepAboveDmin",
+        "test_RAT025_relaxedValidatorCheck_false_keepAboveDmin"
+      ]
+    },
+    "RAT-026": {
+      "id": "RAT-026",
+      "prefix": "RAT",
+      "num": "026",
+      "name": "담보금 0 시 테스트 미생성",
+      "description": "available=0 시 테스트 없이 제거",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT026_triggerAttentionTest_zeroCollateral",
+        "test_RAT026_triggerAttentionTest_zeroCollateral"
+      ]
+    },
+    "RAT-030": {
+      "id": "RAT-030",
+      "prefix": "RAT",
+      "num": "030",
+      "name": "`submitEvidence()` 성공",
+      "description": "deadline 전 증거 제출 시 복구",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT030_submitEvidence",
+        "test_RAT030_submitEvidence"
+      ]
+    },
+    "RAT-031": {
+      "id": "RAT-031",
+      "prefix": "RAT",
+      "num": "031",
+      "name": "`submitEvidence()` deadline 초과",
+      "description": "deadline 후 제출 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT035_submitEvidence_reactivatesValidator (semantic)",
+        "test_RAT036_submitEvidence_noReactivation_insufficientCollateral (semantic)"
+      ]
+    },
+    "RAT-032": {
+      "id": "RAT-032",
+      "prefix": "RAT",
+      "num": "032",
+      "name": "`submitEvidence()` 비선택 검증자",
+      "description": "선택되지 않은 검증자 제출 시 revert",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-033": {
+      "id": "RAT-033",
+      "prefix": "RAT",
+      "num": "033",
+      "name": "`resolveClaim()` ChallengePeriod",
+      "description": "챌린지 기간 내 승리 시 복구",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT033_resolveClaim_duringChallengePeriod",
+        "test_RAT033_resolveClaim_duringChallengePeriod"
+      ]
+    },
+    "RAT-034": {
+      "id": "RAT-034",
+      "prefix": "RAT",
+      "num": "034",
+      "name": "`resolveClaim()` 기간 초과",
+      "description": "challengeGameDuration 후 복구 불가",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT034_resolveClaim_afterChallengePeriod_fails",
+        "test_RAT034_resolveClaim_afterChallengePeriod_fails"
+      ]
+    },
+    "RAT-035": {
+      "id": "RAT-035",
+      "prefix": "RAT",
+      "num": "035",
+      "name": "재활성화 (담보금 충분)",
+      "description": "복구 후 threshold 이상 시 자동 재활성화",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT035_submitEvidence_reactivatesValidator",
+        "test_RAT035_submitEvidence_reactivatesValidator",
+        "test_RAT035_resolveClaim_reactivatesValidator",
+        "test_RAT035_resolveClaim_reactivatesValidator",
+        "test_RAT035_reactivation_strictMode_Dmin",
+        "test_RAT035_reactivation_strictMode_Dmin"
+      ]
+    },
+    "RAT-036": {
+      "id": "RAT-036",
+      "prefix": "RAT",
+      "num": "036",
+      "name": "재활성화 실패 (담보금 부족)",
+      "description": "복구 후 threshold 미만 시 비활성 유지",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT036_submitEvidence_noReactivation_insufficientCollateral",
+        "test_RAT036_submitEvidence_noReactivation_insufficientCollateral"
+      ]
+    },
+    "RAT-040": {
+      "id": "RAT-040",
+      "prefix": "RAT",
+      "num": "040",
+      "name": "`getAttentionTestStatus()` EvidencePeriod",
+      "description": "deadline 전 상태",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT040_getAttentionTestStatus_evidencePeriod",
+        "test_RAT040_getAttentionTestStatus_evidencePeriod"
+      ]
+    },
+    "RAT-041": {
+      "id": "RAT-041",
+      "prefix": "RAT",
+      "num": "041",
+      "name": "`getAttentionTestStatus()` ChallengePeriod",
+      "description": "deadline~challengeGameDuration 상태",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT041_getAttentionTestStatus_challengePeriod",
+        "test_RAT041_getAttentionTestStatus_challengePeriod"
+      ]
+    },
+    "RAT-042": {
+      "id": "RAT-042",
+      "prefix": "RAT",
+      "num": "042",
+      "name": "`getAttentionTestStatus()` Slashed",
+      "description": "전체 기간 경과 후 상태",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT042_getAttentionTestStatus_slashed",
+        "test_RAT042_getAttentionTestStatus_slashed"
+      ]
+    },
+    "RAT-043": {
+      "id": "RAT-043",
+      "prefix": "RAT",
+      "num": "043",
+      "name": "`getAttentionTestStatus()` RestoredByEvidence",
+      "description": "증거 제출 후 상태",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT043_getAttentionTestStatus_restoredByEvidence",
+        "test_RAT043_getAttentionTestStatus_restoredByEvidence"
+      ]
+    },
+    "RAT-044": {
+      "id": "RAT-044",
+      "prefix": "RAT",
+      "num": "044",
+      "name": "`getAttentionTestStatus()` RestoredByChallenge",
+      "description": "챌린지 승리 후 상태",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-050": {
+      "id": "RAT-050",
+      "prefix": "RAT",
+      "num": "050",
+      "name": "`withdrawSlashingsToTreasury()` 성공",
+      "description": "전체 기간+safetyBuffer 경과 후 출금",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT050_withdrawSlashingsToTreasury",
+        "test_RAT050_withdrawSlashingsToTreasury"
+      ]
+    },
+    "RAT-051": {
+      "id": "RAT-051",
+      "prefix": "RAT",
+      "num": "051",
+      "name": "`withdrawSlashingsToTreasury()` 조기 호출",
+      "description": "대기 기간 미경과 시 revert",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "RAT-052": {
+      "id": "RAT-052",
+      "prefix": "RAT",
+      "num": "052",
+      "name": "Treasury 미설정 시",
+      "description": "treasury=0 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_RAT052_treasury_zeroAddress_reverts",
+        "test_RAT052_treasury_zeroAddress_reverts",
+        "test_RAT052_treasury_setAndWithdraw",
+        "test_RAT052_treasury_setAndWithdraw"
+      ]
+    },
+    "VR-001": {
+      "id": "VR-001",
+      "prefix": "VR",
+      "num": "001",
+      "name": "`distributeL2Rewards()` 기본",
+      "description": "α×S_i 검증자 풀로 분배",
+      "status": "⚠️",
+      "found": true,
+      "matchedFunctions": [
+        "test_VR001_distributeL2Rewards_basic",
+        "test_VR001_distributeL2Rewards_basic"
+      ]
+    },
+    "VR-002": {
+      "id": "VR-002",
+      "prefix": "VR",
+      "num": "002",
+      "name": "검증자 0명 시 DAO 귀속",
+      "description": "검증자 없으면 α×S_i → DAO",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_VR002_distributeL2Rewards_noValidators_toDAO",
+        "test_VR002_distributeL2Rewards_noValidators_toDAO"
+      ]
+    },
+    "VR-003": {
+      "id": "VR-003",
+      "prefix": "VR",
+      "num": "003",
+      "name": "다수 검증자 균등 분배",
+      "description": "(α×S_i)/|V_i| 균등 분배",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_VR003_distributeL2Rewards_multipleValidators",
+        "test_VR003_distributeL2Rewards_multipleValidators"
+      ]
+    },
+    "VR-004": {
+      "id": "VR-004",
+      "prefix": "VR",
+      "num": "004",
+      "name": "보상 claim",
+      "description": "검증자 개별 보상 수령",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_VR004_claimAllRewards_success",
+        "test_VR004_claimAllRewards_success"
+      ]
+    },
+    "SD-010": {
+      "id": "SD-010",
+      "prefix": "SD",
+      "num": "010",
+      "name": "DAO 고정 분배",
+      "description": "S_DAO = d × A 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SD010_daoDistribution_formula",
+        "test_SD010_daoDistribution_formula"
+      ]
+    },
+    "SD-011": {
+      "id": "SD-011",
+      "prefix": "SD",
+      "num": "011",
+      "name": "미분배분 DAO 귀속",
+      "description": "L - y(x) → DAO 검증",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "SD-012": {
+      "id": "SD-012",
+      "prefix": "SD",
+      "num": "012",
+      "name": "검증자/시퀀서 분배",
+      "description": "α×y, (1-α)×y 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SD012_sequencerReward_formula",
+        "test_SD012_sequencerReward_formula",
+        "test_SD012_v3Distribution_daoValidatorSequencer",
+        "test_SD012_v3Distribution_daoValidatorSequencer"
+      ]
+    },
+    "SD-013": {
+      "id": "SD-013",
+      "prefix": "SD",
+      "num": "013",
+      "name": "자격 미달 L2 제외",
+      "description": "T_i < required 시 B̃_i=0",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SD013_insufficientStaking_noSeigniorage",
+        "test_SD013_insufficientStaking_noSeigniorage",
+        "test_SD013_ineligibleL2Excluded",
+        "test_SD013_ineligibleL2Excluded"
+      ]
+    },
+    "SD-014": {
+      "id": "SD-014",
+      "prefix": "SD",
+      "num": "014",
+      "name": "슬래싱된 L2 제외",
+      "description": "isPaused=true 시 분배 제외",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SD014_proportionalDistribution_formula",
+        "test_SD014_proportionalDistribution_formula",
+        "test_SD014_slashedSequencer_noSeigniorage",
+        "test_SD014_slashedSequencer_noSeigniorage",
+        "test_SD014_slashedL2Excluded",
+        "test_SD014_slashedL2Excluded"
+      ]
+    },
+    "SD-015": {
+      "id": "SD-015",
+      "prefix": "SD",
+      "num": "015",
+      "name": "모든 L2 슬래싱 시",
+      "description": "전액 DAO 귀속",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SD015_ineligibleL2_excluded",
+        "test_SD015_ineligibleL2_excluded",
+        "test_SD015_allSequencersSlashed_allToDao",
+        "test_SD015_allSequencersSlashed_allToDao",
+        "test_SD015_allL2Slashed_allToDAO",
+        "test_SD015_allL2Slashed_allToDAO"
+      ]
+    },
+    "INT-001": {
+      "id": "INT-001",
+      "prefix": "INT",
+      "num": "001",
+      "name": "L1BridgeRegistry 등록",
+      "description": "`registerRollupConfig()` TYPE 3",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-002": {
+      "id": "INT-002",
+      "prefix": "INT",
+      "num": "002",
+      "name": "Layer2Manager 등록",
+      "description": "`registerCandidateAddOn()`",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-003": {
+      "id": "INT-003",
+      "prefix": "INT",
+      "num": "003",
+      "name": "OperatorManager 자동 생성",
+      "description": "factory에서 자동 생성",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-004": {
+      "id": "INT-004",
+      "prefix": "INT",
+      "num": "004",
+      "name": "CandidateAddOn 자동 생성",
+      "description": "DAO.createCandidateAddOn() 호출",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-005": {
+      "id": "INT-005",
+      "prefix": "INT",
+      "num": "005",
+      "name": "Coinage 자동 배포",
+      "description": "Layer2Registry.registerAndDeployCoinage()",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC002_onlyRAT_transferCoinageToRAT (semantic)",
+        "test_SEC002_onlyRAT_transferCoinageFromRAT (semantic)",
+        "test_SEC002_onlyRAT_transferCoinageFromRATTo (semantic)"
+      ]
+    },
+    "INT-006": {
+      "id": "INT-006",
+      "prefix": "INT",
+      "num": "006",
+      "name": "SystemConfig→Layer2 매핑",
+      "description": "`getLayer2BySystemConfig()` 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_getLayer2BySystemConfig_unregistered (semantic)"
+      ]
+    },
+    "INT-007": {
+      "id": "INT-007",
+      "prefix": "INT",
+      "num": "007",
+      "name": "DisputeGameFactory 매핑",
+      "description": "rollupConfigWithDisputeGameFactory 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_rollupConfigWithDisputeGameFactory_defaultZero (semantic)"
+      ]
+    },
+    "INT-010": {
+      "id": "INT-010",
+      "prefix": "INT",
+      "num": "010",
+      "name": "DepositManager TON 예치",
+      "description": "TON → WTON → coinage",
+      "status": "⚠️",
+      "found": true,
+      "matchedFunctions": [
+        "test_deposit_wton (semantic)",
+        "test_deposit_wton_multiple (semantic)"
+      ]
+    },
+    "INT-011": {
+      "id": "INT-011",
+      "prefix": "INT",
+      "num": "011",
+      "name": "DepositManager WTON 예치",
+      "description": "WTON → coinage",
+      "status": "⚠️",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-012": {
+      "id": "INT-012",
+      "prefix": "INT",
+      "num": "012",
+      "name": "시퀀서 최소 담보금 V3",
+      "description": "max(θ×B_i, D_seq) 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT012_requiredStake_DSequencerDominant",
+        "test_INT012_requiredStake_DSequencerDominant",
+        "test_INT012_requiredStake_ThetaBiDominant",
+        "test_INT012_requiredStake_ThetaBiDominant",
+        "test_INT012_requiredStake_bothZero",
+        "test_INT012_requiredStake_bothZero",
+        "test_INT012_requiredStake_equal",
+        "test_INT012_requiredStake_equal",
+        "testFuzz_INT012_requiredStake"
+      ]
+    },
+    "INT-013": {
+      "id": "INT-013",
+      "prefix": "INT",
+      "num": "013",
+      "name": "검증자 출금 제한",
+      "description": "D_min 이상 유지 검증",
+      "status": "⚠️ (SeigManager 구현 필요)",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT013_validatorWithdrawal_aboveMinimum_success",
+        "test_INT013_validatorWithdrawal_aboveMinimum_success",
+        "test_INT013_validatorWithdrawal_belowMinimum_reverts",
+        "test_INT013_validatorWithdrawal_belowMinimum_reverts",
+        "test_INT013_validatorWithdrawal_exactMinimum_success",
+        "test_INT013_validatorWithdrawal_exactMinimum_success",
+        "test_INT013_inactiveValidator_noRestriction",
+        "test_INT013_inactiveValidator_noRestriction",
+        "test_INT013_nonValidator_noRestriction",
+        "test_INT013_nonValidator_noRestriction",
+        "test_INT013_dynamicMinimum_changesWithValidatorCount",
+        "test_INT013_dynamicMinimum_changesWithValidatorCount",
+        "test_INT013_partialWithdrawal_remainsActive",
+        "test_INT013_partialWithdrawal_remainsActive",
+        "test_INT013_withdrawAfterRATDeduction",
+        "test_INT013_withdrawAfterRATDeduction",
+        "test_INT013_withdrawBelowMinAfterRATDeduction_reverts",
+        "test_INT013_withdrawBelowMinAfterRATDeduction_reverts"
+      ]
+    },
+    "INT-014": {
+      "id": "INT-014",
+      "prefix": "INT",
+      "num": "014",
+      "name": "`onStakingChange()` 콜백",
+      "description": "스테이킹 변경 시 자격 자동 업데이트",
+      "status": "⚠️ (V3ScenarioReal에서 통합 테스트)",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "INT-015": {
+      "id": "INT-015",
+      "prefix": "INT",
+      "num": "015",
+      "name": "`onDeposit()` 콜백",
+      "description": "예치 시 tot/coinage mint",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT015_onDeposit_mintCoinage",
+        "test_INT015_onDeposit_mintCoinage",
+        "test_INT015_016_onlyDepositManager_reverts",
+        "test_INT015_016_onlyDepositManager_reverts"
+      ]
+    },
+    "INT-016": {
+      "id": "INT-016",
+      "prefix": "INT",
+      "num": "016",
+      "name": "`onWithdraw()` 콜백",
+      "description": "출금 시 tot/coinage burn",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT016_onWithdraw_burnCoinage",
+        "test_INT016_onWithdraw_burnCoinage"
+      ]
+    },
+    "INT-020": {
+      "id": "INT-020",
+      "prefix": "INT",
+      "num": "020",
+      "name": "Coinage 선차감 (실제)",
+      "description": "validator→RAT 전송 (실제 컨트랙트)",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT020_coinagePreDeduction",
+        "test_INT020_coinagePreDeduction"
+      ]
+    },
+    "INT-021": {
+      "id": "INT-021",
+      "prefix": "INT",
+      "num": "021",
+      "name": "Coinage 복구 (실제)",
+      "description": "RAT→validator 전송 (실제 컨트랙트)",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT021_coinageRestoration",
+        "test_INT021_coinageRestoration",
+        "test_INT021_coinageRestorationByChallenge",
+        "test_INT021_coinageRestorationByChallenge"
+      ]
+    },
+    "INT-022": {
+      "id": "INT-022",
+      "prefix": "INT",
+      "num": "022",
+      "name": "Coinage 슬래싱 (실제)",
+      "description": "RAT→Treasury 전송 (실제 컨트랙트)",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT022_coinageSlashing",
+        "test_INT022_coinageSlashing"
+      ]
+    },
+    "INT-023": {
+      "id": "INT-023",
+      "prefix": "INT",
+      "num": "023",
+      "name": "잔액 동기화 검증",
+      "description": "전송 후 각 계정 잔액 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT023_balanceSynchronization",
+        "test_INT023_balanceSynchronization"
+      ]
+    },
+    "INT-030": {
+      "id": "INT-030",
+      "prefix": "INT",
+      "num": "030",
+      "name": "`onBridgedTONChange()` 트리거",
+      "description": "OptimismPortal에서 호출",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT030_onBridgedTONChange_callerValidation",
+        "test_INT030_onBridgedTONChange_callerValidation",
+        "test_INT030_onBridgedTONChange_beforeMigration_reverts",
+        "test_INT030_onBridgedTONChange_beforeMigration_reverts"
+      ]
+    },
+    "INT-031": {
+      "id": "INT-031",
+      "prefix": "INT",
+      "num": "031",
+      "name": "effectiveBridgedTON 업데이트",
+      "description": "자격 상태에 따라 업데이트",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT031_effectiveBridgedTON_update",
+        "test_INT031_effectiveBridgedTON_update",
+        "test_INT031_032_eligibilityLoss_removesEffective",
+        "test_INT031_032_eligibilityLoss_removesEffective"
+      ]
+    },
+    "INT-032": {
+      "id": "INT-032",
+      "prefix": "INT",
+      "num": "032",
+      "name": "totalEffectiveBridgedTON 동기화",
+      "description": "전체 합계 동기화",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_INT032_totalEffectiveBridgedTON_sync",
+        "test_INT032_totalEffectiveBridgedTON_sync"
+      ]
+    },
+    "E2E-001": {
+      "id": "E2E-001",
+      "prefix": "E2E",
+      "num": "001",
+      "name": "V2 → V3 전환",
+      "description": "파라미터 설정 + migrateToV3()",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-002": {
+      "id": "E2E-002",
+      "prefix": "E2E",
+      "num": "002",
+      "name": "기존 L2 자격 평가",
+      "description": "마이그레이션 후 자동 평가",
+      "status": "❌",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-004": {
+      "id": "E2E-004",
+      "prefix": "E2E",
+      "num": "004",
+      "name": "마이그레이션 후 첫 시뇨리지",
+      "description": "V3 로직으로 분배 검증",
+      "status": "⚠️",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-010": {
+      "id": "E2E-010",
+      "prefix": "E2E",
+      "num": "010",
+      "name": "정상 플로우",
+      "description": "등록 → RAT 응답 → 보상 수령",
+      "status": "⚠️",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E031_hyperbolicSaturation_formula (semantic)",
+        "test_v3Migration_state (semantic)",
+        "test_SEC004_onlyValidFactory_triggerAttentionTest (semantic)",
+        "test_v3MigrationState (semantic)",
+        "test_EDGE003_hyperbolicSaturationConvergence (semantic)",
+        "test_v3Migration (semantic)"
+      ]
+    },
+    "E2E-011": {
+      "id": "E2E-011",
+      "prefix": "E2E",
+      "num": "011",
+      "name": "슬래싱 플로우",
+      "description": "등록 → RAT 미응답 → 슬래싱",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-012": {
+      "id": "E2E-012",
+      "prefix": "E2E",
+      "num": "012",
+      "name": "재등록 플로우",
+      "description": "탈퇴 → 재등록",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E012_validatorDeactivateAndReregister",
+        "test_E2E012_validatorDeactivateAndReregister"
+      ]
+    },
+    "E2E-013": {
+      "id": "E2E-013",
+      "prefix": "E2E",
+      "num": "013",
+      "name": "재활성화 플로우",
+      "description": "담보금 부족 → 강제 제거 → 복구 → 재활성화",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-014": {
+      "id": "E2E-014",
+      "prefix": "E2E",
+      "num": "014",
+      "name": "다중 L2 검증자",
+      "description": "동일 검증자가 여러 L2 등록",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E014_multipleL2_sameValidator",
+        "test_E2E014_multipleL2_sameValidator",
+        "test_E2E014_slashingOneL2_noAffectOther",
+        "test_E2E014_slashingOneL2_noAffectOther"
+      ]
+    },
+    "E2E-020": {
+      "id": "E2E-020",
+      "prefix": "E2E",
+      "num": "020",
+      "name": "Fraud Proof 슬래싱",
+      "description": "DisputeGame 연동 슬래싱",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E020_fraudProof_slashing",
+        "test_E2E020_fraudProof_slashing"
+      ]
+    },
+    "E2E-021": {
+      "id": "E2E-021",
+      "prefix": "E2E",
+      "num": "021",
+      "name": "슬래싱 후 시뇨리지 중단",
+      "description": "isPaused 시 분배 제외",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-022": {
+      "id": "E2E-022",
+      "prefix": "E2E",
+      "num": "022",
+      "name": "L2 서비스 연속성",
+      "description": "슬래싱 후에도 L2 정지 안 됨",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E022_l2ServiceContinuity_afterSlashing",
+        "test_E2E022_l2ServiceContinuity_afterSlashing"
+      ]
+    },
+    "E2E-023": {
+      "id": "E2E-023",
+      "prefix": "E2E",
+      "num": "023",
+      "name": "챌린저 보상 지급",
+      "description": "slashedAmount / challengerCount",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E023_challengerRewardDistribution",
+        "test_E2E023_challengerRewardDistribution"
+      ]
+    },
+    "E2E-030": {
+      "id": "E2E-030",
+      "prefix": "E2E",
+      "num": "030",
+      "name": "단일 L2 분배",
+      "description": "전체 y(x) 수령",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_registerLayer2 (semantic)",
+        "test_registerLayer2_notOperator_reverts (semantic)",
+        "test_deposit_ton_approveAndCall (semantic)",
+        "test_requestWithdrawal (semantic)",
+        "test_requestWithdrawal_full (semantic)",
+        "test_processRequest (semantic)",
+        "test_processRequest_beforeDelay_reverts (semantic)",
+        "test_updateSeigniorage (semantic)",
+        "test_updateSeigniorageLayer (semantic)",
+        "test_fullScenario (semantic)",
+        "test_deployedContractsConnected (semantic)",
+        "test_depositManager_initialized (semantic)",
+        "test_deposit_zeroAmount_reverts (semantic)",
+        "test_setGlobalWithdrawalDelay (semantic)",
+        "test_setGlobalWithdrawalDelay_notOwner_reverts (semantic)",
+        "test_getDelayBlocks_globalDelay (semantic)",
+        "test_accStaked_initialZero (semantic)",
+        "test_pendingUnstaked_initialZero (semantic)",
+        "test_numPendingRequests_initialZero (semantic)",
+        "testFuzz_setGlobalWithdrawalDelay (semantic)",
+        "test_getDelayBlocks_layer2Delay (semantic)",
+        "test_getDelayBlocks_withLayer2Delay (semantic)",
+        "test_setWithdrawalDelayByOwner_lessThanGlobal_reverts (semantic)",
+        "test_deployment_initialized (semantic)",
+        "test_deployment_rolesSetup (semantic)",
+        "test_rollupType_defaultZero (semantic)",
+        "test_l2TON_defaultZero (semantic)",
+        "test_isRejectedSeigs_defaultFalse (semantic)",
+        "test_isRejectedL2Deposit_defaultFalse (semantic)",
+        "test_disputeGameFactory_defaultFalse (semantic)",
+        "test_registerType1_byManager (semantic)",
+        "test_registerType1_byRegistrant (semantic)",
+        "test_registerType1_revertUnauthorized (semantic)",
+        "test_registerType2_byManager (semantic)",
+        "test_registerType2_revertZeroL2TON (semantic)",
+        "test_registerType2_revertAlreadyRegistered (semantic)",
+        "test_registerType3_byManager (semantic)",
+        "test_registerType3_revertNoDisputeGameFactory (semantic)",
+        "test_registerType3_revertInvalidType (semantic)",
+        "test_setTypeRegistrant_byManager (semantic)",
+        "test_setTypeRegistrant_revertUnauthorized (semantic)",
+        "test_registerByType_withTypeRegistrant (semantic)",
+        "test_registerByType_managerCanAlwaysRegister (semantic)",
+        "test_registerByType_revertWrongTypeRegistrant (semantic)",
+        "test_registerByType_noRegistrantSetRequiresManager (semantic)",
+        "test_upgradeToType3_fromType2 (semantic)",
+        "test_upgradeToType3_fromType1 (semantic)",
+        "test_upgradeToType3_revertNotRegistered (semantic)",
+        "test_upgradeToType3_revertAlreadyType3 (semantic)",
+        "test_upgradeToType3_revertNoDisputeGameFactory (semantic)",
+        "test_upgradeToType3_revertUnauthorized (semantic)",
+        "test_rejectCandidateAddOn_revertUnauthorized (semantic)",
+        "test_rejectCandidateAddOn_revertNotRegistered (semantic)",
+        "test_restoreCandidateAddOn_revertNotRejected (semantic)",
+        "test_availableForRegistration_type1 (semantic)",
+        "test_availableForRegistration_type2 (semantic)",
+        "test_availableForRegistration_type3 (semantic)",
+        "test_availableForRegistration_falseAfterRegistered (semantic)",
+        "test_availableForRegistration_falseWhenPortalUsed (semantic)",
+        "test_getRollupInfo_complete (semantic)",
+        "test_setAddresses_revertAlreadyInitialized (semantic)",
+        "test_setSeigniorageCommittee_success (semantic)",
+        "test_setSeigniorageCommittee_revertSame (semantic)",
+        "test_setSeigniorageCommittee_revertUnauthorized (semantic)",
+        "test_rejectRollupConfig_alias_defaultFalse (semantic)",
+        "test_event_RegisteredRollupConfig (semantic)",
+        "test_event_TypeRegistrantSet (semantic)",
+        "test_event_UpgradedToType3 (semantic)",
+        "test_deployedContractsConnected (semantic)",
+        "test_layer2Manager_initialized (semantic)",
+        "test_getBridgedTON_unregisteredRollup (semantic)",
+        "test_getBridgedTONByLayer_noOperator (semantic)",
+        "test_E2E031_multiL2_eligibilityCheck (semantic)",
+        "test_v3Parameters_verification (semantic)",
+        "test_estimateL2Seigniorage (semantic)",
+        "test_noDoubleDistribution_sameBlock (semantic)",
+        "test_EDGE010_duplicateTrigger_sameBatch_reverts (semantic)",
+        "test_EDGE010_differentBatch_allowed (semantic)",
+        "test_EDGE022_withdrawExceedsBalance_reverts (semantic)",
+        "test_EDGE022_fullDeduction_noUnderflow (semantic)",
+        "test_multipleRATTriggers_balanceConsistency (semantic)",
+        "test_insufficientCollateral_RATTrigger (semantic)",
+        "test_SEC002_onlyRAT_success (semantic)",
+        "test_SEC003_onlyDepositManager_onDeposit (semantic)",
+        "test_SEC003_onlyDepositManager_onWithdraw (semantic)",
+        "test_SEC003_onlyDepositManager_onStakingChange (semantic)",
+        "test_SEC005_onlyL1BridgeOrRegistry_onBridgedTONChange (semantic)",
+        "test_SEC004_validFactory_success (semantic)",
+        "test_SEC001_onlyOwner_seigManager (semantic)",
+        "test_SEC001_onlyOwner_rat (semantic)",
+        "test_SEC001_onlyOwner_success (semantic)",
+        "test_SEC030_zeroAddress_setRATContract (semantic)",
+        "test_SEC030_zeroAddress_setValidatorReward (semantic)",
+        "test_SEC030_zeroAddress_transferOwnership (semantic)",
+        "test_SEC031_parameterRange_daoDistributionRatio (semantic)",
+        "test_SEC031_parameterRange_validatorDistributionRatio (semantic)",
+        "test_SEC031_parameterRange_minStakingRatio (semantic)",
+        "test_SEC031_parameterRange_stakedSeigFactor (semantic)",
+        "test_SEC031_parameterRange_ratTriggerProbability (semantic)",
+        "test_SEC010_ifFree_SeigManager (semantic)",
+        "test_SEC010_ifFree_DepositManager (semantic)",
+        "test_SEC011_CEI_pattern (semantic)",
+        "test_SEC012_stateConsistency (semantic)",
+        "test_SEC020_blockHash_randomness (semantic)",
+        "test_SEC021_randomDistribution (semantic)",
+        "test_SEC022_timestamp_manipulation (semantic)",
+        "test_SEC032_emptyArrayHandling (semantic)",
+        "test_SEC032_maxValidatorLimit (semantic)",
+        "test_v3Parameters (semantic)",
+        "test_slashingParameters (semantic)",
+        "test_setStakedSeigFactor_basic (semantic)",
+        "test_setStakedSeigFactor_exceedsRAY_reverts (semantic)",
+        "test_setMaxChallengers_basic (semantic)",
+        "test_setMaxFraudProofCost_basic (semantic)",
+        "test_setValidatorReward_basic (semantic)",
+        "test_setValidatorReward_zeroAddress_reverts (semantic)",
+        "test_setStakedSeigFactor_notOwner_reverts (semantic)",
+        "test_setMaxChallengers_notOwner_reverts (semantic)",
+        "test_setMaxFraudProofCost_notOwner_reverts (semantic)",
+        "test_deployedContractsConnected (semantic)",
+        "test_validatorRewardConnected (semantic)",
+        "test_transition_lambda1_v2Mode (semantic)",
+        "test_transition_lambda05_midTransition (semantic)",
+        "test_transition_lambda0_v3Mode (semantic)",
+        "test_mixedDistribution_stakerAndV3 (semantic)",
+        "test_stakingDecrease_loseEligibility (semantic)",
+        "test_stakingIncrease_regainEligibility (semantic)",
+        "test_combined_slashingAndInsufficientStaking (semantic)",
+        "test_EDGE004_thetaZero_allEligible (semantic)",
+        "test_EDGE006_dZero_allToL2 (semantic)",
+        "test_EDGE007_dOne_maxDAO (semantic)",
+        "test_EDGE008_zeroBridgedTON_noDistribution (semantic)",
+        "test_EDGE005_alphaZero_allToSequencer (semantic)",
+        "test_E2E032_eligibilityChange_distribution (semantic)",
+        "test_E2E034_rewardAccumulation (semantic)",
+        "test_anyoneCanCallUpdateSeigniorage (semantic)",
+        "test_v2ModeDistribution (semantic)",
+        "test_v3FullModeDistribution (semantic)",
+        "test_transitionLambdaDecrease (semantic)",
+        "test_transitionRDecrease (semantic)",
+        "test_multipleL2Distribution (semantic)",
+        "test_consecutiveUpdates (semantic)",
+        "test_noDoubleDistributionSameBlock (semantic)",
+        "test_EDGE002_halfSaturationPoint (semantic)",
+        "test_registerCandidateType3 (semantic)",
+        "test_validatorDepositToRAT (semantic)",
+        "test_multipleValidatorsDeposit (semantic)",
+        "test_updateSeigniorageAfterMigration (semantic)",
+        "test_updateSeigniorageMultipleTimes (semantic)",
+        "test_E2E040_fullV3Scenario (semantic)",
+        "test_initialize_success (semantic)",
+        "test_initialize_cannotReinitialize (semantic)",
+        "test_distributeL2Rewards_excludeInactiveValidators (semantic)",
+        "test_distributeL2Rewards_multipleL2s (semantic)",
+        "test_distributeL2Rewards_zeroAmount (semantic)",
+        "test_distributeL2Rewards_onlySeigManager (semantic)",
+        "test_distributeL2Rewards_accumulation (semantic)",
+        "test_distributeL2Rewards_remainder (semantic)",
+        "test_claimAllRewards_noRewards_reverts (semantic)",
+        "test_claimAllRewards_multipleL2s (semantic)",
+        "test_claimAllRewards_claimDistributeClaim (semantic)",
+        "test_getPendingRewards_accurate (semantic)",
+        "test_getPendingRewardsByL2_accurate (semantic)",
+        "test_rewardCalculation_formula (semantic)",
+        "test_rewardCalculation_precision (semantic)",
+        "test_setRatContract (semantic)",
+        "test_setRatContract_zeroAddress_reverts (semantic)",
+        "test_setTreasury_deprecated_reverts (semantic)",
+        "test_setSeigManager (semantic)",
+        "test_setSeigManager_zeroAddress_reverts (semantic)",
+        "test_transferOwnership (semantic)",
+        "test_transferOwnership_zeroAddress_reverts (semantic)",
+        "test_governance_onlyOwner (semantic)",
+        "test_emergencyWithdraw (semantic)",
+        "test_emergencyWithdraw_onlyOwner (semantic)",
+        "test_event_L2RewardDistributed (semantic)",
+        "test_event_ValidatorRewardReceived (semantic)",
+        "test_event_RewardsClaimed (semantic)",
+        "test_event_RewardToDAO (semantic)",
+        "test_getValidatorMinCollateralForLayer2_activeValidator (semantic)",
+        "test_getValidatorMinCollateralForLayer2_inactiveValidator (semantic)",
+        "test_getValidatorMinCollateralForLayer2_nonValidator (semantic)"
+      ]
+    },
+    "E2E-031": {
+      "id": "E2E-031",
+      "prefix": "E2E",
+      "num": "031",
+      "name": "다중 L2 비례 분배",
+      "description": "B̃_i / Σ B̃_i 비례 분배",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E031_multiL2_eligibilityCheck",
+        "test_E2E031_multiL2_eligibilityCheck",
+        "test_E2E031_hyperbolicSaturation_formula",
+        "test_E2E031_hyperbolicSaturation_formula"
+      ]
+    },
+    "E2E-032": {
+      "id": "E2E-032",
+      "prefix": "E2E",
+      "num": "032",
+      "name": "자격 변동 시 분배",
+      "description": "중간에 자격 상실/획득",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E032_eligibilityChange_distribution",
+        "test_E2E032_eligibilityChange_distribution"
+      ]
+    },
+    "E2E-033": {
+      "id": "E2E-033",
+      "prefix": "E2E",
+      "num": "033",
+      "name": "블록 연속 분배",
+      "description": "여러 블록 연속 updateSeigniorage",
+      "status": "⚠️",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "E2E-034": {
+      "id": "E2E-034",
+      "prefix": "E2E",
+      "num": "034",
+      "name": "보상 누적 검증",
+      "description": "여러 기간 후 누적 보상 정확성",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E034_rewardAccumulation",
+        "test_E2E034_rewardAccumulation"
+      ]
+    },
+    "E2E-040": {
+      "id": "E2E-040",
+      "prefix": "E2E",
+      "num": "040",
+      "name": "Full V3 Scenario",
+      "description": "마이그레이션 → L2 등록 → 검증자 등록 → 시뇨리지 분배",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_E2E040_fullV3Scenario",
+        "test_E2E040_fullV3Scenario"
+      ]
+    },
+    "E2E-041": {
+      "id": "E2E-041",
+      "prefix": "E2E",
+      "num": "041",
+      "name": "Multi-Actor Scenario",
+      "description": "다수 시퀀서/검증자/스테이커 동시 참여",
+      "status": "❌",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-001": {
+      "id": "EDGE-001",
+      "prefix": "EDGE",
+      "num": "001",
+      "name": "x = 0 (L2 없음)",
+      "description": "전액 DAO 귀속",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-002": {
+      "id": "EDGE-002",
+      "prefix": "EDGE",
+      "num": "002",
+      "name": "x = k (반포화점)",
+      "description": "y = L/2 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE002_halfSaturationPoint",
+        "test_EDGE002_halfSaturationPoint"
+      ]
+    },
+    "EDGE-003": {
+      "id": "EDGE-003",
+      "prefix": "EDGE",
+      "num": "003",
+      "name": "x → ∞ (큰 값)",
+      "description": "y → L 수렴 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE003_hyperbolicSaturationConvergence",
+        "test_EDGE003_hyperbolicSaturationConvergence"
+      ]
+    },
+    "EDGE-004": {
+      "id": "EDGE-004",
+      "prefix": "EDGE",
+      "num": "004",
+      "name": "θ = 0 (담보금 없음)",
+      "description": "모든 L2 자격 충족",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE004_thetaZero_allEligible",
+        "test_EDGE004_thetaZero_allEligible"
+      ]
+    },
+    "EDGE-005": {
+      "id": "EDGE-005",
+      "prefix": "EDGE",
+      "num": "005",
+      "name": "α = 0 (검증자 없음)",
+      "description": "전액 시퀀서로",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE005_alphaZero_allToSequencer",
+        "test_EDGE005_alphaZero_allToSequencer"
+      ]
+    },
+    "EDGE-006": {
+      "id": "EDGE-006",
+      "prefix": "EDGE",
+      "num": "006",
+      "name": "d = 0 (DAO 없음)",
+      "description": "전액 L2로",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE006_dZero_allToL2",
+        "test_EDGE006_dZero_allToL2"
+      ]
+    },
+    "EDGE-007": {
+      "id": "EDGE-007",
+      "prefix": "EDGE",
+      "num": "007",
+      "name": "d = 1 (전액 DAO)",
+      "description": "L2 분배 없음",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE007_dOne_maxDAO",
+        "test_EDGE007_dOne_maxDAO"
+      ]
+    },
+    "EDGE-008": {
+      "id": "EDGE-008",
+      "prefix": "EDGE",
+      "num": "008",
+      "name": "B_i = 0 (Bridged TON 없음)",
+      "description": "해당 L2 분배 없음",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE008_zeroBridgedTON_noDistribution",
+        "test_EDGE008_zeroBridgedTON_noDistribution"
+      ]
+    },
+    "EDGE-010": {
+      "id": "EDGE-010",
+      "prefix": "EDGE",
+      "num": "010",
+      "name": "동시 RAT 트리거",
+      "description": "동일 검증자 중복 선택 방지",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE010_duplicateTrigger_sameBatch_reverts",
+        "test_EDGE010_duplicateTrigger_sameBatch_reverts",
+        "test_EDGE010_differentBatch_allowed",
+        "test_EDGE010_differentBatch_allowed"
+      ]
+    },
+    "EDGE-011": {
+      "id": "EDGE-011",
+      "prefix": "EDGE",
+      "num": "011",
+      "name": "동시 증거 제출",
+      "description": "이미 응답한 테스트 거부",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-012": {
+      "id": "EDGE-012",
+      "prefix": "EDGE",
+      "num": "012",
+      "name": "스테이킹 변경 + RAT 동시",
+      "description": "경쟁 상태 처리",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-013": {
+      "id": "EDGE-013",
+      "prefix": "EDGE",
+      "num": "013",
+      "name": "마이그레이션 중 시뇨리지",
+      "description": "마이그레이션 트랜잭션 중 분배",
+      "status": "❌",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-020": {
+      "id": "EDGE-020",
+      "prefix": "EDGE",
+      "num": "020",
+      "name": "대량 시뇨리지 분배",
+      "description": "RAY 단위 오버플로우 방지",
+      "status": "⚠️ Fuzz",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-021": {
+      "id": "EDGE-021",
+      "prefix": "EDGE",
+      "num": "021",
+      "name": "0 나눗셈 방지",
+      "description": "x=0, totalEffective=0 시",
+      "status": "✅",
+      "found": false,
+      "matchedFunctions": []
+    },
+    "EDGE-022": {
+      "id": "EDGE-022",
+      "prefix": "EDGE",
+      "num": "022",
+      "name": "언더플로우 방지",
+      "description": "출금 시 잔액 부족",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_EDGE022_withdrawExceedsBalance_reverts",
+        "test_EDGE022_withdrawExceedsBalance_reverts",
+        "test_EDGE022_fullDeduction_noUnderflow",
+        "test_EDGE022_fullDeduction_noUnderflow"
+      ]
+    },
+    "SEC-001": {
+      "id": "SEC-001",
+      "prefix": "SEC",
+      "num": "001",
+      "name": "onlyOwner 함수",
+      "description": "비권한자 호출 거부",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC001_onlyOwner_seigManager",
+        "test_SEC001_onlyOwner_seigManager",
+        "test_SEC001_onlyOwner_rat",
+        "test_SEC001_onlyOwner_rat",
+        "test_SEC001_onlyOwner_success",
+        "test_SEC001_onlyOwner_success"
+      ]
+    },
+    "SEC-002": {
+      "id": "SEC-002",
+      "prefix": "SEC",
+      "num": "002",
+      "name": "onlyRAT 함수",
+      "description": "RAT 외 호출 거부",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC002_onlyRAT_transferCoinageToRAT",
+        "test_SEC002_onlyRAT_transferCoinageToRAT",
+        "test_SEC002_onlyRAT_transferCoinageFromRAT",
+        "test_SEC002_onlyRAT_transferCoinageFromRAT",
+        "test_SEC002_onlyRAT_transferCoinageFromRATTo",
+        "test_SEC002_onlyRAT_transferCoinageFromRATTo",
+        "test_SEC002_onlyRAT_success",
+        "test_SEC002_onlyRAT_success"
+      ]
+    },
+    "SEC-003": {
+      "id": "SEC-003",
+      "prefix": "SEC",
+      "num": "003",
+      "name": "onlyDepositManager",
+      "description": "DepositManager 외 호출 거부",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC003_onlyDepositManager_onDeposit",
+        "test_SEC003_onlyDepositManager_onDeposit",
+        "test_SEC003_onlyDepositManager_onWithdraw",
+        "test_SEC003_onlyDepositManager_onWithdraw",
+        "test_SEC003_onlyDepositManager_onStakingChange",
+        "test_SEC003_onlyDepositManager_onStakingChange"
+      ]
+    },
+    "SEC-004": {
+      "id": "SEC-004",
+      "prefix": "SEC",
+      "num": "004",
+      "name": "onlyValidFactory",
+      "description": "유효 Factory만 트리거",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC004_onlyValidFactory_triggerAttentionTest",
+        "test_SEC004_onlyValidFactory_triggerAttentionTest",
+        "test_SEC004_validFactory_success",
+        "test_SEC004_validFactory_success"
+      ]
+    },
+    "SEC-005": {
+      "id": "SEC-005",
+      "prefix": "SEC",
+      "num": "005",
+      "name": "onlyL1BridgeOrRegistry",
+      "description": "L1BridgeRegistry 외 거부",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC005_onlyL1BridgeOrRegistry_onBridgedTONChange",
+        "test_SEC005_onlyL1BridgeOrRegistry_onBridgedTONChange"
+      ]
+    },
+    "SEC-010": {
+      "id": "SEC-010",
+      "prefix": "SEC",
+      "num": "010",
+      "name": "ifFree modifier",
+      "description": "재진입 방지 테스트",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC010_ifFree_SeigManager",
+        "test_SEC010_ifFree_SeigManager",
+        "test_SEC010_ifFree_DepositManager",
+        "test_SEC010_ifFree_DepositManager"
+      ]
+    },
+    "SEC-011": {
+      "id": "SEC-011",
+      "prefix": "SEC",
+      "num": "011",
+      "name": "CEI 패턴 준수",
+      "description": "Checks-Effects-Interactions 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC011_CEI_pattern",
+        "test_SEC011_CEI_pattern"
+      ]
+    },
+    "SEC-012": {
+      "id": "SEC-012",
+      "prefix": "SEC",
+      "num": "012",
+      "name": "외부 호출 후 상태",
+      "description": "외부 호출 후 상태 일관성",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC012_stateConsistency",
+        "test_SEC012_stateConsistency"
+      ]
+    },
+    "SEC-020": {
+      "id": "SEC-020",
+      "prefix": "SEC",
+      "num": "020",
+      "name": "blockHash 기반 랜덤",
+      "description": "L2 시퀀서 조작 불가 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC020_blockHash_randomness",
+        "test_SEC020_blockHash_randomness"
+      ]
+    },
+    "SEC-021": {
+      "id": "SEC-021",
+      "prefix": "SEC",
+      "num": "021",
+      "name": "랜덤 분포 검증",
+      "description": "균등 분포 통계 테스트",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC021_randomDistribution",
+        "test_SEC021_randomDistribution"
+      ]
+    },
+    "SEC-022": {
+      "id": "SEC-022",
+      "prefix": "SEC",
+      "num": "022",
+      "name": "timestamp 조작 방지",
+      "description": "timestamp 범위 검증",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC022_timestamp_manipulation",
+        "test_SEC022_timestamp_manipulation"
+      ]
+    },
+    "SEC-030": {
+      "id": "SEC-030",
+      "prefix": "SEC",
+      "num": "030",
+      "name": "Zero address 검증",
+      "description": "address(0) 입력 거부",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC030_zeroAddress_setRATContract",
+        "test_SEC030_zeroAddress_setRATContract",
+        "test_SEC030_zeroAddress_setValidatorReward",
+        "test_SEC030_zeroAddress_setValidatorReward",
+        "test_SEC030_zeroAddress_transferOwnership",
+        "test_SEC030_zeroAddress_transferOwnership"
+      ]
+    },
+    "SEC-031": {
+      "id": "SEC-031",
+      "prefix": "SEC",
+      "num": "031",
+      "name": "파라미터 범위 검증",
+      "description": "유효 범위 초과 시 revert",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC031_parameterRange_daoDistributionRatio",
+        "test_SEC031_parameterRange_daoDistributionRatio",
+        "test_SEC031_parameterRange_validatorDistributionRatio",
+        "test_SEC031_parameterRange_validatorDistributionRatio",
+        "test_SEC031_parameterRange_minStakingRatio",
+        "test_SEC031_parameterRange_minStakingRatio",
+        "test_SEC031_parameterRange_stakedSeigFactor",
+        "test_SEC031_parameterRange_stakedSeigFactor",
+        "test_SEC031_parameterRange_ratTriggerProbability",
+        "test_SEC031_parameterRange_ratTriggerProbability"
+      ]
+    },
+    "SEC-032": {
+      "id": "SEC-032",
+      "prefix": "SEC",
+      "num": "032",
+      "name": "배열 길이 검증",
+      "description": "빈 배열, 과대 배열 처리",
+      "status": "✅",
+      "found": true,
+      "matchedFunctions": [
+        "test_SEC032_emptyArrayHandling",
+        "test_SEC032_emptyArrayHandling",
+        "test_SEC032_maxValidatorLimit",
+        "test_SEC032_maxValidatorLimit"
+      ]
+    }
+  },
+  "unmatchedFunctions": []
+}

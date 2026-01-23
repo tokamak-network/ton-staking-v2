@@ -6,6 +6,7 @@ contract SimpleMockSystemConfig {
     address public l1StandardBridge;
     address public optimismPortal;
     address public disputeGameFactory;
+    address public unsafeBlockSigner;
 
     function setL1StandardBridge(address _l1StandardBridge) external {
         l1StandardBridge = _l1StandardBridge;
@@ -17,5 +18,9 @@ contract SimpleMockSystemConfig {
 
     function setDisputeGameFactory(address _disputeGameFactory) external {
         disputeGameFactory = _disputeGameFactory;
+    }
+
+    function setUnsafeBlockSigner(address _unsafeBlockSigner) external {
+        unsafeBlockSigner = _unsafeBlockSigner;
     }
 }
