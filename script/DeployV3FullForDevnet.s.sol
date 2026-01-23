@@ -299,7 +299,7 @@ contract DeployV3FullForDevnet is Script {
 
     /// @notice Entry point for generating devnet allocs (without actual broadcast)
     /// @dev This is used to generate genesis allocs file
-    function runForDevnetAlloc() external {
+    function runForDevnetAlloc() external virtual {
         // Load existing L1 allocs (Optimism contracts)
         string memory allocsPath = vm.envOr(
             "TARGET_L1_ALLOC",
@@ -324,7 +324,7 @@ contract DeployV3FullForDevnet is Script {
         vm.dumpState(outputPath);
     }
 
-    function run() public {
+    function run() public virtual {
         _loadOptimismAddresses();
         vm.startBroadcast();
         address deployer = msg.sender;
@@ -535,7 +535,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
     // Step 6: Initialize Managers
     // ==========================================
-    function _initializeManagers(address deployer) internal {
+    function _initializeManagers(address deployer) internal virtual {
         console.log("--- Step 6: Initialize Managers ---");
 
         // Initialize SeigManager
@@ -681,7 +681,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
     // Step 9: Setup Cross-References
     // ==========================================
-    function _setupCrossReferences(address /* deployer */) internal {
+    function _setupCrossReferences(address /* deployer */) internal virtual {
         console.log("--- Step 10: Setup Cross-References ---");
 
         // Update SeigManager DAO address (was set to deployer in _initializeManagers)
