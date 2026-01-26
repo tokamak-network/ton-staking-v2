@@ -83,7 +83,7 @@ contract DepositManager_Slashing is
      * @notice Execute slashing on an operator
      * @dev Removes the operator's stake, notifies SeigManager, and distributes reward to challenger.
      *      The remaining slashed amount (slashedAmount - rewardAmount) is effectively burned
-     *      as it is removed from accStaked but not transferred out (except reward).
+     *      as it is removed from the coinage but not transferred out (except reward).
      * @param layer2 The address of the Layer2 contract (candidate)
      * @param operator The address of the wrong-doing operator
      * @param challenger The address of the challenger who proved the fraud
@@ -97,21 +97,18 @@ contract DepositManager_Slashing is
         require(operator == ILayer2(layer2).operator(), "operator is not an operator");
         require(challenger != address(0), "invalid challenger address");
 
-        uint256 slashedAmount = _accStaked[layer2][operator];
+        // V3: Use SeigManager.stakeOf instead of deprecated _accStaked
+        uint256 slashedAmount = ISeigManager(_seigManager).stakeOf(layer2, operator);
         require(slashedAmount > 0, "no staked amount to slash");
 
-        // 회계 장부 초기화
-        _accStaked[layer2][operator] = 0;
-        _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
-        _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
+        // V3: No need to update _accStaked mappings as they are deprecated in V3
+        // _accStaked[layer2][operator] = 0;
+        // _accStakedLayer2[layer2] = _accStakedLayer2[layer2] - slashedAmount;
+        // _accStakedAccount[operator] = _accStakedAccount[operator] - slashedAmount;
 
-        // SeigManager에 슬래싱 처리 요청
+        // SeigManager에 슬래싱 처리 요청 (coinage balance를 0으로 만듦)
         uint256 totalSlashedAmount = ISeigManager(_seigManager).onSlash(layer2, operator);
         require(totalSlashedAmount > 0, "Slashed Amount is 0");
-        // require(
-        //     ISeigManager(_seigManager).onSlash(layer2, operator, challenger),
-        //     "fail onSlash"
-        // );
 
         // 보상 금액 계산 (slashingRewardRate가 0이면 보상 없음)
         uint256 rewardAmount = 0;
@@ -126,7 +123,7 @@ contract DepositManager_Slashing is
             emit ChallengerRewarded(layer2, challenger, rewardAmount);
         }
 
-        emit Slashed(layer2, operator, challenger, slashedAmount, rewardAmount);
+        emit Slashed(layer2, operator, challenger, totalSlashedAmount, rewardAmount);
 
         return true;
     }

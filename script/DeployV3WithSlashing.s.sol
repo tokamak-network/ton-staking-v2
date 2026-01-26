@@ -147,9 +147,26 @@ contract DeployV3WithSlashing is DeployV3Full {
     // ==========================================
     // Override: Cross References with Slashing
     // ==========================================
-    function _setupCrossReferences(address deployer) internal override {
-        super._setupCrossReferences(deployer);
+    function _setupCrossReferences(address /* deployer */) internal override {
+        // NOTE: We override this completely to skip setAddresses2 call
+        // because we need to set daoCommitteeProxy as DAO later in _configureLayer2ManagerDAO
+
+        _setupSeigManagerRefs();
+        _setupLayer2ManagerRefsPartial(); // Only setAddresses1, skip setAddresses2
+        _setupOtherManagerRefs();
         _setupLayer2ManagerSlashing();
+    }
+
+    /// @notice Setup Layer2Manager refs partially (only setAddresses1)
+    /// @dev setAddresses2 will be called later in _configureLayer2ManagerDAO with daoCommitteeProxy
+    function _setupLayer2ManagerRefsPartial() internal {
+        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
+            l1BridgeRegistryProxy,
+            operatorManagerFactory,
+            ton,
+            wton
+        );
+        // NOTE: setAddresses2 is NOT called here - it will be called in _configureLayer2ManagerDAO
     }
 
     function _setupLayer2ManagerSlashing() internal {
@@ -291,12 +308,8 @@ contract DeployV3WithSlashing is DeployV3Full {
     }
 
     function _configureLayer2ManagerDAO() internal {
-        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
-            l1BridgeRegistryProxy,
-            operatorManagerFactory,
-            ton,
-            wton
-        );
+        // Note: setAddresses1 is already called in _setupLayer2ManagerRefsPartial
+        // Now call setAddresses2 with daoCommitteeProxy as DAO
         Layer2ManagerV3(layer2ManagerProxy).setAddresses2(
             daoCommitteeProxy,
             depositManagerProxy,

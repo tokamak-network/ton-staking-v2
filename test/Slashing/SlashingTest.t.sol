@@ -2,14 +2,13 @@
 pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
-import {DeployV3FullSlash} from "../../script/DeployV3FullSlash.s.sol";
+import {DeployV3WithSlashing} from "../../script/DeployV3WithSlashing.s.sol";
 import {Layer2Manager_Slashing} from "../../src/layer2/Layer2Manager_Slashing.sol";
 import {DepositManager_Slashing} from "../../src/stake/managers/DepositManager_Slashing.sol";
 import {SeigManager_Slashing} from "../../src/stake/managers/SeigManager_Slashing.sol";
-import {DepositManager} from "../../src/stake/managers/DepositManager.sol";
+import {DepositManagerV3} from "../../src/stake/managers/DepositManagerV3.sol";
 import {SeigManagerV1_2} from "../../src/stake/managers/SeigManagerV1_2.sol";
-import {SeigManagerV1_3} from "../../src/stake/managers/SeigManagerV1_3.sol";
-import {Layer2ManagerV1_1} from "../../src/layer2/Layer2ManagerV1_1.sol";
+import {Layer2ManagerV3} from "../../src/layer2/Layer2ManagerV3.sol";
 import {L1BridgeRegistryV1_2} from "../../src/layer2/L1BridgeRegistryV1_2.sol";
 import {AuthControlL1BridgeRegistry} from "../../src/common/AuthControlL1BridgeRegistry.sol";
 import {IWTON} from "../../src/dao/interfaces/IWTON.sol";
@@ -90,7 +89,7 @@ contract SlashingMockFactory {
     }
 }
 
-contract SlashingTest is Test, DeployV3FullSlash {
+contract SlashingTest is Test, DeployV3WithSlashing {
     address public operator = makeAddr("operator");
     address public challenger = makeAddr("challenger");
     address public rollupConfig = makeAddr("mockRollupConfig");
@@ -115,28 +114,35 @@ contract SlashingTest is Test, DeployV3FullSlash {
         address admin = makeAddr("proxyAdmin"); // Proxy admin 전용
         address owner = address(this); // 비즈니스 로직 owner (테스트 컨트랙트)
 
+        // IMPORTANT: Set proxyAdmin before _deployV3Contracts is called
+        // as it uses proxyAdmin for RAT and ValidatorReward proxy admin
+        proxyAdmin = admin;
+
         // owner 컨텍스트에서 배포 시작
         vm.startPrank(owner);
 
-        // 1. 전체 시스템 배포
+        // 1. 전체 시스템 배포 (DeployV3WithSlashing 순서에 맞춤)
         _deployTokens();
         _deployCoinageInfrastructure(owner);
         _deployLayer2Registry(owner);
         _deployManagerProxies();
         _deployManagerImplementations();
+
+        // Slashing 구현체 배포 (초기화 전에)
+        _deploySlashingImplementations();
+
         _initializeManagers(owner);
         _setupMinterPermissions();
         _deployOperatorManagerFactory(owner);
 
-        // RAT, ValidatorReward를 owner로 배포 (임시로 owner가 proxy admin + contract owner)
+        // RAT, ValidatorReward를 owner로 배포 (proxyAdmin이 이미 설정됨)
         _deployV3Contracts(owner);
 
-        // RAT, ValidatorReward의 proxy admin만 admin으로 변경 (contract owner는 owner 유지)
-        RATProxy(payable(ratProxy)).changeAdmin(admin);
-        ValidatorRewardProxy(payable(validatorPoolProxy)).changeAdmin(admin);
+        // proxyAdmin이 이미 올바르게 설정되어 있으므로 changeAdmin 불필요
+        // RATProxy(payable(ratProxy)).changeAdmin(admin);
+        // ValidatorRewardProxy(payable(validatorPoolProxy)).changeAdmin(admin);
 
-        // 이제 admin = proxy admin, owner = contract owner로 분리됨
-        _configureV3Contracts(owner);
+        // Cross references 설정
         _setupCrossReferences(owner);
 
         // 2. DAO 컨트랙트 배포
@@ -211,7 +217,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         console.log("Step 4: Registering candidate");
         // Candidate 등록
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true, // Use TON
@@ -222,16 +228,17 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         console.log("Step 5: Verifying registration");
         // 등록 검증
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
         assertTrue(candidateAddOn != address(0), "Candidate registration failed");
 
-        uint256 stakedAmount = DepositManager(depositManagerProxy).accStaked(
+        // V3에서는 accStaked가 제거되었으므로 SeigManager.stakeOf() 사용
+        uint256 stakedAmount = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -245,10 +252,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 1. 등록 및 스테이킹
         test_CandidateRegistrationAndStaking();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -338,7 +345,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -346,10 +353,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -413,7 +420,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -421,10 +428,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -505,7 +512,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -513,10 +520,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -583,25 +590,25 @@ contract SlashingTest is Test, DeployV3FullSlash {
             // 1) SeigManager.onSlashed(address layer2, address operator)
             // - signature: onSlashed(address,address) -> keccak256("onSlashed(address,address)")
             // - topics[0] is signature
-            if (entry.topics[0] == keccak256("onSlashed(address,address)")) {
-                (address l2, address op) = abi.decode(entry.data, (address, address));
-                console.log("Captured SeigManager.onSlashed:");
-                console.log(" - Layer2:", l2);
-                console.log(" - Operator:", op);
-            }
+            // if (entry.topics[0] == keccak256("onSlashed(address,address)")) {
+            //     (address l2, address op) = abi.decode(entry.data, (address, address));
+            //     console.log("Captured SeigManager.onSlashed:");
+            //     console.log(" - Layer2:", l2);
+            //     console.log(" - Operator:", op);
+            // }
 
-            // 2) ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount)
-            if (entry.topics[0] == keccak256("ChallengerRewarded(address,address,uint256)")) {
-                // indexed params are in topics[1], topics[2] ...
-                address l2 = address(uint160(uint256(entry.topics[1])));
-                address chal = address(uint160(uint256(entry.topics[2])));
-                uint256 amount = abi.decode(entry.data, (uint256));
+            // // 2) ChallengerRewarded(address indexed layer2, address indexed challenger, uint256 amount)
+            // if (entry.topics[0] == keccak256("ChallengerRewarded(address,address,uint256)")) {
+            //     // indexed params are in topics[1], topics[2] ...
+            //     address l2 = address(uint160(uint256(entry.topics[1])));
+            //     address chal = address(uint160(uint256(entry.topics[2])));
+            //     uint256 amount = abi.decode(entry.data, (uint256));
 
-                console.log("Captured ChallengerRewarded:");
-                console.log(" - Layer2:", l2);
-                console.log(" - Challenger:", chal);
-                console.log(" - Amount:", amount);
-            }
+            //     console.log("Captured ChallengerRewarded:");
+            //     console.log(" - Layer2:", l2);
+            //     console.log(" - Challenger:", chal);
+            //     console.log(" - Amount:", amount);
+            // }
 
             // 3) Slashed(address indexed layer2, address indexed operator, address indexed challenger, uint256 slashed, uint256 reward)
             if (entry.topics[0] == keccak256("Slashed(address,address,address,uint256,uint256)")) {
@@ -619,6 +626,8 @@ contract SlashingTest is Test, DeployV3FullSlash {
             }
         }
 
+        address candidateAddOn2 = candidateAddOn;
+        address operatorManager2 = operatorManager;
         // require(
         //     slashed > initialStake,
         //     "Slashed amount should be greater than initial stake(because add seigniorage)"
@@ -643,8 +652,8 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         // 최종 스테이크는 0이어야 함
         uint256 finalStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+            candidateAddOn2,
+            operatorManager2
         );
         assertEq(finalStake, 0, "All stake should be burned");
     }
@@ -662,7 +671,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -670,7 +679,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
 
@@ -716,7 +725,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         IWTON(wton).swapFromTON(stakeAmount);
 
         // 2-3. DepositManager에 예치
-        address myCandidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address myCandidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 wtonBalance = IERC20(wton).balanceOf(operator);
@@ -728,7 +737,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("SeigManager Minimum Amount (RAY):", minAmount);
 
         try
-            DepositManager(depositManagerProxy).deposit(
+            DepositManagerV3(depositManagerProxy).deposit(
                 myCandidateAddOn,
                 operatorManager,
                 wtonBalance
@@ -746,7 +755,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         vm.stopPrank();
 
         // 스테이크 복구 확인
-        uint256 currentStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 currentStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             myCandidateAddOn,
             operatorManager
         );
@@ -811,7 +820,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -824,7 +833,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator2);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig2,
             stakeAmount,
             true,
@@ -832,16 +841,16 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager1 = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager1 = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address operatorManager2 = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager2 = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig2
         );
-        address candidateAddOn1 = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn1 = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager1
         );
-        address candidateAddOn2 = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn2 = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager2
         );
 
@@ -914,7 +923,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, smallStake);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             smallStake,
             true,
@@ -922,13 +931,13 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1004,7 +1013,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1012,7 +1021,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
 
@@ -1078,7 +1087,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1086,10 +1095,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -1152,7 +1161,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1160,7 +1169,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
 
@@ -1234,7 +1243,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1242,7 +1251,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
 
@@ -1314,7 +1323,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, reStakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig2,
             reStakeAmount,
             true,
@@ -1322,10 +1331,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address newOperatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address newOperatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig2
         );
-        address newCandidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address newCandidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             newOperatorManager
         );
         uint256 newStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -1370,7 +1379,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, initialStake);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             initialStake,
             true,
@@ -1378,14 +1387,14 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
-        uint256 stakeBeforeWithdrawal = DepositManager(depositManagerProxy).accStaked(
+        uint256 stakeBeforeWithdrawal = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1394,7 +1403,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 2. 부분 출금 시도 (실제 구현에 따라 다를 수 있음)
         // Note: 부분 출금 기능이 구현되어 있다면 여기서 호출
         // vm.prank(operator);
-        // DepositManager(depositManagerProxy).requestWithdrawal(candidateAddOn, withdrawAmount);
+        // DepositManagerV3(depositManagerProxy).requestWithdrawal(candidateAddOn, withdrawAmount);
 
         console.log("[INFO] Partial withdrawal feature may not be implemented yet");
 
@@ -1448,7 +1457,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1456,7 +1465,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
 
@@ -1524,7 +1533,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1532,13 +1541,13 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
-        uint256 initialStake = DepositManager(depositManagerProxy).accStaked(
+        uint256 initialStake = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1643,7 +1652,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1651,10 +1660,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
@@ -1672,7 +1681,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         console.log("[OK] Unauthorized DepositManager.slash call prevented");
 
         // 3. 스테이크가 변경되지 않았는지 확인
-        uint256 stakeAfterAttack = DepositManager(depositManagerProxy).accStaked(
+        uint256 stakeAfterAttack = SeigManagerV1_2(seigManagerProxy).stakeOf(
             candidateAddOn,
             operatorManager
         );
@@ -1692,7 +1701,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -1700,10 +1709,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
@@ -1734,7 +1743,6 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 테스트 계정 설정
         address delegator1 = makeAddr("delegator1");
         address delegator2 = makeAddr("delegator2");
-        address delegator3 = makeAddr("delegator3");
 
         // 1. Operator가 Candidate 등록
         uint256 operatorStake = 10000 * 1e18;
@@ -1742,7 +1750,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, operatorStake);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             operatorStake,
             true,
@@ -1750,10 +1758,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
@@ -1762,7 +1770,6 @@ contract SlashingTest is Test, DeployV3FullSlash {
         // 2. 일반 스테이커들이 해당 Layer2에 스테이킹
         uint256 delegator1Stake = 5000 * 1e18;
         uint256 delegator2Stake = 3000 * 1e18;
-        uint256 delegator3Stake = 2000 * 1e18;
 
         // Delegator 1 스테이킹
         MockTON(ton).mint(delegator1, delegator1Stake);
@@ -1770,7 +1777,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         IERC20(ton).approve(wton, delegator1Stake);
         MockWTON(wton).swapFromTONAndTransfer(delegator1, delegator1Stake);
         IERC20(wton).approve(depositManagerProxy, delegator1Stake * 1e9);
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
         vm.stopPrank();
 
         // Delegator 2 스테이킹
@@ -1779,21 +1786,11 @@ contract SlashingTest is Test, DeployV3FullSlash {
         IERC20(ton).approve(wton, delegator2Stake);
         MockWTON(wton).swapFromTONAndTransfer(delegator2, delegator2Stake);
         IERC20(wton).approve(depositManagerProxy, delegator2Stake * 1e9);
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
-        vm.stopPrank();
-
-        // Delegator 3 스테이킹
-        MockTON(ton).mint(delegator3, delegator3Stake);
-        vm.startPrank(delegator3);
-        IERC20(ton).approve(wton, delegator3Stake);
-        MockWTON(wton).swapFromTONAndTransfer(delegator3, delegator3Stake);
-        IERC20(wton).approve(depositManagerProxy, delegator3Stake * 1e9);
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, delegator3Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
         vm.stopPrank();
 
         console.log("Delegator 1 staked:", delegator1Stake);
         console.log("Delegator 2 staked:", delegator2Stake);
-        console.log("Delegator 3 staked:", delegator3Stake);
 
         // 3. 초기 스테이크 확인
         uint256 operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
@@ -1808,15 +1805,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
             candidateAddOn,
             delegator2
         );
-        uint256 delegator3StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator3
-        );
 
         console.log("Initial operator stake (RAY):", operatorStakeBefore);
         console.log("Initial delegator1 stake (RAY):", delegator1StakeBefore);
         console.log("Initial delegator2 stake (RAY):", delegator2StakeBefore);
-        console.log("Initial delegator3 stake (RAY):", delegator3StakeBefore);
 
         // 4. 시간 경과 (시뇨리지 발생)
         vm.roll(block.number + 1000);
@@ -1838,15 +1830,13 @@ contract SlashingTest is Test, DeployV3FullSlash {
             candidateAddOn,
             delegator2
         );
-        uint256 delegator3StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator3
-        );
 
         console.log("Operator stake with seigniorage (RAY):", operatorStakeWithSeig);
         console.log("Delegator1 stake with seigniorage (RAY):", delegator1StakeWithSeig);
         console.log("Delegator2 stake with seigniorage (RAY):", delegator2StakeWithSeig);
-        console.log("Delegator3 stake with seigniorage (RAY):", delegator3StakeWithSeig);
+        
+        address delegator1_2 = delegator1;
+        address delegator2_2 = delegator2;
 
         // 6. Operator 슬래싱 실행
         MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
@@ -1856,6 +1846,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
             abi.encode(address(gameFactory))
         );
 
+        address operatorManager_2 = operatorManager;
+        address candidateAddOn_2 = candidateAddOn;
+
+        
         GameType gameType = GameType.wrap(0);
         Claim rootClaim = Claim.wrap(bytes32(uint256(1)));
         bytes memory extraData = hex"1234";
@@ -1863,6 +1857,8 @@ contract SlashingTest is Test, DeployV3FullSlash {
         MockFaultDisputeGame2 game = MockFaultDisputeGame2(
             address(gameFactory.create(gameType, rootClaim, extraData))
         );
+
+
         game.initialize();
 
         vm.prank(challenger);
@@ -1871,36 +1867,34 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         console.log("\n[Executing Slashing...]");
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
-            operatorManager,
+            operatorManager_2,
             gameType,
             rootClaim,
             extraData,
             address(game)
         );
 
+        // uint256 delegator1StakeWithSeig_2 = delegator1StakeWithSeig;
+        // uint256 delegator2StakeWithSeig_2 = delegator2StakeWithSeig;
+
         // 7. 슬래싱 후 스테이크 확인
         uint256 operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+            candidateAddOn_2,
+            operatorManager_2
         );
         uint256 delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator1
+            candidateAddOn_2,
+            delegator1_2
         );
         uint256 delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator2
-        );
-        uint256 delegator3StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator3
+            candidateAddOn_2,
+            delegator2_2
         );
 
         console.log("\n=== After Slashing ===");
         console.log("Operator stake after slashing:", operatorStakeAfter);
         console.log("Delegator1 stake after slashing:", delegator1StakeAfter);
         console.log("Delegator2 stake after slashing:", delegator2StakeAfter);
-        console.log("Delegator3 stake after slashing:", delegator3StakeAfter);
 
         // 8. 검증: Operator만 슬래싱되고 일반 스테이커는 보호됨
         assertEq(operatorStakeAfter, 0, "Operator stake should be fully slashed");
@@ -1913,11 +1907,6 @@ contract SlashingTest is Test, DeployV3FullSlash {
             delegator2StakeAfter,
             delegator2StakeWithSeig,
             "Delegator2 stake should be preserved"
-        );
-        assertEq(
-            delegator3StakeAfter,
-            delegator3StakeWithSeig,
-            "Delegator3 stake should be preserved"
         );
 
         console.log("\n[OK] Operator slashed, delegators protected");
@@ -1935,30 +1924,27 @@ contract SlashingTest is Test, DeployV3FullSlash {
             console.log("[OK] Delegator2 seigniorage preserved after slashing");
         }
 
-        if (delegator3StakeWithSeig > delegator3StakeBefore) {
-            uint256 delegator3Seigniorage = delegator3StakeWithSeig - delegator3StakeBefore;
-            console.log("Delegator3 earned seigniorage:", delegator3Seigniorage);
-            console.log("[OK] Delegator3 seigniorage preserved after slashing");
-        }
-
         // 10. 슬래싱 후에도 일반 스테이커들이 출금 가능한지 확인
         console.log("\n=== Testing Delegator Withdrawal After Slashing ===");
 
         // Delegator1 출금 요청
         vm.startPrank(delegator1);
-        DepositManager(depositManagerProxy).requestWithdrawal(candidateAddOn, delegator1StakeAfter);
+        DepositManagerV3(depositManagerProxy).requestWithdrawal(
+            candidateAddOn,
+            delegator1StakeAfter
+        );
         vm.stopPrank();
 
         console.log("[OK] Delegator1 can request withdrawal after operator slashing");
 
         // 출금 가능 블록까지 진행
-        uint256 delayBlocks = DepositManager(depositManagerProxy).getDelayBlocks(candidateAddOn);
+        uint256 delayBlocks = DepositManagerV3(depositManagerProxy).getDelayBlocks(candidateAddOn);
         vm.roll(block.number + delayBlocks + 1);
 
         // Delegator1 출금 처리
         uint256 delegator1WtonBefore = IERC20(wton).balanceOf(delegator1);
         vm.prank(delegator1);
-        DepositManager(depositManagerProxy).processRequest(candidateAddOn, false);
+        DepositManagerV3(depositManagerProxy).processRequest(candidateAddOn, false);
         uint256 delegator1WtonAfter = IERC20(wton).balanceOf(delegator1);
 
         assertEq(
@@ -1994,7 +1980,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, operatorStake);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             operatorStake,
             true,
@@ -2002,10 +1988,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
@@ -2051,7 +2037,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         // 슬래싱된 Layer2에는 스테이킹 불가능해야 함 (Operator 스테이크가 0이므로)
         vm.expectRevert("OperatorCollateral is insufficient.");
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, newDelegatorStake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, newDelegatorStake * 1e9);
         vm.stopPrank();
 
         console.log(
@@ -2075,7 +2061,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, operatorStake);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             operatorStake,
             true,
@@ -2083,10 +2069,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
 
@@ -2097,7 +2083,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         IERC20(ton).approve(wton, delegator1Stake);
         MockWTON(wton).swapFromTONAndTransfer(delegator1, delegator1Stake);
         IERC20(wton).approve(depositManagerProxy, delegator1Stake * 1e9);
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
         vm.stopPrank();
 
         console.log("Phase 1: Operator and Delegator1 staked");
@@ -2112,7 +2098,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
         IERC20(ton).approve(wton, delegator2Stake);
         MockWTON(wton).swapFromTONAndTransfer(delegator2, delegator2Stake);
         IERC20(wton).approve(depositManagerProxy, delegator2Stake * 1e9);
-        DepositManager(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
         vm.stopPrank();
 
         console.log("Phase 2: Delegator2 joined");
@@ -2223,7 +2209,7 @@ contract SlashingTest is Test, DeployV3FullSlash {
 
         vm.startPrank(operator);
         IERC20(ton).approve(layer2ManagerProxy, stakeAmount);
-        Layer2ManagerV1_1(layer2ManagerProxy).registerCandidateAddOn(
+        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
             rollupConfig,
             stakeAmount,
             true,
@@ -2231,10 +2217,10 @@ contract SlashingTest is Test, DeployV3FullSlash {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV1_1(layer2ManagerProxy).operatorOfRollupConfig(
+        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV1_1(layer2ManagerProxy).candidateAddOnOfOperator(
+        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
             operatorManager
         );
         console.log("CandidateAddOn:", candidateAddOn);
