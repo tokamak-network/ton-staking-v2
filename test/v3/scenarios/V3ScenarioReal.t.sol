@@ -374,7 +374,6 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         seigManager.setMinStakingRatio(0.1e27);           // θ = 10%
         seigManager.setValidatorDistributionRatio(0.2e27); // α = 20%
         seigManager.setHalfSaturationPoint(1000e27);      // k = 1000
-        seigManager.setStakedSeigFactor(RAY);             // λ = 1 (V2 호환)
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
@@ -483,7 +482,6 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(0); // λ = 0 (V3 완전 모드)
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
@@ -644,13 +642,11 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     ///      - minStakingRatio (θ): 10% - Minimum staking ratio for eligibility
     ///      - validatorDistributionRatio (α): 20% - Validator pool's share
     ///      - halfSaturationPoint (k): 1000 WTON - Point where rewards are half of maximum
-    ///      - stakedSeigFactor (λ): 1.0 - V2 compatibility mode (set to 0 for pure V3)
     function _migrateToV3() internal {
         seigManager.setDaoDistributionRatio(0.1e27);
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(RAY);
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
