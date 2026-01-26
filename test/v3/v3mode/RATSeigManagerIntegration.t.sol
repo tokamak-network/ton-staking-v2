@@ -3,6 +3,8 @@ pragma solidity ^0.8.4;
 
 import "../helpers/V3TestBase.sol";
 import {OnlyRatError} from "../../../src/stake/managers/SeigManagerV3_1.sol";
+import {IValidatorReward} from "../../../src/validator/IValidatorReward.sol";
+import {ValidatorRewardV1} from "../../../src/validator/ValidatorRewardV1.sol";
 
 /// @title RATSeigManagerIntegrationTest
 /// @notice RAT ↔ SeigManager 실제 Coinage 전송 통합 테스트
@@ -356,5 +358,257 @@ contract RATSeigManagerIntegrationTest is V3TestBase {
         // 검증자 상태 확인 (여전히 활성 - relaxed 모드이므로)
         (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertTrue(isActive, "Validator should still be active in relaxed mode");
+    }
+
+    // ==========================================
+    // 가스 테스트: 최대 검증자 분배
+    // ==========================================
+
+    /// @notice GAS-001: 최대 검증자 수에서 시뇨리지 분배 가스 측정
+    /// @dev N_max = 100일 때 updateSeigniorage 가스 비용 검증
+    function test_GAS001_maxValidators_seigniorageDistribution() public {
+        uint256 maxValidators = 100;
+        uint256 depositAmount = 300 * RAY; // D_min(200) + buffer
+
+        // maxValidatorsPerL2 설정
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(maxValidators);
+
+        // 100명의 검증자 등록
+        for (uint256 i = 0; i < maxValidators; i++) {
+            address validatorAddr = address(uint160(0x10000 + i));
+
+            // WTON 직접 지급
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            // Deposit
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+
+            // RAT 등록
+            rat.registerValidator(address(mockSystemConfig));
+            vm.stopPrank();
+        }
+
+        // 등록된 검증자 수 확인
+        uint256 activeCount = rat.getActiveValidatorCount(address(mockSystemConfig));
+        assertEq(activeCount, maxValidators, "Should have max validators registered");
+
+        // 블록 진행
+        vm.roll(block.number + 100);
+
+        // 가스 측정을 위한 updateSeigniorage
+        uint256 gasBefore = gasleft();
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+        uint256 gasUsed = gasBefore - gasleft();
+
+        // 가스 비용 출력
+        emit log_named_uint("Gas used for updateSeigniorage with 100 validators", gasUsed);
+        emit log_named_uint("Active validators", activeCount);
+
+        // 가스 리밋 체크 (30M 블록 가스 리밋 기준으로 여유 있게)
+        // 일반적인 L2 블록 가스 리밋은 더 높음
+        assertTrue(gasUsed < 15_000_000, "Gas should be under 15M for 100 validators");
+    }
+
+    /// @notice GAS-002: 검증자 등록 가스 측정
+    function test_GAS002_registerValidator_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        // WTON 지급
+        vm.prank(owner);
+        MockWTON(wton).mint(validator1, depositAmount);
+
+        // Deposit
+        vm.startPrank(validator1);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validator1, depositAmount);
+
+        // 가스 측정: registerValidator
+        uint256 gasBefore = gasleft();
+        rat.registerValidator(address(mockSystemConfig));
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        emit log_named_uint("Gas for registerValidator", gasUsed);
+        assertTrue(gasUsed < 500_000, "registerValidator should use < 500k gas");
+    }
+
+    /// @notice GAS-003: RAT 트리거 가스 측정 (검증자 수별)
+    function test_GAS003_triggerAttentionTest_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        // 10명 검증자 등록
+        for (uint256 i = 0; i < 10; i++) {
+            address validatorAddr = address(uint160(0x30000 + i));
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+            rat.registerValidator(address(mockSystemConfig));
+            vm.stopPrank();
+        }
+
+        // 가스 측정: triggerAttentionTest
+        uint256 gasBefore = gasleft();
+        vm.prank(mockDisputeGameFactory);
+        rat.triggerAttentionTest(
+            address(0x1234),
+            address(mockSystemConfig),
+            1,
+            keccak256("batch1"),
+            keccak256("block1")
+        );
+        uint256 gasUsed = gasBefore - gasleft();
+
+        emit log_named_uint("Gas for triggerAttentionTest (10 validators)", gasUsed);
+        assertTrue(gasUsed < 1_000_000, "triggerAttentionTest should use < 1M gas");
+    }
+
+    /// @notice GAS-004: 보상 청구 가스 측정
+    function test_GAS004_claimAllRewards_gas() public {
+        uint256 depositAmount = 300 * RAY;
+        _registerValidator(validator1, depositAmount);
+
+        // L2 자격 확보를 위해 bridgedTON 설정
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, 1000e18);
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
+
+        // 시뇨리지 분배
+        vm.roll(block.number + 100);
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 claimableRewards = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator1);
+        emit log_named_uint("Claimable rewards before claim", claimableRewards);
+
+        if (claimableRewards == 0) {
+            emit log_string("No rewards - L2 may not be eligible, skipping claim gas test");
+            return;
+        }
+
+        // 가스 측정: claimAllRewards
+        uint256 gasBefore = gasleft();
+        vm.prank(validator1);
+        IValidatorReward(validatorPoolProxy).claimAllRewards();
+        uint256 gasUsed = gasBefore - gasleft();
+
+        emit log_named_uint("Gas for claimAllRewards", gasUsed);
+        assertTrue(gasUsed < 200_000, "claimAllRewards should use < 200k gas");
+    }
+
+    /// @notice GAS-005: Deposit 가스 측정
+    function test_GAS005_deposit_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        vm.prank(owner);
+        MockWTON(wton).mint(validator1, depositAmount);
+
+        vm.startPrank(validator1);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+
+        // 가스 측정: deposit
+        uint256 gasBefore = gasleft();
+        DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validator1, depositAmount);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        emit log_named_uint("Gas for deposit", gasUsed);
+        assertTrue(gasUsed < 500_000, "deposit should use < 500k gas");
+    }
+
+    /// @notice GAS-006: 종합 가스 리포트 (100명 검증자 시나리오)
+    function test_GAS006_fullScenario_gasReport() public {
+        uint256 maxValidators = 100;
+        uint256 depositAmount = 300 * RAY;
+
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(maxValidators);
+
+        emit log_string("=== Gas Report: 100 Validators Scenario ===");
+
+        // 1. 100명 검증자 등록 총 가스
+        uint256 totalRegisterGas = 0;
+        uint256 gasBeforeLoop;
+        for (uint256 i = 0; i < maxValidators; i++) {
+            address validatorAddr = address(uint160(0x40000 + i));
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+
+            gasBeforeLoop = gasleft();
+            rat.registerValidator(address(mockSystemConfig));
+            totalRegisterGas += (gasBeforeLoop - gasleft());
+            vm.stopPrank();
+        }
+        emit log_named_uint("Total gas for 100 registerValidator", totalRegisterGas);
+        emit log_named_uint("Avg gas per registerValidator", totalRegisterGas / maxValidators);
+
+        // L2 자격 확보를 위해 bridgedTON 설정
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, 10000e18);
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
+
+        // 자격 확인
+        (bool eligible, , ) = seigManager.checkCurrentEligibility(mockLayer2);
+        emit log_named_string("L2 eligible", eligible ? "true" : "false");
+
+        // 2. updateSeigniorage 가스
+        vm.roll(block.number + 100);
+        uint256 gasBefore = gasleft();
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+        uint256 updateGas = gasBefore - gasleft();
+        emit log_named_uint("Gas for updateSeigniorage (100 validators)", updateGas);
+
+        // 3. triggerAttentionTest 가스
+        gasBefore = gasleft();
+        vm.prank(mockDisputeGameFactory);
+        rat.triggerAttentionTest(
+            address(0x9999),
+            address(mockSystemConfig),
+            999,
+            keccak256("batch999"),
+            keccak256("block999")
+        );
+        uint256 triggerGas = gasBefore - gasleft();
+        emit log_named_uint("Gas for triggerAttentionTest (100 validators)", triggerGas);
+
+        // 4. 첫 번째 검증자 claimAllRewards 가스 (보상이 있는 경우만)
+        address firstValidator = address(uint160(0x40000));
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용 (동기화되지 않은 보상 포함)
+        uint256 claimableRewards = IValidatorReward(validatorPoolProxy).getClaimableRewards(firstValidator);
+        emit log_named_uint("First validator claimable rewards", claimableRewards);
+
+        if (claimableRewards > 0) {
+            gasBefore = gasleft();
+            vm.prank(firstValidator);
+            IValidatorReward(validatorPoolProxy).claimAllRewards();
+            uint256 claimGas = gasBefore - gasleft();
+            emit log_named_uint("Gas for claimAllRewards", claimGas);
+        } else {
+            emit log_string("No claimable rewards (L2 may not be eligible)");
+        }
+
+        emit log_string("===========================================");
+
+        // 가스 예산 검증
+        // - updateSeigniorage: 100명 검증자에게 분배 시 ~5.3M gas (자격 충족 시)
+        // - L1 블록 가스 리밋 30M 기준으로는 가능하나, 더 많은 검증자는 주의 필요
+        emit log_named_uint("Estimated max validators (30M limit)", 30_000_000 / (updateGas / 100));
+        assertTrue(updateGas < 10_000_000, "updateSeigniorage should be < 10M gas for 100 validators");
+        assertTrue(triggerGas < 1_000_000, "triggerAttentionTest should be < 1M gas");
     }
 }

@@ -171,6 +171,9 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // SeigManager -> ValidatorReward
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
 
+        // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
+
         // Layer2Manager V3 단일 구현체: setAddresses1 + setAddresses2
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
             l1BridgeRegistryProxy,

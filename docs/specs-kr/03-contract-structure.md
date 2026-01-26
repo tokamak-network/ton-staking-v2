@@ -335,11 +335,10 @@ contract RAT is
 
 ### 2.6 ValidatorRewardV1
 
-검증자 보상 분배를 담당합니다.
+검증자 보상 분배를 담당합니다. O(1) 복잡도의 RewardPerValidator 패턴을 사용합니다.
 
 ```solidity
 contract ValidatorRewardV1 is
-    ProxyStorage,
     ValidatorRewardStorage,
     IValidatorReward
 {
@@ -348,14 +347,18 @@ contract ValidatorRewardV1 is
 ```
 
 **핵심 기능**:
-- `distributeL2Rewards(systemConfig, amount)`: L2별 검증자 보상 분배
+- `distributeL2Rewards(systemConfig, amount)`: L2별 검증자 보상 분배 (O(1))
   - 호출자: SeigManager (`onlySeigManager`)
   - 호출 시점: `updateSeigniorage()` 실행 시 검증자 분배 비율(α · S_i) 만큼
-  - 역할: L2에 등록된 활성 검증자들에게 보상을 균등 분배
+  - 역할: `rewardPerValidator[systemConfig]`에 검증자당 보상 누적
   - 분배 공식: `v_j = (α · S_i) / |V_i|` (검증자당 보상)
-  - 검증자 없음: 보상을 DAO Treasury로 전송
-- `claimAllRewards()`: 보상 청구
-- `getPendingRewardsByL2()`: L2별 미청구 보상 조회
+  - 검증자 없음: 보상을 `seigManager.dao()`로 전송
+- `claimAllRewards()`: 모든 L2 보상 동기화 후 청구
+- `claimRewardsByL2s(address[])`: 특정 L2들만 동기화 후 청구 (가스 최적화)
+- `registerValidatorToL2()`: 검증자 L2 등록 (RAT에서 호출)
+- `syncValidatorReward()`: 검증자 비활성화 전 보상 동기화
+- `resetValidatorDebt()`: 검증자 재활성화 시 debt 리셋
+- `getClaimableRewards()`: 총 청구 가능 보상 조회 (미동기화 포함)
 
 ---
 
@@ -410,6 +413,9 @@ contract RATStorage {
                                               // true: C_off 기준 (완화), false: D_min 기준 (엄격)
                                               // 등록 시에는 항상 D_min 이상 필요
 
+    // ValidatorReward 컨트랙트 주소 (O(1) 보상 분배용)
+    address public validatorReward;
+
     // 검증자 등록
     mapping(address => mapping(address => ValidatorRegistration))
         public validatorRegistrations;        // systemConfig => validator => 등록정보
@@ -457,19 +463,73 @@ contract RATStorage {
 
 ```solidity
 contract ValidatorRewardStorage {
-    address public seigManager;
-    address public ratContract;
-    address public wton;
-    address public treasury;
+    // ==========================================
+    // 보상 관련
+    // ==========================================
 
-    // 검증자별 보상
+    /// @notice 검증자별 총 미청구 보상 (claimAllRewards에서 사용)
     mapping(address => uint256) public validatorPendingRewards;
 
-    // L2별 검증자 보상 (Per-L2 추적)
-    mapping(address => mapping(address => uint256))
-        public validatorL2PendingRewards;  // validator => systemConfig => 보상
+    /// @notice L2별 보상은 ValidatorRewardReceived 이벤트로 추적
+    mapping(address => mapping(address => uint256)) public validatorL2PendingRewards;
+
+    mapping(address => uint256) public l2TotalDistributed;
+
+    // ==========================================
+    // RewardPerValidator 패턴 (O(1) 분배)
+    // ==========================================
+
+    /// @notice L2별 검증자당 누적 보상 (systemConfig => accumulated)
+    /// @dev distributeL2Rewards에서 O(1)로 업데이트
+    mapping(address => uint256) public rewardPerValidator;
+
+    /// @notice 검증자별 L2별 보상 debt (validator => systemConfig => debt)
+    /// @dev 검증자 등록 시 현재 rewardPerValidator로 설정
+    mapping(address => mapping(address => uint256)) public validatorRewardDebt;
+
+    /// @notice 검증자가 등록된 L2 목록 (validator => systemConfig[])
+    /// @dev claimAllRewards에서 모든 L2 순회용
+    mapping(address => address[]) public validatorL2List;
+
+    /// @notice 검증자의 L2 등록 여부 (validator => systemConfig => bool)
+    /// @dev 중복 등록 방지
+    mapping(address => mapping(address => bool)) public isValidatorInL2;
+
+    // ==========================================
+    // 참조 주소
+    // ==========================================
+
+    address public seigManager;
+    address public wton;
+    address public ratContract;
+    address public treasury;  // seigManager.dao() 사용
+    address public owner;
 }
 ```
+
+**RewardPerValidator 패턴**:
+
+```
+분배 시점 (distributeL2Rewards):
+┌─────────────────────────────────────────────────────────────────┐
+│ perValidator = amount / activeCount                              │
+│ rewardPerValidator[systemConfig] += perValidator   ← O(1) 연산 │
+└─────────────────────────────────────────────────────────────────┘
+
+청구 시점 (claimAllRewards):
+┌─────────────────────────────────────────────────────────────────┐
+│ 각 L2에 대해:                                                    │
+│   earned = rewardPerValidator[systemConfig]                     │
+│          - validatorRewardDebt[validator][systemConfig]         │
+│   if (활성 검증자):                                              │
+│       validatorPendingRewards[validator] += earned              │
+│   validatorRewardDebt[validator][systemConfig] = current        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**가스 비용**:
+- `updateSeigniorage`: O(1) 복잡도 (검증자 수와 무관)
+- `claimAllRewards`: O(L) 복잡도 (검증자가 등록된 L2 수에 비례)
 
 ---
 
@@ -544,12 +604,47 @@ interface IRAT {
 
 ```solidity
 interface IValidatorReward {
-    function distributeL2Rewards(address systemConfig, uint256 amount) external;
-    function claimAllRewards() external;
-    function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256);
+    // ==========================================
+    // View Functions
+    // ==========================================
+
+    /// @notice 총 미청구 보상 조회 (동기화된 것만)
     function getPendingRewards(address validator) external view returns (uint256);
 
-    // 이벤트
+    /// @notice L2별 미청구 보상 조회 (이벤트 사용 권장)
+    function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256);
+
+    /// @notice 총 청구 가능 보상 계산 (미동기화 보상 포함)
+    function getClaimableRewards(address validator) external view returns (uint256 total);
+
+    // ==========================================
+    // External Functions - Rewards
+    // ==========================================
+
+    /// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
+    function distributeL2Rewards(address systemConfig, uint256 amount) external;
+
+    /// @notice 모든 L2에서 받은 보상 한 번에 청구
+    /// @dev 등록된 L2가 많으면 가스 한도 초과 가능 - claimRewardsByL2s 사용 권장
+    function claimAllRewards() external;
+
+    /// @notice 특정 L2들에서 받은 보상 청구 (가스 최적화)
+    /// @dev 등록된 L2가 많을 때 배치로 청구할 때 사용
+    function claimRewardsByL2s(address[] calldata systemConfigs) external;
+
+    /// @notice 검증자 L2 등록 (RAT에서 호출)
+    function registerValidatorToL2(address validator, address systemConfig) external;
+
+    /// @notice 검증자 보상 동기화 (비활성화 전 호출)
+    function syncValidatorReward(address validator, address systemConfig) external;
+
+    /// @notice 검증자 재활성화 시 debt 리셋 (RAT에서 호출)
+    function resetValidatorDebt(address validator, address systemConfig) external;
+
+    // ==========================================
+    // Events
+    // ==========================================
+
     event L2RewardDistributed(
         address indexed systemConfig,
         uint256 totalAmount,
@@ -557,8 +652,9 @@ interface IValidatorReward {
         uint256 perValidator
     );
     event ValidatorRewardReceived(address indexed validator, address indexed systemConfig, uint256 amount);
-    event RewardToDAO(address indexed systemConfig, uint256 amount);  // V3: 검증자 없을 때 DAO로 전송
+    event RewardToDAO(address indexed systemConfig, uint256 amount);
     event RewardsClaimed(address indexed validator, uint256 amount);
+    event ValidatorRegisteredToL2(address indexed validator, address indexed systemConfig, uint256 initialDebt);
 }
 ```
 

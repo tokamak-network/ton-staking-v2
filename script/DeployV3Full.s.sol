@@ -497,6 +497,8 @@ contract DeployV3Full is Script {
     function _setupSeigManagerRefs() internal {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+        // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
     }
 
     function _setupLayer2ManagerRefs(address deployer) internal {

@@ -265,8 +265,8 @@ contract ValidatorWithdrawalRestrictionTest is V3TestBase {
     // 추가: getValidatorMinCollateralForLayer2 테스트
     // ==========================================
 
-    /// @notice getValidatorMinCollateralForLayer2: 활성 검증자 → D_min 반환
-    function test_getValidatorMinCollateralForLayer2_activeValidator() public {
+    /// @notice INT-014: getValidatorMinCollateralForLayer2 - 활성 검증자 → D_min 반환
+    function test_INT014_getValidatorMinCollateralForLayer2_activeValidator() public {
         uint256 depositAmount = 500 * RAY;
         _registerValidator(validator1, depositAmount);
 
@@ -276,8 +276,8 @@ contract ValidatorWithdrawalRestrictionTest is V3TestBase {
         assertEq(minCollateral, expectedDmin, "Should return D_min for active validator");
     }
 
-    /// @notice getValidatorMinCollateralForLayer2: 비활성 검증자 → 0 반환
-    function test_getValidatorMinCollateralForLayer2_inactiveValidator() public {
+    /// @notice INT-014: getValidatorMinCollateralForLayer2 - 비활성 검증자 → 0 반환
+    function test_INT014_getValidatorMinCollateralForLayer2_inactiveValidator() public {
         uint256 depositAmount = 500 * RAY;
         _registerValidator(validator1, depositAmount);
 
@@ -289,8 +289,8 @@ contract ValidatorWithdrawalRestrictionTest is V3TestBase {
         assertEq(minCollateral, 0, "Should return 0 for inactive validator");
     }
 
-    /// @notice getValidatorMinCollateralForLayer2: 비검증자 → 0 반환
-    function test_getValidatorMinCollateralForLayer2_nonValidator() public {
+    /// @notice INT-014: getValidatorMinCollateralForLayer2 - 비검증자 → 0 반환
+    function test_INT014_getValidatorMinCollateralForLayer2_nonValidator() public {
         _depositOnly(user1, 500 * RAY);
 
         uint256 minCollateral = rat.getValidatorMinCollateralForLayer2(mockLayer2, user1);

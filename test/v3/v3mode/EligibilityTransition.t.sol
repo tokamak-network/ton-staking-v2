@@ -802,14 +802,16 @@ contract EligibilityTransitionTest is V3TestBase {
         // 6. 실제 updateSeigniorage 실행
         // 검증자가 있으면 validator reward는 ValidatorReward 컨트랙트에 누적됨
         uint256 operatorBalanceBefore = MockWTON(wton).balanceOf(operatorManager);
-        uint256 validator1PendingBefore = IValidatorReward(validatorPoolProxy).getPendingRewards(validator1Addr);
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 validator1ClaimableBefore = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator1Addr);
 
         vm.prank(mockLayer2);
         seigManager.updateSeigniorage();
 
         uint256 actualSeq = MockWTON(wton).balanceOf(operatorManager) - operatorBalanceBefore;
-        uint256 validator1PendingAfter = IValidatorReward(validatorPoolProxy).getPendingRewards(validator1Addr);
-        uint256 validator1Received = validator1PendingAfter - validator1PendingBefore;
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 validator1ClaimableAfter = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator1Addr);
+        uint256 validator1Received = validator1ClaimableAfter - validator1ClaimableBefore;
 
         // 7. 예측값과 실제값 비교
         assertEq(estimatedSeq, actualSeq, "Estimated sequencer reward should match actual");
@@ -820,7 +822,7 @@ contract EligibilityTransitionTest is V3TestBase {
         emit log_named_uint("Estimated sequencer reward", estimatedSeq);
         emit log_named_uint("Actual sequencer reward", actualSeq);
         emit log_named_uint("Estimated validator reward", estimatedVal);
-        emit log_named_uint("Validator1 pending rewards", validator1Received);
+        emit log_named_uint("Validator1 claimable rewards", validator1Received);
     }
 
     /// @notice INT-050: 미청구 보상 누적 시 estimateL2Seigniorage 검증
@@ -861,14 +863,16 @@ contract EligibilityTransitionTest is V3TestBase {
         // 6. 실제 updateSeigniorage 실행
         // 검증자가 있으면 validator reward는 ValidatorReward 컨트랙트에 누적됨
         uint256 operator2BalanceBefore = MockWTON(wton).balanceOf(operatorManager2);
-        uint256 validator2PendingBefore = IValidatorReward(validatorPoolProxy).getPendingRewards(validator2Addr);
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 validator2ClaimableBefore = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator2Addr);
 
         vm.prank(mockLayer2_2);
         seigManager.updateSeigniorage();
 
         uint256 actualSeq2 = MockWTON(wton).balanceOf(operatorManager2) - operator2BalanceBefore;
-        uint256 validator2PendingAfter = IValidatorReward(validatorPoolProxy).getPendingRewards(validator2Addr);
-        uint256 validator2Received = validator2PendingAfter - validator2PendingBefore;
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 validator2ClaimableAfter = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator2Addr);
+        uint256 validator2Received = validator2ClaimableAfter - validator2ClaimableBefore;
 
         // 7. 예측값과 실제값 비교
         assertEq(estimatedSeq2, actualSeq2, "Estimated sequencer reward should match actual (with accumulated)");
@@ -881,7 +885,7 @@ contract EligibilityTransitionTest is V3TestBase {
         emit log_named_uint("L2 #2 Estimated sequencer reward", estimatedSeq2);
         emit log_named_uint("L2 #2 Actual sequencer reward", actualSeq2);
         emit log_named_uint("L2 #2 Estimated validator reward", estimatedVal2);
-        emit log_named_uint("Validator2 pending rewards", validator2Received);
+        emit log_named_uint("Validator2 claimable rewards", validator2Received);
     }
 
     /// @notice L2별 검증자 등록 헬퍼

@@ -8,16 +8,37 @@ import {MockWTON} from "../../../src/mocks/MockWTON.sol";
 import {MockTON} from "../../../src/mocks/MockTON.sol";
 
 /// @notice Mock RAT contract for ValidatorReward tests
+/// @dev V1.1: O(1) 분배를 위해 ValidatorReward에 검증자 등록 기능 추가
 contract MockRAT {
     mapping(address => address[]) internal _validators;
     mapping(address => mapping(address => bool)) internal _isActive;
 
+    // V1.1: ValidatorReward 컨트랙트 주소
+    address public validatorReward;
+
+    function setValidatorReward(address _validatorReward) external {
+        validatorReward = _validatorReward;
+    }
+
     function addValidator(address systemConfig, address validator) external {
         _validators[systemConfig].push(validator);
         _isActive[systemConfig][validator] = true;
+
+        // V1.1: ValidatorReward에 검증자 등록
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).registerValidatorToL2(validator, systemConfig);
+        }
     }
 
     function setActive(address systemConfig, address validator, bool active) external {
+        // V1.1: 비활성화 시 보상 동기화, 활성화 시 debt 리셋
+        if (validatorReward != address(0)) {
+            if (!active && _isActive[systemConfig][validator]) {
+                IValidatorReward(validatorReward).syncValidatorReward(validator, systemConfig);
+            } else if (active && !_isActive[systemConfig][validator]) {
+                IValidatorReward(validatorReward).resetValidatorDebt(validator, systemConfig);
+            }
+        }
         _isActive[systemConfig][validator] = active;
     }
 
@@ -118,6 +139,9 @@ contract ValidatorRewardV1Test is Test {
         // Transfer WTON to validatorReward (simulating SeigManager distribution)
         vm.prank(seigManager);
         wton.transfer(address(validatorReward), 10_000_000 * RAY);
+
+        // V1.1: MockRAT에 ValidatorReward 연결 (O(1) 분배용)
+        mockRat.setValidatorReward(address(validatorReward));
     }
 
     // ==========================================
@@ -142,6 +166,7 @@ contract ValidatorRewardV1Test is Test {
     // ==========================================
 
     /// @notice 기본 L2 보상 분배 테스트
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR001_distributeL2Rewards_basic() public {
         // Setup: 1 validator
         mockRat.addValidator(systemConfig1, validator1);
@@ -151,17 +176,17 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
 
-        // Verify pending rewards
-        uint256 pending = validatorReward.getPendingRewards(validator1);
-        assertEq(pending, rewardAmount, "Validator should receive full reward");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용 (동기화되지 않은 보상 포함)
+        uint256 claimable = validatorReward.getClaimableRewards(validator1);
+        assertEq(claimable, rewardAmount, "Validator should receive full reward");
 
-        // Verify per-L2 pending rewards
-        uint256 pendingL2 = validatorReward.getPendingRewardsByL2(validator1, systemConfig1);
-        assertEq(pendingL2, rewardAmount, "Per-L2 reward should match");
+        // rewardPerValidator 확인
+        assertEq(validatorReward.rewardPerValidator(systemConfig1), rewardAmount, "rewardPerValidator should match");
     }
 
     /// @notice 여러 검증자에게 균등 분배 테스트
     /// @dev 백서 V3 공식 (13): v_j = (α · S_i) / |V_i|
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR003_distributeL2Rewards_multipleValidators() public {
         // Setup: 3 validators
         mockRat.addValidator(systemConfig1, validator1);
@@ -174,10 +199,10 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
 
-        // Verify each validator receives equal share
-        assertEq(validatorReward.getPendingRewards(validator1), expectedPerValidator, "Validator1 reward");
-        assertEq(validatorReward.getPendingRewards(validator2), expectedPerValidator, "Validator2 reward");
-        assertEq(validatorReward.getPendingRewards(validator3), expectedPerValidator, "Validator3 reward");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), expectedPerValidator, "Validator1 reward");
+        assertEq(validatorReward.getClaimableRewards(validator2), expectedPerValidator, "Validator2 reward");
+        assertEq(validatorReward.getClaimableRewards(validator3), expectedPerValidator, "Validator3 reward");
     }
 
     /// @notice 검증자 없을 때 DAO(daoVault)로 전송
@@ -198,6 +223,7 @@ contract ValidatorRewardV1Test is Test {
     }
 
     /// @notice VR-007: 비활성 검증자 제외 테스트
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR007_distributeL2Rewards_excludeInactiveValidators() public {
         // Setup: 3 validators, 1 inactive
         mockRat.addValidator(systemConfig1, validator1);
@@ -211,12 +237,55 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
 
-        assertEq(validatorReward.getPendingRewards(validator1), expectedPerValidator, "Validator1 reward");
-        assertEq(validatorReward.getPendingRewards(validator2), 0, "Inactive validator should get 0");
-        assertEq(validatorReward.getPendingRewards(validator3), expectedPerValidator, "Validator3 reward");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), expectedPerValidator, "Validator1 reward");
+        assertEq(validatorReward.getClaimableRewards(validator2), 0, "Inactive validator should get 0");
+        assertEq(validatorReward.getClaimableRewards(validator3), expectedPerValidator, "Validator3 reward");
+    }
+
+    /// @notice VR-034: 재등록 시 비활성화 기간 보상 받지 않음
+    /// @dev 탈퇴 후 재등록 시 debt가 리셋되어 비활성화 기간 보상 차단
+    function test_VR034_reregistration_debtReset() public {
+        // 1. 검증자 등록
+        mockRat.addValidator(systemConfig1, validator1);
+
+        // 2. 첫 보상 분배 (validator1 활성 상태)
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
+
+        assertEq(validatorReward.getClaimableRewards(validator1), 1000 * RAY, "Step 2: Should have 1000 RAY");
+
+        // 3. 검증자 비활성화 (보상 동기화 시뮬레이션)
+        mockRat.setActive(systemConfig1, validator1, false);
+
+        // 4. 비활성화 기간 동안 추가 보상 분배
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 2000 * RAY);
+
+        // 비활성화 상태이므로 새 보상 못 받음 (기존 1000만 유지)
+        assertEq(validatorReward.getClaimableRewards(validator1), 1000 * RAY, "Step 4: Still 1000 RAY (inactive)");
+
+        // 5. 검증자 재등록 (재활성화)
+        // MockRAT에서 addValidator 재호출 시 registerValidatorToL2 호출
+        mockRat.setActive(systemConfig1, validator1, true);
+        // 재등록 시 debt 리셋을 위해 registerValidatorToL2 재호출
+        vm.prank(address(mockRat));
+        validatorReward.registerValidatorToL2(validator1, systemConfig1);
+
+        // debt가 현재 rewardPerValidator(3000)로 리셋되어야 함
+        // 기존 동기화된 보상(1000)만 청구 가능
+        assertEq(validatorReward.getClaimableRewards(validator1), 1000 * RAY, "Step 5: Still 1000 RAY after re-registration");
+
+        // 6. 재등록 후 새 보상 분배
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 500 * RAY);
+
+        // 기존 1000 + 새 보상 500 = 1500
+        assertEq(validatorReward.getClaimableRewards(validator1), 1500 * RAY, "Step 6: 1000 + 500 = 1500 RAY");
     }
 
     /// @notice VR-008: 여러 L2에서 보상 분배 테스트
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR008_distributeL2Rewards_multipleL2s() public {
         // Setup validators for different L2s
         mockRat.addValidator(systemConfig1, validator1);
@@ -231,14 +300,14 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig2, 2000 * RAY);
 
-        // Verify validator1 receives from both L2s
-        uint256 totalPending = validatorReward.getPendingRewards(validator1);
-        assertEq(totalPending, 1000 * RAY + 1000 * RAY, "Validator1 total from both L2s");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용 (총 청구 가능 금액)
+        uint256 totalClaimable = validatorReward.getClaimableRewards(validator1);
+        assertEq(totalClaimable, 1000 * RAY + 1000 * RAY, "Validator1 total from both L2s");
 
-        // Verify per-L2 breakdown
-        assertEq(validatorReward.getPendingRewardsByL2(validator1, systemConfig1), 1000 * RAY, "V1 from L2_1");
-        assertEq(validatorReward.getPendingRewardsByL2(validator1, systemConfig2), 1000 * RAY, "V1 from L2_2");
-        assertEq(validatorReward.getPendingRewardsByL2(validator2, systemConfig2), 1000 * RAY, "V2 from L2_2");
+        // Verify rewardPerValidator per L2
+        assertEq(validatorReward.rewardPerValidator(systemConfig1), 1000 * RAY, "rewardPerValidator L2_1");
+        assertEq(validatorReward.rewardPerValidator(systemConfig2), 1000 * RAY, "rewardPerValidator L2_2");
+        assertEq(validatorReward.getClaimableRewards(validator2), 1000 * RAY, "V2 from L2_2");
     }
 
     /// @notice VR-009: 0 금액 분배 시 무시
@@ -248,7 +317,8 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, 0);
 
-        assertEq(validatorReward.getPendingRewards(validator1), 0, "No reward for 0 amount");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), 0, "No reward for 0 amount");
     }
 
     /// @notice VR-010: SeigManager만 호출 가능
@@ -261,6 +331,7 @@ contract ValidatorRewardV1Test is Test {
     }
 
     /// @notice VR-011: 연속 분배 테스트 (보상 누적)
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR011_distributeL2Rewards_accumulation() public {
         mockRat.addValidator(systemConfig1, validator1);
 
@@ -276,10 +347,12 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, 250 * RAY);
 
-        assertEq(validatorReward.getPendingRewards(validator1), 1750 * RAY, "Rewards should accumulate");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), 1750 * RAY, "Rewards should accumulate");
     }
 
     /// @notice VR-012: 소수점 분배 시 나머지 처리 (버림)
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR012_distributeL2Rewards_remainder() public {
         // Setup: 3 validators
         mockRat.addValidator(systemConfig1, validator1);
@@ -292,10 +365,11 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
 
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
         uint256 perValidator = rewardAmount / 3;
-        assertEq(validatorReward.getPendingRewards(validator1), perValidator, "Validator1 reward");
-        assertEq(validatorReward.getPendingRewards(validator2), perValidator, "Validator2 reward");
-        assertEq(validatorReward.getPendingRewards(validator3), perValidator, "Validator3 reward");
+        assertEq(validatorReward.getClaimableRewards(validator1), perValidator, "Validator1 reward");
+        assertEq(validatorReward.getClaimableRewards(validator2), perValidator, "Validator2 reward");
+        assertEq(validatorReward.getClaimableRewards(validator3), perValidator, "Validator3 reward");
 
         // Note: Remainder (1 RAY) stays in contract
     }
@@ -353,6 +427,7 @@ contract ValidatorRewardV1Test is Test {
     }
 
     /// @notice VR-015: 부분 청구 후 추가 분배 및 재청구
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR015_claimAllRewards_claimDistributeClaim() public {
         mockRat.addValidator(systemConfig1, validator1);
 
@@ -363,13 +438,14 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(validator1);
         validatorReward.claimAllRewards();
 
-        assertEq(validatorReward.getPendingRewards(validator1), 0, "Pending should be 0 after first claim");
+        assertEq(validatorReward.getClaimableRewards(validator1), 0, "Claimable should be 0 after first claim");
 
         // Second distribution
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, 500 * RAY);
 
-        assertEq(validatorReward.getPendingRewards(validator1), 500 * RAY, "New pending rewards");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), 500 * RAY, "New claimable rewards");
 
         // Second claim
         uint256 balanceBefore = wton.balanceOf(validator1);
@@ -381,23 +457,120 @@ contract ValidatorRewardV1Test is Test {
         assertEq(balanceAfter - balanceBefore, 500 * RAY, "Should receive second batch");
     }
 
+    /// @notice VR-035: claimRewardsByL2s - 특정 L2만 청구
+    /// @dev 가스 최적화를 위한 배치 청구 기능 테스트
+    function test_VR035_claimRewardsByL2s_specificL2s() public {
+        // Setup validator on 3 L2s
+        mockRat.addValidator(systemConfig1, validator1);
+        mockRat.addValidator(systemConfig2, validator1);
+        address systemConfig3 = address(0x3333);
+        mockRat.addValidator(systemConfig3, validator1);
+
+        // Distribute rewards to all 3 L2s
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
+
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig2, 2000 * RAY);
+
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig3, 3000 * RAY);
+
+        // Claim from only 2 L2s
+        address[] memory l2sToClaim = new address[](2);
+        l2sToClaim[0] = systemConfig1;
+        l2sToClaim[1] = systemConfig2;
+
+        uint256 balanceBefore = wton.balanceOf(validator1);
+
+        vm.prank(validator1);
+        validatorReward.claimRewardsByL2s(l2sToClaim);
+
+        uint256 balanceAfter = wton.balanceOf(validator1);
+
+        // Should receive rewards from L2_1 + L2_2 = 3000 RAY
+        assertEq(balanceAfter - balanceBefore, 3000 * RAY, "Should receive rewards from specified L2s only");
+
+        // L2_3 rewards should still be claimable
+        assertEq(validatorReward.getClaimableRewards(validator1), 3000 * RAY, "L2_3 rewards should remain");
+    }
+
+    /// @notice VR-036: claimRewardsByL2s - 배치 청구 후 나머지 청구
+    function test_VR036_claimRewardsByL2s_batchThenRemainder() public {
+        mockRat.addValidator(systemConfig1, validator1);
+        mockRat.addValidator(systemConfig2, validator1);
+
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
+
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig2, 2000 * RAY);
+
+        // First batch: claim L2_1 only
+        address[] memory batch1 = new address[](1);
+        batch1[0] = systemConfig1;
+
+        vm.prank(validator1);
+        validatorReward.claimRewardsByL2s(batch1);
+
+        // Second batch: claim L2_2
+        address[] memory batch2 = new address[](1);
+        batch2[0] = systemConfig2;
+
+        uint256 balanceBefore = wton.balanceOf(validator1);
+
+        vm.prank(validator1);
+        validatorReward.claimRewardsByL2s(batch2);
+
+        uint256 balanceAfter = wton.balanceOf(validator1);
+
+        assertEq(balanceAfter - balanceBefore, 2000 * RAY, "Should receive L2_2 rewards");
+        assertEq(validatorReward.getClaimableRewards(validator1), 0, "All rewards should be claimed");
+    }
+
+    /// @notice VR-037: claimRewardsByL2s - 미등록 L2 포함 시 스킵
+    function test_VR037_claimRewardsByL2s_skipsUnregisteredL2() public {
+        mockRat.addValidator(systemConfig1, validator1);
+
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
+
+        // Try to claim from registered + unregistered L2
+        address[] memory l2sToClaim = new address[](2);
+        l2sToClaim[0] = systemConfig1;
+        l2sToClaim[1] = address(0x9999); // unregistered
+
+        uint256 balanceBefore = wton.balanceOf(validator1);
+
+        vm.prank(validator1);
+        validatorReward.claimRewardsByL2s(l2sToClaim);
+
+        uint256 balanceAfter = wton.balanceOf(validator1);
+
+        // Should only receive from registered L2
+        assertEq(balanceAfter - balanceBefore, 1000 * RAY, "Should receive from registered L2 only");
+    }
+
     // ==========================================
     // getPendingRewards Tests
     // ==========================================
 
     /// @notice VR-016: 미청구 보상 조회
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR016_getPendingRewards_accurate() public {
         mockRat.addValidator(systemConfig1, validator1);
 
-        assertEq(validatorReward.getPendingRewards(validator1), 0, "Initial pending should be 0");
+        assertEq(validatorReward.getClaimableRewards(validator1), 0, "Initial claimable should be 0");
 
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
 
-        assertEq(validatorReward.getPendingRewards(validator1), 1000 * RAY, "Pending after distribution");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), 1000 * RAY, "Claimable after distribution");
     }
 
     /// @notice VR-017: L2별 미청구 보상 조회
+    /// @dev V1.1: O(1) 분배에서는 rewardPerValidator 확인
     function test_VR017_getPendingRewardsByL2_accurate() public {
         mockRat.addValidator(systemConfig1, validator1);
         mockRat.addValidator(systemConfig2, validator1);
@@ -408,8 +581,11 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig2, 2000 * RAY);
 
-        assertEq(validatorReward.getPendingRewardsByL2(validator1, systemConfig1), 1000 * RAY, "L2_1 pending");
-        assertEq(validatorReward.getPendingRewardsByL2(validator1, systemConfig2), 2000 * RAY, "L2_2 pending");
+        // V1.1: O(1) 분배에서는 rewardPerValidator 확인 (L2별 누적 보상)
+        assertEq(validatorReward.rewardPerValidator(systemConfig1), 1000 * RAY, "L2_1 rewardPerValidator");
+        assertEq(validatorReward.rewardPerValidator(systemConfig2), 2000 * RAY, "L2_2 rewardPerValidator");
+        // 총 청구 가능 금액 확인
+        assertEq(validatorReward.getClaimableRewards(validator1), 3000 * RAY, "Total claimable");
     }
 
     // ==========================================
@@ -418,6 +594,7 @@ contract ValidatorRewardV1Test is Test {
 
     /// @notice VR-018: 공식 검증: v_j = (α · S_i) / |V_i|
     /// @dev α는 SeigManager에서 적용되므로 여기서는 amount / activeCount 검증
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR018_rewardCalculation_formula() public {
         // Setup: 5 validators
         mockRat.addValidator(systemConfig1, validator1);
@@ -432,12 +609,14 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, totalReward);
 
-        assertEq(validatorReward.getPendingRewards(validator1), expectedPerValidator, "Formula check");
-        assertEq(validatorReward.getPendingRewards(validator2), expectedPerValidator, "Formula check");
-        assertEq(validatorReward.getPendingRewards(validator3), expectedPerValidator, "Formula check");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), expectedPerValidator, "Formula check");
+        assertEq(validatorReward.getClaimableRewards(validator2), expectedPerValidator, "Formula check");
+        assertEq(validatorReward.getClaimableRewards(validator3), expectedPerValidator, "Formula check");
     }
 
     /// @notice VR-019: 정밀도 테스트 (작은 금액)
+    /// @dev V1.1: O(1) 분배에서는 getClaimableRewards 사용
     function test_VR019_rewardCalculation_precision() public {
         mockRat.addValidator(systemConfig1, validator1);
         mockRat.addValidator(systemConfig1, validator2);
@@ -449,8 +628,9 @@ contract ValidatorRewardV1Test is Test {
         validatorReward.distributeL2Rewards(systemConfig1, smallAmount);
 
         // 3 / 2 = 1 per validator (integer division)
-        assertEq(validatorReward.getPendingRewards(validator1), 1, "Small amount precision");
-        assertEq(validatorReward.getPendingRewards(validator2), 1, "Small amount precision");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        assertEq(validatorReward.getClaimableRewards(validator1), 1, "Small amount precision");
+        assertEq(validatorReward.getClaimableRewards(validator2), 1, "Small amount precision");
     }
 
     // ==========================================
@@ -566,16 +746,21 @@ contract ValidatorRewardV1Test is Test {
     }
 
     /// @notice VR-031: ValidatorRewardReceived 이벤트
+    /// @dev V1.1: O(1) 분배에서는 claimAllRewards 호출 시 동기화되면서 이벤트 발생
     function test_VR031_event_ValidatorRewardReceived() public {
         mockRat.addValidator(systemConfig1, validator1);
 
         uint256 rewardAmount = 1000 * RAY;
 
+        vm.prank(seigManager);
+        validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
+
+        // V1.1: O(1) 분배에서는 claimAllRewards 호출 시 동기화되면서 이벤트 발생
         vm.expectEmit(true, true, false, true);
         emit ValidatorRewardReceived(validator1, systemConfig1, rewardAmount);
 
-        vm.prank(seigManager);
-        validatorReward.distributeL2Rewards(systemConfig1, rewardAmount);
+        vm.prank(validator1);
+        validatorReward.claimAllRewards();
     }
 
     /// @notice VR-032: RewardsClaimed 이벤트
@@ -585,6 +770,7 @@ contract ValidatorRewardV1Test is Test {
         vm.prank(seigManager);
         validatorReward.distributeL2Rewards(systemConfig1, 1000 * RAY);
 
+        // V1.1: O(1) 분배에서는 claimAllRewards가 동기화 후 청구하므로 이벤트 순서 확인
         vm.expectEmit(true, false, false, true);
         emit RewardsClaimed(validator1, 1000 * RAY);
 

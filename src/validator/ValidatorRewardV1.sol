@@ -80,15 +80,44 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
     }
 
     /// @inheritdoc IValidatorReward
-    function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256) {
-        return validatorL2PendingRewards[validator][systemConfig];
+    /// @dev DEPRECATED: 가스 최적화로 더 이상 업데이트되지 않음
+    /// @dev L2별 보상은 ValidatorRewardReceived 이벤트로 추적
+    function getPendingRewardsByL2(address, address) external pure returns (uint256) {
+        return 0; // deprecated - use events
+    }
+
+    /// @inheritdoc IValidatorReward
+    /// @dev 동기화되지 않은 보상도 포함하여 계산
+    /// @dev 가스 최적화: 배열 길이 캐싱, unchecked 연산
+    function getClaimableRewards(address validator) external view returns (uint256 total) {
+        total = validatorPendingRewards[validator];
+
+        // 등록된 모든 L2에서 미동기화 보상 계산
+        address[] memory l2List = validatorL2List[validator];
+        uint256 len = l2List.length;
+        for (uint256 i = 0; i < len; ) {
+            address systemConfig = l2List[i];
+            uint256 currentRewardPerValidator = rewardPerValidator[systemConfig];
+            uint256 debt = validatorRewardDebt[validator][systemConfig];
+
+            if (currentRewardPerValidator > debt) {
+                // 활성 검증자만 보상 받을 수 있음
+                if (IRAT(ratContract).isValidatorActive(validator, systemConfig)) {
+                    unchecked {
+                        total += (currentRewardPerValidator - debt);
+                    }
+                }
+            }
+            unchecked { ++i; }
+        }
     }
 
     // ==========================================
-    // Rewards Distribution
+    // Rewards Distribution (V1.1: O(1) 분배)
     // ==========================================
 
     /// @inheritdoc IValidatorReward
+    /// @dev V1.1: O(1) 복잡도로 변경 - 검증자 수와 무관
     /// @dev 백서 V3 공식 (13): v_j = (α · S_i) / |V_i|
     function distributeL2Rewards(address systemConfig, uint256 amount)
         external
@@ -110,46 +139,150 @@ contract ValidatorRewardV1 is ValidatorRewardStorage, IValidatorReward {
             return;
         }
 
-        // v_j = amount / |V_i|
+        // v_j = amount / |V_i| - O(1) 누적
         uint256 perValidator = amount / activeCount;
         if (perValidator == 0) return;
 
-        // RAT에서 검증자 목록 조회
-        address[] memory validators = IRAT(ratContract).getL2Validators(systemConfig);
-        uint256 len = validators.length;
+        // 전역 누적 (검증자별 순회 없음)
+        rewardPerValidator[systemConfig] += perValidator;
 
-        // 각 활성 검증자에게 보상 누적
-        uint256 distributed = 0;
-        for (uint256 i = 0; i < len; i++) {
-            address validator = validators[i];
-            if (IRAT(ratContract).isValidatorActive(validator, systemConfig)) {
-                // 총 보상 누적 (claimAllRewards용)
-                validatorPendingRewards[validator] += perValidator;
-                // Per-L2 보상 누적 (조회/통계용)
-                validatorL2PendingRewards[validator][systemConfig] += perValidator;
-                distributed += perValidator;
-
-                // 개별 검증자 이벤트 (추적용)
-                emit ValidatorRewardReceived(validator, systemConfig, perValidator);
-            }
-        }
-
-        // 통계 업데이트
-        l2TotalDistributed[systemConfig] += distributed;
+        // NOTE: l2TotalDistributed 업데이트 제거 (가스 최적화)
+        // 필요시 rewardPerValidator * activeCount로 계산 가능
 
         emit L2RewardDistributed(systemConfig, amount, activeCount, perValidator);
     }
 
     /// @inheritdoc IValidatorReward
+    /// @dev 청구 전 모든 L2 보상 동기화
+    /// @dev 등록된 L2가 많으면 가스 한도 초과 가능 - claimRewardsByL2s 사용 권장
     function claimAllRewards() external ifFree {
-        uint256 rewards = validatorPendingRewards[msg.sender];
+        address validator = msg.sender;
+
+        // 먼저 모든 L2 보상 동기화
+        _syncAllRewards(validator);
+
+        uint256 rewards = validatorPendingRewards[validator];
         if (rewards == 0) revert NoRewardsError();
 
-        validatorPendingRewards[msg.sender] = 0;
+        validatorPendingRewards[validator] = 0;
 
-        IERC20(wton).safeTransfer(msg.sender, rewards);
+        IERC20(wton).safeTransfer(validator, rewards);
 
-        emit RewardsClaimed(msg.sender, rewards);
+        emit RewardsClaimed(validator, rewards);
+    }
+
+    /// @inheritdoc IValidatorReward
+    /// @dev 특정 L2들만 동기화 후 청구
+    /// @dev 등록된 L2가 많을 때 가스 최적화를 위해 사용
+    function claimRewardsByL2s(address[] calldata systemConfigs) external ifFree {
+        address validator = msg.sender;
+
+        // 지정된 L2들만 보상 동기화
+        uint256 len = systemConfigs.length;
+        for (uint256 i = 0; i < len; ) {
+            address systemConfig = systemConfigs[i];
+            // 등록된 L2만 동기화
+            if (isValidatorInL2[validator][systemConfig]) {
+                _syncReward(validator, systemConfig);
+            }
+            unchecked { ++i; }
+        }
+
+        uint256 rewards = validatorPendingRewards[validator];
+        if (rewards == 0) revert NoRewardsError();
+
+        validatorPendingRewards[validator] = 0;
+
+        IERC20(wton).safeTransfer(validator, rewards);
+
+        emit RewardsClaimed(validator, rewards);
+    }
+
+    // ==========================================
+    // Validator Registration (V1.1)
+    // ==========================================
+
+    /// @inheritdoc IValidatorReward
+    /// @dev RAT.registerValidator에서 호출
+    function registerValidatorToL2(address validator, address systemConfig) external {
+        require(msg.sender == ratContract, "only RAT");
+
+        uint256 currentReward = rewardPerValidator[systemConfig];
+
+        // 이미 등록된 경우 (재등록): debt만 리셋
+        // 비활성화 기간 동안의 보상을 받지 않도록 함
+        if (isValidatorInL2[validator][systemConfig]) {
+            validatorRewardDebt[validator][systemConfig] = currentReward;
+            return;
+        }
+
+        // 신규 등록: L2 목록에 추가
+        validatorL2List[validator].push(systemConfig);
+        isValidatorInL2[validator][systemConfig] = true;
+
+        // 현재 rewardPerValidator를 초기 debt로 설정
+        validatorRewardDebt[validator][systemConfig] = currentReward;
+
+        emit ValidatorRegisteredToL2(validator, systemConfig, currentReward);
+    }
+
+    /// @inheritdoc IValidatorReward
+    /// @dev RAT에서 검증자 비활성화 전 호출
+    function syncValidatorReward(address validator, address systemConfig) external {
+        require(msg.sender == ratContract, "only RAT");
+        _syncReward(validator, systemConfig);
+    }
+
+    /// @inheritdoc IValidatorReward
+    /// @dev RAT에서 검증자 재활성화 시 호출
+    function resetValidatorDebt(address validator, address systemConfig) external {
+        require(msg.sender == ratContract, "only RAT");
+
+        // 현재 rewardPerValidator를 새 debt로 설정
+        validatorRewardDebt[validator][systemConfig] = rewardPerValidator[systemConfig];
+    }
+
+    // ==========================================
+    // Internal Functions (V1.1)
+    // ==========================================
+
+    /// @notice 단일 L2 보상 동기화
+    /// @dev 가스 최적화: unchecked 블록 사용 (이미 조건 검증됨)
+    /// @dev validatorL2PendingRewards 업데이트 제거 - 이벤트로 추적
+    function _syncReward(address validator, address systemConfig) internal {
+        uint256 currentRewardPerValidator = rewardPerValidator[systemConfig];
+        uint256 debt = validatorRewardDebt[validator][systemConfig];
+
+        if (currentRewardPerValidator > debt) {
+            uint256 earned;
+            unchecked {
+                earned = currentRewardPerValidator - debt;
+            }
+
+            // 활성 검증자만 보상 누적
+            if (IRAT(ratContract).isValidatorActive(validator, systemConfig)) {
+                unchecked {
+                    validatorPendingRewards[validator] += earned;
+                }
+
+                // L2별 보상은 이벤트로 추적 (validatorL2PendingRewards 제거됨)
+                emit ValidatorRewardReceived(validator, systemConfig, earned);
+            }
+
+            // debt 업데이트
+            validatorRewardDebt[validator][systemConfig] = currentRewardPerValidator;
+        }
+    }
+
+    /// @notice 모든 L2 보상 동기화
+    /// @dev 가스 최적화: 배열 길이 캐싱 및 unchecked 인덱스 증가
+    function _syncAllRewards(address validator) internal {
+        address[] memory l2List = validatorL2List[validator];
+        uint256 len = l2List.length;
+        for (uint256 i = 0; i < len; ) {
+            _syncReward(validator, l2List[i]);
+            unchecked { ++i; }
+        }
     }
 
     // ==========================================

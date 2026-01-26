@@ -981,58 +981,170 @@ function distributeL2Rewards(address systemConfig, uint256 amount) external only
 |------|------|
 | **호출 주체** | SeigManager |
 | **접근 제어** | `onlySeigManager` |
+| **가스 복잡도** | O(1) - 검증자 수와 무관 |
 
 **동작 흐름**:
 ```
-1. RAT.getL2Validators(systemConfig) 조회
-2. 활성 검증자 수 계산
-3. |V_i| = 0인 경우:
-   └─► WTON.transfer(treasury, amount)
-       └─► 이벤트: RewardToTreasury
+1. RAT.getActiveValidatorCount(systemConfig) 조회
+2. |V_i| = 0인 경우:
+   └─► WTON.transfer(seigManager.dao(), amount)
+       └─► 이벤트: RewardToDAO
 
-4. |V_i| > 0인 경우:
+3. |V_i| > 0인 경우:
    └─► perValidator = amount / activeCount
-       └─► 각 검증자에게 보상 누적
-           - validatorPendingRewards[validator] += perValidator
-           - validatorL2PendingRewards[validator][systemConfig] += perValidator
-       └─► 이벤트: ValidatorRewardReceived (각 검증자)
+   └─► rewardPerValidator[systemConfig] += perValidator (O(1) 누적)
    └─► 이벤트: L2RewardDistributed
 ```
+
+**RewardPerValidator 패턴**:
+- O(1) 복잡도: 검증자별 순회 없이 전역 누적값만 업데이트
+- L2별 보상 추적은 이벤트(`ValidatorRewardReceived`)를 통해 수행
+- 검증자 없을 때 `seigManager.dao()`로 전송
 
 ---
 
 ### 6.2 claimAllRewards
 
-모든 보상을 청구합니다.
+모든 L2에서 받은 보상을 청구합니다.
 
 ```solidity
-function claimAllRewards() external
+function claimAllRewards() external ifFree
 ```
 
 | 항목 | 내용 |
 |------|------|
 | **호출 주체** | 검증자 |
+| **가스 복잡도** | O(L) - 검증자가 등록된 L2 수에 비례 |
+| **주의** | 등록된 L2가 많으면 가스 한도 초과 가능 → `claimRewardsByL2s` 사용 권장 |
 
 **동작 흐름**:
 ```
-1. total = validatorPendingRewards[msg.sender]
-2. validatorPendingRewards[msg.sender] = 0
-3. WTON.transfer(msg.sender, total)
-4. 이벤트: RewardsClaimed
+1. _syncAllRewards(validator): 모든 L2 보상 동기화
+   └─► 각 L2에 대해:
+       - earned = rewardPerValidator[systemConfig] - validatorRewardDebt[validator][systemConfig]
+       - 활성 검증자인 경우에만 validatorPendingRewards[validator] += earned
+       - validatorRewardDebt[validator][systemConfig] = rewardPerValidator[systemConfig]
+       - 이벤트: ValidatorRewardReceived (각 L2)
+
+2. total = validatorPendingRewards[msg.sender]
+3. validatorPendingRewards[msg.sender] = 0
+4. WTON.transfer(msg.sender, total)
+5. 이벤트: RewardsClaimed
 ```
 
 ---
 
-### 6.3 조회 함수
+### 6.2.1 claimRewardsByL2s
+
+특정 L2들에서 받은 보상을 청구합니다 (가스 최적화용).
 
 ```solidity
-// L2별 미청구 보상 조회
-function getPendingRewardsByL2(address validator, address systemConfig)
-    external view returns (uint256)
-
-// 총 미청구 보상 조회
-function getTotalPendingRewards(address validator) external view returns (uint256)
+function claimRewardsByL2s(address[] calldata systemConfigs) external ifFree
 ```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | 검증자 |
+| **가스 복잡도** | O(N) - 지정된 L2 수에 비례 |
+| **용도** | 등록된 L2가 많을 때 배치로 청구 |
+
+**동작 흐름**:
+```
+1. 지정된 L2들만 보상 동기화
+   └─► 각 systemConfig에 대해:
+       - isValidatorInL2[validator][systemConfig] 확인
+       - 등록된 L2만 _syncReward 호출
+
+2. total = validatorPendingRewards[msg.sender]
+3. validatorPendingRewards[msg.sender] = 0
+4. WTON.transfer(msg.sender, total)
+5. 이벤트: RewardsClaimed
+```
+
+**사용 예시** (100개 L2 등록 시):
+```solidity
+// 배치 1: 처음 50개 L2 청구
+address[] memory batch1 = new address[](50);
+// ... batch1 배열 설정
+validatorReward.claimRewardsByL2s(batch1);
+
+// 배치 2: 나머지 50개 L2 청구
+address[] memory batch2 = new address[](50);
+// ... batch2 배열 설정
+validatorReward.claimRewardsByL2s(batch2);
+```
+
+**지연 계산 (Lazy Evaluation)**:
+- 보상은 분배 시점이 아닌 청구 시점에 계산됨
+- 비활성화된 검증자는 보상을 받지 않음
+
+---
+
+### 6.3 registerValidatorToL2
+
+검증자를 L2에 등록합니다 (RAT에서 호출).
+
+```solidity
+function registerValidatorToL2(address validator, address systemConfig) external
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | RAT 컨트랙트 |
+| **접근 제어** | `msg.sender == ratContract` |
+
+**동작 흐름**:
+```
+1. 이미 등록된 경우 스킵
+2. validatorL2List[validator].push(systemConfig)
+3. isValidatorInL2[validator][systemConfig] = true
+4. validatorRewardDebt[validator][systemConfig] = rewardPerValidator[systemConfig]
+5. 이벤트: ValidatorRegisteredToL2
+```
+
+---
+
+### 6.4 syncValidatorReward / resetValidatorDebt
+
+검증자 비활성화/재활성화 시 보상 동기화를 처리합니다.
+
+```solidity
+function syncValidatorReward(address validator, address systemConfig) external
+function resetValidatorDebt(address validator, address systemConfig) external
+```
+
+| 항목 | 내용 |
+|------|------|
+| **호출 주체** | RAT 컨트랙트 |
+| **접근 제어** | `msg.sender == ratContract` |
+
+**syncValidatorReward** (비활성화 전):
+- 현재까지의 보상을 `validatorPendingRewards`에 누적
+- 비활성화되어도 누적된 보상은 청구 가능
+
+**resetValidatorDebt** (재활성화 시):
+- `validatorRewardDebt`를 현재 `rewardPerValidator`로 리셋
+- 비활성화 기간 동안의 보상을 받지 않도록 처리
+
+---
+
+### 6.5 조회 함수
+
+```solidity
+// 총 청구 가능 보상 조회 (미동기화 보상 포함)
+function getClaimableRewards(address validator) external view returns (uint256 total)
+
+// 총 미청구 보상 조회 (동기화된 것만)
+function getPendingRewards(address validator) external view returns (uint256)
+
+// L2별 미청구 보상 조회 (이벤트 사용 권장)
+function getPendingRewardsByL2(address validator, address systemConfig)
+    external pure returns (uint256)  // 항상 0 반환
+```
+
+**권장 사용법**:
+- 총 보상 조회: `getClaimableRewards(validator)`
+- L2별 보상 추적: `ValidatorRewardReceived` 이벤트 구독
 
 ---
 
@@ -1154,8 +1266,16 @@ TYPE 1/2 롤업이 DisputeGame을 도입하여 TYPE 3로 업그레이드하려�
 | `ratTriggerProbability` | `setRatTriggerProbability(π_a)` | 0 < π_a ≤ 1 | RAY |
 | `minimumThreshold` | `setMinimumThreshold(D_min)` | D_min > 0 | TON |
 | `evidenceSubmissionPeriod` | `setEvidenceSubmissionPeriod(t)` | t > 0 | 초 |
+| `validatorReward` | `setValidatorReward(addr)` | addr != 0 | 주소 |
 
-### 9.3 SeigManager 시퀀서 슬래싱 파라미터
+### 9.3 ValidatorReward 파라미터
+
+| 파라미터 | 함수 | 범위 | 단위 |
+|---------|------|------|------|
+| `seigManager` | `setSeigManager(addr)` | addr != 0 | 주소 |
+| `ratContract` | `setRatContract(addr)` | addr != 0 | 주소 |
+
+### 9.4 SeigManager 시퀀서 슬래싱 파라미터
 
 | 파라미터 | 함수 | 범위 | 단위 |
 |---------|------|------|------|
@@ -1190,10 +1310,33 @@ event BondRestored(bytes32 indexed testId, address indexed validator, address in
 ### 10.3 ValidatorReward 이벤트
 
 ```solidity
-event L2RewardDistributed(address indexed systemConfig, uint256 distributed, uint256 validatorCount);
-event ValidatorRewardReceived(address indexed validator, address indexed systemConfig, uint256 amount);
-event RewardToTreasury(address indexed systemConfig, uint256 amount);
+// L2별 검증자 보상 분배 이벤트 (요약)
+event L2RewardDistributed(
+    address indexed systemConfig,
+    uint256 totalAmount,           // 총 분배 금액
+    uint256 activeValidatorCount,  // 활성 검증자 수
+    uint256 perValidator           // 검증자당 분배 금액
+);
+
+// 검증자별 보상 분배 이벤트 (청구 시점에 발생)
+event ValidatorRewardReceived(
+    address indexed validator,
+    address indexed systemConfig,
+    uint256 amount
+);
+
+// 검증자 없을 때 DAO 귀속 이벤트
+event RewardToDAO(address indexed systemConfig, uint256 amount);
+
+// 검증자 보상 청구 이벤트
 event RewardsClaimed(address indexed validator, uint256 amount);
+
+// 검증자 L2 등록 이벤트
+event ValidatorRegisteredToL2(
+    address indexed validator,
+    address indexed systemConfig,
+    uint256 initialDebt
+);
 ```
 
 ### 10.4 SeigManager 시퀀서 슬래싱 이벤트

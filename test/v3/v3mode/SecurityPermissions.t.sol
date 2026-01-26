@@ -462,17 +462,8 @@ contract SecurityPermissionsTest is V3TestBase {
     }
 
     // ==========================================
-    // SEC-010~012: 재진입 방지 테스트
+    // SEC-011: CEI 패턴 준수 테스트
     // ==========================================
-    // NOTE: SeigManager.updateSeigniorage()의 ifFree 재진입 방지 테스트는 제거됨
-    //       - 외부 호출(WTON.mint, Layer2Manager, ValidatorReward)은 존재하나
-    //       - 해당 컨트랙트들이 SeigManager로 콜백하지 않아 재진입 경로 없음
-    //       - ifFree는 방어적 코드로만 존재
-
-    // NOTE: DepositManager.deposit()는 ifFree modifier가 없음
-    //       ifFree는 withdrawAndDepositL2()에만 적용되며, 해당 함수도
-    //       외부 호출(WTON, SeigManager, L1Bridge)이 DepositManager로 콜백하지 않아
-    //       재진입 경로 없음
 
     /// @notice SEC-011: CEI 패턴 준수 검증
     function test_SEC011_CEI_pattern() public {
@@ -497,10 +488,6 @@ contract SecurityPermissionsTest is V3TestBase {
         assertEq(stakeAfter - stakeBefore, 300 * RAY, "Stake increased");
         vm.stopPrank();
     }
-
-    // NOTE: SEC-012 (외부 호출 후 상태 일관성) 테스트 제거
-    //       - 기존 테스트는 단순 배포 상태 확인으로, 실제 상태 일관성 검증이 아니었음
-    //       - 상태 일관성은 각 기능 테스트에서 간접 검증됨
 
     // ==========================================
     // SEC-020: 랜덤 보안 테스트

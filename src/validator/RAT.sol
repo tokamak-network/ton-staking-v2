@@ -6,6 +6,7 @@ import {IRAT} from "./IRAT.sol";
 import {RATInitParams, RATConfigParams} from "./RATTypes.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
+import {IValidatorReward} from "./IValidatorReward.sol";
 
 // V3: SeigManager 연동을 위한 인터페이스
 interface ISeigManagerForRAT {
@@ -462,6 +463,11 @@ contract RAT is RATStorage, IRAT {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
         if (!reg.isActive) revert NotActiveValidatorError();
 
+        // V1.1: 탈퇴 전 보상 동기화 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).syncValidatorReward(msg.sender, systemConfig);
+        }
+
         // 배열에서 제거 (O(n) - 탈퇴자가 가스비 부담)
         _removeValidatorFromArray(systemConfig, msg.sender);
 
@@ -528,6 +534,11 @@ contract RAT is RATStorage, IRAT {
 
         validatorIndexes[systemConfig][validator] = index;
         validatorSystemConfigs[validator].push(systemConfig);
+
+        // V1.1: ValidatorReward에 등록 알림 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).registerValidatorToL2(validator, systemConfig);
+        }
 
         emit ValidatorRegistered(validator, systemConfig, layer2, collateral, index);
     }
@@ -759,6 +770,11 @@ contract RAT is RATStorage, IRAT {
         ValidatorRegistration storage reg,
         address layer2
     ) internal {
+        // V1.1: 제거 전 보상 동기화 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).syncValidatorReward(validator, systemConfig);
+        }
+
         // 배열에서 제거
         _removeValidatorFromArray(systemConfig, validator);
 
@@ -805,6 +821,11 @@ contract RAT is RATStorage, IRAT {
             reg.isActive = true;
 
             validatorIndexes[systemConfig][validator] = index;
+
+            // V1.1: 재활성화 시 보상 debt 리셋 (O(1) 보상 분배용)
+            if (validatorReward != address(0)) {
+                IValidatorReward(validatorReward).resetValidatorDebt(validator, systemConfig);
+            }
 
             emit ValidatorReactivated(validator, systemConfig, layer2, collateral);
         }
@@ -886,6 +907,12 @@ contract RAT is RATStorage, IRAT {
     /// @notice Treasury 주소 설정
     function setTreasury(address _treasury) external onlyOwner {
         treasury = _treasury;
+    }
+
+    /// @notice ValidatorReward 컨트랙트 주소 설정 (V1.1)
+    /// @param _validatorReward ValidatorReward 컨트랙트 주소
+    function setValidatorReward(address _validatorReward) external onlyOwner {
+        validatorReward = _validatorReward;
     }
 
     /// @notice Owner 변경

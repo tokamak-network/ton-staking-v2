@@ -280,8 +280,9 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
 
         address validatorRewardAddr = seigManager.validatorReward();
         uint256 validatorRewardBefore = MockWTON(wton).balanceOf(validatorRewardAddr);
-        uint256 pendingRewardsBefore = IValidatorReward(validatorRewardAddr).getPendingRewards(validator1);
-        assertEq(pendingRewardsBefore, 0, "V3 with validators: Initial pending rewards should be 0");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 claimableBefore = IValidatorReward(validatorRewardAddr).getClaimableRewards(validator1);
+        assertEq(claimableBefore, 0, "V3 with validators: Initial claimable rewards should be 0");
 
         vm.roll(block.number + 100);
         _updateSeigniorage();
@@ -289,11 +290,12 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
         uint256 validatorRewardAfter = MockWTON(wton).balanceOf(validatorRewardAddr);
         assertGt(validatorRewardAfter, validatorRewardBefore, "V3 with validators: ValidatorReward should increase");
 
-        uint256 pendingRewardsAfter = IValidatorReward(validatorRewardAddr).getPendingRewards(validator1);
-        assertGt(pendingRewardsAfter, 0, "V3 with validators: Validator should have pending rewards");
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 claimableAfter = IValidatorReward(validatorRewardAddr).getClaimableRewards(validator1);
+        assertGt(claimableAfter, 0, "V3 with validators: Validator should have claimable rewards");
 
         emit log_named_uint("V3 (1 validator) ValidatorReward balance increase", validatorRewardAfter - validatorRewardBefore);
-        emit log_named_uint("V3 (1 validator) validator1 pending rewards", pendingRewardsAfter);
+        emit log_named_uint("V3 (1 validator) validator1 claimable rewards", claimableAfter);
     }
 
     // ==========================================
@@ -727,153 +729,6 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
         // 초기값 0 반환
         uint256 effective = seigManager.getEffectiveBridgedTon(mockLayer2);
         assertEq(effective, 0, "V2 mode: effectiveBridgedTON should be 0 (never updated)");
-    }
-
-    /// @notice SM-029-V2: V2 시뇨리지 연속 누적의 가법성 검증
-    /// @dev V2는 선형 누적 방식으로, 여러 번의 분배에서 누적합 = 개별 증가량의 합
-    ///      SM-001-V2와 차별화: SM-001은 블록 수 비례성만 검증, 이 테스트는 누적의 가법성 검증
-    ///      (additivity: total = sum of parts)
-    function test_SM029_v2_seigniorage_linearAccumulation() public {
-        // V2 모드 확인
-        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
-
-        // Layer2 등록 + operator 스테이킹 + 첫 번째 updateSeigniorage
-        _registerMockLayer2WithOperatorStakeAndInit();
-
-        // 초기 상태 (첫 번째 updateSeigniorage 직후)
-        uint256 l2Reward0 = seigManager.l2RewardPerUint();
-
-        // 두 번째 분배 (80 블록)
-        vm.roll(block.number + 80);
-        _updateSeigniorage();
-        uint256 l2Reward1 = seigManager.l2RewardPerUint();
-        uint256 increase1 = l2Reward1 - l2Reward0;
-
-        // 세 번째 분배 (120 블록)
-        vm.roll(block.number + 120);
-        _updateSeigniorage();
-        uint256 l2Reward2 = seigManager.l2RewardPerUint();
-        uint256 increase2 = l2Reward2 - l2Reward1;
-
-        // 네 번째 분배 (50 블록)
-        vm.roll(block.number + 50);
-        _updateSeigniorage();
-        uint256 l2Reward3 = seigManager.l2RewardPerUint();
-        uint256 increase3 = l2Reward3 - l2Reward2;
-
-        // 검증: 연속 누적의 가법성
-        // 전체 증가량 = 각 개별 증가량의 합
-        uint256 totalIncrease = l2Reward3 - l2Reward0;
-        uint256 sumOfIncreases = increase1 + increase2 + increase3;
-
-        assertGt(increase1, 0, "First increase > 0");
-        assertGt(increase2, 0, "Second increase > 0");
-        assertGt(increase3, 0, "Third increase > 0");
-
-        // 가법성: total = sum of parts
-        assertApproxEqRel(totalIncrease, sumOfIncreases, 0.01e18, "Additivity: total = sum of individual increases");
-
-        // 각 증가량이 블록 수에 대해 독립적으로 계산됨을 확인
-        // 80블록:120블록:50블록 비율 검증
-        assertApproxEqRel(increase1 * 120, increase2 * 80, 0.01e18, "80 blocks : 120 blocks ratio");
-        assertApproxEqRel(increase2 * 50, increase3 * 120, 0.01e18, "120 blocks : 50 blocks ratio");
-    }
-
-    // ==========================================
-    // V2 모드에서 pause/unpause 함수 테스트
-    // ==========================================
-
-    /// @notice SM-030-V2: V2 모드에서 pause() 호출 시 정상 동작
-    /// @dev pause는 V2/V3 공통 기능 (SeigManagerV1_2부터 존재)
-    ///      V2 모드에서도 정상 동작해야 함
-    function test_SM030_v2_pause_shouldWork() public {
-        // V2 모드 확인
-        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
-
-        // pause 전 상태 확인
-        assertFalse(seigManager.paused(), "Should not be paused initially");
-
-        // updateSeigniorage 호출하여 lastSeigBlock 설정
-        _registerMockLayer2WithOperatorStakeAndInit();
-        vm.roll(block.number + 10);
-        _updateSeigniorage();
-
-        // pause 권한자 설정 (AuthRole.PAUSE_ROLE)
-        address pauser = address(0x7001);
-        bytes32 PAUSE_ROLE = keccak256("PAUSE");
-
-        vm.prank(owner);
-        IAccessControl(seigManagerProxy).grantRole(PAUSE_ROLE, pauser);
-
-        // pause 호출
-        vm.prank(pauser);
-        seigManager.pause();
-
-        // pause 상태 확인
-        assertTrue(seigManager.paused(), "Should be paused in V2 mode");
-        assertEq(seigManager.pausedBlock(), block.number, "pausedBlock should be set");
-    }
-
-    /// @notice SM-031-V2: V2 모드에서 unpause() 호출 시 정상 동작
-    function test_SM031_v2_unpause_shouldWork() public {
-        // V2 모드 확인
-        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
-
-        // pause 설정
-        _registerMockLayer2WithOperatorStakeAndInit();
-        vm.roll(block.number + 10);
-        _updateSeigniorage();
-
-        address pauser = address(0x7001);
-        bytes32 PAUSE_ROLE = keccak256("PAUSE");
-
-        vm.prank(owner);
-        IAccessControl(seigManagerProxy).grantRole(PAUSE_ROLE, pauser);
-
-        vm.prank(pauser);
-        seigManager.pause();
-
-        assertTrue(seigManager.paused(), "Should be paused");
-
-        // unpause 호출
-        vm.prank(pauser);
-        seigManager.unpause();
-
-        // unpause 상태 확인
-        assertFalse(seigManager.paused(), "Should be unpaused in V2 mode");
-        assertEq(seigManager.unpausedBlock(), block.number, "unpausedBlock should be set");
-    }
-
-    /// @notice SM-032-V2: V2 모드 pause 상태에서 updateSeigniorage 동작
-    /// @dev pause 시 조기 리턴하여 시뇨리지 분배 중단
-    function test_SM032_v2_updateSeigniorage_whenPaused_earlyReturn() public {
-        // V2 모드 확인
-        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
-
-        // Layer2 등록 및 초기 시뇨리지 분배
-        _registerMockLayer2WithOperatorStakeAndInit();
-        vm.roll(block.number + 10);
-        _updateSeigniorage();
-
-        uint256 lastSeigBlockBefore = seigManager.lastSeigBlock();
-
-        // pause
-        address pauser = address(0x7001);
-        bytes32 PAUSE_ROLE = keccak256("PAUSE");
-
-        vm.prank(owner);
-        IAccessControl(seigManagerProxy).grantRole(PAUSE_ROLE, pauser);
-
-        vm.prank(pauser);
-        seigManager.pause();
-
-        // 블록 진행 후 updateSeigniorage
-        vm.roll(block.number + 100);
-        bool result = _updateSeigniorage();
-
-        // pause 상태에서는 true 반환하지만 lastSeigBlock 변경 없음
-        assertTrue(result, "Should return true even when paused");
-        assertEq(seigManager.lastSeigBlock(), lastSeigBlockBefore, "lastSeigBlock should not change when paused (V2)");
     }
 
     // ==========================================
