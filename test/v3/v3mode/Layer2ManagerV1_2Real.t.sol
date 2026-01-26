@@ -65,25 +65,23 @@ contract Layer2ManagerV3RealTest is Test, DeployV3Full {
     // 배포 상태 테스트
     // ==========================================
 
-    /// @notice L2M-001: 배포된 컨트랙트들이 서로 연결되어 있는지 확인
-    function test_L2M001_deployedContractsConnected() public view {
-        assertTrue(layer2ManagerProxy != address(0), "Layer2Manager deployed");
-        assertTrue(l1BridgeRegistryProxy != address(0), "L1BridgeRegistry deployed");
-        assertTrue(seigManagerProxy != address(0), "SeigManager deployed");
-    }
-
-    /// @notice L2M-002: Layer2Manager 초기화 상태 확인
-    function test_L2M002_layer2Manager_initialized() public view {
+    /// @notice L2M-001: Layer2Manager 초기화 상태 확인
+    function test_L2M001_layer2Manager_initialized() public view {
+        // 필수 컨트랙트 연결 확인
         assertEq(layer2Manager.l1BridgeRegistry(), l1BridgeRegistryProxy, "L1BridgeRegistry connected");
         assertEq(layer2Manager.ton(), ton, "TON connected");
+        assertEq(layer2Manager.wton(), wton, "WTON connected");
+        assertEq(layer2Manager.depositManager(), depositManagerProxy, "DepositManager connected");
+        assertEq(layer2Manager.seigManager(), seigManagerProxy, "SeigManager connected");
+        assertEq(layer2Manager.operatorManagerFactory(), operatorManagerFactory, "OperatorManagerFactory connected");
     }
 
     // ==========================================
     // getBridgedTon Tests
     // ==========================================
 
-    /// @notice L2M-003: 미등록 rollupConfig의 getBridgedTon은 0 반환
-    function test_L2M003_getBridgedTon_unregisteredRollup() public view {
+    /// @notice L2M-002: 미등록 rollupConfig의 getBridgedTon은 0 반환
+    function test_L2M002_getBridgedTon_unregisteredRollup() public view {
         uint256 bridgedTON = layer2Manager.getBridgedTon(rollupConfig1);
         assertEq(bridgedTON, 0, "Unregistered rollupConfig should return 0");
     }
@@ -92,8 +90,8 @@ contract Layer2ManagerV3RealTest is Test, DeployV3Full {
     // getBridgedTonByLayer Tests
     // ==========================================
 
-    /// @notice L2M-004: operator 없는 layer2의 getBridgedTonByLayer는 0 반환
-    function test_L2M004_getBridgedTonByLayer_noOperator() public view {
+    /// @notice L2M-003: operator 없는 layer2의 getBridgedTonByLayer는 0 반환
+    function test_L2M003_getBridgedTonByLayer_noOperator() public view {
         uint256 bridgedTON = layer2Manager.getBridgedTonByLayer(layer2_1);
         assertEq(bridgedTON, 0, "No operator should return 0");
     }
@@ -102,8 +100,8 @@ contract Layer2ManagerV3RealTest is Test, DeployV3Full {
     // getLayer2BySystemConfig Tests
     // ==========================================
 
-    /// @notice L2M-005: 미등록 systemConfig의 getLayer2BySystemConfig는 address(0) 반환
-    function test_L2M005_getLayer2BySystemConfig_unregistered() public view {
+    /// @notice L2M-004: 미등록 systemConfig의 getLayer2BySystemConfig는 address(0) 반환
+    function test_L2M004_getLayer2BySystemConfig_unregistered() public view {
         address layer2 = layer2Manager.getLayer2BySystemConfig(rollupConfig1);
         assertEq(layer2, address(0), "Unregistered should return address(0)");
     }

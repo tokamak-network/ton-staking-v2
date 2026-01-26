@@ -137,7 +137,6 @@ contract SimpleSeigManagerV3 {
     uint256 public minStakingRatio;           // θ
     uint256 public validatorDistributionRatio; // α
     uint256 public halfSaturationPoint;       // k
-    uint256 public stakedSeigFactor;          // λ
     uint256 public relativeSeigRate;          // r
 
     // 분배 상태
@@ -215,14 +214,12 @@ contract SimpleSeigManagerV3 {
         uint256 _theta,
         uint256 _alpha,
         uint256 _k,
-        uint256 _lambda,
         uint256 _r
     ) external {
         daoDistributionRatio = _d;
         minStakingRatio = _theta;
         validatorDistributionRatio = _alpha;
         halfSaturationPoint = _k;
-        stakedSeigFactor = _lambda;
         relativeSeigRate = _r;
     }
 
@@ -281,38 +278,18 @@ contract SimpleSeigManagerV3 {
         // A = 전체 기간 시뇨리지
         uint256 A = span * seigPerBlock;
 
-        // TON/WTON 총 공급량
-        uint256 T = SeigniorageFormulaMockTON(ton).totalSupply();
-        uint256 S = MockWTON(wton).totalSupply();
-
-        if (T == 0) T = 1e27; // 0 나눗셈 방지
-
         // ========================================
-        // Step 1: 스테이커 지분 시뇨리지 (λ 적용)
-        // S_staked = λ · A · (S / T)
-        // V3: λ=0 설정 가능 (스테이커 시뇨리지 제거)
-        // V2 호환: λ 미설정 시 기본값 사용 안 함 (명시적 설정 필요)
+        // Step 1: 스테이커 추가 시뇨리지 (r 적용)
+        // S_relative = A · r
         // ========================================
-        uint256 S_staked = rmul(rmul(A, stakedSeigFactor), rdiv(S, T));
+        uint256 S_relative = rmul(A, relativeSeigRate);
 
-        // A₁ = A - S_staked
-        uint256 A1 = A > S_staked ? A - S_staked : 0;
-
-        // ========================================
-        // Step 2: 스테이커 추가 시뇨리지 (r 적용)
-        // S_relative = A₁ · r
-        // ========================================
-        uint256 S_relative = rmul(A1, relativeSeigRate);
-
-        // A₂ = A₁ - S_relative (V3 분배 재원)
-        uint256 A2 = A1 > S_relative ? A1 - S_relative : 0;
-
-        // 스테이커 총 시뇨리지
-        uint256 totalStakerSeig = S_staked + S_relative;
+        // A₂ = A - S_relative (V3 분배 재원)
+        uint256 A2 = A > S_relative ? A - S_relative : 0;
 
         // Tot factor 업데이트 (스테이커 분배)
-        if (totalStakerSeig > 0) {
-            MockWTON(wton).mint(depositManager, totalStakerSeig);
+        if (S_relative > 0) {
+            MockWTON(wton).mint(depositManager, S_relative);
         }
 
         // ========================================
@@ -336,12 +313,12 @@ contract SimpleSeigManagerV3 {
 
         // 결과 저장
         lastTotalSeig = A;
-        lastStakerSeig = totalStakerSeig;
+        lastStakerSeig = S_relative;
         lastDaoSeig = daoSeig;
         lastValidatorSeig = validatorSeig;
         lastSequencerSeig = sequencerSeig;
 
-        emit SeigniorageDistributed(A, totalStakerSeig, daoSeig, validatorSeig, sequencerSeig);
+        emit SeigniorageDistributed(A, S_relative, daoSeig, validatorSeig, sequencerSeig);
 
         return true;
     }
@@ -489,7 +466,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,  // θ = 10% (최소 스테이킹)
             0.2e27,  // α = 20% (검증자)
             1000e27, // k = 1000
-            RAY,     // λ = 1 (V2 모드)
             0.4e27   // r = 40%
         );
 
@@ -527,7 +503,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,  // θ = 10%
             0.2e27,  // α = 20%
             1000e27, // k = 1000
-            RAY,     // λ = 1
             0.4e27   // r = 40%
         );
 
@@ -554,7 +529,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,  // θ = 10%
             0.2e27,  // α = 20%
             500e27,  // k = 500
-            0,       // λ = 0 (V3 완전 모드)
             0        // r = 0
         );
 
@@ -592,48 +566,6 @@ contract SeigniorageFormulaValidation is Test {
     // 2. V2→V3 점진적 전환 테스트
     // ==========================================
 
-    /// @notice SD-006: λ 감소에 따른 스테이커 시뇨리지 감소
-    /// @dev λ=0일 때도 r > 0이면 S_relative가 남음
-    ///      완전한 V3 모드(λ=0, r=0)에서만 staker seig = 0
-    function test_SD006_transitionLambdaDecrease() public {
-        seigManager.migrateToV3();
-        seigManager.registerL2(layer2_1, 500e27, 100e27);
-
-        uint256[] memory lambdaValues = new uint256[](5);
-        lambdaValues[0] = RAY;       // 100%
-        lambdaValues[1] = 0.75e27;   // 75%
-        lambdaValues[2] = 0.5e27;    // 50%
-        lambdaValues[3] = 0.25e27;   // 25%
-        lambdaValues[4] = 0;         // 0%
-
-        uint256 prevStakerSeig = type(uint256).max;
-
-        for (uint256 i = 0; i < lambdaValues.length; i++) {
-            seigManager.setV3Parameters(
-                0.1e27,
-                0.1e27,
-                0.2e27,
-                500e27,
-                lambdaValues[i],
-                0.4e27
-            );
-
-            vm.roll(block.number + 100);
-            seigManager.updateSeigniorage();
-
-            uint256 stakerSeig = seigManager.lastStakerSeig();
-
-            // λ 감소 → 스테이커 시뇨리지 감소
-            assertTrue(stakerSeig <= prevStakerSeig, "Staker seig should decrease as lambda decreases");
-            prevStakerSeig = stakerSeig;
-        }
-
-        // λ=0, r=0.4일 때: S_staked=0, S_relative = A * r = 0.4 * A
-        // 따라서 stakerSeig > 0 (S_relative 때문)
-        // 완전한 V3 모드(λ=0, r=0)에서만 staker seig = 0
-        assertTrue(prevStakerSeig > 0, "With r>0, staker seig includes S_relative even at lambda=0");
-    }
-
     /// @notice SD-007: r 감소에 따른 V3 분배 재원 증가
     function test_SD007_transitionRDecrease() public {
         seigManager.migrateToV3();
@@ -653,7 +585,6 @@ contract SeigniorageFormulaValidation is Test {
                 0.1e27,
                 0.2e27,
                 500e27,
-                RAY,      // λ = 1 고정
                 rValues[i]
             );
 
@@ -679,7 +610,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,  // θ = 10%
             0.2e27,  // α = 20%
             1000e27, // k = 1000
-            0,       // λ = 0
             0        // r = 0
         );
 
@@ -720,7 +650,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,  // θ = 10%
             0.2e27,
             500e27,
-            0,
             0
         );
 
@@ -751,7 +680,7 @@ contract SeigniorageFormulaValidation is Test {
 
     /// @notice 슬래싱된 L2는 분배에서 제외
     function test_SD014_slashedL2Excluded() public {
-        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
+        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0);
         seigManager.migrateToV3();
 
         seigManager.registerL2(layer2_1, 500e27, 100e27);
@@ -778,7 +707,7 @@ contract SeigniorageFormulaValidation is Test {
 
     /// @notice 모든 L2 슬래싱 시 전액 DAO로
     function test_SD015_allL2Slashed_allToDAO() public {
-        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
+        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0);
         seigManager.migrateToV3();
 
         seigManager.registerL2(layer2_1, 500e27, 100e27);
@@ -811,7 +740,7 @@ contract SeigniorageFormulaValidation is Test {
 
     /// @notice SD-009: 여러 번 연속 updateSeigniorage 호출
     function test_SD009_consecutiveUpdates() public {
-        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
+        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0);
         seigManager.migrateToV3();
         seigManager.registerL2(layer2_1, 500e27, 100e27);
 
@@ -842,7 +771,7 @@ contract SeigniorageFormulaValidation is Test {
 
     /// @notice x가 증가할수록 y는 L에 수렴
     function test_EDGE003_hyperbolicSaturationConvergence() public {
-        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0, 0);
+        seigManager.setV3Parameters(0.1e27, 0.1e27, 0.2e27, 500e27, 0);
         seigManager.migrateToV3();
 
         uint256 prevY = 0;
@@ -882,7 +811,6 @@ contract SeigniorageFormulaValidation is Test {
             0.1e27,
             0,       // α = 0 (검증자 없음, 전액 시퀀서)
             k,       // k = 500
-            0,       // λ = 0
             0        // r = 0
         );
 

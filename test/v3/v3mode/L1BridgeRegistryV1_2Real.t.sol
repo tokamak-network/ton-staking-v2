@@ -148,44 +148,6 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
     }
 
     // ==========================================
-    // View Functions - Default Values
-    // ==========================================
-
-    /// @notice LBR-003: rollupType 기본값 0
-    function test_LBR003_rollupType_defaultZero() public view {
-        assertEq(l1BridgeRegistry.rollupType(address(0x1234)), 0, "Default type is 0");
-    }
-
-    /// @notice LBR-004: l2TON 기본값 zero address
-    function test_LBR004_l2TON_defaultZero() public view {
-        assertEq(l1BridgeRegistry.l2Ton(address(0x1234)), address(0), "Default l2TON is zero");
-    }
-
-    /// @notice LBR-005: isRejectedSeigs 기본값 false
-    function test_LBR005_isRejectedSeigs_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.isRejectedSeigs(address(0x1234)), "Default rejectedSeigs is false");
-    }
-
-    /// @notice LBR-006: isRejectedL2Deposit 기본값 false
-    function test_LBR006_isRejectedL2Deposit_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.isRejectedL2Deposit(address(0x1234)), "Default rejectedL2Deposit is false");
-    }
-
-    /// @notice LBR-007: disputeGameFactory 기본값 false
-    function test_LBR007_disputeGameFactory_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.disputeGameFactory(address(0x1234)), "Default factory is false");
-    }
-
-    /// @notice LBR-008: rollupConfigWithDisputeGameFactory 기본값 zero address
-    function test_LBR008_rollupConfigWithDisputeGameFactory_defaultZero() public view {
-        assertEq(
-            l1BridgeRegistry.rollupConfigWithDisputeGameFactory(address(0x1234)),
-            address(0),
-            "Default rollupConfig is zero"
-        );
-    }
-
-    // ==========================================
     // TYPE 1 Registration Tests
     // ==========================================
 

@@ -163,14 +163,12 @@ contract SeigManagerV3_1RealTest is Test, DeployV3Full {
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(RAY);
 
         // 확인
         assertEq(seigManager.daoDistributionRatio(), 0.1e27, "d = 10%");
         assertEq(seigManager.minStakingRatio(), 0.1e27, "theta = 10%");
         assertEq(seigManager.validatorDistributionRatio(), 0.2e27, "alpha = 20%");
         assertEq(seigManager.halfSaturationPoint(), 1000e27, "k = 1000");
-        assertEq(seigManager.stakedSeigFactor(), RAY, "lambda = 1");
     }
 
     // ==========================================
@@ -200,22 +198,6 @@ contract SeigManagerV3_1RealTest is Test, DeployV3Full {
     // ==========================================
     // Governance Setter 함수 테스트
     // ==========================================
-
-    function test_SM013_setStakedSeigFactor_basic() public {
-        seigManager.setStakedSeigFactor(0.5e27);
-        assertEq(seigManager.stakedSeigFactor(), 0.5e27, "Should set lambda to 0.5");
-
-        seigManager.setStakedSeigFactor(RAY);
-        assertEq(seigManager.stakedSeigFactor(), RAY, "Should set lambda to 1.0");
-
-        seigManager.setStakedSeigFactor(0);
-        assertEq(seigManager.stakedSeigFactor(), 0, "Should set lambda to 0");
-    }
-
-    function test_SM014_setStakedSeigFactor_exceedsRAY_reverts() public {
-        vm.expectRevert(InvalidParameterError.selector);
-        seigManager.setStakedSeigFactor(RAY + 1);
-    }
 
     function test_SM015_setMaxChallengers_basic() public {
         seigManager.setMaxChallengers(5);
@@ -251,12 +233,6 @@ contract SeigManagerV3_1RealTest is Test, DeployV3Full {
     // ==========================================
     // onlyOwner 권한 테스트
     // ==========================================
-
-    function test_SM019_setStakedSeigFactor_notOwner_reverts() public {
-        vm.prank(address(0x9999));
-        vm.expectRevert();
-        seigManager.setStakedSeigFactor(0.5e27);
-    }
 
     function test_SM024_setMaxChallengers_notOwner_reverts() public {
         vm.prank(address(0x9999));

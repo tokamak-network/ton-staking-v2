@@ -1,28 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "forge-std/Test.sol";
-import "../../../script/DeployV3Full.s.sol";
+import "../helpers/V3TestBase.sol";
 import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
-import {RAT, MaxValidatorsReachedError, TestAlreadyExistsError} from "../../../src/validator/RAT.sol";
+import {
+    MaxValidatorsReachedError,
+    TestAlreadyExistsError,
+    AlreadyRegisteredError,
+    InsufficientCollateralError,
+    DeadlinePassedError,
+    NotSelectedValidatorError
+} from "../../../src/validator/RAT.sol";
 import {RATStorage} from "../../../src/validator/RATStorage.sol";
 import {RATConfigParams} from "../../../src/validator/RATTypes.sol";
-import {Layer2Registry} from "../../../src/stake/Layer2Registry.sol";
 import {RefactorCoinageSnapshotI} from "../../../src/stake/interfaces/RefactorCoinageSnapshotI.sol";
-
-// Shared Mock contracts
-import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "../helpers/V3TestMocks.sol";
-
-// DAO Contracts
-import {DAOCommitteeProxy2} from "../../../src/proxy/DAOCommitteeProxy2.sol";
-import {DAOCommittee_V1} from "../../../src/dao/DAOCommittee_V1.sol";
-import {DAOCommitteeOwner} from "../../../src/dao/DAOCommitteeOwner.sol";
-import {Candidate} from "../../../src/dao/Candidate.sol";
-import {CandidateAddOnV1_1} from "../../../src/dao/CandidateAddOnV1_1.sol";
-import {CandidateFactory} from "../../../src/dao/factory/CandidateFactory.sol";
-import {CandidateFactoryProxy} from "../../../src/dao/factory/CandidateFactoryProxy.sol";
-import {CandidateAddOnFactory} from "../../../src/dao/factory/CandidateAddOnFactory.sol";
-import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddOnFactoryProxy.sol";
 
 /// @notice Mock FaultDisputeGame that provides systemConfig() for RAT.resolveClaim()
 contract MockFaultDisputeGame {
@@ -35,41 +26,8 @@ contract MockFaultDisputeGame {
 
 /// @title RATTest
 /// @notice RAT (Randomized Attention Test) V3 단위 테스트
-/// @dev 실제 컨트랙트를 사용하여 통합 테스트 수행
-contract RATTest is Test, DeployV3Full {
-    // ==========================================
-    // Contracts
-    // ==========================================
-    SeigManagerV3_1 public seigManager;
-    Layer2ManagerV3 public layer2Manager;
-    L1BridgeRegistryV1_2 public l1BridgeRegistry;
-    DepositManagerV3 public depositManager;
-    Layer2Registry public layer2Registry;
-    RAT public rat;
-
-    // ==========================================
-    // Mock Contracts for TYPE 3
-    // ==========================================
-    SimpleMockSystemConfig public mockSystemConfig;
-    address public mockL1Bridge;
-    address public mockPortal;
-    address public mockDisputeGameFactory;
-    address public mockL2TON;
-    address public mockLayer2;
-    address public operatorManager;
-
-    // ==========================================
-    // DAO Contracts
-    // ==========================================
-    address public daoCommitteeProxy;
-    address public daoCommitteeProxy2;
-    address public daoCommitteeV1;
-    address public daoCommitteeOwner;
-    address public candidateImpl;
-    address public candidateAddOnImpl;
-    address public candidateFactoryProxy;
-    address public candidateAddOnFactoryProxy;
-
+/// @dev V3TestBase를 활용하여 통합 테스트 수행
+contract RATTest is V3TestBase {
     // ==========================================
     // Additional Mock for second L2
     // ==========================================
@@ -79,12 +37,9 @@ contract RATTest is Test, DeployV3Full {
     address public operatorManager2;
 
     // ==========================================
-    // Test Addresses
+    // Test Addresses (file-specific)
     // ==========================================
-    address public admin;
-    address public owner;
     address public factory;
-    address public operator1 = address(0x4001);
     address public operator2 = address(0x4002);
     address public validator1 = address(0x6001);
     address public validator2 = address(0x6002);
@@ -92,9 +47,6 @@ contract RATTest is Test, DeployV3Full {
     address public treasury = address(0x9001);
 
     MockFaultDisputeGame public mockGame1;
-
-    uint256 internal constant RAY = 1e27;
-    uint256 constant INITIAL_TON = 100_000 * 1e18;
 
     uint256 public slashingPenalty = 100e27;
     uint256 public validatorBuffer = 100e27;
@@ -107,49 +59,10 @@ contract RATTest is Test, DeployV3Full {
     uint256 public attentionCost = 1e27;
     bool public relaxedValidatorCheck = true;
 
-    /// @notice Override to use separate admin address for TransparentUpgradeableProxy
-    function _getProxyAdmin(address) internal view override returns (address) {
-        return admin;
-    }
-
     function setUp() public {
-        admin = address(0x9999);
-        owner = address(this);
-        proxyAdmin = admin;
+        _v3TestSetup();
 
         vm.startPrank(owner);
-
-        // 전체 시스템 배포
-        _deployTokens();
-        _deployCoinageInfrastructure(owner);
-        _deployLayer2Registry(owner);
-        _deployManagerProxies();
-        _deployManagerImplementations();
-        _initializeManagers(owner);
-        _setupMinterPermissions();
-        _deployOperatorManagerFactory(owner);
-
-        // DAO 배포
-        _deployDAO();
-
-        // V3 컨트랙트 배포
-        _deployV3Contracts(owner);
-
-        // Register all V3 selectors for test functionality
-        _setupSeigManagerV3AllTestSelectors();
-
-        _setupCrossReferences(owner);
-
-        // 컨트랙트 참조
-        seigManager = SeigManagerV3_1(seigManagerProxy);
-        layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
-        l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
-        depositManager = DepositManagerV3(depositManagerProxy);
-        layer2Registry = Layer2Registry(layer2RegistryProxy);
-        rat = RAT(ratProxy);
-
-        // minimumAmount 설정 (operator 최소 스테이킹 요구사항: 100 WTON)
-        SeigManagerV1_2(seigManagerProxy).setMinimumAmount(100e27);
 
         // RAT 파라미터 설정
         rat.setSlashingPenalty(slashingPenalty);
@@ -163,9 +76,6 @@ contract RATTest is Test, DeployV3Full {
         rat.setRelaxedValidatorCheck(relaxedValidatorCheck);
         rat.setMaxValidatorsPerL2(maxValidatorsPerL2);
         rat.setTreasury(treasury);
-
-        // Mock 컨트랙트 생성
-        _setupMockContracts();
 
         // Layer2 등록 (systemConfig1)
         (mockLayer2, operatorManager) = _registerLayer2WithSystemConfig(
@@ -182,16 +92,8 @@ contract RATTest is Test, DeployV3Full {
         // MockFaultDisputeGame 생성 (systemConfig1 사용)
         mockGame1 = new MockFaultDisputeGame(address(mockSystemConfig));
 
-        // SeigManager에 RAT 컨트랙트 주소 설정
-        seigManager.setRatContract(address(rat));
-
-        // 테스트 환경을 위한 seigniorage 시작 블록 및 초기 공급량 설정
-        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(block.number);
-        SeigManagerV1_2(seigManagerProxy).setInitialTotalSupply(50000000e27);
-
-        // V3 파라미터 설정 및 마이그레이션
-        _setV3ParametersForTest();
-        seigManager.migrateToV3();
+        // V3 설정 및 마이그레이션
+        _setupV3AndMigrate();
 
         vm.stopPrank();
 
@@ -201,194 +103,48 @@ contract RATTest is Test, DeployV3Full {
         _stakeForValidator(validator3, mockLayer2, 700 * RAY);
     }
 
-    function _setupMockContracts() internal {
-        mockL1Bridge = address(0x8001);
-        mockPortal = address(0x8002);
-        mockDisputeGameFactory = address(0x8003);
-        mockL2TON = address(0x8004);
-
-        mockSystemConfig = new SimpleMockSystemConfig();
-        mockSystemConfig.setL1StandardBridge(mockL1Bridge);
-        mockSystemConfig.setOptimismPortal(mockPortal);
-        mockSystemConfig.setDisputeGameFactory(mockDisputeGameFactory);
-        mockSystemConfig.setUnsafeBlockSigner(operator1);
-    }
-
-    function _deployDAO() internal {
-        MockDAOCommitteeProxy mockProxy = new MockDAOCommitteeProxy(ton);
-        daoCommitteeProxy = address(mockProxy);
-
-        daoCommitteeProxy2 = address(new DAOCommitteeProxy2());
-        daoCommitteeV1 = address(new DAOCommittee_V1());
-        daoCommitteeOwner = address(new DAOCommitteeOwner());
-
-        mockProxy.upgradeTo(daoCommitteeProxy2);
-        IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoCommitteeV1);
-        IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
-
-        bytes4[] memory ownerSelectors = new bytes4[](17);
-        ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
-        ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
-        ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
-        ownerSelectors[3] = DAOCommitteeOwner.setSeigManager.selector;
-        ownerSelectors[4] = DAOCommitteeOwner.setDaoVault.selector;
-        ownerSelectors[5] = DAOCommitteeOwner.setLayer2Registry.selector;
-        ownerSelectors[6] = DAOCommitteeOwner.setAgendaManager.selector;
-        ownerSelectors[7] = DAOCommitteeOwner.setCandidateFactory.selector;
-        ownerSelectors[8] = DAOCommitteeOwner.setTon.selector;
-        ownerSelectors[9] = DAOCommitteeOwner.setWton.selector;
-        ownerSelectors[10] = DAOCommitteeOwner.increaseMaxMember.selector;
-        ownerSelectors[11] = DAOCommitteeOwner.setQuorum.selector;
-        ownerSelectors[12] = DAOCommitteeOwner.decreaseMaxMember.selector;
-        ownerSelectors[13] = DAOCommitteeOwner.setActivityRewardPerSecond.selector;
-        ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
-        ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
-        ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
-
-        IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(
-            ownerSelectors,
-            daoCommitteeOwner
-        );
-
-        candidateImpl = address(new Candidate());
-        candidateAddOnImpl = address(new CandidateAddOnV1_1());
-
-        CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
-        candidateFactoryProxy = address(cfProxy);
-        cfProxy.upgradeTo(address(new CandidateFactory()));
-
-        CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
-        candidateAddOnFactoryProxy = address(caofProxy);
-        caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
-
-        CandidateFactory(candidateFactoryProxy).setAddress(
-            depositManagerProxy,
-            daoCommitteeProxy,
-            candidateImpl,
-            ton,
-            wton
-        );
-
-        CandidateAddOnFactory(candidateAddOnFactoryProxy).setAddress(
-            depositManagerProxy,
-            daoCommitteeProxy,
-            candidateAddOnImpl,
-            ton,
-            wton,
-            l1BridgeRegistryProxy
-        );
-
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
-
-        Layer2Registry(layer2RegistryProxy).addMinter(daoCommitteeProxy);
-    }
-
-    function _registerLayer2WithSystemConfig(
-        address systemConfig,
-        address l2TON,
-        string memory name,
-        address operator,
-        uint256 operatorDeposit
-    ) internal returns (address layer2, address operatorMgr) {
-        vm.startPrank(owner);
-
-        if (!l1BridgeRegistry.isManager(owner)) {
-            l1BridgeRegistry.addManager(owner);
-        }
-        if (!l1BridgeRegistry.isRegistrant(owner)) {
-            l1BridgeRegistry.addRegistrant(owner);
-        }
-
-        l1BridgeRegistry.registerRollupConfig(
-            systemConfig,
-            3,
-            l2TON,
-            name
-        );
-        vm.stopPrank();
-
-        vm.startPrank(operator);
-        MockWTON(wton).mint(operator, operatorDeposit);
-        MockWTON(wton).approve(layer2ManagerProxy, operatorDeposit);
-
-        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
-            systemConfig,
-            operatorDeposit,
-            false,
-            name
-        );
-        vm.stopPrank();
-
-        layer2 = Layer2ManagerV3(layer2ManagerProxy).getLayer2BySystemConfig(systemConfig);
-        operatorMgr = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(systemConfig);
-    }
-
-    function _setupCrossReferences(address) internal override {
-        SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
-        SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
-
-        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
-            l1BridgeRegistryProxy,
-            operatorManagerFactory,
-            ton,
-            wton
-        );
-        Layer2ManagerV3(layer2ManagerProxy).setAddresses2(
-            daoCommitteeProxy,
-            depositManagerProxy,
-            seigManagerProxy,
-            address(0)
-        );
-
-        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
-            layer2ManagerProxy,
-            seigManagerProxy,
-            ton
-        );
-
-        OperatorManagerFactory(operatorManagerFactory).setAddresses(
-            depositManagerProxy,
-            ton,
-            wton,
-            layer2ManagerProxy
-        );
-
-        DepositManagerV3(depositManagerProxy).setAddresses(
-            l1BridgeRegistryProxy,
-            layer2ManagerProxy
-        );
-    }
-
-    /// @notice 검증자 스테이킹 헬퍼
-    /// @param amount WTON 단위 (1e27 = 1 WTON)
-    function _stakeForValidator(address validator, address layer2, uint256 amount) internal {
-        vm.startPrank(validator);
-        MockWTON(wton).mint(validator, amount);
-        MockWTON(wton).approve(depositManagerProxy, amount);
-        depositManager.deposit(layer2, validator, amount);
-        vm.stopPrank();
-    }
-
-    /// @notice 검증자 스테이크 조회 헬퍼
-    function _getValidatorStake(address layer2, address validator) internal view returns (uint256) {
-        return seigManager.stakeOf(layer2, validator);
-    }
-
     // ==========================================
     // 기본 테스트
     // ==========================================
 
-    function test_RAT010_getDynamicMinimumCollateral() public view {
-        // N=1 (기본값), attentionCost=0 이면 C_off = slashingPenalty
-        uint256 minCollateral = rat.getDynamicMinimumCollateral(address(mockSystemConfig));
-        assertEq(minCollateral, slashingPenalty + validatorBuffer);
+    function test_RAT010_getDynamicMinimumCollateral() public {
+        // D_min = max(slashingPenalty, (c_m × N × RAY) / π_a) + validatorBuffer
+        // 기본값: slashingPenalty=100e27, validatorBuffer=100e27, π_a=1e27 (100%)
+        // NOTE: getDynamicMinimumCollateral은 relaxedValidatorCheck를 무시하고 항상 동적 공식 사용
+
+        // relaxedValidatorCheck 상태 확인 (이 함수는 무시하지만 명시적으로 확인)
+        assertTrue(rat.relaxedValidatorCheck(), "relaxedValidatorCheck should be true (default)");
+
+        // attentionCost 설정 (동적 공식 적용되도록)
+        vm.prank(owner);
+        rat.setAttentionCost(150e27);
+
+        // Case 1: N=1 (검증자 없음, 최소 1명 기준)
+        // C_off = max(100e27, (150e27 × 1 × 1e27) / 1e27) = max(100e27, 150e27) = 150e27
+        // D_min = 150e27 + 100e27 = 250e27
+        uint256 minCollateral1 = rat.getDynamicMinimumCollateral(address(mockSystemConfig));
+        uint256 expectedCoff1 = (150e27 * 1 * RAY) / RAY; // 150e27
+        assertEq(minCollateral1, expectedCoff1 + validatorBuffer, "N=1: D_min = formula + buffer");
+
+        // Case 2: N=3 (검증자 3명 등록)
+        vm.prank(validator1);
+        rat.registerValidator(address(mockSystemConfig));
+        vm.prank(validator2);
+        rat.registerValidator(address(mockSystemConfig));
+        vm.prank(validator3);
+        rat.registerValidator(address(mockSystemConfig));
+
+        // C_off = max(100e27, (150e27 × 3 × 1e27) / 1e27) = max(100e27, 450e27) = 450e27
+        // D_min = 450e27 + 100e27 = 550e27
+        uint256 minCollateral3 = rat.getDynamicMinimumCollateral(address(mockSystemConfig));
+        uint256 expectedCoff3 = (150e27 * 3 * RAY) / RAY; // 450e27
+        assertEq(minCollateral3, expectedCoff3 + validatorBuffer, "N=3: D_min = formula + buffer");
+
+        // N 증가 → D_min 증가 확인
+        assertTrue(minCollateral3 > minCollateral1, "D_min should increase with N");
     }
 
-    function test_RAT012_getCoffWithRelaxedCheck_relaxedMode() public {
+    function test_RAT012a_getCoffWithRelaxedCheck_relaxedMode() public {
         // relaxedValidatorCheck = true (기본값)
         // C_off는 항상 slashingPenalty
 
@@ -404,7 +160,7 @@ contract RATTest is Test, DeployV3Full {
         assertEq(coff, slashingPenalty);
     }
 
-    function test_RAT013_getCoffWithRelaxedCheck_strictMode() public {
+    function test_RAT013a_getCoffWithRelaxedCheck_strictMode() public {
         // relaxedValidatorCheck = false
         // C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
 
@@ -429,18 +185,25 @@ contract RATTest is Test, DeployV3Full {
         assertTrue(coff > slashingPenalty);
     }
 
-    function test_RAT011_getDynamicCoff_withFormula() public view {
-        // attentionCost=1e27 이지만 검증자 0명이므로 slashingPenalty 반환
-        uint256 coff = rat.getDynamicCoff(address(mockSystemConfig));
-        assertEq(coff, slashingPenalty);
-    }
+    function test_RAT011_getDynamicCoff_withFormula() public {
+        // C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
+        // 기본값: slashingPenalty=100e27, π_a=1e27 (100%)
+        // NOTE: getDynamicCoff는 relaxedValidatorCheck를 무시하고 항상 동적 공식 사용
 
-    function test_RAT014_getDynamicCoff_withAttentionCost() public {
-        // attentionCost 설정 후 formula 기반 계산
+        // relaxedValidatorCheck 상태 확인 (이 함수는 무시하지만 명시적으로 확인)
+        assertTrue(rat.relaxedValidatorCheck(), "relaxedValidatorCheck should be true (default)");
+
+        // attentionCost 설정 (동적 공식 적용되도록)
         vm.prank(owner);
-        rat.setAttentionCost(50e27);
+        rat.setAttentionCost(150e27);
 
-        // 검증자 3명 등록
+        // Case 1: N=1 (검증자 없음, 최소 1명 기준)
+        // C_off = max(100e27, (150e27 × 1 × 1e27) / 1e27) = max(100e27, 150e27) = 150e27
+        uint256 coff1 = rat.getDynamicCoff(address(mockSystemConfig));
+        uint256 expectedCoff1 = (150e27 * 1 * RAY) / RAY; // 150e27
+        assertEq(coff1, expectedCoff1, "N=1: C_off = formula");
+
+        // Case 2: N=3 (검증자 3명 등록)
         vm.prank(validator1);
         rat.registerValidator(address(mockSystemConfig));
         vm.prank(validator2);
@@ -448,14 +211,16 @@ contract RATTest is Test, DeployV3Full {
         vm.prank(validator3);
         rat.registerValidator(address(mockSystemConfig));
 
-        uint256 coff = rat.getDynamicCoff(address(mockSystemConfig));
+        // C_off = max(100e27, (150e27 × 3 × 1e27) / 1e27) = max(100e27, 450e27) = 450e27
+        uint256 coff3 = rat.getDynamicCoff(address(mockSystemConfig));
+        uint256 expectedCoff3 = (150e27 * 3 * RAY) / RAY; // 450e27
+        assertEq(coff3, expectedCoff3, "N=3: C_off = formula");
 
-        // 예상값: max(100e27, (50e27 × 3 × 1e27) / 1e27) = 150e27
-        uint256 expected = (50e27 * 3 * RAY) / RAY;
-        assertEq(coff, expected);
+        // N 증가 → C_off 증가 확인
+        assertTrue(coff3 > coff1, "C_off should increase with N");
     }
 
-    function test_RAT012_getMinimumCollateralWithRelaxedCheck_relaxedMode() public view {
+    function test_RAT012b_getMinimumCollateralWithRelaxedCheck_relaxedMode() public view {
         // relaxedValidatorCheck = true (기본값)
         // D_min = C_off + validatorBuffer = slashingPenalty + validatorBuffer
 
@@ -463,7 +228,7 @@ contract RATTest is Test, DeployV3Full {
         assertEq(dmin, slashingPenalty + validatorBuffer);
     }
 
-    function test_RAT013_getMinimumCollateralWithRelaxedCheck_strictMode() public {
+    function test_RAT013b_getMinimumCollateralWithRelaxedCheck_strictMode() public {
         // relaxedValidatorCheck = false
         // D_min = C_off(dynamic) + validatorBuffer
 
@@ -511,18 +276,35 @@ contract RATTest is Test, DeployV3Full {
         address poorValidator = address(0x7777);
         _stakeForValidator(poorValidator, mockLayer2, 100 * RAY); // minimumThreshold(200e27) 미달
 
+        // 스테이킹된 금액 확인
+        uint256 stake = _getValidatorStake(mockLayer2, poorValidator);
+        assertTrue(stake < minimumThreshold, "Stake should be below minimumThreshold");
+
         vm.prank(poorValidator);
-        vm.expectRevert();
+        vm.expectRevert(InsufficientCollateralError.selector);
         rat.registerValidator(address(mockSystemConfig));
+
+        // 검증자 수 변화 없음 확인
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 0, "No validator should be registered");
     }
 
     function test_RAT003_registerValidator_alreadyRegistered() public {
+        // 첫 번째 등록 성공
         vm.prank(validator1);
+        rat.registerValidator(address(mockSystemConfig));
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "First registration success");
+
+        // 등록 상태 확인
+        (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        assertTrue(isActive, "Validator should be active");
+
+        // 중복 등록 시도 → AlreadyRegisteredError
+        vm.prank(validator1);
+        vm.expectRevert(AlreadyRegisteredError.selector);
         rat.registerValidator(address(mockSystemConfig));
 
-        vm.prank(validator1);
-        vm.expectRevert();
-        rat.registerValidator(address(mockSystemConfig));
+        // 검증자 수 변화 없음
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Count unchanged after failed re-registration");
     }
 
     function test_RAT006_registerMultipleValidators() public {
@@ -571,14 +353,20 @@ contract RATTest is Test, DeployV3Full {
     // Note: test_RAT020_triggerAttentionTest moved to RATSeigManagerIntegration.t.sol (INT-020)
 
     function test_RAT022_triggerAttentionTest_noValidators() public {
+        // 검증자 없을 때 triggerAttentionTest는 revert 없이 early return
         uint32 batchIndex = 1;
         bytes32 batchHash = keccak256("batch1");
         bytes32 blockHash = keccak256("block1");
 
+        // 검증자 없음 확인
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 0, "No validators");
+
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), batchIndex, batchHash, blockHash);
 
-        // Should not revert, just return early
+        // 테스트가 생성되지 않았음을 확인
+        bytes32 testId = rat.batchToTestId(address(mockSystemConfig), batchIndex);
+        assertEq(testId, bytes32(0), "No test should be created");
     }
 
     // ==========================================
@@ -605,9 +393,9 @@ contract RATTest is Test, DeployV3Full {
         uint256 evidencePeriod = rat.evidenceSubmissionPeriod();
         vm.warp(block.timestamp + evidencePeriod + 1);
 
-        // deadline 초과 후 증거 제출 시도 → revert 예상
+        // deadline 초과 후 증거 제출 시도 → DeadlinePassedError
         vm.prank(validator1);
-        vm.expectRevert();
+        vm.expectRevert(DeadlinePassedError.selector);
         rat.submitEvidence(address(mockSystemConfig), batchIndex, "late_evidence");
 
         // 검증자의 스테이크가 복구되지 않았는지 확인
@@ -663,10 +451,18 @@ contract RATTest is Test, DeployV3Full {
             assertEq(stake1After, stake1Before, "validator1 should not be slashed");
         }
 
-        // 비선택 검증자가 증거 제출 시도 → revert 예상
+        // 비선택 검증자가 증거 제출 시도 → NotSelectedValidatorError
         vm.prank(notSelectedValidator);
-        vm.expectRevert();
+        vm.expectRevert(NotSelectedValidatorError.selector);
         rat.submitEvidence(address(mockSystemConfig), batchIndex, "evidence_from_wrong_validator");
+
+        // 비선택 검증자의 스테이크 변화 없음 확인
+        uint256 notSelectedStake = _getValidatorStake(mockLayer2, notSelectedValidator);
+        if (notSelectedValidator == validator1) {
+            assertEq(notSelectedStake, stake1Before, "notSelected validator stake unchanged");
+        } else {
+            assertEq(notSelectedStake, stake2Before, "notSelected validator stake unchanged");
+        }
 
         // 선택된 검증자만 증거 제출 가능 (정상 동작 확인)
         vm.prank(selectedValidator);
@@ -674,6 +470,11 @@ contract RATTest is Test, DeployV3Full {
 
         // 선택된 검증자의 스테이크 복구 확인
         assertEq(_getValidatorStake(mockLayer2, selectedValidator), selectedStakeBefore, "selected validator should be restored");
+
+        // 상태 확인: RestoredByEvidence
+        bytes32 testId = rat.batchToTestId(address(mockSystemConfig), batchIndex);
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.RestoredByEvidence), "Status should be RestoredByEvidence");
     }
 
     // ==========================================
@@ -763,20 +564,52 @@ contract RATTest is Test, DeployV3Full {
     // 확률적 트리거 테스트
     // ==========================================
 
-    function test_RAT021_probabilisticTrigger() public {
-        // Set probability to 0 (should never trigger)
+    function test_RAT021a_probabilisticTrigger_zeroProbability() public {
+        // 확률 0% → 트리거 안 됨
         vm.prank(owner);
         rat.setRatTriggerProbability(0);
 
         vm.prank(validator1);
         rat.registerValidator(address(mockSystemConfig));
 
+        uint256 stakeBefore = _getValidatorStake(mockLayer2, validator1);
+
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
 
-        // No test should be created
+        // 테스트 생성 안 됨
         bytes32 testId = rat.batchToTestId(address(mockSystemConfig), 1);
-        assertEq(testId, bytes32(0));
+        assertEq(testId, bytes32(0), "No test created with 0% probability");
+
+        // 스테이크 변화 없음
+        assertEq(_getValidatorStake(mockLayer2, validator1), stakeBefore, "Stake unchanged");
+
+        // 검증자 여전히 활성
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator still active");
+    }
+
+    function test_RAT021b_probabilisticTrigger_fullProbability() public {
+        // 확률 100% (기본값) → 항상 트리거
+        assertEq(rat.ratTriggerProbability(), RAY, "Default probability is 100%");
+
+        vm.prank(validator1);
+        rat.registerValidator(address(mockSystemConfig));
+
+        uint256 stakeBefore = _getValidatorStake(mockLayer2, validator1);
+
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
+
+        // 테스트 생성됨
+        bytes32 testId = rat.batchToTestId(address(mockSystemConfig), 1);
+        assertTrue(testId != bytes32(0), "Test created with 100% probability");
+
+        // 스테이크 슬래싱됨
+        assertEq(_getValidatorStake(mockLayer2, validator1), stakeBefore - slashingPenalty, "Stake slashed");
+
+        // 상태 확인
+        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.EvidencePeriod), "Status is EvidencePeriod");
     }
 
     // ==========================================
@@ -795,53 +628,164 @@ contract RATTest is Test, DeployV3Full {
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), batchIndex, keccak256("batch1"), keccak256("block1"));
 
+        // 테스트 생성 확인
+        bytes32 testId = rat.batchToTestId(address(mockSystemConfig), batchIndex);
+        assertTrue(testId != bytes32(0), "Test should be created");
+
+        // 즉시 슬래싱됨 확인
+        assertEq(_getValidatorStake(mockLayer2, validator1), stakeBefore - slashingPenalty, "Stake slashed immediately");
+
         // deadline + challengeGameDuration 경과 후에는 복구 불가
         vm.warp(block.timestamp + evidenceSubmissionPeriod + challengeGameDuration + 1);
 
+        // 시간 경과 후 상태 확인
+        RATStorage.AttentionTestStatus statusBefore = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(statusBefore), uint256(RATStorage.AttentionTestStatus.Slashed), "Status should be Slashed before resolveClaim");
+
+        // resolveClaim 호출 (챌린지 기간 이후 → 복구 실패)
         vm.prank(address(mockGame1));
         rat.resolveClaim(validator1);
 
         // 상태는 Slashed로 유지 (복구 실패)
-        bytes32 testId = rat.batchToTestId(address(mockSystemConfig), batchIndex);
-        RATStorage.AttentionTestStatus status = rat.getAttentionTestStatus(testId);
-        assertEq(uint256(status), uint256(RATStorage.AttentionTestStatus.Slashed));
+        RATStorage.AttentionTestStatus statusAfter = rat.getAttentionTestStatus(testId);
+        assertEq(uint256(statusAfter), uint256(RATStorage.AttentionTestStatus.Slashed), "Status still Slashed after failed resolveClaim");
 
         // 담보금 복구되지 않음
-        assertEq(_getValidatorStake(mockLayer2, validator1), stakeBefore - slashingPenalty);
-        assertEq(_getValidatorStake(mockLayer2, address(rat)), slashingPenalty);
+        assertEq(_getValidatorStake(mockLayer2, validator1), stakeBefore - slashingPenalty, "Validator stake not restored");
+        assertEq(_getValidatorStake(mockLayer2, address(rat)), slashingPenalty, "RAT still holds slashed amount");
+
+        // 검증자 활성 상태 확인 (relaxed mode: 400 RAY remaining >= 100 RAY C_off → 활성)
+        (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        assertTrue(isActive, "Validator still active (relaxed mode)");
     }
 
     // ==========================================
     // relaxedValidatorCheck 테스트
     // ==========================================
 
-    function test_RAT025_relaxedValidatorCheck_true_removesAtCoff() public {
-        // validator1을 정확히 minimumThreshold만큼만 스테이킹하여 다시 등록
-        // 먼저 추가 검증자 생성
+    function test_RAT025_relaxedValidatorCheck_thresholdIsCoffOnly() public {
+        // relaxedValidatorCheck = true 일 때:
+        // - bondAmount = C_off (slashingPenalty = 100 RAY)
+        // - removalThreshold = C_off (validatorBuffer 미포함, 완화 모드)
+        // - remaining >= C_off 이면 유지
+
+        assertTrue(rat.relaxedValidatorCheck(), "relaxedValidatorCheck should be true (default)");
+
+        // 검증자 등록 (minimumThreshold = C_off + validatorBuffer = 200 RAY)
         address testValidator = address(0x7001);
         MockTON(ton).mint(testValidator, 300 * RAY);
-        _stakeForValidator(testValidator, mockLayer2, 200 * RAY); // minimumThreshold만큼
+        _stakeForValidator(testValidator, mockLayer2, 200 * RAY);
 
         vm.prank(testValidator);
         rat.registerValidator(address(mockSystemConfig));
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator registered");
 
-        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1);
-
-        // RAT 트리거 - 본드 후 remaining < C_off 이면 제거
-        // 스테이크 ~200e27, 본드 100e27 → remaining ~100e27 >= C_off(100e27) → 유지될 수 있음
-        // 정확한 동작은 실제 스테이크 양에 따라 다름
+        // RAT 트리거: bond = C_off = 100 RAY
+        // remaining = 200 - 100 = 100 RAY
+        // relaxed mode threshold = C_off = 100 RAY
+        // 100 >= 100 → 유지
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
 
-        // 스테이크가 충분하면 유지, 부족하면 제거
-        // 이 테스트는 실제 컨트랙트 로직에 따라 결과가 달라짐
+        // 검증자 유지 확인 (remaining = C_off 이상)
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator stays when remaining >= C_off");
+
+        // relaxed mode에서 threshold = C_off 임을 확인
+        uint256 coffRelaxed = rat.getCoffWithRelaxedCheck(address(mockSystemConfig));
+        assertEq(coffRelaxed, slashingPenalty, "Relaxed mode: threshold = slashingPenalty (C_off)");
+
+        // 검증자 활성 상태 확인
+        (, , bool isActive) = rat.getValidatorRegistration(testValidator, address(mockSystemConfig));
+        assertTrue(isActive, "Validator should remain active in relaxed mode");
+    }
+
+    function test_RAT026_strictValidatorCheck_thresholdIsCoffPlusBuffer() public {
+        // relaxedValidatorCheck = false 일 때:
+        // - bondAmount = C_off (slashingPenalty = 100 RAY)
+        // - removalThreshold = C_off + validatorBuffer (엄격 모드)
+        // - remaining < (C_off + validatorBuffer) 이면 제거
+
+        // strict 모드로 변경
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(false);
+        assertFalse(rat.relaxedValidatorCheck(), "relaxedValidatorCheck should be false");
+
+        // 검증자 등록 (minimumThreshold = C_off + validatorBuffer = 200 RAY)
+        address testValidator = address(0x7002);
+        MockTON(ton).mint(testValidator, 300 * RAY);
+        _stakeForValidator(testValidator, mockLayer2, 200 * RAY);
+
+        vm.prank(testValidator);
+        rat.registerValidator(address(mockSystemConfig));
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator registered");
+
+        // RAT 트리거 전 스테이크 확인
+        uint256 stakeBefore = _getValidatorStake(mockLayer2, testValidator);
+        assertEq(stakeBefore, 200 * RAY, "Initial stake = 200 RAY");
+
+        // RAT 트리거: bond = C_off = 100 RAY
+        // remaining = 200 - 100 = 100 RAY
+        // strict mode threshold = C_off + validatorBuffer = 200 RAY
+        // 100 < 200 → 제거
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
+
+        // 검증자 제거 확인 (remaining < threshold)
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 0, "Validator removed in strict mode");
+
+        // strict mode에서:
+        // - C_off = slashingPenalty (100 RAY)
+        // - 제거 임계값 (D_min) = C_off + validatorBuffer (200 RAY)
+        uint256 coffStrict = rat.getCoffWithRelaxedCheck(address(mockSystemConfig));
+        assertEq(coffStrict, slashingPenalty, "Strict mode: C_off = slashingPenalty");
+
+        uint256 dminStrict = rat.getMinimumCollateralWithRelaxedCheck(address(mockSystemConfig));
+        assertEq(dminStrict, slashingPenalty + validatorBuffer, "Strict mode: D_min = C_off + validatorBuffer");
+
+        // 검증자 비활성 상태 확인
+        (, , bool isActive) = rat.getValidatorRegistration(testValidator, address(mockSystemConfig));
+        assertFalse(isActive, "Validator should be deactivated in strict mode");
+
+        // 스테이크는 슬래싱됨
+        uint256 stakeAfter = _getValidatorStake(mockLayer2, testValidator);
+        assertEq(stakeAfter, stakeBefore - slashingPenalty, "Stake reduced by slashingPenalty");
+    }
+
+    function test_RAT027_strictMode_validatorStaysWithSufficientStake() public {
+        // strict 모드에서도 충분한 담보금이 있으면 유지됨
+        // remaining >= (C_off + validatorBuffer) 이면 유지
+
+        vm.prank(owner);
+        rat.setRelaxedValidatorCheck(false);
+
+        // 검증자에게 충분한 스테이킹 (300 RAY)
+        address testValidator = address(0x7003);
+        MockTON(ton).mint(testValidator, 400 * RAY);
+        _stakeForValidator(testValidator, mockLayer2, 300 * RAY);
+
+        vm.prank(testValidator);
+        rat.registerValidator(address(mockSystemConfig));
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator registered");
+
+        // RAT 트리거: bond = 100 RAY
+        // remaining = 300 - 100 = 200 RAY
+        // strict mode threshold = 200 RAY
+        // 200 >= 200 → 유지
+        vm.prank(factory);
+        rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
+
+        // 검증자 유지 확인
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "Validator stays with sufficient stake");
+
+        (, , bool isActive) = rat.getValidatorRegistration(testValidator, address(mockSystemConfig));
+        assertTrue(isActive, "Validator should remain active");
     }
 
     // ==========================================
     // RAT-007: N_max 초과 검증 테스트
     // ==========================================
 
-    function test_RAT007_maxValidators_exceeded_reverts() public {
+    function test_RAT007a_maxValidators_exceeded_reverts() public {
         // maxValidatorsPerL2 = 3으로 설정
         vm.prank(owner);
         rat.setMaxValidatorsPerL2(3);
@@ -868,38 +812,14 @@ contract RATTest is Test, DeployV3Full {
         rat.registerValidator(address(mockSystemConfig));
     }
 
-    function test_RAT007_maxValidators_zeroMeansUnlimited() public {
-        // maxValidatorsPerL2 = 0으로 설정 (제한 없음)
+    function test_RAT007b_maxValidators_zeroNotAllowed() public {
+        // maxValidatorsPerL2 = 0은 허용되지 않음 (DoS 방지)
         vm.prank(owner);
+        vm.expectRevert("invalid maxValidatorsPerL2");
         rat.setMaxValidatorsPerL2(0);
-
-        // 추가 검증자 생성 및 스테이킹
-        address validator4 = address(0x6004);
-        address validator5 = address(0x6005);
-        MockTON(ton).mint(validator4, INITIAL_TON);
-        MockTON(ton).mint(validator5, INITIAL_TON);
-        _stakeForValidator(validator4, mockLayer2, 500 * RAY);
-        _stakeForValidator(validator5, mockLayer2, 500 * RAY);
-
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-
-        vm.prank(validator2);
-        rat.registerValidator(address(mockSystemConfig));
-
-        vm.prank(validator3);
-        rat.registerValidator(address(mockSystemConfig));
-
-        vm.prank(validator4);
-        rat.registerValidator(address(mockSystemConfig));
-
-        vm.prank(validator5);
-        rat.registerValidator(address(mockSystemConfig));
-
-        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 5, "Should have 5 validators with no limit");
     }
 
-    function test_RAT007_maxValidators_reregisterAfterDeactivation() public {
+    function test_RAT007c_maxValidators_reregisterAfterDeactivation() public {
         vm.prank(owner);
         rat.setMaxValidatorsPerL2(2);
 
@@ -937,7 +857,7 @@ contract RATTest is Test, DeployV3Full {
     // RAT-052: Treasury 미설정 테스트
     // ==========================================
 
-    function test_RAT052_treasury_zeroAddress_reverts() public {
+    function test_RAT052a_treasury_zeroAddress_reverts() public {
         // treasury를 address(0)으로 설정
         vm.prank(owner);
         rat.setTreasury(address(0));
@@ -947,7 +867,7 @@ contract RATTest is Test, DeployV3Full {
         rat.withdrawSlashingsToTreasury(address(mockSystemConfig));
     }
 
-    function test_RAT052_treasury_setAndWithdraw() public {
+    function test_RAT052b_treasury_setAndWithdraw() public {
         // 검증자 등록
         vm.prank(validator1);
         rat.registerValidator(address(mockSystemConfig));
@@ -1057,6 +977,10 @@ contract RATTest is Test, DeployV3Full {
         vm.prank(validator1);
         rat.registerValidator(address(mockSystemConfig2));
 
+        // 등록 확인
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "L2_1 has 1 validator");
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig2)), 1, "L2_2 has 1 validator");
+
         // L2_1에서 RAT 트리거 및 슬래싱
         vm.prank(factory);
         rat.triggerAttentionTest(address(mockGame1), address(mockSystemConfig), 1, keccak256("batch1"), keccak256("block1"));
@@ -1067,9 +991,18 @@ contract RATTest is Test, DeployV3Full {
         // L2_2 잔액 영향 없음
         assertEq(_getValidatorStake(mockLayer2_2, validator1), stake2Before, "L2_2 balance unchanged");
 
-        // L2_2에서 여전히 활성 검증자
+        // L2_1에서 여전히 활성 검증자 (relaxed mode: remaining >= C_off)
+        // remaining = 500 - 100 = 400 RAY >= 100 RAY (C_off) → 유지
+        (, , bool isActive1) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
+        assertTrue(isActive1, "Validator still active in L2_1 (relaxed mode)");
+
+        // L2_2에서 여전히 활성 검증자 (슬래싱 영향 없음)
         (, , bool isActive2) = rat.getValidatorRegistration(validator1, address(mockSystemConfig2));
         assertTrue(isActive2, "Validator still active in L2_2");
+
+        // 활성 검증자 수 확인
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1, "L2_1 still has 1 validator");
+        assertEq(rat.getActiveValidatorCount(address(mockSystemConfig2)), 1, "L2_2 still has 1 validator");
     }
 
     /// @notice 두 번째 L2 설정 헬퍼

@@ -1,70 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "forge-std/Test.sol";
-import "../../../script/DeployV3Full.s.sol";
+import "../helpers/V3TestBase.sol";
+import {ZeroValueError} from "../../../src/stake/managers/DepositManagerV3.sol";
 
 /// @title DepositManagerV3RealTest
 /// @notice 실제 컨트랙트를 사용한 DepositManagerV3 테스트
-/// @dev DeployV3Full을 활용하여 전체 시스템 배포 후 테스트
-
-contract DepositManagerV3RealTest is Test, DeployV3Full {
-    // 주요 컨트랙트 참조
-    DepositManagerV3 public depositManager;
-    SeigManagerV3_1 public seigManager;
-    Layer2ManagerV3 public layer2Manager;
-
-    address public admin;  // TransparentUpgradeableProxy의 admin (관리 함수만 호출)
-    address public owner;  // 비즈니스 로직 owner (구현체 함수 호출)
+/// @dev V3TestBase를 활용하여 전체 시스템 배포 후 테스트
+contract DepositManagerV3RealTest is V3TestBase {
     address public user1 = address(0x2001);
     address public user2 = address(0x2002);
 
-    uint256 constant RAY = 1e27;
-
-    /// @notice Override to use separate admin address for TransparentUpgradeableProxy
-    function _getProxyAdmin(address) internal view override returns (address) {
-        return admin;
-    }
-
     function setUp() public {
-        // TransparentUpgradeableProxy 패턴:
-        // - admin: upgradeTo(), changeAdmin() 같은 관리 함수만 호출 가능
-        // - non-admin: 구현체의 비즈니스 로직 함수 호출 가능
-        admin = address(0x9999);  // Proxy admin 전용
-        owner = address(this);    // 비즈니스 로직 owner (구현체 함수 호출)
-        proxyAdmin = admin;       // Set proxyAdmin before deployment
+        _v3TestSetup();
 
-        // owner 컨텍스트에서 배포 시작
         vm.startPrank(owner);
-
-        // 전체 시스템 배포
-        _deployTokens();
-        _deployCoinageInfrastructure(owner);
-        _deployLayer2Registry(owner);
-        _deployManagerProxies();
-        _deployManagerImplementations();
-        _initializeManagers(owner);
-        _setupMinterPermissions();
-        _deployOperatorManagerFactory(owner);
-
-        // RAT, ValidatorReward를 배포 (proxyAdmin이 admin으로 설정됨)
-        _deployV3Contracts(owner);
-
-        // Register all V3 selectors for test functionality
-        _setupSeigManagerV3AllTestSelectors();
-
-        // 이제 admin = proxy admin, owner = contract owner로 분리됨
-        _setupCrossReferences(owner);
-
-        // 주요 컨트랙트 참조
-        depositManager = DepositManagerV3(depositManagerProxy);
-        seigManager = SeigManagerV3_1(seigManagerProxy);
-        layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
-
         // Give users WTON
         MockWTON(wton).mint(user1, 10000e27);
         MockWTON(wton).mint(user2, 10000e27);
-
         vm.stopPrank();
 
         // Approve
@@ -79,17 +32,32 @@ contract DepositManagerV3RealTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice DM-001: 배포된 컨트랙트들이 서로 연결되어 있는지 확인
+    /// @dev 각 컨트랙트가 올바른 참조를 가지고 있는지 검증
     function test_DM001_deployedContractsConnected() public view {
-        assertTrue(depositManagerProxy != address(0), "DepositManager deployed");
-        assertTrue(seigManagerProxy != address(0), "SeigManager deployed");
-        assertTrue(layer2ManagerProxy != address(0), "Layer2Manager deployed");
-        assertTrue(layer2RegistryProxy != address(0), "Layer2Registry deployed");
+        // DepositManager → 다른 컨트랙트 연결
+        assertEq(depositManager.seigManager(), seigManagerProxy, "DepositManager -> SeigManager");
+        assertEq(depositManager.registry(), layer2RegistryProxy, "DepositManager -> Registry");
+
+        // SeigManager → DepositManager 연결
+        assertEq(address(seigManager.depositManager()), depositManagerProxy, "SeigManager -> DepositManager");
+
+        // SeigManager → Layer2Manager 연결
+        assertEq(seigManager.layer2Manager(), layer2ManagerProxy, "SeigManager -> Layer2Manager");
     }
 
     /// @notice DM-002: DepositManager 초기화 상태 확인
+    /// @dev 모든 필수 상태 변수가 올바르게 초기화되었는지 검증
     function test_DM002_depositManager_initialized() public view {
-        assertEq(address(depositManager.wton()), wton, "WTON connected");
-        assertEq(address(depositManager.seigManager()), seigManagerProxy, "SeigManager connected");
+        // 컨트랙트 연결
+        assertEq(depositManager.wton(), wton, "WTON connected");
+        assertEq(depositManager.seigManager(), seigManagerProxy, "SeigManager connected");
+        assertEq(depositManager.registry(), layer2RegistryProxy, "Registry connected");
+
+        // 설정값
+        assertGt(depositManager.globalWithdrawalDelay(), 0, "Global withdrawal delay set");
+
+        // 권한 (AccessControl 기반)
+        assertTrue(depositManager.isAdmin(owner), "Owner has admin role");
     }
 
     // ==========================================
@@ -97,9 +65,10 @@ contract DepositManagerV3RealTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice DM-003: 0 금액 예치 시 revert
+    /// @dev 미등록 layer2에 대한 deposit 시도 시 먼저 Layer2 체크에서 revert
     function test_DM003_deposit_zeroAmount_reverts() public {
         vm.prank(user1);
-        vm.expectRevert();
+        vm.expectRevert("Caller is not a Layer2");
         depositManager.deposit(address(0x1001), user1, 0);
     }
 
@@ -107,25 +76,37 @@ contract DepositManagerV3RealTest is Test, DeployV3Full {
     // Withdrawal Delay 설정 테스트
     // ==========================================
 
-    /// @notice DM-004: globalWithdrawalDelay 설정
+    /// @notice DM-004: owner가 globalWithdrawalDelay 설정
+    /// @dev onlyOwner modifier로 권한 제한됨
     function test_DM004_setGlobalWithdrawalDelay() public {
         uint256 newDelay = 1000;
+
+        vm.prank(owner);
         depositManager.setGlobalWithdrawalDelay(newDelay);
+
         assertEq(depositManager.globalWithdrawalDelay(), newDelay, "Global delay updated");
     }
 
-    /// @notice DM-005: owner가 아닌 사용자의 globalWithdrawalDelay 설정 시 revert
+    /// @notice DM-005: 비소유자가 globalWithdrawalDelay 설정 시 revert
+    /// @dev onlyOwner modifier로 권한 제한됨
     function test_DM005_setGlobalWithdrawalDelay_notOwner_reverts() public {
+        // 사전 조건: user1은 admin이 아님
+        assertFalse(depositManager.isAdmin(user1), "user1 should not be admin");
+
         vm.prank(user1);
-        vm.expectRevert();
+        vm.expectRevert("Accessible: Caller is not an admin");
         depositManager.setGlobalWithdrawalDelay(500);
+
+        // 상태 불변 확인: globalWithdrawalDelay 변경되지 않음
+        uint256 currentDelay = depositManager.globalWithdrawalDelay();
+        assertTrue(currentDelay != 500, "globalWithdrawalDelay should not change");
     }
 
     /// @notice DM-006: layer2 delay 없을 때 global delay 반환
     function test_DM006_getDelayBlocks_globalDelay() public {
-        address layer2 = address(0x1001);
+        address layer2Addr = address(0x1001);
         depositManager.setGlobalWithdrawalDelay(200);
-        uint256 delay = depositManager.getDelayBlocks(layer2);
+        uint256 delay = depositManager.getDelayBlocks(layer2Addr);
         assertEq(delay, 200, "Should use global delay");
     }
 
@@ -140,11 +121,12 @@ contract DepositManagerV3RealTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice DM-010: 0 금액 출금 요청 시 revert
+    /// @dev 미등록 layer2에 대한 withdrawal 시도 시 먼저 Layer2 체크에서 revert
     function test_DM010_requestWithdrawal_zeroAmount_reverts() public {
-        address layer2 = address(0x1001);
+        address layer2Addr = address(0x1001);
         vm.prank(user1);
-        vm.expectRevert();
-        depositManager.requestWithdrawal(layer2, 0);
+        vm.expectRevert("Caller is not a Layer2");
+        depositManager.requestWithdrawal(layer2Addr, 0);
     }
 
     // ==========================================
@@ -160,87 +142,25 @@ contract DepositManagerV3RealTest is Test, DeployV3Full {
 
     /// @notice DM-012: layer2 delay가 global보다 클 때 layer2 delay 사용
     function test_DM012_getDelayBlocks_layer2Delay() public {
-        address layer2 = address(0x1001);
+        address layer2Addr = address(0x1001);
         uint256 globalDelay = 100;
         uint256 layer2Delay = 300;
 
         depositManager.setGlobalWithdrawalDelay(globalDelay);
-        depositManager.setWithdrawalDelayByOwner(layer2, layer2Delay);
+        depositManager.setWithdrawalDelayByOwner(layer2Addr, layer2Delay);
 
-        uint256 delay = depositManager.getDelayBlocks(layer2);
+        uint256 delay = depositManager.getDelayBlocks(layer2Addr);
         assertEq(delay, layer2Delay, "Should use layer2 delay when higher");
     }
 
-    /// @notice DM-013: layer2 delay 설정 후 max(global, layer2) 반환
-    function test_DM013_getDelayBlocks_withLayer2Delay() public {
-        address layer2 = address(0x1001);
-        depositManager.setGlobalWithdrawalDelay(100);
-        depositManager.setWithdrawalDelayByOwner(layer2, 600);
-
-        uint256 delay = depositManager.getDelayBlocks(layer2);
-        assertEq(delay, 600, "Should use layer2 delay when higher");
-    }
-
-    /// @notice DM-014: global보다 작은 layer2 delay 설정 시 revert
-    function test_DM014_setWithdrawalDelayByOwner_lessThanGlobal_reverts() public {
-        address layer2 = address(0x1001);
+    /// @notice DM-013: global보다 작은 layer2 delay 설정 시 revert
+    function test_DM013_setWithdrawalDelayByOwner_lessThanGlobal_reverts() public {
+        address layer2Addr = address(0x1001);
         depositManager.setGlobalWithdrawalDelay(500);
 
         vm.expectRevert("Not acceptable");
-        depositManager.setWithdrawalDelayByOwner(layer2, 200);
+        depositManager.setWithdrawalDelayByOwner(layer2Addr, 200);
     }
 
-    // ==========================================
-    // INT-015: onDeposit 콜백 테스트
-    // 예치 시 tot/coinage mint
-    // ==========================================
-
-    /// @notice INT-015: onDeposit 콜백이 coinage를 mint하는지 검증
-    /// @dev DepositManager.deposit() → SeigManager.onDeposit() → coinage.mint()
-    function test_INT015_onDeposit_mintCoinage() public pure {
-        // Layer2 등록이 필요하므로, 실제 통합 테스트는 V3ScenarioReal.t.sol에서 수행
-        // 여기서는 콜백 흐름의 기본 검증만 수행
-
-        // onDeposit은 onlyDepositManager modifier가 있으므로
-        // DepositManager를 통해서만 호출 가능
-        // deposit() 호출 시 내부적으로 onDeposit이 호출됨
-
-        // Note: 실제 테스트를 위해서는 layer2가 등록되어 있어야 함
-        // 이 테스트는 콜백 구조 검증용
-        assertTrue(true, "onDeposit callback structure verified");
-    }
-
-    // ==========================================
-    // INT-016: onWithdraw 콜백 테스트
-    // 출금 시 tot/coinage burn
-    // ==========================================
-
-    /// @notice INT-016: onWithdraw 콜백이 coinage를 burn하는지 검증
-    /// @dev DepositManager.requestWithdrawal() → SeigManager.onWithdraw() → coinage.burn()
-    function test_INT016_onWithdraw_burnCoinage() public pure {
-        // Layer2 등록이 필요하므로, 실제 통합 테스트는 V3ScenarioReal.t.sol에서 수행
-        // 여기서는 콜백 흐름의 기본 검증만 수행
-
-        // onWithdraw는 onlyDepositManager modifier가 있으므로
-        // DepositManager를 통해서만 호출 가능
-        // requestWithdrawal() 호출 시 내부적으로 onWithdraw가 호출됨
-
-        // Note: 실제 테스트를 위해서는 layer2가 등록되어 있어야 함
-        // 이 테스트는 콜백 구조 검증용
-        assertTrue(true, "onWithdraw callback structure verified");
-    }
-
-    /// @notice INT-015/016: onlyDepositManager 권한 검증
-    function test_INT015_016_onlyDepositManager_reverts() public {
-        address layer2 = address(0x1001);
-
-        // SeigManager의 onDeposit/onWithdraw는 DepositManager만 호출 가능
-        vm.prank(user1);
-        vm.expectRevert();
-        SeigManagerV1_2(seigManagerProxy).onDeposit(layer2, user1, 100e27);
-
-        vm.prank(user1);
-        vm.expectRevert();
-        SeigManagerV1_2(seigManagerProxy).onWithdraw(layer2, user1, 100e27);
-    }
+    // NOTE: onlyDepositManager 권한 테스트는 SecurityPermissions.t.sol (SEC-003)에서 수행
 }

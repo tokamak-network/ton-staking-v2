@@ -7,6 +7,7 @@ import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.
 import {ICandidate} from "../../../src/dao/interfaces/ICandidate.sol";
 import {ILayer2} from "../../../src/dao/interfaces/ILayer2.sol";
 import {IValidatorReward} from "../../../src/validator/IValidatorReward.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 
 // Shared Mock contracts
 import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "../helpers/V3TestMocks.sol";
@@ -325,7 +326,11 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
     ///      3. Layer2Manager에 registerCandidateAddOn 호출
     ///      4. mockLayer2 주소 저장
     function _registerMockLayer2() internal {
-        uint256 operatorDeposit = 100 * RAY + 1e10; // minimumAmount + buffer
+        // V3 모드에서는 requiredStake가 더 높으므로 충분한 deposit 필요
+        // V2: minimumAmount(100 RAY), V3: max(D_sequencer, θ×B_i) ≈ 250+ RAY
+        uint256 operatorDeposit = seigManager.v3Migrated()
+            ? 1000 * RAY  // V3 모드: requiredStake 충족을 위해 충분한 금액
+            : 100 * RAY + 1e10; // V2 모드: minimumAmount + buffer
 
         vm.startPrank(owner);
 
