@@ -89,6 +89,26 @@ contract SlashingMockFactory {
     }
 }
 
+// Helper structs to avoid stack too deep errors
+struct StakeInfo {
+    uint256 operatorStakeBefore;
+    uint256 delegator1StakeBefore;
+    uint256 delegator2StakeBefore;
+    uint256 operatorStakeWithSeig;
+    uint256 delegator1StakeWithSeig;
+    uint256 delegator2StakeWithSeig;
+    uint256 operatorStakeAfter;
+    uint256 delegator1StakeAfter;
+    uint256 delegator2StakeAfter;
+}
+
+struct AddressInfo {
+    address delegator1;
+    address delegator2;
+    address operatorManager;
+    address candidateAddOn;
+}
+
 contract SlashingTest is Test, DeployV3WithSlashing {
     address public operator = makeAddr("operator");
     address public challenger = makeAddr("challenger");
@@ -1740,9 +1760,12 @@ contract SlashingTest is Test, DeployV3WithSlashing {
     function test_Slashing_DelegatorSeigniorageProtection() public {
         console.log("\n=== Test: Delegator Seigniorage Protection During Slashing ===");
 
-        // 테스트 계정 설정
-        address delegator1 = makeAddr("delegator1");
-        address delegator2 = makeAddr("delegator2");
+        // 구조체로 변수 그룹화 (stack too deep 방지)
+        AddressInfo memory addr;
+        StakeInfo memory stakes;
+
+        addr.delegator1 = makeAddr("delegator1");
+        addr.delegator2 = makeAddr("delegator2");
 
         // 1. Operator가 Candidate 등록
         uint256 operatorStake = 10000 * 1e18;
@@ -1758,11 +1781,11 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
+        addr.operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
-            operatorManager
+        addr.candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
+            addr.operatorManager
         );
 
         console.log("Operator registered with stake:", operatorStake);
@@ -1772,71 +1795,68 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         uint256 delegator2Stake = 3000 * 1e18;
 
         // Delegator 1 스테이킹
-        MockTON(ton).mint(delegator1, delegator1Stake);
-        vm.startPrank(delegator1);
+        MockTON(ton).mint(addr.delegator1, delegator1Stake);
+        vm.startPrank(addr.delegator1);
         IERC20(ton).approve(wton, delegator1Stake);
-        MockWTON(wton).swapFromTONAndTransfer(delegator1, delegator1Stake);
+        MockWTON(wton).swapFromTONAndTransfer(addr.delegator1, delegator1Stake);
         IERC20(wton).approve(depositManagerProxy, delegator1Stake * 1e9);
-        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(addr.candidateAddOn, delegator1Stake * 1e9);
         vm.stopPrank();
 
         // Delegator 2 스테이킹
-        MockTON(ton).mint(delegator2, delegator2Stake);
-        vm.startPrank(delegator2);
+        MockTON(ton).mint(addr.delegator2, delegator2Stake);
+        vm.startPrank(addr.delegator2);
         IERC20(ton).approve(wton, delegator2Stake);
-        MockWTON(wton).swapFromTONAndTransfer(delegator2, delegator2Stake);
+        MockWTON(wton).swapFromTONAndTransfer(addr.delegator2, delegator2Stake);
         IERC20(wton).approve(depositManagerProxy, delegator2Stake * 1e9);
-        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(addr.candidateAddOn, delegator2Stake * 1e9);
         vm.stopPrank();
 
         console.log("Delegator 1 staked:", delegator1Stake);
         console.log("Delegator 2 staked:", delegator2Stake);
 
         // 3. 초기 스테이크 확인
-        uint256 operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+        stakes.operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.operatorManager
         );
-        uint256 delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator1
+        stakes.delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator1
         );
-        uint256 delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator2
+        stakes.delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator2
         );
 
-        console.log("Initial operator stake (RAY):", operatorStakeBefore);
-        console.log("Initial delegator1 stake (RAY):", delegator1StakeBefore);
-        console.log("Initial delegator2 stake (RAY):", delegator2StakeBefore);
+        console.log("Initial operator stake (RAY):", stakes.operatorStakeBefore);
+        console.log("Initial delegator1 stake (RAY):", stakes.delegator1StakeBefore);
+        console.log("Initial delegator2 stake (RAY):", stakes.delegator2StakeBefore);
 
         // 4. 시간 경과 (시뇨리지 발생)
         vm.roll(block.number + 1000);
 
         // 시뇨리지 업데이트 시도
-        bool success = CandidateAddOnV1_1(candidateAddOn).updateSeigniorage();
+        bool success = CandidateAddOnV1_1(addr.candidateAddOn).updateSeigniorage();
         require(success, "Seigniorage update failed");
 
         // 5. 시뇨리지 발생 후 스테이크 확인
-        uint256 operatorStakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+        stakes.operatorStakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.operatorManager
         );
-        uint256 delegator1StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator1
+        stakes.delegator1StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator1
         );
-        uint256 delegator2StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator2
+        stakes.delegator2StakeWithSeig = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator2
         );
 
-        console.log("Operator stake with seigniorage (RAY):", operatorStakeWithSeig);
-        console.log("Delegator1 stake with seigniorage (RAY):", delegator1StakeWithSeig);
-        console.log("Delegator2 stake with seigniorage (RAY):", delegator2StakeWithSeig);
-        
-        address delegator1_2 = delegator1;
-        address delegator2_2 = delegator2;
+        console.log("Operator stake with seigniorage (RAY):", stakes.operatorStakeWithSeig);
+        console.log("Delegator1 stake with seigniorage (RAY):", stakes.delegator1StakeWithSeig);
+        console.log("Delegator2 stake with seigniorage (RAY):", stakes.delegator2StakeWithSeig);
 
         // 6. Operator 슬래싱 실행
         MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
@@ -1846,10 +1866,6 @@ contract SlashingTest is Test, DeployV3WithSlashing {
             abi.encode(address(gameFactory))
         );
 
-        address operatorManager_2 = operatorManager;
-        address candidateAddOn_2 = candidateAddOn;
-
-        
         GameType gameType = GameType.wrap(0);
         Claim rootClaim = Claim.wrap(bytes32(uint256(1)));
         bytes memory extraData = hex"1234";
@@ -1857,7 +1873,6 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         MockFaultDisputeGame2 game = MockFaultDisputeGame2(
             address(gameFactory.create(gameType, rootClaim, extraData))
         );
-
 
         game.initialize();
 
@@ -1867,59 +1882,58 @@ contract SlashingTest is Test, DeployV3WithSlashing {
 
         console.log("\n[Executing Slashing...]");
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
-            operatorManager_2,
+            addr.operatorManager,
             gameType,
             rootClaim,
             extraData,
             address(game)
         );
 
-        // uint256 delegator1StakeWithSeig_2 = delegator1StakeWithSeig;
-        // uint256 delegator2StakeWithSeig_2 = delegator2StakeWithSeig;
-
         // 7. 슬래싱 후 스테이크 확인
-        uint256 operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn_2,
-            operatorManager_2
+        stakes.operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.operatorManager
         );
-        uint256 delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn_2,
-            delegator1_2
+        stakes.delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator1
         );
-        uint256 delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn_2,
-            delegator2_2
+        stakes.delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator2
         );
 
         console.log("\n=== After Slashing ===");
-        console.log("Operator stake after slashing:", operatorStakeAfter);
-        console.log("Delegator1 stake after slashing:", delegator1StakeAfter);
-        console.log("Delegator2 stake after slashing:", delegator2StakeAfter);
+        console.log("Operator stake after slashing:", stakes.operatorStakeAfter);
+        console.log("Delegator1 stake after slashing:", stakes.delegator1StakeAfter);
+        console.log("Delegator2 stake after slashing:", stakes.delegator2StakeAfter);
 
         // 8. 검증: Operator만 슬래싱되고 일반 스테이커는 보호됨
-        assertEq(operatorStakeAfter, 0, "Operator stake should be fully slashed");
+        assertEq(stakes.operatorStakeAfter, 0, "Operator stake should be fully slashed");
         assertEq(
-            delegator1StakeAfter,
-            delegator1StakeWithSeig,
+            stakes.delegator1StakeAfter,
+            stakes.delegator1StakeWithSeig,
             "Delegator1 stake should be preserved"
         );
         assertEq(
-            delegator2StakeAfter,
-            delegator2StakeWithSeig,
+            stakes.delegator2StakeAfter,
+            stakes.delegator2StakeWithSeig,
             "Delegator2 stake should be preserved"
         );
 
         console.log("\n[OK] Operator slashed, delegators protected");
 
         // 9. 추가 검증: 일반 스테이커들의 시뇨리지 확인
-        if (delegator1StakeWithSeig > delegator1StakeBefore) {
-            uint256 delegator1Seigniorage = delegator1StakeWithSeig - delegator1StakeBefore;
+        if (stakes.delegator1StakeWithSeig > stakes.delegator1StakeBefore) {
+            uint256 delegator1Seigniorage = stakes.delegator1StakeWithSeig -
+                stakes.delegator1StakeBefore;
             console.log("Delegator1 earned seigniorage:", delegator1Seigniorage);
             console.log("[OK] Delegator1 seigniorage preserved after slashing");
         }
 
-        if (delegator2StakeWithSeig > delegator2StakeBefore) {
-            uint256 delegator2Seigniorage = delegator2StakeWithSeig - delegator2StakeBefore;
+        if (stakes.delegator2StakeWithSeig > stakes.delegator2StakeBefore) {
+            uint256 delegator2Seigniorage = stakes.delegator2StakeWithSeig -
+                stakes.delegator2StakeBefore;
             console.log("Delegator2 earned seigniorage:", delegator2Seigniorage);
             console.log("[OK] Delegator2 seigniorage preserved after slashing");
         }
@@ -1928,28 +1942,30 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         console.log("\n=== Testing Delegator Withdrawal After Slashing ===");
 
         // Delegator1 출금 요청
-        vm.startPrank(delegator1);
+        vm.startPrank(addr.delegator1);
         DepositManagerV3(depositManagerProxy).requestWithdrawal(
-            candidateAddOn,
-            delegator1StakeAfter
+            addr.candidateAddOn,
+            stakes.delegator1StakeAfter
         );
         vm.stopPrank();
 
         console.log("[OK] Delegator1 can request withdrawal after operator slashing");
 
         // 출금 가능 블록까지 진행
-        uint256 delayBlocks = DepositManagerV3(depositManagerProxy).getDelayBlocks(candidateAddOn);
+        uint256 delayBlocks = DepositManagerV3(depositManagerProxy).getDelayBlocks(
+            addr.candidateAddOn
+        );
         vm.roll(block.number + delayBlocks + 1);
 
         // Delegator1 출금 처리
-        uint256 delegator1WtonBefore = IERC20(wton).balanceOf(delegator1);
-        vm.prank(delegator1);
-        DepositManagerV3(depositManagerProxy).processRequest(candidateAddOn, false);
-        uint256 delegator1WtonAfter = IERC20(wton).balanceOf(delegator1);
+        uint256 delegator1WtonBefore = IERC20(wton).balanceOf(addr.delegator1);
+        vm.prank(addr.delegator1);
+        DepositManagerV3(depositManagerProxy).processRequest(addr.candidateAddOn, false);
+        uint256 delegator1WtonAfter = IERC20(wton).balanceOf(addr.delegator1);
 
         assertEq(
             delegator1WtonAfter - delegator1WtonBefore,
-            delegator1StakeAfter,
+            stakes.delegator1StakeAfter,
             "Delegator1 should receive full stake including seigniorage"
         );
 
@@ -2052,8 +2068,12 @@ contract SlashingTest is Test, DeployV3WithSlashing {
     function test_Slashing_ComprehensiveDelegatorScenario() public {
         console.log("\n=== Test: Comprehensive Delegator + Seigniorage + Slashing ===");
 
-        address delegator1 = makeAddr("delegator1");
-        address delegator2 = makeAddr("delegator2");
+        // 구조체로 변수 그룹화 (stack too deep 방지)
+        AddressInfo memory addr;
+        StakeInfo memory stakes;
+
+        addr.delegator1 = makeAddr("delegator1");
+        addr.delegator2 = makeAddr("delegator2");
 
         // 1. Operator 등록
         uint256 operatorStake = 10000 * 1e18;
@@ -2069,21 +2089,21 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         );
         vm.stopPrank();
 
-        address operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
+        addr.operatorManager = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(
             rollupConfig
         );
-        address candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
-            operatorManager
+        addr.candidateAddOn = Layer2ManagerV3(layer2ManagerProxy).candidateAddOnOfOperator(
+            addr.operatorManager
         );
 
         // 2. Delegator1 스테이킹
         uint256 delegator1Stake = 5000 * 1e18;
-        MockTON(ton).mint(delegator1, delegator1Stake);
-        vm.startPrank(delegator1);
+        MockTON(ton).mint(addr.delegator1, delegator1Stake);
+        vm.startPrank(addr.delegator1);
         IERC20(ton).approve(wton, delegator1Stake);
-        MockWTON(wton).swapFromTONAndTransfer(delegator1, delegator1Stake);
+        MockWTON(wton).swapFromTONAndTransfer(addr.delegator1, delegator1Stake);
         IERC20(wton).approve(depositManagerProxy, delegator1Stake * 1e9);
-        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator1Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(addr.candidateAddOn, delegator1Stake * 1e9);
         vm.stopPrank();
 
         console.log("Phase 1: Operator and Delegator1 staked");
@@ -2093,12 +2113,12 @@ contract SlashingTest is Test, DeployV3WithSlashing {
 
         // 4. Delegator2 스테이킹 (중간에 참여)
         uint256 delegator2Stake = 3000 * 1e18;
-        MockTON(ton).mint(delegator2, delegator2Stake);
-        vm.startPrank(delegator2);
+        MockTON(ton).mint(addr.delegator2, delegator2Stake);
+        vm.startPrank(addr.delegator2);
         IERC20(ton).approve(wton, delegator2Stake);
-        MockWTON(wton).swapFromTONAndTransfer(delegator2, delegator2Stake);
+        MockWTON(wton).swapFromTONAndTransfer(addr.delegator2, delegator2Stake);
         IERC20(wton).approve(depositManagerProxy, delegator2Stake * 1e9);
-        DepositManagerV3(depositManagerProxy).deposit(candidateAddOn, delegator2Stake * 1e9);
+        DepositManagerV3(depositManagerProxy).deposit(addr.candidateAddOn, delegator2Stake * 1e9);
         vm.stopPrank();
 
         console.log("Phase 2: Delegator2 joined");
@@ -2107,23 +2127,23 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         vm.roll(block.number + 500);
 
         // 6. 스테이크 확인 (슬래싱 전)
-        uint256 operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+        stakes.operatorStakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.operatorManager
         );
-        uint256 delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator1
+        stakes.delegator1StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator1
         );
-        uint256 delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator2
+        stakes.delegator2StakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator2
         );
 
         console.log("\nBefore Slashing:");
-        console.log("Operator stake:", operatorStakeBefore);
-        console.log("Delegator1 stake:", delegator1StakeBefore);
-        console.log("Delegator2 stake:", delegator2StakeBefore);
+        console.log("Operator stake:", stakes.operatorStakeBefore);
+        console.log("Delegator1 stake:", stakes.delegator1StakeBefore);
+        console.log("Delegator2 stake:", stakes.delegator2StakeBefore);
 
         // 7. 슬래싱 실행
         MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
@@ -2147,7 +2167,7 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         game.resolve();
 
         Layer2Manager_Slashing(address(layer2ManagerProxy)).slashingCandidate(
-            operatorManager,
+            addr.operatorManager,
             gameType,
             rootClaim,
             extraData,
@@ -2155,32 +2175,40 @@ contract SlashingTest is Test, DeployV3WithSlashing {
         );
 
         // 8. 슬래싱 후 스테이크 확인
-        uint256 operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            operatorManager
+        stakes.operatorStakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.operatorManager
         );
-        uint256 delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator1
+        stakes.delegator1StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator1
         );
-        uint256 delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
-            candidateAddOn,
-            delegator2
+        stakes.delegator2StakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(
+            addr.candidateAddOn,
+            addr.delegator2
         );
 
         console.log("\nAfter Slashing:");
-        console.log("Operator stake:", operatorStakeAfter);
-        console.log("Delegator1 stake:", delegator1StakeAfter);
-        console.log("Delegator2 stake:", delegator2StakeAfter);
+        console.log("Operator stake:", stakes.operatorStakeAfter);
+        console.log("Delegator1 stake:", stakes.delegator1StakeAfter);
+        console.log("Delegator2 stake:", stakes.delegator2StakeAfter);
 
         // 9. 검증
-        assertEq(operatorStakeAfter, 0, "Operator should be fully slashed");
-        assertEq(delegator1StakeAfter, delegator1StakeBefore, "Delegator1 stake preserved");
-        assertEq(delegator2StakeAfter, delegator2StakeBefore, "Delegator2 stake preserved");
+        assertEq(stakes.operatorStakeAfter, 0, "Operator should be fully slashed");
+        assertEq(
+            stakes.delegator1StakeAfter,
+            stakes.delegator1StakeBefore,
+            "Delegator1 stake preserved"
+        );
+        assertEq(
+            stakes.delegator2StakeAfter,
+            stakes.delegator2StakeBefore,
+            "Delegator2 stake preserved"
+        );
 
         // 10. Delegator1이 더 많은 시뇨리지를 받았는지 확인 (더 오래 스테이킹했으므로)
-        uint256 delegator1Seigniorage = delegator1StakeBefore - (delegator1Stake * 1e9);
-        uint256 delegator2Seigniorage = delegator2StakeBefore - (delegator2Stake * 1e9);
+        uint256 delegator1Seigniorage = stakes.delegator1StakeBefore - (delegator1Stake * 1e9);
+        uint256 delegator2Seigniorage = stakes.delegator2StakeBefore - (delegator2Stake * 1e9);
 
         if (delegator1Seigniorage > 0 && delegator2Seigniorage > 0) {
             assertTrue(
