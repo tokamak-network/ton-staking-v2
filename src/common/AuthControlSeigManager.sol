@@ -63,6 +63,11 @@ contract AuthControlSeigManager is AuthRole, ERC165Storage, AccessControl {
         _grantRole(CHALLENGER_ROLE, account);
     }
 
+    function addPauser(address account) public virtual onlyOwner {
+        require(!hasRole(PAUSE_ROLE, account), "already granted");
+        _grantRole(PAUSE_ROLE, account);
+    }
+
     /// @dev remove admin
     /// @param account  address to remove
     function removeAdmin(address account) public virtual onlyOwner {
@@ -83,6 +88,11 @@ contract AuthControlSeigManager is AuthRole, ERC165Storage, AccessControl {
     function removeOperator(address account) public virtual onlyOwner {
         require(hasRole(OPERATOR_ROLE, account), "already not granted");
         _revokeRole(OPERATOR_ROLE, account);
+    }
+
+    function removePauser(address account) public virtual onlyOwner {
+        require(hasRole(PAUSE_ROLE, account), "already not granted");
+        _revokeRole(PAUSE_ROLE, account);
     }
 
     /// @dev transfer admin
@@ -135,6 +145,10 @@ contract AuthControlSeigManager is AuthRole, ERC165Storage, AccessControl {
 
     function isChallenger(address account) public view virtual returns (bool) {
         return hasRole(CHALLENGER_ROLE, account);
+    }
+
+    function isPauser(address account) public view virtual returns (bool) {
+        return hasRole(PAUSE_ROLE, account);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165Storage, AccessControl) returns (bool) {
