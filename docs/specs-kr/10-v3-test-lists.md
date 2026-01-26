@@ -1,6 +1,6 @@
 # TON Staking V3 테스트 목록
 
-> **최종 업데이트**: 2026-01-23
+> **최종 업데이트**: 2026-01-26
 
 ---
 
@@ -95,13 +95,10 @@
 | SM-010 | test_SM010_calculateSequencerReward_basic | 시퀀서 보상 = (1-α) × seig |
 | SM-011 | test_SM011_calculateSequencerReward_zeroAlpha | α=0일 때 시퀀서가 100% |
 | SM-012 | testFuzz_SM012_calculateSequencerReward | Fuzz: 시퀀서 보상 계산 |
-| SM-013 | test_SM013_setStakedSeigFactor_basic | λ(stakedSeigFactor) 설정 |
-| SM-014 | test_SM014_setStakedSeigFactor_exceedsRAY_reverts | λ>1 설정 시 revert |
 | SM-015 | test_SM015_setMaxChallengers_basic | maxChallengers 설정 |
 | SM-016 | test_SM016_setMaxFraudProofCost_basic | maxFraudProofCost 설정 |
 | SM-017 | test_SM017_setValidatorReward_basic | ValidatorReward 주소 설정 |
 | SM-018 | test_SM018_setValidatorReward_zeroAddress_reverts | 0 주소 설정 시 revert |
-| SM-019 | test_SM019_setStakedSeigFactor_notOwner_reverts | 비소유자 설정 시 revert |
 | SM-020 | test_SM020_checkCurrentEligibility_qualified | 자격 충족 케이스: T_i ≥ max(θ×B_i, D_seq) |
 | SM-021 | test_SM021_checkCurrentEligibility_unqualified | 자격 미달 케이스: T_i < required |
 | SM-022 | test_SM022_DSequencer_calculation | D_seq = H_max × C_max + Δ_seq |
@@ -128,7 +125,7 @@
 | INT-032 | test_INT032_totalEffectiveBridgedTON_sync | 전체 합계 동기화 확인 |
 | INT-031/032 | test_INT031_032_eligibilityLoss_removesEffective | 자격 상실 시 effectiveBridgedTON=0 |
 
-### DepositManagerV1_2Real.t.sol (14개)
+### DepositManagerV1_2Real.t.sol (12개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -143,9 +140,7 @@
 | DM-012 | test_DM012_getDelayBlocks_layer2Delay | Layer2별 지연 블록 조회 |
 | DM-013 | test_DM013_getDelayBlocks_withLayer2Delay | Layer2 지연 있을 때 조회 |
 | DM-014 | test_DM014_setWithdrawalDelayByOwner_lessThanGlobal_reverts | 전역보다 작은 지연 설정 시 revert |
-| INT-015 | test_INT015_onDeposit_mintCoinage | 예치 시 coinage 민팅 |
-| INT-016 | test_INT016_onWithdraw_burnCoinage | 출금 시 coinage 소각 |
-| INT-015/016 | test_INT015_016_onlyDepositManager_reverts | DepositManager만 호출 가능 |
+| INT-015/016 | test_INT015_016_onlyDepositManager_reverts | DepositManager만 호출 가능 (coinage mint/burn은 INV-002에서 검증) |
 
 ### Layer2ManagerV1_2Real.t.sol (5개)
 
@@ -268,9 +263,8 @@
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
 | SD-003 | test_SD003_anyoneCanCallUpdateSeigniorage | 누구나 updateSeigniorage 호출 가능 |
-| SD-004 | test_SD004_v2ModeDistribution | V2 모드 (λ=1, r=0.4) 분배 |
-| SD-005 | test_SD005_v3FullModeDistribution | V3 완전 모드 (λ=0, r=0) 분배 |
-| SD-006 | test_SD006_transitionLambdaDecrease | λ 감소에 따른 스테이커 시뇨리지 감소 |
+| SD-004 | test_SD004_v2ModeDistribution | V2 모드 (v3Migrated=false) 분배 |
+| SD-005 | test_SD005_v3FullModeDistribution | V3 모드 (v3Migrated=true) 분배 |
 | SD-007 | test_SD007_transitionRDecrease | r 감소에 따른 V3 분배 재원 증가 |
 | SD-008 | test_SD008_multipleL2Distribution | 여러 L2 Bridged TON 비례 분배 |
 | SD-009 | test_SD009_consecutiveUpdates | 여러 번 연속 updateSeigniorage |
@@ -307,6 +301,37 @@
 | SM-016 | test_SM016_v3_updateSeigniorage_zeroSpan_reverts | span=0 시 revert |
 | SM-016 | test_SM016_v3_formulaVerification_daoOnlyCase | DAO만 있는 경우 공식 |
 | SM-016 | testFuzz_SM016_v3_updateSeigniorage_exactAmountByBlocks | Fuzz: 블록별 정확도 |
+
+### SeigManagerPausable.t.sol (14개)
+
+| ID | 테스트 함수 | 설명 |
+|----|------------|------|
+| SM-050 | test_SM050_pause_success | pauser가 정상적으로 일시정지 |
+| SM-051 | test_SM051_pause_notPauser_reverts | pauser가 아닌 주소가 호출 시 revert |
+| SM-052 | test_SM052_pause_alreadyPaused_reverts | 이미 paused 상태에서 호출 시 revert |
+| SM-053 | test_SM053_pause_updateSeigniorageRequired_reverts | pause 후 다시 pause 하려면 updateSeigniorage 필요 |
+| SM-054 | test_SM054_unpause_success | pauser가 정상적으로 재개 |
+| SM-055 | test_SM055_unpause_notPauser_reverts | pauser가 아닌 주소가 호출 시 revert |
+| SM-056 | test_SM056_unpause_notPaused_reverts | paused 상태가 아닐 때 호출 시 revert |
+| SM-057 | test_SM057_excludeFromL2Seigniorage_success | Layer2Manager가 정상적으로 L2 제외 (effectiveBridgedTON=0) |
+| SM-058 | test_SM058_excludeFromL2Seigniorage_notLayer2Manager_reverts | Layer2Manager가 아닌 주소가 호출 시 revert |
+| SM-059 | test_SM059_excludeFromL2Seigniorage_alreadyExcluded_reverts | 이미 제외된 L2 다시 제외 시 revert |
+| SM-060 | test_SM060_includeFromL2Seigniorage_success | Layer2Manager가 정상적으로 L2 포함 |
+| SM-061 | test_SM061_includeFromL2Seigniorage_notLayer2Manager_reverts | Layer2Manager가 아닌 주소가 호출 시 revert |
+| SM-062 | test_SM062_includeFromL2Seigniorage_notExcluded_reverts | 제외되지 않은 L2 포함 시 revert |
+| SM-063 | test_SM063_updateSeigniorage_whenPaused_earlyReturn | pause 상태에서 updateSeigniorage 호출 시 조기 리턴 |
+
+### EligibilityTransition.t.sol (7개)
+
+| ID | 테스트 함수 | 설명 |
+|----|------------|------|
+| INT-040 | test_INT040_autoClaimBeforeEligibilityLoss | 자격 상실 시 미청구 보상 자동 claim |
+| INT-041 | test_INT041_separatedRewardPerUnitTracking | sequencer/validator rewardPerUnit 분리 추적 |
+| INT-042 | test_INT042_initialDebtResetOnReeligibility | 자격 재획득 시 initialDebt 리셋 검증 |
+| INT-043 | test_INT043_fullEligibilityTransitionFlow | 자격 획득→보상→상실(자동claim)→재획득→보상 전체 플로우 |
+| INT-044 | test_INT044_autoClaimEventEmitted | AutoClaimBeforeEligibilityLoss 이벤트 검증 |
+| INT-045 | test_INT045_pausedState_eligibilityLoss_claimUnclaimedRewards | 전역 paused 상태에서 자격 상실 시 미청구 보상 claim 검증 |
+| INT-046 | test_INT046_pausedState_eligibilityGain_setsEffectiveBridgedTON | 전역 paused 상태에서 자격 획득 시 effectiveBridgedTON 설정 검증 |
 
 ### SecurityPermissions.t.sol (30개)
 
@@ -373,13 +398,16 @@
 
 ---
 
-## 총계: **306개 테스트** (스킵 15개 제외)
+## 총계: **324개 테스트** (스킵 13개 제외)
 
 ---
 
 ## 변경 이력
 
 ### 2026-01-23
+- **INT-015/INT-016 테스트 삭제**: 가짜 테스트(assertTrue(true)) 제거
+  - coinage mint/burn은 `CoinageInvariants.t.sol`의 INV-002에서 이미 검증됨
+  - INT-015/016 권한 테스트(onlyDepositManager)는 유지
 - **SM-024 테스트 분할**: V2/V3(검증자 0명)/V3(검증자 1명+) 3개 케이스로 분리
   - V2: ValidatorReward 분배 없음
   - V3 검증자 0명: 민팅 후 즉시 DAO로 전송

@@ -21,9 +21,8 @@
 
 | Feature | Test File | Status | Tests |
 |---------|-----------|--------|-------|
-| V2 Mode (λ=1, r=0.4) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| V3 Mode (λ=0, r=0) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| λ Transition (100%→0%) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
+| V2 Mode (v3Migrated=false) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
+| V3 Mode (v3Migrated=true) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
 | r Transition (40%→0%) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
 | Multi-L2 Distribution | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
 | L2 Eligibility (θ threshold) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
