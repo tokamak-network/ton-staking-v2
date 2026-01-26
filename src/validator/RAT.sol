@@ -117,6 +117,7 @@ contract RAT is RATStorage, IRAT {
         require(config.evidenceSubmissionPeriod > 0, "invalid evidence period");
         require(config.slashingPenalty > 0, "invalid slashing penalty");
         require(config.minimumThreshold >= config.slashingPenalty + config.validatorBuffer, "invalid minimum threshold");
+        require(config.maxValidatorsPerL2 > 0, "invalid maxValidatorsPerL2");
 
         ratTriggerProbability = config.ratTriggerProbability;
         evidenceSubmissionPeriod = config.evidenceSubmissionPeriod;
@@ -514,7 +515,7 @@ contract RAT is RATStorage, IRAT {
         uint256 index = pool.validators.length;
 
         // N_max 체크: L2별 최대 검증자 수 제한
-        if (maxValidatorsPerL2 > 0 && index >= maxValidatorsPerL2) {
+        if (index >= maxValidatorsPerL2) {
             revert MaxValidatorsReachedError();
         }
 
@@ -835,6 +836,7 @@ contract RAT is RATStorage, IRAT {
 
     /// @inheritdoc IRAT
     function setMaxValidatorsPerL2(uint256 maxValidators) external onlyOwner {
+        require(maxValidators > 0, "invalid maxValidatorsPerL2");
         maxValidatorsPerL2 = maxValidators;
         emit MaxValidatorsPerL2Updated(maxValidators);
     }
