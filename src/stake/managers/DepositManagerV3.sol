@@ -16,6 +16,7 @@ import {DepositManagerV1_1Storage} from './DepositManagerV1_1Storage.sol';
 import {IOperator} from '../../layer2/interfaces/IOperator.sol';
 import {IL1Bridge} from '../../layer2/interfaces/IL1Bridge.sol';
 import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
+import {IL1BridgeRegistry} from "../../layer2/interfaces/IL1BridgeRegistry.sol";
 
 interface IIERC20 {
     function ton() external view returns (address);
@@ -445,7 +446,7 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         _decodeL1BridgeInfo(data, info);
     }
 
-    function _decodeL1BridgeInfo(bytes memory data, L1BridgeInfo memory info) internal pure {
+    function _decodeL1BridgeInfo(bytes memory data, L1BridgeInfo memory info) internal view {
         (
             bool result,
             address l1Bridge,
@@ -461,8 +462,15 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
         if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
         require(l2Ton != address(0), "l2Ton: zero address");
-        if ((l2Type != 1 && l2Type != 2 && l2Type != 3) || status != 1) revert CheckL1BridgeError(5);
-        if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
+
+        // Use dynamic type validation instead of hardcoded checks
+        if (!IL1BridgeRegistry(l1BridgeRegistry).isValidRollupType(l2Type) || status != 1)
+            revert CheckL1BridgeError(5);
+
+        // Check portal requirement for NATIVE bridge pattern
+        uint8 bridgePattern = IL1BridgeRegistry(l1BridgeRegistry).getBridgePattern(l2Type);
+        if (bridgePattern == 1 && portal == address(0))  // BRIDGE_PATTERN_NATIVE
+            revert CheckL1BridgeError(4);
 
         info.l1Bridge = l1Bridge;
         info.portal = portal;
@@ -503,11 +511,14 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         }
 
         uint256 bal;
-        if (info.l2Type == 2 || info.l2Type == 3) {
+        // Use dynamic bridge pattern check
+        uint8 bridgePattern = IL1BridgeRegistry(l1BridgeRegistry).getBridgePattern(info.l2Type);
+
+        if (bridgePattern == 1) {  // BRIDGE_PATTERN_NATIVE
             bal = IERC20(_ton).balanceOf(info.portal);
             IL1Bridge(info.l1Bridge).bridgeNativeTokenTo(msg.sender, tonAmount, info.minGasLimit, "");
             bal = IERC20(_ton).balanceOf(info.portal) - bal;
-        } else {
+        } else {  // BRIDGE_PATTERN_ERC20 or others default to ERC20
             bal = IERC20(_ton).balanceOf(info.l1Bridge);
             IL1Bridge(info.l1Bridge).depositERC20To(_ton, info.l2Ton, msg.sender, tonAmount, info.minGasLimit, "");
             bal = IERC20(_ton).balanceOf(info.l1Bridge) - bal;

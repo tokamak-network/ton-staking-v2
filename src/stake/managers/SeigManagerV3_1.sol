@@ -323,12 +323,12 @@ contract SeigManagerV3_1 is
     }
 
     function _updateEligibilityInternal(address layer2) internal {
-        // rollupType 3만 V3 eligibility 적용 - 먼저 체크해서 early return
+        // V3 eligible rollup types만 V3 eligibility 적용 - 먼저 체크해서 early return
         if (l1BridgeRegistry != address(0) && layer2Manager != address(0)) {
             (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
             if (rollupConfig != address(0)) {
                 uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
-                if (rollupType != uint8(IL1BridgeRegistry.TYPE_ROLLUPCONFIG.OPTIMISM_BEDROCK_WITH_DISPUTE_GAME)) return;
+                if (!IL1BridgeRegistry(l1BridgeRegistry).isValidRollupType(rollupType)) return;
             }
         }
 
@@ -436,12 +436,12 @@ contract SeigManagerV3_1 is
     /// @param layer2 L2 주소
     /// @return requiredStake 필요 스테이킹량 (WTON 단위)
     function _getRequiredStakeInternal(address layer2) internal view returns (uint256 requiredStake) {
-        // rollupType 3만 V3 eligibility 적용 (non-Type-3는 0 리턴 → 최소 요구량 없음)
+        // V3 eligible rollup types만 V3 eligibility 적용 (non-eligible types는 0 리턴 → 최소 요구량 없음)
         if (l1BridgeRegistry != address(0) && layer2Manager != address(0)) {
             (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
             if (rollupConfig != address(0)) {
                 uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
-                if (rollupType != uint8(IL1BridgeRegistry.TYPE_ROLLUPCONFIG.OPTIMISM_BEDROCK_WITH_DISPUTE_GAME)) return 0;
+                if (!IL1BridgeRegistry(l1BridgeRegistry).isValidRollupType(rollupType)) return 0;
             }
         }
 
@@ -455,7 +455,7 @@ contract SeigManagerV3_1 is
         (address rollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
         if (rollupConfig == address(0)) return false;
         uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
-        return rollupType == uint8(IL1BridgeRegistry.TYPE_ROLLUPCONFIG.OPTIMISM_BEDROCK_WITH_DISPUTE_GAME);
+        return IL1BridgeRegistry(l1BridgeRegistry).isValidRollupType(rollupType);
     }
 
     /// @inheritdoc ISeigManagerV3

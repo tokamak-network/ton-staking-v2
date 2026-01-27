@@ -291,8 +291,12 @@ contract Layer2ManagerV3RealTest is V3TestBase {
 
         // Register the rollup config first
         vm.startPrank(owner);
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+        if (!l1BridgeRegistry.isRegistrant(owner)) {
+            l1BridgeRegistry.addRegistrant(owner);
+        }
         l1BridgeRegistry.registerRollupConfig(address(newSystemConfig), 3, address(0x9004), "NewL2");
         vm.stopPrank();
 
@@ -316,8 +320,12 @@ contract Layer2ManagerV3RealTest is V3TestBase {
 
         // Register the rollup config first
         vm.startPrank(owner);
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+        if (!l1BridgeRegistry.isRegistrant(owner)) {
+            l1BridgeRegistry.addRegistrant(owner);
+        }
         l1BridgeRegistry.registerRollupConfig(address(newSystemConfig), 3, address(0x9004), "NewL2");
         vm.stopPrank();
 
@@ -631,8 +639,12 @@ contract Layer2ManagerV3RealTest is V3TestBase {
 
         // Register the rollup config first in L1BridgeRegistry
         vm.startPrank(owner);
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+        if (!l1BridgeRegistry.isRegistrant(owner)) {
+            l1BridgeRegistry.addRegistrant(owner);
+        }
         l1BridgeRegistry.registerRollupConfig(address(newSystemConfig), 3, address(0x9004), "NewL2TON");
         vm.stopPrank();
 
@@ -679,8 +691,12 @@ contract Layer2ManagerV3RealTest is V3TestBase {
 
         // Register in L1BridgeRegistry
         vm.startPrank(owner);
-        l1BridgeRegistry.addManager(owner);
-        l1BridgeRegistry.addRegistrant(owner);
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+        if (!l1BridgeRegistry.isRegistrant(owner)) {
+            l1BridgeRegistry.addRegistrant(owner);
+        }
         l1BridgeRegistry.registerRollupConfig(address(newSystemConfig), 3, address(0x9004), "NewL2");
         vm.stopPrank();
 

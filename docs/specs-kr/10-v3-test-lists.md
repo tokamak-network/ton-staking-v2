@@ -237,7 +237,7 @@
 | L2M-043 | test_L2M043_onApprove_alreadyRegistered_reverts | 이미 등록된 rollupConfig revert |
 | L2M-044 | test_L2M044_checkL1BridgeDetail | L1Bridge 상세 정보 조회 |
 
-### L1BridgeRegistryV1_2Real.t.sol (40개)
+### L1BridgeRegistryV1_2Real.t.sol (51개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -251,6 +251,17 @@
 | LBR-060~062 | reject/restore | CandidateAddOn 거부/복원, 권한 검증 |
 | LBR-070~074 | availableForRegistration | 타입별 등록 가능 여부, 등록 후 false, Portal 사용 시 false |
 | LBR-080~092 | 기타 | rollupInfo 조회, 초기화 중복 revert, SeigniorageCommittee 설정, 이벤트 검증 |
+| **LBR-100** | **test_LBR100_defaultRollupTypes_registered** | **TYPE 1,2,3 기본 등록 확인 (V3 eligible bitmap 검증)** |
+| **LBR-101** | **test_LBR101_addRollupType_success** | **새 타입(TYPE 4) 등록 성공, bitmap 업데이트 확인** |
+| **LBR-102** | **test_LBR102_addRollupType_revertInvalidType** | **TYPE 0 등록 시 InvalidTypeError** |
+| **LBR-103** | **test_LBR103_addRollupType_revertTypeAlreadyExists** | **중복 타입 등록 시 TypeAlreadyExistsError** |
+| **LBR-104** | **test_LBR104_addRollupType_revertUnauthorized** | **권한 없는 사용자 addRollupType 호출 시 revert** |
+| **LBR-105** | **test_LBR105_updateRollupType_success** | **타입 설정 업데이트 (name, V3 eligibility 변경)** |
+| **LBR-106** | **test_LBR106_updateRollupType_revertTypeNotSupported** | **미등록 타입 업데이트 시 TypeNotSupportedError** |
+| **LBR-107** | **test_LBR107_updateRollupType_noChangeEarlyReturn** | **변경사항 없으면 early return (가스 절약)** |
+| **LBR-108** | **test_LBR108_getBridgePattern_success** | **타입별 bridge pattern 조회 (0=ERC20, 1=NATIVE)** |
+| **LBR-109** | **test_LBR109_getTvlContractGetter_success** | **타입별 TVL getter selector 조회** |
+| **LBR-110** | **test_LBR110_isValidRollupType_success** | **V3 eligibility 확인 (bitmap 기반)** |
 
 ### RAT.t.sol (33개)
 
@@ -615,3 +626,45 @@
 - **checkCurrentEligibility rollupType 3 전용**: rollupType이 3이 아니면 eligible=false, requiredStake=0 반환
 - **V2ModeTestBase 헬퍼 함수 추가**: `_registerMockLayer2Type2WithOperatorStake()`
 - **MIG-006 테스트 추가**: V3→V2 다운그레이드 불가 확인 (v3Migrated 영구적 true)
+
+### 2026-01-27
+- **동적 롤업 타입 관리 시스템 구현**: enum TYPE_ROLLUPCONFIG 제거, 설정 기반 확장 가능 구조로 전환
+  - `addRollupType()`: 새 롤업 타입 동적 등록 (TYPE 4, 5, ... 확장 가능)
+  - `updateRollupType()`: 기존 타입 설정 변경 (name, tvlContractGetter, bridgePattern, V3 eligibility)
+  - `isValidRollupType()`: V3 seigniorage eligibility bitmap 기반 확인
+  - `getBridgePattern()`: 타입별 bridge 함수 패턴 조회 (0=ERC20, 1=NATIVE, 2=CUSTOM)
+  - `getTvlContractGetter()`: 타입별 TVL 계산용 function selector 조회
+  - `getRollupTypeConfig()`: 타입 전체 설정 조회
+  - `getV3SeigniorageEligibleTypes()`: V3 eligible bitmap 조회
+- **L1BridgeRegistryV1_2Real.t.sol 테스트 추가 (11개)**:
+  - LBR-100: 기본 TYPE 1,2,3 등록 확인 (V3 eligible = TYPE 3만)
+  - LBR-101: 새 타입 등록 성공 (TYPE 4 Arbitrum Orbit)
+  - LBR-102: TYPE 0 등록 실패 (InvalidTypeError)
+  - LBR-103: 중복 타입 등록 실패 (TypeAlreadyExistsError)
+  - LBR-104: 권한 없는 사용자 등록 실패
+  - LBR-105: 타입 업데이트 성공 (V3 eligibility 변경)
+  - LBR-106: 미등록 타입 업데이트 실패 (TypeNotSupportedError)
+  - LBR-107: 변경사항 없으면 early return (가스 절약)
+  - LBR-108: getBridgePattern 조회
+  - LBR-109: getTvlContractGetter 조회
+  - LBR-110: isValidRollupType V3 eligibility 확인
+- **SeigManagerV3_1 하드코딩 제거**: TYPE 3 체크를 `isValidRollupType()` 호출로 대체
+  - `_updateEligibilityInternal()`, `_getRequiredStakeInternal()`, `_isType3Layer2()` 함수 수정
+- **DepositManagerV3 동적 bridge pattern 조회**: 하드코딩된 타입 체크를 `getBridgePattern()` 호출로 대체
+- **L1BridgeRegistryV1_2 타입 검증 강화**: rollupConfig 등록 시 `rollupTypeConfig` 존재 확인
+- **테스트 베이스 파일 업데이트**: V3TestBase, V2ModeTestBase, L1BridgeRegistryV1_2Real, V3ScenarioReal에 `_registerDefaultRollupTypes()` 헬퍼 추가
+- **배포 가이드 작성**: `docs/deployment-guide.md` - 롤업 타입 등록 필수 절차 문서화
+- **DisputeGameFactory Getter 추가**: RollupTypeConfig에 `disputeGameFactoryGetter` 필드 추가
+  - TYPE 3가 DisputeGameFactory를 동적으로 조회 및 등록
+  - `addRollupType()`, `updateRollupType()` 파라미터 7개로 확장 (+ `disputeGameFactoryGetter`)
+  - `getDisputeGameFactoryGetter()` view 함수 추가
+- **TYPE 1, 2, 3 하드코딩 완전 제거**: 모든 타입이 동일한 동적 등록 시스템 사용
+  - `_registerRollupConfig()`: `if (_type == 1/2/3)` 조건문 제거, config 기반 통합 처리
+  - `_availableForRegistration()`: 타입별 하드코딩 제거, config 기반 동적 검증으로 전환
+  - bridgeContractGetter → `l1Bridge` 매핑 등록 (모든 타입 공통)
+  - tvlContractGetter → `portal` 매핑 등록 (bridgeGetter와 다를 때)
+  - disputeGameFactoryGetter → DisputeGameFactory 등록 (설정되어 있을 때)
+- **동적 등록 검증 테스트 추가 (6개)**: LBR-112 ~ LBR-116
+  - TYPE 1: bridge=TVL (같은 주소)
+  - TYPE 2: bridge≠TVL (다른 주소)
+  - TYPE 3: bridge, TVL, factory (모두 다른 주소)

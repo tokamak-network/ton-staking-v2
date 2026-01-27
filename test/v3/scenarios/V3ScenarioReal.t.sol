@@ -183,6 +183,12 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         layer2Registry = Layer2Registry(layer2RegistryProxy);
         rat = RAT(ratProxy);
 
+        // Add owner as manager to register rollup types
+        l1BridgeRegistry.addManager(owner);
+
+        // Register default rollup types (TYPE 1, 2, 3)
+        _registerDefaultRollupTypes();
+
         // minimumAmount를 0으로 설정 (operator 요구사항 비활성화)
         SeigManagerV1_2(seigManagerProxy).setMinimumAmount(0);
 
@@ -733,6 +739,49 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         DepositManagerV3(depositManagerProxy).setAddresses(
             l1BridgeRegistryProxy,
             layer2ManagerProxy
+        );
+    }
+
+    // ==========================================
+    // Helper Functions
+    // ==========================================
+
+    /// @notice Register default rollup types (TYPE 1, 2, 3)
+    function _registerDefaultRollupTypes() internal {
+        // TYPE 1: Optimism Legacy (Titan 등) - V2 mode only
+        // Bridge & TVL both use l1StandardBridge(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            1,                                          // type
+            "Optimism Legacy",                          // name
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            0,                                          // BRIDGE_PATTERN_ERC20
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 2: Optimism Bedrock (Thanos 등) - V2 mode only
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            2,
+            "Optimism Bedrock",
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            1,                                          // BRIDGE_PATTERN_NATIVE
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 3: Bedrock with DisputeGame - V3 eligible
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), has DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            3,
+            "Optimism Bedrock DisputeGame",
+            bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
+            bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            1,                                              // BRIDGE_PATTERN_NATIVE
+            true                                            // V3 eligible = true
         );
     }
 }
