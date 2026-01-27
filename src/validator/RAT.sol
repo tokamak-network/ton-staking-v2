@@ -225,7 +225,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev D_min = C_off + Δ_validator
     /// @param systemConfig L2의 SystemConfig 주소
     function getDynamicMinimumCollateral(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1; // 최소 1명 기준
         return _calculateMinimumCollateral(n);
     }
@@ -234,19 +234,22 @@ contract RAT is RATStorage, IRAT {
     /// @dev 백서 공식 (5): C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
     /// @dev _calculateCoffWithRelaxedCheck 내부에서 호출됨
     function _calculateDynamicCoff(uint256 n) internal view returns (uint256) {
-        uint256 cOff = slashingPenalty; // 기본값: 거버넌스 설정 슬래싱 페널티
+        // Storage 변수 캐싱 (중복 SLOAD 방지)
+        uint256 _slashingPenalty = slashingPenalty;
+        uint256 _attentionCost = attentionCost;
+        uint256 _ratTriggerProb = ratTriggerProbability;
 
         // attentionCost > 0 이고 ratTriggerProbability > 0 이면 공식 적용
-        if (attentionCost > 0 && ratTriggerProbability > 0) {
+        if (_attentionCost > 0 && _ratTriggerProb > 0) {
             // C_off = (c_m × N × RAY) / π_a
-            uint256 formulaCoff = (attentionCost * n * RAY) / ratTriggerProbability;
+            uint256 formulaCoff = (_attentionCost * n * RAY) / _ratTriggerProb;
             // max(slashingPenalty, formulaCoff)
-            if (formulaCoff > slashingPenalty) {
-                cOff = formulaCoff;
+            if (formulaCoff > _slashingPenalty) {
+                return formulaCoff;
             }
         }
 
-        return cOff;
+        return _slashingPenalty;
     }
 
     /// @notice relaxedValidatorCheck를 반영한 C_off 계산 (내부용)
@@ -265,7 +268,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev relaxed = false: 동적 C_off (엄격)
     /// @param systemConfig L2의 SystemConfig 주소
     function getCoffWithRelaxedCheck(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateCoffWithRelaxedCheck(n);
     }
@@ -274,7 +277,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev 항상 백서 공식대로 계산
     /// @param systemConfig L2의 SystemConfig 주소
     function getDynamicCoff(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateDynamicCoff(n);
     }
@@ -298,7 +301,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev relaxed = false: 동적 C_off + validatorBuffer (엄격)
     /// @param systemConfig L2의 SystemConfig 주소
     function getMinimumCollateralWithRelaxedCheck(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateDminWithRelaxedCheck(n);
     }

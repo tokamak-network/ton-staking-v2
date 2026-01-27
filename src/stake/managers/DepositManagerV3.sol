@@ -85,6 +85,12 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     event Deposited(address indexed layer2, address depositor, uint256 amount);
     event WithdrawalRequested(address indexed layer2, address depositor, uint256 amount);
     event WithdrawalProcessed(address indexed layer2, address depositor, uint256 amount);
+    /// @notice Event emitted when a withdrawal request is canceled via redeposit
+    /// @dev RFC-17: Enables accurate tracking of TON circulating supply
+    /// @param layer2 The layer2 address
+    /// @param depositor The depositor address
+    /// @param amount The amount of canceled withdrawal
+    event WithdrawalRequestCanceled(address indexed layer2, address depositor, uint256 amount);
 
     /**
      * @notice Event that occurs when calling the setWithdrawalDelay function
@@ -202,11 +208,13 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     }
 
     function deposit(address layer2, address[] memory accounts, uint256[] memory amounts) external returns (bool) {
-        require(accounts.length != 0, 'no account');
-        require(accounts.length == amounts.length, 'wrong lenth');
+        uint256 len = accounts.length;
+        require(len != 0, 'no account');
+        require(len == amounts.length, 'wrong lenth');
 
-        for (uint256 i = 0; i < accounts.length; i++){
-        require(_deposit(layer2, accounts[i], amounts[i], msg.sender), "fail deposit");
+        for (uint256 i = 0; i < len; ) {
+            require(_deposit(layer2, accounts[i], amounts[i], msg.sender), "fail deposit");
+            unchecked { ++i; }
         }
 
         return true;
@@ -249,28 +257,29 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     }
 
     function _redeposit(address layer2, uint256 i, uint256 n) internal onlyLayer2(layer2) returns (bool) {
+        // Storage 직접 접근 (메모리 복사 제거)
+        WithdrawalReqeust[] storage requests = _withdrawalRequests[layer2][msg.sender];
+        uint256 len = requests.length;
+
+        require(len > 0, "DepositManager: no request");
+        require(len - i >= n, "DepositManager: n exceeds num of pending requests");
+
         uint256 accAmount;
-
-        WithdrawalReqeust[] memory requsts = _withdrawalRequests[layer2][msg.sender];
-
-        require(requsts.length > 0, "DepositManager: no request");
-        require(requsts.length - i >= n, "DepositManager: n exceeds num of pending requests");
-
         uint256 e = i + n;
-        for (; i < e; i++) {
-        // WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
-        WithdrawalReqeust memory r = requsts[i];
 
-        uint256 amount = r.amount;
+        for (; i < e; ) {
+            WithdrawalReqeust storage r = requests[i];
 
-        require(!r.processed, "DepositManager: pending request already processed");
-        require(amount > 0, "DepositManager: no valid pending request");
+            require(!r.processed, "DepositManager: pending request already processed");
+            require(r.amount > 0, "DepositManager: no valid pending request");
 
-        accAmount = accAmount + amount;
-        r.processed = true;
-        _withdrawalRequests[layer2][msg.sender][i] = r;
+            unchecked {
+                accAmount += r.amount;
+            }
+            r.processed = true;
+
+            unchecked { ++i; }
         }
-
 
         // deposit-related storages
         // _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
@@ -282,8 +291,12 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] - accAmount;
         _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] - accAmount;
 
-        _withdrawalRequestIndex[layer2][msg.sender] += n;
+        unchecked {
+            _withdrawalRequestIndex[layer2][msg.sender] += n;
+        }
 
+        // RFC-17: Emit both events for accurate tracking of TON circulating supply
+        emit WithdrawalRequestCanceled(layer2, msg.sender, accAmount);
         emit Deposited(layer2, msg.sender, accAmount);
 
         require(ISeigManager(_seigManager).onDeposit(layer2, msg.sender, accAmount), "fail SeigManager.onDeposit");
