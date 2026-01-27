@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 interface IL1BridgeRegistry {
+    /// @notice Rollup configuration types
+    /// @dev 0: NONE (empty), 1: LEGARCY (optimism legacy), 2: OPTIMISM_BEDROCK (native TON), 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+    enum TYPE_ROLLUPCONFIG {
+        NONE,
+        LEGARCY,
+        OPTIMISM_BEDROCK,
+        OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+    }
 
     function getRollupInfo(address rollupConfig) external view returns (
         uint8   rollupType,

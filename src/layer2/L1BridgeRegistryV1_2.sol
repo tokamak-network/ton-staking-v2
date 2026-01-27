@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {IOptimismSystemConfig} from "../layer2/interfaces/IOptimismSystemConfig.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
+import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {ProxyStorage} from "../proxy/ProxyStorage.sol";
@@ -42,12 +43,7 @@ contract L1BridgeRegistryV1_2 is
     L1BridgeRegistryStorage,
     L1BridgeRegistryV1_2Storage
 {
-    enum TYPE_ROLLUPCONFIG {
-        NONE,
-        LEGARCY,
-        OPTIMISM_BEDROCK,
-        OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
-    }
+    // TYPE_ROLLUPCONFIG enum is defined in IL1BridgeRegistry interface
 
     // ==========================================
     // Events
@@ -505,7 +501,7 @@ contract L1BridgeRegistryV1_2 is
         string memory _name
     ) internal {
         if (_l2Ton == address(0)) revert RegisterError(4);
-        if (_type == 0 || _type > uint8(type(TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
+        if (_type == 0 || _type > uint8(type(IL1BridgeRegistry.TYPE_ROLLUPCONFIG).max)) revert RegisterError(1);
 
         ROLLUP_INFO storage info = rollupInfo[rollupConfig];
 
