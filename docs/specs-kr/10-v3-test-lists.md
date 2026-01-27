@@ -1,6 +1,6 @@
 # TON Staking V3 테스트 목록
 
-> **최종 업데이트**: 2026-01-26
+> **최종 업데이트**: 2026-01-27
 
 ---
 
@@ -32,9 +32,9 @@
 
 ---
 
-## v2mode/ (39개)
+## v2mode/ (44개)
 
-### V2Functions.t.sol (11개)
+### V2Functions.t.sol (16개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -45,6 +45,11 @@
 | SM-010 | test_SM010_v2_seigniorage_onlyMinimumAmount | minimumAmount만 충족하면 시뇨리지 분배 |
 | SM-011 | test_SM011_v2_seigniorage_ignoresMinStakingRatio | θ(minStakingRatio) 무시 확인 |
 | SM-012 | test_SM012_v2_seigniorage_noEffectiveBridgedTON | effectiveBridgedTON 미사용 (V3 전용) |
+| SM-020-V2 | test_SM020_v2_estimatedDistributeV2 | V2 예상 시뇨리지 분배량 조회 |
+| SM-021-V2 | test_SM021_v2_claimableL2SeigniorageV2 | V2 청구 가능 시뇨리지 조회 |
+| SM-022-V2 | test_SM022_v2_estimatedDistributeV2_unregisteredLayer2 | 미등록 Layer2 → layer2Seigs=0 |
+| SM-023-V2 | test_SM023_v2_estimatedDistributeV2_blockCondition | lastSeigBlock 이하 → 0 반환 |
+| SM-024-V2 | test_SM024_v2_negativeCommissionRate_concept | 음수 커미션율 개념 테스트 |
 | DM-001 | test_DM001_v2_deposit_basicFlow | V2 기본 예치 동작 |
 | DM-002 | test_DM002_v2_deposit_noV3Callback | V2에서 onStakingChange 콜백 미호출 |
 | DM-003 | test_DM003_v2_withdraw_basicFlow | V2 기본 출금 동작 |
@@ -87,7 +92,9 @@
 
 ## v3mode/
 
-### SeigManagerV1_4Real.t.sol (40개)
+### SeigManagerV1_4Real.t.sol (61개)
+
+**SeigManagerV3_1RealTest (40개)**
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -132,7 +139,33 @@
 | INT-032 | test_INT032_totalEffectiveBridgedTON_sync | 전체 합계 동기화 확인 |
 | INT-031/032 | test_INT031_032_eligibilityLoss_removesEffective | 자격 상실 시 effectiveBridgedTON=0 |
 
-### DepositManagerV1_2Real.t.sol (10개)
+**SeigManagerV3ViewFunctionsTest (21개)**
+
+| ID | 테스트 함수 | 설명 |
+|----|------------|------|
+| SM-040 | test_SM040_stakeOf | stakeOf 조회 (등록된 L2, 스테이킹 후) |
+| SM-042 | test_SM042_stakeOf_noStake | 스테이킹 없는 계정 → 0 반환 |
+| SM-045 | test_SM045_getSequencerStaked | getSequencerStaked 조회 |
+| SM-046 | test_SM046_getSequencerStaked_unregisteredLayer2 | 미등록 Layer2 → 0 반환 |
+| SM-047 | test_SM047_getSequencerStaked_noOperator | operator 없는 경우 → 0 반환 |
+| SM-050 | test_SM050_getOperatorAmount | getOperatorAmount 조회 |
+| SM-060 | test_SM060_calculateL2Seigniorage | calculateL2Seigniorage 기본 계산 |
+| SM-061 | test_SM061_calculateL2Seigniorage_zeroTotalX | totalX=0일 때 0 반환 |
+| SM-063 | test_SM063_getLayer2RewardInfo | getLayer2RewardInfo 조회 |
+| SM-064 | test_SM064_getLayer2RewardInfo_unregistered | 미등록 Layer2 → 0 반환 |
+| SM-070 | test_SM070_registry | registry 주소 조회 |
+| SM-071 | test_SM071_depositManager | depositManager 주소 조회 |
+| SM-072 | test_SM072_ton | ton 주소 조회 |
+| SM-073 | test_SM073_wton | wton 주소 조회 |
+| SM-074 | test_SM074_tot | tot 주소 조회 |
+| SM-075 | test_SM075_seigPerBlock | seigPerBlock 조회 |
+| SM-076 | test_SM076_lastSeigBlock | lastSeigBlock 조회 |
+| SM-077 | test_SM077_coinages | coinages 조회 |
+| SM-078 | test_SM078_commissionRates | commissionRates 조회 |
+| SM-079 | test_SM079_isCommissionRateNegative | isCommissionRateNegative 조회 |
+| SM-080 | test_SM080_lastCommitBlock | lastCommitBlock 조회 |
+
+### DepositManagerV1_2Real.t.sol (35개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -146,8 +179,33 @@
 | DM-011 | testFuzz_DM011_setGlobalWithdrawalDelay | Fuzz: 전역 출금 지연 |
 | DM-012 | test_DM012_getDelayBlocks_layer2Delay | Layer2별 지연 블록 조회 |
 | DM-013 | test_DM013_setWithdrawalDelayByOwner_lessThanGlobal_reverts | 전역보다 작은 지연 설정 시 revert |
+| DM-020 | test_DM020_redeposit_emitsBothEvents | RFC-17: redeposit 시 두 이벤트 발행 |
+| DM-021 | test_DM021_redepositMulti_emitsEventsWithAccumulatedAmount | RFC-17: 다중 redeposit 누적 금액 이벤트 |
+| DM-022 | test_DM022_redeposit_eventParameters | RFC-17: 이벤트 파라미터 정확성 검증 |
+| DM-023 | test_DM023_freshDeposit_onlyEmitsDeposited | RFC-17: 신규 입금은 Deposited만 발행 |
+| DM-030 | test_DM030_setMinDepositGasLimit | minDepositGasLimit 설정 |
+| DM-031 | test_DM031_setMinDepositGasLimit_notOwner_reverts | 비관리자 설정 시 revert |
+| DM-032 | test_DM032_setSeigManager | SeigManager 주소 설정 |
+| DM-033 | test_DM033_setSeigManager_notOwner_reverts | 비관리자 설정 시 revert |
+| DM-034 | test_DM034_setWithdrawalDelay_byOperator | operator가 출금 지연 설정 |
+| DM-035 | test_DM035_setWithdrawalDelay_notOperator_reverts | 비operator 설정 시 revert |
+| DM-036 | test_DM036_setWithdrawalDelay_exceedsMax_reverts | MAX_DELAY_BLOCKS 초과 시 revert |
+| DM-040 | test_DM040_requestWithdrawalAll | 전체 잔액 출금 요청 |
+| DM-041 | test_DM041_processRequests_multiple | 다중 출금 처리 |
+| DM-050 | test_DM050_numRequests | 출금 요청 수 조회 |
+| DM-051 | test_DM051_numPendingRequests | 대기 요청 수 조회 |
+| DM-052 | test_DM052_pendingUnstakedLayer2 | Layer2별 대기 출금 조회 |
+| DM-053 | test_DM053_pendingUnstakedAccount | 계정별 대기 출금 조회 |
+| DM-054 | test_DM054_withdrawalRequestIndex | 출금 요청 인덱스 조회 |
+| DM-055 | test_DM055_withdrawalRequest | 출금 요청 상세 조회 |
+| DM-060 | test_DM060_depositBatch | 배치 입금 테스트 |
+| DM-070 | test_DM070_onApprove_deposit | onApprove를 통한 입금 (WTON 콜백) |
+| DM-071 | test_DM071_onApprove_notWTON_reverts | 비WTON 호출자 revert |
+| DM-072 | test_DM072_onApprove_invalidDataLength_reverts | 잘못된 data 길이 revert |
+| DM-082 | test_DM082_getSequencerStaked | getSequencerStaked 조회 |
+| DM-083 | test_DM083_getSequencerStaked_unregistered | 미등록 Layer2 → 0 반환 |
 
-### Layer2ManagerV1_2Real.t.sol (4개)
+### Layer2ManagerV1_2Real.t.sol (27개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
@@ -155,6 +213,29 @@
 | L2M-002 | test_L2M002_getBridgedTon_unregisteredRollup | 미등록 rollup → 0 반환 |
 | L2M-003 | test_L2M003_getBridgedTonByLayer_noOperator | operator 없는 layer2 → 0 반환 |
 | L2M-004 | test_L2M004_getLayer2BySystemConfig_unregistered | 미등록 systemConfig → address(0) |
+| L2M-010 | test_L2M010_setOperatorManagerFactory | OperatorManagerFactory 설정 |
+| L2M-011 | test_L2M011_setOperatorManagerFactory_notOwner_reverts | 비관리자 설정 시 revert |
+| L2M-012 | test_L2M012_setOperatorManagerFactory_sameValue_reverts | 동일 값 설정 시 revert |
+| L2M-013 | test_L2M013_setMinimumInitialDepositAmount | 최소 초기 입금량 설정 |
+| L2M-014 | test_L2M014_setMinimumInitialDepositAmount_notOwner_reverts | 비관리자 설정 시 revert |
+| L2M-015 | test_L2M015_setMinimumInitialDepositAmount_sameValue_reverts | 동일 값 설정 시 revert |
+| L2M-020 | test_L2M020_pauseCandidateAddOn_notL1BridgeRegistry_reverts | 비L1BridgeRegistry pause 시 revert |
+| L2M-021 | test_L2M021_unpauseCandidateAddOn_notL1BridgeRegistry_reverts | 비L1BridgeRegistry unpause 시 revert |
+| L2M-022 | test_L2M022_pauseCandidateAddOn_notRegistered_reverts | 미등록 상태 pause 시 revert |
+| L2M-023 | test_L2M023_unpauseCandidateAddOn_alreadyActive_reverts | 이미 active 상태 unpause 시 revert |
+| L2M-030 | test_L2M030_rollupConfigOfOperator | operator → rollupConfig 조회 |
+| L2M-031 | test_L2M031_candidateAddOnOfOperator | operator → candidateAddOn 조회 |
+| L2M-032 | test_L2M032_checkLayer2Tvl | Layer2 TVL 조회 |
+| L2M-033 | test_L2M033_checkL1Bridge | L1Bridge 정보 조회 |
+| L2M-034 | test_L2M034_availableRegister | 등록 가능 여부 조회 |
+| L2M-035 | test_L2M035_verifyOperator | Operator 검증 |
+| L2M-036 | test_L2M036_statusLayer2 | Layer2 상태 조회 |
+| L2M-037 | test_L2M037_layerInfo | Layer2 정보 조회 |
+| L2M-040 | test_L2M040_onApprove_notTonOrWton_reverts | 비TON/WTON 호출자 revert |
+| L2M-041 | test_L2M041_onApprove_wrongSpender_reverts | 잘못된 spender revert |
+| L2M-042 | test_L2M042_onApprove_invalidDataLength_reverts | 잘못된 data 길이 revert |
+| L2M-043 | test_L2M043_onApprove_alreadyRegistered_reverts | 이미 등록된 rollupConfig revert |
+| L2M-044 | test_L2M044_checkL1BridgeDetail | L1Bridge 상세 정보 조회 |
 
 ### L1BridgeRegistryV1_2Real.t.sol (40개)
 
@@ -314,14 +395,14 @@
 | SM-016 | test_SM016_v3_MULTI3_fourL2s_staggeredCalls | 4개 L2 시차 호출 |
 | SM-016 | test_SM016_v3_MULTI4_rewardPerUnitAccumulation | rewardPerUnit 누적 |
 
-### SeigManagerPausable.t.sol (14개)
+### SeigManagerPausable.t.sol (19개)
 
 | ID | 테스트 함수 | 설명 |
 |----|------------|------|
-| SM-050 | test_SM050_pause_success | pauser가 정상적으로 일시정지 |
+| SM-050 | test_SM050_pause_success | pauser가 정상적으로 일시정지 (V3: pausedBlock = block.number + 1) |
 | SM-051 | test_SM051_pause_notPauser_reverts | pauser가 아닌 주소가 호출 시 revert |
 | SM-052 | test_SM052_pause_alreadyPaused_reverts | 이미 paused 상태에서 호출 시 revert |
-| SM-053 | test_SM053_pause_updateSeigniorageRequired_reverts | pause 후 다시 pause 하려면 updateSeigniorage 필요 |
+| SM-053 | test_SM053_pause_autoSeigniorageDistribution | V3: pause 시 자동 시뇨리지 발행으로 연속 pause 가능 |
 | SM-054 | test_SM054_unpause_success | pauser가 정상적으로 재개 |
 | SM-055 | test_SM055_unpause_notPauser_reverts | pauser가 아닌 주소가 호출 시 revert |
 | SM-056 | test_SM056_unpause_notPaused_reverts | paused 상태가 아닐 때 호출 시 revert |
@@ -332,6 +413,11 @@
 | SM-061 | test_SM061_includeFromL2Seigniorage_notLayer2Manager_reverts | Layer2Manager가 아닌 주소가 호출 시 revert |
 | SM-062 | test_SM062_includeFromL2Seigniorage_notExcluded_reverts | 제외되지 않은 L2 포함 시 revert |
 | SM-063 | test_SM063_updateSeigniorage_whenPaused_earlyReturn | pause 상태에서 updateSeigniorage 호출 시 조기 리턴 |
+| SM-064 | test_SM064_claimL2Seigniorage_success | claimL2Seigniorage 정상 claim (중복 claim 방지) |
+| SM-065 | test_SM065_claimL2Seigniorage_whenPaused_success | pause 상태에서 claimL2Seigniorage 가능 |
+| SM-066 | test_SM066_claimL2Seigniorage_notMigrated_reverts | V3 마이그레이션 전 claimL2Seigniorage 체크 |
+| SM-067 | test_SM067_claimL2Seigniorage_ineligible_returnsZero | 자격 없는 L2 claimL2Seigniorage 시 0 반환 |
+| SM-068 | test_SM068_claimL2Seigniorage_excluded_returnsZero | excluded L2 claimL2Seigniorage 시 0 반환 |
 
 ### EligibilityTransition.t.sol (13개)
 
@@ -429,11 +515,71 @@
 
 ---
 
-## 총계: **331개 테스트** (스킵 13개 제외)
+## 총계: **408개 테스트** (스킵 13개 제외)
 
 ---
 
 ## 변경 이력
+
+### 2026-01-27 (4차 업데이트)
+- **Layer2ManagerV3 테스트 커버리지 확장**: 22개 → 27개 (+5개)
+  - L2M-040~043: onApprove 콜백 테스트 (TON/WTON 등록 콜백)
+  - L2M-044: checkL1BridgeDetail 조회 테스트
+  - 커버리지: 71.34% → 79.27% lines, 93.94% → **100.00%** funcs
+- **SeigManagerV3_1 테스트 커버리지 확장**: 46개 → 61개 (+15개)
+  - SM-060~061: calculateL2Seigniorage 테스트
+  - SM-063~064: getLayer2RewardInfo 테스트
+  - SM-070~080: View getter 테스트 (registry, depositManager, ton, wton, tot, seigPerBlock, lastSeigBlock, coinages, commissionRates, isCommissionRateNegative, lastCommitBlock)
+  - 커버리지: 84.06% → 84.82% lines, 73.03% → 74.16% funcs
+
+### 2026-01-27 (3차 업데이트)
+- **DepositManagerV3 테스트 커버리지 확장**: 30개 → 35개 (+5개)
+  - DM-070~072: onApprove 콜백 테스트 (WTON approval callback)
+  - DM-082~083: getSequencerStaked 조회 테스트
+  - 커버리지: 68.60% → 72.46% lines, 81.40% → 86.05% funcs
+- **SeigManagerV3_1 테스트 커버리지 확장**: 40개 → 46개 (+6개)
+  - SM-040~042: stakeOf 조회 테스트
+  - SM-045~047: getSequencerStaked 조회 테스트
+  - SM-050: getOperatorAmount 조회 테스트
+  - 커버리지: 83.87% → 84.06% lines, 71.91% → 73.03% funcs
+
+### 2026-01-27 (2차 업데이트)
+- **DepositManagerV3 테스트 커버리지 확장**: 14개 → 30개 (+16개)
+  - DM-030~033: Admin setter 테스트 (setMinDepositGasLimit, setSeigManager)
+  - DM-034~036: Operator withdrawal delay 테스트 (setWithdrawalDelay)
+  - DM-040~041: Withdrawal 테스트 (requestWithdrawalAll, processRequests)
+  - DM-050~055: Storage getter 테스트 (numRequests, pendingUnstaked 등)
+  - DM-060: 배치 입금 테스트
+- **Layer2ManagerV3 테스트 커버리지 확장**: 4개 → 22개 (+18개)
+  - L2M-010~015: Admin setter 테스트 (setOperatorManagerFactory, setMinimumInitialDepositAmount)
+  - L2M-020~023: Pause/Unpause 권한 및 상태 테스트
+  - L2M-030~037: View 함수 테스트 (rollupConfigOfOperator, verifyOperator 등)
+- **SeigManagerV3_2 테스트 커버리지 확장**: 11개 → 16개 (+5개)
+  - SM-020~024-V2: V2 estimation 함수 테스트 (estimatedDistributeV2, claimableL2SeigniorageV2)
+
+### 2026-01-27
+- **pause() 함수 수정**: V3 모드에서 pause 블록까지 시뇨리지 자동 발행
+  - `_triggerSeigniorageDistribution()` 호출 추가
+  - `_pausedBlock = block.number + 1` (pause 기간은 다음 블록부터 시작)
+- **claimL2Seigniorage() 함수 추가**: pause 상태에서도 미청구 보상 claim 가능
+  - 시뇨리지 발행 없이 기존 발행분만 claim
+  - effectiveBridgedTON 유지 (자격 상실 아님)
+- **SM-053 테스트 변경**: `pause_updateSeigniorageRequired_reverts` → `pause_autoSeigniorageDistribution`
+  - V3에서는 자동 시뇨리지 발행으로 연속 pause 가능
+- **SM-064~SM-068 테스트 추가**: claimL2Seigniorage 관련 테스트 5개
+  - SM-064: 정상 claim
+  - SM-065: pause 상태에서 claim 가능
+  - SM-066: V3 마이그레이션 체크
+  - SM-067: 자격 없는 L2 → 0 반환
+  - SM-068: excluded L2 → 0 반환
+- **RFC-17: WithdrawalRequestCanceled 이벤트 추가** (DepositManagerV3)
+  - redeposit 시 Deposited와 WithdrawalRequestCanceled 두 이벤트 발행
+  - TON 유통량 추적을 위해 "신규 입금"과 "출금 취소" 구분 가능
+- **DM-020~DM-023 테스트 추가**: redeposit 이벤트 검증 테스트 4개
+  - DM-020: redeposit 시 두 이벤트 발행
+  - DM-021: redepositMulti 누적 금액 이벤트
+  - DM-022: 이벤트 파라미터 정확성
+  - DM-023: 신규 입금은 Deposited만 발행
 
 ### 2026-01-26
 - **중복 테스트 삭제**: V2V3ModeSwitching.t.sol에서 SM-029, SM-030, SM-031, SM-032 제거
