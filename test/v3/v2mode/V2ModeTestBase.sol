@@ -128,6 +128,9 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // Register all V3 selectors for test functionality
         _setupSeigManagerV3AllTestSelectors();
 
+        // Register V2 view selectors (estimatedDistributeV2, claimableL2SeigniorageV2)
+        _setupSeigManagerV2ViewSelectors();
+
         _setupCrossReferences(owner);
 
         // 컨트랙트 참조
@@ -158,6 +161,15 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
 
         // V2 모드 확인 (v3Migrated = false)
         assertFalse(seigManager.v3Migrated(), "Should start in V2 mode");
+    }
+
+    /// @notice V2 view function selectors 등록
+    /// @dev estimatedDistributeV2, claimableL2SeigniorageV2 등 V2 전용 view 함수
+    function _setupSeigManagerV2ViewSelectors() internal {
+        bytes4[] memory v2Views = new bytes4[](2);
+        v2Views[0] = SeigManagerV3_2.estimatedDistributeV2.selector;
+        v2Views[1] = SeigManagerV3_2.claimableL2SeigniorageV2.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v2Views, seigManagerV3_2Impl);
     }
 
     /// @notice Cross References 설정 (DeployV3Full override - DAO 설정 추가)

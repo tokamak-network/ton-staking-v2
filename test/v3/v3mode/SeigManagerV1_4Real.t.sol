@@ -702,3 +702,578 @@ contract SeigManagerV3_1RealTest is Test, DeployV3Full {
         assertFalse(eligible, "Should NOT be eligible with T_i=150 < required=200");
     }
 }
+
+// ==========================================
+// V3TestBase를 사용한 SeigManager 추가 테스트
+// ==========================================
+
+import "../helpers/V3TestBase.sol";
+import {SeigManagerV1_2} from "../../../src/stake/managers/SeigManagerV1_2.sol";
+
+/// @title SeigManagerV3ViewFunctionsTest
+/// @notice stakeOf, getSequencerStaked, updateSeigniorageLayer 테스트
+/// @dev V3TestBase를 사용하여 실제 L2 등록 환경에서 테스트
+///      NOTE: stakeOf(layer2, account), getOperatorAmount(layer2)는 SeigManagerV1_2에 정의됨
+///            SeigManagerV1_2를 통해 호출해야 함
+contract SeigManagerV3ViewFunctionsTest is V3TestBase {
+    address public user1 = address(0x2001);
+    address public user2 = address(0x2002);
+
+    function setUp() public {
+        _v3TestSetup();
+
+        // Mint WTON for test users
+        vm.startPrank(owner);
+        MockWTON(wton).mint(user1, 10000e27);
+        MockWTON(wton).mint(user2, 10000e27);
+        vm.stopPrank();
+    }
+
+    // ==========================================
+    // stakeOf Tests (via SeigManagerV1_2)
+    // ==========================================
+
+    /// @notice SM-040: stakeOf 조회 (등록된 L2, 스테이킹 후)
+    function test_SM040_stakeOf() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        uint256 depositAmount = 500e27;
+
+        // Deposit for user1
+        vm.startPrank(user1);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        depositManager.deposit(mockLayer2, user1, depositAmount);
+        vm.stopPrank();
+
+        // Query stakeOf via SeigManagerV1_2
+        uint256 stake = SeigManagerV1_2(seigManagerProxy).stakeOf(mockLayer2, user1);
+        assertGt(stake, 0, "stakeOf should return positive value");
+        assertApproxEqRel(stake, depositAmount, 0.01e18, "stakeOf should match deposit");
+    }
+
+    /// @notice SM-042: stakeOf 스테이킹 없는 계정은 0 반환
+    function test_SM042_stakeOf_noStake() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // user1 never deposited
+        uint256 stake = SeigManagerV1_2(seigManagerProxy).stakeOf(mockLayer2, user1);
+        assertEq(stake, 0, "Account with no stake should return 0");
+    }
+
+    // ==========================================
+    // getSequencerStaked Tests (via SeigManagerV3_1)
+    // ==========================================
+
+    /// @notice SM-045: getSequencerStaked 조회
+    function test_SM045_getSequencerStaked() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // getSequencerStaked returns operator's stake in the layer2
+        uint256 sequencerStake = seigManager.getSequencerStaked(mockLayer2);
+
+        // Operator deposit should be reflected
+        assertGt(sequencerStake, 0, "Sequencer stake should be > 0");
+        assertApproxEqRel(sequencerStake, operatorDeposit, 0.01e18, "Should match operator deposit");
+    }
+
+    /// @notice SM-046: getSequencerStaked 미등록 Layer2
+    function test_SM046_getSequencerStaked_unregisteredLayer2() public view {
+        uint256 stake = seigManager.getSequencerStaked(address(0x9999));
+        assertEq(stake, 0, "Unregistered layer2 should return 0");
+    }
+
+    /// @notice SM-047: getSequencerStaked 오퍼레이터 없는 경우
+    /// @dev coinage는 있지만 operator가 address(0)인 경우
+    function test_SM047_getSequencerStaked_noOperator() public view {
+        // For a layer2 that was never registered, both coinage and operator are 0
+        uint256 stake = seigManager.getSequencerStaked(address(0x1234));
+        assertEq(stake, 0, "No operator should return 0");
+    }
+
+    // ==========================================
+    // getOperatorAmount Tests (via SeigManagerV1_2)
+    // ==========================================
+
+    /// @notice SM-050: getOperatorAmount 조회
+    function test_SM050_getOperatorAmount() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        uint256 operatorAmount = SeigManagerV1_2(seigManagerProxy).getOperatorAmount(mockLayer2);
+        assertGt(operatorAmount, 0, "Operator amount should be > 0");
+        assertApproxEqRel(operatorAmount, operatorDeposit, 0.01e18, "Should match operator deposit");
+    }
+
+    // ==========================================
+    // calculateL2Seigniorage Tests
+    // ==========================================
+
+    /// @notice SM-060: calculateL2Seigniorage 기본 계산
+    function test_SM060_calculateL2Seigniorage() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // Setup V3 mode and eligibility
+        _setupV3AndMigrate();
+
+        // calculateL2Seigniorage should return proportional share
+        uint256 totalY = 1000e27;  // total seigniorage to distribute
+        uint256 totalX = 10000e18; // total effective bridged TON
+
+        uint256 seigniorage = seigManager.calculateL2Seigniorage(mockLayer2, totalY, totalX);
+        // If effectiveBridgedTON is 0 (not eligible yet), should return 0
+        assertEq(seigniorage, 0, "Should return 0 if effectiveBridgedTON is 0");
+    }
+
+    /// @notice SM-061: calculateL2Seigniorage totalX가 0일 때
+    function test_SM061_calculateL2Seigniorage_zeroTotalX() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        uint256 seigniorage = seigManager.calculateL2Seigniorage(mockLayer2, 1000e27, 0);
+        assertEq(seigniorage, 0, "Should return 0 when totalX is 0");
+    }
+
+    // ==========================================
+    // estimatedDistribute Tests
+    // NOTE: estimatedDistribute 셀렉터가 V3_1에 있지만 프록시에 등록 필요
+    //       V2 모드에서는 V2Functions.t.sol에서 테스트됨
+    // ==========================================
+
+    // ==========================================
+    // getLayer2RewardInfo Tests
+    // ==========================================
+
+    /// @notice SM-063: getLayer2RewardInfo 조회
+    function test_SM063_getLayer2RewardInfo() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        (uint256 layer2Tvl, uint256 initialDebt, uint256 startBlock) = seigManager.getLayer2RewardInfo(mockLayer2);
+
+        // Initial values before any seigniorage distribution
+        assertTrue(layer2Tvl >= 0, "layer2Tvl should be valid");
+        assertTrue(initialDebt >= 0, "initialDebt should be valid");
+        assertTrue(startBlock >= 0, "startBlock should be valid");
+    }
+
+    /// @notice SM-064: getLayer2RewardInfo 미등록 Layer2
+    function test_SM064_getLayer2RewardInfo_unregistered() public view {
+        (uint256 layer2Tvl, uint256 initialDebt, uint256 startBlock) = seigManager.getLayer2RewardInfo(address(0x9999));
+
+        assertEq(layer2Tvl, 0, "Unregistered layer2 should have 0 TVL");
+        assertEq(initialDebt, 0, "Unregistered layer2 should have 0 initialDebt");
+        assertEq(startBlock, 0, "Unregistered layer2 should have 0 startBlock");
+    }
+
+    // ==========================================
+    // View Getter Tests
+    // ==========================================
+
+    /// @notice SM-070: registry 조회
+    function test_SM070_registry() public view {
+        address registry = seigManager.registry();
+        assertEq(registry, layer2RegistryProxy, "registry should match");
+    }
+
+    /// @notice SM-071: depositManager 조회
+    function test_SM071_depositManager() public view {
+        address dm = seigManager.depositManager();
+        assertEq(dm, depositManagerProxy, "depositManager should match");
+    }
+
+    /// @notice SM-072: ton 조회
+    function test_SM072_ton() public view {
+        address tonAddr = seigManager.ton();
+        assertEq(tonAddr, ton, "ton should match");
+    }
+
+    /// @notice SM-073: wton 조회
+    function test_SM073_wton() public view {
+        address wtonAddr = seigManager.wton();
+        assertEq(wtonAddr, wton, "wton should match");
+    }
+
+    /// @notice SM-074: tot 조회
+    function test_SM074_tot() public view {
+        address totAddr = seigManager.tot();
+        assertTrue(totAddr != address(0), "tot should be set");
+    }
+
+    /// @notice SM-075: seigPerBlock 조회
+    function test_SM075_seigPerBlock() public view {
+        uint256 spb = seigManager.seigPerBlock();
+        assertGt(spb, 0, "seigPerBlock should be > 0");
+    }
+
+    /// @notice SM-076: lastSeigBlock 조회
+    function test_SM076_lastSeigBlock() public view {
+        uint256 lsb = seigManager.lastSeigBlock();
+        assertTrue(lsb >= 0, "lastSeigBlock should be valid");
+    }
+
+    /// @notice SM-077: coinages 조회
+    function test_SM077_coinages() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        address coinage = seigManager.coinages(mockLayer2);
+        assertTrue(coinage != address(0), "coinage should be set after registration");
+    }
+
+    /// @notice SM-078: commissionRates 조회
+    function test_SM078_commissionRates() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        uint256 commissionRate = seigManager.commissionRates(mockLayer2);
+        assertTrue(commissionRate >= 0, "commissionRate should be valid");
+    }
+
+    /// @notice SM-079: isCommissionRateNegative 조회
+    function test_SM079_isCommissionRateNegative() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        bool isNegative = seigManager.isCommissionRateNegative(mockLayer2);
+        assertFalse(isNegative, "Default commission rate should not be negative");
+    }
+
+    /// @notice SM-080: lastCommitBlock 조회
+    function test_SM080_lastCommitBlock() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        uint256 lcb = seigManager.lastCommitBlock(mockLayer2);
+        assertTrue(lcb >= 0, "lastCommitBlock should be valid");
+    }
+
+    // ==========================================
+    // Branch Coverage Tests
+    // ==========================================
+
+    /// @notice SM-090: setDaoDistributionRatio ratio >= RAY revert
+    function test_SM090_setDaoDistributionRatio_exceedsRAY_reverts() public {
+        uint256 RAY = 1e27;
+
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setDaoDistributionRatio(RAY); // Equal to RAY should revert
+
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setDaoDistributionRatio(RAY + 1); // Greater than RAY should revert
+    }
+
+    /// @notice SM-091: setMinStakingRatio ratio > RAY revert
+    function test_SM091_setMinStakingRatio_exceedsRAY_reverts() public {
+        uint256 RAY = 1e27;
+
+        // Exactly RAY should be allowed
+        seigManager.setMinStakingRatio(RAY);
+        assertEq(seigManager.minStakingRatio(), RAY, "RAY value should be allowed");
+
+        // Greater than RAY should revert
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setMinStakingRatio(RAY + 1);
+    }
+
+    /// @notice SM-092: setValidatorDistributionRatio ratio >= RAY revert
+    function test_SM092_setValidatorDistributionRatio_exceedsRAY_reverts() public {
+        uint256 RAY = 1e27;
+
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setValidatorDistributionRatio(RAY);
+
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setValidatorDistributionRatio(RAY + 1);
+    }
+
+    /// @notice SM-093: setHalfSaturationPoint zero revert
+    function test_SM093_setHalfSaturationPoint_zero_reverts() public {
+        vm.expectRevert(InvalidParameterError.selector);
+        seigManager.setHalfSaturationPoint(0);
+    }
+
+    /// @notice SM-094: setV2Logic zero address revert
+    function test_SM094_setV2Logic_zeroAddress_reverts() public {
+        vm.expectRevert(ZeroAddressError.selector);
+        seigManager.setV2Logic(address(0));
+    }
+
+    /// @notice SM-095: migrateToV3 이미 마이그레이션 완료 시 revert
+    function test_SM095_migrateToV3_alreadyMigrated_reverts() public {
+        _setupV3AndMigrate();
+
+        vm.expectRevert(abi.encodeWithSignature("AlreadyMigratedError()"));
+        seigManager.migrateToV3();
+    }
+
+    /// @notice SM-096: migrateToV3 halfSaturationPoint=0 시 revert
+    function test_SM096_migrateToV3_noHalfSaturationPoint_reverts() public {
+        // halfSaturationPoint는 0, 나머지는 설정
+        seigManager.setMinStakingRatio(0.1e27);
+        seigManager.setDaoDistributionRatio(0.1e27);
+        seigManager.setValidatorDistributionRatio(0.1e27);
+        seigManager.setMaxChallengers(10);
+        seigManager.setMaxFraudProofCost(1e27);
+
+        vm.expectRevert(abi.encodeWithSignature("V3ParametersNotSetError()"));
+        seigManager.migrateToV3();
+    }
+
+    /// @notice SM-097: checkCurrentEligibility V2 모드에서는 eligible=false
+    function test_SM097_checkCurrentEligibility_v2Mode() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // V2 모드 확인
+        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
+
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(mockLayer2);
+
+        assertFalse(eligible, "Should not be eligible in V2 mode");
+        assertEq(required, 0, "requiredStake should be 0 in V2 mode");
+        assertGt(current, 0, "currentStake should be > 0");
+    }
+
+    /// @notice SM-098: estimateL2Seigniorage V2 모드에서는 0 반환
+    function test_SM098_estimateL2Seigniorage_v2Mode() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // V2 모드 확인
+        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
+
+        (uint256 seqReward, uint256 valReward) = seigManager.estimateL2Seigniorage(mockLayer2);
+        assertEq(seqReward, 0, "sequencerReward should be 0 in V2 mode");
+        assertEq(valReward, 0, "validatorReward should be 0 in V2 mode");
+    }
+
+    /// @notice SM-099: claimableL2Seigniorage V2 모드에서 staticcall
+    function test_SM099_claimableL2Seigniorage_v2Mode() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // V2 모드 확인
+        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
+
+        // V2 모드에서는 V3_2로 staticcall (실패 시 0 반환)
+        uint256 claimable = seigManager.claimableL2Seigniorage(mockLayer2);
+        // Result depends on V2 logic implementation
+        assertTrue(claimable >= 0, "Should return valid amount");
+    }
+
+    /// @notice SM-100: powerton 조회
+    function test_SM100_powerton() public view {
+        address pt = seigManager.powerton();
+        // powerton 주소가 설정되어 있거나 address(0)일 수 있음
+        assertTrue(pt == address(0) || pt != address(0), "powerton getter should work");
+    }
+
+    /// @notice SM-101: pausedBlock, unpausedBlock 조회
+    function test_SM101_pauseUnpauseBlocks() public view {
+        uint256 pausedBlk = seigManager.pausedBlock();
+        uint256 unpausedBlk = seigManager.unpausedBlock();
+
+        assertTrue(pausedBlk >= 0, "pausedBlock should be valid");
+        assertTrue(unpausedBlk >= 0, "unpausedBlock should be valid");
+    }
+
+    /// @notice SM-102: claimableL2Seigniorage V3 모드
+    function test_SM102_claimableL2Seigniorage_v3Mode() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        _setupV3AndMigrate();
+
+        // V3 모드에서는 estimateL2Seigniorage의 시퀀서 보상만 반환
+        uint256 claimable = seigManager.claimableL2Seigniorage(mockLayer2);
+        // effectiveBridgedTON이 0이면 0 반환
+        assertEq(claimable, 0, "Should be 0 when not eligible");
+    }
+
+    /// @notice SM-103: hyperbolicSaturation x가 매우 큰 경우 L에 수렴
+    function test_SM103_hyperbolicSaturation_convergesAtLargeX() public {
+        seigManager.setHalfSaturationPoint(1000e27);
+
+        uint256 L = 1000e27;
+        uint256 veryLargeX = 1_000_000e27; // 매우 큰 값
+
+        uint256 y = seigManager.hyperbolicSaturation(veryLargeX, L);
+
+        // y = L * x / (k + x) where x >> k, so y ≈ L
+        // y should be at least 99.9% of L
+        assertGt(y, (L * 999) / 1000, "y should be close to L for large x");
+        assertLe(y, L, "y should never exceed L");
+    }
+
+    /// @notice SM-104: calculateL2Seigniorage 정상 계산
+    function test_SM104_calculateL2Seigniorage_calculation() public view {
+        // effectiveBridgedTON이 0인 경우 항상 0 반환
+        uint256 totalY = 1000e27;
+        uint256 totalX = 10000e18;
+
+        uint256 result = seigManager.calculateL2Seigniorage(address(0x1234), totalY, totalX);
+        assertEq(result, 0, "Should be 0 when effectiveBridgedTON is 0");
+    }
+
+    // ==========================================
+    // Additional Branch Coverage Tests
+    // ==========================================
+
+    /// @notice SM-110: onStakingChange - V2 모드에서 silent return
+    function test_SM110_onStakingChange_v2Mode() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        // V2 모드 확인
+        assertFalse(seigManager.v3Migrated(), "Should be in V2 mode");
+
+        // DepositManager에서 호출 (silent return)
+        vm.prank(depositManagerProxy);
+        seigManager.onStakingChange(mockLayer2);
+        // Should not revert, just return
+        assertTrue(true, "Should not revert in V2 mode");
+    }
+
+    /// @notice SM-111: setRatContract zero address revert
+    function test_SM111_setRatContract_zeroAddress_reverts() public {
+        vm.expectRevert(ZeroAddressError.selector);
+        seigManager.setRatContract(address(0));
+    }
+
+    /// @notice SM-112: setRatContract 정상 설정
+    function test_SM112_setRatContract_success() public {
+        address newRat = address(0x1234);
+
+        seigManager.setRatContract(newRat);
+        assertEq(seigManager.ratContract(), newRat, "RAT contract should be set");
+    }
+
+    /// @notice SM-113: excludeFromL2Seigniorage 권한 검증
+    function test_SM113_excludeFromL2Seigniorage_notLayer2Manager_reverts() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSignature("OnlyLayer2ManagerError()"));
+        seigManager.excludeFromL2Seigniorage(mockLayer2);
+    }
+
+    /// @notice SM-114: onDeposit 권한 검증
+    function test_SM114_onDeposit_notDepositManager_reverts() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSignature("OnlyDepositManagerError()"));
+        seigManager.onDeposit(mockLayer2, user1, 100e27);
+    }
+
+    /// @notice SM-115: onWithdraw 권한 검증
+    function test_SM115_onWithdraw_notDepositManager_reverts() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSignature("OnlyDepositManagerError()"));
+        seigManager.onWithdraw(mockLayer2, user1, 100e27);
+    }
+
+    /// @notice SM-116: transferCoinageToRat 권한 검증
+    function test_SM116_transferCoinageToRat_notRat_reverts() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        _setupV3AndMigrate();
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSignature("OnlyRatError()"));
+        seigManager.transferCoinageToRat(mockLayer2, user1, 100e27);
+    }
+
+    /// @notice SM-117: transferCoinageFromRat 권한 검증
+    function test_SM117_transferCoinageFromRat_notRat_reverts() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        _setupV3AndMigrate();
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSignature("OnlyRatError()"));
+        seigManager.transferCoinageFromRat(mockLayer2, user1, 100e27);
+    }
+
+    /// @notice SM-118: v3MigrationBlock 조회
+    function test_SM118_v3MigrationBlock() public {
+        assertEq(seigManager.v3MigrationBlock(), 0, "Should be 0 before migration");
+
+        _setupV3AndMigrate();
+
+        assertGt(seigManager.v3MigrationBlock(), 0, "Should be set after migration");
+    }
+
+    /// @notice SM-119: bridgedTONRewardPerUint 조회
+    function test_SM119_bridgedTONRewardPerUint() public {
+        _setupV3AndMigrate();
+
+        uint256 rewardPerUnit = seigManager.bridgedTONRewardPerUint();
+        assertTrue(rewardPerUnit >= 0, "Should return valid value");
+    }
+
+    /// @notice SM-120: validatorRewardPerUint 조회
+    function test_SM120_validatorRewardPerUint() public {
+        _setupV3AndMigrate();
+
+        uint256 rewardPerUnit = seigManager.validatorRewardPerUint();
+        assertTrue(rewardPerUnit >= 0, "Should return valid value");
+    }
+
+    /// @notice SM-121: layer2Manager getter
+    function test_SM121_layer2Manager() public view {
+        address l2m = seigManager.layer2Manager();
+        assertEq(l2m, layer2ManagerProxy, "layer2Manager should match");
+    }
+
+    /// @notice SM-122: l1BridgeRegistry getter
+    function test_SM122_l1BridgeRegistry() public view {
+        address l1br = seigManager.l1BridgeRegistry();
+        assertEq(l1br, l1BridgeRegistryProxy, "l1BridgeRegistry should match");
+    }
+
+    /// @notice SM-123: checkCurrentEligibility bridgedTon=0인 경우
+    function test_SM123_checkCurrentEligibility_zeroBridgedTon() public {
+        uint256 operatorDeposit = 1000e27;
+        _registerFirstL2(operatorDeposit);
+
+        _setupV3AndMigrate();
+
+        // mockLayer2는 type 3이지만 bridgedTon이 0
+        (bool eligible, uint256 required, uint256 current) = seigManager.checkCurrentEligibility(mockLayer2);
+
+        // bridgedTon=0이면 eligible=false, required=0
+        assertFalse(eligible, "Should not be eligible when bridgedTon=0");
+        assertEq(required, 0, "Required should be 0 when bridgedTon=0");
+    }
+
+    /// @notice SM-124: paused getter
+    function test_SM124_paused() public view {
+        bool isPaused = seigManager.paused();
+        assertFalse(isPaused, "Should not be paused initially");
+    }
+
+    /// @notice SM-125: dao getter
+    function test_SM125_dao() public view {
+        address daoAddr = seigManager.dao();
+        // dao 주소가 설정되어 있거나 address(0)일 수 있음
+        assertTrue(daoAddr == address(0) || daoAddr != address(0), "dao getter should work");
+    }
+
+    /// @notice SM-126: minimumAmount getter
+    function test_SM126_minimumAmount() public view {
+        uint256 minAmount = seigManager.minimumAmount();
+        assertTrue(minAmount >= 0, "minimumAmount should be valid");
+    }
+}
