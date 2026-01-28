@@ -43,6 +43,7 @@ jobs:
         run: npm run build
         env:
           BASE_URL: /ton-staking-v2/
+          DEPLOY_URL: https://tokamak-network.github.io
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
