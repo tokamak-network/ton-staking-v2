@@ -6,6 +6,7 @@ import "../../../script/DeployV3Full.s.sol";
 import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
 import {ICandidate} from "../../../src/dao/interfaces/ICandidate.sol";
 import {ILayer2} from "../../../src/dao/interfaces/ILayer2.sol";
+import {Layer2I} from "../../../src/dao/interfaces/Layer2I.sol";
 import {IValidatorReward} from "../../../src/validator/IValidatorReward.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -546,5 +547,40 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
             1,                                              // BRIDGE_PATTERN_NATIVE
             true                                            // V3 eligible = true
         );
+    }
+
+    // ==========================================
+    // V3 Eligibility Helpers
+    // ==========================================
+
+    /// @notice V3 자격 조건을 충족시키기 위해 OperatorManager에 deposit
+    /// @dev checkCurrentEligibility를 확인하고 필요한 경우 추가 deposit 수행
+    ///      OperatorManager는 Layer2I(layer2).operator()로 조회
+    /// @param layer2 자격을 충족시킬 Layer2 주소
+    function _ensureV3Eligibility(address layer2) internal {
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(layer2);
+
+        if (!eligible) {
+            address operatorManagerAddr = Layer2I(layer2).operator();
+            uint256 additionalStake = required - actual + 100e27; // 100 WTON 여유
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(layer2, operatorManagerAddr, additionalStake);
+            vm.stopPrank();
+        }
+    }
+
+    /// @notice Bridged TON을 증가시켜 V3 자격 조건을 잃게 만듦
+    /// @dev Portal에 TON을 mint한 후 onBridgedTonChange를 호출하여
+    ///      required stake(θ×B_i)를 증가시켜 eligibility를 상실시킴
+    /// @param amount 추가할 Bridged TON 양
+    function _increaseBridgedTONForIneligibility(uint256 amount) internal {
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, amount);
+
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
     }
 }

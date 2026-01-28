@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import "../v2mode/V2ModeTestBase.sol";
 import {ValidatorRewardV1} from "../../../src/validator/ValidatorRewardV1.sol";
+import {Layer2I} from "../../../src/dao/interfaces/Layer2I.sol";
 
 /// @title ValidatorJourneyTest
 /// @notice 검증자의 전체 여정 시나리오 테스트
@@ -61,10 +62,7 @@ contract ValidatorJourneyTest is V2ModeTestBase {
     ///      5. WTON 수령 확인
     ///
     /// @dev NOTE: RAT 응답 성공 플로우는 RAT.t.sol에서 test_RAT030_submitEvidence로 테스트됨
-    /// @dev SKIP: V3에서 ValidatorReward는 eligible한 layer2에서만 시뇨리지를 받음.
-    ///      V3 eligibility는 OperatorManager의 잔액 기준이므로 이 테스트 플로우가 맞지 않음.
     function test_SCENVAL001_validator_rewardClaim_fullJourney() public {
-        vm.skip(true);
         // ============================================
         // 1. L2 시퀀서 등록 및 자격 충족
         // ============================================
@@ -72,12 +70,16 @@ contract ValidatorJourneyTest is V2ModeTestBase {
 
         emit log_string("Step 1: L2 sequencer registered and eligible");
 
-        (bool eligible, , ) = seigManager.checkCurrentEligibility(mockLayer2);
+        // V3 자격 충족: OperatorManager에 deposit
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(mockLayer2);
         if (!eligible) {
-            // 자격 미달이면 추가 예치
-            vm.startPrank(operator1);
-            MockWTON(wton).approve(depositManagerProxy, 100e27);
-            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, 100e27);
+            address operatorManagerAddr = Layer2I(mockLayer2).operator();
+            uint256 additionalStake = required - actual + 100e27;
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, operatorManagerAddr, additionalStake);
             vm.stopPrank();
         }
 
@@ -156,13 +158,24 @@ contract ValidatorJourneyTest is V2ModeTestBase {
     ///      - test_RAT030_submitEvidence: 성공 케이스
     ///      - test_RAT031_submitEvidence_afterDeadline_reverts: deadline 초과
     ///      - test_RAT050_withdrawSlashingsToTreasury: Treasury 전송
-    /// @dev SKIP: V3에서 ValidatorReward는 eligible한 layer2에서만 시뇨리지를 받음.
     function test_SCENVAL002_validator_slashing_concept() public {
-        vm.skip(true);
         // ============================================
         // 1. L2 등록 및 시뇨리지 분배
         // ============================================
         _setupLayer2AndMigrateV3();
+
+        // V3 자격 충족: OperatorManager에 deposit
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(mockLayer2);
+        if (!eligible) {
+            address operatorManagerAddr = Layer2I(mockLayer2).operator();
+            uint256 additionalStake = required - actual + 100e27;
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, operatorManagerAddr, additionalStake);
+            vm.stopPrank();
+        }
 
         vm.roll(block.number + 100);
         _updateSeigniorage();
@@ -203,13 +216,24 @@ contract ValidatorJourneyTest is V2ModeTestBase {
     /// @dev 실제 RAT 재활성화 테스트:
     ///      - test_RAT035_submitEvidence_reactivatesValidator: 자동 재활성화
     ///      - test_RAT036_submitEvidence_noReactivation_insufficientCollateral: 담보금 부족 시 실패
-    /// @dev SKIP: V3에서 ValidatorReward는 eligible한 layer2에서만 시뇨리지를 받음.
     function test_SCENVAL003_validator_reactivation_concept() public {
-        vm.skip(true);
         // ============================================
         // ValidatorReward 분배 확인
         // ============================================
         _setupLayer2AndMigrateV3();
+
+        // V3 자격 충족: OperatorManager에 deposit
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(mockLayer2);
+        if (!eligible) {
+            address operatorManagerAddr = Layer2I(mockLayer2).operator();
+            uint256 additionalStake = required - actual + 100e27;
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, operatorManagerAddr, additionalStake);
+            vm.stopPrank();
+        }
 
         vm.roll(block.number + 100);
         _updateSeigniorage();
@@ -257,20 +281,24 @@ contract ValidatorJourneyTest is V2ModeTestBase {
     ///      1. L2 등록 및 시뇨리지 분배
     ///      2. ValidatorReward 분배 확인
     ///      3. 다중 L2 시나리오 설명
-    /// @dev SKIP: V3 eligibility 조건 미충족. θ×B_i = 5000 WTON 필요하지만
-    ///      operator stake + 추가 deposit = 300 WTON뿐. ValidatorReward는 eligible한 layer2에만 분배됨.
     function test_SCENVAL004_validator_multiL2_rewards() public {
-        vm.skip(true);
         // ============================================
         // 1. L2 등록 및 시뇨리지 분배
         // ============================================
         _setupLayer2AndMigrateV3();
 
-        // 충분한 담보금 예치로 자격 충족
-        vm.startPrank(operator1);
-        MockWTON(wton).approve(depositManagerProxy, 200e27);
-        DepositManagerV3(depositManagerProxy).deposit(mockLayer2, 200e27);
-        vm.stopPrank();
+        // V3 자격 충족: OperatorManager에 deposit
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(mockLayer2);
+        if (!eligible) {
+            address operatorManagerAddr = Layer2I(mockLayer2).operator();
+            uint256 additionalStake = required - actual + 100e27;
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, operatorManagerAddr, additionalStake);
+            vm.stopPrank();
+        }
 
         // ============================================
         // 2. 여러 번 시뇨리지 분배

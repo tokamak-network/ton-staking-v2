@@ -402,8 +402,16 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
 
         emit log_named_uint("Type 3 effectiveBridgedTON after Portal call", effectiveAfterPortal);
 
-        // EligibilityChanged 이벤트는 eligibility가 변경될 때만 발생
-        // (이미 eligible → eligible이므로 이벤트 없을 수 있음)
+        // EligibilityChanged 이벤트 검증: eligible → eligible이므로 이벤트가 발생하지 않아야 함
+        bool foundEligibilityEvent = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            // EligibilityChanged(address indexed layer2, bool eligible, uint256 bridgedTON, uint256 effectiveBridgedTON)
+            if (logs[i].topics[0] == keccak256("EligibilityChanged(address,bool,uint256,uint256)")) {
+                foundEligibilityEvent = true;
+                break;
+            }
+        }
+        assertFalse(foundEligibilityEvent, "EligibilityChanged event should not be emitted when eligibility unchanged");
     }
 
     /// @notice MIG-003-Type2: Type 2 rollup에서 onBridgedTonChange 미지원 확인
@@ -844,9 +852,6 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
         vm.roll(block.number + 10);
         vm.prank(mockPortal);
         seigManager.onBridgedTonChange();
-
-        // 초기 effectiveBridgedTON 확인 (자격 충족 시 > 0)
-        uint256 effectiveBefore = seigManager.getEffectiveBridgedTon(mockLayer2);
 
         // excludeFromL2Seigniorage 호출
         vm.prank(layer2ManagerProxy);

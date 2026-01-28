@@ -99,12 +99,11 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
     // ==========================================
 
     /// @notice INV-003-StakeIncrease: 스테이킹 증가로 자격 획득 시 일관성
-    /// @dev 자격 미달 상태 → 추가 스테이킹 → 자격 충족 → effectiveBridgedTON > 0
-    /// @dev SKIP: V3에서 checkCurrentEligibility는 OperatorManager의 잔액을 반환하므로
-    ///      일반 스테이커의 deposit으로는 자격을 변경할 수 없음.
-    ///      이 테스트는 V3 자격 모델과 맞지 않아 스킵함.
+    /// @dev 자격 미달 상태 → OperatorManager에 추가 스테이킹 → 자격 충족 → effectiveBridgedTON > 0
+    ///      V3에서 checkCurrentEligibility는 OperatorManager의 coinage를 확인하므로
+    ///      OperatorManager account로 deposit해야 함
     function test_INV003_stakeIncrease_gainsEligibility() public {
-        vm.skip(true);
+        // vm.skip(true);
         _setupLayer2AndMigrateV3();
 
         // ============================================
@@ -114,7 +113,9 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
 
         if (!eligible1) {
             emit log_string("Step 1: Initially INELIGIBLE");
-            emit log_named_decimal_uint("Shortage", (required1 - actual1) / 1e27, 27);
+            emit log_named_decimal_uint("Required", required1 / 1e18, 18);
+            emit log_named_decimal_uint("Actual", actual1 / 1e18, 18);
+            emit log_named_decimal_uint("Shortage", (required1 - actual1) / 1e18, 18);
 
             // 시뇨리지 분배로 effectiveBridgedTON 확인
             vm.roll(block.number + 100);
@@ -124,25 +125,29 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
             assertEq(effectiveBefore, 0, "effectiveBridgedTON should be 0 when ineligible");
 
             // ============================================
-            // 2. 추가 스테이킹으로 자격 충족
+            // 2. OperatorManager에 추가 스테이킹으로 자격 충족
             // ============================================
+            // V3에서 checkCurrentEligibility는 OperatorManager의 coinage를 확인
+            // 따라서 OperatorManager account로 deposit해야 함
             uint256 additionalStake = required1 - actual1 + 100e27; // 100 WTON 여유
 
             vm.startPrank(owner);
-            MockWTON(wton).mint(operator1, additionalStake);
-            vm.stopPrank();
-
-            vm.startPrank(operator1);
+            MockWTON(wton).mint(owner, additionalStake);
             MockWTON(wton).approve(depositManagerProxy, additionalStake);
-            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, additionalStake);
+            // OperatorManager account로 deposit
+            address operatorManagerAddr = ILayer2(mockLayer2).operator();
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, operatorManagerAddr, additionalStake);
             vm.stopPrank();
 
-            emit log_string("Step 2: Deposited additional stake");
+            emit log_string("Step 2: Deposited additional stake to OperatorManager");
 
             // ============================================
             // 3. 자격 재확인
             // ============================================
             (bool eligible2, uint256 required2, uint256 actual2) = seigManager.checkCurrentEligibility(mockLayer2);
+
+            emit log_named_decimal_uint("Required (after)", required2 / 1e18, 18);
+            emit log_named_decimal_uint("Actual (after)", actual2 / 1e18, 18);
 
             // ============================================
             // 4. 불변 속성 검증: actual >= required ⟹ eligible = true
@@ -160,8 +165,8 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
             assertGt(effectiveAfter, 0, "INV-003: effectiveBridgedTON should be > 0 when eligible");
 
             emit log_string("=== INV-003-StakeIncrease: Eligibility Gained ===");
-            emit log_named_decimal_uint("effectiveBridgedTON (before)", effectiveBefore / 1e27, 27);
-            emit log_named_decimal_uint("effectiveBridgedTON (after)", effectiveAfter / 1e27, 27);
+            emit log_named_decimal_uint("effectiveBridgedTON (before)", effectiveBefore / 1e18, 18);
+            emit log_named_decimal_uint("effectiveBridgedTON (after)", effectiveAfter / 1e18, 18);
         } else {
             emit log_string("Already ELIGIBLE from the start");
             emit log_string("(Cannot test eligibility gain scenario)");
@@ -172,25 +177,25 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
     // INV-003: 스테이킹 감소 시 자격 상실
     // ==========================================
 
-    /// @notice INV-003-StakeDecrease: 스테이킹 감소로 자격 상실 시 일관성
-    /// @dev 자격 충족 상태 → 스테이킹 감소 → 자격 미달 → effectiveBridgedTON = 0
-    /// @dev SKIP: V3에서 checkCurrentEligibility는 OperatorManager의 잔액을 반환하므로
-    ///      일반 스테이커의 출금으로는 자격을 변경할 수 없음.
-    ///      이 테스트는 V3 자격 모델과 맞지 않아 스킵함.
+    /// @notice INV-003-StakeDecrease: Required 증가로 자격 상실 시 일관성
+    /// @dev 자격 충족 상태 → Bridged TON 증가 → required 증가 → 자격 미달 → effectiveBridgedTON = 0
+    ///      V3에서 OperatorManager는 컨트랙트이므로 직접 withdrawal 불가
+    ///      대신 Bridged TON을 증가시켜 required를 증가시켜서 자격 상실을 시뮬레이션
     function test_INV003_stakeDecrease_losesEligibility() public {
-        vm.skip(true);
+        // vm.skip(true);
         _setupLayer2AndMigrateV3();
 
         // ============================================
-        // 1. 자격 충족 확인 (required = max(D_seq, θ × B_i) = max(50, 0.001 × 10000) = 50 WTON)
-        // Initial operator stake = ~100 WTON > 50 WTON required
+        // 1. 자격 충족 상태로 만들기
         // ============================================
+        _ensureV3Eligibility(mockLayer2);
+
         (bool eligible1, uint256 required1, uint256 actual1) = seigManager.checkCurrentEligibility(mockLayer2);
-        assertTrue(eligible1, "Should be eligible initially");
+        assertTrue(eligible1, "Should be eligible after setup");
 
         emit log_string("Step 1: ELIGIBLE with sufficient stake");
-        emit log_named_decimal_uint("Actual stake", actual1 / 1e27, 27);
-        emit log_named_decimal_uint("Required stake", required1 / 1e27, 27);
+        emit log_named_decimal_uint("Actual stake", actual1 / 1e18, 18);
+        emit log_named_decimal_uint("Required stake", required1 / 1e18, 18);
 
         // 시뇨리지 분배로 effectiveBridgedTON 설정
         vm.roll(block.number + 100);
@@ -200,27 +205,27 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
         assertGt(effectiveBefore, 0, "effectiveBridgedTON should be > 0 when eligible");
 
         // ============================================
-        // 2. 스테이킹 감소 (required 이하로)
+        // 2. Bridged TON 증가로 required 증가 → 자격 상실
         // ============================================
-        uint256 withdrawAmount = actual1 - required1 + 50e27; // required보다 50 WTON 부족하게
+        // required = max(D_sequencer, θ × B_i)
+        // Bridged TON을 크게 증가시켜서 actual < required 만들기
+        _increaseBridgedTONForIneligibility(100000e27); // 100000 TON 추가
 
-        vm.startPrank(operator1);
-        DepositManagerV3(depositManagerProxy).requestWithdrawal(mockLayer2, withdrawAmount);
-        vm.stopPrank();
-
-        emit log_string("Step 2: Withdrew stake to lose eligibility");
-        emit log_named_decimal_uint("Withdrawal amount", withdrawAmount / 1e27, 27);
+        emit log_string("Step 2: Increased Bridged TON to lose eligibility");
 
         // ============================================
         // 3. 자격 재확인
         // ============================================
         (bool eligible2, uint256 required2, uint256 actual2) = seigManager.checkCurrentEligibility(mockLayer2);
 
+        emit log_named_decimal_uint("Actual stake (after)", actual2 / 1e18, 18);
+        emit log_named_decimal_uint("Required stake (after)", required2 / 1e18, 18);
+
         // ============================================
         // 4. 불변 속성 검증: actual < required ⟹ eligible = false
         // ============================================
         assertLt(actual2, required2, "Actual stake should now be < required");
-        assertFalse(eligible2, "INV-003: Should be ineligible after withdrawal");
+        assertFalse(eligible2, "INV-003: Should be ineligible after required increase");
 
         // ============================================
         // 5. effectiveBridgedTON = 0 확인
@@ -232,8 +237,8 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
         assertEq(effectiveAfter, 0, "INV-003: effectiveBridgedTON should be 0 when ineligible");
 
         emit log_string("=== INV-003-StakeDecrease: Eligibility Lost ===");
-        emit log_named_decimal_uint("effectiveBridgedTON (before)", effectiveBefore / 1e27, 27);
-        emit log_named_decimal_uint("effectiveBridgedTON (after)", effectiveAfter / 1e27, 27);
+        emit log_named_decimal_uint("effectiveBridgedTON (before)", effectiveBefore / 1e18, 18);
+        emit log_named_decimal_uint("effectiveBridgedTON (after)", effectiveAfter / 1e18, 18);
     }
 
     // ==========================================
@@ -268,8 +273,6 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
         // ============================================
         // Portal에 TON 추가 전송 (Bridged TON 증가)
         uint256 additionalBridgedTON = 500e27; // 500 TON 추가
-        vm.prank(owner);
-        MockTON(ton).mint(mockPortal, additionalBridgedTON);
 
         emit log_string("Step 2: Bridged TON increased");
         emit log_named_decimal_uint("Additional Bridged TON", additionalBridgedTON / 1e27, 27);
@@ -277,8 +280,7 @@ contract EligibilityInvariantsTest is V2ModeTestBase {
         // ============================================
         // 3. onBridgedTonChange 호출 및 자격 재평가
         // ============================================
-        vm.prank(mockPortal);
-        seigManager.onBridgedTonChange();
+        _increaseBridgedTONForIneligibility(additionalBridgedTON);
 
         (bool eligible2, uint256 required2, uint256 actual2) = seigManager.checkCurrentEligibility(mockLayer2);
 

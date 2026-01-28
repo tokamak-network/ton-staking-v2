@@ -597,9 +597,9 @@ contract V2ModeFunctionsTest is V2ModeTestBase {
             uint256 maxSeig,
             uint256 stakedSeig,
             uint256 unstakedSeig,
-            uint256 powertonSeig,
-            uint256 daoSeig,
-            uint256 relativeSeig,
+            ,  // powertonSeig (unused)
+            ,  // daoSeig (unused)
+            ,  // relativeSeig (unused)
             uint256 l2TotalSeigs,
             uint256 layer2Seigs
         ) = seigManagerV2.estimatedDistributeV2(block.number + 1, mockLayer2);
