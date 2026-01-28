@@ -66,27 +66,31 @@ The complete flow for sequencers to receive seigniorage in V2 mode.
    - No seigniorage distribution if layer2TVL is 0
 ```
 
-**Two-step updateSeigniorage Process**:
+**Note for Newly Registered L2's First updateSeigniorage() Call**:
+
+When a newly registered L2 calls `updateSeigniorage()` for the first time, **it does not receive seigniorage immediately**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ First updateSeigniorage() call                                  │
+│ New L2's First updateSeigniorage() call                         │
 ├─────────────────────────────────────────────────────────────────┤
 │ • Set startBlock (layer2RewardInfo[layer2].startBlock)          │
-│ • No actual seigniorage distribution                            │
-│ • Used as starting point for seigniorage calculation from next call│
+│ • No actual seigniorage distribution (only records start point) │
+│ • Seigniorage calculation begins from this block                │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
-                     (Block progression needed)
+                     (After block progression)
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ Second and subsequent updateSeigniorage() calls                 │
+│ Subsequent updateSeigniorage() calls                            │
 ├─────────────────────────────────────────────────────────────────┤
-│ • Execute actual seigniorage distribution                       │
+│ • Distribute seigniorage for blocks elapsed since startBlock   │
 │ • Accumulate l2RewardPerUint (linear method)                    │
 │ • Automatically increase staker balance via Coinage factor       │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+> **Note**: L2s that have already started receiving seigniorage will receive it normally on every call. The above only applies to the first call from a newly registered L2.
 
 **V2 시뇨리지 분배 공식**:
 
@@ -142,10 +146,6 @@ V2에서는 시뇨리지 수령 방식이 두 가지로 나뉩니다:
 │ 적용 대상: Operator와 일반 Staker 모두                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
-**중요**: V2에서 Layer2 시퀀서는 두 가지 형태로 시뇨리지를 받습니다:
-1. **OperatorManager로 직접 전송되는 WTON** (`layer2Seigs`)
-2. **Operator 계정의 Coinage 스테이킹 증가** (factor를 통한 자동 증가)
 
 **V2 vs V3 Core Differences**:
 
@@ -578,9 +578,6 @@ function deposit(address layer2, address account, uint256 amount)
 Configuration functions added in DepositManagerV3.
 
 ```solidity
-// Set minimum gas limit
-function setMinDepositGasLimit(uint256 gasLimit) external onlyOwner
-
 // Initial address setup (L1BridgeRegistry, Layer2Manager)
 function setAddresses(address _l1BridgeRegistry, address _layer2Manager) external onlyOwner
 ```
@@ -981,39 +978,7 @@ Notes:
 
 ---
 
-### 5.2 onApprove
-
-TON.approveAndCall callback (staking deposit when collateral insufficient).
-
-```solidity
-function onApprove(
-    address owner,
-    address spender,
-    uint256 amount,
-    bytes calldata data
-) external returns (bool)
-```
-
-| Item | Content |
-|------|---------|
-| **Caller** | TON contract (via TON.approveAndCall) |
-| **data Format** | systemConfig address (32 bytes) |
-
-**Operation Flow**:
-```
-1. Verify msg.sender == ton
-2. Extract systemConfig from data
-3. Stake TON through DepositManager
-4. Register validator:
-   - Check if already registered validator
-   - Check stakeOf(layer2, validator) >= D_min
-   - Check N_max (maximum validator count)
-   - Save validator information and activate
-```
-
----
-
-### 5.3 triggerAttentionTest
+### 5.2 triggerAttentionTest
 
 Triggers RAT test.
 

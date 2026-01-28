@@ -2,6 +2,7 @@
 id: 07-economics-whitepaper-summary
 sidebar_position: 7
 ---
+
 # Tokamak Economics Whitepaper V2 요약
 
 ## 개요

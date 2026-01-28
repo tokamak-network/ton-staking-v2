@@ -2,6 +2,7 @@
 id: 01-system-overview
 sidebar_position: 1
 ---
+
 # TON Staking V3 시스템 개요
 
 ## 1. 시스템 소개
@@ -170,7 +171,7 @@ k = 반포화점 (halfSaturationPoint)
 
 | 토큰 | 역할 |
 |------|------|
-| **TON** | 토카막 토큰 (18 decimals) |
+| **TON** | 네이티브 토큰 (18 decimals) |
 | **WTON** | Wrapped TON (27 decimals, 1 TON(wei) = 1e9 WTON(ray)) |
 | **Coinage** | 스테이킹 영수증 토큰 (L2별 생성) |
 
@@ -273,7 +274,7 @@ k = 반포화점 (halfSaturationPoint)
 
 ## 6. V3 핵심 파라미터
 
-| 파라미터 | 기호 | 설명 | 테스트시 기본값 |
+| 파라미터 | 기호 | 설명 | 권장값 |
 |---------|------|------|--------|
 | `seigPerBlock` | A/블록 | 블록당 시뇨리지 발행량 | 3.92e18 (3.92 TON) |
 | `daoDistributionRatio` | d | DAO 고정 분배 비율 | 0.2e27 (20%) |

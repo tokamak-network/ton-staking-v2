@@ -2,6 +2,7 @@
 id: 09-layer2-registration-guide
 sidebar_position: 9
 ---
+
 # Layer2 등록 가이드
 
 ## 개요

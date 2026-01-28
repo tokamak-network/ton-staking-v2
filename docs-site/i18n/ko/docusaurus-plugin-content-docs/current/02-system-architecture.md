@@ -2,6 +2,7 @@
 id: 02-system-architecture
 sidebar_position: 2
 ---
+
 # TON Staking V3 시스템 아키텍처
 
 ## 1. 전체 아키텍처
@@ -352,11 +353,14 @@ contract SeigManagerV3_1 is
 │                           검증자 등록 흐름                                   │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  방법 1: registerValidator 직접 호출                                        │
-│  1. RAT.registerValidator(systemConfig) 호출                               │
+│  1. 먼저 충분한 TON 스테이킹 (D_min 이상)                                   │
+│     DepositManager.deposit(layer2, amount)                                │
 │     │                                                                       │
 │     ▼                                                                       │
-│  2. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)                     │
+│  2. RAT.registerValidator(systemConfig) 호출                               │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)                     │
 │     │                                                                       │
 │     ├─ 스테이킹 금액 >= D_min: 바로 검증자 등록                             │
 │     │   │                                                                   │
@@ -365,23 +369,10 @@ contract SeigManagerV3_1 is
 │     │                                                                       │
 │     └─ 스테이킹 금액 < D_min: 등록 실패 (담보금 부족)                       │
 │                                                                             │
-│  방법 2: approveAndCall 사용 (담보금 부족 시)                               │
-│  1. TON.approveAndCall(RAT, amount, data) 호출                             │
-│     │                                                                       │
-│     │ data = [SystemConfig 주소] (32바이트)                                │
-│     ▼                                                                       │
-│  2. RAT.onApprove() 호출됨                                                  │
-│     │                                                                       │
-│     ▼                                                                       │
-│  3. RAT가 TON을 DepositManager를 통해 스테이킹 예치                         │
-│     │                                                                       │
-│     ▼                                                                       │
-│  4. 검증자 활성화 + 이벤트 발생: ValidatorRegistered                        │
-│                                                                             │
 │  주요 특징:                                                                 │
 │  - V3: 기존 스테이킹 금액(coinage)을 검증자 담보금으로 사용                 │
-│  - 담보금 부족 시 DepositManager를 통해 스테이킹 예치                       │
 │  - RAT는 담보금을 직접 보관하지 않음                                        │
+│  - 검증자 등록 전에 반드시 충분한 스테이킹 필요                              │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

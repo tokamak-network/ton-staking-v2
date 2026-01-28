@@ -352,11 +352,14 @@ contract SeigManagerV3_1 is
 │                           Validator Registration Flow                       │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Method 1: Direct registerValidator call                                    │
-│  1. Call RAT.registerValidator(systemConfig)                                │
+│  1. First, stake sufficient TON (D_min or more)                             │
+│     DepositManager.deposit(layer2, amount)                                │
 │     │                                                                       │
 │     ▼                                                                       │
-│  2. Check current staking amount: stakeOf(layer2, validator)                 │
+│  2. Call RAT.registerValidator(systemConfig)                                │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. Check current staking amount: stakeOf(layer2, validator)                 │
 │     │                                                                       │
 │     ├─ Staking amount >= D_min: Register validator immediately             │
 │     │   │                                                                   │
@@ -365,23 +368,10 @@ contract SeigManagerV3_1 is
 │     │                                                                       │
 │     └─ Staking amount < D_min: Registration fails (insufficient collateral)│
 │                                                                             │
-│  Method 2: Use approveAndCall (when collateral insufficient)                │
-│  1. Call TON.approveAndCall(RAT, amount, data)                              │
-│     │                                                                       │
-│     │ data = [SystemConfig address] (32 bytes)                             │
-│     ▼                                                                       │
-│  2. RAT.onApprove() called                                                  │
-│     │                                                                       │
-│     ▼                                                                       │
-│  3. RAT stakes TON through DepositManager                                  │
-│     │                                                                       │
-│     ▼                                                                       │
-│  4. Activate validator + emit event: ValidatorRegistered                    │
-│                                                                             │
 │  Key Features:                                                              │
 │  - V3: Uses existing staking amount (coinage) as validator collateral       │
-│  - If collateral insufficient, stake through DepositManager                │
 │  - RAT does not hold collateral directly                                    │
+│  - Must have sufficient staking before validator registration               │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

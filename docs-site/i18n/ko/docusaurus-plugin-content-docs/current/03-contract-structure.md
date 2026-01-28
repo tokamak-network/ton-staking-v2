@@ -2,6 +2,7 @@
 id: 03-contract-structure
 sidebar_position: 3
 ---
+
 # TON Staking V3 컨트랙트 구조
 
 ## 1. 디렉토리 구조
@@ -10,10 +11,7 @@ sidebar_position: 3
 src/
 ├── stake/                              # 스테이킹 관련
 │   ├── managers/
-│   │   ├── SeigManager.sol                    # 시뇨리지 분배 (기본 구현체)
-│   │   ├── SeigManagerV1_1.sol                # V1.1 구현체
 │   │   ├── SeigManagerV1_2.sol                # V1.2 구현체 (기본 프록시 구현체)
-│   │   ├── SeigManagerV1_3.sol                # V1.3 구현체 (pause/unpause 등)
 │   │   ├── SeigManagerV3_1.sol                # V3.1 구현체 (V3 핵심) 🆕
 │   │   ├── SeigManagerV3_2.sol                # V3.2 구현체 (V2 호환 레이어) 🆕
 │   │   ├── SeigManagerStorage.sol             # 기본 스토리지
@@ -22,9 +20,6 @@ src/
 │   │   ├── SeigManagerV1_4Storage.sol         # V1.4 스토리지 (V3) 🆕
 │   │   ├── SeigManagerProxy.sol               # 프록시
 │   │   │
-│   │   ├── DepositManager.sol                 # 스테이킹 관리 (기본 구현체)
-│   │   ├── DepositManager_setWithdrawalDelay.sol  # 출금 지연 설정
-│   │   ├── DepositManagerV1_1.sol             # V1.1 구현체 (L2 출금)
 │   │   ├── DepositManagerV3.sol               # V3 구현체 (V3 콜백) 🆕
 │   │   ├── DepositManagerStorage.sol          # 기본 스토리지
 │   │   ├── DepositManagerV1_1Storage.sol      # V1.1 스토리지
@@ -56,19 +51,16 @@ src/
 │       └── IAutoCoinageSnapshot.sol           # 코이니지 스냅샷
 │
 ├── layer2/                             # L2 관리
-│   ├── Layer2ManagerV1_1.sol                  # L2 관리 (기본 구현체)
 │   ├── Layer2ManagerV3.sol                    # L2 관리 (V3) 🆕
 │   ├── Layer2ManagerStorage.sol               # 기본 스토리지
 │   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 (V3에서 사용) 🆕
 │   ├── Layer2ManagerProxy.sol                 # 프록시
 │   │
-│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
 │   ├── L1BridgeRegistryV1_2.sol               # 브릿지 레지스트리 (TYPE 3) 🆕
 │   ├── L1BridgeRegistryStorage.sol            # 기본 스토리지
 │   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 스토리지 🆕
 │   ├── L1BridgeRegistryProxy.sol              # 프록시
 │   │
-│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저 (TYPE 1,2)
 │   ├── OperatorManagerV1_2.sol                # 오퍼레이터 매니저 (TYPE 3) 🆕
 │   ├── OperatorManagerStorage.sol             # 스토리지
 │   ├── OperatorManagerProxy.sol               # 프록시 (ERC1967 기반)
@@ -95,6 +87,7 @@ src/
 │   ├── RAT.sol                                # 검증자 등록/RAT/슬래싱
 │   ├── RATStorage.sol                         # 스토리지
 │   ├── RATProxy.sol                           # 프록시 (TransparentUpgradeableProxy)
+│   ├── RATTypes.sol                           # 타입 정의 🆕
 │   ├── IRAT.sol                               # 인터페이스
 │   │
 │   ├── ValidatorRewardV1.sol                  # 검증자 보상 분배

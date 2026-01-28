@@ -463,6 +463,10 @@ accVal = validatorRewardPerUint × B̃_i / WEI_UNIT - validatorInitialDebt
 | INT-046 | `test_INT046_pausedState_eligibilityGain_setsEffectiveBridgedTON` | Set effectiveBridgedTON on eligibility gain in paused state |
 | INT-047 | `test_INT047_eligibilityLoss_triggersSeigDistribution` | Auto seigniorage settlement on eligibility loss (without updateSeigniorage) |
 | INT-048 | `test_INT048_eligibilityGain_triggersSeigDistribution` | Settle seigniorage to existing L2s first on eligibility gain |
+| INT-049 | `test_INT049_estimateL2Seigniorage_accuracy` | Verify estimateL2Seigniorage matches actual values |
+| INT-050 | `test_INT050_estimateL2Seigniorage_withAccumulatedRewards` | Verify estimateL2Seigniorage accuracy with accumulated rewards |
+| INT-051 | `test_INT051_claimableL2Seigniorage_returnsSequencerRewardOnly` | Verify claimableL2Seigniorage returns sequencer reward only |
+| INT-052 | `test_INT052_claimableL2Seigniorage_includesAccumulatedRewards` | Verify claimableL2Seigniorage includes accumulated rewards |
 
 ---
 

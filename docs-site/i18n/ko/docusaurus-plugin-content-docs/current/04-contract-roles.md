@@ -2,6 +2,7 @@
 id: 04-contract-roles
 sidebar_position: 4
 ---
+
 # TON Staking V3 컨트랙트별 역할
 
 ## 1. 컨트랙트 역할 개요

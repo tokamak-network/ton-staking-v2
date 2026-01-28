@@ -5,11 +5,11 @@ const sidebars: SidebarsConfig = {
     {
       type: 'doc',
       id: '00-intro',
-      label: '소개',
+      label: 'Introduction',
     },
     {
       type: 'category',
-      label: '시스템 설계',
+      label: 'System Design',
       items: [
         '01-system-overview',
         '02-system-architecture',
@@ -19,34 +19,78 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '액터 및 함수',
+      label: 'Actors',
+      link: {
+        type: 'generated-index',
+        description: 'Learn about the different actors in the TON Staking V3 system.',
+      },
       items: [
-        '05-actors',
-        '06-function-specs',
+        'actors/actors-overview',
+        'actors/actors-staker',
+        'actors/actors-sequencer',
+        'actors/actors-validator',
+        'actors/actors-challenger',
+        'actors/actors-dao',
+        'actors/actors-l2-proposer',
       ],
     },
     {
       type: 'category',
-      label: '가이드',
+      label: 'Function Specs',
+      link: {
+        type: 'doc',
+        id: 'functions/functions-overview',
+      },
+      items: [
+        'functions/functions-seig-manager',
+        'functions/functions-deposit-manager',
+        'functions/functions-layer2-manager',
+        'functions/functions-l1-bridge-registry',
+        'functions/functions-rat',
+        'functions/functions-validator-reward',
+        'functions/functions-sequencer-slashing',
+        'functions/functions-operator-manager-factory',
+        'functions/functions-governance-parameters',
+        'functions/functions-events',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Guides',
       items: [
         '07-economics-whitepaper-summary',
-        '08-v2-to-v3-upgrade-guide',
+        {
+          type: 'category',
+          label: 'V2 → V3 Upgrade Guide',
+          link: {
+            type: 'doc',
+            id: 'upgrade-guide/upgrade-overview',
+          },
+          items: [
+            'upgrade-guide/upgrade-staker-guide',
+            'upgrade-guide/upgrade-sequencer-guide',
+            'upgrade-guide/upgrade-validator-guide',
+            'upgrade-guide/upgrade-technical-details',
+            'upgrade-guide/upgrade-migration-checklist',
+            'upgrade-guide/upgrade-faq',
+          ],
+        },
         '09-layer2-registration-guide',
       ],
     },
     {
       type: 'category',
-      label: '테스트 및 운영',
+      label: 'L2 Integration',
       items: [
-        '10-v3-test-lists',
-        '11-seigniorage-update-cases',
+        '12-optimism-integration',
       ],
     },
     {
       type: 'category',
-      label: '통합',
+      label: 'Testing & Operations',
       items: [
-        '12-optimism-integration',
+        '10-v3-test-lists',
+        '11-seigniorage-update-cases',
       ],
     },
   ],

@@ -2,6 +2,7 @@
 id: 12-optimism-integration
 sidebar_position: 12
 ---
+
 # TON Staking V3 Optimism 통합
 
 이 문서는 Optimism L2와 TON Staking V3 시스템(RAT, SeigManager)의 통합 구현을 설명합니다.

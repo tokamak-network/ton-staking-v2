@@ -10,25 +10,19 @@ sidebar_position: 3
 src/
 ├── stake/                              # Staking related
 │   ├── managers/
-│   │   ├── SeigManager.sol                    # Seigniorage distribution (base implementation)
-│   │   ├── SeigManagerV1_1.sol                # V1.1 구현체
-│   │   ├── SeigManagerV1_2.sol                # V1.2 구현체 (기본 프록시 구현체)
-│   │   ├── SeigManagerV1_3.sol                # V1.3 구현체 (pause/unpause 등)
-│   │   ├── SeigManagerV3_1.sol                # V3.1 구현체 (V3 핵심) 🆕
-│   │   ├── SeigManagerV3_2.sol                # V3.2 구현체 (V2 호환 레이어) 🆕
-│   │   ├── SeigManagerStorage.sol             # 기본 스토리지
-│   │   ├── SeigManagerV1_1Storage.sol         # V1.1 스토리지
-│   │   ├── SeigManagerV1_3Storage.sol         # V1.3 스토리지
-│   │   ├── SeigManagerV1_4Storage.sol         # V1.4 스토리지 (V3) 🆕
-│   │   ├── SeigManagerProxy.sol               # 프록시
+│   │   ├── SeigManagerV1_2.sol                # V1.2 implementation (base proxy impl)
+│   │   ├── SeigManagerV3_1.sol                # V3.1 implementation (V3 core) 🆕
+│   │   ├── SeigManagerV3_2.sol                # V3.2 implementation (V2 compat layer) 🆕
+│   │   ├── SeigManagerStorage.sol             # Base storage
+│   │   ├── SeigManagerV1_1Storage.sol         # V1.1 storage
+│   │   ├── SeigManagerV1_3Storage.sol         # V1.3 storage
+│   │   ├── SeigManagerV1_4Storage.sol         # V1.4 storage (V3) 🆕
+│   │   ├── SeigManagerProxy.sol               # Proxy
 │   │   │
-│   │   ├── DepositManager.sol                 # 스테이킹 관리 (기본 구현체)
-│   │   ├── DepositManager_setWithdrawalDelay.sol  # 출금 지연 설정
-│   │   ├── DepositManagerV1_1.sol             # V1.1 구현체 (L2 출금)
-│   │   ├── DepositManagerV3.sol               # V3 구현체 (V3 콜백) 🆕
-│   │   ├── DepositManagerStorage.sol          # 기본 스토리지
-│   │   ├── DepositManagerV1_1Storage.sol      # V1.1 스토리지
-│   │   └── DepositManagerProxy.sol            # 프록시
+│   │   ├── DepositManagerV3.sol               # V3 implementation (V3 callbacks) 🆕
+│   │   ├── DepositManagerStorage.sol          # Base storage
+│   │   ├── DepositManagerV1_1Storage.sol      # V1.1 storage
+│   │   └── DepositManagerProxy.sol            # Proxy
 │   │
 │   ├── tokens/                            # 코이니지 토큰
 │   │   ├── RefactorCoinageSnapshot.sol        # 코이니지 구현체
@@ -55,23 +49,20 @@ src/
 │       ├── IOnApprove.sol                     # approveAndCall 콜백
 │       └── IAutoCoinageSnapshot.sol           # 코이니지 스냅샷
 │
-├── layer2/                             # L2 관리
-│   ├── Layer2ManagerV1_1.sol                  # L2 관리 (기본 구현체)
-│   ├── Layer2ManagerV3.sol                    # L2 관리 (V3) 🆕
-│   ├── Layer2ManagerStorage.sol               # 기본 스토리지
-│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 (V3에서 사용) 🆕
-│   ├── Layer2ManagerProxy.sol                 # 프록시
+├── layer2/                             # L2 management
+│   ├── Layer2ManagerV3.sol                    # L2 manager (V3) 🆕
+│   ├── Layer2ManagerStorage.sol               # Base storage
+│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 storage (used in V3) 🆕
+│   ├── Layer2ManagerProxy.sol                 # Proxy
 │   │
-│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
-│   ├── L1BridgeRegistryV1_2.sol               # 브릿지 레지스트리 (TYPE 3) 🆕
-│   ├── L1BridgeRegistryStorage.sol            # 기본 스토리지
-│   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 스토리지 🆕
-│   ├── L1BridgeRegistryProxy.sol              # 프록시
+│   ├── L1BridgeRegistryV1_2.sol               # Bridge registry (TYPE 3) 🆕
+│   ├── L1BridgeRegistryStorage.sol            # Base storage
+│   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 storage 🆕
+│   ├── L1BridgeRegistryProxy.sol              # Proxy
 │   │
-│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저 (TYPE 1,2)
-│   ├── OperatorManagerV1_2.sol                # 오퍼레이터 매니저 (TYPE 3) 🆕
-│   ├── OperatorManagerStorage.sol             # 스토리지
-│   ├── OperatorManagerProxy.sol               # 프록시 (ERC1967 기반)
+│   ├── OperatorManagerV1_2.sol                # Operator manager (TYPE 3) 🆕
+│   ├── OperatorManagerStorage.sol             # Storage
+│   ├── OperatorManagerProxy.sol               # Proxy (ERC1967-based)
 │   │
 │   ├── LegacySystemConfig.sol                 # 레거시 SystemConfig 래퍼
 │   ├── LegacySystemConfigProxy.sol            # 프록시
@@ -91,16 +82,17 @@ src/
 │       ├── IL1Bridge.sol                      # L1Bridge 인터페이스
 │       └── IStandardBridge.sol                # StandardBridge 인터페이스
 │
-├── validator/                          # 검증자 시스템 (V3 신규) 🆕
-│   ├── RAT.sol                                # 검증자 등록/RAT/슬래싱
-│   ├── RATStorage.sol                         # 스토리지
-│   ├── RATProxy.sol                           # 프록시 (TransparentUpgradeableProxy)
-│   ├── IRAT.sol                               # 인터페이스
+├── validator/                          # Validator system (V3 new) 🆕
+│   ├── RAT.sol                                # Validator registration/RAT/slashing
+│   ├── RATStorage.sol                         # Storage
+│   ├── RATProxy.sol                           # Proxy (TransparentUpgradeableProxy)
+│   ├── RATTypes.sol                           # Type definitions 🆕
+│   ├── IRAT.sol                               # Interface
 │   │
-│   ├── ValidatorRewardV1.sol                  # 검증자 보상 분배
-│   ├── ValidatorRewardStorage.sol             # 스토리지
-│   ├── ValidatorRewardProxy.sol               # 프록시 (TransparentUpgradeableProxy)
-│   └── IValidatorReward.sol                   # 인터페이스
+│   ├── ValidatorRewardV1.sol                  # Validator reward distribution
+│   ├── ValidatorRewardStorage.sol             # Storage
+│   ├── ValidatorRewardProxy.sol               # Proxy (TransparentUpgradeableProxy)
+│   └── IValidatorReward.sol                   # Interface
 │
 │
 ├── dao/                                # DAO/거버넌스

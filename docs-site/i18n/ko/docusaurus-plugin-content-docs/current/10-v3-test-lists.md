@@ -2,6 +2,7 @@
 id: 10-v3-test-lists
 sidebar_position: 10
 ---
+
 # TON Staking V3 테스트 목록
 
 > **최종 업데이트**: 2026-01-27
@@ -530,4 +531,4 @@ sidebar_position: 10
 
 ---
 
-## 총계: **408개 테스트** (스킵 13개 제외)
+## 총계: **555개 테스트**

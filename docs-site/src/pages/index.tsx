@@ -1,76 +1,146 @@
 import type {ReactNode} from 'react';
-import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
+
+function TokamakLogo({className}: {className?: string}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 36 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M0.551196 8.60858C0.440796 8.95898 0.304797 9.4318 0.216797 9.7902C0.277608 9.54236 0.390929 9.31046 0.549097 9.1102C0.707264 8.90993 0.906588 8.74596 1.13359 8.62939C1.5799 8.05462 2.15209 7.58987 2.80615 7.27089C3.46021 6.9519 4.1787 6.78719 4.9064 6.7894V6.7758C2.1968 5.9974 1.356 6.8886 1.1208 7.3078C0.898239 7.72513 0.708081 8.15892 0.552002 8.60539" fill="#2A72E5"/>
+      <path d="M3.35917 4.44479L2.95917 4.82719C3.41757 4.45119 4.17356 4.53839 5.33756 5.10319C5.58991 4.65111 5.91018 4.24046 6.28717 3.88559C5.73517 3.48559 5.17596 3.1328 4.82076 3.2976C4.30557 3.64361 3.81651 4.02704 3.35756 4.44479" fill="#2A72E5"/>
+      <path d="M8.9288 1.30791C8.5152 1.45991 7.96398 1.6631 7.55438 1.8303C7.76881 2.05788 7.96141 2.3051 8.1296 2.5687C8.74655 2.23423 9.38846 1.94804 10.0496 1.7127C9.9384 1.2503 9.9112 1.01909 10.0496 0.960693C9.7112 1.06389 9.25838 1.19111 8.92318 1.30791" fill="#2A72E5"/>
+      <path d="M15.6479 0.0439941C15.0183 0.0951941 14.18 0.173592 13.552 0.247192C13.224 0.327192 13.0791 0.44559 12.9167 0.93999C13.7727 0.777434 14.637 0.662079 15.5056 0.594409C15.6337 0.414309 15.8023 0.266722 15.9978 0.163501C16.1932 0.0602801 16.4101 0.00428694 16.6312 0L15.6479 0.0439941Z" fill="#2A72E5"/>
+      <path d="M22.6407 0.423275C22.0519 0.333675 21.2663 0.221683 20.6751 0.152083C20.0839 0.0818689 19.4869 0.223602 18.9904 0.552083C19.8926 0.598769 20.7917 0.693305 21.684 0.835286C22.3503 0.548151 23.0915 0.483335 23.7976 0.650472C23.4504 0.581672 22.9895 0.480875 22.6407 0.423275Z" fill="#2A72E5"/>
+      <path d="M28.9504 2.41689C28.5136 2.21449 27.9303 1.94889 27.4871 1.76489C26.6147 1.40326 25.6507 1.32462 24.7311 1.54008C25.4507 1.76233 26.1544 2.03282 26.8375 2.3497C28.0433 2.20302 29.262 2.48813 30.2776 3.15449C29.8816 2.92649 29.3551 2.61769 28.9479 2.41689" fill="#2A72E5"/>
+      <path d="M35.2112 8.97527C34.9163 8.13179 34.5097 7.33161 34.0024 6.59607L33.6904 6.16648C33.1547 5.4014 32.4474 4.77236 31.625 4.32976C30.8026 3.88716 29.8879 3.6433 28.9543 3.61768C29.4046 3.95977 29.8102 4.357 30.1615 4.80007C33.3447 5.25047 35.536 8.04886 35.7432 11.9297C35.7169 10.9236 35.5375 9.92733 35.2112 8.97527Z" fill="#2A72E5"/>
+      <path d="M30.6616 20.8657C31.2703 20.4714 31.847 20.0298 32.3864 19.5449C32.5896 19.3473 32.8664 19.0865 33.0576 18.8793C37.028 14.2785 35.224 7.6393 30.9608 6.4353C31.0067 6.64564 31.0313 6.86004 31.0344 7.07529C31.0344 7.11369 31.0344 7.1553 31.0344 7.1897C31.0301 7.40069 31.0052 7.61076 30.96 7.81689C35.52 9.87529 35.0728 18.0897 30.2336 21.1337L30.6616 20.8689" fill="#2A72E5"/>
+      <path d="M24.6984 23.2848C25.292 23.1312 26.0808 22.9112 26.6696 22.7312C32.5096 20.5368 33.4383 11.5776 30.1615 9.42236C29.8099 9.8541 29.4045 10.2391 28.9552 10.568C31.7272 13.6248 28.8864 22.2608 23.684 23.5008L24.6984 23.2848Z" fill="#2A72E5"/>
+      <path d="M17.9048 24.0001C18.4552 23.9953 19.1896 23.9873 19.74 23.9657C24.5888 23.4649 28.04 14.5601 26.8392 11.7737C26.1553 12.0718 25.4514 12.322 24.7328 12.5225C24.7216 16.0841 19.9272 24.0425 16.4888 23.9529C16.9136 23.9681 17.48 23.9993 17.9048 24.0001Z" fill="#2A72E5"/>
+      <path d="M10.872 23.0825C11.4136 23.2129 12.1376 23.3801 12.6824 23.4913C14.7056 23.6401 19.8024 16.7713 21.6816 13.1409C20.7856 13.2566 19.884 13.3247 18.9808 13.3449C17.512 14.7705 13.6368 19.2545 12.8752 20.1393C10.9136 22.4161 10.1848 22.8481 9.91919 22.8097L10.872 23.0825Z" fill="#2A72E5"/>
+      <path d="M4.96156 20.5104C5.54898 20.9041 6.1615 21.259 6.79518 21.5728L6.84718 21.5984C6.95598 21.0192 11.7776 15.2592 15.5 13.1984C14.6319 13.1051 13.7696 12.9646 12.9168 12.7776C8.46956 14.4824 3.92957 19.6976 4.71117 20.3376L4.96156 20.5104Z" fill="#2A72E5"/>
+      <path d="M1.74322 17.3944C1.95362 17.6776 2.23762 18.0536 2.46322 18.3224C1.46162 16.796 5.68481 12.8432 10.0552 11.9224C9.3932 11.6674 8.75139 11.3628 8.13521 11.0112C4.11361 11.448 0.286417 14.2984 1.07362 16.2688C1.26642 16.6144 1.52483 17.0744 1.74723 17.3952" fill="#2A72E5"/>
+      <path d="M0.00159912 11.804C0.00159912 11.8688 0.00159912 11.9328 0.00159912 11.9968C0.0191991 12.3312 0.047204 12.776 0.081604 13.108C-0.026396 10.94 3.2656 9.53922 6.288 9.63842C5.9107 9.27247 5.59033 8.85206 5.33758 8.3912C2.78239 8.0632 1.3856 8.72242 0.663196 9.33202C0.243019 10.0892 0.015535 10.9382 0.000793457 11.804" fill="#2A72E5"/>
+    </svg>
+  );
+}
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
+    <header className={styles.heroBanner}>
+
       <div className="container">
-        <div style={{
-          background: '#ff9800',
-          color: '#000',
-          padding: '0.5rem 1rem',
-          borderRadius: '4px',
-          marginBottom: '1rem',
-          fontWeight: 'bold',
-        }}>
-          WARNING: This documentation is for development version
-        </div>
-        <Heading as="h1" className="hero__title">
-          {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/intro">
-            Get Started
-          </Link>
+        <div className={styles.heroContent}>
+          <div className={styles.warningBadge}>
+            WARNING: This documentation is for development version
+          </div>
+          <h1 className={styles.heroTitle}>
+            {siteConfig.title}
+          </h1>
+          <p className={styles.heroSubtitle}>{siteConfig.tagline}</p>
+          <div className={styles.buttons}>
+            <Link
+              className={styles.primaryButton}
+              to="/docs/01-system-overview">
+              Get Started
+            </Link>
+            <Link
+              className={styles.secondaryButton}
+              to="/docs/02-system-architecture">
+              View Architecture
+            </Link>
+          </div>
         </div>
       </div>
     </header>
   );
 }
 
+type FeatureItem = {
+  title: string;
+  description: string;
+  link: string;
+  icon: string;
+};
+
+const FeatureList: FeatureItem[] = [
+  {
+    title: 'System Overview',
+    description: 'Learn about the V3 staking system overview, core concepts, and key improvements from V2.',
+    link: '/docs/01-system-overview',
+    icon: '📊',
+  },
+  {
+    title: 'System Architecture',
+    description: 'Understand the overall architecture, contract dependencies, and how components interact.',
+    link: '/docs/02-system-architecture',
+    icon: '🏗️',
+  },
+  {
+    title: 'Contract Structure',
+    description: 'Explore the detailed contract structure, inheritance patterns, and storage layouts.',
+    link: '/docs/03-contract-structure',
+    icon: '📄',
+  },
+  {
+    title: 'Contract Roles',
+    description: 'Learn about different roles, permissions, and access control in the system.',
+    link: '/docs/04-contract-roles',
+    icon: '🔐',
+  },
+  {
+    title: 'Sequencer Guide',
+    description: 'Follow the complete journey of a sequencer from registration to operation.',
+    link: '/docs/actors/actors-sequencer',
+    icon: '🚀',
+  },
+  {
+    title: 'Validator Guide',
+    description: 'Understand validator operations, staking mechanics, and reward distribution.',
+    link: '/docs/actors/actors-validator',
+    icon: '✅',
+  },
+];
+
+function Feature({title, description, link, icon}: FeatureItem) {
+  return (
+    <div className="col col--4">
+      <div className={styles.featureCard}>
+        <div className={styles.featureIcon}>{icon}</div>
+        <h3 className={styles.featureTitle}>{title}</h3>
+        <p className={styles.featureDescription}>{description}</p>
+        <Link className={styles.featureLink} to={link}>
+          Read more →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function Home(): ReactNode {
-  const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
       title="Documentation"
       description="TON Staking V3 Documentation - Tokamak Network">
       <HomepageHeader />
       <main>
-        <div className="container" style={{padding: '2rem 0'}}>
-          <div className="row">
-            <div className="col col--4">
-              <div className="card" style={{padding: '1rem'}}>
-                <h3>System Overview</h3>
-                <p>Learn about the V3 staking system overview and core concepts.</p>
-                <Link to="/docs/01-system-overview">Read more</Link>
-              </div>
-            </div>
-            <div className="col col--4">
-              <div className="card" style={{padding: '1rem'}}>
-                <h3>System Architecture</h3>
-                <p>Understand the overall architecture and contract dependencies.</p>
-                <Link to="/docs/02-system-architecture">Read more</Link>
-              </div>
-            </div>
-            <div className="col col--4">
-              <div className="card" style={{padding: '1rem'}}>
-                <h3>Actors</h3>
-                <p>Learn about sequencer/validator journey and interactions.</p>
-                <Link to="/docs/05-actors">Read more</Link>
-              </div>
+        <section className={styles.features}>
+          <div className="container">
+            <h2 className={styles.sectionTitle}>Documentation</h2>
+            <div className="row">
+              {FeatureList.map((props, idx) => (
+                <Feature key={idx} {...props} />
+              ))}
             </div>
           </div>
-        </div>
+        </section>
       </main>
     </Layout>
   );

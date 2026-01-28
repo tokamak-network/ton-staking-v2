@@ -2,6 +2,7 @@
 id: 11-seigniorage-update-cases
 sidebar_position: 11
 ---
+
 # 시뇨리지 갱신 관련 전체 케이스 정리
 
 > **최종 업데이트**: 2026-01-27
@@ -463,6 +464,10 @@ accVal = validatorRewardPerUint × B̃_i / WEI_UNIT - validatorInitialDebt
 | INT-046 | `test_INT046_pausedState_eligibilityGain_setsEffectiveBridgedTON` | paused 상태에서 자격 획득 시 effectiveBridgedTON 설정 |
 | INT-047 | `test_INT047_eligibilityLoss_triggersSeigDistribution` | 자격 상실 시 시뇨리지 자동 정산 (updateSeigniorage 없이) |
 | INT-048 | `test_INT048_eligibilityGain_triggersSeigDistribution` | 자격 획득 시 기존 L2에게 먼저 시뇨리지 정산 |
+| INT-049 | `test_INT049_estimateL2Seigniorage_accuracy` | estimateL2Seigniorage 예측값과 실제값 일치 검증 |
+| INT-050 | `test_INT050_estimateL2Seigniorage_withAccumulatedRewards` | 누적 보상 포함한 estimateL2Seigniorage 정확도 |
+| INT-051 | `test_INT051_claimableL2Seigniorage_returnsSequencerRewardOnly` | claimableL2Seigniorage가 sequencer 보상만 반환 |
+| INT-052 | `test_INT052_claimableL2Seigniorage_includesAccumulatedRewards` | claimableL2Seigniorage가 누적 보상 포함 |
 
 ---
 
