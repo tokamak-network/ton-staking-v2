@@ -6,21 +6,16 @@
 src/
 ├── stake/                              # 스테이킹 관련
 │   ├── managers/
-│   │   ├── SeigManager.sol                    # 시뇨리지 분배 (기본 구현체)
-│   │   ├── SeigManagerV1_1.sol                # V1.1 구현체
 │   │   ├── SeigManagerV1_2.sol                # V1.2 구현체 (기본 프록시 구현체)
-│   │   ├── SeigManagerV1_3.sol                # V1.3 구현체 (pause/unpause 등)
-│   │   ├── SeigManagerV1_4.sol                # V1.4 구현체 (V3 핵심) 🆕
+│   │   ├── SeigManagerV3_1.sol                # V3.1 구현체 (V3 핵심) 🆕
+│   │   ├── SeigManagerV3_2.sol                # V3.2 구현체 (V2 호환 레이어) 🆕
 │   │   ├── SeigManagerStorage.sol             # 기본 스토리지
 │   │   ├── SeigManagerV1_1Storage.sol         # V1.1 스토리지
 │   │   ├── SeigManagerV1_3Storage.sol         # V1.3 스토리지
 │   │   ├── SeigManagerV1_4Storage.sol         # V1.4 스토리지 (V3) 🆕
 │   │   ├── SeigManagerProxy.sol               # 프록시
 │   │   │
-│   │   ├── DepositManager.sol                 # 스테이킹 관리 (기본 구현체)
-│   │   ├── DepositManager_setWithdrawalDelay.sol  # 출금 지연 설정
-│   │   ├── DepositManagerV1_1.sol             # V1.1 구현체 (L2 출금)
-│   │   ├── DepositManagerV1_2.sol             # V1.2 구현체 (V3 콜백) 🆕
+│   │   ├── DepositManagerV3.sol               # V3 구현체 (V3 콜백) 🆕
 │   │   ├── DepositManagerStorage.sol          # 기본 스토리지
 │   │   ├── DepositManagerV1_1Storage.sol      # V1.1 스토리지
 │   │   └── DepositManagerProxy.sol            # 프록시
@@ -51,19 +46,16 @@ src/
 │       └── IAutoCoinageSnapshot.sol           # 코이니지 스냅샷
 │
 ├── layer2/                             # L2 관리
-│   ├── Layer2ManagerV1_1.sol                  # L2 관리 (기본 구현체)
-│   ├── Layer2ManagerV1_2.sol                  # L2 관리 (V3) 🆕
+│   ├── Layer2ManagerV3.sol                    # L2 관리 (V3) 🆕
 │   ├── Layer2ManagerStorage.sol               # 기본 스토리지
-│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 🆕
+│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 (V3에서 사용) 🆕
 │   ├── Layer2ManagerProxy.sol                 # 프록시
 │   │
-│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
 │   ├── L1BridgeRegistryV1_2.sol               # 브릿지 레지스트리 (TYPE 3) 🆕
 │   ├── L1BridgeRegistryStorage.sol            # 기본 스토리지
 │   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 스토리지 🆕
 │   ├── L1BridgeRegistryProxy.sol              # 프록시
 │   │
-│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저 (TYPE 1,2)
 │   ├── OperatorManagerV1_2.sol                # 오퍼레이터 매니저 (TYPE 3) 🆕
 │   ├── OperatorManagerStorage.sol             # 스토리지
 │   ├── OperatorManagerProxy.sol               # 프록시 (ERC1967 기반)
@@ -90,6 +82,7 @@ src/
 │   ├── RAT.sol                                # 검증자 등록/RAT/슬래싱
 │   ├── RATStorage.sol                         # 스토리지
 │   ├── RATProxy.sol                           # 프록시 (TransparentUpgradeableProxy)
+│   ├── RATTypes.sol                           # 타입 정의 🆕
 │   ├── IRAT.sol                               # 인터페이스
 │   │
 │   ├── ValidatorRewardV1.sol                  # 검증자 보상 분배
@@ -165,12 +158,12 @@ src/
 
 ## 2. 핵심 컨트랙트 상세
 
-### 2.1 SeigManagerV1_4
+### 2.1 SeigManagerV3_1
 
 시뇨리지 계산 및 분배의 핵심 컨트랙트입니다.
 
 ```solidity
-contract SeigManagerV1_4 is
+contract SeigManagerV3_1 is
     ProxyStorage,              // 프록시 기본 스토리지
     AuthControlSeigManager,    // 권한 관리
     SeigManagerStorage,        // V1 스토리지
@@ -190,12 +183,12 @@ contract SeigManagerV1_4 is
 - 자격 조건 확인 (`checkCurrentEligibility`)
 - 검증자 보상 분배
 
-### 2.2 DepositManagerV1_2
+### 2.2 DepositManagerV3
 
 TON/WTON 스테이킹을 관리합니다.
 
 ```solidity
-contract DepositManagerV1_2 is
+contract DepositManagerV3 is
     ProxyStorage,
     AccessibleCommon,
     DepositManagerStorage,
@@ -211,12 +204,12 @@ contract DepositManagerV1_2 is
 - `processRequest()`: 출금 처리
 - `onApprove()`: TON.approveAndCall 콜백
 
-### 2.3 Layer2ManagerV1_2
+### 2.3 Layer2ManagerV3
 
 L2 등록 및 관리를 담당합니다.
 
 ```solidity
-contract Layer2ManagerV1_2 is
+contract Layer2ManagerV3 is
     ProxyStorage,
     AccessibleCommon,
     Layer2ManagerStorage,
@@ -227,7 +220,7 @@ contract Layer2ManagerV1_2 is
 ```
 
 **핵심 기능**:
-- `getBridgedTON()`: Bridged TON 조회
+- `getBridgedTon()`: Bridged TON 조회
 - `getLayer2BySystemConfig()`: SystemConfig → Layer2 조회
 - `transferL2Seigniorage(layer2, amount)`: L2 시뇨리지를 Operator에게 전송
   - 호출자: SeigManager (`onlySeigManger`)
@@ -303,7 +296,7 @@ typeRegistrant[n] (Manager가 지정, 타입별 위임)
 - `getRollupInfo(rollupConfig)`: 롤업 정보 조회
 - `isRejectedSeigs(rollupConfig)`: 시뇨리지 중지 여부
 - `isRejectedL2Deposit(rollupConfig)`: L2 예치 중지 여부
-- `layer2TVL(rollupConfig)`: L2별 TVL 조회
+- `layer2Tvl(rollupConfig)`: L2별 TVL 조회
 - `availableForRegistration(rollupConfig, type)`: 등록 가능 여부
 
 **스토리지 조회**:
@@ -546,7 +539,7 @@ interface ISeigManagerV3 {
     function getTotalEffectiveBridgedTON() external view returns (uint256);
 
     // V3 콜백
-    function onBridgedTONChange() external;
+    function onBridgedTonChange() external;
     function onStakingChange(address layer2) external;
 
     // V3 거버넌스
@@ -667,7 +660,7 @@ interface IValidatorReward {
 │                            Inheritance Hierarchy                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  SeigManagerV1_4:                                                               │
+│  SeigManagerV3_1:                                                               │
 │  ┌────────────────┐                                                             │
 │  │  ProxyStorage  │                                                             │
 │  └───────┬────────┘                                                             │

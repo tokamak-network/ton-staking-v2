@@ -126,7 +126,7 @@
 │                                                                          │
 │  DisputeGameFactory ──► RAT.triggerAttentionTest()                      │
 │                                                                          │
-│  OptimismPortal ──► SeigManager.onBridgedTONChange()                    │
+│  OptimismPortal ──► SeigManager.onBridgedTonChange()                    │
 │                                                                          │
 │  DepositManager ──► SeigManager.onDeposit() / onWithdraw()              │
 │                  ──► SeigManager.onStakingChange()                       │
@@ -248,7 +248,7 @@ OperatorManagerProxy(operatorManager).upgradeTo(address(operatorManagerV1_2Impl)
 
 ```solidity
 // SeigManager 스토리지 상속
-contract SeigManagerV1_4 is
+contract SeigManagerV3_1 is
     ProxyStorage,              // 기본 프록시 스토리지
     AuthControlSeigManager,    // 권한 관리
     SeigManagerStorage,        // V1 스토리지
@@ -348,11 +348,14 @@ contract SeigManagerV1_4 is
 │                           검증자 등록 흐름                                   │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  방법 1: registerValidator 직접 호출                                        │
-│  1. RAT.registerValidator(systemConfig) 호출                               │
+│  1. 먼저 충분한 TON 스테이킹 (D_min 이상)                                   │
+│     DepositManager.deposit(layer2, amount)                                │
 │     │                                                                       │
 │     ▼                                                                       │
-│  2. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)                     │
+│  2. RAT.registerValidator(systemConfig) 호출                               │
+│     │                                                                       │
+│     ▼                                                                       │
+│  3. 현재 스테이킹 금액 확인: stakeOf(layer2, validator)                     │
 │     │                                                                       │
 │     ├─ 스테이킹 금액 >= D_min: 바로 검증자 등록                             │
 │     │   │                                                                   │
@@ -361,23 +364,10 @@ contract SeigManagerV1_4 is
 │     │                                                                       │
 │     └─ 스테이킹 금액 < D_min: 등록 실패 (담보금 부족)                       │
 │                                                                             │
-│  방법 2: approveAndCall 사용 (담보금 부족 시)                               │
-│  1. TON.approveAndCall(RAT, amount, data) 호출                             │
-│     │                                                                       │
-│     │ data = [SystemConfig 주소] (32바이트)                                │
-│     ▼                                                                       │
-│  2. RAT.onApprove() 호출됨                                                  │
-│     │                                                                       │
-│     ▼                                                                       │
-│  3. RAT가 TON을 DepositManager를 통해 스테이킹 예치                         │
-│     │                                                                       │
-│     ▼                                                                       │
-│  4. 검증자 활성화 + 이벤트 발생: ValidatorRegistered                        │
-│                                                                             │
 │  주요 특징:                                                                 │
 │  - V3: 기존 스테이킹 금액(coinage)을 검증자 담보금으로 사용                 │
-│  - 담보금 부족 시 DepositManager를 통해 스테이킹 예치                       │
 │  - RAT는 담보금을 직접 보관하지 않음                                        │
+│  - 검증자 등록 전에 반드시 충분한 스테이킹 필요                              │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -519,43 +509,55 @@ contract SeigManagerV1_4 is
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │ 시퀀서 상태 구분                                                     │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │ 1. 시퀀서 등록상태 (isActive)                                        │   │
-│  │    - 슬래싱/탈퇴 시 false                                            │   │
-│  │    - 시퀀서로 등록되어 있는지 여부                                    │   │
+│  │ 1. 시퀀서 등록상태 (status in Layer2Manager)                         │   │
+│  │    - 0: none (미등록)                                                │   │
+│  │    - 1: registered (등록됨)                                          │   │
+│  │    - 2: paused (일시 중지됨)                                         │   │
 │  │                                                                      │   │
-│  │ 2. 시뇨리지 자격상태 (eligible)                                      │   │
-│  │    - T_i < θ·B_i 시 false                                           │   │
+│  │ 2. 시뇨리지 자격상태 (isEligible in SeigManager)                    │   │
+│  │    - T_i < max(θ·B_i, D_sequencer) 시 false                         │   │
 │  │    - 스테이킹 조건 충족 여부                                          │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │ isActive │ eligible │ 상태                                          │   │
-│  │──────────┼──────────┼───────────────────────────────────────────────│   │
-│  │   true   │   true   │ 시뇨리지 받음                                  │   │
-│  │   true   │  false   │ 등록됨, 담보금 부족으로 시뇨리지 못 받음        │   │
-│  │  false   │    -     │ 등록 해제됨 (슬래싱/탈퇴)                       │   │
+│  │ status      │ isEligible │ 상태                                     │   │
+│  │─────────────┼────────────┼──────────────────────────────────────────│   │
+│  │ registered  │   true     │ 시뇨리지 받음                             │   │
+│  │ registered  │   false    │ 등록됨, 담보금 부족으로 시뇨리지 못 받음   │   │
+│  │ paused      │     -      │ 일시 중지 (시뇨리지 받지 못함)            │   │
+│  │ none        │     -      │ 미등록                                   │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ 시퀀서 등록상태 (isActive) 변경 함수                                 │   │
+│  │ 시퀀서 등록상태 (status) 변경 함수                                   │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │ registerSequencer(systemConfig, amount)                             │   │
-│  │   → isActive = true (등록)                                          │   │
+│  │ Layer2Manager.registerCandidateAddOn()                              │   │
+│  │   → status = 1 (registered)                                         │   │
 │  │                                                                      │   │
-│  │ deactivateSequencer(systemConfig)                                   │   │
-│  │   → isActive = false (탈퇴, 담보금 반환)                             │   │
+│  │ L1BridgeRegistry.rejectCandidateAddOn()                             │   │
+│  │   → status = 2 (paused)                                             │   │
 │  │                                                                      │   │
-│  │ slashSequencerByGame(gameAddress)                                   │   │
-│  │   → isActive = false (슬래싱, 담보금 몰수)                           │   │
+│  │ L1BridgeRegistry.restoreCandidateAddOn()                            │   │
+│  │   → status = 1 (registered)                                         │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ 시뇨리지 자격상태 (eligible) 변경 함수                               │   │
+│  │ 시뇨리지 자격상태 (isEligible) 변경 함수                            │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │ addDeposit(systemConfig, amount)                                    │   │
-│  │   → 담보금 추가, eligible 회복 가능                                  │   │
+│  │ DepositManager.deposit()                                            │   │
+│  │   → SeigManager.onDeposit() 호출                                    │   │
+│  │   → 담보금 추가, isEligible 회복 가능                                │   │
 │  │                                                                      │   │
-│  │ onBridgedTONChange() [TYPE 3 자동 호출]                             │   │
+│  │ DepositManager.requestWithdrawal()                                  │   │
+│  │   → SeigManager.onWithdraw() 호출 (담보금 최소값 체크)              │   │
+│  │   → 자격 재평가는 다음 updateSeigniorage() 시 수행                  │   │
+│  │                                                                      │   │
+│  │ DepositManager.withdrawAndDepositL2()                               │   │
+│  │   → SeigManager.onWithdraw() 호출 (L1 출금)                         │   │
+│  │   → SeigManager.onStakingChange() 호출 (자격 즉시 재평가)           │   │
+│  │   → 담보금 감소, isEligible 상실 가능                                │   │
+│  │                                                                      │   │
+│  │ onBridgedTonChange() [TYPE 3 자동 호출]                             │   │
 │  │   → Bridged TON 변경 시 자격 재평가                                  │   │
-│  │   → eligible 상태 자동 갱신                                          │   │
+│  │   → isEligible 상태 자동 갱신                                        │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -587,7 +589,7 @@ contract SeigManagerV1_4 is
 │  - ValidatorReward.distributeL2Rewards()                                   │
 │                                                                             │
 │  whenV3Active + 내부 포탈 검증:                                             │
-│  - SeigManager.onBridgedTONChange()                                        │
+│  - SeigManager.onBridgedTonChange()                                        │
 │    → whenV3Active: V3 마이그레이션 후에만 호출 가능                         │
 │    → 내부 검증: msg.sender가 등록된 OptimismPortal인지 확인                 │
 │                                                                             │

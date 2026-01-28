@@ -58,9 +58,11 @@ onStakingChange() [external, DepositManager 호출]
   └→ _updateEligibilityInternal(layer2)
 
 _updateEligibilityInternal(layer2) [internal]
+  ├→ TYPE 3 롤업 체크 (early return if not TYPE 3)
   ├→ oldEligible = info.isEligible
-  ├→ currentBridgedTON = Layer2Manager.getBridgedTonByLayer(layer2) * GWEI_UNIT
-  ├→ (newEligible, , ) = checkCurrentEligibility(layer2)
+  ├→ bridgedTon = Layer2Manager.getBridgedTonByLayer(layer2)
+  ├→ currentBridgedTON = bridgedTon * GWEI_UNIT
+  ├→ newEligible = _checkEligibilityInternal(layer2, bridgedTon)
   │    └→ bridgedTon = 0이면 eligible = false
   ├→ Case 1: 자격 유지 (oldEligible == newEligible)
   │    └→ 아무것도 안 함 (return)
@@ -142,6 +144,7 @@ _triggerSeigniorageDistribution() [internal]
 | 자격 획득 (ineligible → eligible) | **시뇨리지 정산** + effectiveBridgedTON 설정 + initialDebt 설정 |
 
 **자격 조건** (checkCurrentEligibility):
+- TYPE 3 롤업이어야 함 (Dispute Game 지원)
 - `bridgedTon > 0` (필수)
 - `currentStake >= requiredStake`
 
@@ -429,7 +432,7 @@ minForFraudProof = hMax × cMax + Δ_sequencer
 
 requiredStake = max(minForSeigniorage, minForFraudProof)
 
-eligible = (currentStake ≥ requiredStake) && (bridgedTON > 0)
+eligible = (rollupType == TYPE_3) && (bridgedTON > 0) && (currentStake ≥ requiredStake)
 ```
 
 ### 12.3 클레임 계산 (Debt 공식)
@@ -456,6 +459,10 @@ accVal = validatorRewardPerUint × B̃_i / WEI_UNIT - validatorInitialDebt
 | INT-046 | `test_INT046_pausedState_eligibilityGain_setsEffectiveBridgedTON` | paused 상태에서 자격 획득 시 effectiveBridgedTON 설정 |
 | INT-047 | `test_INT047_eligibilityLoss_triggersSeigDistribution` | 자격 상실 시 시뇨리지 자동 정산 (updateSeigniorage 없이) |
 | INT-048 | `test_INT048_eligibilityGain_triggersSeigDistribution` | 자격 획득 시 기존 L2에게 먼저 시뇨리지 정산 |
+| INT-049 | `test_INT049_estimateL2Seigniorage_accuracy` | estimateL2Seigniorage 예측값과 실제값 일치 검증 |
+| INT-050 | `test_INT050_estimateL2Seigniorage_withAccumulatedRewards` | 누적 보상 포함한 estimateL2Seigniorage 정확도 |
+| INT-051 | `test_INT051_claimableL2Seigniorage_returnsSequencerRewardOnly` | claimableL2Seigniorage가 sequencer 보상만 반환 |
+| INT-052 | `test_INT052_claimableL2Seigniorage_includesAccumulatedRewards` | claimableL2Seigniorage가 누적 보상 포함 |
 
 ---
 

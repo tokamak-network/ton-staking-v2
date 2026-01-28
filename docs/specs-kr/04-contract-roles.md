@@ -40,7 +40,7 @@ TON Staking 시스템의 **핵심 컨트랙트**로, 시뇨리지(새로 발행�
 │  입력:                                                                   │
 │  ┌─────────────────┐                                                    │
 │  │ DepositManager  │──► onDeposit(), onWithdraw(), onStakingChange()   │
-│  │ OptimismPortal  │──► onBridgedTONChange() (Type 3)                  │
+│  │ OptimismPortal  │──► onBridgedTonChange() (Type 3)                  │
 │  │ Anyone          │──► updateSeigniorage()                             │
 │  └─────────────────┘                                                    │
 │                                                                          │
