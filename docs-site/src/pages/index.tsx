@@ -50,23 +50,23 @@ export default function Home(): ReactNode {
           <div className="row">
             <div className="col col--4">
               <div className="card" style={{padding: '1rem'}}>
-                <h3>Architecture</h3>
-                <p>Learn about the V2/V3 staking architecture and distribution mechanisms.</p>
-                <Link to="/docs/01_v2_architecture">Read more</Link>
+                <h3>System Overview</h3>
+                <p>Learn about the V3 staking system overview and core concepts.</p>
+                <Link to="/docs/01-system-overview">Read more</Link>
               </div>
             </div>
             <div className="col col--4">
               <div className="card" style={{padding: '1rem'}}>
-                <h3>Validator</h3>
-                <p>Understand validator registration, rewards, and slashing conditions.</p>
-                <Link to="/docs/04_validator">Read more</Link>
+                <h3>System Architecture</h3>
+                <p>Understand the overall architecture and contract dependencies.</p>
+                <Link to="/docs/02-system-architecture">Read more</Link>
               </div>
             </div>
             <div className="col col--4">
               <div className="card" style={{padding: '1rem'}}>
-                <h3>RAT Implementation</h3>
-                <p>Technical details of Rollup Attestation Token implementation.</p>
-                <Link to="/docs/07_rat_implementation">Read more</Link>
+                <h3>Actors</h3>
+                <p>Learn about sequencer/validator journey and interactions.</p>
+                <Link to="/docs/05-actors">Read more</Link>
               </div>
             </div>
           </div>

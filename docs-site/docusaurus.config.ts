@@ -12,8 +12,8 @@ const config: Config = {
   },
 
   // GitHub Pages 배포 설정
-  url: 'https://tokamak-network.github.io',
-  baseUrl: '/ton-staking-v2/',
+  url: process.env.DEPLOY_URL || 'http://localhost:3000',
+  baseUrl: process.env.BASE_URL || '/',
 
   organizationName: 'tokamak-network',
   projectName: 'ton-staking-v2',

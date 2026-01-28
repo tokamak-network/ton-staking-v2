@@ -4,58 +4,49 @@ const sidebars: SidebarsConfig = {
   docsSidebar: [
     {
       type: 'doc',
-      id: 'README',
-      label: 'Introduction',
+      id: '00-intro',
+      label: '소개',
     },
     {
       type: 'category',
-      label: 'Architecture',
+      label: '시스템 설계',
       items: [
-        '01_v2_architecture',
-        '02_v3_distribution',
+        '01-system-overview',
+        '02-system-architecture',
+        '03-contract-structure',
+        '04-contract-roles',
       ],
     },
     {
       type: 'category',
-      label: 'Slashing',
+      label: '액터 및 함수',
       items: [
-        '03_sequencer_slashing',
-        '05_validator_slashing',
+        '05-actors',
+        '06-function-specs',
       ],
     },
     {
       type: 'category',
-      label: 'Validator',
+      label: '가이드',
       items: [
-        '04_validator',
-        '06_bridged_ton_tracking',
+        '07-economics-whitepaper-summary',
+        '08-v2-to-v3-upgrade-guide',
+        '09-layer2-registration-guide',
       ],
     },
     {
       type: 'category',
-      label: 'Implementation',
+      label: '테스트 및 운영',
       items: [
-        '07_rat_implementation',
-        '08_implementation',
+        '10-v3-test-lists',
+        '11-seigniorage-update-cases',
       ],
     },
     {
       type: 'category',
-      label: 'Operations',
+      label: '통합',
       items: [
-        '09_migration',
-        '10_governance_parameters',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Additional (KO)',
-      items: [
-        '11_whitepaper_v2_changes',
-        '12_tbd_items',
-        '13_external_interfaces',
-        '14_deployment',
-        'optimism_integration_guide',
+        '12-optimism-integration',
       ],
     },
   ],
