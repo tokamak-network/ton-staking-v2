@@ -48,9 +48,6 @@ interface ISeigManagerV3 {
         uint256 effectiveBridgedTON
     );
 
-    /// @notice 지분 시뇨리지 비율 변경 이벤트
-    event StakedSeigFactorUpdated(uint256 newLambda);
-
     /// @notice 추가 시뇨리지 비율 변경 이벤트
     event RelativeSeigRateUpdated(uint256 newRate);
 
@@ -132,8 +129,11 @@ interface ISeigManagerV3 {
         view
         returns (uint256);
 
-    /// @notice L2별 시뇨리지 예측
-    function estimateL2Seigniorage(address layer2) external view returns (uint256 seigniorage);
+    /// @notice L2별 시뇨리지 예측 (updateSeigniorage 실행 시 받게 되는 금액)
+    /// @param layer2 L2 주소
+    /// @return sequencerReward 시퀀서 보상 (OperatorManager로 전송)
+    /// @return validatorReward 검증자 보상 (ValidatorReward로 전송)
+    function estimateL2Seigniorage(address layer2) external view returns (uint256 sequencerReward, uint256 validatorReward);
 
     // ==========================================
     // External Functions - Callbacks
@@ -165,9 +165,6 @@ interface ISeigManagerV3 {
 
     /// @notice 반포화점 설정
     function setHalfSaturationPoint(uint256 k) external;
-
-    /// @notice 지분 시뇨리지 비율 설정 (V2→V3 전환)
-    function setStakedSeigFactor(uint256 lambda) external;
 
     /// @notice 검증자 보상 컨트랙트 주소 설정
     function setValidatorReward(address reward) external;

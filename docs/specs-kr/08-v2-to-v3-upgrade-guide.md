@@ -22,7 +22,7 @@
 
 | 구분 | V2 (현재 메인넷 서비스) | V3 (업그레이드) |
 |------|---------------------|---------------|
-| **컨트랙트 버전** | SeigManagerV1_3 | SeigManagerV1_4 + RAT + ValidatorReward |
+| **컨트랙트 버전** | SeigManagerV1_3 | SeigManagerV3_1 + RAT + ValidatorReward |
 | **시뇨리지 수령자** | **DAO + 시퀀서 + 일반 스테이커** | **DAO + 시퀀서 + 검증자** |
 | **분배 기준** | D/T 비율로 시퀀서/스테이커 나눔 | Bridged TON 기반 (성과 중심) |
 | **분배 함수** | 선형 분배 | 쌍곡선 포화 함수 `y(x) = L·(x/(k+x))` |
@@ -415,7 +415,7 @@ function updateSeigniorage() {
 }
 ```
 
-#### V3 구현 (SeigManagerV1_4, 업그레이드)
+#### V3 구현 (SeigManagerV3_1, 업그레이드)
 ```solidity
 // 시퀀서 + 검증자에게 Bridged TON 기반 쌍곡선 분배
 function updateSeigniorage() {
@@ -476,7 +476,7 @@ function updateSeigniorage() {
 #### 시퀀서 담보금
 
 ```solidity
-// SeigManagerV1_4.sol
+// SeigManagerV3_1.sol
 function getSequencerStaked(address layer2) public view returns (uint256) {
     RefactorCoinageSnapshotI coinage = _coinages[layer2];
     if (address(coinage) == address(0)) return 0;
@@ -505,7 +505,7 @@ function _getValidatorCollateral(address validator, address systemConfig)
 
 ### 5.4 RAT Coinage 전송 구현 (신규)
 
-**SeigManagerV1_4.sol** - RAT 연동 함수
+**SeigManagerV3_1.sol** - RAT 연동 함수
 ```solidity
 // 검증자 → RAT으로 coinage 전송 (슬래싱 선차감)
 function transferCoinageToRAT(address layer2, address validator, uint256 amount)
@@ -575,22 +575,23 @@ function _transferCoinageFromRAT(address validator, address systemConfig, uint25
 ### 6.2 배포 전 준비사항
 
 #### 컨트랙트 배포
-- [ ] SeigManagerV1_4 배포
+- [ ] SeigManagerV3_1 배포
+- [ ] SeigManagerV3_2 배포 (V2 호환 레이어)
 - [ ] RAT 배포
 - [ ] ValidatorRewardV1 배포
-- [ ] DepositManagerV1_2 배포
-- [ ] Layer2ManagerV1_2 배포
+- [ ] DepositManagerV3 배포
+- [ ] Layer2ManagerV3 배포
 - [ ] L1BridgeRegistryV1_2 배포
 
 #### Selector Routing 설정 (SeigManagerProxy)
-- [ ] SeigManagerV1_4 selector 등록
+- [ ] SeigManagerV3_1 selector 등록
   - [ ] `setValidatorReward(address)`
   - [ ] `setDaoDistributionRatio(uint256)`
   - [ ] `setMinStakingRatio(uint256)`
   - [ ] `setValidatorDistributionRatio(uint256)`
   - [ ] `setHalfSaturationPoint(uint256)`
   - [ ] `migrateToV3()`
-  - [ ] `onBridgedTONChange()`
+  - [ ] `onBridgedTonChange()`
   - [ ] `updateSeigniorage()` (오버라이드)
   - [ ] `updateSeigniorageLayer(address)` (오버라이드)
 

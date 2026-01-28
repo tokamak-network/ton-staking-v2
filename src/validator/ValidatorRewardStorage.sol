@@ -22,12 +22,34 @@ contract ValidatorRewardStorage {
     /// @dev RAT에 등록된 검증자들의 보상을 여기서 관리
     mapping(address => uint256) public validatorPendingRewards;
 
-    /// @notice 검증자별 L2별 미청구 보상 (Per-L2 추적용)
-    /// @dev validator => systemConfig => pending amount
+    /// @notice 검증자별 L2별 미청구 보상 (DEPRECATED - 가스 최적화로 업데이트 안함)
+    /// @dev 프록시 스토리지 호환성을 위해 슬롯 유지
+    /// @dev L2별 보상은 ValidatorRewardReceived 이벤트로 추적
     mapping(address => mapping(address => uint256)) public validatorL2PendingRewards;
 
-    /// @notice L2별 총 분배 금액 (통계용)
+    /// @notice L2별 총 분배 금액 (DEPRECATED - 가스 최적화로 업데이트 안함)
+    /// @dev 프록시 스토리지 호환성을 위해 슬롯 유지
     mapping(address => uint256) public l2TotalDistributed;
+
+    // ==========================================
+    // V1.1: RewardPerValidator 패턴 (O(1) 분배)
+    // ==========================================
+
+    /// @notice L2별 검증자당 누적 보상 (systemConfig => accumulated)
+    /// @dev distributeL2Rewards에서 O(1)로 업데이트
+    mapping(address => uint256) public rewardPerValidator;
+
+    /// @notice 검증자별 L2별 보상 debt (validator => systemConfig => debt)
+    /// @dev 검증자 등록 시 현재 rewardPerValidator로 설정
+    mapping(address => mapping(address => uint256)) public validatorRewardDebt;
+
+    /// @notice 검증자가 등록된 L2 목록 (validator => systemConfig[])
+    /// @dev claimAllRewards에서 모든 L2 순회용
+    mapping(address => address[]) public validatorL2List;
+
+    /// @notice 검증자의 L2 등록 여부 (validator => systemConfig => bool)
+    /// @dev 중복 등록 방지
+    mapping(address => mapping(address => bool)) public isValidatorInL2;
 
     // ==========================================
     // 참조 주소

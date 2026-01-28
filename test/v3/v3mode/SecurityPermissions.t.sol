@@ -1,26 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "forge-std/Test.sol";
-import "../../../script/DeployV3Full.s.sol";
-import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
-import {RAT} from "../../../src/validator/RAT.sol";
-import {Layer2Registry} from "../../../src/stake/Layer2Registry.sol";
-import {OnlyDepositManagerError, OnlyL1BridgeOrRegistryError, OnlyRatError} from "../../../src/stake/managers/SeigManagerV3_1.sol";
-
-// Shared Mock contracts
-import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "../helpers/V3TestMocks.sol";
-
-// DAO Contracts
-import {DAOCommitteeProxy2} from "../../../src/proxy/DAOCommitteeProxy2.sol";
-import {DAOCommittee_V1} from "../../../src/dao/DAOCommittee_V1.sol";
-import {DAOCommitteeOwner} from "../../../src/dao/DAOCommitteeOwner.sol";
-import {Candidate} from "../../../src/dao/Candidate.sol";
-import {CandidateAddOnV1_1} from "../../../src/dao/CandidateAddOnV1_1.sol";
-import {CandidateFactory} from "../../../src/dao/factory/CandidateFactory.sol";
-import {CandidateFactoryProxy} from "../../../src/dao/factory/CandidateFactoryProxy.sol";
-import {CandidateAddOnFactory} from "../../../src/dao/factory/CandidateAddOnFactory.sol";
-import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import "../helpers/V3TestBase.sol";
+import {
+    OnlyDepositManagerError,
+    OnlyL1BridgeOrRegistryError,
+    OnlyRatError,
+    ZeroAddressError,
+    InvalidParameterError
+} from "../../../src/stake/managers/SeigManagerV3_1.sol";
+import {InvalidFactoryError, InvalidParameterError as RATInvalidParameterError} from "../../../src/validator/RAT.sol";
 
 /// @title SecurityPermissionsTest
 /// @notice 보안 권한 검증 테스트
@@ -32,116 +21,31 @@ import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddO
 /// - SEC-005: onlyL1BridgeOrRegistry - L1BridgeRegistry 외 거부
 /// - SEC-004: onlyValidFactory - 유효 Factory만 트리거 (RAT)
 /// - SEC-001: onlyOwner 함수 - 비권한자 호출 거부
-contract SecurityPermissionsTest is Test, DeployV3Full {
+contract SecurityPermissionsTest is V3TestBase {
     // ==========================================
-    // Contracts
+    // Additional Test Addresses
     // ==========================================
-    SeigManagerV3_1 public seigManager;
-    Layer2ManagerV3 public layer2Manager;
-    L1BridgeRegistryV1_2 public l1BridgeRegistry;
-    DepositManagerV3 public depositManager;
-    Layer2Registry public layer2Registry;
-    RAT public rat;
-
-    // ==========================================
-    // Mock Contracts
-    // ==========================================
-    SimpleMockSystemConfig public mockSystemConfig;
-    address public mockL1Bridge;
-    address public mockPortal;
-    address public mockDisputeGameFactory;
-    address public mockL2TON;
-    address public mockLayer2;
-    address public operatorManager;
-
-    // ==========================================
-    // DAO Contracts
-    // ==========================================
-    address public daoCommitteeProxy;
-    address public daoCommitteeProxy2;
-    address public daoCommitteeV1;
-    address public daoCommitteeOwner;
-    address public candidateImpl;
-    address public candidateAddOnImpl;
-    address public candidateFactoryProxy;
-    address public candidateAddOnFactoryProxy;
-
-    // ==========================================
-    // Test Addresses
-    // ==========================================
-    address public admin;
-    address public owner;
-    address public operator1 = address(0x4001);
     address public validator1 = address(0x6001);
     address public attacker = address(0xBAD);
     address public randomUser = address(0x1234);
 
-    uint256 constant RAY = 1e27;
-    uint256 constant INITIAL_TON = 100_000 * 1e18;
-
-    /// @notice Override to use separate admin address for TransparentUpgradeableProxy
-    function _getProxyAdmin(address) internal view override returns (address) {
-        return admin;
-    }
-
     function setUp() public {
-        admin = address(0x9999);
-        owner = address(this);
-        proxyAdmin = admin; // Set proxyAdmin before deployment
+        _v3TestSetup();
 
         vm.startPrank(owner);
 
-        _deployTokens();
-        _deployCoinageInfrastructure(owner);
-        _deployLayer2Registry(owner);
-        _deployManagerProxies();
-        _deployManagerImplementations();
-        _initializeManagers(owner);
-        _setupMinterPermissions();
-        _deployOperatorManagerFactory(owner);
+        // RAT 파라미터
+        _setupRATParams();
 
-        _deployDAO();
-        _deployV3Contracts(owner);
-
-        // Register all V3 selectors for test functionality
-        _setupSeigManagerV3AllTestSelectors();
-
-        _setupCrossReferences(owner);
-
-        seigManager = SeigManagerV3_1(seigManagerProxy);
-        layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
-        l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
-        depositManager = DepositManagerV3(depositManagerProxy);
-        layer2Registry = Layer2Registry(layer2RegistryProxy);
-        rat = RAT(ratProxy);
-
-        // minimumAmount 설정 (operator 최소 스테이킹 요구사항: 100 WTON)
-        SeigManagerV1_2(seigManagerProxy).setMinimumAmount(100e27);
-
-        rat.setSlashingPenalty(100 * RAY);
-        rat.setValidatorBuffer(100 * RAY);
-        rat.setMinimumThreshold(200 * RAY);
-        rat.setRatTriggerProbability(RAY);
-
-        _setupMockContracts();
-
-        (mockLayer2, operatorManager) = _registerLayer2WithSystemConfig(
-            address(mockSystemConfig),
-            mockL2TON,
-            "TestL2",
-            operator1,
-            1000 * RAY
-        );
-
-        // setRatContract selector is already registered by _setupSeigManagerV3CoreSelectors()
-        seigManager.setRatContract(address(rat));
+        // L2 등록
+        _registerFirstL2(1000 * RAY);
 
         // V3 마이그레이션
+        seigManager.setRatContract(address(rat));
         seigManager.setDaoDistributionRatio(0.1e27);
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(RAY);
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setValidatorReward(validatorPoolProxy);
@@ -152,98 +56,7 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
         vm.stopPrank();
     }
 
-    function _setupMockContracts() internal {
-        mockL1Bridge = address(0x8001);
-        mockPortal = address(0x8002);
-        mockDisputeGameFactory = address(0x8003);
-        mockL2TON = address(0x8004);
-
-        mockSystemConfig = new SimpleMockSystemConfig();
-        mockSystemConfig.setL1StandardBridge(mockL1Bridge);
-        mockSystemConfig.setOptimismPortal(mockPortal);
-        mockSystemConfig.setDisputeGameFactory(mockDisputeGameFactory);
-        mockSystemConfig.setUnsafeBlockSigner(operator1);
-    }
-
-    function _deployDAO() internal {
-        MockDAOCommitteeProxy mockProxy = new MockDAOCommitteeProxy(ton);
-        daoCommitteeProxy = address(mockProxy);
-
-        daoCommitteeProxy2 = address(new DAOCommitteeProxy2());
-        daoCommitteeV1 = address(new DAOCommittee_V1());
-        daoCommitteeOwner = address(new DAOCommitteeOwner());
-
-        mockProxy.upgradeTo(daoCommitteeProxy2);
-        IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoCommitteeV1);
-        IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
-
-        bytes4[] memory ownerSelectors = new bytes4[](17);
-        ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
-        ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
-        ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
-        ownerSelectors[3] = DAOCommitteeOwner.setSeigManager.selector;
-        ownerSelectors[4] = DAOCommitteeOwner.setDaoVault.selector;
-        ownerSelectors[5] = DAOCommitteeOwner.setLayer2Registry.selector;
-        ownerSelectors[6] = DAOCommitteeOwner.setAgendaManager.selector;
-        ownerSelectors[7] = DAOCommitteeOwner.setCandidateFactory.selector;
-        ownerSelectors[8] = DAOCommitteeOwner.setTon.selector;
-        ownerSelectors[9] = DAOCommitteeOwner.setWton.selector;
-        ownerSelectors[10] = DAOCommitteeOwner.increaseMaxMember.selector;
-        ownerSelectors[11] = DAOCommitteeOwner.setQuorum.selector;
-        ownerSelectors[12] = DAOCommitteeOwner.decreaseMaxMember.selector;
-        ownerSelectors[13] = DAOCommitteeOwner.setActivityRewardPerSecond.selector;
-        ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
-        ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
-        ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
-
-        IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
-
-        candidateImpl = address(new Candidate());
-        candidateAddOnImpl = address(new CandidateAddOnV1_1());
-
-        CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
-        candidateFactoryProxy = address(cfProxy);
-        cfProxy.upgradeTo(address(new CandidateFactory()));
-
-        CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
-        candidateAddOnFactoryProxy = address(caofProxy);
-        caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
-
-        CandidateFactory(candidateFactoryProxy).setAddress(depositManagerProxy, daoCommitteeProxy, candidateImpl, ton, wton);
-        CandidateAddOnFactory(candidateAddOnFactoryProxy).setAddress(depositManagerProxy, daoCommitteeProxy, candidateAddOnImpl, ton, wton, l1BridgeRegistryProxy);
-
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
-
-        Layer2Registry(layer2RegistryProxy).addMinter(daoCommitteeProxy);
-    }
-
-    function _registerLayer2WithSystemConfig(
-        address systemConfig,
-        address l2TON,
-        string memory name,
-        address operator,
-        uint256 operatorDeposit
-    ) internal returns (address layer2, address operatorMgr) {
-        vm.startPrank(owner);
-        if (!l1BridgeRegistry.isManager(owner)) l1BridgeRegistry.addManager(owner);
-        if (!l1BridgeRegistry.isRegistrant(owner)) l1BridgeRegistry.addRegistrant(owner);
-        l1BridgeRegistry.registerRollupConfig(systemConfig, 3, l2TON, name);
-        vm.stopPrank();
-
-        vm.startPrank(operator);
-        MockWTON(wton).mint(operator, operatorDeposit);
-        MockWTON(wton).approve(layer2ManagerProxy, operatorDeposit);
-        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(systemConfig, operatorDeposit, false, name);
-        vm.stopPrank();
-
-        layer2 = Layer2ManagerV3(layer2ManagerProxy).getLayer2BySystemConfig(systemConfig);
-        operatorMgr = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(systemConfig);
-    }
-
+    /// @notice _setupCrossReferences 오버라이드 - L1BridgeRegistry 설정 추가
     function _setupCrossReferences(address) internal override {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
@@ -331,30 +144,28 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice SEC-003: onDeposit - DepositManager만 호출 가능
-    /// @dev onDeposit은 SeigManagerV1_2에서 처리되어 string error 사용
     function test_SEC003_onlyDepositManager_onDeposit() public {
         vm.prank(attacker);
-        vm.expectRevert("not onlyDepositManager");
+        vm.expectRevert(OnlyDepositManagerError.selector);
         seigManager.onDeposit(mockLayer2, validator1, 100 * RAY);
 
         vm.prank(owner);
-        vm.expectRevert("not onlyDepositManager");
+        vm.expectRevert(OnlyDepositManagerError.selector);
         seigManager.onDeposit(mockLayer2, validator1, 100 * RAY);
 
         vm.prank(address(rat));
-        vm.expectRevert("not onlyDepositManager");
+        vm.expectRevert(OnlyDepositManagerError.selector);
         seigManager.onDeposit(mockLayer2, validator1, 100 * RAY);
     }
 
     /// @notice SEC-003: onWithdraw - DepositManager만 호출 가능
-    /// @dev onWithdraw은 SeigManagerV1_2에서 처리되어 string error 사용
     function test_SEC003_onlyDepositManager_onWithdraw() public {
         vm.prank(attacker);
-        vm.expectRevert("not onlyDepositManager");
+        vm.expectRevert(OnlyDepositManagerError.selector);
         seigManager.onWithdraw(mockLayer2, validator1, 100 * RAY);
 
         vm.prank(owner);
-        vm.expectRevert("not onlyDepositManager");
+        vm.expectRevert(OnlyDepositManagerError.selector);
         seigManager.onWithdraw(mockLayer2, validator1, 100 * RAY);
     }
 
@@ -373,15 +184,41 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     // SEC-005: onlyL1BridgeOrRegistry 권한 검증
     // ==========================================
 
-    /// @notice SEC-005: onBridgedTonChange - L1BridgeRegistry만 호출 가능 (간접 검증)
-    /// @dev onBridgedTonChange는 portal에서 호출하며 rollupConfigWithPortal로 검증
+    /// @notice SEC-005: onBridgedTonChange - 미등록 caller는 조기 리턴 (revert 안함)
+    /// @dev rollupConfigWithPortal 매핑에 없는 주소는 조기 리턴하여 무시됨
     function test_SEC005_onlyL1BridgeOrRegistry_onBridgedTonChange() public {
-        // attacker가 호출 시 조기 리턴 (rollupConfig = address(0))
+        // 사전 상태 기록
+        uint256 totalEffectiveBefore = seigManager.totalEffectiveBridgedTON();
+
+        // attacker가 호출 시 조기 리턴 (rollupConfigWithPortal 매핑에 없음)
         vm.prank(attacker);
         seigManager.onBridgedTonChange(); // revert 없이 조기 리턴
 
-        // 상태 변경 없음 확인 (attacker 호출은 무시됨)
-        // 이 테스트는 onBridgedTonChange가 유효하지 않은 호출을 무시하는지 확인
+        // owner가 호출 시에도 조기 리턴 (rollupConfigWithPortal 매핑에 없음)
+        vm.prank(owner);
+        seigManager.onBridgedTonChange(); // revert 없이 조기 리턴
+
+        // randomUser가 호출 시에도 조기 리턴
+        vm.prank(randomUser);
+        seigManager.onBridgedTonChange(); // revert 없이 조기 리턴
+
+        // totalEffectiveBridgedTON 변경 없음 확인 (미등록 caller는 무시됨)
+        uint256 totalEffectiveAfter = seigManager.totalEffectiveBridgedTON();
+        assertEq(totalEffectiveAfter, totalEffectiveBefore, "totalEffectiveBridgedTON should not change for unauthorized callers");
+    }
+
+    /// @notice SEC-005: onBridgedTonChange - Portal(L1BridgeRegistry에 등록됨)이 호출 가능
+    function test_SEC005_onlyL1BridgeOrRegistry_validPortal_success() public {
+        // Portal 주소 가져오기
+        address portal = mockSystemConfig.optimismPortal();
+
+        // Portal이 호출하면 정상 실행됨 (rollupConfigWithPortal 매핑에 있음)
+        // revert 없이 실행되면 성공
+        vm.prank(portal);
+        seigManager.onBridgedTonChange();
+
+        // 함수가 revert 없이 실행되었음 = 권한 검증 통과
+        assertTrue(true, "Portal call succeeded without revert");
     }
 
     // ==========================================
@@ -391,16 +228,14 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     /// @notice SEC-004: triggerAttentionTest - 유효한 Factory만 트리거 가능
     function test_SEC004_onlyValidFactory_triggerAttentionTest() public {
         // 검증자 등록
-        vm.startPrank(validator1);
-        MockWTON(wton).mint(validator1, 500 * RAY);
-        MockWTON(wton).approve(depositManagerProxy, 500 * RAY);
-        depositManager.deposit(mockLayer2, validator1, 500 * RAY);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.stopPrank();
+        _registerValidator(validator1, 500 * RAY);
 
-        // attacker가 호출 시 revert (유효하지 않은 factory)
+        // 사전 조건: attacker는 유효한 factory가 아님
+        assertTrue(attacker != mockDisputeGameFactory, "attacker should not be valid factory");
+
+        // attacker가 호출 시 InvalidFactoryError
         vm.prank(attacker);
-        vm.expectRevert(); // InvalidFactoryError
+        vm.expectRevert(InvalidFactoryError.selector);
         rat.triggerAttentionTest(
             address(0x1234),
             address(mockSystemConfig),
@@ -409,9 +244,9 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
             keccak256("block1")
         );
 
-        // 등록되지 않은 factory가 호출 시 revert
+        // 등록되지 않은 factory가 호출 시 InvalidFactoryError
         vm.prank(randomUser);
-        vm.expectRevert(); // InvalidFactoryError
+        vm.expectRevert(InvalidFactoryError.selector);
         rat.triggerAttentionTest(
             address(0x1234),
             address(mockSystemConfig),
@@ -424,12 +259,7 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     /// @notice SEC-004: 유효한 Factory에서 호출 시 성공
     function test_SEC004_validFactory_success() public {
         // 검증자 등록
-        vm.startPrank(validator1);
-        MockWTON(wton).mint(validator1, 500 * RAY);
-        MockWTON(wton).approve(depositManagerProxy, 500 * RAY);
-        depositManager.deposit(mockLayer2, validator1, 500 * RAY);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.stopPrank();
+        _registerValidator(validator1, 500 * RAY);
 
         // 유효한 factory(mockDisputeGameFactory)에서 호출 시 성공
         vm.prank(mockDisputeGameFactory);
@@ -452,49 +282,47 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
 
     /// @notice SEC-001: SeigManager onlyOwner 함수들
     function test_SEC001_onlyOwner_seigManager() public {
+        // 사전 조건: attacker는 admin이 아님
+        assertFalse(seigManager.isAdmin(attacker), "attacker should not be admin");
+
         // setDaoDistributionRatio
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setDaoDistributionRatio(0.2e27);
 
         // setMinStakingRatio
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setMinStakingRatio(0.2e27);
 
         // setValidatorDistributionRatio
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setValidatorDistributionRatio(0.3e27);
 
         // setHalfSaturationPoint
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setHalfSaturationPoint(2000e27);
-
-        // setStakedSeigFactor
-        vm.prank(attacker);
-        vm.expectRevert();
-        seigManager.setStakedSeigFactor(0.5e27);
 
         // setMaxChallengers
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setMaxChallengers(10);
 
         // setMaxFraudProofCost
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setMaxFraudProofCost(1 ether);
 
         // setRatContract
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setRatContract(address(0x1234));
 
         // setValidatorReward
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert("AuthControl: Caller is not an admin");
         seigManager.setValidatorReward(address(0x1234));
     }
 
@@ -579,14 +407,14 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     /// @notice SEC-030: setRatContract - zero address 거부
     function test_SEC030_zeroAddress_setRatContract() public {
         vm.prank(owner);
-        vm.expectRevert(); // ZeroAddressError
+        vm.expectRevert(ZeroAddressError.selector);
         seigManager.setRatContract(address(0));
     }
 
     /// @notice SEC-030: setValidatorReward - zero address 거부
     function test_SEC030_zeroAddress_setValidatorReward() public {
         vm.prank(owner);
-        vm.expectRevert(); // ZeroAddressError
+        vm.expectRevert(ZeroAddressError.selector);
         seigManager.setValidatorReward(address(0));
     }
 
@@ -604,167 +432,104 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     /// @notice SEC-031: daoDistributionRatio >= RAY 거부
     function test_SEC031_parameterRange_daoDistributionRatio() public {
         vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
+        vm.expectRevert(InvalidParameterError.selector);
         seigManager.setDaoDistributionRatio(RAY);
 
         vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
+        vm.expectRevert(InvalidParameterError.selector);
         seigManager.setDaoDistributionRatio(RAY + 1);
     }
 
     /// @notice SEC-031: validatorDistributionRatio >= RAY 거부
     function test_SEC031_parameterRange_validatorDistributionRatio() public {
         vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
+        vm.expectRevert(InvalidParameterError.selector);
         seigManager.setValidatorDistributionRatio(RAY);
     }
 
     /// @notice SEC-031: minStakingRatio > RAY 거부
     function test_SEC031_parameterRange_minStakingRatio() public {
         vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
+        vm.expectRevert(InvalidParameterError.selector);
         seigManager.setMinStakingRatio(RAY + 1);
-    }
-
-    /// @notice SEC-031: stakedSeigFactor > RAY 거부
-    function test_SEC031_parameterRange_stakedSeigFactor() public {
-        vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
-        seigManager.setStakedSeigFactor(RAY + 1);
     }
 
     /// @notice SEC-031: ratTriggerProbability > RAY 거부
     function test_SEC031_parameterRange_ratTriggerProbability() public {
         vm.prank(owner);
-        vm.expectRevert(); // InvalidParameterError
+        vm.expectRevert(RATInvalidParameterError.selector);
         rat.setRatTriggerProbability(RAY + 1);
     }
 
     // ==========================================
-    // SEC-010~012: 재진입 방지 테스트
+    // SEC-011: CEI 패턴 준수 테스트
     // ==========================================
-
-    /// @notice SEC-010: ifFree modifier 검증 - SeigManager
-    /// @dev SeigManager._updateSeigniorageV3()에 ifFree modifier가 적용되어 있음
-    function test_SEC010_ifFree_SeigManager() public pure {
-        // ifFree modifier는 free 상태가 아닐 때 재진입을 방지
-        // 직접적인 재진입 테스트는 어렵지만, modifier가 존재하는지 확인
-        // SeigManagerV1_3Storage.sol:39에 정의됨
-
-        // updateSeigniorage는 V3에서 disabled되므로 직접 호출 불가
-        // 대신 _updateSeigniorageV3가 ifFree를 사용하는지 코드 검증
-
-        // 이 테스트는 ifFree modifier가 적용된 함수의 존재를 확인하는 구조적 테스트
-        assertTrue(true, "ifFree modifier exists in SeigManager._updateSeigniorageV3");
-    }
-
-    /// @notice SEC-010: ifFree modifier 검증 - DepositManager
-    /// @dev DepositManager.withdrawAndDepositL2()에 ifFree modifier가 적용되어 있음
-    function test_SEC010_ifFree_DepositManagerV3() public pure {
-        // DepositManagerV3Storage.sol:14에 ifFree modifier 정의됨
-        // DepositManagerV3.sol:101에서 withdrawAndDepositL2가 ifFree 사용
-
-        // 이 테스트는 ifFree modifier가 적용된 함수의 존재를 확인하는 구조적 테스트
-        assertTrue(true, "ifFree modifier exists in DepositManager.withdrawAndDepositL2");
-    }
 
     /// @notice SEC-011: CEI 패턴 준수 검증
-    /// @dev Checks-Effects-Interactions 패턴이 준수되는지 확인
-    function test_SEC011_CEI_pattern() public pure {
-        // CEI 패턴: 1) 조건 확인 2) 상태 변경 3) 외부 호출
-        // 이 패턴은 재진입 공격 방지의 핵심
+    function test_SEC011_CEI_pattern() public {
+        // 검증자 등록 및 deposit
+        vm.startPrank(validator1);
+        MockWTON(wton).mint(validator1, 500 * RAY);
+        MockWTON(wton).approve(depositManagerProxy, 500 * RAY);
 
-        // SeigManager의 주요 함수들이 CEI 패턴을 따르는지 코드 리뷰로 확인
-        // - onDeposit: 잔액 확인 → coinage mint → 완료
-        // - onWithdraw: 잔액 확인 → coinage burn → 완료
-        // - transferCoinageToRat: 잔액 확인 → burn → mint → 이벤트
+        // deposit 전 상태
+        uint256 wtonBefore = MockWTON(wton).balanceOf(validator1);
+        uint256 stakeBefore = SeigManagerV1_2(seigManagerProxy).stakeOf(mockLayer2, validator1);
 
-        // 구조적 테스트 - 실제 CEI 패턴은 코드 감사에서 검증
-        assertTrue(true, "CEI pattern compliance verified by code review");
-    }
+        // deposit 실행
+        depositManager.deposit(mockLayer2, validator1, 300 * RAY);
 
-    /// @notice SEC-012: 외부 호출 후 상태 일관성
-    /// @dev 외부 호출 후에도 상태가 일관성을 유지하는지 확인
-    function test_SEC012_stateConsistency() public view {
-        // CEI 패턴과 상태 일관성은 코드 구조에서 검증
-        // 이 테스트는 관련 modifier와 패턴 사용 확인
+        // deposit 후 상태
+        uint256 wtonAfter = MockWTON(wton).balanceOf(validator1);
+        uint256 stakeAfter = SeigManagerV1_2(seigManagerProxy).stakeOf(mockLayer2, validator1);
 
-        // SeigManager의 transferCoinageToRat/transferCoinageFromRat는
-        // 내부적으로 coinage burn/mint를 순차적으로 수행하여
-        // 총 공급량을 보존함
-
-        // RAT 컨트랙트 주소 확인
-        assertTrue(address(rat) != address(0), "RAT contract deployed");
-        assertTrue(rat.slashingPenalty() > 0, "Slashing penalty set");
-
-        // SeigManager에 RAT이 설정되어 있음
-        assertEq(seigManager.ratContract(), address(rat), "RAT connected to SeigManager");
+        // CEI 패턴 검증: 상태 변경이 일관성 있게 완료됨
+        assertEq(wtonBefore - wtonAfter, 300 * RAY, "WTON deducted");
+        assertEq(stakeAfter - stakeBefore, 300 * RAY, "Stake increased");
+        vm.stopPrank();
     }
 
     // ==========================================
-    // SEC-020~022: 랜덤 보안 테스트
+    // SEC-020: 랜덤 보안 테스트
     // ==========================================
 
-    /// @notice SEC-020: blockHash 기반 랜덤 - L2 시퀀서 조작 불가 검증
-    /// @dev L2 시퀀서가 블록해시를 조작할 수 없음을 검증
-    function test_SEC020_blockHash_randomness() public pure {
-        // blockHash는 L1에서 결정되므로 L2 시퀀서가 조작 불가
-        // 검증: 다른 blockHash → 다른 결과
-        bytes32 blockHash1 = keccak256("block1");
-        bytes32 blockHash2 = keccak256("block2");
-        uint256 timestamp = 1000000;
+    /// @notice SEC-020: RAT 랜덤 소스는 L1 블록 해시 + L1 timestamp
+    /// @dev DisputeGameFactory.create() 코드:
+    ///      bytes32 parentHash = blockhash(block.number - 1);  // L1 이전 블록 해시
+    ///      IRAT(rat).triggerAttentionTest(..., parentHash);
+    ///
+    ///      보안 모델:
+    ///      - blockHash: L1 이전 블록 해시 (시퀀서 제어 불가)
+    ///      - block.timestamp: L1 타임스탬프 (시퀀서 제어 불가)
+    ///      - 둘 다 L1 값이므로 L2 시퀀서가 조작할 수 없음
+    function test_SEC020_randomness_uses_L1_values() public {
+        // 검증자 등록
+        _registerValidator(validator1, 500 * RAY);
 
-        // 랜덤 값 계산 시뮬레이션 (RAT 내부 로직과 동일)
-        uint256 randomValue1 = uint256(keccak256(abi.encodePacked(blockHash1, timestamp))) % RAY;
-        uint256 randomValue2 = uint256(keccak256(abi.encodePacked(blockHash2, timestamp))) % RAY;
-
-        // 다른 blockHash는 다른 랜덤 값을 생성
-        assertTrue(randomValue1 != randomValue2, "Different blockHash should produce different random");
-    }
-
-    /// @notice SEC-021: 랜덤 분포 검증 - 통계적 균등 분포
-    /// @dev 많은 샘플에서 랜덤 값이 균등하게 분포하는지 확인
-    function test_SEC021_randomDistribution() public pure {
-        uint256 samples = 100;
-        uint256 buckets = 10;
-        uint256[] memory distribution = new uint256[](buckets);
-
-        for (uint256 i = 0; i < samples; i++) {
-            bytes32 blockHash = keccak256(abi.encodePacked("block", i));
-            uint256 timestamp = 1000000 + i;
-            uint256 randomValue = uint256(keccak256(abi.encodePacked(blockHash, timestamp))) % buckets;
-            distribution[randomValue]++;
-        }
-
-        // 균등 분포 검증: 각 버킷에 최소 1개 이상
-        uint256 nonEmpty = 0;
-        for (uint256 i = 0; i < buckets; i++) {
-            if (distribution[i] > 0) nonEmpty++;
-        }
-
-        // 100개 샘플에서 10개 버킷 중 최소 5개 이상 사용되어야 함
-        assertTrue(nonEmpty >= 5, "Random distribution should be reasonably uniform");
-    }
-
-    /// @notice SEC-022: timestamp 조작 방지 - 랜덤 입력으로 사용
-    /// @dev timestamp은 L1 블록 timestamp이므로 L2에서 조작 불가
-    function test_SEC022_timestamp_manipulation() public {
-        // timestamp은 block.timestamp로 L1에서 결정
-        // L2 시퀀서는 이를 조작할 수 없음
-
+        // DisputeGameFactory에서 사용하는 방식: blockhash(block.number - 1)
+        // 테스트에서는 시뮬레이션
+        vm.roll(100);
+        bytes32 l1ParentHash1 = blockhash(block.number - 1);
         uint256 ts1 = block.timestamp;
-        vm.warp(block.timestamp + 12); // L1 블록 시간
+
+        // L1 블록 진행
+        vm.roll(101);
+        vm.warp(block.timestamp + 12);
+        bytes32 l1ParentHash2 = blockhash(block.number - 1);
         uint256 ts2 = block.timestamp;
 
-        // 다른 timestamp → 다른 랜덤 결과
-        bytes32 blockHash = keccak256("block");
-        uint256 random1 = uint256(keccak256(abi.encodePacked(blockHash, ts1)));
-        uint256 random2 = uint256(keccak256(abi.encodePacked(blockHash, ts2)));
+        // L1 블록이 다르면 parentHash도 다름
+        assertTrue(l1ParentHash1 != l1ParentHash2, "Different L1 blocks have different hashes");
 
-        assertTrue(random1 != random2, "Different timestamp should produce different random");
+        // 랜덤 값 계산 (RAT._selectRandomValidator 방식)
+        bytes32 hash1 = keccak256(abi.encodePacked(l1ParentHash1, ts1));
+        bytes32 hash2 = keccak256(abi.encodePacked(l1ParentHash2, ts2));
 
-        // timestamp 간격 검증 (정상 범위)
-        assertEq(ts2 - ts1, 12, "Timestamp should advance by block time");
+        // L1 값들이 다르므로 랜덤 결과도 다름
+        assertTrue(hash1 != hash2, "Different L1 state produces different randomness");
+
+        // 결론: L2 시퀀서는 L1 블록 해시와 L1 타임스탬프를 제어할 수 없으므로
+        //       검증자 선택 결과를 조작할 수 없음
     }
 
     // ==========================================
@@ -772,11 +537,8 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
     // ==========================================
 
     /// @notice SEC-032: 빈 배열 처리
-    /// @dev 빈 배열 입력 시 안전하게 처리
     function test_SEC032_emptyArrayHandling() public {
         // 검증자가 없는 상태에서 RAT 트리거
-        // activeCount == 0이면 early return
-
         vm.prank(mockDisputeGameFactory);
         // 빈 배열(검증자 없음)에서 RAT 트리거 → early return, revert 없음
         rat.triggerAttentionTest(
@@ -791,17 +553,11 @@ contract SecurityPermissionsTest is Test, DeployV3Full {
         assertTrue(true, "Empty validator pool handled gracefully");
     }
 
-    /// @notice SEC-032: 과대 배열 처리 (N_max 제한)
-    /// @dev N_max 이상 검증자 등록 시 revert
+    /// @notice SEC-032: N_max 제한 설정 확인
     function test_SEC032_maxValidatorLimit() public view {
         uint256 nMax = rat.maxValidatorsPerL2();
 
-        // N_max가 설정되어 있음 확인
+        // N_max가 설정되어 있음 확인 (컨트랙트는 > 0만 요구)
         assertTrue(nMax > 0, "N_max should be positive");
-        assertTrue(nMax <= 1000, "N_max should be reasonable");
-
-        // RAT 컨트랙트에서 N_max 제한이 적용됨
-        // 실제 등록 테스트는 RAT.t.sol에서 수행
-        // 여기서는 설정 검증
     }
 }

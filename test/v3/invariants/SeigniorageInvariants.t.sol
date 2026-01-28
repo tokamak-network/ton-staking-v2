@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import "../v2mode/V2ModeTestBase.sol";
 import {SeigManagerV1_2} from "../../../src/stake/managers/SeigManagerV1_2.sol";
+import {AutoRefactorCoinageI} from "../../../src/stake/interfaces/AutoRefactorCoinageI.sol";
 
 /// @title SeigniorageInvariants
 /// @notice 시뇨리지 분배의 불변 속성 검증
@@ -52,12 +53,9 @@ contract SeigniorageInvariantsTest is V2ModeTestBase {
     // ==========================================
 
     /// @notice INV-001-V2: V2 모드 시뇨리지 총량 보존
-    /// @dev V2 모드에서는 DAO + 시퀀서 + 스테이커 = 총 시뇨리지
-    ///      검증 공식: DAO보상 + L2시퀀서보상 + (Operator + Staker)Coinage증가 = seigPerBlock × span
-    /// @dev SKIP: V2 시뇨리지 conservation 검증이 복잡한 factor 계산으로 인해 정확히 맞지 않음.
-    ///      pseudoTotalSupply, factor refactoring 등의 요소로 인한 오차 존재.
+    /// @dev V2 모드에서는 DAO + Sequencer + Coinage 증가 = 총 시뇨리지
+    ///      검증 공식: DAO보상 + Sequencer보상(WTON) + Coinage totalSupply 증가 = seigPerBlock × span
     function test_INV001_v2_seigniorageConservation() public {
-        vm.skip(true);
         // ============================================
         // 1. V2 모드에서 L2 등록 및 초기화
         // ============================================
@@ -72,15 +70,17 @@ contract SeigniorageInvariantsTest is V2ModeTestBase {
         DepositManagerV3(depositManagerProxy).deposit(mockLayer2, stakerDeposit);
         vm.stopPrank();
 
+        // Coinage 참조 가져오기
+        address coinageAddress = SeigManagerV1_2(seigManagerProxy).coinages(mockLayer2);
+        require(coinageAddress != address(0), "Coinage not created");
+        AutoRefactorCoinageI coinage = AutoRefactorCoinageI(coinageAddress);
+
         // ============================================
         // 2. 시뇨리지 분배 전 잔액 기록
         // ============================================
         uint256 daoBalanceBefore = MockWTON(wton).balanceOf(dao);
         uint256 operatorManagerBalanceBefore = MockWTON(wton).balanceOf(operatorManager);
-        uint256 operatorStakeBefore = _getStake(mockLayer2, operator1);
-        uint256 stakerStakeBefore = _getStake(mockLayer2, staker1);
-
-        // blocksBefore = block.number;
+        uint256 coinageTotalSupplyBefore = coinage.totalSupply();
 
         // ============================================
         // 3. 시뇨리지 분배 실행
@@ -94,13 +94,11 @@ contract SeigniorageInvariantsTest is V2ModeTestBase {
         // ============================================
         uint256 daoBalanceAfter = MockWTON(wton).balanceOf(dao);
         uint256 operatorManagerBalanceAfter = MockWTON(wton).balanceOf(operatorManager);
-        uint256 operatorStakeAfter = _getStake(mockLayer2, operator1);
-        uint256 stakerStakeAfter = _getStake(mockLayer2, staker1);
+        uint256 coinageTotalSupplyAfter = coinage.totalSupply();
 
         uint256 daoIncrease = daoBalanceAfter - daoBalanceBefore;
         uint256 sequencerIncrease = operatorManagerBalanceAfter - operatorManagerBalanceBefore;
-        uint256 operatorStakeIncrease = operatorStakeAfter - operatorStakeBefore;
-        uint256 stakerStakeIncrease = stakerStakeAfter - stakerStakeBefore;
+        uint256 coinageIncrease = coinageTotalSupplyAfter - coinageTotalSupplyBefore;
 
         // ============================================
         // 5. 예상 총 시뇨리지 계산
@@ -111,22 +109,21 @@ contract SeigniorageInvariantsTest is V2ModeTestBase {
         // ============================================
         // 6. 실제 분배된 총량 계산
         // ============================================
-        uint256 actualTotalDistributed = daoIncrease + sequencerIncrease + operatorStakeIncrease + stakerStakeIncrease;
+        uint256 actualTotalDistributed = daoIncrease + sequencerIncrease + coinageIncrease;
 
         // ============================================
         // 7. 불변 속성 검증
         // ============================================
-        // V2: DAO + 시퀀서 + 스테이커 = 총 시뇨리지
-        // 허용 오차: 0.1% (factor로 인한 반올림 오차)
-        assertApproxEqRel(actualTotalDistributed, expectedTotalSeig, 0.001e18, "INV-001-V2: Total seigniorage should be conserved");
+        // V2: DAO + Sequencer + Coinage 증가 = 총 시뇨리지
+        // 허용 오차: 1e18 (1 wei, factor 반올림 오차)
+        assertApproxEqAbs(actualTotalDistributed, expectedTotalSeig, 1e18, "INV-001-V2: Total seigniorage should be conserved");
 
         emit log_string("=== INV-001-V2: Seigniorage Conservation ===");
-        emit log_named_decimal_uint("Expected total seigniorage", expectedTotalSeig / 1e27, 27);
-        emit log_named_decimal_uint("Actual total distributed", actualTotalDistributed / 1e27, 27);
-        emit log_named_decimal_uint("  - DAO", daoIncrease / 1e27, 27);
-        emit log_named_decimal_uint("  - Sequencer", sequencerIncrease / 1e27, 27);
-        emit log_named_decimal_uint("  - Operator stake", operatorStakeIncrease / 1e27, 27);
-        emit log_named_decimal_uint("  - Staker stake", stakerStakeIncrease / 1e27, 27);
+        emit log_named_decimal_uint("Expected total seigniorage", expectedTotalSeig / 1e18, 18);
+        emit log_named_decimal_uint("Actual total distributed", actualTotalDistributed / 1e18, 18);
+        emit log_named_decimal_uint("  - DAO", daoIncrease / 1e18, 18);
+        emit log_named_decimal_uint("  - Sequencer (OperatorManager)", sequencerIncrease / 1e18, 18);
+        emit log_named_decimal_uint("  - Coinage increase", coinageIncrease / 1e18, 18);
     }
 
     // ==========================================

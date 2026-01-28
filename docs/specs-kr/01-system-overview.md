@@ -102,9 +102,13 @@ D_sequencer = H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 
 파라미터:
 θ = 최소 스테이킹 비율 (예: 10%)
 B_i = L2의 Bridged TON
-H_max = 최대 동시 챌린저 수
-C_max = 단일 Fraud Proof 최대 비용
-Δ_sequencer = 시퀀서 추가 보상
+H_max = maxChallengers (최대 동시 챌린저 수)
+C_max = maxFraudProofCost (단일 Fraud Proof 최대 비용)
+Δ_sequencer = sequencerAdditionalReward (시퀀서 추가 보상)
+
+계산 예시:
+H_max = 3, C_max = 50e27 WTON, Δ_sequencer = 100e27 WTON
+→ D_sequencer = 3 × 50e27 + 100e27 = 250e27 WTON
 ```
 
 > **V3 변경사항**: 시퀀서 담보금은 별도 Vault가 아닌 기존 TON 스테이킹 시스템(coinage)을 사용합니다.
@@ -121,6 +125,19 @@ L = (1-d) · A (L2 분배 가능량)
 x = Σ B̃_i (전체 유효 Bridged TON)
 k = 반포화점 (halfSaturationPoint)
 ```
+
+#### 수학적 속성
+
+| x 값 | y(x) 값 | 의미 |
+|------|---------|------|
+| x = 0 | y(0) = 0 | 자격 L2 없으면 분배 없음 |
+| x = k | y(k) = L/2 | 반포화점에서 정확히 절반 |
+| x → ∞ | y(∞) → L | x가 커질수록 L에 근접 (포화) |
+
+**특성**:
+- **단조 증가**: x₁ < x₂ ⇒ y(x₁) < y(x₂)
+- **상한**: 항상 0 ≤ y(x) ≤ L
+- **수확체감**: dy/dx = L·k/(k+x)² → x 증가 시 기울기 감소
 
 ### 3.5 RAT (Randomized Attention Test)
 
@@ -213,10 +230,21 @@ k = 반포화점 (halfSaturationPoint)
    │
 6. 검증자 응답 대기 (evidenceSubmissionPeriod)
    │
-   ├─ 증거 제출 시: RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
-   │   └─ D_min 체크하여 검증자 상태 갱신
+   ├─ 증거 제출 시 (Evidence Period 내):
+   │   ├─ submitEvidence() 호출
+   │   ├─ RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+   │   └─ 담보금 임계값 체크 후 자동 재활성화 시도
    │
-   └─ 미응답 시: RAT 컨트랙트의 C_off 몰수
+   ├─ 증거 제출 기간 초과 시 (Challenge Period):
+   │   ├─ 챌린저가 DisputeGame에서 챌린지 가능
+   │   └─ 챌린지 성공 시:
+   │       ├─ FaultDisputeGame.resolveClaim() 호출
+   │       ├─ RAT.resolveClaim(claimant) 호출
+   │       ├─ RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+   │       └─ 담보금 임계값 체크 후 자동 재활성화 시도
+   │
+   └─ 미응답 + 챌린지 기간 종료 시:
+       └─ RAT 컨트랙트의 C_off 영구 몰수
 ```
 
 ### 5.3 시퀀서 슬래싱 흐름
@@ -263,7 +291,44 @@ k = 반포화점 (halfSaturationPoint)
 
 ---
 
-## 7. 관련 문서
+## 7. 시스템 불변 속성 (Invariants)
+
+시스템이 항상 유지해야 하는 속성들입니다.
+
+### 7.1 INV-001: 시뇨리지 총량 보존
+
+**V3 모드**:
+```
+DAO 고정 분배 + DAO 미분배분 + 시퀀서 보상 + 검증자 보상 = 총 시뇨리지
+
+d·A + (L - y(x)) + Σ(시퀀서_i) + Σ(검증자_j) = A
+```
+
+**검증**:
+- 총 발행량 = `seigPerBlock × blockSpan`
+- 모든 분배의 합 = 총 발행량
+- 손실 또는 초과 발행 없음
+
+### 7.2 INV-002: effectiveBridgedTON 일관성
+
+```
+∀ L2_i: eligible_i = true ⇔ effectiveBridgedTON_i = bridgedTON_i
+∀ L2_i: eligible_i = false ⇔ effectiveBridgedTON_i = 0
+```
+
+자격 상태와 유효 Bridged TON이 항상 일치해야 합니다.
+
+### 7.3 INV-003: 보상 청구 가능 금액
+
+```
+0 ≤ claimableRewards ≤ totalDistributed
+```
+
+청구 가능한 보상은 음수가 될 수 없으며, 분배된 총량을 초과할 수 없습니다.
+
+---
+
+## 8. 관련 문서
 
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처
 - [03-contract-structure.md](./03-contract-structure.md): 컨트랙트 구조

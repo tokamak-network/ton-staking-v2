@@ -4,20 +4,211 @@
  */
 
 .heroBanner {
-  padding: 4rem 0;
+  padding: 6rem 0;
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
-    padding: 2rem;
+    padding: 3rem 1rem;
   }
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.logoTopLeft {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  width: 80px;
+  height: 54px;
+  filter: drop-shadow(0 0 20px rgba(42, 114, 229, 0.5));
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(42, 114, 229, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(42, 114, 229, 0.8));
+  }
+}
+
+.heroTitle {
+  color: #ffffff;
+  font-size: 3rem;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.heroSubtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.25rem;
+  margin: 0;
+  max-width: 600px;
+}
+
+.warningBadge {
+  background: linear-gradient(90deg, #ff9800, #f57c00);
+  color: #000;
+  padding: 1rem 3rem;
+  border-radius: 30px;
+  font-weight: 800;
+  font-size: 1.5rem;
+  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+  letter-spacing: 1px;
 }
 
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.primaryButton {
+  background: linear-gradient(90deg, #2a72e5, #1e5bb8);
+  color: #ffffff;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(42, 114, 229, 0.4);
+}
+
+.primaryButton:hover {
+  background: linear-gradient(90deg, #3a82f5, #2a72e5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(42, 114, 229, 0.5);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: #ffffff;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.secondaryButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* Features Section */
+.features {
+  padding: 4rem 0;
+  background: #f8fafc;
+}
+
+[data-theme='dark'] .features {
+  background: #1a1a2e;
+}
+
+.featureCard {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 2rem;
+  height: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme='dark'] .featureCard {
+  background: #16213e;
+  border-color: #2a72e5;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.featureCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(42, 114, 229, 0.15);
+}
+
+[data-theme='dark'] .featureCard:hover {
+  box-shadow: 0 8px 30px rgba(42, 114, 229, 0.3);
+}
+
+.featureIcon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #2a72e5, #1e5bb8);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: #ffffff;
+  font-size: 1.5rem;
+}
+
+.featureTitle {
+  color: #1a1a2e;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+[data-theme='dark'] .featureTitle {
+  color: #ffffff;
+}
+
+.featureDescription {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+[data-theme='dark'] .featureDescription {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.featureLink {
+  color: #2a72e5;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: gap 0.3s ease;
+}
+
+.featureLink:hover {
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.sectionTitle {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 3rem;
+}
+
+[data-theme='dark'] .sectionTitle {
+  color: #ffffff;
 }

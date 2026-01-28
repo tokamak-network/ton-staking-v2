@@ -25,10 +25,6 @@ contract SeigManagerV1_4Storage {
     /// @dev 백서 공식 (11): y(k) = L/2
     uint256 public halfSaturationPoint;
 
-    /// @notice λ: 지분 시뇨리지 비율 (V2→V3 전환용), RAY 단위
-    /// @dev λ = 1.0: V2와 동일, λ = 0: 지분 시뇨리지 없음
-    uint256 public stakedSeigFactor;
-
     // ==========================================
     // Bridged TON 관련 스토리지
     // ==========================================
@@ -36,15 +32,20 @@ contract SeigManagerV1_4Storage {
     /// @notice 전체 유효 Bridged TON 합계: x = Σ B̃_i
     uint256 public totalEffectiveBridgedTON;
 
-    /// @notice Bridged TON 1단위당 누적 보상 (V2의 l2RewardPerUint 대응)
-    /// @dev bridgedTONRewardPerUint = Σ(y(x) / x) 누적값
+    /// @notice Sequencer 보상: Bridged TON 1단위당 누적 보상
+    /// @dev sequencer reward per unit = Σ((1-α) × y(x) / x) 누적값
     uint256 public bridgedTONRewardPerUint;
+
+    /// @notice Validator 보상: Bridged TON 1단위당 누적 보상
+    /// @dev validator reward per unit = Σ(α × y(x) / x) 누적값
+    uint256 public validatorRewardPerUint;
 
     /// @notice L2별 Bridged TON 정보
     struct BridgedTONInfo {
         uint256 currentBridgedTON;      // B_i: 현재 Bridged TON
         uint256 effectiveBridgedTON;    // B̃_i: 유효 Bridged TON (자격 없으면 0)
-        uint256 initialDebt;            // 초기부채 (V2 패턴 동일)
+        uint256 initialDebt;            // Sequencer 초기부채
+        uint256 validatorInitialDebt;   // Validator 초기부채
         uint256 startBlock;             // 참여 시작 블록
         uint256 lastUpdateTime;         // 마지막 업데이트 타임스탬프
         bool isEligible;                // 자격 여부 (S_i ≥ θ·B_i)

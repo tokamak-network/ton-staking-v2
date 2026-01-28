@@ -6,6 +6,7 @@ import {IRAT} from "./IRAT.sol";
 import {RATInitParams, RATConfigParams} from "./RATTypes.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
+import {IValidatorReward} from "./IValidatorReward.sol";
 
 // V3: SeigManager 연동을 위한 인터페이스
 interface ISeigManagerForRAT {
@@ -117,6 +118,7 @@ contract RAT is RATStorage, IRAT {
         require(config.evidenceSubmissionPeriod > 0, "invalid evidence period");
         require(config.slashingPenalty > 0, "invalid slashing penalty");
         require(config.minimumThreshold >= config.slashingPenalty + config.validatorBuffer, "invalid minimum threshold");
+        require(config.maxValidatorsPerL2 > 0, "invalid maxValidatorsPerL2");
 
         ratTriggerProbability = config.ratTriggerProbability;
         evidenceSubmissionPeriod = config.evidenceSubmissionPeriod;
@@ -223,7 +225,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev D_min = C_off + Δ_validator
     /// @param systemConfig L2의 SystemConfig 주소
     function getDynamicMinimumCollateral(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1; // 최소 1명 기준
         return _calculateMinimumCollateral(n);
     }
@@ -232,19 +234,22 @@ contract RAT is RATStorage, IRAT {
     /// @dev 백서 공식 (5): C_off = max(slashingPenalty, (c_m × N × RAY) / π_a)
     /// @dev _calculateCoffWithRelaxedCheck 내부에서 호출됨
     function _calculateDynamicCoff(uint256 n) internal view returns (uint256) {
-        uint256 cOff = slashingPenalty; // 기본값: 거버넌스 설정 슬래싱 페널티
+        // Storage 변수 캐싱 (중복 SLOAD 방지)
+        uint256 _slashingPenalty = slashingPenalty;
+        uint256 _attentionCost = attentionCost;
+        uint256 _ratTriggerProb = ratTriggerProbability;
 
         // attentionCost > 0 이고 ratTriggerProbability > 0 이면 공식 적용
-        if (attentionCost > 0 && ratTriggerProbability > 0) {
+        if (_attentionCost > 0 && _ratTriggerProb > 0) {
             // C_off = (c_m × N × RAY) / π_a
-            uint256 formulaCoff = (attentionCost * n * RAY) / ratTriggerProbability;
+            uint256 formulaCoff = (_attentionCost * n * RAY) / _ratTriggerProb;
             // max(slashingPenalty, formulaCoff)
-            if (formulaCoff > slashingPenalty) {
-                cOff = formulaCoff;
+            if (formulaCoff > _slashingPenalty) {
+                return formulaCoff;
             }
         }
 
-        return cOff;
+        return _slashingPenalty;
     }
 
     /// @notice relaxedValidatorCheck를 반영한 C_off 계산 (내부용)
@@ -263,7 +268,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev relaxed = false: 동적 C_off (엄격)
     /// @param systemConfig L2의 SystemConfig 주소
     function getCoffWithRelaxedCheck(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateCoffWithRelaxedCheck(n);
     }
@@ -272,7 +277,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev 항상 백서 공식대로 계산
     /// @param systemConfig L2의 SystemConfig 주소
     function getDynamicCoff(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateDynamicCoff(n);
     }
@@ -296,7 +301,7 @@ contract RAT is RATStorage, IRAT {
     /// @dev relaxed = false: 동적 C_off + validatorBuffer (엄격)
     /// @param systemConfig L2의 SystemConfig 주소
     function getMinimumCollateralWithRelaxedCheck(address systemConfig) public view returns (uint256) {
-        uint256 n = getActiveValidatorCount(systemConfig);
+        uint256 n = validatorPools[systemConfig].activeCount; // 직접 SLOAD로 최적화
         if (n == 0) n = 1;
         return _calculateDminWithRelaxedCheck(n);
     }
@@ -461,6 +466,11 @@ contract RAT is RATStorage, IRAT {
         ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
         if (!reg.isActive) revert NotActiveValidatorError();
 
+        // V1.1: 탈퇴 전 보상 동기화 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).syncValidatorReward(msg.sender, systemConfig);
+        }
+
         // 배열에서 제거 (O(n) - 탈퇴자가 가스비 부담)
         _removeValidatorFromArray(systemConfig, msg.sender);
 
@@ -514,7 +524,7 @@ contract RAT is RATStorage, IRAT {
         uint256 index = pool.validators.length;
 
         // N_max 체크: L2별 최대 검증자 수 제한
-        if (maxValidatorsPerL2 > 0 && index >= maxValidatorsPerL2) {
+        if (index >= maxValidatorsPerL2) {
             revert MaxValidatorsReachedError();
         }
 
@@ -527,6 +537,11 @@ contract RAT is RATStorage, IRAT {
 
         validatorIndexes[systemConfig][validator] = index;
         validatorSystemConfigs[validator].push(systemConfig);
+
+        // V1.1: ValidatorReward에 등록 알림 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).registerValidatorToL2(validator, systemConfig);
+        }
 
         emit ValidatorRegistered(validator, systemConfig, layer2, collateral, index);
     }
@@ -758,6 +773,11 @@ contract RAT is RATStorage, IRAT {
         ValidatorRegistration storage reg,
         address layer2
     ) internal {
+        // V1.1: 제거 전 보상 동기화 (O(1) 보상 분배용)
+        if (validatorReward != address(0)) {
+            IValidatorReward(validatorReward).syncValidatorReward(validator, systemConfig);
+        }
+
         // 배열에서 제거
         _removeValidatorFromArray(systemConfig, validator);
 
@@ -805,6 +825,11 @@ contract RAT is RATStorage, IRAT {
 
             validatorIndexes[systemConfig][validator] = index;
 
+            // V1.1: 재활성화 시 보상 debt 리셋 (O(1) 보상 분배용)
+            if (validatorReward != address(0)) {
+                IValidatorReward(validatorReward).resetValidatorDebt(validator, systemConfig);
+            }
+
             emit ValidatorReactivated(validator, systemConfig, layer2, collateral);
         }
     }
@@ -835,6 +860,7 @@ contract RAT is RATStorage, IRAT {
 
     /// @inheritdoc IRAT
     function setMaxValidatorsPerL2(uint256 maxValidators) external onlyOwner {
+        require(maxValidators > 0, "invalid maxValidatorsPerL2");
         maxValidatorsPerL2 = maxValidators;
         emit MaxValidatorsPerL2Updated(maxValidators);
     }
@@ -884,6 +910,12 @@ contract RAT is RATStorage, IRAT {
     /// @notice Treasury 주소 설정
     function setTreasury(address _treasury) external onlyOwner {
         treasury = _treasury;
+    }
+
+    /// @notice ValidatorReward 컨트랙트 주소 설정 (V1.1)
+    /// @param _validatorReward ValidatorReward 컨트랙트 주소
+    function setValidatorReward(address _validatorReward) external onlyOwner {
+        validatorReward = _validatorReward;
     }
 
     /// @notice Owner 변경

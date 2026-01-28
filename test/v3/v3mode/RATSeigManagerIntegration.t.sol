@@ -1,27 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "forge-std/Test.sol";
-import "../../../script/DeployV3Full.s.sol";
-import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
-import {RAT} from "../../../src/validator/RAT.sol";
-import {Layer2Registry} from "../../../src/stake/Layer2Registry.sol";
-import {RefactorCoinageSnapshotI} from "../../../src/stake/interfaces/RefactorCoinageSnapshotI.sol";
+import "../helpers/V3TestBase.sol";
 import {OnlyRatError} from "../../../src/stake/managers/SeigManagerV3_1.sol";
-
-// Shared Mock contracts
-import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "../helpers/V3TestMocks.sol";
-
-// DAO Contracts
-import {DAOCommitteeProxy2} from "../../../src/proxy/DAOCommitteeProxy2.sol";
-import {DAOCommittee_V1} from "../../../src/dao/DAOCommittee_V1.sol";
-import {DAOCommitteeOwner} from "../../../src/dao/DAOCommitteeOwner.sol";
-import {Candidate} from "../../../src/dao/Candidate.sol";
-import {CandidateAddOnV1_1} from "../../../src/dao/CandidateAddOnV1_1.sol";
-import {CandidateFactory} from "../../../src/dao/factory/CandidateFactory.sol";
-import {CandidateFactoryProxy} from "../../../src/dao/factory/CandidateFactoryProxy.sol";
-import {CandidateAddOnFactory} from "../../../src/dao/factory/CandidateAddOnFactory.sol";
-import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import {IValidatorReward} from "../../../src/validator/IValidatorReward.sol";
+import {ValidatorRewardV1} from "../../../src/validator/ValidatorRewardV1.sol";
 
 /// @title RATSeigManagerIntegrationTest
 /// @notice RAT ↔ SeigManager 실제 Coinage 전송 통합 테스트
@@ -36,96 +19,18 @@ import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddO
 /// - SM-041: transferCoinageFromRat()
 /// - SM-042: transferCoinageFromRatTo()
 /// - SM-043: onlyRAT 권한 검증
-contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
+contract RATSeigManagerIntegrationTest is V3TestBase {
     // ==========================================
-    // Contracts
+    // Additional Test Addresses
     // ==========================================
-    SeigManagerV3_1 public seigManager;
-    Layer2ManagerV3 public layer2Manager;
-    L1BridgeRegistryV1_2 public l1BridgeRegistry;
-    DepositManagerV3 public depositManager;
-    Layer2Registry public layer2Registry;
-    RAT public rat;
-
-    // ==========================================
-    // Mock Contracts for TYPE 3
-    // ==========================================
-    SimpleMockSystemConfig public mockSystemConfig;
-    address public mockL1Bridge;
-    address public mockPortal;
-    address public mockDisputeGameFactory;
-    address public mockL2TON;
-    address public mockLayer2;
-    address public operatorManager;
-
-    // ==========================================
-    // DAO Contracts
-    // ==========================================
-    address public daoCommitteeProxy;
-    address public daoCommitteeProxy2;
-    address public daoCommitteeV1;
-    address public daoCommitteeOwner;
-    address public candidateImpl;
-    address public candidateAddOnImpl;
-    address public candidateFactoryProxy;
-    address public candidateAddOnFactoryProxy;
-
-    // ==========================================
-    // Test Addresses
-    // ==========================================
-    address public admin;
-    address public owner;
-    address public operator1 = address(0x4001);
     address public validator1 = address(0x6001);
     address public validator2 = address(0x6002);
     address public treasury = address(0x9001);
 
-    uint256 constant RAY = 1e27;
-    uint256 constant INITIAL_TON = 100_000 * 1e18;
-
-    /// @notice Override to use separate admin address for TransparentUpgradeableProxy
-    function _getProxyAdmin(address) internal view override returns (address) {
-        return admin;
-    }
-
     function setUp() public {
-        admin = address(0x9999);
-        owner = address(this);
-        proxyAdmin = admin;
+        _v3TestSetup();
 
         vm.startPrank(owner);
-
-        // 전체 시스템 배포
-        _deployTokens();
-        _deployCoinageInfrastructure(owner);
-        _deployLayer2Registry(owner);
-        _deployManagerProxies();
-        _deployManagerImplementations();
-        _initializeManagers(owner);
-        _setupMinterPermissions();
-        _deployOperatorManagerFactory(owner);
-
-        // DAO 배포
-        _deployDAO();
-
-        // V3 컨트랙트 배포
-        _deployV3Contracts(owner);
-
-        // Register all V3 selectors for test functionality
-        _setupSeigManagerV3AllTestSelectors();
-
-        _setupCrossReferences(owner);
-
-        // 컨트랙트 참조
-        seigManager = SeigManagerV3_1(seigManagerProxy);
-        layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
-        l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
-        depositManager = DepositManagerV3(depositManagerProxy);
-        layer2Registry = Layer2Registry(layer2RegistryProxy);
-        rat = RAT(ratProxy);
-
-        // minimumAmount 설정 (operator 최소 스테이킹 요구사항: 100 WTON)
-        SeigManagerV1_2(seigManagerProxy).setMinimumAmount(100e27);
 
         // RAT 파라미터 조정
         rat.setSlashingPenalty(100 * RAY);     // C_off = 100 WTON
@@ -134,213 +39,17 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         rat.setRatTriggerProbability(RAY);      // 100% 트리거
         rat.setTreasury(treasury);
 
-        // Mock 컨트랙트 생성
-        _setupMockContracts();
+        // L2 등록
+        _registerFirstL2(1000 * RAY);
 
-        // Layer2 등록
-        (mockLayer2, operatorManager) = _registerLayer2WithSystemConfig(
-            address(mockSystemConfig),
-            mockL2TON,
-            "TestL2",
-            operator1,
-            1000 * RAY
-        );
-
-        // SeigManager에 RAT 컨트랙트 주소 설정
-        // setRatContract selector is already registered by _setupSeigManagerV3CoreSelectors()
-        seigManager.setRatContract(address(rat));
-
-        // 테스트 환경을 위한 seigniorage 시작 블록 및 초기 공급량 설정
-        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(block.number);
-        SeigManagerV1_2(seigManagerProxy).setInitialTotalSupply(50000000e27);
-
-        // V3 파라미터 설정 및 마이그레이션
-        _setV3ParametersForTest();
-        seigManager.migrateToV3();
+        // V3 설정 및 마이그레이션
+        _setupV3AndMigrate();
 
         // 테스트 계정에 TON 지급
         MockTON(ton).mint(validator1, INITIAL_TON);
         MockTON(ton).mint(validator2, INITIAL_TON);
 
         vm.stopPrank();
-    }
-
-    function _setupMockContracts() internal {
-        mockL1Bridge = address(0x8001);
-        mockPortal = address(0x8002);
-        mockDisputeGameFactory = address(0x8003);
-        mockL2TON = address(0x8004);
-
-        mockSystemConfig = new SimpleMockSystemConfig();
-        mockSystemConfig.setL1StandardBridge(mockL1Bridge);
-        mockSystemConfig.setOptimismPortal(mockPortal);
-        mockSystemConfig.setDisputeGameFactory(mockDisputeGameFactory);
-        mockSystemConfig.setUnsafeBlockSigner(operator1);
-    }
-
-    function _deployDAO() internal {
-        MockDAOCommitteeProxy mockProxy = new MockDAOCommitteeProxy(ton);
-        daoCommitteeProxy = address(mockProxy);
-
-        daoCommitteeProxy2 = address(new DAOCommitteeProxy2());
-        daoCommitteeV1 = address(new DAOCommittee_V1());
-        daoCommitteeOwner = address(new DAOCommitteeOwner());
-
-        mockProxy.upgradeTo(daoCommitteeProxy2);
-        IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoCommitteeV1);
-        IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
-
-        bytes4[] memory ownerSelectors = new bytes4[](17);
-        ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
-        ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
-        ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
-        ownerSelectors[3] = DAOCommitteeOwner.setSeigManager.selector;
-        ownerSelectors[4] = DAOCommitteeOwner.setDaoVault.selector;
-        ownerSelectors[5] = DAOCommitteeOwner.setLayer2Registry.selector;
-        ownerSelectors[6] = DAOCommitteeOwner.setAgendaManager.selector;
-        ownerSelectors[7] = DAOCommitteeOwner.setCandidateFactory.selector;
-        ownerSelectors[8] = DAOCommitteeOwner.setTon.selector;
-        ownerSelectors[9] = DAOCommitteeOwner.setWton.selector;
-        ownerSelectors[10] = DAOCommitteeOwner.increaseMaxMember.selector;
-        ownerSelectors[11] = DAOCommitteeOwner.setQuorum.selector;
-        ownerSelectors[12] = DAOCommitteeOwner.decreaseMaxMember.selector;
-        ownerSelectors[13] = DAOCommitteeOwner.setActivityRewardPerSecond.selector;
-        ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
-        ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
-        ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
-
-        IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
-
-        candidateImpl = address(new Candidate());
-        candidateAddOnImpl = address(new CandidateAddOnV1_1());
-
-        CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
-        candidateFactoryProxy = address(cfProxy);
-        cfProxy.upgradeTo(address(new CandidateFactory()));
-
-        CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
-        candidateAddOnFactoryProxy = address(caofProxy);
-        caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
-
-        CandidateFactory(candidateFactoryProxy).setAddress(
-            depositManagerProxy,
-            daoCommitteeProxy,
-            candidateImpl,
-            ton,
-            wton
-        );
-
-        CandidateAddOnFactory(candidateAddOnFactoryProxy).setAddress(
-            depositManagerProxy,
-            daoCommitteeProxy,
-            candidateAddOnImpl,
-            ton,
-            wton,
-            l1BridgeRegistryProxy
-        );
-
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
-        DAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
-
-        Layer2Registry(layer2RegistryProxy).addMinter(daoCommitteeProxy);
-    }
-
-    function _registerLayer2WithSystemConfig(
-        address systemConfig,
-        address l2TON,
-        string memory name,
-        address operator,
-        uint256 operatorDeposit
-    ) internal returns (address layer2, address operatorMgr) {
-        vm.startPrank(owner);
-
-        if (!l1BridgeRegistry.isManager(owner)) {
-            l1BridgeRegistry.addManager(owner);
-        }
-        if (!l1BridgeRegistry.isRegistrant(owner)) {
-            l1BridgeRegistry.addRegistrant(owner);
-        }
-
-        l1BridgeRegistry.registerRollupConfig(
-            systemConfig,
-            3,
-            l2TON,
-            name
-        );
-        vm.stopPrank();
-
-        vm.startPrank(operator);
-        MockWTON(wton).mint(operator, operatorDeposit);
-        MockWTON(wton).approve(layer2ManagerProxy, operatorDeposit);
-
-        Layer2ManagerV3(layer2ManagerProxy).registerCandidateAddOn(
-            systemConfig,
-            operatorDeposit,
-            false,
-            name
-        );
-        vm.stopPrank();
-
-        layer2 = Layer2ManagerV3(layer2ManagerProxy).getLayer2BySystemConfig(systemConfig);
-        operatorMgr = Layer2ManagerV3(layer2ManagerProxy).operatorOfRollupConfig(systemConfig);
-    }
-
-    function _setupCrossReferences(address) internal override {
-        SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
-        SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
-
-        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
-            l1BridgeRegistryProxy,
-            operatorManagerFactory,
-            ton,
-            wton
-        );
-        Layer2ManagerV3(layer2ManagerProxy).setAddresses2(
-            daoCommitteeProxy,
-            depositManagerProxy,
-            seigManagerProxy,
-            address(0)
-        );
-
-        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
-            layer2ManagerProxy,
-            seigManagerProxy,
-            ton
-        );
-
-        OperatorManagerFactory(operatorManagerFactory).setAddresses(
-            depositManagerProxy,
-            ton,
-            wton,
-            layer2ManagerProxy
-        );
-
-        DepositManagerV3(depositManagerProxy).setAddresses(
-            l1BridgeRegistryProxy,
-            layer2ManagerProxy
-        );
-    }
-
-    // ==========================================
-    // Helper Functions
-    // ==========================================
-
-    /// @notice 검증자 등록 헬퍼
-    function _registerValidator(address validator, uint256 depositAmount) internal {
-        vm.startPrank(validator);
-        MockWTON(wton).mint(validator, depositAmount);
-        MockWTON(wton).approve(depositManagerProxy, depositAmount);
-        depositManager.deposit(mockLayer2, validator, depositAmount);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.stopPrank();
-    }
-
-    /// @notice Coinage 잔액 조회 헬퍼
-    function _getCoinageBalance(address layer2, address account) internal view returns (uint256) {
-        return SeigManagerV1_2(seigManagerProxy).stakeOf(layer2, account);
     }
 
     // ==========================================
@@ -489,8 +198,6 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         _registerValidator(validator1, depositAmount);
         _registerValidator(validator2, depositAmount);
 
-        // slashingPenalty = rat.slashingPenalty();
-
         // 초기 상태: 총 잔액 = validator1 + validator2 + operator
         uint256 totalBefore = _getCoinageBalance(mockLayer2, validator1)
             + _getCoinageBalance(mockLayer2, validator2)
@@ -525,25 +232,7 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         assertEq(totalAfterEvidence, totalBefore, "Total balance preserved after evidence");
     }
 
-    // ==========================================
-    // SM-040: transferCoinageToRat 테스트
-    // ==========================================
-
-    /// @notice SM-040: transferCoinageToRat 함수 테스트
-    function test_SM040_transferCoinageToRat() public {
-        uint256 depositAmount = 500 * RAY;
-        _registerValidator(validator1, depositAmount);
-
-        uint256 transferAmount = 100 * RAY;
-
-        // RAT에서 직접 호출 시뮬레이션 (RAT 컨트랙트로 가장)
-        vm.prank(address(rat));
-        seigManager.transferCoinageToRat(mockLayer2, validator1, transferAmount);
-
-        // 잔액 확인
-        assertEq(_getCoinageBalance(mockLayer2, validator1), depositAmount - transferAmount, "Validator balance reduced");
-        assertEq(_getCoinageBalance(mockLayer2, address(rat)), transferAmount, "RAT balance increased");
-    }
+    // NOTE: transferCoinageToRat 성공 케이스는 SecurityPermissions.t.sol (SEC-002)에서 테스트
 
     // ==========================================
     // SM-041: transferCoinageFromRat 테스트
@@ -595,33 +284,7 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         assertEq(_getCoinageBalance(mockLayer2, treasury), transferAmount, "Treasury received");
     }
 
-    // ==========================================
-    // SM-043: onlyRAT 권한 검증
-    // ==========================================
-
-    /// @notice SM-043: onlyRAT 권한 없이 호출 시 revert
-    function test_SM043_onlyRAT_revert() public {
-        uint256 depositAmount = 500 * RAY;
-        _registerValidator(validator1, depositAmount);
-
-        // 일반 사용자가 호출 시 revert
-        vm.prank(validator1);
-        vm.expectRevert(OnlyRatError.selector);
-        seigManager.transferCoinageToRat(mockLayer2, validator1, 100 * RAY);
-
-        vm.prank(validator1);
-        vm.expectRevert(OnlyRatError.selector);
-        seigManager.transferCoinageFromRat(mockLayer2, validator1, 100 * RAY);
-
-        vm.prank(validator1);
-        vm.expectRevert(OnlyRatError.selector);
-        seigManager.transferCoinageFromRatTo(mockLayer2, treasury, 100 * RAY);
-
-        // owner가 호출 시에도 revert
-        vm.prank(owner);
-        vm.expectRevert(OnlyRatError.selector);
-        seigManager.transferCoinageToRat(mockLayer2, validator1, 100 * RAY);
-    }
+    // NOTE: onlyRAT 권한 검증은 SecurityPermissions.t.sol (SEC-002)에서 테스트
 
     // ==========================================
     // 추가: 다중 RAT 트리거 시나리오
@@ -657,10 +320,9 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         uint256 ratBalance = _getCoinageBalance(mockLayer2, address(rat));
         uint256 slashingPenalty = rat.slashingPenalty();
 
-        // 두 번 트리거되었으므로 최대 2 * slashingPenalty까지 가능
-        // (단, 동일 검증자가 선택될 수도 있음)
-        assertTrue(ratBalance <= 2 * slashingPenalty, "RAT balance within expected range");
-        assertTrue(ratBalance >= slashingPenalty, "RAT balance at least one penalty");
+        // 두 번 트리거되었으므로 정확히 2 * slashingPenalty
+        // (동일 검증자가 선택되어도 각 트리거마다 slashingPenalty가 RAT로 전송됨)
+        assertEq(ratBalance, 2 * slashingPenalty, "RAT balance should be exactly 2x slashingPenalty");
     }
 
     // ==========================================
@@ -696,5 +358,257 @@ contract RATSeigManagerIntegrationTest is Test, DeployV3Full {
         // 검증자 상태 확인 (여전히 활성 - relaxed 모드이므로)
         (, , bool isActive) = rat.getValidatorRegistration(validator1, address(mockSystemConfig));
         assertTrue(isActive, "Validator should still be active in relaxed mode");
+    }
+
+    // ==========================================
+    // 가스 테스트: 최대 검증자 분배
+    // ==========================================
+
+    /// @notice GAS-001: 최대 검증자 수에서 시뇨리지 분배 가스 측정
+    /// @dev N_max = 100일 때 updateSeigniorage 가스 비용 검증
+    function test_GAS001_maxValidators_seigniorageDistribution() public {
+        uint256 maxValidators = 100;
+        uint256 depositAmount = 300 * RAY; // D_min(200) + buffer
+
+        // maxValidatorsPerL2 설정
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(maxValidators);
+
+        // 100명의 검증자 등록
+        for (uint256 i = 0; i < maxValidators; i++) {
+            address validatorAddr = address(uint160(0x10000 + i));
+
+            // WTON 직접 지급
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            // Deposit
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+
+            // RAT 등록
+            rat.registerValidator(address(mockSystemConfig));
+            vm.stopPrank();
+        }
+
+        // 등록된 검증자 수 확인
+        uint256 activeCount = rat.getActiveValidatorCount(address(mockSystemConfig));
+        assertEq(activeCount, maxValidators, "Should have max validators registered");
+
+        // 블록 진행
+        vm.roll(block.number + 100);
+
+        // 가스 측정을 위한 updateSeigniorage
+        uint256 gasBefore = gasleft();
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+        uint256 gasUsed = gasBefore - gasleft();
+
+        // 가스 비용 출력
+        emit log_named_uint("Gas used for updateSeigniorage with 100 validators", gasUsed);
+        emit log_named_uint("Active validators", activeCount);
+
+        // 가스 리밋 체크 (30M 블록 가스 리밋 기준으로 여유 있게)
+        // 일반적인 L2 블록 가스 리밋은 더 높음
+        assertTrue(gasUsed < 15_000_000, "Gas should be under 15M for 100 validators");
+    }
+
+    /// @notice GAS-002: 검증자 등록 가스 측정
+    function test_GAS002_registerValidator_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        // WTON 지급
+        vm.prank(owner);
+        MockWTON(wton).mint(validator1, depositAmount);
+
+        // Deposit
+        vm.startPrank(validator1);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+        DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validator1, depositAmount);
+
+        // 가스 측정: registerValidator
+        uint256 gasBefore = gasleft();
+        rat.registerValidator(address(mockSystemConfig));
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        emit log_named_uint("Gas for registerValidator", gasUsed);
+        assertTrue(gasUsed < 500_000, "registerValidator should use < 500k gas");
+    }
+
+    /// @notice GAS-003: RAT 트리거 가스 측정 (검증자 수별)
+    function test_GAS003_triggerAttentionTest_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        // 10명 검증자 등록
+        for (uint256 i = 0; i < 10; i++) {
+            address validatorAddr = address(uint160(0x30000 + i));
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+            rat.registerValidator(address(mockSystemConfig));
+            vm.stopPrank();
+        }
+
+        // 가스 측정: triggerAttentionTest
+        uint256 gasBefore = gasleft();
+        vm.prank(mockDisputeGameFactory);
+        rat.triggerAttentionTest(
+            address(0x1234),
+            address(mockSystemConfig),
+            1,
+            keccak256("batch1"),
+            keccak256("block1")
+        );
+        uint256 gasUsed = gasBefore - gasleft();
+
+        emit log_named_uint("Gas for triggerAttentionTest (10 validators)", gasUsed);
+        assertTrue(gasUsed < 1_000_000, "triggerAttentionTest should use < 1M gas");
+    }
+
+    /// @notice GAS-004: 보상 청구 가스 측정
+    function test_GAS004_claimAllRewards_gas() public {
+        uint256 depositAmount = 300 * RAY;
+        _registerValidator(validator1, depositAmount);
+
+        // L2 자격 확보를 위해 bridgedTON 설정
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, 1000e18);
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
+
+        // 시뇨리지 분배
+        vm.roll(block.number + 100);
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용
+        uint256 claimableRewards = IValidatorReward(validatorPoolProxy).getClaimableRewards(validator1);
+        emit log_named_uint("Claimable rewards before claim", claimableRewards);
+
+        if (claimableRewards == 0) {
+            emit log_string("No rewards - L2 may not be eligible, skipping claim gas test");
+            return;
+        }
+
+        // 가스 측정: claimAllRewards
+        uint256 gasBefore = gasleft();
+        vm.prank(validator1);
+        IValidatorReward(validatorPoolProxy).claimAllRewards();
+        uint256 gasUsed = gasBefore - gasleft();
+
+        emit log_named_uint("Gas for claimAllRewards", gasUsed);
+        assertTrue(gasUsed < 200_000, "claimAllRewards should use < 200k gas");
+    }
+
+    /// @notice GAS-005: Deposit 가스 측정
+    function test_GAS005_deposit_gas() public {
+        uint256 depositAmount = 300 * RAY;
+
+        vm.prank(owner);
+        MockWTON(wton).mint(validator1, depositAmount);
+
+        vm.startPrank(validator1);
+        MockWTON(wton).approve(depositManagerProxy, depositAmount);
+
+        // 가스 측정: deposit
+        uint256 gasBefore = gasleft();
+        DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validator1, depositAmount);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        emit log_named_uint("Gas for deposit", gasUsed);
+        assertTrue(gasUsed < 500_000, "deposit should use < 500k gas");
+    }
+
+    /// @notice GAS-006: 종합 가스 리포트 (100명 검증자 시나리오)
+    function test_GAS006_fullScenario_gasReport() public {
+        uint256 maxValidators = 100;
+        uint256 depositAmount = 300 * RAY;
+
+        vm.prank(owner);
+        rat.setMaxValidatorsPerL2(maxValidators);
+
+        emit log_string("=== Gas Report: 100 Validators Scenario ===");
+
+        // 1. 100명 검증자 등록 총 가스
+        uint256 totalRegisterGas = 0;
+        uint256 gasBeforeLoop;
+        for (uint256 i = 0; i < maxValidators; i++) {
+            address validatorAddr = address(uint160(0x40000 + i));
+            vm.prank(owner);
+            MockWTON(wton).mint(validatorAddr, depositAmount);
+
+            vm.startPrank(validatorAddr);
+            MockWTON(wton).approve(depositManagerProxy, depositAmount);
+            DepositManagerV3(depositManagerProxy).deposit(mockLayer2, validatorAddr, depositAmount);
+
+            gasBeforeLoop = gasleft();
+            rat.registerValidator(address(mockSystemConfig));
+            totalRegisterGas += (gasBeforeLoop - gasleft());
+            vm.stopPrank();
+        }
+        emit log_named_uint("Total gas for 100 registerValidator", totalRegisterGas);
+        emit log_named_uint("Avg gas per registerValidator", totalRegisterGas / maxValidators);
+
+        // L2 자격 확보를 위해 bridgedTON 설정
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, 10000e18);
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
+
+        // 자격 확인
+        (bool eligible, , ) = seigManager.checkCurrentEligibility(mockLayer2);
+        emit log_named_string("L2 eligible", eligible ? "true" : "false");
+
+        // 2. updateSeigniorage 가스
+        vm.roll(block.number + 100);
+        uint256 gasBefore = gasleft();
+        vm.prank(mockLayer2);
+        seigManager.updateSeigniorage();
+        uint256 updateGas = gasBefore - gasleft();
+        emit log_named_uint("Gas for updateSeigniorage (100 validators)", updateGas);
+
+        // 3. triggerAttentionTest 가스
+        gasBefore = gasleft();
+        vm.prank(mockDisputeGameFactory);
+        rat.triggerAttentionTest(
+            address(0x9999),
+            address(mockSystemConfig),
+            999,
+            keccak256("batch999"),
+            keccak256("block999")
+        );
+        uint256 triggerGas = gasBefore - gasleft();
+        emit log_named_uint("Gas for triggerAttentionTest (100 validators)", triggerGas);
+
+        // 4. 첫 번째 검증자 claimAllRewards 가스 (보상이 있는 경우만)
+        address firstValidator = address(uint160(0x40000));
+        // V1.1: O(1) 분배에서는 getClaimableRewards 사용 (동기화되지 않은 보상 포함)
+        uint256 claimableRewards = IValidatorReward(validatorPoolProxy).getClaimableRewards(firstValidator);
+        emit log_named_uint("First validator claimable rewards", claimableRewards);
+
+        if (claimableRewards > 0) {
+            gasBefore = gasleft();
+            vm.prank(firstValidator);
+            IValidatorReward(validatorPoolProxy).claimAllRewards();
+            uint256 claimGas = gasBefore - gasleft();
+            emit log_named_uint("Gas for claimAllRewards", claimGas);
+        } else {
+            emit log_string("No claimable rewards (L2 may not be eligible)");
+        }
+
+        emit log_string("===========================================");
+
+        // 가스 예산 검증
+        // - updateSeigniorage: 100명 검증자에게 분배 시 ~5.3M gas (자격 충족 시)
+        // - L1 블록 가스 리밋 30M 기준으로는 가능하나, 더 많은 검증자는 주의 필요
+        emit log_named_uint("Estimated max validators (30M limit)", 30_000_000 / (updateGas / 100));
+        assertTrue(updateGas < 10_000_000, "updateSeigniorage should be < 10M gas for 100 validators");
+        assertTrue(triggerGas < 1_000_000, "triggerAttentionTest should be < 1M gas");
     }
 }

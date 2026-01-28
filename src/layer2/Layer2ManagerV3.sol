@@ -421,7 +421,8 @@ contract Layer2ManagerV3 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage
             address l1Bridge_ = IOptimismSystemConfig(_rollupConfig).l1StandardBridge();
 
             if (l1Bridge_ != address(0)) {
-                if (_type == 1 || _type == 2) l2Ton = IL1BridgeRegistry(l1BridgeRegistry).l2Ton(_rollupConfig);
+                // All valid types should have l2Ton
+                l2Ton = IL1BridgeRegistry(l1BridgeRegistry).l2Ton(_rollupConfig);
 
                 if (l2Ton != address(0)) {
                     result = true;
@@ -429,11 +430,10 @@ contract Layer2ManagerV3 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage
                 }
             }
 
-            if (_type == 2) {
-                address portal_ = IOptimismSystemConfig(_rollupConfig).optimismPortal();
-
-                if (portal_ == address(0)) result = false;
-                else portal = portal_;
+            // Try to get portal (for bedrock types)
+            address portal_ = IOptimismSystemConfig(_rollupConfig).optimismPortal();
+            if (portal_ != address(0)) {
+                portal = portal_;
             }
         }
     }
@@ -499,7 +499,7 @@ contract Layer2ManagerV3 is ProxyStorage, AccessibleCommon, Layer2ManagerStorage
                 result = true;
             }
 
-        } else if (_type == 2) { // optimism bedrock native TON: thanos, on-demand-l2
+        } else if (_type == 2 || _type == 3) { // optimism bedrock native TON: thanos, on-demand-l2
             address optimismPortal = IOptimismSystemConfig(_rollupConfig).optimismPortal();
             if (optimismPortal != address(0)) {
                 amount = IERC20(ton).balanceOf(optimismPortal);

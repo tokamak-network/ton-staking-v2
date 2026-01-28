@@ -348,25 +348,24 @@ contract DeployV3Full is Script {
     /// @notice Register additional V3 selectors for parameter setters and view functions
     /// @dev Call this in test setUp() after _deployManagerImplementations() to enable V3 functions
     function _setupSeigManagerV3ParameterSelectors() internal virtual {
-        // V3 Parameter setter functions (9개)
-        bytes4[] memory setters = new bytes4[](9);
+        // V3 Parameter setter functions (8개)
+        bytes4[] memory setters = new bytes4[](8);
         setters[0] = SeigManagerV3_1.setDaoDistributionRatio.selector;
         setters[1] = SeigManagerV3_1.setMinStakingRatio.selector;
         setters[2] = SeigManagerV3_1.setValidatorDistributionRatio.selector;
         setters[3] = SeigManagerV3_1.setHalfSaturationPoint.selector;
-        setters[4] = SeigManagerV3_1.setStakedSeigFactor.selector;
-        setters[5] = SeigManagerV3_1.setMaxChallengers.selector;
-        setters[6] = SeigManagerV3_1.setMaxFraudProofCost.selector;
-        setters[7] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
-        setters[8] = SeigManagerV3_1.excludeFromL2Seigniorage.selector;
+        setters[4] = SeigManagerV3_1.setMaxChallengers.selector;
+        setters[5] = SeigManagerV3_1.setMaxFraudProofCost.selector;
+        setters[6] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
+        setters[7] = SeigManagerV3_1.excludeFromL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(setters, seigManagerV3_1Impl);
     }
 
     /// @notice Register V3 view function selectors
     /// @dev Call this in test setUp() for tests that need V3 view functions
     function _setupSeigManagerV3ViewSelectors() internal virtual {
-        // V3 View functions (20개)
-        bytes4[] memory views = new bytes4[](20);
+        // V3 View functions (22개)
+        bytes4[] memory views = new bytes4[](22);
         views[0] = SeigManagerV3_1.getEffectiveBridgedTon.selector;
         views[1] = SeigManagerV3_1.checkCurrentEligibility.selector;
         views[2] = SeigManagerV3_1.getSequencerStaked.selector;
@@ -383,10 +382,12 @@ contract DeployV3Full is Script {
         views[13] = bytes4(keccak256("validatorReward()"));
         views[14] = bytes4(keccak256("minStakingRatio()"));
         views[15] = bytes4(keccak256("validatorDistributionRatio()"));
-        views[16] = bytes4(keccak256("stakedSeigFactor()"));
-        views[17] = bytes4(keccak256("maxChallengers()"));
-        views[18] = bytes4(keccak256("maxFraudProofCost()"));
-        views[19] = bytes4(keccak256("sequencerAdditionalReward()"));
+        views[16] = bytes4(keccak256("maxChallengers()"));
+        views[17] = bytes4(keccak256("maxFraudProofCost()"));
+        views[18] = bytes4(keccak256("sequencerAdditionalReward()"));
+        views[19] = bytes4(keccak256("bridgedTONRewardPerUint()"));
+        views[20] = bytes4(keccak256("validatorRewardPerUint()"));
+        views[21] = bytes4(keccak256("bridgedTONInfo(address)"));
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(views, seigManagerV3_1Impl);
     }
 
@@ -396,13 +397,19 @@ contract DeployV3Full is Script {
         _setupSeigManagerV3ParameterSelectors();
         _setupSeigManagerV3ViewSelectors();
 
-        // Callback and additional functions (5개)
-        bytes4[] memory callbacks = new bytes4[](5);
+        // Callback and additional functions (9개)
+        // onDeposit, onWithdraw: V3에서 validator 최소 담보 체크 기능 사용
+        // pause, unpause: 일시정지 관리 함수
+        bytes4[] memory callbacks = new bytes4[](9);
         callbacks[0] = SeigManagerV3_1.onBridgedTonChange.selector;
         callbacks[1] = SeigManagerV3_1.onStakingChange.selector;
         callbacks[2] = SeigManagerV3_1.transferCoinageToRat.selector;
         callbacks[3] = SeigManagerV3_1.transferCoinageFromRat.selector;
         callbacks[4] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        callbacks[5] = SeigManagerV3_1.onDeposit.selector;
+        callbacks[6] = SeigManagerV3_1.onWithdraw.selector;
+        callbacks[7] = bytes4(keccak256("pause()"));
+        callbacks[8] = bytes4(keccak256("unpause()"));
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(callbacks, seigManagerV3_1Impl);
     }
 
@@ -490,6 +497,8 @@ contract DeployV3Full is Script {
     function _setupSeigManagerRefs() internal {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+        // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
     }
 
     function _setupLayer2ManagerRefs(address deployer) internal {

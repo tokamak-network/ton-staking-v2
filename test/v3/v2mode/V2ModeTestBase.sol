@@ -6,7 +6,9 @@ import "../../../script/DeployV3Full.s.sol";
 import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
 import {ICandidate} from "../../../src/dao/interfaces/ICandidate.sol";
 import {ILayer2} from "../../../src/dao/interfaces/ILayer2.sol";
+import {Layer2I} from "../../../src/dao/interfaces/Layer2I.sol";
 import {IValidatorReward} from "../../../src/validator/IValidatorReward.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 
 // Shared Mock contracts
 import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "../helpers/V3TestMocks.sol";
@@ -127,6 +129,9 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // Register all V3 selectors for test functionality
         _setupSeigManagerV3AllTestSelectors();
 
+        // Register V2 view selectors (estimatedDistributeV2, claimableL2SeigniorageV2)
+        _setupSeigManagerV2ViewSelectors();
+
         _setupCrossReferences(owner);
 
         // 컨트랙트 참조
@@ -135,6 +140,9 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         layer2Registry = Layer2Registry(layer2RegistryProxy);
         layer2Manager = Layer2ManagerV3(layer2ManagerProxy);
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
+
+        // 롤업 타입 등록 (TYPE 1, 2, 3)
+        _registerDefaultRollupTypes();
 
         // Mock Optimism 인프라 배포
         _setupMockSystemConfig();
@@ -159,6 +167,15 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         assertFalse(seigManager.v3Migrated(), "Should start in V2 mode");
     }
 
+    /// @notice V2 view function selectors 등록
+    /// @dev estimatedDistributeV2, claimableL2SeigniorageV2 등 V2 전용 view 함수
+    function _setupSeigManagerV2ViewSelectors() internal {
+        bytes4[] memory v2Views = new bytes4[](2);
+        v2Views[0] = SeigManagerV3_2.estimatedDistributeV2.selector;
+        v2Views[1] = SeigManagerV3_2.claimableL2SeigniorageV2.selector;
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v2Views, seigManagerV3_2Impl);
+    }
+
     /// @notice Cross References 설정 (DeployV3Full override - DAO 설정 추가)
     function _setupCrossReferences(address) internal override {
         // SeigManager -> Layer2Manager
@@ -169,6 +186,9 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
 
         // SeigManager -> ValidatorReward
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+
+        // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
 
         // Layer2Manager V3 단일 구현체: setAddresses1 + setAddresses2
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
@@ -325,7 +345,11 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
     ///      3. Layer2Manager에 registerCandidateAddOn 호출
     ///      4. mockLayer2 주소 저장
     function _registerMockLayer2() internal {
-        uint256 operatorDeposit = 100 * RAY + 1e10; // minimumAmount + buffer
+        // V3 모드에서는 requiredStake가 더 높으므로 충분한 deposit 필요
+        // V2: minimumAmount(100 RAY), V3: max(D_sequencer, θ×B_i) ≈ 250+ RAY
+        uint256 operatorDeposit = seigManager.v3Migrated()
+            ? 1000 * RAY  // V3 모드: requiredStake 충족을 위해 충분한 금액
+            : 100 * RAY + 1e10; // V2 모드: minimumAmount + buffer
 
         vm.startPrank(owner);
 
@@ -475,5 +499,88 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // factor로 인한 오차 허용 (0.01%)
         uint256 tolerance = expected / 10000;
         assertApproxEqAbs(actual, expected, tolerance, message);
+    }
+
+    // ==========================================
+    // Rollup Type Registration
+    // ==========================================
+
+    /// @notice 기본 롤업 타입 등록 (TYPE 1, 2, 3)
+    function _registerDefaultRollupTypes() internal {
+        // Ensure owner has Manager role
+        if (!l1BridgeRegistry.isManager(owner)) {
+            l1BridgeRegistry.addManager(owner);
+        }
+
+        // TYPE 1: Optimism Legacy (Titan 등) - V2 mode only
+        // Bridge & TVL both use l1StandardBridge(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            1,                                          // type
+            "Optimism Legacy",                          // name
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            0,                                          // BRIDGE_PATTERN_ERC20
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 2: Optimism Bedrock (Thanos 등) - V2 mode only
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            2,
+            "Optimism Bedrock",
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            1,                                          // BRIDGE_PATTERN_NATIVE
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 3: Bedrock with DisputeGame - V3 eligible
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), has DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            3,
+            "Optimism Bedrock DisputeGame",
+            bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
+            bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            1,                                              // BRIDGE_PATTERN_NATIVE
+            true                                            // V3 eligible = true
+        );
+    }
+
+    // ==========================================
+    // V3 Eligibility Helpers
+    // ==========================================
+
+    /// @notice V3 자격 조건을 충족시키기 위해 OperatorManager에 deposit
+    /// @dev checkCurrentEligibility를 확인하고 필요한 경우 추가 deposit 수행
+    ///      OperatorManager는 Layer2I(layer2).operator()로 조회
+    /// @param layer2 자격을 충족시킬 Layer2 주소
+    function _ensureV3Eligibility(address layer2) internal {
+        (bool eligible, uint256 required, uint256 actual) = seigManager.checkCurrentEligibility(layer2);
+
+        if (!eligible) {
+            address operatorManagerAddr = Layer2I(layer2).operator();
+            uint256 additionalStake = required - actual + 100e27; // 100 WTON 여유
+
+            vm.startPrank(owner);
+            MockWTON(wton).mint(owner, additionalStake);
+            MockWTON(wton).approve(depositManagerProxy, additionalStake);
+            DepositManagerV3(depositManagerProxy).deposit(layer2, operatorManagerAddr, additionalStake);
+            vm.stopPrank();
+        }
+    }
+
+    /// @notice Bridged TON을 증가시켜 V3 자격 조건을 잃게 만듦
+    /// @dev Portal에 TON을 mint한 후 onBridgedTonChange를 호출하여
+    ///      required stake(θ×B_i)를 증가시켜 eligibility를 상실시킴
+    /// @param amount 추가할 Bridged TON 양
+    function _increaseBridgedTONForIneligibility(uint256 amount) internal {
+        vm.prank(owner);
+        MockTON(ton).mint(mockPortal, amount);
+
+        vm.prank(mockPortal);
+        seigManager.onBridgedTonChange();
     }
 }

@@ -1,166 +1,13 @@
-# Test Coverage Matrix
+# 테스트 커버리지 매트릭스
 
-## Feature Coverage Status
+## 핵심 요약
 
-### V3 Core Features
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| Layer2 Registration | BasicFunctions.t.sol | ✅ Complete | 2 |
-| Coinage Deployment | BasicFunctions.t.sol | ✅ Complete | 1 |
-| WTON Deposit | BasicFunctions.t.sol | ✅ Complete | 2 |
-| TON approveAndCall Deposit | BasicFunctions.t.sol | ✅ Complete | 1 |
-| Withdrawal Request | BasicFunctions.t.sol | ✅ Complete | 2 |
-| Withdrawal Processing | BasicFunctions.t.sol | ✅ Complete | 2 |
-| Withdrawal Delay Enforcement | DepositManagerV1_2Real.t.sol | ✅ Complete | 5 |
-| updateSeigniorage (Layer2 callback) | BasicFunctions.t.sol | ✅ Complete | 1 |
-| updateSeigniorageLayer | BasicFunctions.t.sol | ✅ Complete | 1 |
-| Full Staking Scenario | BasicFunctions.t.sol | ✅ Complete | 1 |
-
-### V3 Seigniorage Distribution
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| V2 Mode (λ=1, r=0.4) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| V3 Mode (λ=0, r=0) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| λ Transition (100%→0%) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| r Transition (40%→0%) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| Multi-L2 Distribution | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| L2 Eligibility (θ threshold) | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| Slashed L2 Exclusion | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| All L2 Slashed (x=0) → DAO | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| Consecutive Updates | EndToEndSeigniorage.t.sol | ✅ Complete | 1 |
-| Hyperbolic Saturation | SeigManagerV1_4Real.t.sol | ✅ Complete | 10+ |
-| Half Saturation Point | SeigManagerV1_4Real.t.sol | ✅ Complete | 1 |
-
-### V3 Validator Collateral (RAT)
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| Minimum Collateral Formula | RAT.t.sol | ✅ Complete | 1 |
-| Validator Registration | RAT.t.sol | ✅ Complete | 5 |
-| Multi-L2 Validator | RAT.t.sol | ✅ Complete | 1 |
-| Add Additional Collateral | RAT.t.sol | ✅ Complete | 2 |
-| Validator Deactivation | RAT.t.sol | ✅ Complete | 1 |
-| RAT Trigger (Pre-deduct) | RAT.t.sol | ✅ Complete | 3 |
-| Evidence Submission | RAT.t.sol | ✅ Complete | 3 |
-| Lazy Evaluation (No Response) | RAT.t.sol | ✅ Complete | 3 |
-| Below Threshold Auto-deactivate | RAT.t.sol | ✅ Complete | 1 |
-| Game Resolution (Win) | RAT.t.sol | ✅ Complete | 4 |
-| Multi-Game Concurrent | RAT.t.sol | ✅ Complete | 2 |
-| Governance Parameters | RAT.t.sol | ✅ Complete | 6 |
-| Treasury Withdrawal | RAT.t.sol | ✅ Complete | 1 |
-| Validator Recovery | RAT.t.sol | ✅ Complete | 2 |
-
-### V3 Scenario Tests
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| V3 Full Deployment | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| V3 Migration | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| TYPE 3 Rollup Registration | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| Sequencer Collateral Deposit | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| Validator Deposit to RAT | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| V3 Seigniorage Update | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| Validator Slashing | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-| Full V3 E2E Scenario | V3ScenarioReal.t.sol | ✅ Complete | 1 |
-
-### Bridge Integration
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| L1BridgeRegistry Connection | Layer2ManagerV1_2Real.t.sol | ✅ Complete | 1 |
-| DisputeGameFactory Default | L1BridgeRegistryV1_2Real.t.sol | ✅ Complete | 1 |
-| Rollup Config Mapping | L1BridgeRegistryV1_2Real.t.sol | ✅ Complete | 1 |
-| Bridged TON Query | Layer2ManagerV1_2Real.t.sol | ⚠️ Basic | 2 |
-| Layer2 by SystemConfig | Layer2ManagerV1_2Real.t.sol | ⚠️ Basic | 1 |
-
-### ValidatorReward Distribution
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| Per-L2 Reward Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Multiple Validators Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| No Validators → Treasury | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Exclude Inactive Validators | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Multiple L2s Distribution | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Zero Amount Handling | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Only SeigManager Access | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Reward Accumulation | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Remainder Handling | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Claim All Rewards | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Claim No Rewards Revert | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Claim Multiple L2s | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Claim-Distribute-Claim | ValidatorRewardV1.t.sol | ✅ Complete | 1 |
-| Pending Rewards Query | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
-| Reward Formula Verification | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
-| Initialization | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
-| Governance Functions | ValidatorRewardV1.t.sol | ✅ Complete | 8 |
-| Emergency Withdraw | ValidatorRewardV1.t.sol | ✅ Complete | 2 |
-| Event Emissions | ValidatorRewardV1.t.sol | ✅ Complete | 4 |
-
-### Manager Functions
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| DepositManager Initialize | DepositManagerV1_2Real.t.sol | ✅ Complete | 2 |
-| Global Withdrawal Delay | DepositManagerV1_2Real.t.sol | ✅ Complete | 3 |
-| Layer2 Withdrawal Delay | DepositManagerV1_2Real.t.sol | ✅ Complete | 2 |
-| SeigManager Initialize | SeigManagerV1_4Real.t.sol | ✅ Complete | 2 |
-| ValidatorReward Connection | SeigManagerV1_4Real.t.sol | ✅ Complete | 1 |
-| Slashing Parameters | SeigManagerV1_4Real.t.sol | ✅ Complete | 2 |
-
-### Deployment & Upgrade
-
-| Feature | Test File | Status | Tests |
-|---------|-----------|--------|-------|
-| Implementation Deploy | DeployV3Fork.t.sol | ✅ Complete | 1 |
-| V3 Contract Deploy | DeployV3Fork.t.sol | ✅ Complete | 1 |
-| Proxy Upgrade | DeployV3Fork.t.sol | ✅ Complete | 1 |
-| Full Deployment Flow | DeployV3Fork.t.sol | ✅ Complete | 1 |
-| State Preservation | DeployV3Fork.t.sol | ✅ Complete | 1 |
-| Mainnet State Check | DeployV3Fork.t.sol | ✅ Complete | 1 |
-
-## Coverage Summary
-
-### By Category
-
-| Category | Total Tests | Passed | Status |
-|----------|-------------|--------|--------|
-| Core Staking | 12 | 12 | ✅ 100% |
-| Seigniorage Distribution | 50+ | 50+ | ✅ 100% |
-| Validator Collateral (RAT) | 40+ | 40+ | ✅ 100% |
-| ValidatorReward Distribution | 33 | 33 | ✅ 100% |
-| V3 Scenarios | 8 | 8 | ✅ 100% |
-| Manager Functions | 24+ | 24+ | ✅ 100% |
-| Bridge Integration | 6 | 6 | ⚠️ Basic |
-| Deployment | 6 | 6 | ✅ 100% |
-
-### By Contract
-
-| Contract | Tests | Coverage |
-|----------|-------|----------|
-| SeigManagerV1_4 | 34 | High |
-| DepositManagerV1_2 | 14 | High |
-| RAT | 40+ | Excellent |
-| ValidatorRewardV1 | 33 | ✅ Excellent |
-| Layer2Registry | 2 | Good |
-| Layer2Manager | 6 | Medium |
-| L1BridgeRegistry | 2 | Low |
-
-## Test Statistics
+### ✅ V3 Mode Effective Coverage (프록시 라우팅 고려)
 
 ```
-Total Test Files:        30+
-Total Tests:            555
-Passing Tests:          555
-Failing Tests:          0
-Skipped Tests:          0
-
-Fuzz Tests:             10+
-Unit Tests:            400+
-Integration Tests:      100+
-E2E Tests:             40+
+라인 커버리지:          88.53% (749/846)    [Raw 대비 +16.2%p]
+함수 커버리지:          81.29% (113/139)    [Raw 대비 +21.5%p]
+브랜치 커버리지:        66.51% (139/209)    [Raw 대비 +14.8%p]
 ```
 
 **V3 mode에서 실제 실행되는 코드 기준으로 85~90% 커버리지 달성!**
@@ -168,7 +15,7 @@ E2E Tests:             40+
 ### 📊 전체 시스템 통계
 
 ```
-총 테스트:              555개 통과, 0개 실패, 0개 스킵
+총 테스트:              526개 통과, 0개 실패, 13개 스킵
 
 System-wide Raw Coverage (모든 파일 포함):
   라인 커버리지:        54.12% (2906/5370)
@@ -315,63 +162,54 @@ V1_2 effective:         96.0% lines, 94.6% funcs, 59.3% branches
 ## 검증 명령어
 
 ```bash
-# Run all tests and get count
-forge test --match-path "test/v3/**/*.sol" --summary
+# 모든 테스트 실행
+forge test
 
-# Expected output:
-# 555 passed, 0 failed, 0 skipped
+# 커버리지 생성
+forge coverage
+
+# 상세 HTML 커버리지 리포트
+forge coverage --report lcov
+genhtml lcov.info --branch-coverage --output-dir coverage
+
+# 예상 결과:
+# Test result: ok. 526 passed; 0 failed; 13 skipped
+# Lines: 54.12% (2906/5370)
+# Functions: 44.92% (469/1044)
+# Branches: 32.90% (456/1386)
 ```
 
----
+## 결론
 
-## Go E2E Tests (op-e2e)
+### 테스트 품질
 
-### RAT Integration Tests
+**526개의 통과 테스트**로 V3 시스템의 정확성과 신뢰성을 철저히 검증했습니다.
 
-| Test | Category | Status | Description |
-|------|----------|--------|-------------|
-| `TestRATHelperFunctions` | Unit | ✅ Pass | RAT helper utility functions |
-| `TestRATConstants` | Unit | ✅ Pass | RAT constants verification |
-| `TestRATIntegration_ValidatorRegistration` | Integration | ⏸️ Skip* | Validator registration flow |
-| `TestRATIntegration_GetContractParameters` | Integration | ⏸️ Skip* | Contract parameter reading |
-| `TestRATIntegration_ValidatorCount` | Integration | ⏸️ Skip* | Validator counting |
-| `TestRATIntegration_GetL2Validators` | Integration | ⏸️ Skip* | Get validator list |
-| `TestRATIntegration_FullFlow` | Integration | ⏸️ Skip* | Complete validator lifecycle |
+### Effective Coverage (프록시 라우팅 고려)
 
-*Requires local devnet with deployed contracts
+V3 mode에서 **실제 실행되는 코드** 기준:
+- **라인: 88.53%** (749/846)
+- **함수: 81.29%** (113/139)
+- **브랜치: 66.51%** (139/209)
 
-### RAT E2E Tests (Requires Optimism Devnet)
+### Raw Coverage가 낮아 보이는 이유
 
-| Test | Status | Description |
-|------|--------|-------------|
-| `TestRATTriggerOnGameCreation` | ⏸️ Skip | RAT trigger when DisputeGame created |
-| `TestRATEvidenceSubmission` | ⏸️ Skip | Validator evidence submission |
-| `TestRATResolveClaimBondRefund` | ⏸️ Skip | Bond refund on challenger win |
-| `TestRATEvidenceSubmissionExpiry` | ⏸️ Skip | Slashing on evidence timeout |
-| `TestRATMultiL2Identification` | ⏸️ Skip | Multi-L2 chain identification |
-| `TestRATValidatorStaking` | ⏸️ Skip | Validator staking management |
-| `TestRATValidOutputRootDefense` | ⏸️ Skip | Valid output root defense |
-| `TestRATUnsafeProposal` | ⏸️ Skip | Unsafe proposal handling |
-| `TestRATFutureBlockProposal` | ⏸️ Skip | Future block handling |
+System-wide raw coverage (54.12% lines)가 낮아 보이지만, 이는 다음을 포함하기 때문입니다:
 
-### Go E2E Test Summary
+1. **Infrastructure 유틸리티** (45.8%)
+   - 프록시, 라이브러리, 저수준 유틸리티
 
-```
-Total Go Tests:         16
-Passing (Unit):          2
-Skipped (Integration):   5  (requires local devnet)
-Skipped (E2E):           9  (requires Optimism devnet)
-```
+2. **Legacy DAO contracts** (31.0%)
+   - V1/V2 거버넌스, V3에서 미사용
 
-### Running Go E2E Tests
+3. **V1_2 Dead Code** (~190 lines, ~50 funcs)
+   - V3에서 절대 실행 안 되는 V2 전용 코드
 
-```bash
-# Unit tests (always pass)
-cd op-e2e && make test-rat-unit
+### 최종 평가
 
-# Integration tests (requires local Anvil + deployed contracts)
-cd op-e2e && make test-rat-integration
+✅ **Core V3 컨트랙트는 85~90% 커버리지 달성**
+- 실제 실행 코드 기준으로 매우 높은 커버리지
+- 시나리오, 상태 검증, edge case 포괄적 테스트
+- V2→V3 마이그레이션 경로 검증 완료
 
-# All tests
-cd op-e2e && make test
-```
+프록시 라우팅을 고려한 실질적 분석 결과, **V3 시스템은 프로덕션 배포에 충분한 테스트 커버리지를 확보**했습니다.

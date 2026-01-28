@@ -16,6 +16,7 @@ import {DepositManagerV1_1Storage} from './DepositManagerV1_1Storage.sol';
 import {IOperator} from '../../layer2/interfaces/IOperator.sol';
 import {IL1Bridge} from '../../layer2/interfaces/IL1Bridge.sol';
 import {ISeigManagerV3} from "../interfaces/ISeigManagerV3.sol";
+import {IL1BridgeRegistry} from "../../layer2/interfaces/IL1BridgeRegistry.sol";
 
 interface IIERC20 {
     function ton() external view returns (address);
@@ -85,6 +86,12 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     event Deposited(address indexed layer2, address depositor, uint256 amount);
     event WithdrawalRequested(address indexed layer2, address depositor, uint256 amount);
     event WithdrawalProcessed(address indexed layer2, address depositor, uint256 amount);
+    /// @notice Event emitted when a withdrawal request is canceled via redeposit
+    /// @dev RFC-17: Enables accurate tracking of TON circulating supply
+    /// @param layer2 The layer2 address
+    /// @param depositor The depositor address
+    /// @param amount The amount of canceled withdrawal
+    event WithdrawalRequestCanceled(address indexed layer2, address depositor, uint256 amount);
 
     /**
      * @notice Event that occurs when calling the setWithdrawalDelay function
@@ -202,11 +209,13 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     }
 
     function deposit(address layer2, address[] memory accounts, uint256[] memory amounts) external returns (bool) {
-        require(accounts.length != 0, 'no account');
-        require(accounts.length == amounts.length, 'wrong lenth');
+        uint256 len = accounts.length;
+        require(len != 0, 'no account');
+        require(len == amounts.length, 'wrong lenth');
 
-        for (uint256 i = 0; i < accounts.length; i++){
-        require(_deposit(layer2, accounts[i], amounts[i], msg.sender), "fail deposit");
+        for (uint256 i = 0; i < len; ) {
+            require(_deposit(layer2, accounts[i], amounts[i], msg.sender), "fail deposit");
+            unchecked { ++i; }
         }
 
         return true;
@@ -249,28 +258,29 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
     }
 
     function _redeposit(address layer2, uint256 i, uint256 n) internal onlyLayer2(layer2) returns (bool) {
+        // Storage 직접 접근 (메모리 복사 제거)
+        WithdrawalReqeust[] storage requests = _withdrawalRequests[layer2][msg.sender];
+        uint256 len = requests.length;
+
+        require(len > 0, "DepositManager: no request");
+        require(len - i >= n, "DepositManager: n exceeds num of pending requests");
+
         uint256 accAmount;
-
-        WithdrawalReqeust[] memory requsts = _withdrawalRequests[layer2][msg.sender];
-
-        require(requsts.length > 0, "DepositManager: no request");
-        require(requsts.length - i >= n, "DepositManager: n exceeds num of pending requests");
-
         uint256 e = i + n;
-        for (; i < e; i++) {
-        // WithdrawalReqeust storage r = _withdrawalRequests[layer2][msg.sender][i];
-        WithdrawalReqeust memory r = requsts[i];
 
-        uint256 amount = r.amount;
+        for (; i < e; ) {
+            WithdrawalReqeust storage r = requests[i];
 
-        require(!r.processed, "DepositManager: pending request already processed");
-        require(amount > 0, "DepositManager: no valid pending request");
+            require(!r.processed, "DepositManager: pending request already processed");
+            require(r.amount > 0, "DepositManager: no valid pending request");
 
-        accAmount = accAmount + amount;
-        r.processed = true;
-        _withdrawalRequests[layer2][msg.sender][i] = r;
+            unchecked {
+                accAmount += r.amount;
+            }
+            r.processed = true;
+
+            unchecked { ++i; }
         }
-
 
         // deposit-related storages
         // _accStaked[layer2][msg.sender] = _accStaked[layer2][msg.sender] + accAmount;
@@ -282,8 +292,12 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         _pendingUnstakedLayer2[layer2] = _pendingUnstakedLayer2[layer2] - accAmount;
         _pendingUnstakedAccount[msg.sender] = _pendingUnstakedAccount[msg.sender] - accAmount;
 
-        _withdrawalRequestIndex[layer2][msg.sender] += n;
+        unchecked {
+            _withdrawalRequestIndex[layer2][msg.sender] += n;
+        }
 
+        // RFC-17: Emit both events for accurate tracking of TON circulating supply
+        emit WithdrawalRequestCanceled(layer2, msg.sender, accAmount);
         emit Deposited(layer2, msg.sender, accAmount);
 
         require(ISeigManager(_seigManager).onDeposit(layer2, msg.sender, accAmount), "fail SeigManager.onDeposit");
@@ -432,7 +446,7 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         _decodeL1BridgeInfo(data, info);
     }
 
-    function _decodeL1BridgeInfo(bytes memory data, L1BridgeInfo memory info) internal pure {
+    function _decodeL1BridgeInfo(bytes memory data, L1BridgeInfo memory info) internal view {
         (
             bool result,
             address l1Bridge,
@@ -448,8 +462,15 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         if (rejectedSeigs || rejectedL2Deposit) revert CheckL1BridgeError(6);
         if (l1Bridge == address(0)) revert CheckL1BridgeError(3);
         require(l2Ton != address(0), "l2Ton: zero address");
-        if ((l2Type != 1 && l2Type != 2 && l2Type != 3) || status != 1) revert CheckL1BridgeError(5);
-        if (l2Type != 1 && portal == address(0)) revert CheckL1BridgeError(4);
+
+        // Use dynamic type validation instead of hardcoded checks
+        if (!IL1BridgeRegistry(l1BridgeRegistry).isValidRollupType(l2Type) || status != 1)
+            revert CheckL1BridgeError(5);
+
+        // Check portal requirement for NATIVE bridge pattern
+        uint8 bridgePattern = IL1BridgeRegistry(l1BridgeRegistry).getBridgePattern(l2Type);
+        if (bridgePattern == 1 && portal == address(0))  // BRIDGE_PATTERN_NATIVE
+            revert CheckL1BridgeError(4);
 
         info.l1Bridge = l1Bridge;
         info.portal = portal;
@@ -490,11 +511,14 @@ contract DepositManagerV3 is ProxyStorage, AccessibleCommon, DepositManagerStora
         }
 
         uint256 bal;
-        if (info.l2Type == 2 || info.l2Type == 3) {
+        // Use dynamic bridge pattern check
+        uint8 bridgePattern = IL1BridgeRegistry(l1BridgeRegistry).getBridgePattern(info.l2Type);
+
+        if (bridgePattern == 1) {  // BRIDGE_PATTERN_NATIVE
             bal = IERC20(_ton).balanceOf(info.portal);
             IL1Bridge(info.l1Bridge).bridgeNativeTokenTo(msg.sender, tonAmount, info.minGasLimit, "");
             bal = IERC20(_ton).balanceOf(info.portal) - bal;
-        } else {
+        } else {  // BRIDGE_PATTERN_ERC20 or others default to ERC20
             bal = IERC20(_ton).balanceOf(info.l1Bridge);
             IL1Bridge(info.l1Bridge).depositERC20To(_ton, info.l2Ton, msg.sender, tonAmount, info.minGasLimit, "");
             bal = IERC20(_ton).balanceOf(info.l1Bridge) - bal;

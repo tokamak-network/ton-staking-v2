@@ -183,6 +183,12 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         layer2Registry = Layer2Registry(layer2RegistryProxy);
         rat = RAT(ratProxy);
 
+        // Add owner as manager to register rollup types
+        l1BridgeRegistry.addManager(owner);
+
+        // Register default rollup types (TYPE 1, 2, 3)
+        _registerDefaultRollupTypes();
+
         // minimumAmount를 0으로 설정 (operator 요구사항 비활성화)
         SeigManagerV1_2(seigManagerProxy).setMinimumAmount(0);
 
@@ -374,7 +380,6 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         seigManager.setMinStakingRatio(0.1e27);           // θ = 10%
         seigManager.setValidatorDistributionRatio(0.2e27); // α = 20%
         seigManager.setHalfSaturationPoint(1000e27);      // k = 1000
-        seigManager.setStakedSeigFactor(RAY);             // λ = 1 (V2 호환)
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
@@ -483,7 +488,6 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(0); // λ = 0 (V3 완전 모드)
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
@@ -644,13 +648,11 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
     ///      - minStakingRatio (θ): 10% - Minimum staking ratio for eligibility
     ///      - validatorDistributionRatio (α): 20% - Validator pool's share
     ///      - halfSaturationPoint (k): 1000 WTON - Point where rewards are half of maximum
-    ///      - stakedSeigFactor (λ): 1.0 - V2 compatibility mode (set to 0 for pure V3)
     function _migrateToV3() internal {
         seigManager.setDaoDistributionRatio(0.1e27);
         seigManager.setMinStakingRatio(0.1e27);
         seigManager.setValidatorDistributionRatio(0.2e27);
         seigManager.setHalfSaturationPoint(1000e27);
-        seigManager.setStakedSeigFactor(RAY);
         seigManager.setMaxChallengers(3);
         seigManager.setMaxFraudProofCost(50e27);
         seigManager.setSequencerAdditionalReward(100e27);
@@ -737,6 +739,49 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         DepositManagerV3(depositManagerProxy).setAddresses(
             l1BridgeRegistryProxy,
             layer2ManagerProxy
+        );
+    }
+
+    // ==========================================
+    // Helper Functions
+    // ==========================================
+
+    /// @notice Register default rollup types (TYPE 1, 2, 3)
+    function _registerDefaultRollupTypes() internal {
+        // TYPE 1: Optimism Legacy (Titan 등) - V2 mode only
+        // Bridge & TVL both use l1StandardBridge(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            1,                                          // type
+            "Optimism Legacy",                          // name
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            0,                                          // BRIDGE_PATTERN_ERC20
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 2: Optimism Bedrock (Thanos 등) - V2 mode only
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            2,
+            "Optimism Bedrock",
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            1,                                          // BRIDGE_PATTERN_NATIVE
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 3: Bedrock with DisputeGame - V3 eligible
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), has DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            3,
+            "Optimism Bedrock DisputeGame",
+            bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
+            bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            1,                                              // BRIDGE_PATTERN_NATIVE
+            true                                            // V3 eligible = true
         );
     }
 }

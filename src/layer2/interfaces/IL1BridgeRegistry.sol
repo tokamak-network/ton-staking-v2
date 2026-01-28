@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 interface IL1BridgeRegistry {
+    /// @notice Rollup type constants (dynamically registered via addRollupType)
+    /// @dev TYPE 0: Reserved (invalid)
+    /// @dev TYPE 1: Optimism Legacy (Titan) - uses l1StandardBridge(), depositERC20To()
+    /// @dev TYPE 2: Optimism Bedrock (Thanos) - uses optimismPortal(), bridgeNativeTokenTo()
+    /// @dev TYPE 3: Optimism Bedrock DisputeGame - uses optimismPortal(), bridgeNativeTokenTo(), V3 eligible
+    /// @dev TYPE 4+: Future rollup types can be added dynamically without contract changes
 
     function getRollupInfo(address rollupConfig) external view returns (
         uint8   rollupType,
@@ -22,4 +28,15 @@ interface IL1BridgeRegistry {
     /// @notice Portal => rollupConfig 역방향 매핑
     /// @dev SeigManager.onBridgedTONChange에서 호출자 검증 시 사용
     function rollupConfigWithPortal(address portal) external view returns (address rollupConfig);
+
+    // ========== V1_3 Dynamic Type Management ==========
+
+    /// @notice Check if a rollup type is valid and active for V3 seigniorage
+    function isValidRollupType(uint8 _type) external view returns (bool);
+
+    /// @notice Get bridge pattern for a rollup type (0=ERC20, 1=NATIVE, 2=CUSTOM, ...)
+    function getBridgePattern(uint8 _type) external view returns (uint8);
+
+    /// @notice Get TVL contract getter selector for a rollup type
+    function getTvlContractGetter(uint8 _type) external view returns (bytes4);
 }

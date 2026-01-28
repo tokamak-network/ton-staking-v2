@@ -206,6 +206,10 @@ contract RATStorage {
     /// @dev 참고: 등록 시에는 항상 D_min 이상 필요
     bool public relaxedValidatorCheck;
 
+    /// @notice ValidatorReward 컨트랙트 주소 (V1.1: O(1) 보상 분배)
+    /// @dev 검증자 등록/탈퇴/재활성화 시 ValidatorReward에 알림
+    address public validatorReward;
+
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)
     // ==========================================

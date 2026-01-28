@@ -6,21 +6,16 @@
 src/
 ├── stake/                              # 스테이킹 관련
 │   ├── managers/
-│   │   ├── SeigManager.sol                    # 시뇨리지 분배 (기본 구현체)
-│   │   ├── SeigManagerV1_1.sol                # V1.1 구현체
 │   │   ├── SeigManagerV1_2.sol                # V1.2 구현체 (기본 프록시 구현체)
-│   │   ├── SeigManagerV1_3.sol                # V1.3 구현체 (pause/unpause 등)
-│   │   ├── SeigManagerV1_4.sol                # V1.4 구현체 (V3 핵심) 🆕
+│   │   ├── SeigManagerV3_1.sol                # V3.1 구현체 (V3 핵심) 🆕
+│   │   ├── SeigManagerV3_2.sol                # V3.2 구현체 (V2 호환 레이어) 🆕
 │   │   ├── SeigManagerStorage.sol             # 기본 스토리지
 │   │   ├── SeigManagerV1_1Storage.sol         # V1.1 스토리지
 │   │   ├── SeigManagerV1_3Storage.sol         # V1.3 스토리지
 │   │   ├── SeigManagerV1_4Storage.sol         # V1.4 스토리지 (V3) 🆕
 │   │   ├── SeigManagerProxy.sol               # 프록시
 │   │   │
-│   │   ├── DepositManager.sol                 # 스테이킹 관리 (기본 구현체)
-│   │   ├── DepositManager_setWithdrawalDelay.sol  # 출금 지연 설정
-│   │   ├── DepositManagerV1_1.sol             # V1.1 구현체 (L2 출금)
-│   │   ├── DepositManagerV1_2.sol             # V1.2 구현체 (V3 콜백) 🆕
+│   │   ├── DepositManagerV3.sol               # V3 구현체 (V3 콜백) 🆕
 │   │   ├── DepositManagerStorage.sol          # 기본 스토리지
 │   │   ├── DepositManagerV1_1Storage.sol      # V1.1 스토리지
 │   │   └── DepositManagerProxy.sol            # 프록시
@@ -51,19 +46,16 @@ src/
 │       └── IAutoCoinageSnapshot.sol           # 코이니지 스냅샷
 │
 ├── layer2/                             # L2 관리
-│   ├── Layer2ManagerV1_1.sol                  # L2 관리 (기본 구현체)
-│   ├── Layer2ManagerV1_2.sol                  # L2 관리 (V3) 🆕
+│   ├── Layer2ManagerV3.sol                    # L2 관리 (V3) 🆕
 │   ├── Layer2ManagerStorage.sol               # 기본 스토리지
-│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 🆕
+│   ├── Layer2ManagerV1_2Storage.sol           # V1.2 스토리지 (V3에서 사용) 🆕
 │   ├── Layer2ManagerProxy.sol                 # 프록시
 │   │
-│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
 │   ├── L1BridgeRegistryV1_2.sol               # 브릿지 레지스트리 (TYPE 3) 🆕
 │   ├── L1BridgeRegistryStorage.sol            # 기본 스토리지
 │   ├── L1BridgeRegistryV1_2Storage.sol        # V1.2 스토리지 🆕
 │   ├── L1BridgeRegistryProxy.sol              # 프록시
 │   │
-│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저 (TYPE 1,2)
 │   ├── OperatorManagerV1_2.sol                # 오퍼레이터 매니저 (TYPE 3) 🆕
 │   ├── OperatorManagerStorage.sol             # 스토리지
 │   ├── OperatorManagerProxy.sol               # 프록시 (ERC1967 기반)
@@ -90,6 +82,7 @@ src/
 │   ├── RAT.sol                                # 검증자 등록/RAT/슬래싱
 │   ├── RATStorage.sol                         # 스토리지
 │   ├── RATProxy.sol                           # 프록시 (TransparentUpgradeableProxy)
+│   ├── RATTypes.sol                           # 타입 정의 🆕
 │   ├── IRAT.sol                               # 인터페이스
 │   │
 │   ├── ValidatorRewardV1.sol                  # 검증자 보상 분배
@@ -165,12 +158,12 @@ src/
 
 ## 2. 핵심 컨트랙트 상세
 
-### 2.1 SeigManagerV1_4
+### 2.1 SeigManagerV3_1
 
 시뇨리지 계산 및 분배의 핵심 컨트랙트입니다.
 
 ```solidity
-contract SeigManagerV1_4 is
+contract SeigManagerV3_1 is
     ProxyStorage,              // 프록시 기본 스토리지
     AuthControlSeigManager,    // 권한 관리
     SeigManagerStorage,        // V1 스토리지
@@ -190,12 +183,12 @@ contract SeigManagerV1_4 is
 - 자격 조건 확인 (`checkCurrentEligibility`)
 - 검증자 보상 분배
 
-### 2.2 DepositManagerV1_2
+### 2.2 DepositManagerV3
 
 TON/WTON 스테이킹을 관리합니다.
 
 ```solidity
-contract DepositManagerV1_2 is
+contract DepositManagerV3 is
     ProxyStorage,
     AccessibleCommon,
     DepositManagerStorage,
@@ -211,12 +204,12 @@ contract DepositManagerV1_2 is
 - `processRequest()`: 출금 처리
 - `onApprove()`: TON.approveAndCall 콜백
 
-### 2.3 Layer2ManagerV1_2
+### 2.3 Layer2ManagerV3
 
 L2 등록 및 관리를 담당합니다.
 
 ```solidity
-contract Layer2ManagerV1_2 is
+contract Layer2ManagerV3 is
     ProxyStorage,
     AccessibleCommon,
     Layer2ManagerStorage,
@@ -227,7 +220,7 @@ contract Layer2ManagerV1_2 is
 ```
 
 **핵심 기능**:
-- `getBridgedTON()`: Bridged TON 조회
+- `getBridgedTon()`: Bridged TON 조회
 - `getLayer2BySystemConfig()`: SystemConfig → Layer2 조회
 - `transferL2Seigniorage(layer2, amount)`: L2 시뇨리지를 Operator에게 전송
   - 호출자: SeigManager (`onlySeigManger`)
@@ -303,7 +296,7 @@ typeRegistrant[n] (Manager가 지정, 타입별 위임)
 - `getRollupInfo(rollupConfig)`: 롤업 정보 조회
 - `isRejectedSeigs(rollupConfig)`: 시뇨리지 중지 여부
 - `isRejectedL2Deposit(rollupConfig)`: L2 예치 중지 여부
-- `layer2TVL(rollupConfig)`: L2별 TVL 조회
+- `layer2Tvl(rollupConfig)`: L2별 TVL 조회
 - `availableForRegistration(rollupConfig, type)`: 등록 가능 여부
 
 **스토리지 조회**:
@@ -335,11 +328,10 @@ contract RAT is
 
 ### 2.6 ValidatorRewardV1
 
-검증자 보상 분배를 담당합니다.
+검증자 보상 분배를 담당합니다. O(1) 복잡도의 RewardPerValidator 패턴을 사용합니다.
 
 ```solidity
 contract ValidatorRewardV1 is
-    ProxyStorage,
     ValidatorRewardStorage,
     IValidatorReward
 {
@@ -348,14 +340,18 @@ contract ValidatorRewardV1 is
 ```
 
 **핵심 기능**:
-- `distributeL2Rewards(systemConfig, amount)`: L2별 검증자 보상 분배
+- `distributeL2Rewards(systemConfig, amount)`: L2별 검증자 보상 분배 (O(1))
   - 호출자: SeigManager (`onlySeigManager`)
   - 호출 시점: `updateSeigniorage()` 실행 시 검증자 분배 비율(α · S_i) 만큼
-  - 역할: L2에 등록된 활성 검증자들에게 보상을 균등 분배
+  - 역할: `rewardPerValidator[systemConfig]`에 검증자당 보상 누적
   - 분배 공식: `v_j = (α · S_i) / |V_i|` (검증자당 보상)
-  - 검증자 없음: 보상을 DAO Treasury로 전송
-- `claimAllRewards()`: 보상 청구
-- `getPendingRewardsByL2()`: L2별 미청구 보상 조회
+  - 검증자 없음: 보상을 `seigManager.dao()`로 전송
+- `claimAllRewards()`: 모든 L2 보상 동기화 후 청구
+- `claimRewardsByL2s(address[])`: 특정 L2들만 동기화 후 청구 (가스 최적화)
+- `registerValidatorToL2()`: 검증자 L2 등록 (RAT에서 호출)
+- `syncValidatorReward()`: 검증자 비활성화 전 보상 동기화
+- `resetValidatorDebt()`: 검증자 재활성화 시 debt 리셋
+- `getClaimableRewards()`: 총 청구 가능 보상 조회 (미동기화 포함)
 
 ---
 
@@ -410,6 +406,9 @@ contract RATStorage {
                                               // true: C_off 기준 (완화), false: D_min 기준 (엄격)
                                               // 등록 시에는 항상 D_min 이상 필요
 
+    // ValidatorReward 컨트랙트 주소 (O(1) 보상 분배용)
+    address public validatorReward;
+
     // 검증자 등록
     mapping(address => mapping(address => ValidatorRegistration))
         public validatorRegistrations;        // systemConfig => validator => 등록정보
@@ -457,19 +456,73 @@ contract RATStorage {
 
 ```solidity
 contract ValidatorRewardStorage {
-    address public seigManager;
-    address public ratContract;
-    address public wton;
-    address public treasury;
+    // ==========================================
+    // 보상 관련
+    // ==========================================
 
-    // 검증자별 보상
+    /// @notice 검증자별 총 미청구 보상 (claimAllRewards에서 사용)
     mapping(address => uint256) public validatorPendingRewards;
 
-    // L2별 검증자 보상 (Per-L2 추적)
-    mapping(address => mapping(address => uint256))
-        public validatorL2PendingRewards;  // validator => systemConfig => 보상
+    /// @notice L2별 보상은 ValidatorRewardReceived 이벤트로 추적
+    mapping(address => mapping(address => uint256)) public validatorL2PendingRewards;
+
+    mapping(address => uint256) public l2TotalDistributed;
+
+    // ==========================================
+    // RewardPerValidator 패턴 (O(1) 분배)
+    // ==========================================
+
+    /// @notice L2별 검증자당 누적 보상 (systemConfig => accumulated)
+    /// @dev distributeL2Rewards에서 O(1)로 업데이트
+    mapping(address => uint256) public rewardPerValidator;
+
+    /// @notice 검증자별 L2별 보상 debt (validator => systemConfig => debt)
+    /// @dev 검증자 등록 시 현재 rewardPerValidator로 설정
+    mapping(address => mapping(address => uint256)) public validatorRewardDebt;
+
+    /// @notice 검증자가 등록된 L2 목록 (validator => systemConfig[])
+    /// @dev claimAllRewards에서 모든 L2 순회용
+    mapping(address => address[]) public validatorL2List;
+
+    /// @notice 검증자의 L2 등록 여부 (validator => systemConfig => bool)
+    /// @dev 중복 등록 방지
+    mapping(address => mapping(address => bool)) public isValidatorInL2;
+
+    // ==========================================
+    // 참조 주소
+    // ==========================================
+
+    address public seigManager;
+    address public wton;
+    address public ratContract;
+    address public treasury;  // seigManager.dao() 사용
+    address public owner;
 }
 ```
+
+**RewardPerValidator 패턴**:
+
+```
+분배 시점 (distributeL2Rewards):
+┌─────────────────────────────────────────────────────────────────┐
+│ perValidator = amount / activeCount                              │
+│ rewardPerValidator[systemConfig] += perValidator   ← O(1) 연산 │
+└─────────────────────────────────────────────────────────────────┘
+
+청구 시점 (claimAllRewards):
+┌─────────────────────────────────────────────────────────────────┐
+│ 각 L2에 대해:                                                    │
+│   earned = rewardPerValidator[systemConfig]                     │
+│          - validatorRewardDebt[validator][systemConfig]         │
+│   if (활성 검증자):                                              │
+│       validatorPendingRewards[validator] += earned              │
+│   validatorRewardDebt[validator][systemConfig] = current        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**가스 비용**:
+- `updateSeigniorage`: O(1) 복잡도 (검증자 수와 무관)
+- `claimAllRewards`: O(L) 복잡도 (검증자가 등록된 L2 수에 비례)
 
 ---
 
@@ -486,7 +539,7 @@ interface ISeigManagerV3 {
     function getTotalEffectiveBridgedTON() external view returns (uint256);
 
     // V3 콜백
-    function onBridgedTONChange() external;
+    function onBridgedTonChange() external;
     function onStakingChange(address layer2) external;
 
     // V3 거버넌스
@@ -544,12 +597,47 @@ interface IRAT {
 
 ```solidity
 interface IValidatorReward {
-    function distributeL2Rewards(address systemConfig, uint256 amount) external;
-    function claimAllRewards() external;
-    function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256);
+    // ==========================================
+    // View Functions
+    // ==========================================
+
+    /// @notice 총 미청구 보상 조회 (동기화된 것만)
     function getPendingRewards(address validator) external view returns (uint256);
 
-    // 이벤트
+    /// @notice L2별 미청구 보상 조회 (이벤트 사용 권장)
+    function getPendingRewardsByL2(address validator, address systemConfig) external view returns (uint256);
+
+    /// @notice 총 청구 가능 보상 계산 (미동기화 보상 포함)
+    function getClaimableRewards(address validator) external view returns (uint256 total);
+
+    // ==========================================
+    // External Functions - Rewards
+    // ==========================================
+
+    /// @notice L2별 검증자 보상 분배 (SeigManager에서 호출)
+    function distributeL2Rewards(address systemConfig, uint256 amount) external;
+
+    /// @notice 모든 L2에서 받은 보상 한 번에 청구
+    /// @dev 등록된 L2가 많으면 가스 한도 초과 가능 - claimRewardsByL2s 사용 권장
+    function claimAllRewards() external;
+
+    /// @notice 특정 L2들에서 받은 보상 청구 (가스 최적화)
+    /// @dev 등록된 L2가 많을 때 배치로 청구할 때 사용
+    function claimRewardsByL2s(address[] calldata systemConfigs) external;
+
+    /// @notice 검증자 L2 등록 (RAT에서 호출)
+    function registerValidatorToL2(address validator, address systemConfig) external;
+
+    /// @notice 검증자 보상 동기화 (비활성화 전 호출)
+    function syncValidatorReward(address validator, address systemConfig) external;
+
+    /// @notice 검증자 재활성화 시 debt 리셋 (RAT에서 호출)
+    function resetValidatorDebt(address validator, address systemConfig) external;
+
+    // ==========================================
+    // Events
+    // ==========================================
+
     event L2RewardDistributed(
         address indexed systemConfig,
         uint256 totalAmount,
@@ -557,8 +645,9 @@ interface IValidatorReward {
         uint256 perValidator
     );
     event ValidatorRewardReceived(address indexed validator, address indexed systemConfig, uint256 amount);
-    event RewardToDAO(address indexed systemConfig, uint256 amount);  // V3: 검증자 없을 때 DAO로 전송
+    event RewardToDAO(address indexed systemConfig, uint256 amount);
     event RewardsClaimed(address indexed validator, uint256 amount);
+    event ValidatorRegisteredToL2(address indexed validator, address indexed systemConfig, uint256 initialDebt);
 }
 ```
 
@@ -571,7 +660,7 @@ interface IValidatorReward {
 │                            Inheritance Hierarchy                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  SeigManagerV1_4:                                                               │
+│  SeigManagerV3_1:                                                               │
 │  ┌────────────────┐                                                             │
 │  │  ProxyStorage  │                                                             │
 │  └───────┬────────┘                                                             │

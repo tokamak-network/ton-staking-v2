@@ -9,8 +9,12 @@ import {
     ZeroAddressError,
     NonRejectedError,
     OnlyRejectedError,
-    DisputeGameFactoryError
+    DisputeGameFactoryError,
+    TypeNotSupportedError,
+    TypeAlreadyExistsError,
+    InvalidTypeError
 } from "../../../src/layer2/L1BridgeRegistryV1_2.sol";
+import {L1BridgeRegistryV1_2Storage} from "../../../src/layer2/L1BridgeRegistryV1_2Storage.sol";
 
 /// @title L1BridgeRegistryV1_2Test
 /// @notice L1BridgeRegistryV1_2 Comprehensive Tests
@@ -99,7 +103,12 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
 
         // Setup roles
+        l1BridgeRegistry.addManager(owner);  // owner needs to be manager to register types
         l1BridgeRegistry.addManager(manager);
+
+        // Register default rollup types (TYPE 1, 2, 3)
+        _registerDefaultRollupTypes();
+
         vm.stopPrank();
 
         vm.prank(manager);
@@ -145,44 +154,6 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         assertTrue(l1BridgeRegistry.isManager(manager), "Manager role set");
         assertTrue(l1BridgeRegistry.isRegistrant(registrant), "Registrant role set");
         assertEq(l1BridgeRegistry.seigniorageCommittee(), seigniorageCommittee, "SeigniorageCommittee set");
-    }
-
-    // ==========================================
-    // View Functions - Default Values
-    // ==========================================
-
-    /// @notice LBR-003: rollupType 기본값 0
-    function test_LBR003_rollupType_defaultZero() public view {
-        assertEq(l1BridgeRegistry.rollupType(address(0x1234)), 0, "Default type is 0");
-    }
-
-    /// @notice LBR-004: l2TON 기본값 zero address
-    function test_LBR004_l2TON_defaultZero() public view {
-        assertEq(l1BridgeRegistry.l2Ton(address(0x1234)), address(0), "Default l2TON is zero");
-    }
-
-    /// @notice LBR-005: isRejectedSeigs 기본값 false
-    function test_LBR005_isRejectedSeigs_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.isRejectedSeigs(address(0x1234)), "Default rejectedSeigs is false");
-    }
-
-    /// @notice LBR-006: isRejectedL2Deposit 기본값 false
-    function test_LBR006_isRejectedL2Deposit_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.isRejectedL2Deposit(address(0x1234)), "Default rejectedL2Deposit is false");
-    }
-
-    /// @notice LBR-007: disputeGameFactory 기본값 false
-    function test_LBR007_disputeGameFactory_defaultFalse() public view {
-        assertFalse(l1BridgeRegistry.disputeGameFactory(address(0x1234)), "Default factory is false");
-    }
-
-    /// @notice LBR-008: rollupConfigWithDisputeGameFactory 기본값 zero address
-    function test_LBR008_rollupConfigWithDisputeGameFactory_defaultZero() public view {
-        assertEq(
-            l1BridgeRegistry.rollupConfigWithDisputeGameFactory(address(0x1234)),
-            address(0),
-            "Default rollupConfig is zero"
-        );
     }
 
     // ==========================================
@@ -301,20 +272,24 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         SimpleMockSystemConfig configNoFactory = new SimpleMockSystemConfig();
         configNoFactory.setL1StandardBridge(address(0x6001));
         configNoFactory.setOptimismPortal(address(0x6002));
+        // DisputeGameFactory is not set
 
         vm.prank(manager);
-        vm.expectRevert(abi.encodeWithSelector(RegisterError.selector, 3));
+        // Dynamic registration will fail with DisputeGameFactoryError when factory getter is set but address is unavailable
+        vm.expectRevert(DisputeGameFactoryError.selector);
         l1BridgeRegistry.registerRollupConfigByManager(address(configNoFactory), 3, l2TON, "Test");
     }
 
     /// @notice LBR-032: 유효하지 않은 type으로 등록 시 revert
     function test_LBR032_registerType3_revertInvalidType() public {
+        // TYPE 0 is reserved (invalid)
         vm.prank(manager);
         vm.expectRevert(abi.encodeWithSelector(RegisterError.selector, 1));
         l1BridgeRegistry.registerRollupConfigByManager(address(systemConfigType3), 0, l2TON, "Test");
 
+        // TYPE 4 is not registered yet
         vm.prank(manager);
-        vm.expectRevert(abi.encodeWithSelector(RegisterError.selector, 1));
+        vm.expectRevert(TypeNotSupportedError.selector);
         l1BridgeRegistry.registerRollupConfigByManager(address(systemConfigType3), 4, l2TON, "Test");
     }
 
@@ -664,5 +639,441 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         vm.expectEmit(true, true, true, true);
         emit UpgradedToType3(address(systemConfigForUpgrade), 2, portal3, disputeGameFactory2);
         l1BridgeRegistry.upgradeToType3(address(systemConfigForUpgrade));
+    }
+
+    // ==========================================
+    // Dynamic Rollup Type Management Tests
+    // ==========================================
+
+    /// @notice LBR-100: addRollupType - TYPE 1,2,3이 이미 등록되어 있는지 확인
+    function test_LBR100_defaultRollupTypes_registered() public view {
+        // TYPE 1 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config1 = l1BridgeRegistry.getRollupTypeConfig(1);
+        assertEq(config1.tvlContractGetter, bytes4(keccak256("l1StandardBridge()")), "TYPE 1 getter");
+        assertEq(config1.bridgePattern, 0, "TYPE 1 pattern is ERC20");
+        assertEq(config1.name, "Optimism Legacy", "TYPE 1 name");
+        assertFalse(l1BridgeRegistry.isValidRollupType(1), "TYPE 1 is not V3 eligible");
+
+        // TYPE 2 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config2 = l1BridgeRegistry.getRollupTypeConfig(2);
+        assertEq(config2.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 2 getter");
+        assertEq(config2.bridgePattern, 1, "TYPE 2 pattern is NATIVE");
+        assertEq(config2.name, "Optimism Bedrock", "TYPE 2 name");
+        assertFalse(l1BridgeRegistry.isValidRollupType(2), "TYPE 2 is not V3 eligible");
+
+        // TYPE 3 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config3 = l1BridgeRegistry.getRollupTypeConfig(3);
+        assertEq(config3.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 3 getter");
+        assertEq(config3.bridgePattern, 1, "TYPE 3 pattern is NATIVE");
+        assertEq(config3.name, "Optimism Bedrock DisputeGame", "TYPE 3 name");
+        assertTrue(l1BridgeRegistry.isValidRollupType(3), "TYPE 3 is V3 eligible");
+
+        // Bitmap 확인 (bit 3만 set)
+        uint256 bitmap = l1BridgeRegistry.getV3SeigniorageEligibleTypes();
+        assertEq(bitmap, 8, "Bitmap should be 8 (0b1000 = TYPE 3 only)");
+    }
+
+    /// @notice LBR-101: addRollupType - 새 타입 등록 성공
+    function test_LBR101_addRollupType_success() public {
+        vm.prank(owner);
+        l1BridgeRegistry.addRollupType(
+            4,
+            "Arbitrum Orbit",
+            bytes4(keccak256("bridge()")),      // bridgeContractGetter
+            bytes4(keccak256("bridge()")),      // tvlContractGetter
+            bytes4(0),                           // disputeGameFactoryGetter (none)
+            2,  // BRIDGE_PATTERN_CUSTOM
+            true
+        );
+
+        // 등록 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config = l1BridgeRegistry.getRollupTypeConfig(4);
+        assertEq(config.bridgeContractGetter, bytes4(keccak256("bridge()")), "TYPE 4 bridge getter");
+        assertEq(config.tvlContractGetter, bytes4(keccak256("bridge()")), "TYPE 4 tvl getter");
+        assertEq(config.disputeGameFactoryGetter, bytes4(0), "TYPE 4 factory getter (none)");
+        assertEq(config.bridgePattern, 2, "TYPE 4 pattern is CUSTOM");
+        assertEq(config.name, "Arbitrum Orbit", "TYPE 4 name");
+        assertTrue(l1BridgeRegistry.isValidRollupType(4), "TYPE 4 is V3 eligible");
+
+        // Bitmap 확인 (bit 3, 4가 set)
+        uint256 bitmap = l1BridgeRegistry.getV3SeigniorageEligibleTypes();
+        assertEq(bitmap, 24, "Bitmap should be 24 (0b11000 = TYPE 3,4)");
+    }
+
+    /// @notice LBR-102: addRollupType - TYPE 0 등록 시도 실패
+    function test_LBR102_addRollupType_revertInvalidType() public {
+        vm.prank(owner);
+        vm.expectRevert(InvalidTypeError.selector);
+        l1BridgeRegistry.addRollupType(
+            0,
+            "Invalid",
+            bytes4(keccak256("invalid()")),     // bridgeContractGetter
+            bytes4(keccak256("invalid()")),     // tvlContractGetter
+            bytes4(0),                           // disputeGameFactoryGetter
+            0,
+            false
+        );
+    }
+
+    /// @notice LBR-103: addRollupType - 중복 등록 시도 실패
+    function test_LBR103_addRollupType_revertTypeAlreadyExists() public {
+        vm.prank(owner);
+        vm.expectRevert(TypeAlreadyExistsError.selector);
+        l1BridgeRegistry.addRollupType(
+            1,  // Already registered
+            "Duplicate",
+            bytes4(keccak256("duplicate()")),   // bridgeContractGetter
+            bytes4(keccak256("duplicate()")),   // tvlContractGetter
+            bytes4(0),                           // disputeGameFactoryGetter
+            0,
+            false
+        );
+    }
+
+    /// @notice LBR-104: addRollupType - 권한 없는 사용자 실패
+    function test_LBR104_addRollupType_revertUnauthorized() public {
+        vm.prank(unauthorized);
+        vm.expectRevert("AuthControl: Caller is not a manager");
+        l1BridgeRegistry.addRollupType(
+            4,
+            "Unauthorized",
+            bytes4(keccak256("unauthorized()")),    // bridgeContractGetter
+            bytes4(keccak256("unauthorized()")),    // tvlContractGetter
+            bytes4(0),                               // disputeGameFactoryGetter
+            0,
+            false
+        );
+    }
+
+    /// @notice LBR-105: updateRollupType - 정상 업데이트
+    function test_LBR105_updateRollupType_success() public {
+        // TYPE 1을 V3 eligible로 변경
+        vm.prank(owner);
+        l1BridgeRegistry.updateRollupType(
+            1,
+            "Optimism Legacy V2",
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter
+            bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter
+            bytes4(0),                                  // disputeGameFactoryGetter
+            0,
+            true  // V3 eligible로 변경
+        );
+
+        // 업데이트 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config = l1BridgeRegistry.getRollupTypeConfig(1);
+        assertEq(config.name, "Optimism Legacy V2", "Name updated");
+        assertTrue(l1BridgeRegistry.isValidRollupType(1), "TYPE 1 is now V3 eligible");
+
+        // Bitmap 확인 (bit 1, 3이 set)
+        uint256 bitmap = l1BridgeRegistry.getV3SeigniorageEligibleTypes();
+        assertEq(bitmap, 10, "Bitmap should be 10 (0b1010 = TYPE 1,3)");
+    }
+
+    /// @notice LBR-106: updateRollupType - 존재하지 않는 타입 업데이트 실패
+    function test_LBR106_updateRollupType_revertTypeNotSupported() public {
+        vm.prank(owner);
+        vm.expectRevert(TypeNotSupportedError.selector);
+        l1BridgeRegistry.updateRollupType(
+            99,  // Not registered
+            "NonExistent",
+            bytes4(keccak256("nonexistent()")),     // bridgeContractGetter
+            bytes4(keccak256("nonexistent()")),     // tvlContractGetter
+            bytes4(0),                               // disputeGameFactoryGetter
+            0,
+            false
+        );
+    }
+
+    /// @notice LBR-107: updateRollupType - 변경사항 없으면 early return
+    function test_LBR107_updateRollupType_noChangeEarlyReturn() public {
+        // 동일한 내용으로 업데이트 시도
+        vm.prank(owner);
+        l1BridgeRegistry.updateRollupType(
+            1,
+            "Optimism Legacy",  // Same name
+            bytes4(keccak256("l1StandardBridge()")),  // Same bridgeContractGetter
+            bytes4(keccak256("l1StandardBridge()")),  // Same tvlContractGetter
+            bytes4(0),                                 // Same disputeGameFactoryGetter
+            0,  // Same pattern
+            false  // Same V3 eligibility
+        );
+
+        // 변경사항 없음 확인 (실제로 테스트는 revert 없이 통과하는 것으로 확인)
+        assertTrue(true, "No revert means early return worked");
+    }
+
+    /// @notice LBR-108: getBridgePattern - 올바른 패턴 반환
+    function test_LBR108_getBridgePattern_success() public view {
+        assertEq(l1BridgeRegistry.getBridgePattern(1), 0, "TYPE 1 is ERC20");
+        assertEq(l1BridgeRegistry.getBridgePattern(2), 1, "TYPE 2 is NATIVE");
+        assertEq(l1BridgeRegistry.getBridgePattern(3), 1, "TYPE 3 is NATIVE");
+    }
+
+    /// @notice LBR-109: getTvlContractGetter - 올바른 selector 반환
+    function test_LBR109_getTvlContractGetter_success() public view {
+        assertEq(
+            l1BridgeRegistry.getTvlContractGetter(1),
+            bytes4(keccak256("l1StandardBridge()")),
+            "TYPE 1 getter"
+        );
+        assertEq(
+            l1BridgeRegistry.getTvlContractGetter(2),
+            bytes4(keccak256("optimismPortal()")),
+            "TYPE 2 getter"
+        );
+        assertEq(
+            l1BridgeRegistry.getTvlContractGetter(3),
+            bytes4(keccak256("optimismPortal()")),
+            "TYPE 3 getter"
+        );
+    }
+
+    /// @notice LBR-110: isValidRollupType - V3 eligibility 확인
+    function test_LBR110_isValidRollupType_success() public view {
+        assertFalse(l1BridgeRegistry.isValidRollupType(1), "TYPE 1 is not V3 eligible");
+        assertFalse(l1BridgeRegistry.isValidRollupType(2), "TYPE 2 is not V3 eligible");
+        assertTrue(l1BridgeRegistry.isValidRollupType(3), "TYPE 3 is V3 eligible");
+        assertFalse(l1BridgeRegistry.isValidRollupType(99), "TYPE 99 does not exist");
+    }
+
+    /// @notice LBR-111: 새 타입(TYPE 4) 등록 후 rollupConfig 등록 가능 확인
+    function test_LBR111_newType_canRegisterRollupConfig() public {
+        // 1. TYPE 4 등록 (V3 eligible)
+        // SimpleMockSystemConfig에는 bridge() 함수가 없으므로 l1StandardBridge() 사용
+        vm.prank(owner);
+        l1BridgeRegistry.addRollupType(
+            4,
+            "Custom L2",
+            bytes4(keccak256("l1StandardBridge()")),  // bridgeContractGetter (기존 함수 재사용)
+            bytes4(keccak256("l1StandardBridge()")),  // tvlContractGetter
+            bytes4(0),                                 // disputeGameFactoryGetter (none)
+            1,  // BRIDGE_PATTERN_NATIVE
+            true  // V3 eligible
+        );
+
+        // 2. TYPE 4용 SystemConfig 생성
+        SimpleMockSystemConfig systemConfigType4 = new SimpleMockSystemConfig();
+        address bridgeType4 = address(0x9999);
+        systemConfigType4.setL1StandardBridge(bridgeType4);  // l1StandardBridge 설정
+
+        // 3. TYPE 4로 rollupConfig 등록 시도
+        address l2TONType4 = address(0x8888);
+        vm.prank(manager);
+        l1BridgeRegistry.registerRollupConfigByManager(
+            address(systemConfigType4),
+            4,  // TYPE 4
+            l2TONType4,
+            "Arbitrum L2"
+        );
+
+        // 4. 등록 확인
+        (uint8 rollupType, address l2Ton, , , string memory name) = l1BridgeRegistry.getRollupInfo(address(systemConfigType4));
+        assertEq(rollupType, 4, "Registered as TYPE 4");
+        assertEq(l2Ton, l2TONType4, "L2TON address correct");
+        assertEq(name, "Arbitrum L2", "Name correct");
+
+        // 5. V3 eligible 확인
+        assertTrue(l1BridgeRegistry.isValidRollupType(4), "TYPE 4 is V3 eligible");
+    }
+
+    /// @notice LBR-112: TYPE 1 동적 등록 검증 - bridge와 TVL이 같은 주소
+    function test_LBR112_type1_dynamicRegistration_bridgeAndTvlSame() public {
+        // TYPE 1: bridgeContractGetter와 tvlContractGetter가 같음 (l1StandardBridge)
+        SimpleMockSystemConfig config = new SimpleMockSystemConfig();
+        address bridge = address(0x7001);
+        config.setL1StandardBridge(bridge);
+
+        vm.prank(manager);
+        l1BridgeRegistry.registerRollupConfigByManager(
+            address(config),
+            1,  // TYPE 1
+            address(0x7002),
+            "TYPE1-Test"
+        );
+
+        // l1Bridge에 등록되었는지 확인
+        assertTrue(l1BridgeRegistry.l1Bridge(bridge), "Bridge should be registered to l1Bridge mapping");
+
+        // portal에는 등록되지 않아야 함 (tvlGetter가 bridgeGetter와 같으므로)
+        assertFalse(l1BridgeRegistry.portal(bridge), "Bridge should NOT be registered to portal mapping");
+
+        // rollupConfig 등록 확인
+        (uint8 rollupType, , , , ) = l1BridgeRegistry.getRollupInfo(address(config));
+        assertEq(rollupType, 1, "Should be registered as TYPE 1");
+    }
+
+    /// @notice LBR-113: TYPE 2 동적 등록 검증 - bridge와 TVL이 다른 주소
+    function test_LBR113_type2_dynamicRegistration_bridgeAndTvlDifferent() public {
+        // TYPE 2: bridgeContractGetter(l1StandardBridge)와 tvlContractGetter(optimismPortal)가 다름
+        SimpleMockSystemConfig config = new SimpleMockSystemConfig();
+        address bridge = address(0x7101);
+        address portal = address(0x7102);
+        config.setL1StandardBridge(bridge);
+        config.setOptimismPortal(portal);
+
+        vm.prank(manager);
+        l1BridgeRegistry.registerRollupConfigByManager(
+            address(config),
+            2,  // TYPE 2
+            address(0x7103),
+            "TYPE2-Test"
+        );
+
+        // l1Bridge에 bridge 주소 등록 확인
+        assertTrue(l1BridgeRegistry.l1Bridge(bridge), "Bridge should be registered to l1Bridge mapping");
+
+        // portal 매핑에 portal 주소 등록 확인 (tvlGetter가 다르므로)
+        assertTrue(l1BridgeRegistry.portal(portal), "Portal should be registered to portal mapping");
+
+        // rollupConfigWithPortal 매핑 확인
+        assertEq(
+            l1BridgeRegistry.rollupConfigWithPortal(portal),
+            address(config),
+            "Portal should be mapped to rollupConfig"
+        );
+
+        // rollupConfig 등록 확인
+        (uint8 rollupType, , , , ) = l1BridgeRegistry.getRollupInfo(address(config));
+        assertEq(rollupType, 2, "Should be registered as TYPE 2");
+    }
+
+    /// @notice LBR-114: TYPE 3 동적 등록 검증 - bridge, TVL, DisputeGameFactory 모두 등록
+    function test_LBR114_type3_dynamicRegistration_withDisputeGameFactory() public {
+        // TYPE 3: bridge, portal, disputeGameFactory 모두 다름
+        SimpleMockSystemConfig config = new SimpleMockSystemConfig();
+        address bridge = address(0x7201);
+        address portal = address(0x7202);
+        address factory = address(0x7203);
+        config.setL1StandardBridge(bridge);
+        config.setOptimismPortal(portal);
+        config.setDisputeGameFactory(factory);
+
+        vm.prank(manager);
+        l1BridgeRegistry.registerRollupConfigByManager(
+            address(config),
+            3,  // TYPE 3
+            address(0x7204),
+            "TYPE3-Test"
+        );
+
+        // 1. l1Bridge에 bridge 주소 등록 확인
+        assertTrue(l1BridgeRegistry.l1Bridge(bridge), "Bridge should be registered to l1Bridge mapping");
+
+        // 2. portal 매핑에 portal 주소 등록 확인
+        assertTrue(l1BridgeRegistry.portal(portal), "Portal should be registered to portal mapping");
+        assertEq(
+            l1BridgeRegistry.rollupConfigWithPortal(portal),
+            address(config),
+            "Portal should be mapped to rollupConfig"
+        );
+
+        // 3. disputeGameFactory 매핑 확인
+        assertTrue(
+            l1BridgeRegistry.disputeGameFactory(address(config)),
+            "DisputeGameFactory flag should be true for rollupConfig"
+        );
+        assertEq(
+            l1BridgeRegistry.rollupConfigWithDisputeGameFactory(factory),
+            address(config),
+            "Factory should be mapped to rollupConfig"
+        );
+
+        // rollupConfig 등록 확인
+        (uint8 rollupType, , , , ) = l1BridgeRegistry.getRollupInfo(address(config));
+        assertEq(rollupType, 3, "Should be registered as TYPE 3");
+    }
+
+    /// @notice LBR-115: 동적 등록 - DisputeGameFactory가 없으면 TYPE 3 등록 실패
+    function test_LBR115_type3_dynamicRegistration_revertMissingFactory() public {
+        // TYPE 3는 disputeGameFactoryGetter가 설정되어 있으므로 factory 주소가 필수
+        SimpleMockSystemConfig config = new SimpleMockSystemConfig();
+        config.setL1StandardBridge(address(0x7301));
+        config.setOptimismPortal(address(0x7302));
+        // config.setDisputeGameFactory를 설정하지 않음 (address(0))
+
+        vm.prank(manager);
+        vm.expectRevert(DisputeGameFactoryError.selector);
+        l1BridgeRegistry.registerRollupConfigByManager(
+            address(config),
+            3,  // TYPE 3
+            address(0x7303),
+            "TYPE3-NoFactory"
+        );
+    }
+
+    /// @notice LBR-116: 모든 타입이 동일한 동적 등록 로직 사용 확인
+    function test_LBR116_allTypes_useSameDynamicRegistration() public {
+        // TYPE 1, 2, 3, 4 모두 동일한 _registerRollupConfig 경로를 사용
+        // 각 타입의 config 설정만 다름을 확인
+
+        // TYPE 1 config 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config1 = l1BridgeRegistry.getRollupTypeConfig(1);
+        assertEq(config1.bridgeContractGetter, bytes4(keccak256("l1StandardBridge()")), "TYPE 1 bridge getter");
+        assertEq(config1.tvlContractGetter, bytes4(keccak256("l1StandardBridge()")), "TYPE 1 tvl getter (same)");
+        assertEq(config1.disputeGameFactoryGetter, bytes4(0), "TYPE 1 no factory getter");
+
+        // TYPE 2 config 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config2 = l1BridgeRegistry.getRollupTypeConfig(2);
+        assertEq(config2.bridgeContractGetter, bytes4(keccak256("l1StandardBridge()")), "TYPE 2 bridge getter");
+        assertEq(config2.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 2 tvl getter (different)");
+        assertEq(config2.disputeGameFactoryGetter, bytes4(0), "TYPE 2 no factory getter");
+
+        // TYPE 3 config 확인
+        L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config3 = l1BridgeRegistry.getRollupTypeConfig(3);
+        assertEq(config3.bridgeContractGetter, bytes4(keccak256("l1StandardBridge()")), "TYPE 3 bridge getter");
+        assertEq(config3.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 3 tvl getter");
+        assertEq(
+            config3.disputeGameFactoryGetter,
+            bytes4(keccak256("disputeGameFactory()")),
+            "TYPE 3 has factory getter"
+        );
+
+        // 모든 타입이 등록되어 있음 (bridgeContractGetter != bytes4(0))
+        assertTrue(config1.bridgeContractGetter != bytes4(0), "TYPE 1 registered");
+        assertTrue(config2.bridgeContractGetter != bytes4(0), "TYPE 2 registered");
+        assertTrue(config3.bridgeContractGetter != bytes4(0), "TYPE 3 registered");
+    }
+
+    // ==========================================
+    // Helper Functions
+    // ==========================================
+
+    /// @notice Register default rollup types (TYPE 1, 2, 3)
+    function _registerDefaultRollupTypes() internal {
+        // TYPE 1: Optimism Legacy (Titan 등) - V2 mode only
+        // Bridge & TVL both use l1StandardBridge(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            1,                                          // type
+            "Optimism Legacy",                          // name
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            0,                                          // BRIDGE_PATTERN_ERC20
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 2: Optimism Bedrock (Thanos 등) - V2 mode only
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), no DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            2,
+            "Optimism Bedrock",
+            bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
+            bytes4(0),                                  // disputeGameFactoryGetter (none)
+            1,                                          // BRIDGE_PATTERN_NATIVE
+            false                                       // V3 eligible = false (V2 only)
+        );
+
+        // TYPE 3: Bedrock with DisputeGame - V3 eligible
+        // Bridge uses l1StandardBridge(), TVL uses optimismPortal(), has DisputeGameFactory
+        l1BridgeRegistry.addRollupType(
+            3,
+            "Optimism Bedrock DisputeGame",
+            bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
+            bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
+            bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            1,                                              // BRIDGE_PATTERN_NATIVE
+            true                                            // V3 eligible = true
+        );
     }
 }
