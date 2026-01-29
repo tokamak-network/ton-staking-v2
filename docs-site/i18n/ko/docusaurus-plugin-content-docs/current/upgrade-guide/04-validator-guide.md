@@ -29,6 +29,7 @@ sidebar_position: 4
 
 **담보금 조회**:
 - `RAT._getValidatorCollateral()`: SeigManager를 통해 L2 Coinage의 검증자 잔액 조회
+  - `(collateral, layer2)` 튜플을 반환하여 중복 조회 방지
 
 ## 담보금 시스템
 
@@ -158,7 +159,7 @@ DisputeGame 생성 시
   ├─ 해당 L2의 검증자 중 랜덤 선택
   │
   ├─ 선차감: 검증자 coinage → RAT coinage 전송 (C_off)
-  │   ├─ SeigManager.transferCoinageToRAT() 호출
+  │   ├─ SeigManager.transferCoinageToRat() 호출
   │   └─ lockedForRAT += C_off
   │
   ├─ 증거 제출 기간: evidenceSubmissionPeriod (예: 1 hour)
@@ -166,7 +167,7 @@ DisputeGame 생성 시
   ├─ ✅ 증거 제출 성공 시 (Evidence Period 내)
   │   ├─ submitEvidence() 호출
   │   ├─ RAT coinage → 검증자 coinage 복구
-  │   ├─ SeigManager.transferCoinageFromRAT() 호출
+  │   ├─ SeigManager.transferCoinageFromRat() 호출
   │   └─ lockedForRAT -= C_off
   │
   ├─ ⏳ 증거 제출 기간 초과 시 (Challenge Period)

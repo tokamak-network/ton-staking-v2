@@ -45,6 +45,8 @@ sidebar_position: 3
 
 **담보금 조회**:
 - `SeigManager.getSequencerStaked(layer2)`: L2 Coinage의 시퀀서 잔액 조회
+  - **레거시 Layer2 (Candidate)**: 시퀀서 개인 주소의 스테이킹량 반환
+  - **OP Stack Layer2 (OperatorManager)**: OperatorManager 컨트랙트 주소의 스테이킹량 반환
 
 ## 슬래싱 정책 변경
 

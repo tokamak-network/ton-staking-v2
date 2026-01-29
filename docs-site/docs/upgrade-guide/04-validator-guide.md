@@ -29,6 +29,7 @@ Validator role:
 
 **Collateral Query**:
 - `RAT._getValidatorCollateral()`: Query validator balance in L2 Coinage through SeigManager
+  - Returns `(collateral, layer2)` tuple to avoid duplicate queries
 
 ## Collateral System
 
@@ -158,7 +159,7 @@ On DisputeGame Creation
   ├─ Random selection from that L2's validators
   │
   ├─ Pre-deduction: Transfer validator coinage → RAT coinage (C_off)
-  │   ├─ Call SeigManager.transferCoinageToRAT()
+  │   ├─ Call SeigManager.transferCoinageToRat()
   │   └─ lockedForRAT += C_off
   │
   ├─ Evidence submission period: evidenceSubmissionPeriod (e.g., 1 hour)
@@ -166,7 +167,7 @@ On DisputeGame Creation
   ├─ ✅ On successful evidence submission (within Evidence Period)
   │   ├─ Call submitEvidence()
   │   ├─ Restore RAT coinage → validator coinage
-  │   ├─ Call SeigManager.transferCoinageFromRAT()
+  │   ├─ Call SeigManager.transferCoinageFromRat()
   │   └─ lockedForRAT -= C_off
   │
   ├─ ⏳ When evidence submission period expires (Challenge Period)

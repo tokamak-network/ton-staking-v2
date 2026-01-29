@@ -45,6 +45,8 @@ Where:
 
 **Collateral Query**:
 - `SeigManager.getSequencerStaked(layer2)`: Query sequencer balance in L2 Coinage
+  - **Legacy Layer2 (Candidate)**: Returns staking amount at sequencer's personal address
+  - **OP Stack Layer2 (OperatorManager)**: Returns staking amount at OperatorManager contract address
 
 ## Slashing Policy Change
 
