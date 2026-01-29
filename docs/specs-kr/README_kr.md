@@ -10,20 +10,25 @@
 | [02-system-architecture.md](./02-system-architecture.md) | 전체 아키텍처, 컨트랙트 의존성, 프록시 패턴, 롤업 타입, 데이터 흐름 |
 | [03-contract-structure.md](./03-contract-structure.md) | 디렉토리 구조, 컨트랙트 상세, 스토리지 구조, 인터페이스, 상속 관계 |
 | [04-contract-roles.md](./04-contract-roles.md) | 컨트랙트별 역할, 책임, 상호작용 (SeigManager, DepositManager, RAT 등) |
-| [05-actors.md](./05-actors.md) | 액터 정의 (스테이커, 시퀀서, 검증자, 챌린저, DAO) 및 상호작용 |
+| [05-actors.md](./05-actors.md) | 액터 정의, 시퀀서/검증자 여정 가이드, 상호작용 |
 | [06-function-specs.md](./06-function-specs.md) | 함수별 상세 설명, 파라미터, 동작 흐름, 이벤트 |
+| [07-economics-whitepaper-summary.md](./07-economics-whitepaper-summary.md) | Tokamak Economics Whitepaper V2 요약 |
+| [08-v2-to-v3-upgrade-guide.md](./08-v2-to-v3-upgrade-guide.md) | V2에서 V3로 업그레이드 가이드 |
+| [09-layer2-registration-guide.md](./09-layer2-registration-guide.md) | Layer2 등록 가이드 |
+| [10-v3-test-lists.md](./10-v3-test-lists.md) | V3 테스트 목록 |
+| [11-seigniorage-update-cases.md](./11-seigniorage-update-cases.md) | 시뇨리지 업데이트 케이스 상세 분석 |
+| [12-optimism-integration.md](./12-optimism-integration.md) | Optimism L2 통합 (RAT, SeigManager 연동) |
 
 ## 핵심 컨트랙트
 
 | 컨트랙트 | 역할 |
 |---------|------|
-| **SeigManagerV1_4** | 시뇨리지 계산 및 분배 (V3 핵심) |
-| **DepositManagerV1_2** | TON/WTON 스테이킹 관리 |
-| **Layer2ManagerV1_2** | L2 등록 및 Bridged TON 조회 |
+| **SeigManagerV3_1** | 시뇨리지 계산 및 분배 (V3 핵심) |
+| **DepositManagerV3** | TON/WTON 스테이킹 관리 |
+| **Layer2ManagerV3** | L2 등록 및 Bridged TON 조회 |
 | **L1BridgeRegistryV1_2** | 브릿지/포탈 등록, TVL 조회 |
-| **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
+| **RAT** | 검증자 등록, RAT 테스트, C_off 페널티 |
 | **ValidatorRewardV1** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리, 슬래싱 |
 
 ## V3 핵심 변경사항
 
@@ -31,7 +36,7 @@
 |------|-----|-----|
 | 시뇨리지 분배 기준 | L2 TVL | Bridged TON |
 | 분배 함수 | 선형 | 쌍곡선 `y(x) = L·(x/(k+x))` |
-| 자격 조건 | 최소 예치금 | `S_i ≥ θ·B_i` |
+| 자격 조건 | 최소 예치금 | `T_i ≥ max(θ·B_i, D_seq)` |
 | 스테이커 시뇨리지 | 제공 | 미제공 |
 | 검증자 보상 | 없음 | `α·S_i / |V_i|` |
 

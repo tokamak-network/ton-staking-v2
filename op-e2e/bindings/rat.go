@@ -420,6 +420,37 @@ func (_RAT *RATCallerSession) BatchToTestId(arg0 common.Address, arg1 uint32) ([
 	return _RAT.Contract.BatchToTestId(&_RAT.CallOpts, arg0, arg1)
 }
 
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATCaller) ChallengeGameDuration(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "challengeGameDuration")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATSession) ChallengeGameDuration() (*big.Int, error) {
+	return _RAT.Contract.ChallengeGameDuration(&_RAT.CallOpts)
+}
+
+// ChallengeGameDuration is a free data retrieval call binding the contract method 0x41faedf5.
+//
+// Solidity: function challengeGameDuration() view returns(uint256)
+func (_RAT *RATCallerSession) ChallengeGameDuration() (*big.Int, error) {
+	return _RAT.Contract.ChallengeGameDuration(&_RAT.CallOpts)
+}
+
 // EvidenceSubmissionPeriod is a free data retrieval call binding the contract method 0xacccb08f.
 //
 // Solidity: function evidenceSubmissionPeriod() view returns(uint256)
@@ -621,6 +652,161 @@ func (_RAT *RATCallerSession) GetAttentionTest(testId [32]byte) (struct {
 	return _RAT.Contract.GetAttentionTest(&_RAT.CallOpts, testId)
 }
 
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATCaller) GetAttentionTestStatus(opts *bind.CallOpts, testId [32]byte) (uint8, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getAttentionTestStatus", testId)
+
+	if err != nil {
+		return *new(uint8), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
+
+	return out0, err
+
+}
+
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATSession) GetAttentionTestStatus(testId [32]byte) (uint8, error) {
+	return _RAT.Contract.GetAttentionTestStatus(&_RAT.CallOpts, testId)
+}
+
+// GetAttentionTestStatus is a free data retrieval call binding the contract method 0x1a693f5b.
+//
+// Solidity: function getAttentionTestStatus(bytes32 testId) view returns(uint8)
+func (_RAT *RATCallerSession) GetAttentionTestStatus(testId [32]byte) (uint8, error) {
+	return _RAT.Contract.GetAttentionTestStatus(&_RAT.CallOpts, testId)
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetAvailableCollateral(opts *bind.CallOpts, validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getAvailableCollateral", validator, systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetAvailableCollateral(validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetAvailableCollateral(&_RAT.CallOpts, validator, systemConfig)
+}
+
+// GetAvailableCollateral is a free data retrieval call binding the contract method 0x8ffe8eaa.
+//
+// Solidity: function getAvailableCollateral(address validator, address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetAvailableCollateral(validator common.Address, systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetAvailableCollateral(&_RAT.CallOpts, validator, systemConfig)
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetCoffWithRelaxedCheck(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getCoffWithRelaxedCheck", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetCoffWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetCoffWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetCoffWithRelaxedCheck is a free data retrieval call binding the contract method 0x6a5ec2b8.
+//
+// Solidity: function getCoffWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetCoffWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetCoffWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetDynamicCoff(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getDynamicCoff", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetDynamicCoff(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicCoff(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicCoff is a free data retrieval call binding the contract method 0xc6be2df8.
+//
+// Solidity: function getDynamicCoff(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetDynamicCoff(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicCoff(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetDynamicMinimumCollateral(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getDynamicMinimumCollateral", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetDynamicMinimumCollateral(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicMinimumCollateral(&_RAT.CallOpts, systemConfig)
+}
+
+// GetDynamicMinimumCollateral is a free data retrieval call binding the contract method 0x3aace7f5.
+//
+// Solidity: function getDynamicMinimumCollateral(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetDynamicMinimumCollateral(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetDynamicMinimumCollateral(&_RAT.CallOpts, systemConfig)
+}
+
 // GetL2Validators is a free data retrieval call binding the contract method 0x068c2e6e.
 //
 // Solidity: function getL2Validators(address systemConfig) view returns(address[])
@@ -681,6 +867,68 @@ func (_RAT *RATSession) GetMinimumCollateral() (*big.Int, error) {
 // Solidity: function getMinimumCollateral() view returns(uint256)
 func (_RAT *RATCallerSession) GetMinimumCollateral() (*big.Int, error) {
 	return _RAT.Contract.GetMinimumCollateral(&_RAT.CallOpts)
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetMinimumCollateralWithRelaxedCheck(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getMinimumCollateralWithRelaxedCheck", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetMinimumCollateralWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetMinimumCollateralWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetMinimumCollateralWithRelaxedCheck is a free data retrieval call binding the contract method 0xf120484e.
+//
+// Solidity: function getMinimumCollateralWithRelaxedCheck(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetMinimumCollateralWithRelaxedCheck(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetMinimumCollateralWithRelaxedCheck(&_RAT.CallOpts, systemConfig)
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATCaller) GetRATCoinageBalance(opts *bind.CallOpts, systemConfig common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getRATCoinageBalance", systemConfig)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATSession) GetRATCoinageBalance(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetRATCoinageBalance(&_RAT.CallOpts, systemConfig)
+}
+
+// GetRATCoinageBalance is a free data retrieval call binding the contract method 0x40dd80f8.
+//
+// Solidity: function getRATCoinageBalance(address systemConfig) view returns(uint256)
+func (_RAT *RATCallerSession) GetRATCoinageBalance(systemConfig common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetRATCoinageBalance(&_RAT.CallOpts, systemConfig)
 }
 
 // GetValidatorCount is a free data retrieval call binding the contract method 0xf9560e45.
@@ -745,29 +993,57 @@ func (_RAT *RATCallerSession) GetValidatorDeposit(validator common.Address, syst
 	return _RAT.Contract.GetValidatorDeposit(&_RAT.CallOpts, validator, systemConfig)
 }
 
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATCaller) GetValidatorMinCollateralForLayer2(opts *bind.CallOpts, layer2 common.Address, validator common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "getValidatorMinCollateralForLayer2", layer2, validator)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATSession) GetValidatorMinCollateralForLayer2(layer2 common.Address, validator common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetValidatorMinCollateralForLayer2(&_RAT.CallOpts, layer2, validator)
+}
+
+// GetValidatorMinCollateralForLayer2 is a free data retrieval call binding the contract method 0x6fc641e8.
+//
+// Solidity: function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns(uint256)
+func (_RAT *RATCallerSession) GetValidatorMinCollateralForLayer2(layer2 common.Address, validator common.Address) (*big.Int, error) {
+	return _RAT.Contract.GetValidatorMinCollateralForLayer2(&_RAT.CallOpts, layer2, validator)
+}
+
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCaller) GetValidatorRegistration(opts *bind.CallOpts, validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	var out []interface{}
 	err := _RAT.contract.Call(opts, &out, "getValidatorRegistration", validator, systemConfig)
 
 	outstruct := new(struct {
-		DepositedAmount *big.Int
-		TotalBondForRAT *big.Int
-		ValidatorIndex  uint32
-		IsActive        bool
+		Collateral     *big.Int
+		ValidatorIndex uint32
+		IsActive       bool
 	})
 
-	outstruct.DepositedAmount = out[0].(*big.Int)
-	outstruct.TotalBondForRAT = out[1].(*big.Int)
-	outstruct.ValidatorIndex = out[2].(uint32)
-	outstruct.IsActive = out[3].(bool)
+	outstruct.Collateral = out[0].(*big.Int)
+	outstruct.ValidatorIndex = out[1].(uint32)
+	outstruct.IsActive = out[2].(bool)
 
 	return *outstruct, err
 
@@ -775,24 +1051,22 @@ func (_RAT *RATCaller) GetValidatorRegistration(opts *bind.CallOpts, validator c
 
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATSession) GetValidatorRegistration(validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	return _RAT.Contract.GetValidatorRegistration(&_RAT.CallOpts, validator, systemConfig)
 }
 
 // GetValidatorRegistration is a free data retrieval call binding the contract method 0xf92879db.
 //
-// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint32 validatorIndex, bool isActive)
+// Solidity: function getValidatorRegistration(address validator, address systemConfig) view returns(uint256 collateral, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCallerSession) GetValidatorRegistration(validator common.Address, systemConfig common.Address) (struct {
-	DepositedAmount *big.Int
-	TotalBondForRAT *big.Int
-	ValidatorIndex  uint32
-	IsActive        bool
+	Collateral     *big.Int
+	ValidatorIndex uint32
+	IsActive       bool
 }, error) {
 	return _RAT.Contract.GetValidatorRegistration(&_RAT.CallOpts, validator, systemConfig)
 }
@@ -857,6 +1131,37 @@ func (_RAT *RATSession) L1BridgeRegistry() (common.Address, error) {
 // Solidity: function l1BridgeRegistry() view returns(address)
 func (_RAT *RATCallerSession) L1BridgeRegistry() (common.Address, error) {
 	return _RAT.Contract.L1BridgeRegistry(&_RAT.CallOpts)
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATCaller) LatestDeadlineTest(opts *bind.CallOpts, arg0 common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "latestDeadlineTest", arg0)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATSession) LatestDeadlineTest(arg0 common.Address) (*big.Int, error) {
+	return _RAT.Contract.LatestDeadlineTest(&_RAT.CallOpts, arg0)
+}
+
+// LatestDeadlineTest is a free data retrieval call binding the contract method 0x44f1c99d.
+//
+// Solidity: function latestDeadlineTest(address ) view returns(uint256)
+func (_RAT *RATCallerSession) LatestDeadlineTest(arg0 common.Address) (*big.Int, error) {
+	return _RAT.Contract.LatestDeadlineTest(&_RAT.CallOpts, arg0)
 }
 
 // Layer2Manager is a free data retrieval call binding the contract method 0x16b5d5bd.
@@ -1043,6 +1348,68 @@ func (_RAT *RATSession) RatTriggerProbability() (*big.Int, error) {
 // Solidity: function ratTriggerProbability() view returns(uint256)
 func (_RAT *RATCallerSession) RatTriggerProbability() (*big.Int, error) {
 	return _RAT.Contract.RatTriggerProbability(&_RAT.CallOpts)
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATCaller) RelaxedValidatorCheck(opts *bind.CallOpts) (bool, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "relaxedValidatorCheck")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATSession) RelaxedValidatorCheck() (bool, error) {
+	return _RAT.Contract.RelaxedValidatorCheck(&_RAT.CallOpts)
+}
+
+// RelaxedValidatorCheck is a free data retrieval call binding the contract method 0x0fab0073.
+//
+// Solidity: function relaxedValidatorCheck() view returns(bool)
+func (_RAT *RATCallerSession) RelaxedValidatorCheck() (bool, error) {
+	return _RAT.Contract.RelaxedValidatorCheck(&_RAT.CallOpts)
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATCaller) SafetyBuffer(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _RAT.contract.Call(opts, &out, "safetyBuffer")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATSession) SafetyBuffer() (*big.Int, error) {
+	return _RAT.Contract.SafetyBuffer(&_RAT.CallOpts)
+}
+
+// SafetyBuffer is a free data retrieval call binding the contract method 0x0caebb61.
+//
+// Solidity: function safetyBuffer() view returns(uint256)
+func (_RAT *RATCallerSession) SafetyBuffer() (*big.Int, error) {
+	return _RAT.Contract.SafetyBuffer(&_RAT.CallOpts)
 }
 
 // SeigManager is a free data retrieval call binding the contract method 0x6fb7f558.
@@ -1264,10 +1631,9 @@ func (_RAT *RATCallerSession) ValidatorIndexes(arg0 common.Address, arg1 common.
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1277,20 +1643,18 @@ func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.A
 	err := _RAT.contract.Call(opts, &out, "validatorRegistrations", arg0, arg1)
 
 	outstruct := new(struct {
-		DepositedAmount    *big.Int
-		TotalBondForRAT    *big.Int
+		LockedForRAT       *big.Int
 		PendingRewards     *big.Int
 		LatestTestDeadline uint64
 		ValidatorIndex     uint32
 		IsActive           bool
 	})
 
-	outstruct.DepositedAmount = out[0].(*big.Int)
-	outstruct.TotalBondForRAT = out[1].(*big.Int)
-	outstruct.PendingRewards = out[2].(*big.Int)
-	outstruct.LatestTestDeadline = out[3].(uint64)
-	outstruct.ValidatorIndex = out[4].(uint32)
-	outstruct.IsActive = out[5].(bool)
+	outstruct.LockedForRAT = out[0].(*big.Int)
+	outstruct.PendingRewards = out[1].(*big.Int)
+	outstruct.LatestTestDeadline = out[2].(uint64)
+	outstruct.ValidatorIndex = out[3].(uint32)
+	outstruct.IsActive = out[4].(bool)
 
 	return *outstruct, err
 
@@ -1298,10 +1662,9 @@ func (_RAT *RATCaller) ValidatorRegistrations(opts *bind.CallOpts, arg0 common.A
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATSession) ValidatorRegistrations(arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1312,10 +1675,9 @@ func (_RAT *RATSession) ValidatorRegistrations(arg0 common.Address, arg1 common.
 
 // ValidatorRegistrations is a free data retrieval call binding the contract method 0x4a859247.
 //
-// Solidity: function validatorRegistrations(address , address ) view returns(uint256 depositedAmount, uint256 totalBondForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
+// Solidity: function validatorRegistrations(address , address ) view returns(uint256 lockedForRAT, uint256 pendingRewards, uint64 latestTestDeadline, uint32 validatorIndex, bool isActive)
 func (_RAT *RATCallerSession) ValidatorRegistrations(arg0 common.Address, arg1 common.Address) (struct {
-	DepositedAmount    *big.Int
-	TotalBondForRAT    *big.Int
+	LockedForRAT       *big.Int
 	PendingRewards     *big.Int
 	LatestTestDeadline uint64
 	ValidatorIndex     uint32
@@ -1386,27 +1748,6 @@ func (_RAT *RATCallerSession) Wton() (common.Address, error) {
 	return _RAT.Contract.Wton(&_RAT.CallOpts)
 }
 
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATTransactor) AddDeposit(opts *bind.TransactOpts, systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "addDeposit", systemConfig, amount)
-}
-
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATSession) AddDeposit(systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.AddDeposit(&_RAT.TransactOpts, systemConfig, amount)
-}
-
-// AddDeposit is a paid mutator transaction binding the contract method 0x33026bb6.
-//
-// Solidity: function addDeposit(address systemConfig, uint256 amount) returns()
-func (_RAT *RATTransactorSession) AddDeposit(systemConfig common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.AddDeposit(&_RAT.TransactOpts, systemConfig, amount)
-}
-
 // DeactivateValidator is a paid mutator transaction binding the contract method 0xba50b879.
 //
 // Solidity: function deactivateValidator(address systemConfig) returns()
@@ -1428,88 +1769,67 @@ func (_RAT *RATTransactorSession) DeactivateValidator(systemConfig common.Addres
 	return _RAT.Contract.DeactivateValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATTransactor) EmergencyWithdraw(opts *bind.TransactOpts, token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "emergencyWithdraw", token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATTransactor) Initialize(opts *bind.TransactOpts, _seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "initialize", _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATSession) EmergencyWithdraw(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.EmergencyWithdraw(&_RAT.TransactOpts, token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// EmergencyWithdraw is a paid mutator transaction binding the contract method 0x95ccea67.
+// Initialize is a paid mutator transaction binding the contract method 0xd3394564.
 //
-// Solidity: function emergencyWithdraw(address token, uint256 amount) returns()
-func (_RAT *RATTransactorSession) EmergencyWithdraw(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.EmergencyWithdraw(&_RAT.TransactOpts, token, amount)
+// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability, uint256 _evidenceSubmissionPeriod, uint256 _slashingPenalty, uint256 _validatorBuffer, uint256 _minimumThreshold, uint256 _maxValidatorsPerL2, uint256 _challengeGameDuration, uint256 _safetyBuffer) returns()
+func (_RAT *RATTransactorSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int, _evidenceSubmissionPeriod *big.Int, _slashingPenalty *big.Int, _validatorBuffer *big.Int, _minimumThreshold *big.Int, _maxValidatorsPerL2 *big.Int, _challengeGameDuration *big.Int, _safetyBuffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability, _evidenceSubmissionPeriod, _slashingPenalty, _validatorBuffer, _minimumThreshold, _maxValidatorsPerL2, _challengeGameDuration, _safetyBuffer)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATTransactor) Initialize(opts *bind.TransactOpts, _seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "initialize", _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATTransactor) RegisterValidator(opts *bind.TransactOpts, systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "registerValidator", systemConfig)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATSession) RegisterValidator(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// RegisterValidator is a paid mutator transaction binding the contract method 0x9fca5169.
 //
-// Solidity: function initialize(address _seigManager, address _wton, address _ton, address _layer2Manager, address _owner, uint256 _ratTriggerProbability) returns()
-func (_RAT *RATTransactorSession) Initialize(_seigManager common.Address, _wton common.Address, _ton common.Address, _layer2Manager common.Address, _owner common.Address, _ratTriggerProbability *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.Initialize(&_RAT.TransactOpts, _seigManager, _wton, _ton, _layer2Manager, _owner, _ratTriggerProbability)
+// Solidity: function registerValidator(address systemConfig) returns()
+func (_RAT *RATTransactorSession) RegisterValidator(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATTransactor) OnApprove(opts *bind.TransactOpts, owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "onApprove", owner, spender, amount, data)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATTransactor) RegisterValidatorV2Compat(opts *bind.TransactOpts, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "registerValidatorV2Compat", systemConfig, depositAmount)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATSession) OnApprove(owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.Contract.OnApprove(&_RAT.TransactOpts, owner, spender, amount, data)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATSession) RegisterValidatorV2Compat(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidatorV2Compat(&_RAT.TransactOpts, systemConfig, depositAmount)
 }
 
-// OnApprove is a paid mutator transaction binding the contract method 0x4273ca16.
+// RegisterValidatorV2Compat is a paid mutator transaction binding the contract method 0x6ff2189a.
 //
-// Solidity: function onApprove(address owner, address spender, uint256 amount, bytes data) returns(bool)
-func (_RAT *RATTransactorSession) OnApprove(owner common.Address, spender common.Address, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return _RAT.Contract.OnApprove(&_RAT.TransactOpts, owner, spender, amount, data)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATTransactor) RegisterValidator(opts *bind.TransactOpts, systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "registerValidator", systemConfig, depositAmount)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATSession) RegisterValidator(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig, depositAmount)
-}
-
-// RegisterValidator is a paid mutator transaction binding the contract method 0x9abee7d0.
-//
-// Solidity: function registerValidator(address systemConfig, uint256 depositAmount) returns()
-func (_RAT *RATTransactorSession) RegisterValidator(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
-	return _RAT.Contract.RegisterValidator(&_RAT.TransactOpts, systemConfig, depositAmount)
+// Solidity: function registerValidatorV2Compat(address systemConfig, uint256 depositAmount) returns()
+func (_RAT *RATTransactorSession) RegisterValidatorV2Compat(systemConfig common.Address, depositAmount *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.RegisterValidatorV2Compat(&_RAT.TransactOpts, systemConfig, depositAmount)
 }
 
 // ResolveClaim is a paid mutator transaction binding the contract method 0x94d645a8.
@@ -1573,6 +1893,27 @@ func (_RAT *RATSession) SetAuthorizedTrigger(trigger common.Address) (*types.Tra
 // Solidity: function setAuthorizedTrigger(address trigger) returns()
 func (_RAT *RATTransactorSession) SetAuthorizedTrigger(trigger common.Address) (*types.Transaction, error) {
 	return _RAT.Contract.SetAuthorizedTrigger(&_RAT.TransactOpts, trigger)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATTransactor) SetChallengeGameDuration(opts *bind.TransactOpts, duration *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setChallengeGameDuration", duration)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATSession) SetChallengeGameDuration(duration *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetChallengeGameDuration(&_RAT.TransactOpts, duration)
+}
+
+// SetChallengeGameDuration is a paid mutator transaction binding the contract method 0x8ca61113.
+//
+// Solidity: function setChallengeGameDuration(uint256 duration) returns()
+func (_RAT *RATTransactorSession) SetChallengeGameDuration(duration *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetChallengeGameDuration(&_RAT.TransactOpts, duration)
 }
 
 // SetEvidenceSubmissionPeriod is a paid mutator transaction binding the contract method 0x36c63d46.
@@ -1701,6 +2042,48 @@ func (_RAT *RATTransactorSession) SetRatTriggerProbability(probability *big.Int)
 	return _RAT.Contract.SetRatTriggerProbability(&_RAT.TransactOpts, probability)
 }
 
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATTransactor) SetRelaxedValidatorCheck(opts *bind.TransactOpts, relaxed bool) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setRelaxedValidatorCheck", relaxed)
+}
+
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATSession) SetRelaxedValidatorCheck(relaxed bool) (*types.Transaction, error) {
+	return _RAT.Contract.SetRelaxedValidatorCheck(&_RAT.TransactOpts, relaxed)
+}
+
+// SetRelaxedValidatorCheck is a paid mutator transaction binding the contract method 0xa4acc3ff.
+//
+// Solidity: function setRelaxedValidatorCheck(bool relaxed) returns()
+func (_RAT *RATTransactorSession) SetRelaxedValidatorCheck(relaxed bool) (*types.Transaction, error) {
+	return _RAT.Contract.SetRelaxedValidatorCheck(&_RAT.TransactOpts, relaxed)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATTransactor) SetSafetyBuffer(opts *bind.TransactOpts, buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "setSafetyBuffer", buffer)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATSession) SetSafetyBuffer(buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetSafetyBuffer(&_RAT.TransactOpts, buffer)
+}
+
+// SetSafetyBuffer is a paid mutator transaction binding the contract method 0x4ad60241.
+//
+// Solidity: function setSafetyBuffer(uint256 buffer) returns()
+func (_RAT *RATTransactorSession) SetSafetyBuffer(buffer *big.Int) (*types.Transaction, error) {
+	return _RAT.Contract.SetSafetyBuffer(&_RAT.TransactOpts, buffer)
+}
+
 // SetSlashingPenalty is a paid mutator transaction binding the contract method 0xf983386b.
 //
 // Solidity: function setSlashingPenalty(uint256 penalty) returns()
@@ -1827,25 +2210,159 @@ func (_RAT *RATTransactorSession) TriggerAttentionTest(gameAddress common.Addres
 	return _RAT.Contract.TriggerAttentionTest(&_RAT.TransactOpts, gameAddress, systemConfig, batchIndex, batchHash, blockHash)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATTransactor) WithdrawSlashingsToTreasury(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _RAT.contract.Transact(opts, "withdrawSlashingsToTreasury")
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATTransactor) WithdrawSlashingsToTreasury(opts *bind.TransactOpts, systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.contract.Transact(opts, "withdrawSlashingsToTreasury", systemConfig)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATSession) WithdrawSlashingsToTreasury() (*types.Transaction, error) {
-	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts)
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATSession) WithdrawSlashingsToTreasury(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts, systemConfig)
 }
 
-// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x116c4fcc.
+// WithdrawSlashingsToTreasury is a paid mutator transaction binding the contract method 0x71e0cdc7.
 //
-// Solidity: function withdrawSlashingsToTreasury() returns()
-func (_RAT *RATTransactorSession) WithdrawSlashingsToTreasury() (*types.Transaction, error) {
-	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts)
+// Solidity: function withdrawSlashingsToTreasury(address systemConfig) returns()
+func (_RAT *RATTransactorSession) WithdrawSlashingsToTreasury(systemConfig common.Address) (*types.Transaction, error) {
+	return _RAT.Contract.WithdrawSlashingsToTreasury(&_RAT.TransactOpts, systemConfig)
+}
+
+// RATAccumulatedSlashingsResetIterator is returned from FilterAccumulatedSlashingsReset and is used to iterate over the raw logs and unpacked data for AccumulatedSlashingsReset events raised by the RAT contract.
+type RATAccumulatedSlashingsResetIterator struct {
+	Event *RATAccumulatedSlashingsReset // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATAccumulatedSlashingsResetIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATAccumulatedSlashingsReset)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATAccumulatedSlashingsReset)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATAccumulatedSlashingsResetIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATAccumulatedSlashingsResetIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATAccumulatedSlashingsReset represents a AccumulatedSlashingsReset event raised by the RAT contract.
+type RATAccumulatedSlashingsReset struct {
+	Amount *big.Int
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterAccumulatedSlashingsReset is a free log retrieval operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) FilterAccumulatedSlashingsReset(opts *bind.FilterOpts) (*RATAccumulatedSlashingsResetIterator, error) {
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "AccumulatedSlashingsReset")
+	if err != nil {
+		return nil, err
+	}
+	return &RATAccumulatedSlashingsResetIterator{contract: _RAT.contract, event: "AccumulatedSlashingsReset", logs: logs, sub: sub}, nil
+}
+
+// WatchAccumulatedSlashingsReset is a free log subscription operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) WatchAccumulatedSlashingsReset(opts *bind.WatchOpts, sink chan<- *RATAccumulatedSlashingsReset) (event.Subscription, error) {
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "AccumulatedSlashingsReset")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATAccumulatedSlashingsReset)
+				if err := _RAT.contract.UnpackLog(event, "AccumulatedSlashingsReset", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseAccumulatedSlashingsReset is a log parse operation binding the contract event 0xcf37a3aec7e6ba6e02f61913533b0be478985ae4ec96c4be36170fd79bea90fc.
+//
+// Solidity: event AccumulatedSlashingsReset(uint256 amount)
+func (_RAT *RATFilterer) ParseAccumulatedSlashingsReset(log types.Log) (*RATAccumulatedSlashingsReset, error) {
+	event := new(RATAccumulatedSlashingsReset)
+	if err := _RAT.contract.UnpackLog(event, "AccumulatedSlashingsReset", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // RATAttentionTestTriggeredIterator is returned from FilterAttentionTestTriggered and is used to iterate over the raw logs and unpacked data for AttentionTestTriggered events raised by the RAT contract.
@@ -2085,13 +2602,14 @@ type RATBondRestored struct {
 	TestId         [32]byte
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	RestoredAmount *big.Int
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterBondRestored is a free log retrieval operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// FilterBondRestored is a free log retrieval operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) FilterBondRestored(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATBondRestoredIterator, error) {
 
 	var testIdRule []interface{}
@@ -2114,9 +2632,9 @@ func (_RAT *RATFilterer) FilterBondRestored(opts *bind.FilterOpts, testId [][32]
 	return &RATBondRestoredIterator{contract: _RAT.contract, event: "BondRestored", logs: logs, sub: sub}, nil
 }
 
-// WatchBondRestored is a free log subscription operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// WatchBondRestored is a free log subscription operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) WatchBondRestored(opts *bind.WatchOpts, sink chan<- *RATBondRestored, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -2164,9 +2682,9 @@ func (_RAT *RATFilterer) WatchBondRestored(opts *bind.WatchOpts, sink chan<- *RA
 	}), nil
 }
 
-// ParseBondRestored is a log parse operation binding the contract event 0x8b828ea68e5478964e1ee2efd72993bba0df811816b25542cd3e02acb778f24b.
+// ParseBondRestored is a log parse operation binding the contract event 0x2327e8a868d6be4a9d13dc1c06ddedf7ac7f3e7ed53803bf31da5c7349f82f01.
 //
-// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 restoredAmount)
+// Solidity: event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)
 func (_RAT *RATFilterer) ParseBondRestored(log types.Log) (*RATBondRestored, error) {
 	event := new(RATBondRestored)
 	if err := _RAT.contract.UnpackLog(event, "BondRestored", log); err != nil {
@@ -2402,13 +2920,14 @@ type RATEvidenceSubmitted struct {
 	TestId       [32]byte
 	Validator    common.Address
 	SystemConfig common.Address
+	Layer2       common.Address
 	BatchIndex   uint32
 	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterEvidenceSubmitted is a free log retrieval operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// FilterEvidenceSubmitted is a free log retrieval operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) FilterEvidenceSubmitted(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATEvidenceSubmittedIterator, error) {
 
 	var testIdRule []interface{}
@@ -2431,9 +2950,9 @@ func (_RAT *RATFilterer) FilterEvidenceSubmitted(opts *bind.FilterOpts, testId [
 	return &RATEvidenceSubmittedIterator{contract: _RAT.contract, event: "EvidenceSubmitted", logs: logs, sub: sub}, nil
 }
 
-// WatchEvidenceSubmitted is a free log subscription operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// WatchEvidenceSubmitted is a free log subscription operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) WatchEvidenceSubmitted(opts *bind.WatchOpts, sink chan<- *RATEvidenceSubmitted, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -2481,9 +3000,9 @@ func (_RAT *RATFilterer) WatchEvidenceSubmitted(opts *bind.WatchOpts, sink chan<
 	}), nil
 }
 
-// ParseEvidenceSubmitted is a log parse operation binding the contract event 0xbf3ee2cdebc8d0e701d8f6bbed66db69a46f2cdeda4b1bf0eee3dab7b99114c9.
+// ParseEvidenceSubmitted is a log parse operation binding the contract event 0xd5071c9f488cc0aa883e3bc1547c20c8466a9639cfed6db4c47ea8371d174c12.
 //
-// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint32 batchIndex)
+// Solidity: event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)
 func (_RAT *RATFilterer) ParseEvidenceSubmitted(log types.Log) (*RATEvidenceSubmitted, error) {
 	event := new(RATEvidenceSubmitted)
 	if err := _RAT.contract.UnpackLog(event, "EvidenceSubmitted", log); err != nil {
@@ -2627,6 +3146,303 @@ func (_RAT *RATFilterer) ParseMaxValidatorsPerL2Updated(log types.Log) (*RATMaxV
 	return event, nil
 }
 
+// RATRelaxedValidatorCheckUpdatedIterator is returned from FilterRelaxedValidatorCheckUpdated and is used to iterate over the raw logs and unpacked data for RelaxedValidatorCheckUpdated events raised by the RAT contract.
+type RATRelaxedValidatorCheckUpdatedIterator struct {
+	Event *RATRelaxedValidatorCheckUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATRelaxedValidatorCheckUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATRelaxedValidatorCheckUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATRelaxedValidatorCheckUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATRelaxedValidatorCheckUpdated represents a RelaxedValidatorCheckUpdated event raised by the RAT contract.
+type RATRelaxedValidatorCheckUpdated struct {
+	Relaxed bool
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterRelaxedValidatorCheckUpdated is a free log retrieval operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) FilterRelaxedValidatorCheckUpdated(opts *bind.FilterOpts) (*RATRelaxedValidatorCheckUpdatedIterator, error) {
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "RelaxedValidatorCheckUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return &RATRelaxedValidatorCheckUpdatedIterator{contract: _RAT.contract, event: "RelaxedValidatorCheckUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchRelaxedValidatorCheckUpdated is a free log subscription operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) WatchRelaxedValidatorCheckUpdated(opts *bind.WatchOpts, sink chan<- *RATRelaxedValidatorCheckUpdated) (event.Subscription, error) {
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "RelaxedValidatorCheckUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATRelaxedValidatorCheckUpdated)
+				if err := _RAT.contract.UnpackLog(event, "RelaxedValidatorCheckUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRelaxedValidatorCheckUpdated is a log parse operation binding the contract event 0xfe0f8833f7cc6034e316816ad11b5e0f8ba6cb0bb01b25978652e8bb02b682ff.
+//
+// Solidity: event RelaxedValidatorCheckUpdated(bool relaxed)
+func (_RAT *RATFilterer) ParseRelaxedValidatorCheckUpdated(log types.Log) (*RATRelaxedValidatorCheckUpdated, error) {
+	event := new(RATRelaxedValidatorCheckUpdated)
+	if err := _RAT.contract.UnpackLog(event, "RelaxedValidatorCheckUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RATSlashingsWithdrawnIterator is returned from FilterSlashingsWithdrawn and is used to iterate over the raw logs and unpacked data for SlashingsWithdrawn events raised by the RAT contract.
+type RATSlashingsWithdrawnIterator struct {
+	Event *RATSlashingsWithdrawn // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATSlashingsWithdrawnIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATSlashingsWithdrawn)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATSlashingsWithdrawn)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATSlashingsWithdrawnIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATSlashingsWithdrawnIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATSlashingsWithdrawn represents a SlashingsWithdrawn event raised by the RAT contract.
+type RATSlashingsWithdrawn struct {
+	SystemConfig common.Address
+	Layer2       common.Address
+	Treasury     common.Address
+	Amount       *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterSlashingsWithdrawn is a free log retrieval operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) FilterSlashingsWithdrawn(opts *bind.FilterOpts, systemConfig []common.Address, layer2 []common.Address, treasury []common.Address) (*RATSlashingsWithdrawnIterator, error) {
+
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+	var treasuryRule []interface{}
+	for _, treasuryItem := range treasury {
+		treasuryRule = append(treasuryRule, treasuryItem)
+	}
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "SlashingsWithdrawn", systemConfigRule, layer2Rule, treasuryRule)
+	if err != nil {
+		return nil, err
+	}
+	return &RATSlashingsWithdrawnIterator{contract: _RAT.contract, event: "SlashingsWithdrawn", logs: logs, sub: sub}, nil
+}
+
+// WatchSlashingsWithdrawn is a free log subscription operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) WatchSlashingsWithdrawn(opts *bind.WatchOpts, sink chan<- *RATSlashingsWithdrawn, systemConfig []common.Address, layer2 []common.Address, treasury []common.Address) (event.Subscription, error) {
+
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+	var treasuryRule []interface{}
+	for _, treasuryItem := range treasury {
+		treasuryRule = append(treasuryRule, treasuryItem)
+	}
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "SlashingsWithdrawn", systemConfigRule, layer2Rule, treasuryRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATSlashingsWithdrawn)
+				if err := _RAT.contract.UnpackLog(event, "SlashingsWithdrawn", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSlashingsWithdrawn is a log parse operation binding the contract event 0xae1cbfa544938580fc41f97c3cd461450c2a221c16dad6d1896e350c51c2b5f8.
+//
+// Solidity: event SlashingsWithdrawn(address indexed systemConfig, address indexed layer2, address indexed treasury, uint256 amount)
+func (_RAT *RATFilterer) ParseSlashingsWithdrawn(log types.Log) (*RATSlashingsWithdrawn, error) {
+	event := new(RATSlashingsWithdrawn)
+	if err := _RAT.contract.UnpackLog(event, "SlashingsWithdrawn", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // RATValidatorDeactivatedIterator is returned from FilterValidatorDeactivated and is used to iterate over the raw logs and unpacked data for ValidatorDeactivated events raised by the RAT contract.
 type RATValidatorDeactivatedIterator struct {
 	Event *RATValidatorDeactivated // Event containing the contract specifics and raw log
@@ -2696,16 +3512,16 @@ func (it *RATValidatorDeactivatedIterator) Close() error {
 
 // RATValidatorDeactivated represents a ValidatorDeactivated event raised by the RAT contract.
 type RATValidatorDeactivated struct {
-	Validator      common.Address
-	SystemConfig   common.Address
-	ReturnedAmount *big.Int
-	Raw            types.Log // Blockchain specific contextual infos
+	Validator    common.Address
+	SystemConfig common.Address
+	Layer2       common.Address
+	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorDeactivated is a free log retrieval operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// FilterValidatorDeactivated is a free log retrieval operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
-func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address) (*RATValidatorDeactivatedIterator, error) {
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
+func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorDeactivatedIterator, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2715,18 +3531,22 @@ func (_RAT *RATFilterer) FilterValidatorDeactivated(opts *bind.FilterOpts, valid
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
 	return &RATValidatorDeactivatedIterator{contract: _RAT.contract, event: "ValidatorDeactivated", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorDeactivated is a free log subscription operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// WatchValidatorDeactivated is a free log subscription operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
-func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorDeactivated, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
+func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorDeactivated, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2736,8 +3556,12 @@ func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink ch
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorDeactivated", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
@@ -2769,12 +3593,175 @@ func (_RAT *RATFilterer) WatchValidatorDeactivated(opts *bind.WatchOpts, sink ch
 	}), nil
 }
 
-// ParseValidatorDeactivated is a log parse operation binding the contract event 0xffcfa539e16382bc2fe8c1cd58e64186127bdc0dc70c50e2ba88beac80f1059a.
+// ParseValidatorDeactivated is a log parse operation binding the contract event 0x36a712493202476d322fa302e9c27e6632bd4dbbe9840b0043a538893cb54220.
 //
-// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, uint256 returnedAmount)
+// Solidity: event ValidatorDeactivated(address indexed validator, address indexed systemConfig, address indexed layer2)
 func (_RAT *RATFilterer) ParseValidatorDeactivated(log types.Log) (*RATValidatorDeactivated, error) {
 	event := new(RATValidatorDeactivated)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorDeactivated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RATValidatorReactivatedIterator is returned from FilterValidatorReactivated and is used to iterate over the raw logs and unpacked data for ValidatorReactivated events raised by the RAT contract.
+type RATValidatorReactivatedIterator struct {
+	Event *RATValidatorReactivated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RATValidatorReactivatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RATValidatorReactivated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RATValidatorReactivated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RATValidatorReactivatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RATValidatorReactivatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RATValidatorReactivated represents a ValidatorReactivated event raised by the RAT contract.
+type RATValidatorReactivated struct {
+	Validator    common.Address
+	SystemConfig common.Address
+	Layer2       common.Address
+	Collateral   *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterValidatorReactivated is a free log retrieval operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) FilterValidatorReactivated(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorReactivatedIterator, error) {
+
+	var validatorRule []interface{}
+	for _, validatorItem := range validator {
+		validatorRule = append(validatorRule, validatorItem)
+	}
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorReactivated", validatorRule, systemConfigRule, layer2Rule)
+	if err != nil {
+		return nil, err
+	}
+	return &RATValidatorReactivatedIterator{contract: _RAT.contract, event: "ValidatorReactivated", logs: logs, sub: sub}, nil
+}
+
+// WatchValidatorReactivated is a free log subscription operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) WatchValidatorReactivated(opts *bind.WatchOpts, sink chan<- *RATValidatorReactivated, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
+
+	var validatorRule []interface{}
+	for _, validatorItem := range validator {
+		validatorRule = append(validatorRule, validatorItem)
+	}
+	var systemConfigRule []interface{}
+	for _, systemConfigItem := range systemConfig {
+		systemConfigRule = append(systemConfigRule, systemConfigItem)
+	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
+
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorReactivated", validatorRule, systemConfigRule, layer2Rule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RATValidatorReactivated)
+				if err := _RAT.contract.UnpackLog(event, "ValidatorReactivated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseValidatorReactivated is a log parse operation binding the contract event 0x99b9d8dec460eecfed8de638ceef05e3aa56696d3166cea3029fce48847a9e1b.
+//
+// Solidity: event ValidatorReactivated(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 collateral)
+func (_RAT *RATFilterer) ParseValidatorReactivated(log types.Log) (*RATValidatorReactivated, error) {
+	event := new(RATValidatorReactivated)
+	if err := _RAT.contract.UnpackLog(event, "ValidatorReactivated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -2852,15 +3839,16 @@ func (it *RATValidatorRegisteredIterator) Close() error {
 type RATValidatorRegistered struct {
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	DepositAmount  *big.Int
 	RegistrationId *big.Int
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorRegistered is a free log retrieval operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// FilterValidatorRegistered is a free log retrieval operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
-func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address) (*RATValidatorRegisteredIterator, error) {
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
+func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (*RATValidatorRegisteredIterator, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2870,18 +3858,22 @@ func (_RAT *RATFilterer) FilterValidatorRegistered(opts *bind.FilterOpts, valida
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.FilterLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
 	return &RATValidatorRegisteredIterator{contract: _RAT.contract, event: "ValidatorRegistered", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorRegistered is a free log subscription operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// WatchValidatorRegistered is a free log subscription operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
-func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink chan<- *RATValidatorRegistered, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
+func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink chan<- *RATValidatorRegistered, validator []common.Address, systemConfig []common.Address, layer2 []common.Address) (event.Subscription, error) {
 
 	var validatorRule []interface{}
 	for _, validatorItem := range validator {
@@ -2891,8 +3883,12 @@ func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink cha
 	for _, systemConfigItem := range systemConfig {
 		systemConfigRule = append(systemConfigRule, systemConfigItem)
 	}
+	var layer2Rule []interface{}
+	for _, layer2Item := range layer2 {
+		layer2Rule = append(layer2Rule, layer2Item)
+	}
 
-	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule)
+	logs, sub, err := _RAT.contract.WatchLogs(opts, "ValidatorRegistered", validatorRule, systemConfigRule, layer2Rule)
 	if err != nil {
 		return nil, err
 	}
@@ -2924,9 +3920,9 @@ func (_RAT *RATFilterer) WatchValidatorRegistered(opts *bind.WatchOpts, sink cha
 	}), nil
 }
 
-// ParseValidatorRegistered is a log parse operation binding the contract event 0xc15d937eb6e674346338dc7e284a3337f4c01fe4c05be6f30e06f054fc5aecfe.
+// ParseValidatorRegistered is a log parse operation binding the contract event 0x317f78b7f1495be7f160c255693f09ccbd5367aa7acd721aa14eb14308da785c.
 //
-// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, uint256 depositAmount, uint256 registrationId)
+// Solidity: event ValidatorRegistered(address indexed validator, address indexed systemConfig, address indexed layer2, uint256 depositAmount, uint256 registrationId)
 func (_RAT *RATFilterer) ParseValidatorRegistered(log types.Log) (*RATValidatorRegistered, error) {
 	event := new(RATValidatorRegistered)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorRegistered", log); err != nil {
@@ -3161,14 +4157,15 @@ type RATValidatorSlashed struct {
 	TestId         [32]byte
 	Validator      common.Address
 	SystemConfig   common.Address
+	Layer2         common.Address
 	SlashedAmount  *big.Int
 	RemovedFromSet bool
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterValidatorSlashed is a free log retrieval operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// FilterValidatorSlashed is a free log retrieval operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) FilterValidatorSlashed(opts *bind.FilterOpts, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (*RATValidatorSlashedIterator, error) {
 
 	var testIdRule []interface{}
@@ -3191,9 +4188,9 @@ func (_RAT *RATFilterer) FilterValidatorSlashed(opts *bind.FilterOpts, testId []
 	return &RATValidatorSlashedIterator{contract: _RAT.contract, event: "ValidatorSlashed", logs: logs, sub: sub}, nil
 }
 
-// WatchValidatorSlashed is a free log subscription operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// WatchValidatorSlashed is a free log subscription operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) WatchValidatorSlashed(opts *bind.WatchOpts, sink chan<- *RATValidatorSlashed, testId [][32]byte, validator []common.Address, systemConfig []common.Address) (event.Subscription, error) {
 
 	var testIdRule []interface{}
@@ -3241,9 +4238,9 @@ func (_RAT *RATFilterer) WatchValidatorSlashed(opts *bind.WatchOpts, sink chan<-
 	}), nil
 }
 
-// ParseValidatorSlashed is a log parse operation binding the contract event 0xb0568c5aad28a0ca5cd06a651d52c0017dfc3af0941a4cb05a6bce87aef1bfe8.
+// ParseValidatorSlashed is a log parse operation binding the contract event 0x309a2ca0abe55907f1becd1cb4b5e81142d1db88840c88483d4ce8c2b420aad8.
 //
-// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, uint256 slashedAmount, bool removedFromSet)
+// Solidity: event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)
 func (_RAT *RATFilterer) ParseValidatorSlashed(log types.Log) (*RATValidatorSlashed, error) {
 	event := new(RATValidatorSlashed)
 	if err := _RAT.contract.UnpackLog(event, "ValidatorSlashed", log); err != nil {

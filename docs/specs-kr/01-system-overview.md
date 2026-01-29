@@ -10,7 +10,7 @@ TON Staking V3는 Tokamak Network의 스테이킹 및 시뇨리지 분배 시스
 |------|-----|-----|
 | **시뇨리지 분배 기준** | L2 TVL (단순 비례) | Bridged TON (성과 기반) |
 | **분배 함수** | 선형 분배 | 쌍곡선 포화 함수 `y(x) = L·(x/(k+x))` |
-| **자격 조건** | 최소 예치금만 | S_i ≥ θ·B_i (스테이킹 비율 조건) |
+| **자격 조건** | 최소 예치금만 | T_i ≥ max(θ·B_i, D_seq) |
 | **검증자 보상** | 없음 | α·y(x) / n (검증자 풀 분배) |
 | **DAO 할당** | 고정 비율 | 고정 비율 + 미분배분 |
 | **스테이커 시뇨리지** | 제공 | **미제공** (V3에서 폐지) |
@@ -37,11 +37,31 @@ TON Staking V3는 Tokamak Network의 스테이킹 및 시뇨리지 분배 시스
         │
         ├─► 쌍곡선 함수: y(x) = L · (x / (k + x))
         │   │
-        │   ├─► 시퀀서 보상: o_i = (1-α) · S_i
+        │   ├─► L2별 시뇨리지: S_i = y(x) · (B̃_i / x)
+        │   │   │
+        │   │   ├─► 시퀀서 보상: o_i = (1-α) · S_i
+        │   │   │
+        │   │   └─► 검증자 보상: v_j = (α · S_i) / |V_i|
         │   │
-        │   └─► 검증자 보상: v_j = (α · S_i) / |V_i|
+        │   └─► x = Σ B̃_i (전체 유효 Bridged TON)
         │
         └─► 미분배분: L - y(x) → DAO Treasury
+
+여기서:
+  A = 전체 시뇨리지 발행량
+  d = DAO 분배 비율
+  L = (1-d) · A = L2 분배 가능량
+  x = Σ B̃_i = 전체 유효 Bridged TON 합계
+  k = 반포화점 (halfSaturationPoint)
+  y(x) = 쌍곡선 포화 함수 결과 (실제 L2에 분배되는 총량)
+  S_i = L2 i에 분배되는 시뇨리지
+  B̃_i = L2 i의 유효 Bridged TON (자격 충족 시 B_i, 미충족 시 0)
+  α = 검증자 분배 비율
+  |V_i| = L2 i의 검증자 수
+
+※ 자격 충족 L2가 없는 경우 (x = 0):
+  - y(0) = 0 (L2 분배량 없음)
+  - 전체 시뇨리지 A가 DAO에게 지급 (S_DAO + L = A)
 ```
 
 ---
@@ -72,20 +92,26 @@ B̃_i = 1_i · B_i
 L2가 시뇨리지를 받으려면 최소 담보금 요건을 충족해야 합니다:
 
 ```
-S_i ≥ max(θ · B_i, H_max · C_max + Δ_sequencer)
+T_i ≥ max(θ · B_i, D_sequencer)
 
 여기서:
-S_i = L2의 시퀀서 담보금 (SequencerVault)
+T_i = L2 시퀀서의 스테이킹 금액 (SeigManager.getSequencerStaked(layer2))
 θ · B_i = 시뇨리지 자격 조건 (백서 Rule 4)
-H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 Formula 1)
+D_sequencer = H_max · C_max + Δ_sequencer = Fraud Proof 비용 커버 (백서 Formula 1)
 
 파라미터:
 θ = 최소 스테이킹 비율 (예: 10%)
 B_i = L2의 Bridged TON
-H_max = 최대 동시 챌린저 수
-C_max = 단일 Fraud Proof 최대 비용
-Δ_sequencer = 시퀀서 추가 보상
+H_max = maxChallengers (최대 동시 챌린저 수)
+C_max = maxFraudProofCost (단일 Fraud Proof 최대 비용)
+Δ_sequencer = sequencerAdditionalReward (시퀀서 추가 보상)
+
+계산 예시:
+H_max = 3, C_max = 50e27 WTON, Δ_sequencer = 100e27 WTON
+→ D_sequencer = 3 × 50e27 + 100e27 = 250e27 WTON
 ```
+
+> **V3 변경사항**: 시퀀서 담보금은 별도 Vault가 아닌 기존 TON 스테이킹 시스템(coinage)을 사용합니다.
 
 ### 3.4 쌍곡선 포화 함수
 
@@ -100,12 +126,25 @@ x = Σ B̃_i (전체 유효 Bridged TON)
 k = 반포화점 (halfSaturationPoint)
 ```
 
+#### 수학적 속성
+
+| x 값 | y(x) 값 | 의미 |
+|------|---------|------|
+| x = 0 | y(0) = 0 | 자격 L2 없으면 분배 없음 |
+| x = k | y(k) = L/2 | 반포화점에서 정확히 절반 |
+| x → ∞ | y(∞) → L | x가 커질수록 L에 근접 (포화) |
+
+**특성**:
+- **단조 증가**: x₁ < x₂ ⇒ y(x₁) < y(x₂)
+- **상한**: 항상 0 ≤ y(x) ≤ L
+- **수확체감**: dy/dx = L·k/(k+x)² → x 증가 시 기울기 감소
+
 ### 3.5 RAT (Randomized Attention Test)
 
 검증자가 네트워크를 실제로 모니터링하고 있는지 확인하는 무작위 테스트입니다.
 
 - **트리거 시점**: DisputeGame 생성 시 확률적으로 발생 (π_a)
-- **응답 기간**: `evidenceSubmissionPeriod` (기본값: 1시간)
+- **응답 기간**: `evidenceSubmissionPeriod`
 - **미응답 시**: C_off 슬래싱 (담보금 일부 몰수)
 
 ---
@@ -120,9 +159,8 @@ k = 반포화점 (halfSaturationPoint)
 | **DepositManager** | TON/WTON 스테이킹 관리 |
 | **Layer2Manager** | L2 등록 및 관리 |
 | **L1BridgeRegistry** | 브릿지/포탈 등록 및 TVL 조회 |
-| **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
+| **RAT** | 검증자 등록, RAT 테스트, C_off 페널티 |
 | **ValidatorReward** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리 |
 
 ### 4.2 토큰
 
@@ -163,7 +201,7 @@ k = 반포화점 (halfSaturationPoint)
       │
       ├─ L2 분배 가능량: L = (1-d) · A
       │
-      ├─ 각 L2의 자격 확인 (S_i ≥ θ · B_i)
+      ├─ 각 L2의 자격 확인 (T_i ≥ max(θ·B_i, D_sequencer))
       │
       ├─ 유효 Bridged TON 합계: x = Σ B̃_i
       │
@@ -187,13 +225,26 @@ k = 반포화점 (halfSaturationPoint)
    │
 4. 검증자 랜덤 선택
    │
-5. C_off 선차감 (D_min 미만 시 검증자 제거)
+5. C_off 선차감: 검증자 coinage에서 C_off를 RAT 컨트랙트로 전송 (스테이킹 금액 감소)
+   │   └─ D_min 미만 시 검증자 제거
    │
 6. 검증자 응답 대기 (evidenceSubmissionPeriod)
    │
-   ├─ 증거 제출: C_off 복구 (D_min 체크여 검증자 상태 갱신)
+   ├─ 증거 제출 시 (Evidence Period 내):
+   │   ├─ submitEvidence() 호출
+   │   ├─ RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+   │   └─ 담보금 임계값 체크 후 자동 재활성화 시도
    │
-   └─ 미응답: C_off 몰수
+   ├─ 증거 제출 기간 초과 시 (Challenge Period):
+   │   ├─ 챌린저가 DisputeGame에서 챌린지 가능
+   │   └─ 챌린지 성공 시:
+   │       ├─ FaultDisputeGame.resolveClaim() 호출
+   │       ├─ RAT.resolveClaim(claimant) 호출
+   │       ├─ RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
+   │       └─ 담보금 임계값 체크 후 자동 재활성화 시도
+   │
+   └─ 미응답 + 챌린지 기간 종료 시:
+       └─ RAT 컨트랙트의 C_off 영구 몰수
 ```
 
 ### 5.3 시퀀서 슬래싱 흐름
@@ -207,7 +258,7 @@ k = 반포화점 (halfSaturationPoint)
    │
 4. slashSequencerByGame() 호출 (Permissionless)
    │
-5. 시퀀서 담보금 슬래싱
+5. 시퀀서 담보금 슬래싱 (전체 스테이킹 금액 몰수 → 시뇨리지 수령 불가)
    │
    ├─ 챌린저 보상: C_max + Δ/n
    │
@@ -235,19 +286,49 @@ k = 반포화점 (halfSaturationPoint)
 >
 > **\* 게임 이론 기반 결정**: π_a, C_off, c_m(모니터링 비용), N(검증자 수)은 백서 공식 `C_off ≥ (c_m · N) / π_a`를 만족하도록 함께 결정되어야 합니다.
 >
-> **백서 작성자(Bernard) 확인사항**:
 > - N = L2별 검증자 수 (|V_i|), 시스템 전체가 아님
-> - 공식은 **이론적 근거**이며, 실시간 동적 업데이트 규칙이 아님
-> - `Δ_validator`에 충분한 마진을 설정 + **실질적인 N_max 고려 필요**
-> - 검증자는 `ValidatorRegistered` 이벤트를 모니터링하여 자격 상태 확인
-> - 담보금 부족 시: 유예 기간 제공 또는 소급 적용 안함
->
-> **구현 결정사항** (버나드 지침 외):
-> - N_max 기본값: 정해야함 (시뇨리지 분배 시 가스 한도 고려, 각 검증자당 ~25K gas)
+> - N_max 기본값: 정해야 함
 
 ---
 
-## 7. 관련 문서
+## 7. 시스템 불변 속성 (Invariants)
+
+시스템이 항상 유지해야 하는 속성들입니다.
+
+### 7.1 INV-001: 시뇨리지 총량 보존
+
+**V3 모드**:
+```
+DAO 고정 분배 + DAO 미분배분 + 시퀀서 보상 + 검증자 보상 = 총 시뇨리지
+
+d·A + (L - y(x)) + Σ(시퀀서_i) + Σ(검증자_j) = A
+```
+
+**검증**:
+- 총 발행량 = `seigPerBlock × blockSpan`
+- 모든 분배의 합 = 총 발행량
+- 손실 또는 초과 발행 없음
+
+### 7.2 INV-002: effectiveBridgedTON 일관성
+
+```
+∀ L2_i: eligible_i = true ⇔ effectiveBridgedTON_i = bridgedTON_i
+∀ L2_i: eligible_i = false ⇔ effectiveBridgedTON_i = 0
+```
+
+자격 상태와 유효 Bridged TON이 항상 일치해야 합니다.
+
+### 7.3 INV-003: 보상 청구 가능 금액
+
+```
+0 ≤ claimableRewards ≤ totalDistributed
+```
+
+청구 가능한 보상은 음수가 될 수 없으며, 분배된 총량을 초과할 수 없습니다.
+
+---
+
+## 8. 관련 문서
 
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처
 - [03-contract-structure.md](./03-contract-structure.md): 컨트랙트 구조

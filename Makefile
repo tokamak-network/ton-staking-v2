@@ -91,6 +91,15 @@ devnet-status:
 devnet-verify:
 	@bash scripts/verify-optimism-deployment.sh
 
+# Verify complete genesis setup (TON Staking V3 + Optimism)
+verify-genesis-setup:
+	@echo "=== Verifying Genesis Setup ==="
+	@if [ ! -f .devnet/genesis-l1-staking-v3.json ]; then \
+		echo "Error: Genesis file not found. Run 'make devnet-allocs-offline' first."; \
+		exit 1; \
+	fi
+	@bash scripts/verify-genesis-setup.sh
+
 # ==========================================
 # Persistent Devnet Commands (Kurtosis)
 # ==========================================

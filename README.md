@@ -1,264 +1,252 @@
 # TON Staking V3
 
-V3 staking smart contracts for Tokamak Network. Implemented based on Tokamak Economics Whitepaper V2 (December 2025).
+> V3 staking smart contracts for Tokamak Network
 
-## System Overview
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Solidity](https://img.shields.io/badge/Solidity-^0.8.4-blue)](https://soliditylang.org/)
 
-TON Staking V3 operates on Ethereum L1 and interacts with multiple L2 rollups (Titan, Thanos, etc.) to provide network security and economic incentives.
+**Based on:** [Tokamak Economics Whitepaper V3](https://github.com/tokamak-network/papers) (December 2025)
 
-### Core Objectives
+---
 
-- **L2 Network Security**: Incentivize L2 operators (sequencers) to act honestly through seigniorage rewards
-- **Validator Participation**: Motivate validators to continuously monitor the network via RAT (Randomized Attention Test)
-- **Fair Reward Distribution**: Distribute rewards based on actual network contribution using Bridged TON
-- **DAO Governance**: Manage system parameter adjustments and upgrades through DAO
-
-## V3 Key Changes
-
-| Category | V2 | V3 |
-|----------|-----|-----|
-| **Seigniorage Distribution Basis** | L2 TVL (simple proportion) | Bridged TON (performance-based) |
-| **Distribution Function** | Linear | Hyperbolic saturation `y(x) = L·(x/(k+x))` |
-| **Eligibility Condition** | Minimum deposit only | S_i ≥ θ·B_i (staking ratio requirement) |
-| **Validator Rewards** | None | α·y(x) / n (validator pool distribution) |
-| **DAO Allocation** | Fixed ratio | Fixed ratio + undistributed portion |
-| **Staker Seigniorage** | Provided | **Not provided** (deprecated in V3) |
-
-## Core Contracts
-
-| Contract | Role |
-|----------|------|
-| **SeigManagerV1_4** | Seigniorage calculation and distribution (V3 core) |
-| **DepositManagerV1_2** | TON/WTON staking management |
-| **Layer2ManagerV1_2** | L2 registration and Bridged TON queries |
-| **L1BridgeRegistryV1_2** | Bridge/portal registration, TVL queries |
-| **RAT** | Validator registration, RAT tests, slashing |
-| **ValidatorRewardV1** | Validator reward distribution |
-| **SequencerVault** | Sequencer collateral management, slashing |
-
-## V3 Core Parameters
-
-| Parameter | Symbol | Description |
-|-----------|--------|-------------|
-| `daoDistributionRatio` | d | DAO distribution ratio |
-| `minStakingRatio` | θ | Minimum staking ratio |
-| `validatorDistributionRatio` | α | Validator distribution ratio |
-| `halfSaturationPoint` | k | Half-saturation point |
-| `ratTriggerProbability` | π_a | RAT trigger probability |
-| `slashingPenalty` | C_off | Validator slashing penalty |
-| `evidenceSubmissionPeriod` | - | Evidence submission period |
-
-> **RAY Units**: All ratio parameters are expressed in RAY (10^27) units.
-
-## Installation
-
-### Requirements
-
-- [Foundry](https://book.getfoundry.sh/getting-started/installation)
-
-### Clone and Build
+## 🚀 Quick Start
 
 ```bash
 # Clone with submodules
 git clone --recursive https://github.com/tokamak-network/ton-staking-v2.git
 cd ton-staking-v2
 
+# Install dependencies
+forge install
+
 # Build
 forge build
+
+# Run tests
+forge test
+
+# Run E2E tests
+make devnet-allocs-offline  # First time only
+make test-e2e
 ```
 
-### If Already Cloned (Initialize Submodules)
+---
 
+## 📖 What is TON Staking V3?
+
+TON Staking V3 is Tokamak Network's seigniorage distribution system on Ethereum L1, designed to **strengthen L2 network security** by focusing rewards on participants who actively operate and validate the network.
+
+**Key participants:**
+- 🔒 **L2 Sequencers** - Receive rewards based on actual network contribution (Bridged TON)
+- ✅ **Validators** - Monitor L2 networks and respond to RAT (Randomized Attention Test)
+- 🏛️ **DAO** - Governs system parameters and receives undistributed seigniorage
+
+Unlike V2 where general stakers received seigniorage, **V3 concentrates rewards on L2 ecosystem participants** to incentivize network security and growth.
+
+---
+
+## 🆚 V2 → V3 Key Changes
+
+| Feature | V2 | V3 |
+|---------|-----|-----|
+| **Distribution Basis** | L2 TVL | Bridged TON (performance) |
+| **Distribution Function** | Linear | Hyperbolic: `y(x) = L·(x/(k+x))` |
+| **Eligibility** | Minimum deposit | Staking ratio: `S_i ≥ θ·B_i` |
+| **Validator Rewards** | None | `α·y(x) / n` |
+| **Staker Seigniorage** | ✅ Provided | ❌ Deprecated |
+
+**For detailed changes:** [V2 to V3 Upgrade Guide](./docs/specs-kr/08-v2-to-v3-upgrade-guide.md)
+
+---
+
+## 🏗️ System Architecture
+
+```
+Ethereum L1
+├── SeigManager V3 ─────► Seigniorage distribution (hyperbolic)
+├── DepositManager ─────► TON/WTON staking
+├── Layer2Manager ──────► L2 registration & Bridged TON queries
+├── L1BridgeRegistry ───► Bridge/Portal TVL tracking
+├── RAT ────────────────► Validator attention tests & slashing
+└── ValidatorReward ────► Validator reward pool
+
+Optimism L2 (Titan, Thanos, etc.)
+└── DisputeGameFactory ─► RAT triggers on dispute game creation
+```
+
+**Detailed docs:** [System Architecture](./docs/specs-kr/02-system-architecture.md)
+
+---
+
+## 📦 Core Contracts
+
+| Contract | Version | Role |
+|----------|---------|------|
+| **SeigManagerV3_1** | V1_4 | V3 seigniorage distribution |
+| **DepositManagerV3** | V1_2 | Staking management |
+| **Layer2ManagerV3** | V1_2 | L2 registration |
+| **L1BridgeRegistryV1_2** | V1_2 | Bridge TVL queries |
+| **RAT** | V1 | Validator attention tests |
+| **ValidatorRewardV1** | V1 | Validator rewards |
+
+**Full contract details:** [Contract Structure](./docs/specs-kr/03-contract-structure.md)
+
+---
+
+## 🧪 Testing
+
+### Quick Test Commands
 ```bash
-git submodule update --init --recursive
-forge build
-```
-
-### Update Submodules
-
-```bash
-# Update optimism library to latest
-git submodule update --remote lib/optimism
-```
-
-### lib/optimism Submodule Caution
-
-When changing commits in the `lib/optimism` submodule, you **must explicitly specify GIT_DIR**. Otherwise, the parent repository (ton-staking-v2) HEAD may be changed.
-
-**Safe submodule commit change method:**
-
-```bash
-# Use explicit GIT_DIR (recommended)
-GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git fetch origin feature/ton-staking-v3
-GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commit-hash>
-```
-
-**Current lib/optimism settings:**
-- Repository: `tokamak-network/optimism`
-- Branch: `feature/ton-staking-v3`
-- Commit: `72ed4cc6cb` (docs: clarify RandomValue usage - selects L2 block, not trie index)
-
-## Project Structure
-
-```
-src/
-├── stake/                              # Staking system
-│   ├── managers/
-│   │   ├── SeigManager.sol                    # Seigniorage (base)
-│   │   ├── SeigManagerV1_2.sol                # Multi-impl index 0
-│   │   ├── SeigManagerV1_3.sol                # Multi-impl index 1 (pause)
-│   │   ├── SeigManagerV1_4.sol                # Multi-impl index 2 (V3 core)
-│   │   ├── DepositManager.sol                 # Staking (base)
-│   │   ├── DepositManagerV1_1.sol             # L2 deposit
-│   │   └── DepositManagerV1_2.sol             # V3 callback
-│   ├── tokens/
-│   │   ├── RefactorCoinageSnapshot.sol        # Coinage logic
-│   │   └── AutoRefactorCoinage.sol            # Auto-refactor coinage
-│   ├── factory/
-│   │   └── CoinageFactory.sol                 # Coinage factory
-│   ├── Layer2Registry.sol                     # L2 registration
-│   └── interfaces/
-│
-├── layer2/                             # L2 management
-│   ├── Layer2ManagerV1_1.sol                  # L2 manager (base)
-│   ├── Layer2ManagerV1_2.sol                  # V3 Bridged TON
-│   ├── L1BridgeRegistryV1_1.sol               # Bridge registry (base)
-│   ├── L1BridgeRegistryV1_2.sol               # V3 DisputeGame support
-│   ├── OperatorManagerV1_1.sol                # Operator manager
-│   ├── OperatorManagerV1_2.sol                # V3 operator
-│   ├── factory/
-│   │   └── OperatorManagerFactory.sol         # Operator factory
-│   └── interfaces/
-│
-├── validator/                          # Validator system (V3 new)
-│   ├── RAT.sol                                # Randomized Attention Test
-│   ├── RATProxy.sol
-│   ├── ValidatorRewardV1.sol                  # Validator rewards
-│   ├── ValidatorRewardProxy.sol
-│   └── interfaces/
-│
-├── dao/                                # DAO governance
-│   ├── DAOCommittee_V1.sol                    # DAO committee logic
-│   ├── DAOCommitteeOwner.sol                  # Owner functions
-│   ├── Candidate.sol                          # DAO candidate
-│   ├── CandidateAddOnV1_1.sol                 # Candidate add-on
-│   ├── factory/
-│   │   ├── CandidateFactory.sol               # Candidate factory
-│   │   └── CandidateAddOnFactory.sol          # Add-on factory
-│   └── interfaces/
-│
-├── proxy/                              # Proxy contracts
-│   ├── ProxyStorage.sol                       # Base proxy storage
-│   ├── DAOCommitteeProxy2.sol                 # DAO multi-impl router
-│   └── Proxy.sol
-│
-├── common/                             # Common utilities
-│   ├── AccessibleCommon.sol
-│   ├── AuthControlSeigManager.sol
-│   ├── AuthControlLayer2Manager.sol
-│   └── AuthControlL1BridgeRegistry.sol
-│
-└── accessControl/                      # Access control
-    └── AccessControl.sol
-
-lib/
-├── optimism/               # tokamak-network/optimism (branch: feature/ton-staking-v3)
-├── tokamak-dao-contracts/  # tokamak-network/tokamak-dao-contracts (DAO governance)
-├── openzeppelin-contracts/
-└── forge-std/
-```
-
-## Testing
-
-```bash
-# Run all tests
+# All tests
 forge test
 
 # V3 tests only
 forge test --match-path "test/v3/*"
 
-# Specific test
-forge test --match-test testUpdateSeigniorageV3
+# Specific contract
+forge test --match-contract RATTest
+
+# E2E tests (Go)
+make test-e2e
 ```
 
-## External Libraries
+### Test Documentation
+- **[Testing Guide](./docs/test/README.md)** - Complete testing overview
+- **[Quick Commands](./docs/test/QUICK-COMMANDS.md)** - All test commands reference
+- **[E2E Tests](./op-e2e/README.md)** - Go-based end-to-end tests
+
+**Test Coverage:** 175+ unit/integration tests + 7 E2E tests
+
+---
+
+## 📚 Documentation
+
+### 🌐 Developer Guide (Recommended)
+**Complete interactive documentation with search:**
+- **English:** https://tokamak-network.github.io/ton-staking-v2/
+- **한국어:** https://tokamak-network.github.io/ton-staking-v2/ko/
+
+Includes system architecture, contract structure, actor guides, function specs, and V2→V3 upgrade guide.
+
+### 🧪 Test Documentation
+- [Testing Guide](./docs/test/README.md) - Quick start & overview
+- [Quick Commands](./docs/test/QUICK-COMMANDS.md) - Command reference
+- [E2E Tests](./op-e2e/README.md) - Go E2E test guide
+- [Genesis Setup](./op-e2e/GENESIS-SETUP.md) - E2E environment setup
+
+---
+
+## 📂 Project Structure
+
+```
+src/
+├── stake/              # Core staking logic
+│   └── managers/       # SeigManager, DepositManager
+├── layer2/             # L2 management
+│   ├── managers/       # Layer2Manager, L1BridgeRegistry
+│   └── factory/        # OperatorManagerFactory
+├── validator/          # Validator system
+│   ├── RAT.sol         # Randomized Attention Test
+│   └── ValidatorRewardV1.sol
+└── dao/                # DAO governance
+
+test/
+├── v3/                 # V3 unit tests
+│   ├── v3mode/         # V3 mode tests
+│   ├── scenarios/      # Integration scenarios
+│   └── invariants/     # Invariant tests
+└── v2mode/             # V2 compatibility tests
+
+op-e2e/                 # Go E2E tests
+├── faultproofs/        # RAT scenario tests
+└── e2eutils/           # Test utilities
+```
+
+---
+
+## 🔧 Development
+
+### Requirements
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- [Go 1.22+](https://go.dev/dl/) (for E2E tests)
+- [Node.js](https://nodejs.org/) (optional, for documentation)
+
+### Build
+```bash
+forge build
+```
+
+### Test
+```bash
+# Solidity tests
+forge test
+
+# E2E tests
+make devnet-allocs-offline  # Generate genesis (once)
+make test-e2e
+```
+
+### Clean
+```bash
+forge clean
+```
+
+---
+
+## 🔗 External Libraries
 
 | Library | Purpose |
 |---------|---------|
-| `@optimism/` | Optimism L1/L2 interfaces (SystemConfig, L1StandardBridge, OptimismPortal, etc.) |
-| `@openzeppelin/contracts/` | ERC20, SafeERC20, Math, etc. |
-| `@tokamak-dao/` | DAO governance contracts (DAOCommitteeProxy, DAOAgendaManager, etc.) |
+| [@optimism](https://github.com/ethereum-optimism/optimism) | L1/L2 interfaces (SystemConfig, Portal, Bridge) |
+| [@openzeppelin](https://github.com/OpenZeppelin/openzeppelin-contracts) | Standard contracts (ERC20, Access Control, Math) |
+| [@tokamak-dao](https://github.com/tokamak-network/tokamak-dao-contracts) | DAO governance contracts |
 
-### Optimism Interface Usage Example
-
-```solidity
-import { ISystemConfig } from "@optimism/interfaces/L1/ISystemConfig.sol";
-import { IL1StandardBridge } from "@optimism/interfaces/L1/IL1StandardBridge.sol";
-import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
-```
-
-## Tokens
-
-| Token | Role |
-|-------|------|
-| **TON** | Native token (18 decimals) |
-| **WTON** | Wrapped TON (27 decimals, 1 TON = 1e9 WTON) |
-| **Coinage** | Staking receipt token (created per L2) |
-
-## External Systems
-
-| System | Role |
-|--------|------|
-| **Optimism L2** | L2 rollups (Titan, Thanos, etc.) |
-| **DisputeGameFactory** | Dispute Game creation (RAT trigger) |
-| **OptimismPortal** | L1↔L2 bridge |
-| **DAO** | Governance (DAOCommittee) |
-
-## RAT Clients
-
-TON Staking V3 includes RAT (Randomized Attention Test) clients for monitoring validators. Each rollup type requires its own client implementation.
-
-### Available Clients
-
-| Client | Rollup Type | Status |
-|--------|-------------|--------|
-| [rat-client-type3](./clients/rat-client-type3/) | Type 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME | ✅ Implemented |
-| rat-client-type4 | Type 4: TBD | 📋 Planned |
-| rat-client-type5 | Type 5: TBD | 📋 Planned |
-
-### Quick Start
-
+### Submodules
 ```bash
-# Build RAT client
-make rat-client-build
+# Update optimism library
+git submodule update --remote lib/optimism
 
-# Configure (copy example and edit)
-cd clients/rat-client-type3
-cp config.example.yaml config.yaml
-# Edit config.yaml with your settings
-
-# Run
-make rat-client-run
+# Update all submodules
+git submodule update --init --recursive
 ```
 
-### Documentation
+---
 
-- [RAT Clients Overview](./clients/README.md)
-- [RAT Client Type 3 Documentation](./clients/rat-client-type3/README.md)
-- [RAT Implementation Plan](./docs/rat-client-implementation-plan.md)
+## 🤝 Contributing
 
-## Documentation
+We welcome contributions! Please see:
+- [Contributing Guidelines](./CONTRIBUTING.md) (if available)
+- [Code of Conduct](./CODE_OF_CONDUCT.md) (if available)
 
-| Document | Description |
-|----------|-------------|
-| [specs-kr/](./docs/specs-kr/) | V3 system specification (Korean) |
-| [specs-kr/01-system-overview.md](./docs/specs-kr/01-system-overview.md) | System introduction, V3 changes, core concepts |
-| [specs-kr/02-system-architecture.md](./docs/specs-kr/02-system-architecture.md) | Overall architecture, contract dependencies, proxy patterns |
-| [specs-kr/03-contract-structure.md](./docs/specs-kr/03-contract-structure.md) | Directory structure, contract details, storage structure |
-| [specs-kr/04-contract-roles.md](./docs/specs-kr/04-contract-roles.md) | Contract roles, responsibilities, interactions |
-| [specs-kr/05-actors.md](./docs/specs-kr/05-actors.md) | Actor definitions (staker, sequencer, validator, challenger, DAO) |
-| [specs-kr/06-function-specs.md](./docs/specs-kr/06-function-specs.md) | Function specifications, parameters, operation flows |
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `forge test && make test-e2e`
+5. Submit a pull request
 
-## License
+---
 
-MIT
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/tokamak-network/ton-staking-v2/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/tokamak-network/ton-staking-v2/discussions)
+- **Documentation:** [docs/specs-kr/](./docs/specs-kr/)
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](./LICENSE) for details
+
+---
+
+## 🔗 Related Projects
+
+- [Tokamak Network](https://tokamak.network/)
+- [Optimism](https://optimism.io/)
+- [Tokamak DAO Contracts](https://github.com/tokamak-network/tokamak-dao-contracts)
+
+---
+
+**Built with ❤️ by [Tokamak Network](https://tokamak.network/)**

@@ -39,18 +39,33 @@
 ## 2. TON의 유틸리티
 
 ### 2.1 L2 보안 (3단계 구조)
-- **Tier 1**: 공개 챌린지(사기 증명) 메커니즘
-- **Tier 2**: 전담 검증자의 명시적 검증
-- **Tier 3**: RAT를 통한 확률적 감사
 
-**시퀀서 담보금 공식:**
+| Tier | 이름 | 설명 |
+|------|------|------|
+| **Tier 1** | Public Challenge (Fraud Proof) | 누구나 fraud proof 제출 가능. 시퀀서의 잘못된 상태 전이를 분쟁 |
+| **Tier 2** | Dedicated Validators | 전담 검증자가 시퀀서 상태 전이를 감시하고 분쟁 제기 |
+| **Tier 3** | RAT (Randomized Attention Test) | 검증자를 랜덤 선택하여 L2 배치 검증 및 증명 제출 요구 |
+
+> - Tier 1+2: 시퀀서에 대한 경제적 보안 메커니즘
+> - Tier 3: 검증자에 대한 보안 모델 (검증자가 실제로 모니터링하는지 확인)
+
+**시퀀서 담보금 조건:**
 ```
-D_sequencer = H_max × C_max + Δ_sequencer
+T_i ≥ max(H_max × C_max + Δ_sequencer, θ × B_i)
+
+여기서:
+- T_i = 시퀀서 스테이킹 금액
+- H_max × C_max + Δ_sequencer = Fraud Proof 슬래싱 시 챌린저 보상 커버
+- θ × B_i = 시뇨리지 자격 (TVL 비례)
 ```
 
 **검증자 담보금 공식:**
 ```
 D_validator = C_off + Δ_validator
+
+여기서:
+- C_off = RAT 미응답 시 슬래싱 페널티
+- Δ_validator = 추가 버퍼
 ```
 
 ### 2.2 L2 가스
@@ -77,7 +92,7 @@ D_validator = C_off + Δ_validator
 | **Rule 1** | 연간 시뇨리지 발행량 A는 고정 |
 | **Rule 2** | DAO에 고정 비율 할당: `S_DAO = d × A` |
 | **Rule 3** | L2 성과는 **Bridged TON** 양으로 측정 |
-| **Rule 4** | 최소 스테이킹 요건: `T_i ≥ θ × B_i` |
+| **Rule 4** | 최소 스테이킹 요건: `T_i ≥ max(H_max × C_max + Δ_sequencer, θ × B_i)` |
 
 ### 3.3 시뇨리지 분배 공식
 

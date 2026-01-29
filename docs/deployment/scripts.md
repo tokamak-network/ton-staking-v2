@@ -44,20 +44,19 @@
 | 파라미터 | 값 | 설명 |
 |----------|-----|------|
 | `ratTriggerProbability` | 0.01e27 | 1% (RAY 단위) |
-| `slashingPenalty` | 100e27 | 100 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
-| `validatorBuffer` | 100e27 | 100 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
-| `minimumThreshold` | 1000e27 | 1000 TON (RAY 단위 입력, 내부적으로 e18로 변환) |
+| `slashingPenalty` | 100e18 | 100 TON (C_off) |
+| `validatorBuffer` | 100e18 | 100 TON (Δ_validator) |
+| `minimumThreshold` | 200e18 | 200 TON (D_min = C_off + Δ_validator) |
 | `evidenceSubmissionPeriod` | 3600 | 1시간 (초) |
+| `relaxedValidatorCheck` | true | 검증자 유효성 검사 완화 (초기값) |
 
-> **주의**: 배포 스크립트(DeployV3Full.s.sol)는 RAY 단위(e27)를 사용합니다. RAT 컨트랙트가 내부적으로 WEI 단위(e18)로 변환하므로 입력값은 e27로 제공해야 합니다.
-
-#### SequencerVault 파라미터
+#### SeigManager 시퀀서 파라미터 (V3)
 
 | 파라미터 | 값 | 설명 |
 |----------|-----|------|
-| `minimumStakingRatio` | 0.1e27 | θ = 10% (RAY 단위) |
-| `maxFraudProofCost` | 1000e18 | C_max = 1000 TON (18 decimals) |
-| `sequencerAdditionalReward` | 100e18 | Δ_sequencer = 100 TON (18 decimals) |
+| `minStakingRatio` | 0.1e27 | θ = 10% (RAY 단위) |
+| `maxFraudProofCost` | 1000e27 | C_max = 1000 TON (WTON, 27 decimals) |
+| `sequencerAdditionalReward` | 100e27 | Δ_sequencer = 100 TON (WTON, 27 decimals) |
 | `maxChallengers` | 10 | H_max = 최대 챌린저 수 |
 
 ### RAY 단위
@@ -115,8 +114,7 @@ cat deployments/v3-full.json
   "l1BridgeRegistryProxy": "0x...",
   "operatorManagerFactory": "0x...",
   "ratProxy": "0x...",
-  "validatorRewardProxy": "0x...",
-  "sequencerVaultProxy": "0x..."
+  "validatorRewardProxy": "0x..."
 }
 ```
 
@@ -136,12 +134,16 @@ cast call $SEIG_MANAGER_PROXY "wton()(address)"
 cast call $SEIG_MANAGER_PROXY "layer2Manager()(address)"
 cast call $SEIG_MANAGER_PROXY "validatorReward()(address)"
 
-# 3. Layer2Manager 설정 확인
-cast call $LAYER2_MANAGER_PROXY "sequencerVault()(address)"
+# 3. SeigManager V3 파라미터 확인
+cast call $SEIG_MANAGER_PROXY "minStakingRatio()(uint256)"
+cast call $SEIG_MANAGER_PROXY "maxFraudProofCost()(uint256)"
+cast call $SEIG_MANAGER_PROXY "sequencerAdditionalReward()(uint256)"
 
 # 4. RAT 설정 확인
 cast call $RAT_PROXY "seigManager()(address)"
 cast call $RAT_PROXY "ratTriggerProbability()(uint256)"
+cast call $RAT_PROXY "relaxedValidatorCheck()(bool)"
+cast call $RAT_PROXY "slashingPenalty()(uint256)"
 ```
 
 ### 통합 테스트
@@ -210,7 +212,7 @@ cast run $TX_HASH --rpc-url $RPC_URL
 | SeigManagerV1_3 | `0xce18C6F84F10881eA47A43AF7311A29bb116F628` | Index 1 (pause/unpause) |
 | DepositManagerV1_1 | `0x74bC3031b9369e6b898e82784106257D4D37Eac5` | 예치 관리 |
 | Layer2ManagerV1_1 | `0x2EB7f500125f11544392B83B87cDEb9456f3509f` | Layer2 관리 |
-| L1BridgeRegistryV1_1 | `0x259Ac335EB42d345A61bE48104eC0Ec20b283F14` | 브릿지 등록 |
+| L1BridgeRegistryV1_1 | `0x259Ac335EB42d345A61bE48104eC0Ec20b283F14` | 브릿지 등록 (V3: V1_2로 대체) |
 | OperatorManagerV1_1 | `0xB5F3b31dFB4DCe9a2FA12dE50A97250d60823750` | 오퍼레이터 관리 로직 |
 
 ### 팩토리 컨트랙트

@@ -470,7 +470,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   /**
    * @dev Callback for a token transfer
    */
-  function onTransfer(address sender, address recipient, uint256 amount) external returns (bool) {
+  function onTransfer(address /* sender */, address /* recipient */, uint256 /* amount */) external returns (bool) {
     require(msg.sender == address(_ton) || msg.sender == address(_wton),
       "SeigManager: only TON or WTON can call onTransfer");
 
@@ -670,7 +670,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
 
   // return ⍺, where ⍺ = (tot.balanceOf(layer2) - coinages[layer2].totalSupply()) * (amount / coinages[layer2].totalSupply())
-  function _additionalTotBurnAmount(address layer2, address account, uint256 amount)
+  function _additionalTotBurnAmount(address layer2, address /* account */, uint256 amount)
     internal
     view
     returns (uint256 totAmount)
@@ -749,7 +749,7 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
           (address rollupConfig, bool allowed) = _allowIssuanceLayer2Seigs(msg.sender);
           if (allowed && !_isPauseL2Seigniorage(msg.sender)) {
-              uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2TVL(rollupConfig);
+              uint256 curLayer2Tvl = IL1BridgeRegistry(l1BridgeRegistry).layer2Tvl(rollupConfig);
               Layer2Reward storage newLayer2Info = layer2RewardInfo[msg.sender];
               Layer2Reward memory oldLayer2Info = layer2RewardInfo[msg.sender];
 
@@ -892,50 +892,44 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
   //////////////////////////////
   // SeigManagerV1_3
   //////////////////////////////
-  function updateSeigniorage() external returns (bool) {
+  function updateSeigniorage() external pure returns (bool) {
     revert("SeigManagerV1_3");
-    return false;
   }
 
-  function updateSeigniorageLayer(address layer2) external returns (bool){
+  function updateSeigniorageLayer(address /* layer2 */) external pure returns (bool){
     revert("SeigManagerV1_3");
-    return false;
   }
 
   function estimatedDistribute(
-      uint256 blockNumber,
-      address layer2
+      uint256 /* blockNumber */,
+      address /* layer2 */
   )
       external
-      view
+      pure
       returns (
-          uint256 maxSeig,
-          uint256 stakedSeig,
-          uint256 unstakedSeig,
-          uint256 powertonSeig,
-          uint256 daoSeig,
-          uint256 relativeSeig,
-          uint256 l2TotalSeigs,
-          uint256 layer2Seigs
+          uint256,
+          uint256,
+          uint256,
+          uint256,
+          uint256,
+          uint256,
+          uint256,
+          uint256
       )
   {
       revert("SeigManagerV1_3");
-      return (0,0,0,0,0,0,0,0);
   }
 
-  function claimableL2Seigniorage(address layer2) external view returns (uint256 amount) {
+  function claimableL2Seigniorage(address /* layer2 */) external pure returns (uint256) {
     revert("SeigManagerV1_3");
-    return 0;
   }
 
-  function excludeFromL2Seigniorage(address layer2) external returns (bool) {
+  function excludeFromL2Seigniorage(address /* layer2 */) external pure returns (bool) {
     revert("SeigManagerV1_3");
-    return false;
   }
 
-  function includeFromL2Seigniorage(address layer2) external returns (bool) {
+  function includeFromL2Seigniorage(address /* layer2 */) external pure returns (bool) {
     revert("SeigManagerV1_3");
-    return false;
   }
 
 }

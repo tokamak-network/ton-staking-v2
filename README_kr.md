@@ -1,175 +1,101 @@
 # TON Staking V3
 
-Tokamak Network의 V3 스테이킹 스마트 컨트랙트입니다. Tokamak Economics Whitepaper V2 (December 2025)를 기반으로 구현되었습니다.
+> Tokamak Network를 위한 V3 스테이킹 스마트 컨트랙트
 
-## 시스템 소개
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Solidity](https://img.shields.io/badge/Solidity-^0.8.4-blue)](https://soliditylang.org/)
 
-TON Staking V3는 이더리움 L1에서 운영되며, 여러 L2 롤업(Titan, Thanos 등)과 상호작용하여 네트워크 보안과 경제적 인센티브를 제공합니다.
+**기반:** [Tokamak Economics Whitepaper V3](https://github.com/tokamak-network/papers) (December 2025)
 
-### 핵심 목표
+---
 
-- **L2 네트워크 보안**: 시뇨리지 인센티브를 통해 L2 운영자(시퀀서)가 정직하게 행동하도록 유도
-- **검증자 참여 유도**: RAT(Randomized Attention Test)를 통해 검증자가 네트워크를 상시 감시하도록 동기 부여
-- **공정한 보상 분배**: Bridged TON 기반으로 실제 네트워크 기여도에 따른 보상 분배
-- **DAO 거버넌스**: 시스템 파라미터 조정 및 업그레이드를 DAO를 통해 관리
-
-## V3 핵심 변경사항
-
-| 구분 | V2 | V3 |
-|------|-----|-----|
-| **시뇨리지 분배 기준** | L2 TVL (단순 비례) | Bridged TON (성과 기반) |
-| **분배 함수** | 선형 분배 | 쌍곡선 포화 함수 `y(x) = L·(x/(k+x))` |
-| **자격 조건** | 최소 예치금만 | S_i ≥ θ·B_i (스테이킹 비율 조건) |
-| **검증자 보상** | 없음 | α·y(x) / n (검증자 풀 분배) |
-| **DAO 할당** | 고정 비율 | 고정 비율 + 미분배분 |
-| **스테이커 시뇨리지** | 제공 | **미제공** (V3에서 폐지) |
-
-## 핵심 컨트랙트
-
-| 컨트랙트 | 역할 |
-|---------|------|
-| **SeigManagerV1_4** | 시뇨리지 계산 및 분배 (V3 핵심) |
-| **DepositManagerV1_2** | TON/WTON 스테이킹 관리 |
-| **Layer2ManagerV1_2** | L2 등록 및 Bridged TON 조회 |
-| **L1BridgeRegistryV1_2** | 브릿지/포탈 등록, TVL 조회 |
-| **RAT** | 검증자 등록, RAT 테스트, 슬래싱 |
-| **ValidatorRewardV1** | 검증자 보상 분배 |
-| **SequencerVault** | 시퀀서 담보금 관리, 슬래싱 |
-
-## V3 핵심 파라미터
-
-| 파라미터 | 기호 | 설명 |
-|---------|------|------|
-| `daoDistributionRatio` | d | DAO 분배 비율 |
-| `minStakingRatio` | θ | 최소 스테이킹 비율 |
-| `validatorDistributionRatio` | α | 검증자 분배 비율 |
-| `halfSaturationPoint` | k | 반포화점 |
-| `ratTriggerProbability` | π_a | RAT 트리거 확률 |
-| `slashingPenalty` | C_off | 검증자 슬래싱 페널티 |
-| `evidenceSubmissionPeriod` | - | 증거 제출 기간 |
-
-> **RAY 단위**: 모든 비율 파라미터는 RAY(10^27) 단위로 표현됩니다.
-
-## 설치
-
-### 요구사항
-
-- [Foundry](https://book.getfoundry.sh/getting-started/installation)
-
-### Clone 및 빌드
+## 🚀 Quick Start
 
 ```bash
-# submodule 포함하여 clone
+# submodule과 함께 clone
 git clone --recursive https://github.com/tokamak-network/ton-staking-v2.git
 cd ton-staking-v2
 
+# 의존성 설치
+forge install
+
 # 빌드
 forge build
+
+# 테스트 실행
+forge test
+
+# E2E 테스트 실행
+make devnet-allocs-offline  # 최초 1회만
+make test-e2e
 ```
 
-### 이미 clone한 경우 (submodule 초기화)
+---
 
-```bash
-git submodule update --init --recursive
-forge build
-```
+## 📖 TON Staking V3란?
 
-### Submodule 업데이트
+TON Staking V3는 **L2 네트워크 보안 강화**를 목적으로, 실제로 네트워크를 운영하고 검증하는 참여자에게 보상을 집중하는 Tokamak Network의 시뇨리지 분배 시스템입니다.
 
-```bash
-# optimism 라이브러리를 최신으로 업데이트
-git submodule update --remote lib/optimism
-```
+**주요 참여자:**
+- 🔒 **L2 시퀀서** - 실제 네트워크 기여도(Bridged TON)에 따른 보상 수령
+- ✅ **검증자** - L2 네트워크 모니터링 및 RAT(Randomized Attention Test) 응답
+- 🏛️ **DAO** - 시스템 파라미터 관리 및 미분배 시뇨리지 수령
 
-### lib/optimism 서브모듈 주의사항
+V2에서는 일반 스테이커도 시뇨리지를 받았지만, **V3에서는 L2 생태계 참여자에게 보상을 집중**하여 네트워크 보안과 성장을 유도합니다.
 
-`lib/optimism` 서브모듈의 커밋을 변경할 때는 **명시적으로 GIT_DIR을 지정**해야 합니다. 그렇지 않으면 상위 저장소(ton-staking-v2)의 HEAD가 변경될 수 있습니다.
+---
 
-**안전한 서브모듈 커밋 변경 방법:**
+## 🆚 V2 → V3 주요 변경사항
 
-```bash
-# 명시적 GIT_DIR 사용 (권장)
-GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git fetch origin feature/ton-staking-v3
-GIT_DIR=.git/modules/lib/optimism GIT_WORK_TREE=lib/optimism git checkout <commit-hash>
-```
+| 항목 | V2 | V3 |
+|---------|-----|-----|
+| **분배 기준** | L2 TVL | Bridged TON (성과 기반) |
+| **분배 함수** | 선형 | 쌍곡선: `y(x) = L·(x/(k+x))` |
+| **자격 조건** | 최소 예치금 | 스테이킹 비율: `S_i ≥ θ·B_i` |
+| **검증자 보상** | 없음 | `α·y(x) / n` |
+| **스테이커 시뇨리지** | ✅ 제공 | ❌ 폐지됨 |
 
-**현재 lib/optimism 설정:**
-- Repository: `tokamak-network/optimism`
-- Branch: `feature/ton-staking-v3`
-- Commit: `72ed4cc6cb` (docs: clarify RandomValue usage - selects L2 block, not trie index)
+**상세 변경사항:** [V2 to V3 업그레이드 가이드](./docs/specs-kr/08-v2-to-v3-upgrade-guide.md)
 
-## 프로젝트 구조
+---
+
+## 🏗️ 시스템 아키텍처
 
 ```
-src/
-├── stake/                              # 스테이킹 시스템
-│   ├── managers/
-│   │   ├── SeigManager.sol                    # 시뇨리지 (기본)
-│   │   ├── SeigManagerV1_2.sol                # 다중 구현체 인덱스 0
-│   │   ├── SeigManagerV1_3.sol                # 다중 구현체 인덱스 1 (pause)
-│   │   ├── SeigManagerV1_4.sol                # 다중 구현체 인덱스 2 (V3 핵심)
-│   │   ├── DepositManager.sol                 # 스테이킹 (기본)
-│   │   ├── DepositManagerV1_1.sol             # L2 예치
-│   │   └── DepositManagerV1_2.sol             # V3 콜백
-│   ├── tokens/
-│   │   ├── RefactorCoinageSnapshot.sol        # 코이니지 로직
-│   │   └── AutoRefactorCoinage.sol            # 자동 리팩터 코이니지
-│   ├── factory/
-│   │   └── CoinageFactory.sol                 # 코이니지 팩토리
-│   ├── Layer2Registry.sol                     # L2 등록
-│   └── interfaces/
-│
-├── layer2/                             # L2 관리
-│   ├── Layer2ManagerV1_1.sol                  # L2 매니저 (기본)
-│   ├── Layer2ManagerV1_2.sol                  # V3 Bridged TON
-│   ├── L1BridgeRegistryV1_1.sol               # 브릿지 레지스트리 (기본)
-│   ├── L1BridgeRegistryV1_2.sol               # V3 DisputeGame 지원
-│   ├── OperatorManagerV1_1.sol                # 오퍼레이터 매니저
-│   ├── OperatorManagerV1_2.sol                # V3 오퍼레이터
-│   ├── factory/
-│   │   └── OperatorManagerFactory.sol         # 오퍼레이터 팩토리
-│   └── interfaces/
-│
-├── validator/                          # 검증자 시스템 (V3 신규)
-│   ├── RAT.sol                                # Randomized Attention Test
-│   ├── RATProxy.sol
-│   ├── ValidatorRewardV1.sol                  # 검증자 보상
-│   ├── ValidatorRewardProxy.sol
-│   └── interfaces/
-│
-├── dao/                                # DAO 거버넌스
-│   ├── DAOCommittee_V1.sol                    # DAO 위원회 로직
-│   ├── DAOCommitteeOwner.sol                  # Owner 함수
-│   ├── Candidate.sol                          # DAO 후보자
-│   ├── CandidateAddOnV1_1.sol                 # 후보자 애드온
-│   ├── factory/
-│   │   ├── CandidateFactory.sol               # 후보자 팩토리
-│   │   └── CandidateAddOnFactory.sol          # 애드온 팩토리
-│   └── interfaces/
-│
-├── proxy/                              # 프록시 컨트랙트
-│   ├── ProxyStorage.sol                       # 기본 프록시 스토리지
-│   ├── DAOCommitteeProxy2.sol                 # DAO 다중 구현체 라우터
-│   └── Proxy.sol
-│
-├── common/                             # 공통 유틸리티
-│   ├── AccessibleCommon.sol
-│   ├── AuthControlSeigManager.sol
-│   ├── AuthControlLayer2Manager.sol
-│   └── AuthControlL1BridgeRegistry.sol
-│
-└── accessControl/                      # 접근 제어
-    └── AccessControl.sol
+Ethereum L1
+├── SeigManager V3 ─────► 시뇨리지 분배 (쌍곡선 함수)
+├── DepositManager ─────► TON/WTON 스테이킹
+├── Layer2Manager ──────► L2 등록 & Bridged TON 조회
+├── L1BridgeRegistry ───► 브릿지/포탈 TVL 추적
+├── RAT ────────────────► 검증자 어텐션 테스트 & 슬래싱
+└── ValidatorReward ────► 검증자 보상 풀
 
-lib/
-├── optimism/               # tokamak-network/optimism (branch: feature/ton-staking-v3)
-├── tokamak-dao-contracts/  # tokamak-network/tokamak-dao-contracts (DAO 거버넌스)
-├── openzeppelin-contracts/
-└── forge-std/
+Optimism L2 (Titan, Thanos 등)
+└── DisputeGameFactory ─► Dispute Game 생성 시 RAT 트리거
 ```
 
-## 테스트
+**상세 문서:** [시스템 아키텍처](./docs/specs-kr/02-system-architecture.md)
 
+---
+
+## 📦 핵심 컨트랙트
+
+| 컨트랙트 | 버전 | 역할 |
+|----------|---------|------|
+| **SeigManagerV3_1** | V1_4 | V3 시뇨리지 분배 |
+| **DepositManagerV3** | V1_2 | 스테이킹 관리 |
+| **Layer2ManagerV3** | V1_2 | L2 등록 |
+| **L1BridgeRegistryV1_2** | V1_2 | 브릿지 TVL 조회 |
+| **RAT** | V1 | 검증자 어텐션 테스트 |
+| **ValidatorRewardV1** | V1 | 검증자 보상 |
+
+**전체 컨트랙트 상세:** [컨트랙트 구조](./docs/specs-kr/03-contract-structure.md)
+
+---
+
+## 🧪 테스트
+
+### 주요 테스트 명령어
 ```bash
 # 전체 테스트
 forge test
@@ -177,88 +103,150 @@ forge test
 # V3 테스트만
 forge test --match-path "test/v3/*"
 
-# 특정 테스트
-forge test --match-test testUpdateSeigniorageV3
+# 특정 컨트랙트
+forge test --match-contract RATTest
+
+# E2E 테스트 (Go)
+make test-e2e
 ```
 
-## 외부 라이브러리
+### 테스트 문서
+- **[테스트 가이드](./docs/test/README.md)** - 전체 테스트 개요
+- **[빠른 명령어](./docs/test/QUICK-COMMANDS.md)** - 모든 테스트 명령어 참조
+- **[E2E 테스트](./op-e2e/README.md)** - Go 기반 end-to-end 테스트
+
+**테스트 커버리지:** 175+ 유닛/통합 테스트 + 7개 E2E 테스트
+
+---
+
+## 📚 문서
+
+### 🌐 개발자 가이드 (권장)
+**검색 기능이 포함된 완전한 인터랙티브 문서:**
+- **한국어:** https://tokamak-network.github.io/ton-staking-v2/ko/
+- **English:** https://tokamak-network.github.io/ton-staking-v2/
+
+시스템 아키텍처, 컨트랙트 구조, 액터 가이드, 함수 스펙, V2→V3 업그레이드 가이드 포함.
+
+### 🧪 테스트 문서
+- [테스트 가이드](./docs/test/README.md) - 빠른 시작 & 개요
+- [빠른 명령어](./docs/test/QUICK-COMMANDS.md) - 명령어 참조
+- [E2E 테스트](./op-e2e/README.md) - Go E2E 테스트 가이드
+- [Genesis 설정](./op-e2e/GENESIS-SETUP.md) - E2E 환경 설정
+
+---
+
+## 📂 프로젝트 구조
+
+```
+src/
+├── stake/              # 핵심 스테이킹 로직
+│   └── managers/       # SeigManager, DepositManager
+├── layer2/             # L2 관리
+│   ├── managers/       # Layer2Manager, L1BridgeRegistry
+│   └── factory/        # OperatorManagerFactory
+├── validator/          # 검증자 시스템
+│   ├── RAT.sol         # Randomized Attention Test
+│   └── ValidatorRewardV1.sol
+└── dao/                # DAO 거버넌스
+
+test/
+├── v3/                 # V3 유닛 테스트
+│   ├── v3mode/         # V3 모드 테스트
+│   ├── scenarios/      # 통합 시나리오
+│   └── invariants/     # 불변성 테스트
+└── v2mode/             # V2 호환성 테스트
+
+op-e2e/                 # Go E2E 테스트
+├── faultproofs/        # RAT 시나리오 테스트
+└── e2eutils/           # 테스트 유틸리티
+```
+
+---
+
+## 🔧 개발
+
+### 요구사항
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- [Go 1.22+](https://go.dev/dl/) (E2E 테스트용)
+- [Node.js](https://nodejs.org/) (선택사항, 문서용)
+
+### 빌드
+```bash
+forge build
+```
+
+### 테스트
+```bash
+# Solidity 테스트
+forge test
+
+# E2E 테스트
+make devnet-allocs-offline  # Genesis 생성 (1회)
+make test-e2e
+```
+
+### 클린
+```bash
+forge clean
+```
+
+---
+
+## 🔗 외부 라이브러리
 
 | 라이브러리 | 용도 |
-|-----------|------|
-| `@optimism/` | Optimism L1/L2 인터페이스 (SystemConfig, L1StandardBridge, OptimismPortal 등) |
-| `@openzeppelin/contracts/` | ERC20, SafeERC20, Math 등 |
-| `@tokamak-dao/` | DAO 거버넌스 컨트랙트 (DAOCommitteeProxy, DAOAgendaManager 등) |
+|---------|---------|
+| [@optimism](https://github.com/ethereum-optimism/optimism) | L1/L2 인터페이스 (SystemConfig, Portal, Bridge) |
+| [@openzeppelin](https://github.com/OpenZeppelin/openzeppelin-contracts) | 표준 컨트랙트 (ERC20, Access Control, Math) |
+| [@tokamak-dao](https://github.com/tokamak-network/tokamak-dao-contracts) | DAO 거버넌스 컨트랙트 |
 
-### Optimism 인터페이스 사용 예시
-
-```solidity
-import { ISystemConfig } from "@optimism/interfaces/L1/ISystemConfig.sol";
-import { IL1StandardBridge } from "@optimism/interfaces/L1/IL1StandardBridge.sol";
-import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
-```
-
-## 토큰
-
-| 토큰 | 역할 |
-|------|------|
-| **TON** | 네이티브 토큰 (18 decimals) |
-| **WTON** | Wrapped TON (27 decimals, 1 TON = 1e9 WTON) |
-| **Coinage** | 스테이킹 영수증 토큰 (L2별 생성) |
-
-## 외부 시스템
-
-| 시스템 | 역할 |
-|--------|------|
-| **Optimism L2** | L2 롤업 (Titan, Thanos 등) |
-| **DisputeGameFactory** | Dispute Game 생성 (RAT 트리거) |
-| **OptimismPortal** | L1↔L2 브릿지 |
-| **DAO** | 거버넌스 (DAOCommittee) |
-
-## RAT 클라이언트
-
-TON Staking V3는 검증자 모니터링을 위한 RAT(Randomized Attention Test) 클라이언트를 포함합니다. 각 롤업 타입별로 별도의 클라이언트 구현이 필요합니다.
-
-### 사용 가능한 클라이언트
-
-| 클라이언트 | 롤업 타입 | 상태 |
-|-----------|----------|------|
-| [rat-client-type3](./clients/rat-client-type3/) | Type 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME | ✅ 구현 완료 |
-| rat-client-type4 | Type 4: TBD | 📋 계획 중 |
-| rat-client-type5 | Type 5: TBD | 📋 계획 중 |
-
-### 빠른 시작
-
+### Submodules
 ```bash
-# RAT 클라이언트 빌드
-make rat-client-build
+# optimism 라이브러리 업데이트
+git submodule update --remote lib/optimism
 
-# 설정 (예제 복사 후 편집)
-cd clients/rat-client-type3
-cp config.example.yaml config.yaml
-# config.yaml을 편집하여 설정 입력
-
-# 실행
-make rat-client-run
+# 모든 submodule 업데이트
+git submodule update --init --recursive
 ```
 
-### 문서
+---
 
-- [RAT 클라이언트 개요](./clients/README.md)
-- [RAT Client Type 3 문서](./clients/rat-client-type3/README.md)
-- [RAT 구현 계획](./docs/rat-client-implementation-plan.md)
+## 🤝 기여하기
 
-## 문서
+기여를 환영합니다! 다음을 참조해주세요:
+- [Contributing Guidelines](./CONTRIBUTING.md) (가능한 경우)
+- [Code of Conduct](./CODE_OF_CONDUCT.md) (가능한 경우)
 
-| 문서 | 설명 |
-|------|------|
-| [specs-kr/](./docs/specs-kr/) | V3 시스템 명세서 (한국어) |
-| [specs-kr/01-system-overview.md](./docs/specs-kr/01-system-overview.md) | 시스템 소개, V3 변경사항, 핵심 개념 |
-| [specs-kr/02-system-architecture.md](./docs/specs-kr/02-system-architecture.md) | 전체 아키텍처, 컨트랙트 의존성, 프록시 패턴 |
-| [specs-kr/03-contract-structure.md](./docs/specs-kr/03-contract-structure.md) | 디렉토리 구조, 컨트랙트 상세, 스토리지 구조 |
-| [specs-kr/04-contract-roles.md](./docs/specs-kr/04-contract-roles.md) | 컨트랙트별 역할, 책임, 상호작용 |
-| [specs-kr/05-actors.md](./docs/specs-kr/05-actors.md) | 액터 정의 (스테이커, 시퀀서, 검증자, 챌린저, DAO) |
-| [specs-kr/06-function-specs.md](./docs/specs-kr/06-function-specs.md) | 함수별 상세 설명, 파라미터, 동작 흐름 |
+### 개발 워크플로우
+1. 레포지토리 Fork
+2. Feature 브랜치 생성
+3. 변경사항 작성
+4. 테스트 실행: `forge test && make test-e2e`
+5. Pull request 제출
 
-## 라이선스
+---
 
-MIT
+## 📞 지원
+
+- **이슈:** [GitHub Issues](https://github.com/tokamak-network/ton-staking-v2/issues)
+- **토론:** [GitHub Discussions](https://github.com/tokamak-network/ton-staking-v2/discussions)
+- **문서:** [docs/specs-kr/](./docs/specs-kr/)
+
+---
+
+## 📄 라이선스
+
+MIT License - 자세한 내용은 [LICENSE](./LICENSE) 참조
+
+---
+
+## 🔗 관련 프로젝트
+
+- [Tokamak Network](https://tokamak.network/)
+- [Optimism](https://optimism.io/)
+- [Tokamak DAO Contracts](https://github.com/tokamak-network/tokamak-dao-contracts)
+
+---
+
+**Built with ❤️ by [Tokamak Network](https://tokamak.network/)**

@@ -48,9 +48,6 @@ interface ISeigManagerV3 {
         uint256 effectiveBridgedTON
     );
 
-    /// @notice 지분 시뇨리지 비율 변경 이벤트
-    event StakedSeigFactorUpdated(uint256 newLambda);
-
     /// @notice 추가 시뇨리지 비율 변경 이벤트
     event RelativeSeigRateUpdated(uint256 newRate);
 
@@ -72,12 +69,23 @@ interface ISeigManagerV3 {
     /// @notice V3 마이그레이션 완료 이벤트
     event V3MigrationCompleted(uint256 blockNumber, uint256 totalMigratedL2s);
 
+    /// @notice RAT용 coinage 전송 이벤트
+    event CoinageTransferredForRAT(
+        address indexed layer2,
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
+    /// @notice RAT 컨트랙트 주소 설정 이벤트
+    event RATContractUpdated(address newRAT);
+
     // ==========================================
     // View Functions - L2 Information
     // ==========================================
 
     /// @notice 유효 Bridged TON 조회 (자격 없으면 0)
-    function getEffectiveBridgedTON(address layer2) external view returns (uint256);
+    function getEffectiveBridgedTon(address layer2) external view returns (uint256);
 
     /// @notice L2 자격 실시간 확인 (L1 브리지에서 직접 조회)
     /// @dev B_i는 L1 브리지에서 동적으로 조회, S_i는 coinage에서 동적으로 조회
@@ -89,6 +97,12 @@ interface ISeigManagerV3 {
         external
         view
         returns (bool eligible, uint256 requiredStake, uint256 currentStake);
+
+    /// @notice 시퀀서 담보금 조회
+    /// @dev V3: operator의 해당 layer2 coinage 잔액을 담보금으로 사용
+    /// @param layer2 L2 주소
+    /// @return 시퀀서의 담보금 (WTON, 27 decimals - RAY 단위)
+    function getSequencerStaked(address layer2) external view returns (uint256);
 
     /// @notice 쌍곡선 포화 함수 계산
     /// @dev 백서 공식 (11): y(x) = L · (x / (k + x))
@@ -115,8 +129,11 @@ interface ISeigManagerV3 {
         view
         returns (uint256);
 
-    /// @notice L2별 시뇨리지 예측
-    function estimateL2Seigniorage(address layer2) external view returns (uint256 seigniorage);
+    /// @notice L2별 시뇨리지 예측 (updateSeigniorage 실행 시 받게 되는 금액)
+    /// @param layer2 L2 주소
+    /// @return sequencerReward 시퀀서 보상 (OperatorManager로 전송)
+    /// @return validatorReward 검증자 보상 (ValidatorReward로 전송)
+    function estimateL2Seigniorage(address layer2) external view returns (uint256 sequencerReward, uint256 validatorReward);
 
     // ==========================================
     // External Functions - Callbacks
@@ -126,7 +143,7 @@ interface ISeigManagerV3 {
     /// @dev OptimismPortal에서 TON 입금/출금 시 SeigManager를 직접 호출
     ///      호출자(msg.sender)로부터 L1BridgeRegistry.rollupConfigWithPortal로 rollupConfig 조회
     ///      트리거 함수이므로 revert 대신 early return 사용
-    function onBridgedTONChange() external;
+    function onBridgedTonChange() external;
 
     /// @notice L2의 스테이킹 금액 변경 시 호출
     /// @dev DepositManager에서 deposit/withdraw 시 호출
@@ -149,9 +166,6 @@ interface ISeigManagerV3 {
     /// @notice 반포화점 설정
     function setHalfSaturationPoint(uint256 k) external;
 
-    /// @notice 지분 시뇨리지 비율 설정 (V2→V3 전환)
-    function setStakedSeigFactor(uint256 lambda) external;
-
     /// @notice 검증자 보상 컨트랙트 주소 설정
     function setValidatorReward(address reward) external;
 
@@ -167,4 +181,32 @@ interface ISeigManagerV3 {
 
     /// @notice V2 → V3 데이터 마이그레이션
     function migrateToV3() external;
+
+    // ==========================================
+    // External Functions - RAT Integration
+    // ==========================================
+
+    /// @notice RAT 컨트랙트 주소 설정
+    function setRatContract(address rat) external;
+
+    /// @notice RAT 선차감: validator coinage → RAT coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageToRat(address layer2, address validator, uint256 amount) external;
+
+    /// @notice RAT 복구: RAT coinage → validator coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능
+    /// @param layer2 L2 주소
+    /// @param validator 검증자 주소
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRat(address layer2, address validator, uint256 amount) external;
+
+    /// @notice RAT 슬래싱 확정: RAT coinage → recipient coinage 전송
+    /// @dev RAT 컨트랙트에서만 호출 가능 (treasury로 전송용)
+    /// @param layer2 L2 주소
+    /// @param recipient 수신자 주소 (treasury)
+    /// @param amount 전송 금액 (WTON 단위, 27 decimals)
+    function transferCoinageFromRatTo(address layer2, address recipient, uint256 amount) external;
 }

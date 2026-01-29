@@ -5,15 +5,15 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'TON Staking V3',
   tagline: 'Tokamak Network Staking Documentation',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/logo.svg',
 
   future: {
     v4: true,
   },
 
   // GitHub Pages 배포 설정
-  url: 'https://tokamak-network.github.io',
-  baseUrl: '/ton-staking-v2/',
+  url: process.env.DEPLOY_URL || 'http://localhost:3000',
+  baseUrl: process.env.BASE_URL || '/',
 
   organizationName: 'tokamak-network',
   projectName: 'ton-staking-v2',
@@ -90,12 +90,12 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Architecture',
-              to: '/docs/01_v2_architecture',
+              label: 'System Architecture',
+              to: '/docs/02-system-architecture',
             },
             {
-              label: 'Validator',
-              to: '/docs/04_validator',
+              label: 'Validator Guide',
+              to: '/docs/actors/actors-validator',
             },
           ],
         },

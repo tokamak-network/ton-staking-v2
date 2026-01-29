@@ -44,6 +44,15 @@ interface IValidatorReward {
         uint256 amount
     );
 
+    // NOTE: ValidatorRewardSynced 제거됨 - ValidatorRewardReceived로 통합
+
+    /// @notice 검증자 L2 등록 이벤트 (V1.1)
+    event ValidatorRegisteredToL2(
+        address indexed validator,
+        address indexed systemConfig,
+        uint256 initialDebt
+    );
+
     // ==========================================
     // View Functions
     // ==========================================
@@ -72,7 +81,35 @@ interface IValidatorReward {
     function distributeL2Rewards(address systemConfig, uint256 amount) external;
 
     /// @notice 모든 L2에서 받은 보상 한 번에 청구
+    /// @dev 등록된 L2가 많으면 가스 한도 초과 가능 - claimRewardsByL2s 사용 권장
     function claimAllRewards() external;
+
+    /// @notice 특정 L2들에서 받은 보상 청구
+    /// @dev 등록된 L2가 많을 때 가스 최적화를 위해 사용
+    /// @param systemConfigs 보상을 청구할 L2 SystemConfig 주소 배열
+    function claimRewardsByL2s(address[] calldata systemConfigs) external;
+
+    /// @notice 검증자 L2 등록 (RAT에서 호출)
+    /// @dev 검증자가 L2에 등록될 때 초기 debt 설정
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    function registerValidatorToL2(address validator, address systemConfig) external;
+
+    /// @notice 검증자 보상 동기화 (비활성화 전 호출)
+    /// @dev 현재까지의 보상을 pendingRewards에 누적
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    function syncValidatorReward(address validator, address systemConfig) external;
+
+    /// @notice 검증자 재활성화 시 debt 리셋 (RAT에서 호출)
+    /// @param validator 검증자 주소
+    /// @param systemConfig L2의 SystemConfig 주소
+    function resetValidatorDebt(address validator, address systemConfig) external;
+
+    /// @notice 검증자의 청구 가능한 보상 계산 (view)
+    /// @param validator 검증자 주소
+    /// @return total 총 청구 가능 금액
+    function getClaimableRewards(address validator) external view returns (uint256 total);
 
     // ==========================================
     // External Functions - Governance

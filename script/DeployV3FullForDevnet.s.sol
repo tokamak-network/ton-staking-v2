@@ -11,16 +11,12 @@ import {RefactorCoinageSnapshotProxy} from "../src/stake/tokens/RefactorCoinageS
 import {Layer2Registry} from "../src/stake/Layer2Registry.sol";
 import {Layer2RegistryProxy} from "../src/stake/Layer2RegistryProxy.sol";
 
-// Manager Implementations
+// Manager Implementations - V3
 import {SeigManagerV1_2} from "../src/stake/managers/SeigManagerV1_2.sol";
-import {SeigManagerV1_3} from "../src/stake/managers/SeigManagerV1_3.sol";
-import {SeigManagerV1_4} from "../src/stake/managers/SeigManagerV1_4.sol";
-import {DepositManager} from "../src/stake/managers/DepositManager.sol";
-import {DepositManager_setWithdrawalDelay} from "../src/stake/managers/DepositManager_setWithdrawalDelay.sol";
-import {DepositManagerV1_1} from "../src/stake/managers/DepositManagerV1_1.sol";
-import {DepositManagerV1_2} from "../src/stake/managers/DepositManagerV1_2.sol";
-import {Layer2ManagerV1_1} from "../src/layer2/Layer2ManagerV1_1.sol";
-import {Layer2ManagerV1_2} from "../src/layer2/Layer2ManagerV1_2.sol";
+import {SeigManagerV3_1} from "../src/stake/managers/SeigManagerV3_1.sol";
+import {SeigManagerV3_2} from "../src/stake/managers/SeigManagerV3_2.sol";
+import {DepositManagerV3} from "../src/stake/managers/DepositManagerV3.sol";
+import {Layer2ManagerV3} from "../src/layer2/Layer2ManagerV3.sol";
 import {L1BridgeRegistryV1_2} from "../src/layer2/L1BridgeRegistryV1_2.sol";
 
 // Manager Proxies
@@ -35,15 +31,33 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
+import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
-import {SequencerVault} from "../src/sequencer/SequencerVault.sol";
-import {SequencerVaultProxy} from "../src/sequencer/SequencerVaultProxy.sol";
+import {MockAnchorStateRegistry} from "../src/mocks/MockAnchorStateRegistry.sol";
+
+// DAO Contracts
+import {DAOCommitteeProxy2} from "../src/proxy/DAOCommitteeProxy2.sol";
+import {DAOCommittee_V1} from "../src/dao/DAOCommittee_V1.sol";
+import {DAOCommitteeOwner} from "../src/dao/DAOCommitteeOwner.sol";
+import {Candidate} from "../src/dao/Candidate.sol";
+import {CandidateAddOnV1_1} from "../src/dao/CandidateAddOnV1_1.sol";
+import {CandidateFactory} from "../src/dao/factory/CandidateFactory.sol";
+import {CandidateFactoryProxy} from "../src/dao/factory/CandidateFactoryProxy.sol";
+import {CandidateAddOnFactory} from "../src/dao/factory/CandidateAddOnFactory.sol";
+import {CandidateAddOnFactoryProxy} from "../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+
+// DAO Storage and AccessControl
+import {StorageStateCommittee} from "../src/dao/StorageStateCommittee.sol";
+import {AccessControl} from "../src/accessControl/AccessControl.sol";
 
 // Mocks for testing
 import {MockTON} from "../src/mocks/MockTON.sol";
 import {MockWTON} from "../src/mocks/MockWTON.sol";
+
+// Note: We don't deploy AnchorStateRegistry due to solc version conflict
+// Instead, we set OptimismPortal storage directly
 
 /// @notice Proxy interface
 interface IProxy {
@@ -58,6 +72,105 @@ interface IDisputeGameFactory {
     function setImplementation(uint32 gameType, address impl) external;
     function setInitBond(uint32 gameType, uint256 bond) external;
     function rat() external view returns (address);
+}
+
+/// @notice AnchorStateRegistry interface
+interface IAnchorStateRegistry {
+    function initialize(
+        uint256 _disputeGameFinalityDelaySeconds,
+        address _disputeGameFactory
+    ) external;
+    function disputeGameFactory() external view returns (address);
+}
+
+/// @notice OptimismPortal2 interface
+interface IOptimismPortal2 {
+    function initialize(
+        address _systemConfig,
+        address _anchorStateRegistry,
+        address _ethLockbox
+    ) external;
+    function anchorStateRegistry() external view returns (address);
+    function systemConfig() external view returns (address);
+}
+
+/// @notice DAOCommitteeProxy2 interface
+interface IDAOCommitteeProxy2 {
+    function upgradeTo2(address impl) external;
+    function setAliveImplementation2(address impl, bool alive) external;
+    function setSelectorImplementations2(bytes4[] calldata selectors, address impl) external;
+}
+
+/// @notice DAOCommitteeOwner interface
+interface IDAOCommitteeOwner {
+    function setCandidateFactory(address _candidateFactory) external;
+    function setCandidateAddOnFactory(address _candidateAddOnFactory) external;
+    function setSeigManager(address _seigManager) external;
+    function setLayer2Manager(address _layer2Manager) external;
+    function setLayer2Registry(address _layer2Registry) external;
+}
+
+/// @notice SeigManager interface for minimum amount
+interface ISeigManager {
+    function minimumAmount() external view returns (uint256);
+}
+
+/// @notice DAOCommittee_V1 interface for creating candidates
+interface IDAOCommittee_V1 {
+    function createCandidateAddOn(
+        address rollupConfig,
+        address l2TON,
+        string memory name,
+        uint256 amount
+    ) external returns (address layer2, address operatorMgr);
+}
+
+/// @title MockDAOCommitteeProxy
+/// @notice Mock DAO Proxy for Devnet Testing
+/// @dev Simplified DAO proxy that mimics real DAOCommitteeProxy behavior
+contract MockDAOCommitteeProxy is StorageStateCommittee, AccessControl {
+    address internal _implementation;
+    bool public pauseProxy;
+
+    event Upgraded(address indexed implementation);
+
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "not admin");
+        _;
+    }
+
+    constructor(address _ton) {
+        ton = _ton;
+
+        // Grant DEFAULT_ADMIN_ROLE to deployer and proxy itself
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, address(this));
+    }
+
+    function upgradeTo(address impl) external onlyAdmin {
+        require(impl != address(0), "zero address");
+        _implementation = impl;
+        emit Upgraded(impl);
+    }
+
+    function implementation() public view returns (address) {
+        return _implementation;
+    }
+
+    fallback() external payable {
+        address _impl = _implementation;
+        require(_impl != address(0) && !pauseProxy, "proxy disabled");
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), _impl, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+
+    receive() external payable {}
 }
 
 /**
@@ -104,11 +217,25 @@ contract DeployV3FullForDevnet is Script {
 
     // RAT parameters (Testing-optimized)
     uint256 constant RAT_TRIGGER_PROBABILITY = RAY; // 100% for testing (always trigger)
-    // minimum collateral = slashingPenalty + validatorBuffer = 10 + 90 = 100 TON
-    // Values in TON wei (1e18) to match deposit units
-    uint256 constant RAT_SLASHING_PENALTY = 10 * 1e18; // 10 TON (penalty kept small)
-    uint256 constant RAT_VALIDATOR_BUFFER = 90 * 1e18; // 90 TON
-    uint256 constant RAT_MINIMUM_THRESHOLD = 200 * 1e18; // 200 TON (D_min)
+    uint256 constant RAT_SLASHING_PENALTY = 10 * RAY; // 10 WTON (slashing penalty)
+    uint256 constant RAT_VALIDATOR_BUFFER = 50 * RAY; // 50 WTON (validator buffer)
+    uint256 constant RAT_MINIMUM_THRESHOLD = 60 * RAY; // 60 WTON (D_min = slashingPenalty + validatorBuffer)
+    uint256 constant RAT_MAX_VALIDATORS_PER_L2 = 100; // Maximum validators per L2
+    uint256 constant RAT_CHALLENGE_GAME_DURATION = 7 days; // Challenge game period
+    uint256 constant RAT_SAFETY_BUFFER = 1 days; // Safety buffer period
+    uint256 constant RAT_ATTENTION_COST = 1e27; // c_m: 1 TON per epoch (RAY unit)
+    bool constant RAT_RELAXED_VALIDATOR_CHECK = true; // V3: 초기에는 C_off 기준으로 완화
+
+    // V3 Seigniorage Distribution Parameters
+    uint256 constant DAO_DISTRIBUTION_RATIO = 0.2e27; // d: 20% to DAO
+    uint256 constant MIN_STAKING_RATIO = 0.1e27; // θ: 10% of Bridged TON
+    uint256 constant VALIDATOR_DISTRIBUTION_RATIO = 0.2e27; // α: 20% to validators
+    uint256 constant HALF_SATURATION_POINT = 10_000_000e27; // k: 10M TON
+
+    // V3 Sequencer Parameters
+    uint256 constant MAX_CHALLENGERS = 10; // H_max: Maximum concurrent challengers
+    uint256 constant MAX_FRAUD_PROOF_COST = 1000 * RAY; // C_max: 1000 WTON
+    uint256 constant SEQUENCER_ADDITIONAL_REWARD = 100 * RAY; // Δ_sequencer: 100 WTON
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
@@ -134,14 +261,10 @@ contract DeployV3FullForDevnet is Script {
     address public layer2ManagerProxy;
     address public l1BridgeRegistryProxy;
 
-    // Manager Implementations
-    address public seigManagerV1_3Impl;
-    address public seigManagerImpl;
-    address public depositManagerBaseImpl;
-    address public depositManagerSetDelayImpl;
-    address public depositManagerV1_1Impl;
-    address public depositManagerV1_2Impl;
-    address public layer2ManagerV1_1Impl;
+    // Manager Implementations - V3
+    address public seigManagerV3_1Impl;
+    address public seigManagerV3_2Impl;
+    address public depositManagerImpl;
     address public layer2ManagerImpl;
     address public l1BridgeRegistryImpl;
 
@@ -154,12 +277,25 @@ contract DeployV3FullForDevnet is Script {
     address public ratImpl;
     address public validatorPoolProxy;
     address public validatorPoolImpl;
-    address public sequencerVaultProxy;
-    address public sequencerVaultImpl;
+
+    // DAO Contracts
+    address public daoCommitteeProxy;
+    address public daoCommitteeProxy2;
+    address public daoCommitteeV1;
+    address public daoCommitteeOwner;
+    address public candidateImpl;
+    address public candidateAddOnImpl;
+    address public candidateFactoryProxy;
+    address public candidateAddOnFactoryProxy;
+    address public mockLayer2;  // Created Layer2 (CandidateAddOn)
+    address public operatorManager; // Created OperatorManager for mockLayer2
 
     // Optimism Contracts (read from environment)
     address public disputeGameFactory;
     address public systemConfig;
+    address public anchorStateRegistry;
+    address public optimismPortal;
+    address public ethLockbox;
 
     /// @notice Entry point for generating devnet allocs (without actual broadcast)
     /// @dev This is used to generate genesis allocs file
@@ -189,27 +325,9 @@ contract DeployV3FullForDevnet is Script {
     }
 
     function run() public {
-        // Read Optimism addresses from environment or use defaults
         _loadOptimismAddresses();
-
-        // Setup L1 Optimism contracts from allocs-l1.json using vm.etch()
-        // Note: This is now handled by a separate script (SetupL1Allocs.sol)
-        // The bash script should run it separately to avoid contract size issues
-        console.log("--- Step 0: Setup Optimism L1 Contracts (vm.etch) ---");
-        console.log("Skipping setupAllocs() - should be run separately");
-        console.log("");
-
-        // Use startBroadcast() without argument to use CLI --private-key
         vm.startBroadcast();
-
-        // Get deployer address from msg.sender (set by broadcast)
         address deployer = msg.sender;
-
-        console.log("=== TON Staking V3 Devnet Deployment ===");
-        console.log("Deployer:", deployer);
-        console.log("Chain ID:", block.chainid);
-        console.log("");
-
         _deployTokens();
         _deployCoinageInfrastructure(deployer);
         _deployLayer2Registry(deployer);
@@ -219,13 +337,13 @@ contract DeployV3FullForDevnet is Script {
         _setupMinterPermissions();
         _deployOperatorManagerFactory(deployer);
         _deployV3Contracts(deployer);
-        _configureV3Contracts(deployer);
+        _deployDAO();
         _setupCrossReferences(deployer);
+        _initializeOptimismPortal();
         _connectToOptimism();
+        _registerLayer2();
         _mintTestTokens();
-
         vm.stopBroadcast();
-
         _printSummary();
         _saveDeployment();
     }
@@ -236,24 +354,56 @@ contract DeployV3FullForDevnet is Script {
     function _loadOptimismAddresses() internal {
         console.log("--- Step 0: Load Optimism Addresses ---");
 
-        // Try to read from environment variables (set by deploy script)
-        disputeGameFactory = vm.envOr("DISPUTE_GAME_FACTORY_PROXY", address(0));
-        systemConfig = vm.envOr("SYSTEM_CONFIG_PROXY", address(0));
+        // Read devnetL1.json using FFI (vm.readFile has permission issues with .devnet folder)
+        string[] memory inputs = new string[](2);
+        inputs[0] = "cat";
+        inputs[1] = ".devnet/devnetL1.json";
 
-        if (disputeGameFactory == address(0)) {
-            // Fallback: try to read from lib/optimism/.devnet/addresses.json
-            // This requires the file to exist
-            console.log("Warning: DISPUTE_GAME_FACTORY_PROXY not set");
-            console.log("DisputeGameFactory will need to be set manually");
-        } else {
+        bytes memory result = vm.ffi(inputs);
+        string memory json = string(result);
+        console.log("Loaded devnetL1.json via FFI");
+
+        // Parse systemConfigProxy address
+        systemConfig = vm.parseJsonAddress(json, ".systemConfigProxy");
+        console.log("SystemConfig:", systemConfig);
+
+        // Read optimism-addresses.json for DisputeGameFactory and other contracts
+        inputs[1] = ".devnet/optimism-addresses.json";
+        result = vm.ffi(inputs);
+        string memory addressesJson = string(result);
+
+        // Parse DisputeGameFactory address
+        try vm.parseJsonAddress(addressesJson, ".DisputeGameFactoryProxy") returns (address _dgf) {
+            disputeGameFactory = _dgf;
             console.log("DisputeGameFactory:", disputeGameFactory);
+        } catch {
+            console.log("Note: DisputeGameFactory not found (optional)");
         }
 
-        if (systemConfig == address(0)) {
-            console.log("Warning: SYSTEM_CONFIG_PROXY not set");
-        } else {
-            console.log("SystemConfig:", systemConfig);
+        // Parse AnchorStateRegistry address
+        try vm.parseJsonAddress(addressesJson, ".AnchorStateRegistryProxy") returns (address _asr) {
+            anchorStateRegistry = _asr;
+            console.log("AnchorStateRegistry:", anchorStateRegistry);
+        } catch {
+            console.log("Note: AnchorStateRegistry not found (will deploy)");
         }
+
+        // Parse OptimismPortal address
+        try vm.parseJsonAddress(addressesJson, ".OptimismPortalProxy") returns (address _op) {
+            optimismPortal = _op;
+            console.log("OptimismPortal:", optimismPortal);
+        } catch {
+            console.log("Note: OptimismPortal not found");
+        }
+
+        // Parse ETHLockbox address
+        try vm.parseJsonAddress(addressesJson, ".ETHLockboxProxy") returns (address _el) {
+            ethLockbox = _el;
+            console.log("ETHLockbox:", ethLockbox);
+        } catch {
+            console.log("Note: ETHLockbox not found");
+        }
+
         console.log("");
     }
 
@@ -298,7 +448,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
     // Step 2: Deploy Coinage Infrastructure
     // ==========================================
-    function _deployCoinageInfrastructure(address deployer) internal {
+    function _deployCoinageInfrastructure(address /* deployer */) internal {
         console.log("--- Step 2: Deploy Coinage Infrastructure ---");
 
         // Use regular CREATE (different deployer = no collision)
@@ -315,7 +465,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
     // Step 3: Deploy Layer2Registry
     // ==========================================
-    function _deployLayer2Registry(address deployer) internal {
+    function _deployLayer2Registry(address /* deployer */) internal {
         console.log("--- Step 3: Deploy Layer2Registry ---");
 
         layer2RegistryImpl = address(new Layer2Registry());
@@ -354,40 +504,28 @@ contract DeployV3FullForDevnet is Script {
     function _deployManagerImplementations() internal {
         console.log("--- Step 5: Deploy Manager Implementations ---");
 
-        // SeigManager
+        // SeigManager: V1_2 기본 + V3_1, V3_2 selector routing
         address seigManagerV1_2Impl = address(new SeigManagerV1_2());
         console.log("SeigManagerV1_2 Impl:", seigManagerV1_2Impl);
         IProxy(seigManagerProxy).upgradeTo(seigManagerV1_2Impl);
 
-        seigManagerV1_3Impl = address(new SeigManagerV1_3());
-        console.log("SeigManagerV1_3 Impl:", seigManagerV1_3Impl);
+        seigManagerV3_1Impl = address(new SeigManagerV3_1());
+        console.log("SeigManagerV3_1 Impl:", seigManagerV3_1Impl);
 
-        seigManagerImpl = address(new SeigManagerV1_4());
-        console.log("SeigManagerV1_4 Impl:", seigManagerImpl);
+        seigManagerV3_2Impl = address(new SeigManagerV3_2());
+        console.log("SeigManagerV3_2 Impl:", seigManagerV3_2Impl);
 
-        // DepositManager
-        depositManagerBaseImpl = address(new DepositManager());
-        console.log("DepositManager Base Impl:", depositManagerBaseImpl);
-        IProxy(depositManagerProxy).upgradeTo(depositManagerBaseImpl);
+        // DepositManager: V3 단일 구현체
+        depositManagerImpl = address(new DepositManagerV3());
+        console.log("DepositManagerV3 Impl:", depositManagerImpl);
+        IProxy(depositManagerProxy).upgradeTo(depositManagerImpl);
 
-        depositManagerSetDelayImpl = address(new DepositManager_setWithdrawalDelay());
-        console.log("DepositManager_setWithdrawalDelay Impl:", depositManagerSetDelayImpl);
+        // Layer2Manager: V3 단일 구현체
+        layer2ManagerImpl = address(new Layer2ManagerV3());
+        console.log("Layer2ManagerV3 Impl:", layer2ManagerImpl);
+        IProxy(layer2ManagerProxy).upgradeTo(layer2ManagerImpl);
 
-        depositManagerV1_1Impl = address(new DepositManagerV1_1());
-        console.log("DepositManagerV1_1 Impl:", depositManagerV1_1Impl);
-
-        depositManagerV1_2Impl = address(new DepositManagerV1_2());
-        console.log("DepositManagerV1_2 Impl:", depositManagerV1_2Impl);
-
-        // Layer2Manager
-        layer2ManagerV1_1Impl = address(new Layer2ManagerV1_1());
-        console.log("Layer2ManagerV1_1 Impl:", layer2ManagerV1_1Impl);
-        IProxy(layer2ManagerProxy).upgradeTo(layer2ManagerV1_1Impl);
-
-        layer2ManagerImpl = address(new Layer2ManagerV1_2());
-        console.log("Layer2ManagerV1_2 Impl:", layer2ManagerImpl);
-
-        // L1BridgeRegistry
+        // L1BridgeRegistry: V1_2 단일 구현체
         l1BridgeRegistryImpl = address(new L1BridgeRegistryV1_2());
         console.log("L1BridgeRegistryV1_2 Impl:", l1BridgeRegistryImpl);
         IProxy(l1BridgeRegistryProxy).upgradeTo(l1BridgeRegistryImpl);
@@ -424,59 +562,13 @@ contract DeployV3FullForDevnet is Script {
         );
         console.log("SeigManager setData done");
 
-        // Setup SeigManager multi-implementation routing
-        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV1_3Impl, true);
-        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerImpl, true);
-
-        // V1_3 selectors
-        bytes4[] memory v1_3Selectors = new bytes4[](6);
-        v1_3Selectors[0] = SeigManagerV1_3.pause.selector;
-        v1_3Selectors[1] = SeigManagerV1_3.unpause.selector;
-        v1_3Selectors[2] = SeigManagerV1_3.excludeFromL2Seigniorage.selector;
-        v1_3Selectors[3] = SeigManagerV1_3.includeFromL2Seigniorage.selector;
-        v1_3Selectors[4] = SeigManagerV1_3.claimableL2Seigniorage.selector;
-        v1_3Selectors[5] = SeigManagerV1_3.estimatedDistribute.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_3Selectors, seigManagerV1_3Impl);
-
-        // V1_4 selectors
-        bytes4[] memory v1_4Selectors = new bytes4[](31);
-        v1_4Selectors[0] = SeigManagerV1_4.setValidatorReward.selector;
-        v1_4Selectors[1] = SeigManagerV1_4.setDaoDistributionRatio.selector;
-        v1_4Selectors[2] = SeigManagerV1_4.setMinStakingRatio.selector;
-        v1_4Selectors[3] = SeigManagerV1_4.setValidatorDistributionRatio.selector;
-        v1_4Selectors[4] = SeigManagerV1_4.setHalfSaturationPoint.selector;
-        v1_4Selectors[5] = SeigManagerV1_4.setStakedSeigFactor.selector;
-        v1_4Selectors[6] = SeigManagerV1_4.migrateToV3.selector;
-        v1_4Selectors[7] = SeigManagerV1_4.onBridgedTONChange.selector;
-        v1_4Selectors[8] = SeigManagerV1_4.setMaxChallengers.selector;
-        v1_4Selectors[9] = SeigManagerV1_4.setMaxFraudProofCost.selector;
-        v1_4Selectors[10] = SeigManagerV1_4.setSequencerVault.selector;
-        v1_4Selectors[11] = SeigManagerV1_4.updateSeigniorage.selector;
-        v1_4Selectors[12] = SeigManagerV1_4.updateSeigniorageLayer.selector;
-        v1_4Selectors[13] = SeigManagerV1_4.hyperbolicSaturation.selector;
-        v1_4Selectors[14] = SeigManagerV1_4.checkCurrentEligibility.selector;
-        v1_4Selectors[15] = SeigManagerV1_4.calculateL2Seigniorage.selector;
-        v1_4Selectors[16] = SeigManagerV1_4.calculateSequencerReward.selector;
-        v1_4Selectors[17] = bytes4(keccak256("daoDistributionRatio()"));
-        v1_4Selectors[18] = bytes4(keccak256("minStakingRatio()"));
-        v1_4Selectors[19] = bytes4(keccak256("validatorDistributionRatio()"));
-        v1_4Selectors[20] = bytes4(keccak256("halfSaturationPoint()"));
-        v1_4Selectors[21] = bytes4(keccak256("stakedSeigFactor()"));
-        v1_4Selectors[22] = bytes4(keccak256("totalEffectiveBridgedTON()"));
-        v1_4Selectors[23] = bytes4(keccak256("bridgedTONInfo(address)"));
-        v1_4Selectors[24] = bytes4(keccak256("validatorReward()"));
-        v1_4Selectors[25] = bytes4(keccak256("maxChallengers()"));
-        v1_4Selectors[26] = bytes4(keccak256("maxFraudProofCost()"));
-        v1_4Selectors[27] = bytes4(keccak256("v3Migrated()"));
-        v1_4Selectors[28] = bytes4(keccak256("v3MigrationBlock()"));
-        v1_4Selectors[29] = bytes4(keccak256("sequencerVault()"));
-        v1_4Selectors[30] = SeigManagerV1_4.getEffectiveBridgedTON.selector;
-        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v1_4Selectors, seigManagerImpl);
+        // Setup SeigManager multi-implementation routing (V3: V1_2 기본 + V3_1, V3_2)
+        _setupSeigManagerV3Routing();
 
         console.log("SeigManager multi-implementation configured");
 
-        // Initialize DepositManager
-        DepositManager(depositManagerProxy).initialize(
+        // Initialize DepositManager (V3 단일 구현체)
+        DepositManagerV3(depositManagerProxy).initialize(
             wton,
             layer2RegistryProxy,
             seigManagerProxy,
@@ -484,31 +576,35 @@ contract DeployV3FullForDevnet is Script {
             address(0)
         );
         console.log("DepositManager initialized");
-
-        // Setup DepositManager multi-implementation routing
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerSetDelayImpl, true);
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_1Impl, true);
-        DepositManagerProxy(payable(depositManagerProxy)).setAliveImplementation2(depositManagerV1_2Impl, true);
-
-        bytes4[] memory dmIndex1Selectors = new bytes4[](2);
-        dmIndex1Selectors[0] = DepositManager_setWithdrawalDelay.setWithdrawalDelay.selector;
-        dmIndex1Selectors[1] = DepositManager_setWithdrawalDelay.setWithdrawalDelayByOwner.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex1Selectors, depositManagerSetDelayImpl);
-
-        bytes4[] memory dmIndex2Selectors = new bytes4[](3);
-        dmIndex2Selectors[0] = DepositManagerV1_1.setMinDepositGasLimit.selector;
-        dmIndex2Selectors[1] = DepositManagerV1_1.setAddresses.selector;
-        dmIndex2Selectors[2] = DepositManagerV1_1.withdrawAndDepositL2.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex2Selectors, depositManagerV1_1Impl);
-
-        bytes4[] memory dmIndex3Selectors = new bytes4[](3);
-        dmIndex3Selectors[0] = DepositManagerV1_2.deposit.selector;
-        dmIndex3Selectors[1] = DepositManagerV1_2.withdrawAndDepositL2.selector;
-        dmIndex3Selectors[2] = DepositManagerV1_2.requestWithdrawal.selector;
-        DepositManagerProxy(payable(depositManagerProxy)).setSelectorImplementations2(dmIndex3Selectors, depositManagerV1_2Impl);
-
-        console.log("DepositManager multi-implementation configured");
         console.log("");
+    }
+
+    // ==========================================
+    // SeigManager V3 Selector Routing (분리하여 stack too deep 회피)
+    // NOTE: 핵심 함수만 등록. 전체 함수 등록은 production 프로필 필요
+    // ==========================================
+    function _setupSeigManagerV3Routing() internal {
+        // V3_1, V3_2를 alive 상태로 설정
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV3_1Impl, true);
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV3_2Impl, true);
+
+        // 핵심 함수만 등록 (stack too deep 회피)
+        _setupSeigManagerV3CoreSelectors();
+
+        // V3_1에 v2Logic 주소 설정 (V2 호환성을 위해)
+        SeigManagerV3_1(seigManagerProxy).setV2Logic(seigManagerV3_2Impl);
+    }
+
+    function _setupSeigManagerV3CoreSelectors() internal {
+        // 핵심 함수만 등록 (6개) - 테스트/배포에 필요한 최소 함수
+        bytes4[] memory s = new bytes4[](6);
+        s[0] = SeigManagerV3_1.setValidatorReward.selector;
+        s[1] = SeigManagerV3_1.setV2Logic.selector;
+        s[2] = SeigManagerV3_1.migrateToV3.selector;
+        s[3] = SeigManagerV3_1.updateSeigniorage.selector;
+        s[4] = SeigManagerV3_1.setRatContract.selector;
+        s[5] = bytes4(keccak256("v3Migrated()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
     }
 
     // ==========================================
@@ -522,13 +618,17 @@ contract DeployV3FullForDevnet is Script {
 
         MockWTON(wton).addMinter(seigManagerProxy);
         console.log("WTON.addMinter(seigManagerProxy) done");
+
+        // Add DepositManager as WTON minter (for withdrawal processing)
+        MockWTON(wton).addMinter(depositManagerProxy);
+        console.log("WTON.addMinter(depositManagerProxy) done");
         console.log("");
     }
 
     // ==========================================
     // Step 7: Deploy OperatorManagerFactory
     // ==========================================
-    function _deployOperatorManagerFactory(address deployer) internal {
+    function _deployOperatorManagerFactory(address /* deployer */) internal {
         console.log("--- Step 7: Deploy OperatorManagerFactory ---");
 
         operatorManagerImpl = address(new OperatorManagerV1_2());
@@ -549,19 +649,16 @@ contract DeployV3FullForDevnet is Script {
         ratImpl = address(new RAT());
         console.log("RAT Impl:", ratImpl);
 
-        bytes memory ratInitData = abi.encodeWithSelector(
-            RAT.initialize.selector,
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            deployer,
-            RAT_TRIGGER_PROBABILITY
-        );
+        // Prepare RAT initialization data using RATInitParams struct
+        bytes memory ratInitData = _buildRATInitData(deployer);
 
         // Deploy RAT proxy with separate admin (not deployer to avoid TransparentUpgradeableProxy admin restriction)
         ratProxy = address(new RATProxy(ratImpl, PROXY_ADMIN, ratInitData));
         console.log("RAT Proxy:", ratProxy);
+
+        // Step 2: RAT 설정 파라미터 설정
+        _configureRAT(ratProxy, deployer);
+        console.log("RAT config set");
 
         // Deploy ValidatorReward
         validatorPoolImpl = address(new ValidatorRewardV1());
@@ -579,84 +676,52 @@ contract DeployV3FullForDevnet is Script {
         validatorPoolProxy = address(new ValidatorRewardProxy(validatorPoolImpl, PROXY_ADMIN, validatorRewardInitData));
         console.log("ValidatorReward Proxy:", validatorPoolProxy);
 
-        // Deploy SequencerVault
-        sequencerVaultImpl = address(new SequencerVault());
-        console.log("SequencerVault Impl:", sequencerVaultImpl);
-
-        SequencerVaultProxy svProxy = new SequencerVaultProxy();
-        sequencerVaultProxy = address(svProxy);
-        console.log("SequencerVault Proxy:", sequencerVaultProxy);
-
-        IProxy(sequencerVaultProxy).upgradeTo(sequencerVaultImpl);
-
-        SequencerVault(sequencerVaultProxy).initialize(
-            seigManagerProxy,
-            wton,
-            ton,
-            layer2ManagerProxy,
-            l1BridgeRegistryProxy,
-            deployer
-        );
-        console.log("SequencerVault initialized");
-        console.log("");
     }
 
     // ==========================================
-    // Step 9: Configure V3 Contracts
+    // Step 9: Setup Cross-References
     // ==========================================
-    function _configureV3Contracts(address deployer) internal {
-        console.log("--- Step 9: Configure V3 Parameters ---");
-
-        // RAT parameters (devnet-optimized)
-        RAT(ratProxy).setRatTriggerProbability(RAT_TRIGGER_PROBABILITY);
-        RAT(ratProxy).setSlashingPenalty(RAT_SLASHING_PENALTY);
-        RAT(ratProxy).setValidatorBuffer(RAT_VALIDATOR_BUFFER);
-        RAT(ratProxy).setMinimumThreshold(RAT_MINIMUM_THRESHOLD);
-        RAT(ratProxy).setEvidenceSubmissionPeriod(RAT_EVIDENCE_PERIOD);
-        RAT(ratProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
-        RAT(ratProxy).setTreasury(deployer);
-        console.log("RAT parameters configured");
-        console.log("");
-    }
-
-    // ==========================================
-    // Step 10: Setup Cross-References
-    // ==========================================
-    function _setupCrossReferences(address deployer) internal {
+    function _setupCrossReferences(address /* deployer */) internal {
         console.log("--- Step 10: Setup Cross-References ---");
+
+        // Update SeigManager DAO address (was set to deployer in _initializeManagers)
+        SeigManagerV1_2(seigManagerProxy).setData(
+            address(0),     // powerTON
+            daoCommitteeProxy,  // dao (updated from deployer)
+            0,              // powerTONSeigRate: 0%
+            0.5e27,         // daoSeigRate: 50%
+            0.5e27,         // relativeSeigRate: 50%
+            10,             // adjustCommissionDelay (fast for testing)
+            1000.1e27       // minimumAmount: 1000.1 WTON
+        );
+        console.log("SeigManager DAO updated to:", daoCommitteeProxy);
 
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
 
-        SeigManagerV1_4(seigManagerProxy).setValidatorReward(validatorPoolProxy);
+        SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
-        Layer2ManagerV1_1(layer2ManagerProxy).setAddresses(
+        // Layer2Manager.setAddresses (V3 - 2단계로 분리하여 stack too deep 회피)
+        Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
             l1BridgeRegistryProxy,
             operatorManagerFactory,
             ton,
-            wton,
-            deployer,
+            wton
+        );
+        Layer2ManagerV3(layer2ManagerProxy).setAddresses2(
+            daoCommitteeProxy,  // Use DAO proxy instead of deployer
             depositManagerProxy,
             seigManagerProxy,
             address(0)
         );
-        console.log("Layer2Manager.setAddresses done");
+        console.log("Layer2Manager.setAddresses done (dao:", daoCommitteeProxy, ")");
 
-        // Layer2Manager multi-implementation
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setAliveImplementation2(layer2ManagerImpl, true);
+        // Set minimumInitialDepositAmount to a very low value for devnet testing
+        Layer2ManagerV3(layer2ManagerProxy).setMinimumInitialDepositAmount(1); // 1 wei minimum (very low for testing)
+        console.log("Layer2Manager.setMinimumInitialDepositAmount(1 wei) done");
 
-        bytes4[] memory l2mV1_2Selectors = new bytes4[](5);
-        l2mV1_2Selectors[0] = Layer2ManagerV1_2.getBridgedTONByLayer.selector;
-        l2mV1_2Selectors[1] = Layer2ManagerV1_2.getBridgedTON.selector;
-        l2mV1_2Selectors[2] = Layer2ManagerV1_2.getLayer2BySystemConfig.selector;
-        l2mV1_2Selectors[3] = Layer2ManagerV1_2.setSequencerVault.selector;
-        l2mV1_2Selectors[4] = bytes4(keccak256("sequencerVault()"));
-        Layer2ManagerProxy(payable(layer2ManagerProxy)).setSelectorImplementations2(l2mV1_2Selectors, layer2ManagerImpl);
-
-        Layer2ManagerV1_2(layer2ManagerProxy).setSequencerVault(sequencerVaultProxy);
-        console.log("Layer2Manager.setSequencerVault done");
-
+        // L1BridgeRegistry.setAddresses (V1_2 단일 구현체)
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).setAddresses(
             layer2ManagerProxy,
             seigManagerProxy,
@@ -672,106 +737,168 @@ contract DeployV3FullForDevnet is Script {
         );
         console.log("OperatorManagerFactory.setAddresses done");
 
-        DepositManagerV1_1(depositManagerProxy).setAddresses(
+        // DepositManager.setAddresses (V3 단일 구현체)
+        DepositManagerV3(depositManagerProxy).setAddresses(
             l1BridgeRegistryProxy,
             layer2ManagerProxy
         );
         console.log("DepositManager.setAddresses done");
+
+        // Set RAT treasury to DAO (l1BridgeRegistry는 initialize에서 이미 설정됨)
+        RAT(ratProxy).setTreasury(daoCommitteeProxy);
+        console.log("RAT.setTreasury done:", daoCommitteeProxy);
         console.log("");
     }
 
     // ==========================================
-    // Step 11: Connect RAT to Optimism
+    // Step 10.5: Deploy MockAnchorStateRegistry (bytecode only)
     // ==========================================
-    function _connectToOptimism() internal {
-        console.log("--- Step 11: Connect RAT to Optimism DisputeGameFactory ---");
+    function _initializeOptimismPortal() internal {
+        console.log("--- Step 10.5: Deploy MockAnchorStateRegistry ---");
 
-        if (disputeGameFactory == address(0)) {
-            console.log("Warning: DisputeGameFactory not set, skipping connection");
-            console.log("");
-            return;
-        }
+        // Validate required addresses
+        require(disputeGameFactory != address(0), "DisputeGameFactory address required");
+        require(systemConfig != address(0), "SystemConfig address required");
 
-        // Check if DisputeGameFactory contract exists at the address
-        if (disputeGameFactory.code.length == 0) {
-            console.log("Warning: DisputeGameFactory not deployed at", disputeGameFactory);
-            console.log("Skipping Optimism integration");
-            console.log("RAT will work independently without DisputeGameFactory connection");
-            console.log("");
-            return;
-        }
+        // Deploy MockAnchorStateRegistry (bytecode only)
+        console.log("Deploying MockAnchorStateRegistry...");
+        MockAnchorStateRegistry mockASR = new MockAnchorStateRegistry();
+        anchorStateRegistry = address(mockASR);
+        console.log("MockAnchorStateRegistry deployed:", anchorStateRegistry);
 
-        // IMPORTANT: Use Optimism deployer (Account #0) to call setRAT() (onlyOwner)
-        // TON Staking uses Account #1, but DisputeGameFactory owner is Account #0
-        vm.stopBroadcast(); // Stop TON Staking deployer broadcast
-        vm.startBroadcast(OPTIMISM_DEPLOYER); // Start Optimism deployer broadcast
+        // NOTE: All Optimism contract initialization is done at test runtime via transactions:
+        // - MockAnchorStateRegistry.initialize()
+        // - OptimismPortal.initialize()
+        // - DisputeGameFactory.setRAT(), setInitBond()
+        console.log("Optimism contracts will be initialized at test runtime");
+        console.log("");
+    }
 
-        // Set RAT on DisputeGameFactory
-        try IDisputeGameFactory(disputeGameFactory).setRAT(ratProxy) {
-            console.log("DisputeGameFactory.setRAT(", ratProxy, ") done (called by Optimism deployer)");
-        } catch {
-            console.log("Warning: DisputeGameFactory.setRAT() failed");
-            console.log("Skipping Optimism integration");
-            vm.stopBroadcast();
-            vm.startBroadcast(); // Resume TON Staking deployer
-            console.log("");
-            return;
-        }
+    // ==========================================
+    // Step 11: Log Optimism Integration Info (no vm.store)
+    // ==========================================
+    function _connectToOptimism() internal view {
+        console.log("--- Step 11: Optimism Integration (Runtime Setup Required) ---");
 
-        // Set SystemConfig on DisputeGameFactory
-        if (systemConfig != address(0)) {
-            try IDisputeGameFactory(disputeGameFactory).setSystemConfig(systemConfig) {
-                console.log("DisputeGameFactory.setSystemConfig(", systemConfig, ") done");
-            } catch {
-                console.log("Warning: DisputeGameFactory.setSystemConfig() failed");
-            }
-        }
+        // NOTE: All Optimism integration is done at test runtime via transactions:
+        // - DisputeGameFactory.setRAT(ratProxy)
+        // - DisputeGameFactory.setSystemConfig(systemConfig)
+        // - DisputeGameFactory.setInitBond(gameType, bond)
+        // - L1BridgeRegistry.registerRollupConfigByManager()
 
-        // Set InitBond for game type 0 (FaultDisputeGame)
-        try IDisputeGameFactory(disputeGameFactory).setInitBond(0, DISPUTE_GAME_INIT_BOND) {
-            console.log("DisputeGameFactory.setInitBond(0,", DISPUTE_GAME_INIT_BOND, ") done");
-        } catch {
-            console.log("Warning: DisputeGameFactory.setInitBond() failed");
-        }
+        console.log("DisputeGameFactory:", disputeGameFactory);
+        console.log("SystemConfig:", systemConfig);
+        console.log("RAT Proxy:", ratProxy);
+        console.log("");
+        console.log("These will be connected at test runtime via transactions");
+        console.log("");
+    }
 
-        vm.stopBroadcast(); // Stop Optimism deployer broadcast
-        vm.startBroadcast(); // Resume TON Staking deployer
+    // ==========================================
+    // Deploy DAO Infrastructure
+    // ==========================================
+    function _deployDAO() internal {
+        console.log("--- Deploy DAO Infrastructure ---");
 
-        // Verify connection
-        try IDisputeGameFactory(disputeGameFactory).rat() returns (address ratOnFactory) {
-            if (ratOnFactory == ratProxy) {
-                console.log("RAT successfully connected to DisputeGameFactory");
-            } else {
-                console.log("Warning: RAT connection verification failed");
-                console.log("  Expected:", ratProxy);
-                console.log("  Got:", ratOnFactory);
-            }
-        } catch {
-            console.log("Warning: Could not verify RAT connection");
-        }
+        // 1. Deploy MockDAOCommitteeProxy (simplified proxy for devnet)
+        daoCommitteeProxy = address(new MockDAOCommitteeProxy(ton));
+        console.log("MockDAOCommitteeProxy deployed:", daoCommitteeProxy);
 
-        // Register SystemConfig in L1BridgeRegistry (this also registers DisputeGameFactory)
-        console.log("Registering SystemConfig in L1BridgeRegistry...");
-        vm.stopBroadcast(); // Stop Optimism deployer broadcast
-        vm.startBroadcast(); // Resume TON Staking deployer
+        // 2. Deploy DAO implementations
+        daoCommitteeProxy2 = address(new DAOCommitteeProxy2());
+        daoCommitteeV1 = address(new DAOCommittee_V1());
+        daoCommitteeOwner = address(new DAOCommitteeOwner());
+        console.log("DAOCommitteeProxy2:", daoCommitteeProxy2);
+        console.log("DAOCommittee_V1:", daoCommitteeV1);
+        console.log("DAOCommitteeOwner:", daoCommitteeOwner);
 
-        // First, add deployer as manager (required to call registerRollupConfigByManager)
-        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addManager(msg.sender);
-        console.log("Added deployer as L1BridgeRegistry manager:", msg.sender);
+        // 3. Setup proxy routing
+        IProxy(daoCommitteeProxy).upgradeTo(daoCommitteeProxy2);
+        IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoCommitteeV1);
+        console.log("Proxy routing configured");
 
-        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfigByManager(
-            systemConfig,
-            3, // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
-            ton // L2 TON address (using L1 TON as placeholder, not actually used for Optimism)
+        // 4. Setup DAOCommitteeOwner selector routing
+        IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
+
+        bytes4[] memory ownerSelectors = new bytes4[](5);
+        ownerSelectors[0] = IDAOCommitteeOwner.setCandidateFactory.selector;
+        ownerSelectors[1] = IDAOCommitteeOwner.setCandidateAddOnFactory.selector;
+        ownerSelectors[2] = IDAOCommitteeOwner.setSeigManager.selector;
+        ownerSelectors[3] = IDAOCommitteeOwner.setLayer2Manager.selector;
+        ownerSelectors[4] = IDAOCommitteeOwner.setLayer2Registry.selector;
+
+        IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
+        console.log("Owner selectors configured");
+
+        // 5. Deploy Candidate implementations
+        candidateImpl = address(new Candidate());
+        candidateAddOnImpl = address(new CandidateAddOnV1_1());
+        console.log("Candidate implementations:");
+        console.log("  Candidate:", candidateImpl);
+        console.log("  CandidateAddOnV1_1:", candidateAddOnImpl);
+
+        // 6. Deploy factories with proxies
+        CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
+        candidateFactoryProxy = address(cfProxy);
+        cfProxy.upgradeTo(address(new CandidateFactory()));
+        console.log("CandidateFactoryProxy:", candidateFactoryProxy);
+
+        CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
+        candidateAddOnFactoryProxy = address(caofProxy);
+        caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
+        console.log("CandidateAddOnFactoryProxy:", candidateAddOnFactoryProxy);
+
+        // 7. Configure factories
+        CandidateFactory(candidateFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            candidateImpl,
+            ton,
+            wton
         );
-        console.log("SystemConfig registered in L1BridgeRegistry");
-        console.log("  This also registered DisputeGameFactory for RAT trigger");
+
+        CandidateAddOnFactory(candidateAddOnFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            candidateAddOnImpl,
+            ton,
+            wton,
+            l1BridgeRegistryProxy
+        );
+        console.log("Factories configured");
+
+        // 8. Configure DAO
+        IDAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
+        IDAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
+        IDAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
+        IDAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
+        IDAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
+        console.log("DAO configured with manager contracts");
+
+        // 9. Grant MINTER_ROLE to DAO
+        Layer2Registry(layer2RegistryProxy).addMinter(daoCommitteeProxy);
+        console.log("DAO granted MINTER_ROLE for Layer2Registry");
 
         console.log("");
     }
 
     // ==========================================
-    // Step 12: Mint Test Tokens
+    // Register Layer2 - Skipped (done at test runtime)
+    // ==========================================
+    function _registerLayer2() internal pure {
+        console.log("--- Register Layer2 (Skipped - Runtime Setup Required) ---");
+
+        // NOTE: Layer2 registration is done at test runtime via transactions:
+        // - createMockLayer2() in rat_challenge_helpers.go
+        // - WTON.mint(), WTON.approve()
+        // - Layer2Manager.registerCandidateAddOn()
+
+        console.log("Layer2 will be created at test runtime via createMockLayer2()");
+        console.log("");
+    }
+
+    // ==========================================
+    // Step 12: Mint Test Tokens (Pure TON Staking - Genesis)
     // ==========================================
     function _mintTestTokens() internal {
         console.log("--- Step 12: Mint Test Tokens ---");
@@ -789,13 +916,17 @@ contract DeployV3FullForDevnet is Script {
             0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f, // Account #8
             0xa0Ee7A142d267C1f36714E4a8F75612F20a79720  // Account #9
         ];
+        // Mint tokens to test accounts (100,000 TON and 100,000 WTON each)
+        uint256 tonAmount = 100_000 * 1e18;  // TON uses 18 decimals
+        uint256 wtonAmount = 100_000 * 1e27; // WTON uses 27 decimals (RAY)
 
-        for (uint256 i = 0; i < testAccounts.length; i++) {
-            // Mint TON (18 decimals)
-            MockTON(ton).mint(testAccounts[i], 100000 * 1e18);
+        address[5] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER];
+        string[5] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER"];
 
-            // Mint WTON (27 decimals)
-            MockWTON(wton).mint(testAccounts[i], 100000 * RAY);
+        for (uint256 i = 0; i < accounts.length; i++) {
+            MockTON(ton).mint(accounts[i], tonAmount);
+            MockWTON(wton).mint(accounts[i], wtonAmount);
+            console.log("Minted to", names[i], accounts[i]);
         }
 
         console.log("Minted 100,000 TON and 100,000 WTON to 10 Anvil test accounts");
@@ -826,7 +957,6 @@ contract DeployV3FullForDevnet is Script {
         console.log("V3 Contracts:");
         console.log("  RAT Proxy:", ratProxy);
         console.log("  ValidatorReward Proxy:", validatorPoolProxy);
-        console.log("  SequencerVault Proxy:", sequencerVaultProxy);
         console.log("");
         console.log("Factory:");
         console.log("  OperatorManagerFactory:", operatorManagerFactory);
@@ -843,6 +973,40 @@ contract DeployV3FullForDevnet is Script {
         console.log("  VALIDATOR:", VALIDATOR);
         console.log("  PROPOSER:", PROPOSER);
         console.log("  CHALLENGER:", CHALLENGER);
+    }
+
+    // ==========================================
+    // RAT 2단계 초기화 (stack too deep 회피)
+    // ==========================================
+    function _buildRATInitData(address deployer) internal view returns (bytes memory) {
+        // Step 1: 핵심 주소만으로 초기화 (6개 필드)
+        RATInitParams memory params = RATInitParams({
+            seigManager: seigManagerProxy,
+            wton: wton,
+            ton: ton,
+            layer2Manager: layer2ManagerProxy,
+            l1BridgeRegistry: l1BridgeRegistryProxy,
+            owner: deployer
+        });
+        return abi.encodeWithSelector(RAT.initialize.selector, params);
+    }
+
+    function _configureRAT(address proxy, address deployer) internal {
+        // Step 2: 설정 파라미터 설정
+        RATConfigParams memory config = RATConfigParams({
+            ratTriggerProbability: RAT_TRIGGER_PROBABILITY,
+            evidenceSubmissionPeriod: RAT_EVIDENCE_PERIOD,
+            slashingPenalty: RAT_SLASHING_PENALTY,
+            validatorBuffer: RAT_VALIDATOR_BUFFER,
+            minimumThreshold: RAT_MINIMUM_THRESHOLD,
+            maxValidatorsPerL2: RAT_MAX_VALIDATORS_PER_L2,
+            challengeGameDuration: RAT_CHALLENGE_GAME_DURATION,
+            safetyBuffer: RAT_SAFETY_BUFFER,
+            treasury: deployer,
+            attentionCost: RAT_ATTENTION_COST,
+            relaxedValidatorCheck: RAT_RELAXED_VALIDATOR_CHECK
+        });
+        RAT(proxy).setConfig(config);
     }
 
     // Helper functions to avoid stack too deep
@@ -871,8 +1035,7 @@ contract DeployV3FullForDevnet is Script {
         return string(abi.encodePacked(
             '  "operatorManagerFactory": "', vm.toString(operatorManagerFactory), '",\n',
             '  "ratProxy": "', vm.toString(ratProxy), '",\n',
-            '  "validatorRewardProxy": "', vm.toString(validatorPoolProxy), '",\n',
-            '  "sequencerVaultProxy": "', vm.toString(sequencerVaultProxy), '",\n'
+            '  "validatorRewardProxy": "', vm.toString(validatorPoolProxy), '",\n'
         ));
     }
 
@@ -880,25 +1043,47 @@ contract DeployV3FullForDevnet is Script {
         return string(abi.encodePacked(
             '  "disputeGameFactory": "', vm.toString(disputeGameFactory), '",\n',
             '  "systemConfig": "', vm.toString(systemConfig), '",\n',
-            '  "accounts": {\n',
+            '  "anchorStateRegistry": "', vm.toString(anchorStateRegistry), '",\n',
+            '  "daoCommitteeProxy": "', vm.toString(daoCommitteeProxy), '",\n',
+            '  "daoCommitteeProxy2": "', vm.toString(daoCommitteeProxy2), '",\n',
+            '  "daoCommitteeV1": "', vm.toString(daoCommitteeV1), '",\n'
+        ));
+    }
+
+    function _buildJsonPart5() internal view returns (string memory) {
+        return string(abi.encodePacked(
+            '  "daoCommitteeOwner": "', vm.toString(daoCommitteeOwner), '",\n',
+            '  "candidateImpl": "', vm.toString(candidateImpl), '",\n',
+            '  "candidateAddOnImpl": "', vm.toString(candidateAddOnImpl), '",\n',
+            '  "candidateFactoryProxy": "', vm.toString(candidateFactoryProxy), '",\n',
+            '  "candidateAddOnFactoryProxy": "', vm.toString(candidateAddOnFactoryProxy), '",\n',
+            '  "mockLayer2": "', vm.toString(mockLayer2), '",\n'
+        ));
+    }
+
+    function _buildJsonPart6() internal view returns (string memory) {
+        string memory accounts = string(abi.encodePacked(
             '    "optimismDeployer": "', vm.toString(OPTIMISM_DEPLOYER), '",\n',
             '    "tonStakingDeployer": "', vm.toString(DEPLOYER), '",\n',
             '    "validator": "', vm.toString(VALIDATOR), '",\n',
             '    "proposer": "', vm.toString(PROPOSER), '",\n',
-            '    "challenger": "', vm.toString(CHALLENGER), '"\n',
+            '    "challenger": "', vm.toString(CHALLENGER), '"\n'
+        ));
+        return string(abi.encodePacked(
+            '  "operatorManager": "', vm.toString(operatorManager), '",\n',
+            '  "accounts": {\n',
+            accounts,
             '  }\n',
             "}"
         ));
     }
 
-    function _saveDeployment() internal {
+    function _saveDeployment() internal view {
         // Build JSON in parts to avoid stack too deep
-        string memory json = string(abi.encodePacked(
-            _buildJsonPart1(),
-            _buildJsonPart2(),
-            _buildJsonPart3(),
-            _buildJsonPart4()
-        ));
+        string memory p1 = string(abi.encodePacked(_buildJsonPart1(), _buildJsonPart2()));
+        string memory p2 = string(abi.encodePacked(_buildJsonPart3(), _buildJsonPart4()));
+        string memory p3 = string(abi.encodePacked(_buildJsonPart5(), _buildJsonPart6()));
+        string memory json = string(abi.encodePacked(p1, p2, p3));
 
         // Print JSON for bash script to save
         console.log("\n=== DEPLOYMENT_JSON_START ===");

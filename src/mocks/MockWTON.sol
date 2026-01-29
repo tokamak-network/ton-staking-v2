@@ -41,7 +41,9 @@ contract MockWTON is ERC20 {
 
     function swapToTONAndTransfer(address to, uint256 wtonAmount) external returns (bool) {
         _burn(msg.sender, wtonAmount);
-        // In real implementation, this would transfer TON
+        // Convert WTON (27 decimals) to TON (18 decimals) and transfer
+        uint256 tonAmount = wtonAmount / 1e9; // 27 - 18 = 9
+        IERC20(ton).transfer(to, tonAmount);
         return true;
     }
 
@@ -79,12 +81,11 @@ contract MockWTON is ERC20 {
     /// @notice onApprove callback from TON.approveAndCall
     /// @dev Converts TON to WTON and deposits to DepositManager
     /// @param owner User who initiated the approveAndCall
-    /// @param spender This contract (WTON)
     /// @param amount TON amount (18 decimals)
     /// @param data abi.encode(depositManager, layer2)
     function onApprove(
         address owner,
-        address spender,
+        address /* spender */,
         uint256 amount,
         bytes calldata data
     ) external returns (bool) {
