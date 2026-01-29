@@ -122,16 +122,7 @@ make test-e2e
 - **English:** https://tokamak-network.github.io/ton-staking-v2/
 - **한국어:** https://tokamak-network.github.io/ton-staking-v2/ko/
 
-Includes system architecture, actor guides, function specs, and V2→V3 upgrade guide.
-
-### 📖 Core Specifications (Korean)
-- [System Overview](./docs/specs-kr/01-system-overview.md) - V3 introduction & changes
-- [System Architecture](./docs/specs-kr/02-system-architecture.md) - Contract dependencies & flow
-- [Contract Structure](./docs/specs-kr/03-contract-structure.md) - Directory & storage layout
-- [Contract Roles](./docs/specs-kr/04-contract-roles.md) - Responsibilities & interactions
-- [Actors](./docs/specs-kr/05-actors.md) - Sequencer, Validator, DAO roles
-- [Function Specs](./docs/specs-kr/06-function-specs.md) - Detailed function reference
-- [V2→V3 Upgrade](./docs/specs-kr/08-v2-to-v3-upgrade-guide.md) - Migration guide
+Includes system architecture, contract structure, actor guides, function specs, and V2→V3 upgrade guide.
 
 ### 🧪 Test Documentation
 - [Testing Guide](./docs/test/README.md) - Quick start & overview
@@ -214,18 +205,6 @@ git submodule update --remote lib/optimism
 # Update all submodules
 git submodule update --init --recursive
 ```
-
----
-
-## 🌐 Networks
-
-### Mainnet (TBD)
-- **Chain ID:** 1 (Ethereum)
-- **Contracts:** TBD
-
-### Testnet (TBD)
-- **Chain ID:** 5 (Goerli) / 11155111 (Sepolia)
-- **Contracts:** TBD
 
 ---
 
