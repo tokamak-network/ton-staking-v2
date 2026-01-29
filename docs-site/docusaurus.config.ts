@@ -90,12 +90,12 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Architecture',
-              to: '/docs/01_v2_architecture',
+              label: 'System Architecture',
+              to: '/docs/02-system-architecture',
             },
             {
-              label: 'Validator',
-              to: '/docs/04_validator',
+              label: 'Validator Guide',
+              to: '/docs/actors/actors-validator',
             },
           ],
         },

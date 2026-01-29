@@ -708,5 +708,5 @@ interface IValidatorReward {
 - [01-system-overview.md](./01-system-overview.md): 시스템 개요
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처
 - [04-contract-roles.md](./04-contract-roles.md): 컨트랙트별 역할
-- [05-actors.md](./05-actors.md): 액터 정의
-- [06-function-specs.md](./06-function-specs.md): 함수별 상세 설명
+- [액터](./actors/01-overview.md): 액터 정의
+- [함수 스펙](./functions/01-overview.md): 함수별 상세 설명

@@ -16,10 +16,10 @@ sidebar_position: 0
 | [시스템 아키텍처](./02-system-architecture.md) | 전체 아키텍처, 컨트랙트 의존성, 프록시 패턴, 롤업 타입, 데이터 흐름 |
 | [컨트랙트 구조](./03-contract-structure.md) | 디렉토리 구조, 컨트랙트 상세, 스토리지 구조, 인터페이스, 상속 관계 |
 | [컨트랙트 역할](./04-contract-roles.md) | 컨트랙트별 역할, 책임, 상호작용 (SeigManager, DepositManager, RAT 등) |
-| [액터](./05-actors.md) | 액터 정의, 시퀀서/검증자 여정 가이드, 상호작용 |
-| [함수 스펙](./06-function-specs.md) | 함수별 상세 설명, 파라미터, 동작 흐름, 이벤트 |
+| [액터](./actors/01-overview.md) | 액터 정의, 시퀀서/검증자 여정 가이드, 상호작용 |
+| [함수 스펙](./functions/01-overview.md) | 함수별 상세 설명, 파라미터, 동작 흐름, 이벤트 |
 | [백서 요약](./07-economics-whitepaper-summary.md) | Tokamak Economics Whitepaper V2 요약 |
-| [업그레이드 가이드](./08-v2-to-v3-upgrade-guide.md) | V2에서 V3로 업그레이드 가이드 |
+| [업그레이드 가이드](./upgrade-guide/01-overview.md) | V2에서 V3로 업그레이드 가이드 |
 | [L2 등록 가이드](./09-layer2-registration-guide.md) | Layer2 등록 가이드 |
 | [테스트 목록](./10-v3-test-lists.md) | V3 테스트 목록 |
 | [시뇨리지 케이스](./11-seigniorage-update-cases.md) | 시뇨리지 업데이트 케이스 상세 분석 |

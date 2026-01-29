@@ -338,5 +338,5 @@ d·A + (L - y(x)) + Σ(시퀀서_i) + Σ(검증자_j) = A
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처
 - [03-contract-structure.md](./03-contract-structure.md): 컨트랙트 구조
 - [04-contract-roles.md](./04-contract-roles.md): 컨트랙트별 역할
-- [05-actors.md](./05-actors.md): 액터 정의
+- [액터](./actors/01-overview.md): 액터 정의
 - [06-function-specs.md](./06-function-specs.md): 함수별 상세 설명

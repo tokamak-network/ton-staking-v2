@@ -337,5 +337,5 @@ Claimable rewards cannot be negative and cannot exceed total distributed amount.
 - [02-system-architecture.md](./02-system-architecture.md): System Architecture
 - [03-contract-structure.md](./03-contract-structure.md): Contract Structure
 - [04-contract-roles.md](./04-contract-roles.md): Contract Roles
-- [05-actors.md](./05-actors.md): Actor Definitions
+- [Actors](./actors/01-overview.md): Actor Definitions
 - [06-function-specs.md](./06-function-specs.md): Detailed Function Descriptions

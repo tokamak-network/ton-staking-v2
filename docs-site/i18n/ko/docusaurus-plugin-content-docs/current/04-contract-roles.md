@@ -393,5 +393,5 @@ L1 브릿지/포탈의 **등록 및 TVL 조회**를 담당합니다. V1_2는 V1_
 - [01-system-overview.md](./01-system-overview.md): 시스템 개요
 - [02-system-architecture.md](./02-system-architecture.md): 시스템 아키텍처
 - [03-contract-structure.md](./03-contract-structure.md): 컨트랙트 구조
-- [05-actors.md](./05-actors.md): 액터 정의
-- [06-function-specs.md](./06-function-specs.md): 함수별 상세 설명
+- [액터](./actors/01-overview.md): 액터 정의
+- [함수 스펙](./functions/01-overview.md): 함수별 상세 설명
