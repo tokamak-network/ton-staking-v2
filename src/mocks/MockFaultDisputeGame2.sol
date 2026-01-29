@@ -108,6 +108,10 @@ contract MockFaultDisputeGame2 is IDisputeGame, ISemver {
     mapping(address => bool) public hasUnlockedCredit;
     BondDistributionMode public bondDistributionMode;
 
+    // Winning challenger tracking
+    mapping(address => bool) public isWinningChallenger;
+    address[] internal _winningChallengers;
+
     // Extra storage for IDisputeGame compliance
     Claim internal _rootClaim;
     bytes internal _extraData;
@@ -194,6 +198,29 @@ contract MockFaultDisputeGame2 is IDisputeGame, ISemver {
         // 첫번째 승리한 Challenger에게 보상을 주는 것을 테스트하기 위함
         require(claimData[0].counteredBy == address(0), "Already countered");
         claimData[0].counteredBy = msg.sender;
+        _recordWinningChallenger(msg.sender);
+    }
+
+    /// @notice Records a winning challenger address (mock implementation)
+    function _recordWinningChallenger(address _recipient) internal {
+        if (isWinningChallenger[_recipient]) return;
+        isWinningChallenger[_recipient] = true;
+        _winningChallengers.push(_recipient);
+    }
+
+    /// @notice Returns all winning challengers
+    function getWinningChallengers() external view returns (address[] memory) {
+        return _winningChallengers;
+    }
+
+    /// @notice Returns the count of winning challengers
+    function getWinningChallengersCount() external view returns (uint256) {
+        return _winningChallengers.length;
+    }
+
+    /// @notice Add a winning challenger (for testing multiple challengers)
+    function addWinningChallenger(address _challenger) external {
+        _recordWinningChallenger(_challenger);
     }
 
     // Helper to set status for testing

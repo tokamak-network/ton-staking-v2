@@ -81,21 +81,26 @@ contract DepositManager_Slashing is
 
     /**
      * @notice Execute slashing on an operator
-     * @dev Removes the operator's stake, notifies SeigManager, and distributes reward to challenger.
+     * @dev Removes the operator's stake, notifies SeigManager, and distributes reward to challengers.
      *      The remaining slashed amount (slashedAmount - rewardAmount) is effectively burned
      *      as it is removed from the coinage but not transferred out (except reward).
      * @param layer2 The address of the Layer2 contract (candidate)
      * @param operator The address of the wrong-doing operator
-     * @param challenger The address of the challenger who proved the fraud
+     * @param challengers The addresses of the challengers who proved the fraud
      * @return bool Returns true if slashing was successful
      */
     function slash(
         address layer2,
         address operator,
-        address challenger
+        address[] calldata challengers
     ) external onlyLayer2Manager returns (bool) {
         require(operator == ILayer2(layer2).operator(), "operator is not an operator");
-        require(challenger != address(0), "invalid challenger address");
+        require(challengers.length > 0, "no challengers");
+
+        // Validate all challenger addresses
+        for (uint256 i = 0; i < challengers.length; i++) {
+            require(challengers[i] != address(0), "invalid challenger address");
+        }
 
         // V3: Use SeigManager.stakeOf instead of deprecated _accStaked
         uint256 slashedAmount = ISeigManager(_seigManager).stakeOf(layer2, operator);
@@ -117,14 +122,39 @@ contract DepositManager_Slashing is
             rewardAmount = (totalSlashedAmount * slashingRewardRate) / 10000;
         }
 
-        // Challenger에게 보상 지급 (WTON 직접 전송)
+        // Challenger들에게 보상 균등 분배
         if (rewardAmount > 0) {
-            IERC20(_wton).safeTransfer(challenger, rewardAmount);
-            emit ChallengerRewarded(layer2, challenger, rewardAmount);
+            _distributeRewards(layer2, challengers, rewardAmount);
         }
 
-        emit Slashed(layer2, operator, challenger, totalSlashedAmount, rewardAmount);
+        emit Slashed(layer2, operator, challengers[0], totalSlashedAmount, rewardAmount);
 
         return true;
+    }
+
+    /**
+     * @notice Distribute rewards equally among challengers
+     * @param layer2 The address of the Layer2 contract
+     * @param challengers Array of challenger addresses
+     * @param totalReward Total reward amount to distribute
+     */
+    function _distributeRewards(
+        address layer2,
+        address[] calldata challengers,
+        uint256 totalReward
+    ) internal {
+        uint256 rewardPerChallenger = totalReward / challengers.length;
+        uint256 remainder = totalReward % challengers.length;
+
+        for (uint256 i = 0; i < challengers.length; i++) {
+            uint256 amount = rewardPerChallenger;
+            // 나머지는 첫 번째 challenger에게 지급
+            if (i == 0) {
+                amount += remainder;
+            }
+
+            IERC20(_wton).safeTransfer(challengers[i], amount);
+            emit ChallengerRewarded(layer2, challengers[i], amount);
+        }
     }
 }

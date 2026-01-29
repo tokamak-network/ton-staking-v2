@@ -32,13 +32,13 @@ contract Layer2Manager_Slashing is
 
     /**
      * @notice Event occurs when a candidate is slashed
-     * @param operator      the operator address that was slashed
-     * @param challenger    the challenger address who won the dispute
-     * @param disputeGame   the dispute game address
+     * @param operator        the operator address that was slashed
+     * @param challengerCount the number of challengers who won the dispute
+     * @param disputeGame     the dispute game address
      */
     event CandidateSlashed(
         address indexed operator,
-        address indexed challenger,
+        uint256 challengerCount,
         address disputeGame
     );
 
@@ -82,23 +82,23 @@ contract Layer2Manager_Slashing is
         // 이미 슬래싱된 DisputeGame인지 확인
         if (slashedDisputeGames[_disputeGame]) revert SlashingError();
 
-        // 승리한 Challenger 주소 추출: claimData(0).counteredBy
-        address challenger = _getWinningChallenger(_disputeGame);
-        require(challenger != address(0), "invalid challenger");
+        // 승리한 Challenger 주소들 추출
+        address[] memory challengers = _getWinningChallengers(_disputeGame);
+        require(challengers.length > 0, "no winning challengers");
 
-        //Slashing the operator and reward the challenger
+        //Slashing the operator and reward the challengers
         if (
             !IIDepositManager(depositManager).slash(
                 operatorInfo[_operatorManager].candidateAddOn,
                 _operatorManager,
-                challenger
+                challengers
             )
         ) revert SlashingError();
 
         // 슬래싱된 DisputeGame으로 표시
         slashedDisputeGames[_disputeGame] = true;
 
-        emit CandidateSlashed(_operatorManager, challenger, _disputeGame);
+        emit CandidateSlashed(_operatorManager, challengers.length, _disputeGame);
     }
 
     /* ========== internal ========== */
@@ -108,13 +108,11 @@ contract Layer2Manager_Slashing is
     }
 
     /**
-     * @notice Extract the winning challenger address from dispute game
+     * @notice Extract all winning challenger addresses from dispute game
      * @param disputeGame The dispute game address
-     * @return challenger The address of the winning challenger
+     * @return challengers The addresses of the winning challengers
      */
-    function _getWinningChallenger(address disputeGame) internal view returns (address challenger) {
-        // claimData(0)은 루트 클레임이며, counteredBy는 이를 격파한 챌린저의 주소
-        (, address counteredBy, , , , , ) = IFaultDisputeGame(disputeGame).claimData(0);
-        return counteredBy;
+    function _getWinningChallengers(address disputeGame) internal view returns (address[] memory challengers) {
+        return IFaultDisputeGame(disputeGame).getWinningChallengers();
     }
 }

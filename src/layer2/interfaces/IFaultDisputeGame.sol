@@ -29,4 +29,17 @@ interface IFaultDisputeGame is IDisputeGame {
         Position position,
         Clock clock
     );
+
+    /// @notice Returns all winning challengers
+    /// @return challengers Array of winning challenger addresses
+    function getWinningChallengers() external view returns (address[] memory challengers);
+
+    /// @notice Returns the count of winning challengers
+    /// @return count Number of winning challengers
+    function getWinningChallengersCount() external view returns (uint256 count);
+
+    /// @notice Check if an address is a winning challenger
+    /// @param challenger The address to check
+    /// @return isWinner True if the address is a winning challenger
+    function isWinningChallenger(address challenger) external view returns (bool isWinner);
 }
