@@ -215,6 +215,15 @@ import { IOptimismPortal2 } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
 
 ## 문서
 
+### 🌐 개발자 가이드 (권장)
+**검색 기능이 포함된 완전한 인터랙티브 문서:**
+- **한국어:** https://tokamak-network.github.io/ton-staking-v2/ko/
+- **English:** https://tokamak-network.github.io/ton-staking-v2/
+
+시스템 아키텍처, 액터 가이드, 함수 스펙, V2→V3 업그레이드 가이드 포함.
+
+### 📖 핵심 명세서
+
 | 문서 | 설명 |
 |------|------|
 | [specs-kr/](./docs/specs-kr/) | V3 시스템 명세서 (한국어) |

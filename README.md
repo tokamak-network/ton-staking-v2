@@ -117,6 +117,13 @@ make test-e2e
 
 ## 📚 Documentation
 
+### 🌐 Developer Guide (Recommended)
+**Complete interactive documentation with search:**
+- **English:** https://tokamak-network.github.io/ton-staking-v2/
+- **한국어:** https://tokamak-network.github.io/ton-staking-v2/ko/
+
+Includes system architecture, actor guides, function specs, and V2→V3 upgrade guide.
+
 ### 📖 Core Specifications (Korean)
 - [System Overview](./docs/specs-kr/01-system-overview.md) - V3 introduction & changes
 - [System Architecture](./docs/specs-kr/02-system-architecture.md) - Contract dependencies & flow
