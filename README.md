@@ -34,10 +34,14 @@ make test-e2e
 
 ## 📖 What is TON Staking V3?
 
-TON Staking V3 is an Ethereum L1 staking system that incentivizes:
-- 🔒 **L2 Sequencers** - Secure network operation through performance-based rewards
-- ✅ **Validators** - Continuous network monitoring via RAT (Randomized Attention Test)
-- 🎯 **Fair Distribution** - Rewards based on actual network contribution (Bridged TON)
+TON Staking V3 is Tokamak Network's seigniorage distribution system on Ethereum L1, designed to **strengthen L2 network security** by focusing rewards on participants who actively operate and validate the network.
+
+**Key participants:**
+- 🔒 **L2 Sequencers** - Receive rewards based on actual network contribution (Bridged TON)
+- ✅ **Validators** - Monitor L2 networks and respond to RAT (Randomized Attention Test)
+- 🏛️ **DAO** - Governs system parameters and receives undistributed seigniorage
+
+Unlike V2 where general stakers received seigniorage, **V3 concentrates rewards on L2 ecosystem participants** to incentivize network security and growth.
 
 ---
 
