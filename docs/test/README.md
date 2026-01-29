@@ -175,8 +175,8 @@ cd op-e2e && make clean
 | [unit-tests.md](./unit-tests.md) | Solidity unit tests guide | Testing individual contracts |
 | [integration-tests.md](./integration-tests.md) | Solidity integration guide | Testing workflows |
 | [e2e-tests.md](./e2e-tests.md) | Go E2E tests guide | Testing complete system |
+| [QUICK-COMMANDS.md](./QUICK-COMMANDS.md) | Command reference cheat sheet | Quick command lookup |
 | [op-e2e-genesis-setup.md](./op-e2e-genesis-setup.md) | Genesis file generation | Setting up E2E tests |
-| [gap-analysis.md](./gap-analysis.md) | Test coverage gaps | Understanding test priorities |
 
 ---
 
