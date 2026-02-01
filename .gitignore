@@ -1,0 +1,62 @@
+# Compiler output
+/out
+/cache
+/cache_hardhat
+/artifacts
+/typechain-types
+
+# Dependencies
+/node_modules
+/lib
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+/coverage
+/coverage.json
+lcov.info
+
+# Build
+/dist
+*.log
+
+# Foundry
+/broadcast
+/deployments
+
+# Gas snapshots
+.gas-snapshot
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+/playwright-report/
+/test-results/
+
+# Claude
+.claude/
+AGENTS.md

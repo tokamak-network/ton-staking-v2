@@ -1,0 +1,19 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": [],
+  "rules": {
+    "compiler-version": ["error", "^0.8.24"],
+    "func-visibility": ["warn", { "ignoreConstructors": true }],
+    "max-line-length": ["warn", 120],
+    "not-rely-on-time": "off",
+    "no-inline-assembly": "off",
+    "reason-string": ["warn", { "maxLength": 64 }],
+    "func-name-mixedcase": "off",
+    "var-name-mixedcase": "off",
+    "no-empty-blocks": "off",
+    "custom-errors": "error",
+    "imports-on-top": "error",
+    "ordering": "warn",
+    "visibility-modifier-order": "error"
+  }
+}
