@@ -23,27 +23,36 @@ WinningChallengerTracker 연동을 위해 컨트랙트, 인터페이스, Go 빌�
 *   **원인**: `WinningChallengerTracker` 연동 로직 및 `RAT` 관련 로직 추가로 인한 바이트코드 증가.
 *   **해결**: `foundry.toml`에서 `FaultDisputeGame.sol`에 한해 `optimizer_runs`를 **999,999**에서 **200**으로 하향 조정. 최종 22.2KB로 축소 성공.
 
-### 🟡 이슈 #2: devnet-allocs 생성 중 NotABlueprint() Panic
+### 🟢 이슈 #2: devnet-allocs 생성 중 NotABlueprint() Panic (해결 완료)
 *   **현상**: `make devnet-allocs-offline` 실행 시 `DeployImplementations` 단계에서 예외 발생(`revision id 33 cannot be reverted`).
-*   **원인**: `OPContractsManager`는 Blueprint(ERC-5202) 형식을 기대하지만, 배포된 바이트코드 서두에서 `0xFE71` 프리앰블을 찾지 못함.
-*   **상태**: **분석 중**. `DisputeGameFactory`의 초기화 방식 변경이 Blueprint 배포 메커니즘에 의도치 않은 영향을 주었는지 조사 필요.
+*   **원인**: `OPContractsManager`가 `Blueprint.deployFrom(addr1, addr2, ...)` (2-address 버전)을 무조건적으로 호출함. 현재 `FaultDisputeGame`의 initcode 크기(22,216 bytes)가 Blueprint 라이브러리의 분할 임계값(23,500 bytes)보다 작아 두 번째 Blueprint 주소가 `address(0)`이 됨. `Blueprint.parseBlueprintPreamble(address(0).code)` 호출 시 코드가 없어 `NotABlueprint()` 에러 발생.
+*   **해결**: `OPContractsManagerBase`에 `deployFromBlueprint()` 헬퍼 함수 추가. 두 번째 Blueprint 주소가 `address(0)`인 경우 1-address 버전을, 아닌 경우 2-address 버전의 `Blueprint.deployFrom`을 호출하도록 수정.
+*   **적용 위치**:
+    - `OPContractsManagerGameTypeAdder.addGameType()` - line 501
+    - `OPContractsManagerUpgrader.deployAndSetNewGameImpl()` - line 936, 948
+    - `OPContractsManagerDeployer.deploy()` - line 1078, 1103
+    - `OPContractsManagerInteropDeployer` - SuperPermissionedDisputeGame, SuperFaultDisputeGame 배포
+*   **검증**: `just devnet-allocs` 실행 성공, `.devnet/` 디렉토리에 allocs 파일 정상 생성 확인.
+*   **상태**: **✅ 해결 완료** (2025-02-02)
 
 ---
 
 ## 🚀 3. 다음 세션을 위한 작업 가이드
 
-> **주제: WinningChallengerTracker 통합 및 devnet-allocs 디버깅**
+> **주제: op-e2e 테스트를 통한 전체 통합 시나리오 확인**
 >
 > **현재 진행 상황:**
-> 1. 컨트랙트(`FaultDisputeGame`, `DisputeGameFactory`) 수정 및 `forge build` 성공.
-> 2. `foundry.toml` 최적화(runs=200)로 코드 크기 이슈 해결.
-> 3. `lib/optimism` Go 의존성 빌드 완료.
+> 1. ✅ `NotABlueprint()` 에러 해결 완료 - `deployFromBlueprint()` 헬퍼 함수 도입.
+> 2. ✅ `just devnet-allocs` 실행 성공, allocs 파일 생성 확인.
+> 3. ✅ `FaultDisputeGame` 코드 크기 최적화 완료 (22.2KB).
 >
 > **당면 과제:**
-> - `make devnet-allocs-offline` 중 `NotABlueprint()` 에러 해결.
-> - `OPContractsManager`의 Blueprint 배포 방식과 충돌 지점 파악.
-> - `op-e2e` 테스트 시나리오 검증.
+> - `op-e2e` 테스트를 통한 전체 통합 시나리오 확인.
+> - WinningChallengerTracker 연동 테스트 수행.
+> - RAT (Randomized Attention Test) 통합 테스트.
 >
 > **참고 경로:**
 > - `lib/optimism/packages/contracts-bedrock/src/dispute/DisputeGameFactory.sol`
 > - `lib/optimism/packages/contracts-bedrock/src/L1/OPContractsManager.sol`
+> - `lib/optimism/packages/contracts-bedrock/src/libraries/Blueprint.sol`
+> - `lib/optimism/op-e2e/` - E2E 테스트 디렉토리
