@@ -8,14 +8,14 @@ import "./BaseSlashingTest.sol";
 contract SlashingMultiOperatorTest is BaseSlashingTest {
     address public operator2 = makeAddr("operator2");
     address public rollupConfig2 = makeAddr("mockRollupConfig2");
-    MockDisputeGameFactory public mockFactory;
+    MockDisputeGameFactory2 public mockFactory;
 
     function setUp() public override {
         super.setUp();
 
         // Setup second rollup config with UNIQUE addresses
         // Each rollup must have unique l1Bridge, portal, and disputeGameFactory
-        mockFactory = new MockDisputeGameFactory();
+        mockFactory = new MockDisputeGameFactory2();
 
         vm.mockCall(
             rollupConfig2,
@@ -118,7 +118,7 @@ contract SlashingMultiOperatorTest is BaseSlashingTest {
 
         // 2. Setup dispute game
         (GameType gameType, Claim rootClaim, bytes memory extraData) = _getDefaultGameParams();
-        MockDisputeGameFactory gameFactory = new MockDisputeGameFactory();
+        MockDisputeGameFactory2 gameFactory = new MockDisputeGameFactory2();
         vm.mockCall(
             rollupConfig,
             abi.encodeWithSignature("disputeGameFactory()"),

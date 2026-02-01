@@ -1689,13 +1689,15 @@ contract SlashingTest is Test, DeployV3WithSlashing {
 
         // 2. 일반 사용자가 직접 DepositManager.slash 호출 시도
         address attacker = makeAddr("attacker");
+        address[] memory challengers = new address[](1);
+        challengers[0] = challenger;
 
         vm.prank(attacker);
         vm.expectRevert(); // "not layer2Manager" 또는 유사한 에러 예상
         DepositManager_Slashing(address(depositManagerProxy)).slash(
             candidateAddOn,
             operatorManager,
-            challenger
+            challengers
         );
 
         console.log("[OK] Unauthorized DepositManager.slash call prevented");

@@ -7,13 +7,13 @@ import "./BaseSlashingTest.sol";
 /// @notice Tests for edge cases: minimum stake, invalid game states, re-registration, partial withdrawal
 contract SlashingEdgeCaseTest is BaseSlashingTest {
     address public rollupConfig2 = makeAddr("mockRollupConfig2");
-    MockDisputeGameFactory public mockFactory;
+    MockDisputeGameFactory2 public mockFactory;
 
     function setUp() public override {
         super.setUp();
 
         // Setup mock factory for first rollup
-        mockFactory = new MockDisputeGameFactory();
+        mockFactory = new MockDisputeGameFactory2();
         vm.mockCall(
             rollupConfig,
             abi.encodeWithSignature("disputeGameFactory()"),
@@ -282,7 +282,7 @@ contract SlashingEdgeCaseTest is BaseSlashingTest {
 
     function _setupSecondRollup() internal {
         // Setup with UNIQUE addresses for second rollup
-        MockDisputeGameFactory mockFactory2 = new MockDisputeGameFactory();
+        MockDisputeGameFactory2 mockFactory2 = new MockDisputeGameFactory2();
 
         vm.mockCall(
             rollupConfig2,

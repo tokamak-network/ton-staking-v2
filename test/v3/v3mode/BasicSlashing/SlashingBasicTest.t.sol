@@ -69,7 +69,7 @@ contract SlashingBasicTest is BaseSlashingTest {
 
         // 2. Setup dispute game
         (GameType gameType, Claim rootClaim, bytes memory extraData) = _getDefaultGameParams();
-        (MockDisputeGameFactory gameFactory, MockFaultDisputeGame2 game) = _setupDisputeGame(
+        (MockDisputeGameFactory2 gameFactory, MockFaultDisputeGame2 game) = _setupDisputeGame(
             rollupConfig,
             gameType,
             rootClaim,

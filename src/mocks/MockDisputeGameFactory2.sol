@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "./MockFaultDisputeGame3.sol";
+import "./MockFaultDisputeGame2.sol";
 import {IDisputeGameFactory} from "../layer2/interfaces/IDisputeGameFactory.sol";
 import {IDisputeGame} from "../layer2/interfaces/IDisputeGame.sol";
 import {
@@ -14,7 +14,10 @@ import {
     Duration
 } from "../layer2/lib/LibUDT.sol";
 
-contract MockDisputeGameFactory is IDisputeGameFactory {
+/// @title MockDisputeGameFactory2
+/// @notice Mock factory that creates MockFaultDisputeGame2 instances
+/// @dev Used for BasicSlashing tests
+contract MockDisputeGameFactory2 is IDisputeGameFactory {
     mapping(bytes32 => address) public gamesMap;
     mapping(uint256 => address) public gameByIndexMap;
     uint256 public gameCount;
@@ -56,13 +59,22 @@ contract MockDisputeGameFactory is IDisputeGameFactory {
         Claim _rootClaim,
         bytes calldata _extraData
     ) external payable returns (IDisputeGame proxy_) {
-        // Use MockFaultDisputeGame3 with msg.sender as creator
-        MockFaultDisputeGame3 game = new MockFaultDisputeGame3(
-            _gameType,
-            _rootClaim,
-            _extraData,
-            msg.sender
-        );
+        // Create MockFaultDisputeGame2 with default constructor parameters
+        MockFaultDisputeGame2.GameConstructorParams memory params = MockFaultDisputeGame2
+            .GameConstructorParams({
+                gameType: _gameType,
+                absolutePrestate: Claim.wrap(bytes32(0)),
+                maxGameDepth: 73,
+                splitDepth: 30,
+                clockExtension: Duration.wrap(10800),
+                maxClockDuration: Duration.wrap(302400),
+                vm: IBigStepper(address(0)),
+                weth: IDelayedWETH(address(0)),
+                anchorStateRegistry: IAnchorStateRegistry(address(0)),
+                l2ChainId: 1
+            });
+
+        MockFaultDisputeGame2 game = new MockFaultDisputeGame2(params, _rootClaim, _extraData);
         proxy_ = IDisputeGame(address(game));
 
         Hash uuid = getGameUUID(_gameType, _rootClaim, _extraData);

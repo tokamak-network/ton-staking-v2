@@ -7,11 +7,11 @@ import {OperatorManagerV1_2} from "../../../../src/layer2/OperatorManagerV1_2.so
 /// @title SlashingAttackVectorTest
 /// @notice Tests for attack vectors: game parameter manipulation, timing attacks, economic attacks
 contract SlashingAttackVectorTest is BaseSlashingTest {
-    MockDisputeGameFactory public mockFactory;
+    MockDisputeGameFactory2 public mockFactory;
 
     function setUp() public override {
         super.setUp();
-        mockFactory = new MockDisputeGameFactory();
+        mockFactory = new MockDisputeGameFactory2();
         vm.mockCall(
             rollupConfig,
             abi.encodeWithSignature("disputeGameFactory()"),
@@ -477,7 +477,7 @@ contract SlashingAttackVectorTest is BaseSlashingTest {
         // Setup second rollup
         address rollupConfig2 = makeAddr("rollupConfig2");
         address operator2 = makeAddr("operator2");
-        MockDisputeGameFactory mockFactory2 = new MockDisputeGameFactory();
+        MockDisputeGameFactory2 mockFactory2 = new MockDisputeGameFactory2();
 
         _setupRollupMocksWithFactory(rollupConfig2, mockFactory2);
         L1BridgeRegistryV1_2(l1BridgeRegistryProxy).registerRollupConfig(
@@ -533,7 +533,7 @@ contract SlashingAttackVectorTest is BaseSlashingTest {
 
     function _setupRollupMocksWithFactory(
         address _rollupConfig,
-        MockDisputeGameFactory _factory
+        MockDisputeGameFactory2 _factory
     ) internal {
         vm.mockCall(
             _rollupConfig,

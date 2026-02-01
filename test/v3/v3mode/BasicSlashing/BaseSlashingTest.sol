@@ -20,7 +20,7 @@ import {RATProxy} from "../../../../src/validator/RATProxy.sol";
 import {ValidatorRewardProxy} from "../../../../src/validator/ValidatorRewardProxy.sol";
 import {MockTON} from "../../../../src/mocks/MockTON.sol";
 import {MockWTON} from "../../../../src/mocks/MockWTON.sol";
-import {MockDisputeGameFactory} from "../../../../src/mocks/MockDisputeGameFactory.sol";
+import {MockDisputeGameFactory2} from "../../../../src/mocks/MockDisputeGameFactory2.sol";
 import {MockFaultDisputeGame2} from "../../../../src/mocks/MockFaultDisputeGame2.sol";
 import {
     RefactorCoinageSnapshotI
@@ -162,8 +162,8 @@ abstract contract BaseSlashingTest is Test, DeployV3WithSlashing {
         GameType _gameType,
         Claim _rootClaim,
         bytes memory _extraData
-    ) internal returns (MockDisputeGameFactory gameFactory, MockFaultDisputeGame2 game) {
-        gameFactory = new MockDisputeGameFactory();
+    ) internal returns (MockDisputeGameFactory2 gameFactory, MockFaultDisputeGame2 game) {
+        gameFactory = new MockDisputeGameFactory2();
 
         vm.mockCall(
             _rollupConfig,

@@ -106,13 +106,15 @@ contract SlashingSecurityTest is BaseSlashingTest {
 
         // 2. Attacker tries to directly call DepositManager.slash
         address attacker = makeAddr("attacker");
+        address[] memory challengers = new address[](1);
+        challengers[0] = challenger;
 
         vm.prank(attacker);
         vm.expectRevert(); // "not layer2Manager" or similar error expected
         DepositManager_Slashing(address(depositManagerProxy)).slash(
             candidateAddOn,
             operatorManager,
-            challenger
+            challengers
         );
 
         console.log("[OK] Unauthorized DepositManager.slash call prevented");
