@@ -24,7 +24,8 @@ WinningChallengerTracker 연동을 위해 컨트랙트, 인터페이스, Go 빌�
 *   **해결**: `foundry.toml`에서 `FaultDisputeGame.sol`에 한해 `optimizer_runs`를 **999,999**에서 **200**으로 하향 조정. 최종 22.2KB로 축소 성공.
 
 ### 🟢 이슈 #2: devnet-allocs 생성 중 NotABlueprint() Panic (해결 완료)
-*   **현상**: `make devnet-allocs-offline` 실행 시 `DeployImplementations` 단계에서 예외 발생(`revision id 33 cannot be reverted`).
+*   **현상**: `just devnet-allocs` 실행 시 `DeployImplementations` 단계에서 예외 발생(`revision id 33 cannot be reverted`).
+    > **참고**: 기존 문서에 `make devnet-allocs-offline`으로 기록되어 있었으나, 현재 `lib/optimism`에는 해당 타겟이 없음. 올바른 명령어는 `just devnet-allocs`.
 *   **원인**: `OPContractsManager`가 `Blueprint.deployFrom(addr1, addr2, ...)` (2-address 버전)을 무조건적으로 호출함. 현재 `FaultDisputeGame`의 initcode 크기(22,216 bytes)가 Blueprint 라이브러리의 분할 임계값(23,500 bytes)보다 작아 두 번째 Blueprint 주소가 `address(0)`이 됨. `Blueprint.parseBlueprintPreamble(address(0).code)` 호출 시 코드가 없어 `NotABlueprint()` 에러 발생.
 *   **해결**: `OPContractsManagerBase`에 `deployFromBlueprint()` 헬퍼 함수 추가. 두 번째 Blueprint 주소가 `address(0)`인 경우 1-address 버전을, 아닌 경우 2-address 버전의 `Blueprint.deployFrom`을 호출하도록 수정.
 *   **적용 위치**:
