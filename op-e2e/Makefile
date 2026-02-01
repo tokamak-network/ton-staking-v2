@@ -1,4 +1,4 @@
-.PHONY: all test test-rat test-rat-simple help clean coverage deps fmt lint info build
+.PHONY: all test test-rat test-rat-simple test-slashing test-real-challenger help clean coverage deps fmt lint info build build-challenger-deps
 
 # Default target
 all: build test
@@ -19,15 +19,19 @@ help:
 	@echo "  make test                   # Run E2E tests (starts isolated nodes)"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build              Build all packages"
-	@echo "  make test               Run all E2E tests"
-	@echo "  make test-rat           Run all RAT tests"
-	@echo "  make clean              Clean build artifacts"
-	@echo "  make coverage           Run tests with coverage"
-	@echo "  make deps               Verify Go module dependencies"
-	@echo "  make fmt                Format Go code"
-	@echo "  make lint               Lint Go code"
-	@echo "  make info               Show environment info"
+	@echo "  make build                  Build all packages"
+	@echo "  make test                   Run all E2E tests"
+	@echo "  make test-rat               Run all RAT tests"
+	@echo "  make test-slashing          Run slashing tests"
+	@echo "  make test-real-challenger   Run real challenger E2E tests"
+	@echo "  make test-multi-challenger  Run multi-challenger slashing tests"
+	@echo "  make build-challenger-deps  Build Optimism challenger dependencies"
+	@echo "  make clean                  Clean build artifacts"
+	@echo "  make coverage               Run tests with coverage"
+	@echo "  make deps                   Verify Go module dependencies"
+	@echo "  make fmt                    Format Go code"
+	@echo "  make lint                   Lint Go code"
+	@echo "  make info                   Show environment info"
 	@echo ""
 
 # Run all E2E tests (requires genesis file)
@@ -62,6 +66,50 @@ test-rat-simple:
 		exit 1; \
 	fi
 	GOWORK=off go test -v -run "TestSimpleRAT" ./faultproofs/...
+
+# Run slashing tests
+test-slashing:
+	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
+		echo "Error: Genesis file not found"; \
+		echo ""; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs-offline"; \
+		exit 1; \
+	fi
+	GOWORK=off go test -v -run "TestSlashing" ./slashing/...
+
+# Build Optimism challenger dependencies (cannon, op-program)
+# Required for real challenger E2E tests
+build-challenger-deps:
+	@echo "Building Optimism challenger dependencies..."
+	@if [ -d "../lib/optimism" ]; then \
+		cd ../lib/optimism && make cannon-prestate 2>/dev/null || echo "cannon-prestate build skipped (optional)"; \
+		cd ../lib/optimism && make op-program 2>/dev/null || echo "op-program build skipped (optional)"; \
+	else \
+		echo "Warning: lib/optimism not found. Real challenger tests may not work."; \
+	fi
+
+# Run real challenger E2E tests (requires Optimism system)
+test-real-challenger: build-challenger-deps
+	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
+		echo "Error: Genesis file not found"; \
+		echo ""; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs-offline"; \
+		exit 1; \
+	fi
+	GOWORK=off go test -v -timeout 10m -run "TestRealChallenger" ./slashing/...
+
+# Run multi-challenger slashing tests
+test-multi-challenger:
+	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
+		echo "Error: Genesis file not found"; \
+		echo ""; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs-offline"; \
+		exit 1; \
+	fi
+	GOWORK=off go test -v -timeout 10m -run "TestMultiChallenger" ./slashing/...
 
 # Clean build artifacts
 clean:

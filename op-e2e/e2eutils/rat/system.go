@@ -26,6 +26,7 @@ type TONStakingSystem struct {
 	AddressesPath string
 	Addresses     *DeploymentAddresses
 	TempDir       string
+	RPCURL        string
 }
 
 // DeploymentAddresses contains all deployed contract addresses
@@ -145,6 +146,7 @@ func StartTONStakingSystem(t *testing.T) *TONStakingSystem {
 		AddressesPath: addressesPath,
 		Addresses:     &addresses,
 		TempDir:       tempDir,
+		RPCURL:        rpcURL,
 	}
 
 	// Register cleanup
