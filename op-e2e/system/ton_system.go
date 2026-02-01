@@ -22,37 +22,38 @@ import (
 
 // TONDeploymentAddresses contains all deployed TON Staking V3 contract addresses.
 type TONDeploymentAddresses struct {
-	ChainID                int64          `json:"chainId"`
-	RPCURL                 string         `json:"rpcUrl"`
-	TON                    common.Address `json:"ton"`
-	WTON                   common.Address `json:"wton"`
-	CoinageFactory         common.Address `json:"coinageFactory"`
-	Layer2RegistryProxy    common.Address `json:"layer2RegistryProxy"`
-	SeigManagerProxy       common.Address `json:"seigManagerProxy"`
-	DepositManagerProxy    common.Address `json:"depositManagerProxy"`
-	Layer2ManagerProxy     common.Address `json:"layer2ManagerProxy"`
-	L1BridgeRegistryProxy  common.Address `json:"l1BridgeRegistryProxy"`
-	OperatorManagerFactory common.Address `json:"operatorManagerFactory"`
-	RATProxy               common.Address `json:"ratProxy"`
-	ValidatorRewardProxy   common.Address `json:"validatorRewardProxy"`
-	SequencerVaultProxy    common.Address `json:"sequencerVaultProxy"`
-	DisputeGameFactory     common.Address `json:"disputeGameFactory"`
-	SystemConfig           common.Address `json:"systemConfig"`
-	AnchorStateRegistry    common.Address `json:"anchorStateRegistry"`
-	MockLayer2             common.Address `json:"mockLayer2"`
-	MockSystemConfig       common.Address `json:"mockSystemConfig"`
+	ChainID                  int64          `json:"chainId"`
+	RPCURL                   string         `json:"rpcUrl"`
+	TON                      common.Address `json:"ton"`
+	WTON                     common.Address `json:"wton"`
+	CoinageFactory           common.Address `json:"coinageFactory"`
+	Layer2RegistryProxy      common.Address `json:"layer2RegistryProxy"`
+	SeigManagerProxy         common.Address `json:"seigManagerProxy"`
+	DepositManagerProxy      common.Address `json:"depositManagerProxy"`
+	Layer2ManagerProxy       common.Address `json:"layer2ManagerProxy"`
+	L1BridgeRegistryProxy    common.Address `json:"l1BridgeRegistryProxy"`
+	OperatorManagerFactory   common.Address `json:"operatorManagerFactory"`
+	RATProxy                 common.Address `json:"ratProxy"`
+	ValidatorRewardProxy     common.Address `json:"validatorRewardProxy"`
+	SequencerVaultProxy      common.Address `json:"sequencerVaultProxy"`
+	DisputeGameFactory       common.Address `json:"disputeGameFactory"`
+	SystemConfig             common.Address `json:"systemConfig"`
+	AnchorStateRegistry      common.Address `json:"anchorStateRegistry"`
+	MockLayer2               common.Address `json:"mockLayer2"`
+	MockSystemConfig         common.Address `json:"mockSystemConfig"`
+	WinningChallengerTracker common.Address `json:"winningChallengerTracker"`
 }
 
 // TONSystem represents a running TON Staking V3 system for E2E testing.
 // It wraps Optimism's e2esys.System and adds TON-specific functionality.
 type TONSystem struct {
-	T            *testing.T
-	Ctx          context.Context
-	L1Client     *ethclient.Client
-	L1RPCURL     string
-	Addresses    *TONDeploymentAddresses
-	PrivateKeys  map[string]*ecdsa.PrivateKey
-	Accounts     map[string]*TestAccount
+	T           *testing.T
+	Ctx         context.Context
+	L1Client    *ethclient.Client
+	L1RPCURL    string
+	Addresses   *TONDeploymentAddresses
+	PrivateKeys map[string]*ecdsa.PrivateKey
+	Accounts    map[string]*TestAccount
 }
 
 // TestAccount represents a test account with private key and transactor.
@@ -396,3 +397,71 @@ const (
 	GameStatusChallengerWon uint8 = 1
 	GameStatusDefenderWon   uint8 = 2
 )
+
+// GetWinningChallengerTracker returns a WinningChallengerTracker contract binding.
+func (s *TONSystem) GetWinningChallengerTracker(addr common.Address) (*bindings.WinningChallengerTracker, error) {
+	return bindings.NewWinningChallengerTracker(addr, s.L1Client)
+}
+
+// DeployWinningChallengerTracker deploys a new WinningChallengerTracker contract.
+func (s *TONSystem) DeployWinningChallengerTracker(auth *bind.TransactOpts) (common.Address, *bindings.WinningChallengerTracker, error) {
+	addr, tx, tracker, err := bindings.DeployWinningChallengerTracker(auth, s.L1Client)
+	if err != nil {
+		return common.Address{}, nil, fmt.Errorf("failed to deploy WinningChallengerTracker: %w", err)
+	}
+
+	_, err = bind.WaitMined(s.Ctx, s.L1Client, tx)
+	if err != nil {
+		return common.Address{}, nil, fmt.Errorf("failed to wait for deployment tx: %w", err)
+	}
+
+	return addr, tracker, nil
+}
+
+// GetWinningChallengersFromTracker returns the winning challengers from a dispute game
+// using the external WinningChallengerTracker contract.
+func (s *TONSystem) GetWinningChallengersFromTracker(trackerAddr, gameAddr common.Address) ([]common.Address, error) {
+	tracker, err := s.GetWinningChallengerTracker(trackerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tracker: %w", err)
+	}
+
+	challengers, err := tracker.GetWinningChallengers(&bind.CallOpts{Context: s.Ctx}, gameAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get winning challengers from tracker: %w", err)
+	}
+
+	return challengers, nil
+}
+
+// IsWinningChallengerFromTracker checks if an address is a winning challenger
+// using the external WinningChallengerTracker contract.
+func (s *TONSystem) IsWinningChallengerFromTracker(trackerAddr, gameAddr, challenger common.Address) (bool, error) {
+	tracker, err := s.GetWinningChallengerTracker(trackerAddr)
+	if err != nil {
+		return false, fmt.Errorf("failed to get tracker: %w", err)
+	}
+
+	isWinner, err := tracker.IsWinningChallenger(&bind.CallOpts{Context: s.Ctx}, gameAddr, challenger)
+	if err != nil {
+		return false, fmt.Errorf("failed to check winning challenger from tracker: %w", err)
+	}
+
+	return isWinner, nil
+}
+
+// GetWinningChallengersCountFromTracker returns the count of winning challengers
+// for a dispute game using the external WinningChallengerTracker contract.
+func (s *TONSystem) GetWinningChallengersCountFromTracker(trackerAddr, gameAddr common.Address) (*big.Int, error) {
+	tracker, err := s.GetWinningChallengerTracker(trackerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tracker: %w", err)
+	}
+
+	count, err := tracker.GetWinningChallengersCount(&bind.CallOpts{Context: s.Ctx}, gameAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get winning challengers count from tracker: %w", err)
+	}
+
+	return count, nil
+}

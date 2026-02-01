@@ -298,10 +298,10 @@ contract MockFaultDisputeGame3 is IDisputeGame {
             return;
         }
 
-        // // Otherwise use internal storage
-        // if (_isWinningChallenger[_recipient]) return;
-        // _isWinningChallenger[_recipient] = true;
-        // _winningChallengers.push(_recipient);
+        // Otherwise use internal storage
+        if (_isWinningChallenger[_recipient]) return;
+        _isWinningChallenger[_recipient] = true;
+        _winningChallengers.push(_recipient);
     }
 
     // ============================================

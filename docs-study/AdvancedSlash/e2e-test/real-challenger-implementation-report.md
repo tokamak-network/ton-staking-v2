@@ -367,20 +367,30 @@ ok  github.com/tokamak-network/ton-staking-v2/op-e2e/slashing
 
 2. **~~FaultDisputeGame 사이즈 최적화~~**: ✅ 완료 - `WinningChallengerTracker` 분리
 
-3. **실제 Slashing 연동**: Winning Challenger 추적 후 `DepositManager.slash()`와 실제 연동 테스트
+3. **~~DisputeGameFactory 통합~~**: ✅ 완료 - [상세 문서](./winning-challenger-tracker-integration.md)
+   - DisputeGameFactory → FaultDisputeGame → WinningChallengerTracker 연결
+   - OPContractsManager 배포 파이프라인 수정
+   - Go op-deployer 파이프라인 수정
+
+4. **WinningChallengerTracker Go 바인딩**: 다음 작업
+   - abigen으로 Go 바인딩 생성
+   - E2E 테스트에서 사용
+
+5. **실제 Slashing 연동**: Winning Challenger 추적 후 `DepositManager.slash()`와 실제 연동 테스트
    - SeigManager를 통한 슬래싱 플로우 검증
    - 실제 Operator의 스테이킹 금액 차감 확인
 
-4. **보상 분배 검증**: Challenger들에게 실제로 WTON 보상이 균등 분배되는지 검증
+6. **보상 분배 검증**: Challenger들에게 실제로 WTON 보상이 균등 분배되는지 검증
    - 보상 계산 로직 테스트
    - 다수 Challenger 간 공정한 분배 검증
 
-5. **실제 op-challenger 연동**: Mock이 아닌 실제 Optimism op-challenger 서비스를 사용한 테스트 
+7. **실제 op-challenger 연동**: Mock이 아닌 실제 Optimism op-challenger 서비스를 사용한 테스트 
 
 ---
 
 ## 참고 문서
 
 - [real-challenger-e2e-plan.md](./real-challenger-e2e-plan.md) - 구현 계획서
+- [winning-challenger-tracker-integration.md](./winning-challenger-tracker-integration.md) - DisputeGameFactory 통합 문서 (2026-02-01)
 - [implementation-summary.md](./implementation-summary.md) - Winning Challenger 구현 요약
 - [winning-challenger-tracking-plan.md](./winning-challenger-tracking-plan.md) - 초기 계획
