@@ -1,7 +1,7 @@
 # 슬래싱 E2E 테스트 시나리오 2 Implementation Walkthrough
 
 ## 📝 작업 요약
-`docs-study/slashing-e2e-plan2.md`에 따라 **시나리오 2: 일반 스테이커 보호 (Delegator Protection)** 테스트를 구현하고 검증했습니다.
+`docs-study/BasicSlash/slashing-e2e-plan2.md`에 따라 **시나리오 2: 일반 스테이커 보호 (Delegator Protection)** 테스트를 구현하고 검증했습니다.
 
 ## 🔄 주요 변경 사항
 
