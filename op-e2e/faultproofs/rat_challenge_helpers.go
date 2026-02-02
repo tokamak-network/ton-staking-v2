@@ -359,6 +359,61 @@ func configureV3Parameters(t *testing.T, sys *rat.TONStakingSystem) {
 	t.Log("✓ V3 parameters configured")
 }
 
+// setRATTriggerProbabilityTo100Percent sets RAT trigger probability to 100% for testing
+func setRATTriggerProbabilityTo100Percent(t *testing.T, sys *rat.TONStakingSystem) {
+	t.Log("Setting RAT trigger probability to 100%...")
+
+	// RAT owner is deployer (Account #1)
+	ratOwner := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+
+	// Impersonate and fund owner
+	cleanup := impersonateAccount(t, sys.L1Client, ratOwner)
+	defer cleanup()
+	fundAccount(t, sys.L1Client, ratOwner, "0x56BC75E2D63100000") // 100 ETH
+
+	// RAT ABI for setRatTriggerProbability
+	ratABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"uint256","name":"probability","type":"uint256"}],"name":"setRatTriggerProbability","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[],"name":"ratTriggerProbability","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// Set probability to 1e27 (100%)
+	ray := new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil) // 1e27
+	callData, err := ratABI.Pack("setRatTriggerProbability", ray)
+	require.NoError(t, err)
+
+	txArgs := map[string]any{
+		"from":     ratOwner,
+		"to":       sys.Addresses.RATProxy,
+		"gas":      "0x100000", // 1M gas
+		"gasPrice": "0x" + gasPrice.Text(16),
+		"data":     "0x" + common.Bytes2Hex(callData),
+	}
+
+	var txHash common.Hash
+	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+	require.NoError(t, err, "Failed to send setRatTriggerProbability")
+
+	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "setRatTriggerProbability")
+
+	// Verify the setting
+	verifyData, _ := ratABI.Pack("ratTriggerProbability")
+	resultBytes, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.RATProxy,
+		Data: verifyData,
+	}, nil)
+	require.NoError(t, err)
+
+	var actualProbability *big.Int
+	ratABI.UnpackIntoInterface(&actualProbability, "ratTriggerProbability", resultBytes)
+	t.Logf("✓ RAT trigger probability set to: %s (1e27 = %s)", actualProbability.String(), ray.String())
+	require.Equal(t, ray.String(), actualProbability.String(), "RAT trigger probability should be 1e27")
+}
+
 // initializeOptimismContracts initializes Optimism contracts at runtime.
 //
 // This function initializes:
@@ -475,32 +530,54 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 	// No need to call it again at runtime.
 
 	// ===========================================
-	// Call L1BridgeRegistry.addManager() to grant manager role
+	// Call L1BridgeRegistry.addManager() to grant manager role (if not already granted)
 	// ===========================================
 	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[
 		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"addManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isManager","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
 		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"uint8","name":"rollupType","type":"uint8"},{"internalType":"address","name":"l2TON","type":"address"},{"internalType":"string","name":"name","type":"string"}],"name":"registerRollupConfigByManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
 		{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
 	]`))
 	require.NoError(t, err)
 
-	// Add deployer as manager
-	callData, err := l1BridgeRegistryABI.Pack("addManager", deployer)
+	// Check if deployer is already a manager
+	callData, err := l1BridgeRegistryABI.Pack("isManager", deployer)
 	require.NoError(t, err)
 
+	var isManagerResult string
+	err = sys.L1Client.Client().Call(&isManagerResult, "eth_call", map[string]any{
+		"to":   sys.Addresses.L1BridgeRegistryProxy,
+		"data": "0x" + common.Bytes2Hex(callData),
+	}, "latest")
+	require.NoError(t, err, "Failed to check isManager")
+
+	// Parse the result (32 bytes boolean)
+	isManager := isManagerResult != "0x0000000000000000000000000000000000000000000000000000000000000000" && isManagerResult != "0x"
+
+	// Prepare transaction arguments (will be reused for multiple transactions)
+	var txHash common.Hash
 	txArgs := map[string]any{
 		"from":     deployer,
 		"to":       sys.Addresses.L1BridgeRegistryProxy,
 		"gas":      "0x100000",
 		"gasPrice": "0x" + gasPrice.Text(16),
-		"data":     "0x" + common.Bytes2Hex(callData),
 	}
 
-	var txHash common.Hash
-	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
-	require.NoError(t, err, "Failed to send L1BridgeRegistry.addManager")
+	// Add deployer as manager only if not already a manager
+	if !isManager {
+		t.Log("Adding deployer as manager...")
+		callData, err = l1BridgeRegistryABI.Pack("addManager", deployer)
+		require.NoError(t, err)
 
-	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addManager")
+		txArgs["data"] = "0x" + common.Bytes2Hex(callData)
+
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send L1BridgeRegistry.addManager")
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addManager")
+	} else {
+		t.Log("Deployer is already a manager (set in genesis), skipping addManager call")
+	}
 
 	// ===========================================
 	// Call L1BridgeRegistry.registerRollupConfigByManager() via transaction
@@ -932,6 +1009,138 @@ func createMockLayer2(t *testing.T, sys *rat.TONStakingSystem) common.Address {
 	require.NoError(t, err)
 	t.Logf("✓ Minted %s WTON to deployer", operatorDeposit.String())
 
+	// Register SystemConfig to L1BridgeRegistry before registerCandidateAddOn
+	t.Log("=== Registering SystemConfig to L1BridgeRegistry ===")
+
+	// Create L1BridgeRegistry contract binding
+	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"address","name":"bridge","type":"address"},{"internalType":"address","name":"portal","type":"address"},{"internalType":"uint256","name":"registryType","type":"uint256"}],"name":"registerRollupConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"}],"name":"getRollupInfo","outputs":[{"internalType":"uint8","name":"rollupType_","type":"uint8"},{"internalType":"address","name":"l2TON","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	l1BridgeRegistry := bind.NewBoundContract(sys.Addresses.L1BridgeRegistryProxy, l1BridgeRegistryABI, sys.L1Client, sys.L1Client, sys.L1Client)
+
+	// Check if already registered (rollupType == 0 means not registered)
+	var rollupInfoCheck []any
+	checkOpts2 := &bind.CallOpts{Context: sys.Ctx}
+	checkErr := l1BridgeRegistry.Call(checkOpts2, &rollupInfoCheck, "getRollupInfo", sys.Addresses.SystemConfig)
+	require.NoError(t, checkErr)
+
+	rollupType := uint8(0)
+	if len(rollupInfoCheck) > 0 {
+		rollupType = rollupInfoCheck[0].(uint8)
+	}
+
+	if rollupType == 0 {
+		t.Log("SystemConfig not registered in L1BridgeRegistry, registering now...")
+
+		// Use the owner account from genesis (has admin permissions)
+		// This is the same pattern used in registerSystemConfigInL1BridgeRegistry
+		owner := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8") // TON Staking deployer from genesis
+
+		// Impersonate and fund owner account
+		cleanup := impersonateAccount(t, sys.L1Client, owner)
+		defer cleanup()
+		fundAccount(t, sys.L1Client, owner, "0x56BC75E2D63100000") // 100 ETH
+
+		gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+		require.NoError(t, err)
+
+		// Add manager and registrant roles to deployer
+		l1BridgeRegistryRoleABI, err := abi.JSON(strings.NewReader(`[
+			{"inputs":[{"internalType":"address","name":"manager","type":"address"}],"name":"addManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
+			{"inputs":[{"internalType":"address","name":"registrant","type":"address"}],"name":"addRegistrant","outputs":[],"stateMutability":"nonpayable","type":"function"},
+			{"inputs":[{"internalType":"address","name":"manager","type":"address"}],"name":"isManager","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+			{"inputs":[{"internalType":"address","name":"registrant","type":"address"}],"name":"isRegistrant","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+		]`))
+		require.NoError(t, err)
+
+		// Check if deployer is manager, if not add them
+		var isManagerResult []any
+		checkOpts3 := &bind.CallOpts{Context: sys.Ctx}
+		l1BridgeRegistry.Call(checkOpts3, &isManagerResult, "isManager", deployerAuth.From)
+		if len(isManagerResult) == 0 || !isManagerResult[0].(bool) {
+			// Pack addManager call
+			callData, err := l1BridgeRegistryRoleABI.Pack("addManager", deployerAuth.From)
+			require.NoError(t, err)
+
+			txArgs := map[string]any{
+				"from":     owner,
+				"to":       sys.Addresses.L1BridgeRegistryProxy,
+				"gas":      "0x100000",
+				"gasPrice": "0x" + gasPrice.Text(16),
+				"data":     "0x" + common.Bytes2Hex(callData),
+			}
+
+			var txHash common.Hash
+			err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+			require.NoError(t, err)
+			waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addManager")
+			t.Log("✓ Added deployer as manager")
+		} else {
+			t.Log("✓ Deployer already has manager role")
+		}
+
+		// Check if deployer is registrant, if not add them
+		// Note: addRegistrant can only be called by a manager, so deployer (now a manager) adds themselves
+		var isRegistrantResult []any
+		l1BridgeRegistry.Call(checkOpts3, &isRegistrantResult, "isRegistrant", deployerAuth.From)
+		if len(isRegistrantResult) == 0 || !isRegistrantResult[0].(bool) {
+			// Pack addRegistrant call - deployer (now manager) adds themselves as registrant
+			callData, err := l1BridgeRegistryRoleABI.Pack("addRegistrant", deployerAuth.From)
+			require.NoError(t, err)
+
+			txArgs := map[string]any{
+				"from":     deployerAuth.From, // deployer is now a manager, can call addRegistrant
+				"to":       sys.Addresses.L1BridgeRegistryProxy,
+				"gas":      "0x100000",
+				"gasPrice": "0x" + gasPrice.Text(16),
+				"data":     "0x" + common.Bytes2Hex(callData),
+			}
+
+			var txHash common.Hash
+			err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+			require.NoError(t, err)
+			waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addRegistrant")
+			t.Log("✓ Added deployer as registrant")
+		} else {
+			t.Log("✓ Deployer already has registrant role")
+		}
+
+		// Now register the rollup config using deployer account (which now has permissions)
+		// Use registerRollupConfigByManager instead (TYPE 3)
+		registerByManagerABI, err := abi.JSON(strings.NewReader(`[
+			{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"uint8","name":"rollupType","type":"uint8"},{"internalType":"address","name":"l2TON","type":"address"},{"internalType":"string","name":"name","type":"string"}],"name":"registerRollupConfigByManager","outputs":[],"stateMutability":"nonpayable","type":"function"}
+		]`))
+		require.NoError(t, err)
+
+		callData, err := registerByManagerABI.Pack("registerRollupConfigByManager",
+			sys.Addresses.SystemConfig,
+			uint8(3), // TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+			sys.Addresses.TON,
+			"TestOptimism",
+		)
+		require.NoError(t, err)
+
+		txArgs := map[string]any{
+			"from":     deployerAuth.From,
+			"to":       sys.Addresses.L1BridgeRegistryProxy,
+			"gas":      "0x100000",
+			"gasPrice": "0x" + gasPrice.Text(16),
+			"data":     "0x" + common.Bytes2Hex(callData),
+		}
+
+		var txHash common.Hash
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err)
+		registerReceipt := waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.registerRollupConfigByManager")
+		require.Equal(t, uint64(1), registerReceipt.Status, "L1BridgeRegistry.registerRollupConfigByManager should succeed")
+		t.Logf("✓ Registered SystemConfig to L1BridgeRegistry (type=3)")
+	} else {
+		t.Log("✓ SystemConfig already registered in L1BridgeRegistry")
+	}
+
 	// Approve WTON to Layer2Manager
 	approveTx, err := wton.Approve(deployerAuth, sys.Addresses.Layer2ManagerProxy, operatorDeposit)
 	require.NoError(t, err)
@@ -1270,11 +1479,67 @@ func parseDisputeGameCreatedEvent(_ *testing.T, receipt *types.Receipt) common.A
 	return common.Address{}
 }
 
-// submitEvidenceToRAT submits evidence to RAT contract and returns receipt
-func submitEvidenceToRAT(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, testID [32]byte, evidenceType uint8, evidenceData []byte) (*types.Receipt, error) {
-	t.Logf("Submitting evidence: testID=%s, type=%d, dataLen=%d", common.BytesToHash(testID[:]).Hex(), evidenceType, len(evidenceData))
+// triggerRATDirectly triggers RAT.triggerAttentionTest directly by impersonating DisputeGameFactory
+// This is used for testing when the DisputeGameFactory bytecode doesn't have RAT integration
+func triggerRATDirectly(t *testing.T, sys *rat.TONStakingSystem, gameAddress common.Address, batchIndex uint32) *types.Receipt {
+	// Impersonate and fund DisputeGameFactory
+	cleanup := impersonateAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory)
+	defer cleanup()
+	t.Logf("✓ Impersonating DisputeGameFactory: %s", sys.Addresses.DisputeGameFactory.Hex())
+	fundAccount(t, sys.L1Client, sys.Addresses.DisputeGameFactory, "0x56BC75E2D63100000") // 100 ETH
 
-	evidenceTx, err := contracts.RAT.SubmitEvidence(validatorAuth, testID, evidenceType, evidenceData)
+	// Get current block for blockHash
+	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
+	require.NoError(t, err)
+	blockHash := currentBlock.Hash()
+
+	// Create batchHash (using game address and batch index)
+	batchHash := crypto.Keccak256Hash(gameAddress.Bytes(), big.NewInt(int64(batchIndex)).Bytes())
+
+	// Build triggerAttentionTest call data
+	ratABI, err := abi.JSON(strings.NewReader(bindings.RATABI))
+	require.NoError(t, err)
+
+	callData, err := ratABI.Pack("triggerAttentionTest",
+		gameAddress,
+		sys.Addresses.SystemConfig,
+		batchIndex,
+		batchHash,
+		blockHash,
+	)
+	require.NoError(t, err)
+
+	// Get gas price
+	gasPrice, err := sys.L1Client.SuggestGasPrice(sys.Ctx)
+	require.NoError(t, err)
+
+	// Send transaction from DisputeGameFactory
+	tx := types.NewTransaction(
+		0, // nonce will be set automatically
+		sys.Addresses.RATProxy,
+		big.NewInt(0),
+		3000000, // gas limit
+		gasPrice,
+		callData,
+	)
+
+	// Send transaction
+	err = sys.L1Client.SendTransaction(sys.Ctx, tx)
+	require.NoError(t, err)
+
+	// Wait for receipt
+	receipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, tx)
+	require.NoError(t, err)
+
+	return receipt
+}
+
+// submitEvidenceToRAT submits evidence to RAT contract and returns receipt
+// Updated to use new signature: submitEvidence(address systemConfig, uint32 batchIndex, bytes evidence)
+func submitEvidenceToRAT(t *testing.T, sys *rat.TONStakingSystem, contracts *TestContracts, validatorAuth *bind.TransactOpts, systemConfig common.Address, batchIndex uint32, evidenceData []byte) (*types.Receipt, error) {
+	t.Logf("Submitting evidence: systemConfig=%s, batchIndex=%d, dataLen=%d", systemConfig.Hex(), batchIndex, len(evidenceData))
+
+	evidenceTx, err := contracts.RAT.SubmitEvidence(validatorAuth, systemConfig, batchIndex, evidenceData)
 	if err != nil {
 		return nil, err
 	}
@@ -1372,7 +1637,7 @@ func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestCont
 	// Wait for evidence submission (monitor EvidenceSubmitted event)
 	t.Log("Waiting for evidence submission...")
 
-	eventSig := crypto.Keccak256Hash([]byte("EvidenceSubmitted(bytes32,address,address,uint32)"))
+	eventSig := crypto.Keccak256Hash([]byte("EvidenceSubmitted(bytes32,address,address,address,uint32)"))
 	evidenceStartBlock := startBlock // Start monitoring from the same block as RAT event
 
 	// Poll for evidence submission event (timeout after 2 minutes)
@@ -1423,7 +1688,7 @@ func startRATClient(t *testing.T, sys *rat.TONStakingSystem, contracts *TestCont
 					callOpts := &bind.CallOpts{Context: ctx}
 					registration, err := contracts.RAT.ValidatorRegistrations(callOpts, sys.Addresses.SystemConfig, validatorAddr)
 					if err == nil {
-						t.Logf("✓ Validator deposit after evidence: %s", registration.DepositedAmount.String())
+						t.Logf("✓ Validator locked for RAT after evidence: %s", registration.LockedForRAT.String())
 					}
 				} else {
 					t.Log("⚠ Evidence submission transaction reverted")
@@ -1469,6 +1734,7 @@ func parseRATTriggerEventWithBatchIndex(t *testing.T, receipt *types.Receipt, ex
 
 	return [32]byte{}, 0, false
 }
+
 // High-Level Test Setup Helpers (Pattern 1)
 // ============================================================================
 

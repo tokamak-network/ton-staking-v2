@@ -185,118 +185,6 @@ func TestSimpleRAT_GameCreation(t *testing.T) {
 // TestSimpleRAT_EvidenceSubmission tests the full flow:
 // 1. Validator registration
 // 2. Proposer creates DisputeGame (triggers RAT)
-// 3. Selected validator submits evidence
-func TestSimpleRAT_EvidenceSubmission(t *testing.T) {
-	t.Parallel()
-
-	sys := rat.StartTONStakingSystem(t)
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
-
-	t.Log("=== Testing RAT Evidence Submission Flow ===")
-
-	// Setup accounts and contracts
-	accounts := setupTestAccounts(t, sys)
-	contracts := connectTestContracts(t, sys)
-
-	// Runtime configuration (required because these can't be done reliably in genesis)
-	initializeOptimismContracts(t, sys)
-	configureV3Parameters(t, sys)
-	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
-
-	// Get test deposit amount and adjust collateral
-	depositAmount := getTestDepositAmount()
-	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
-
-	// Set RAT trigger probability to 100% for deterministic testing
-	t.Log("Setting RAT trigger probability to 100% for testing...")
-	ratTriggerProb := new(big.Int)
-	ratTriggerProb.SetString("1000000000000000000000000000", 10) // 1e27 (100% in RAY units)
-	setTriggerTx, err := contracts.RAT.SetRatTriggerProbability(accounts.Deployer.Auth, ratTriggerProb)
-	require.NoError(t, err)
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, setTriggerTx)
-	require.NoError(t, err)
-	t.Logf("✓ RAT trigger probability set to 100%%")
-
-	// Step 1: Register validator
-	t.Log("Step 1: Registering validator...")
-	registerValidatorWithTON(t, sys, contracts, accounts.Validator.Auth, depositAmount)
-	t.Logf("✓ Validator %s registered", accounts.Validator.Addr.Hex())
-
-	// Get validator count before game creation
-	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
-	require.NoError(t, err)
-	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
-
-	// Step 2: Create dispute game as proposer
-	t.Log("Step 2: Creating DisputeGame as proposer...")
-
-	rootClaim := [32]byte{0x01, 0x02, 0x03}
-	_, gameAddress := createDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
-	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
-
-	// Step 2.5: Trigger RAT directly (since DisputeGameFactory bytecode doesn't have RAT integration)
-	t.Log("Step 2.5: Triggering RAT directly via impersonation...")
-	batchIndex := uint32(testL2BlockNumber) // Use L2 block number as batch index
-	ratReceipt := triggerRATDirectly(t, sys, gameAddress, batchIndex)
-	require.Equal(t, uint64(1), ratReceipt.Status, "RAT trigger transaction should succeed")
-	t.Logf("✓ RAT triggered directly (tx status: %d)", ratReceipt.Status)
-
-	// Step 3: Parse RAT trigger event and get batchIndex
-	t.Log("Step 3: Parsing RAT trigger event...")
-
-	testID, _, ratTriggered := parseRATTriggerEventWithBatchIndex(t, ratReceipt, accounts.Validator.Addr)
-	require.True(t, ratTriggered, "RAT should be triggered")
-	t.Logf("✓ Test ID: %s, Batch Index: %d", common.BytesToHash(testID[:]).Hex(), batchIndex)
-
-	// Check RAT test status before submitting evidence
-	testInfo, err := contracts.RAT.GetAttentionTest(callOpts, testID)
-	require.NoError(t, err)
-	t.Logf("✓ Test status: %d, Validator: %s, Deadline: %s",
-		testInfo.Status, testInfo.ValidatorAddress.Hex(), testInfo.Deadline.String())
-
-	// Get current block to check timestamp
-	currentBlock, err := sys.L1Client.BlockByNumber(sys.Ctx, nil)
-	require.NoError(t, err)
-	t.Logf("✓ Current block timestamp: %d", currentBlock.Time())
-
-	// Step 4: Submit evidence as selected validator
-	t.Log("Step 4: Submitting evidence...")
-
-	// Create dummy evidence
-	evidence := []byte("dummy evidence data")
-
-	evidenceTx, err := contracts.RAT.SubmitEvidence(accounts.Validator.Auth, sys.Addresses.SystemConfig, batchIndex, evidence)
-	require.NoError(t, err)
-	evidenceReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, evidenceTx)
-	require.NoError(t, err)
-	t.Logf("✓ Evidence submitted (tx: %s)", evidenceTx.Hash().Hex())
-
-	// Verify evidence submission event
-	evidenceSubmitted := false
-	ratABI, err := abi.JSON(strings.NewReader(bindings.RATABI))
-	require.NoError(t, err)
-
-	for _, log := range evidenceReceipt.Logs {
-		if log.Address == sys.Addresses.RATProxy && len(log.Topics) > 0 {
-			eventID := log.Topics[0]
-			evidenceSubmittedID := ratABI.Events["EvidenceSubmitted"].ID
-			if eventID == evidenceSubmittedID {
-				evidenceSubmitted = true
-				t.Logf("✓ EvidenceSubmitted event found")
-				break
-			}
-		}
-	}
-
-	require.True(t, evidenceSubmitted, "EvidenceSubmitted event not found")
-
-	t.Log("=== Evidence Submission Test Complete ===")
-	t.Log("✅ Full flow completed:")
-	t.Log("   1. Validator registered")
-	t.Log("   2. DisputeGame created (RAT triggered)")
-	t.Log("   3. Evidence submitted successfully")
-}
-
 // TestSimpleRAT_ChallengerWins tests the full flow with incorrect state root:
 // 1. Validator registration
 // 2. Proposer creates DisputeGame with WRONG root claim (triggers RAT)
@@ -322,6 +210,7 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	// Runtime configuration (required because these can't be done reliably in genesis)
 	initializeOptimismContracts(t, sys)
 	configureV3Parameters(t, sys)
+	setRATTriggerProbabilityTo100Percent(t, sys) // Ensure 100% trigger for testing
 	registerSystemConfigInL1BridgeRegistry(t, sys, accounts.Deployer.Auth)
 
 	// Get test deposit amount and adjust collateral
@@ -359,11 +248,19 @@ func TestSimpleRAT_ChallengerWins(t *testing.T) {
 	validatorCount, err := contracts.RAT.GetActiveValidatorCount(callOpts, sys.Addresses.SystemConfig)
 	require.NoError(t, err)
 	t.Logf("✓ Active validators for SystemConfig: %d", validatorCount.Uint64())
+	require.True(t, validatorCount.Uint64() > 0, "Should have at least 1 active validator")
+
+	// Verify RAT trigger probability
+	ratTriggerProb, err := contracts.RAT.RatTriggerProbability(callOpts)
+	require.NoError(t, err)
+	ray := new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil)
+	t.Logf("✓ RAT trigger probability: %s (should be 1e27 = %s)", ratTriggerProb.String(), ray.String())
+	require.Equal(t, ray.String(), ratTriggerProb.String(), "RAT trigger probability should be 100%")
 
 	// Step 2: Create dispute game with WRONG root claim as proposer
 	t.Log("Step 2: Creating DisputeGame with WRONG root claim...")
 
-	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth)
+	gameReceipt, gameAddress := createDisputeGameWithWrongClaim(t, sys, accounts.Proposer.Auth, uint64(testL2BlockNumber))
 	t.Logf("✓ DisputeGame created at: %s", gameAddress.Hex())
 	t.Logf("✓ Game creation receipt logs count: %d", len(gameReceipt.Logs))
 

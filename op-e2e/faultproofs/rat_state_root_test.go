@@ -264,14 +264,31 @@ func TestRATClient_EvidenceSubmission_E2E(t *testing.T) {
 	auth.GasLimit = 3000000 // Set gas limit
 
 	// Setup accounts and contracts using helper functions
-	_ = setupTestAccounts(t, sys) // Create accounts for consistency
+	accounts := setupTestAccounts(t, sys)
 	contracts := connectTestContracts(t, sys)
+
+	// Initialize Optimism contracts and configure V3 parameters (required for RAT trigger)
+	initializeOptimismContracts(t, sys)
+	configureV3Parameters(t, sys)
 
 	// Get test deposit amount (1000 TON)
 	// Genesis has slashingPenalty=10 WTON, validatorBuffer=90 WTON (minimum=100 TON)
 	// So 1000 TON deposit is sufficient (10x minimum)
 	depositAmount := getTestDepositAmount()
 	t.Logf("Deposit amount: %s wei (1000 TON)", depositAmount.String())
+
+	// Adjust minimum collateral to match deposit amount
+	adjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, depositAmount)
+
+	// Set RAT trigger probability to 100% for deterministic testing
+	t.Log("Setting RAT trigger probability to 100% for testing...")
+	ratTriggerProb := new(big.Int)
+	ratTriggerProb.SetString("1000000000000000000000000000", 10) // 1e27 (100% in RAY units)
+	setTriggerTx, err := contracts.RAT.SetRatTriggerProbability(accounts.Deployer.Auth, ratTriggerProb)
+	require.NoError(t, err)
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, setTriggerTx)
+	require.NoError(t, err)
+	t.Logf("✓ RAT trigger probability set to 100%%")
 
 	// Register validator using deployer account (has TON from genesis)
 	registerValidatorWithTON(t, sys, contracts, auth, depositAmount)
@@ -290,12 +307,15 @@ func TestRATClient_EvidenceSubmission_E2E(t *testing.T) {
 	t.Logf("Active validator count: %d", activeCount.Uint64())
 	require.True(t, activeCount.Uint64() > 0, "Should have at least 1 active validator")
 
-	// Step 7: Create DisputeGame (NOW RAT can be triggered)
-	t.Log("=== Creating DisputeGame ===")
+	// Step 7: Create DisputeGame with CORRECT root claim (RAT client needs correct root to verify and submit evidence)
+	t.Log("=== Creating DisputeGame with CORRECT root claim ===")
 
-	// Convert rootClaim to [32]byte array for createDisputeGame helper
+	// Use CORRECT root claim for RAT client to verify and submit evidence
+	// RAT is a liveness test - validator proves they have full state by submitting adjacent leaves
+	// The RAT client verifies OutputRootProof matches before generating evidence
 	var rootClaimArray [32]byte
 	copy(rootClaimArray[:], rootClaim.Bytes())
+	t.Logf("Using CORRECT root claim: %s", rootClaim.Hex())
 
 	// Use proposer account for game creation (Account #4)
 	proposerKey, err := crypto.HexToECDSA("47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a")

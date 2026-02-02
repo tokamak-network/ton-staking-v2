@@ -36,8 +36,8 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 
 ## Tests
 
-**Total: 8 tests (3 system + 4 RAT scenario + 1 State Root E2E)**
-**Duration: ~40 seconds (parallel)**
+**Total: 7 tests (3 system + 3 RAT scenario + 1 RAT Client E2E)**
+**Duration: ~35 seconds (parallel)**
 
 ### System Tests (3)
 
@@ -56,7 +56,7 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 
 ### RAT Client E2E Test (1)
 
-7. **TestRATClient_EvidenceSubmission_E2E** (~30s) - Complete RAT client evidence submission flow with L2 integration
+7. **TestRATClient_EvidenceSubmission_E2E** (~71s) - Complete RAT client evidence submission flow with L2 integration
    - Starts isolated L1 (Anvil) with genesis containing all deployed contracts
    - Starts isolated L2 (geth dev mode) with archive state
    - Creates transactions on L2 to generate state changes
@@ -72,7 +72,7 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 ## Running Tests
 
 ```bash
-# All tests (7 tests, ~60s)
+# All tests (7 tests, ~80s)
 make test
 
 # System tests only (3 tests)
