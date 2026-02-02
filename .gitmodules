@@ -1,0 +1,4 @@
+[submodule "lib/ton-staking-v2"]
+	path = lib/ton-staking-v2
+	url = https://github.com/tokamak-network/ton-staking-v2.git
+	branch = ton-staking-v3/dev

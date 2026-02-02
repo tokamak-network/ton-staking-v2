@@ -1,0 +1,118 @@
+# RAT Client Configuration for Devnet Testing
+# This uses the op-challenger devnet stack
+
+##############################################################################
+# Verification Strategy
+##############################################################################
+
+# l2rpc mode: Use L2 geth debug APIs + op-node for OutputRootProof
+verification_mode: l2rpc
+
+##############################################################################
+# L1 Configuration (Devnet L1)
+##############################################################################
+
+l1:
+  # Devnet L1 RPC
+  rpc_url: "http://localhost:8545"
+
+  # Devnet Beacon API
+  beacon_url: "http://localhost:5052"
+
+##############################################################################
+# RPC Configuration (L2 geth + op-node from devnet)
+##############################################################################
+
+rpc:
+  # Primary: L2 geth RPC (for debug_accountRange, eth_getProof)
+  # Secondary: op-node Rollup RPC (for OutputRootProof)
+  urls:
+    - "http://localhost:9545"  # L2 geth or op-node
+
+  # op-node sync settings
+  opnode:
+    max_wait_time: 30m
+    check_interval: 10s
+
+##############################################################################
+# Contract Addresses (TODO: Update after deployment)
+##############################################################################
+
+contracts:
+  # RAT contract (deploy first)
+  rat_contract: "0x0000000000000000000000000000000000000000"
+
+  # SystemConfig from devnet
+  system_config: "0xc3f34628df2e60dfcb26b17ffd027133f87517ec"
+
+  # DisputeGameFactory from devnet
+  dispute_game_factory: "0x21880f37f66d5be00d91d9fd30fed732063d2250"
+
+  # L1BridgeRegistry (TODO: check devnet)
+  l1_bridge_registry: "0x0000000000000000000000000000000000000000"
+
+  # Batch Inbox (standard Optimism address)
+  batch_inbox: "0xff03000000000000000000000000000000000000"
+
+  # Batcher address (TODO: get from devnet)
+  batcher_address: "0x0000000000000000000000000000000000000000"
+
+##############################################################################
+# Validator Identity
+##############################################################################
+
+validator:
+  # Test validator private key (NEVER use in production!)
+  # This should be one of the devnet pre-funded accounts
+  private_key: "${VALIDATOR_PRIVATE_KEY}"
+
+  # Validator address (derived from private key)
+  address: "0x0000000000000000000000000000000000000000"
+
+##############################################################################
+# RAT Client Settings
+##############################################################################
+
+rat:
+  # L1 block polling interval
+  poll_interval: 12s
+
+  # Evidence submission deadline buffer
+  deadline_buffer: 10m
+
+  # Max gas price (gwei)
+  max_gas_price: 100
+
+  # Gas limit for evidence submission
+  gas_limit: 500000
+
+  # Start monitoring from this block
+  start_block: 0
+
+##############################################################################
+# Verification Settings
+##############################################################################
+
+verification:
+  # Enable proof verification (for l2rpc mode)
+  enable_proof_verification: true
+
+  # RPC timeout
+  rpc_timeout: 20m
+
+##############################################################################
+# Logging
+##############################################################################
+
+logging:
+  level: debug  # Use debug for testing
+  format: text  # Use text for easier reading
+
+##############################################################################
+# Metrics
+##############################################################################
+
+metrics:
+  enabled: true
+  addr: "0.0.0.0"
+  port: 7300

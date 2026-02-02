@@ -1,0 +1,127 @@
+# RAT Client Configuration Example
+#
+# Verification Mode: l2rpc (L2 RPC with debug APIs)
+#
+# 사전 요구사항:
+# 1. L2 geth가 debug APIs 활성화 상태로 실행 중이어야 함
+# 2. op-node가 실행 중이어야 함 (OutputRootProof 검증용)
+
+##############################################################################
+# Verification Strategy
+##############################################################################
+
+# Current implementation: l2rpc (L2 RPC with debug APIs)
+# - l2rpc: Use L2 geth with debug_accountRange + eth_getProof (fully implemented)
+# - hybrid: Try op-node first, fallback to L2 RPC (default, recommended)
+# - opnode: Use op-node Rollup RPC only
+# - stateless: L1-only execution (future, not fully implemented)
+verification_mode: l2rpc
+
+##############################################################################
+# L1 Configuration
+##############################################################################
+
+l1:
+  # L1 Ethereum RPC 엔드포인트
+  rpc_url: "http://localhost:8545"
+
+  # L1 Beacon API (EIP-4844 blob 데이터용)
+  beacon_url: "http://localhost:5052"
+
+##############################################################################
+# RPC Configuration (검증자가 신뢰하는 RPC 선택)
+##############################################################################
+
+rpc:
+  # RPC 엔드포인트 리스트 (여러 개 등록 가능 - 장애 대비)
+  # - opnode 모드: op-node Rollup RPC 사용
+  # - l2rpc 모드: L2 geth RPC 사용
+  # - hybrid 모드: 둘 다 사용 (같은 주소여도 무방)
+  urls:
+    - "http://localhost:9545"           # Primary (op-node or L2 geth)
+    # - "https://mainnet.optimism.io"   # Backup L2 RPC
+    # - "https://opt-mainnet.g.alchemy.com/v2/YOUR_KEY"  # Backup
+
+  # op-node 동기화 대기 설정 (opnode/hybrid 모드용)
+  opnode:
+    max_wait_time: 30m      # op-node가 블록 동기화할 때까지 최대 대기 시간
+    check_interval: 10s     # 동기화 상태 확인 간격
+
+##############################################################################
+# Contract Addresses (TON Staking V3)
+##############################################################################
+
+contracts:
+  # RAT 컨트랙트 주소
+  rat_contract: "0x..."
+
+  # SystemConfig 주소 (rollupConfig)
+  system_config: "0x..."
+
+  # DisputeGameFactory 주소
+  dispute_game_factory: "0x..."
+
+  # L1BridgeRegistry 주소
+  l1_bridge_registry: "0x..."
+
+  # Batch Inbox 주소
+  batch_inbox: "0xff03000000000000000000000000000000000000"
+
+  # Batcher 주소
+  batcher_address: "0x..."
+
+##############################################################################
+# Validator Identity
+##############################################################################
+
+validator:
+  # Validator 개인키 (NEVER commit this!)
+  private_key: "${VALIDATOR_PRIVATE_KEY}"  # 환경 변수 사용 권장
+
+  # Validator 주소 (개인키에서 파생됨)
+  address: "0x..."
+
+##############################################################################
+# RAT Client Settings
+##############################################################################
+
+rat:
+  # L1 이벤트 폴링 간격
+  poll_interval: 12s
+
+  # Evidence 제출 마감 버퍼 (deadline 전에 제출)
+  deadline_buffer: 10m
+
+  # 최대 가스 가격
+  max_gas_price: 100  # gwei
+
+  # 최대 pending 트랜잭션 수
+  max_pending_tx: 5
+
+##############################################################################
+# Verification Settings
+##############################################################################
+
+verification:
+  # Proof 검증 활성화 (l2rpc/hybrid 모드용)
+  enable_proof_verification: true
+
+  # RPC 타임아웃
+  rpc_timeout: 20m
+
+##############################################################################
+# Logging
+##############################################################################
+
+logging:
+  level: info  # debug | info | warn | error
+  format: json # json | text
+
+##############################################################################
+# Metrics
+##############################################################################
+
+metrics:
+  enabled: true
+  addr: "0.0.0.0"
+  port: 7300

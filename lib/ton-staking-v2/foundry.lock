@@ -1,0 +1,23 @@
+{
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.11.0",
+      "rev": "8e40513d678f392f398620b3ef2b418648b33e89"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "tag": {
+      "name": "v4.8.2",
+      "rev": "d00acef4059807535af0bd0dd0ddf619747a044b"
+    }
+  },
+  "lib/optimism": {
+    "branch": {
+      "name": "feature/challenger-game-type-check",
+      "rev": "0973ff42a5c8db8dce77ec69592e1b10044540fe"
+    }
+  },
+  "lib/tokamak-dao-contracts": {
+    "rev": "5e6eb8b61a0b21cbf5d3d464ff0f2874e5c2bdb6"
+  }
+}

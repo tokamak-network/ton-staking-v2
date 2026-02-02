@@ -1,3 +1,4 @@
 @openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
 @openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
 forge-std/=lib/forge-std/src/
+ton-staking-v2/=lib/ton-staking-v2/src/
