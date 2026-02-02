@@ -63,12 +63,14 @@ func NewAdjacentLeavesSubmitter(
 // SubmitEvidence submits state leaf evidence to RAT contract
 func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 	ctx context.Context,
-	testID [32]byte,
+	systemConfig common.Address,
+	batchIndex uint32,
 	randomValue *big.Int,
 	ev *evidence.StateLeafEvidence,
 ) (*types.Receipt, error) {
-	log.Printf("Submitting state leaf evidence: testID=%s, randomValue=%v, leafA.key=%s, leafB.key=%s",
-		common.BytesToHash(testID[:]).Hex(),
+	log.Printf("Submitting state leaf evidence: systemConfig=%s, batchIndex=%d, randomValue=%v, leafA.key=%s, leafB.key=%s",
+		systemConfig.Hex(),
+		batchIndex,
 		randomValue,
 		ev.LeafAKey.Hex(),
 		ev.LeafBKey.Hex())
@@ -94,8 +96,8 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 		len(evidenceData),
 		ev.StateRoot.Hex())
 
-	// Build calldata for submitEvidence(bytes32 testID, uint8 evidenceType, bytes calldata evidenceData)
-	calldata, err := s.buildCalldata(testID, evidenceData)
+	// Build calldata for submitEvidence(address systemConfig, uint32 batchIndex, bytes calldata evidence)
+	calldata, err := s.buildCalldata(systemConfig, batchIndex, evidenceData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build calldata: %w", err)
 	}
@@ -183,30 +185,29 @@ func (s *AdjacentLeavesSubmitter) SubmitEvidence(
 }
 
 // buildCalldata builds calldata for submitEvidence function
-func (s *AdjacentLeavesSubmitter) buildCalldata(testID [32]byte, evidenceData []byte) ([]byte, error) {
-	// Function selector: submitEvidence(bytes32,uint8,bytes)
-	// Keccak256("submitEvidence(bytes32,uint8,bytes)") = 0x...
-	selector := crypto.Keccak256([]byte("submitEvidence(bytes32,uint8,bytes)"))[:4]
-
-	// Evidence type for adjacent leaves (StateLeaf = 1)
-	// 0: FraudProof, 1: StateLeaf
-	evidenceType := uint8(1)
+func (s *AdjacentLeavesSubmitter) buildCalldata(systemConfig common.Address, batchIndex uint32, evidenceData []byte) ([]byte, error) {
+	// Function selector: submitEvidence(address,uint32,bytes)
+	// Keccak256("submitEvidence(address,uint32,bytes)") = 0x...
+	selector := crypto.Keccak256([]byte("submitEvidence(address,uint32,bytes)"))[:4]
 
 	// Encode parameters
-	// bytes32 testID
-	// uint8 evidenceType
+	// address systemConfig (padded to 32 bytes)
+	// uint32 batchIndex (padded to 32 bytes)
 	// bytes evidenceData
 
 	calldata := make([]byte, 0, 4+32+32+32+len(evidenceData))
 	calldata = append(calldata, selector...)
 
-	// testID (bytes32)
-	calldata = append(calldata, testID[:]...)
+	// systemConfig (address, left-padded to 32 bytes)
+	calldata = append(calldata, common.LeftPadBytes(systemConfig.Bytes(), 32)...)
 
-	// evidenceType (uint8, padded to 32 bytes)
-	evidenceTypeBytes := make([]byte, 32)
-	evidenceTypeBytes[31] = evidenceType
-	calldata = append(calldata, evidenceTypeBytes...)
+	// batchIndex (uint32, left-padded to 32 bytes)
+	batchIndexBytes := make([]byte, 32)
+	batchIndexBytes[28] = byte(batchIndex >> 24)
+	batchIndexBytes[29] = byte(batchIndex >> 16)
+	batchIndexBytes[30] = byte(batchIndex >> 8)
+	batchIndexBytes[31] = byte(batchIndex)
+	calldata = append(calldata, batchIndexBytes...)
 
 	// evidenceData offset (uint256)
 	offset := big.NewInt(96) // 32 + 32 + 32

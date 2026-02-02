@@ -272,17 +272,36 @@ func (s *RATClientAdjacentService) processEvents() {
 
 // handleAttentionTest handles an attention test event
 func (s *RATClientAdjacentService) handleAttentionTest(event *monitor.AttentionTestTriggered) error {
-	// Query the RAT contract to get the full test data including batchHash (state root)
-	testData, err := s.ratClient.AttentionTests(nil, event.TestId)
+	// Get batchHash (output root) from DisputeGame contract
+	// Query rootClaim() from the game address
+	gameClient, err := ethclient.Dial(s.l1RPCURL)
 	if err != nil {
-		return fmt.Errorf("failed to query attention test from contract: %w", err)
+		return fmt.Errorf("failed to connect to L1: %w", err)
 	}
+	defer gameClient.Close()
+
+	// Call rootClaim() on DisputeGame
+	// Function signature: rootClaim() returns (bytes32)
+	data := common.Hex2Bytes("bcef3b55") // First 4 bytes of keccak256("rootClaim()")
+	msg := ethereum.CallMsg{
+		To:   &event.GameAddress,
+		Data: data,
+	}
+	result, err := gameClient.CallContract(s.ctx, msg, nil)
+	if err != nil {
+		return fmt.Errorf("failed to call rootClaim(): %w", err)
+	}
+	if len(result) != 32 {
+		return fmt.Errorf("unexpected rootClaim result length: %d", len(result))
+	}
+	var batchHash [32]byte
+	copy(batchHash[:], result)
 
 	log.Printf("=== Handling Attention Test === testID=%s validator=%s outputRoot=%s batchIndex=%d deadline=%s",
 		common.BytesToHash(event.TestId[:]).Hex(),
 		event.Validator.Hex(),
-		common.BytesToHash(testData.BatchHash[:]).Hex(),
-		testData.BatchIndex,
+		common.BytesToHash(batchHash[:]).Hex(),
+		event.BatchIndex,
 		time.Unix(event.Deadline.Int64(), 0).String(),
 	)
 
@@ -303,9 +322,9 @@ func (s *RATClientAdjacentService) handleAttentionTest(event *monitor.AttentionT
 	// Get L2 block number from DisputeGame contract
 	// BatchIndex is the game index, not the L2 block number!
 	// We need to query the DisputeGame contract to get l2BlockNumber()
-	blockNumber, err := s.getL2BlockNumberFromGame(testData.GameAddress)
+	blockNumber, err := s.getL2BlockNumberFromGame(event.GameAddress)
 	if err != nil {
-		return fmt.Errorf("failed to get L2 block number from game %s: %w", testData.GameAddress.Hex(), err)
+		return fmt.Errorf("failed to get L2 block number from game %s: %w", event.GameAddress.Hex(), err)
 	}
 
 	log.Printf("Got L2 block number from DisputeGame - blockNumber=%d", blockNumber)
@@ -319,7 +338,7 @@ func (s *RATClientAdjacentService) handleAttentionTest(event *monitor.AttentionT
 
 	// Verify that this block produces the expected OutputRoot (BatchHash)
 	// This ensures we have the correct block number and get OutputRootProof
-	outputRootProof, err := s.verifyAndGetOutputRoot(blockNumber, stateRoot, testData.BatchHash)
+	outputRootProof, err := s.verifyAndGetOutputRoot(blockNumber, stateRoot, batchHash)
 	if err != nil {
 		return fmt.Errorf("output root verification failed for block %d: %w", blockNumber, err)
 	}
@@ -410,7 +429,7 @@ func (s *RATClientAdjacentService) handleAttentionTest(event *monitor.AttentionT
 	// Submit evidence
 	log.Printf("Submitting evidence to L1...")
 
-	receipt, err := s.submitter.SubmitEvidence(s.ctx, event.TestId, randomValue, ev)
+	receipt, err := s.submitter.SubmitEvidence(s.ctx, event.SystemConfig, event.BatchIndex, randomValue, ev)
 	if err != nil {
 		return fmt.Errorf("failed to submit evidence: %w", err)
 	}
