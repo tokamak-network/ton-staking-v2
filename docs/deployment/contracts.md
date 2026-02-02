@@ -373,21 +373,80 @@ SeigManager(seigManagerProxy).getSequencerStaked(layer2);
 
 ---
 
-## 8. 🆕 RAT (Randomized Attention Test) - V3 신규
+## 8. 🆕 RAT (Randomized Attention Test) - V3 신규 (다중 구현체 패턴)
 
 | 항목 | 설명 |
 |------|------|
-| 역할 | 검증자 무작위 주의 테스트 |
+| 역할 | 검증자 무작위 주의 테스트 + Fast Withdrawal |
 | 🆕 V3 신규 | DisputeGame 생성시 검증자 선택 및 테스트 |
+| 버전 | **RAT** (기본), **RATFastWithdrawal** (Fast Withdrawal 기능) |
+| 프록시 | **RATProxy** (Proxy.sol 상속, ETH 수신 가능 - Fast Withdrawal 수수료용) |
+
+**중요**: RAT은 SeigManager와 동일하게 **다중 구현체 패턴 (Selector Routing)**을 사용합니다.
+
+### 구현체별 기능 분포
+
+| 구현체 | 역할 | 비고 |
+|--------|------|------|
+| **RAT.sol** | 기본 구현체 - initialize, 검증자 등록, 테스트 트리거, 증거 제출 등 | `upgradeTo()`로 설정 |
+| **RATFastWithdrawal.sol** | Fast Withdrawal - BLS 공개키 등록, 빠른 출금 검증/실행 | Selector routing 필요 |
+
+### RAT.sol 주요 함수
+
+| 함수 시그니처 | 설명 |
+|--------------|------|
+| `initialize(RATInitParams)` | 초기화 (핵심 주소만 설정) |
+| `setConfig(RATConfigParams)` | 설정 파라미터 설정 (owner만) |
+| `registerValidator(address)` | 검증자 등록 |
+| `deactivateValidator(address)` | 검증자 탈퇴 |
+| `triggerAttentionTest(...)` | RAT 테스트 트리거 (DisputeGameFactory 전용) |
+| `submitEvidence(...)` | 증거 제출 |
+| `resolveClaim(address)` | 챌린지 게임 승리 시 복구 |
+
+### RATFastWithdrawal.sol 주요 함수 (Selector Routing 필요)
+
+| 함수 시그니처 | 설명 |
+|--------------|------|
+| `registerValidatorWithBLS(address,bytes,bytes)` | BLS 공개키 포함 검증자 등록 |
+| `registerBLSPublicKey(address,bytes,bytes)` | 기존 검증자 BLS 공개키 등록 |
+| `getValidatorBLSPubKey(address,address)` | BLS 공개키 조회 |
+| `getActiveValidatorsWithBLS(address)` | 활성 검증자 + BLS 키 조회 |
+| `setFastWithdrawalEnabled(bool)` | Fast Withdrawal 활성화/비활성화 |
+| `setAggregatorFeeRate(uint256)` | 집계자 수수료율 설정 |
+| `verifyAndExecuteFastWithdrawal(...)` | 빠른 출금 검증 및 실행 |
+
+### 상세 배포 절차 (Selector Routing 방식)
 
 ```solidity
-// RATInitParams 구조체를 사용하여 초기화
-RATInitParams memory params = RATInitParams({
+// ==========================================
+// Step 1: 모든 구현체 배포
+// ==========================================
+RAT ratImpl = new RAT();
+RATFastWithdrawal ratFastWithdrawalImpl = new RATFastWithdrawal();
+
+// ==========================================
+// Step 2: RATProxy 배포 (Selector Routing Proxy, ETH 수신 가능)
+// ==========================================
+// RATProxy는 Proxy.sol을 상속받아 receive()를 오버라이드
+// Fast Withdrawal 수수료를 받을 수 있음
+RATProxy ratProxy = new RATProxy();
+ratProxy.upgradeTo(address(ratImpl));
+
+// ==========================================
+// Step 3: 초기화 (기본 구현체 함수 사용)
+// ==========================================
+RATInitParams memory initParams = RATInitParams({
     seigManager: seigManager_,
     wton: wton_,
     ton: ton_,
     layer2Manager: layer2Manager_,
-    owner: owner_,
+    l1BridgeRegistry: l1BridgeRegistry_,
+    owner: owner_
+});
+RAT(address(ratProxy)).initialize(initParams);
+
+// 설정 파라미터 설정
+RATConfigParams memory configParams = RATConfigParams({
     ratTriggerProbability: 0.01e27,      // RAT 트리거 확률 (RAY 단위, 1%)
     evidenceSubmissionPeriod: 1 hours,   // 증거 제출 기간
     slashingPenalty: 100e27,             // 100 TON (C_off, RAY 단위)
@@ -396,14 +455,45 @@ RATInitParams memory params = RATInitParams({
     maxValidatorsPerL2: 100,             // L2별 최대 검증자 수
     challengeGameDuration: 7 days,       // 챌린지 게임 기간
     safetyBuffer: 1 days,                // 안전 버퍼 시간
-    l1BridgeRegistry: l1BridgeRegistry_, // L1BridgeRegistry 주소
     treasury: treasury_,                 // Treasury 주소
     attentionCost: 1e27,                 // c_m: 에폭당 attentiveness 유지 비용
     relaxedValidatorCheck: true          // 검증자 유효성 검사 완화 (초기값: true)
 });
+RAT(address(ratProxy)).setConfig(configParams);
 
-RAT.initialize(params);
+// ==========================================
+// Step 4: RATFastWithdrawal 구현체 활성화
+// ==========================================
+ratProxy.setAliveImplementation2(address(ratFastWithdrawalImpl), true);
+
+// ==========================================
+// Step 5: RATFastWithdrawal 함수들을 라우팅
+// ==========================================
+bytes4[] memory fastWithdrawalSelectors = new bytes4[](7);
+fastWithdrawalSelectors[0] = RATFastWithdrawal.registerValidatorWithBLS.selector;
+fastWithdrawalSelectors[1] = RATFastWithdrawal.registerBLSPublicKey.selector;
+fastWithdrawalSelectors[2] = RATFastWithdrawal.getValidatorBLSPubKey.selector;
+fastWithdrawalSelectors[3] = RATFastWithdrawal.getActiveValidatorsWithBLS.selector;
+fastWithdrawalSelectors[4] = RATFastWithdrawal.setFastWithdrawalEnabled.selector;
+fastWithdrawalSelectors[5] = RATFastWithdrawal.setAggregatorFeeRate.selector;
+fastWithdrawalSelectors[6] = RATFastWithdrawal.verifyAndExecuteFastWithdrawal.selector;
+ratProxy.setSelectorImplementations2(fastWithdrawalSelectors, address(ratFastWithdrawalImpl));
+
+// ==========================================
+// Step 6: Fast Withdrawal 초기 설정
+// ==========================================
+RATFastWithdrawal(address(ratProxy)).setFastWithdrawalEnabled(true);
+RATFastWithdrawal(address(ratProxy)).setAggregatorFeeRate(0.1e27);  // 10%
 ```
+
+### 프록시 선택: Proxy vs RATProxy
+
+| 프록시 | receive() | 사용 시나리오 |
+|--------|-----------|--------------|
+| **Proxy** | `revert("cannot receive Ether")` | ETH 수신 불필요 |
+| **RATProxy** | `payable {}` (수신 허용) | Fast Withdrawal 수수료 수신 필요 |
+
+> **중요**: RAT에서 Fast Withdrawal 기능을 사용하려면 **RATProxy**를 사용해야 합니다.
 
 ### relaxedValidatorCheck 플래그
 
