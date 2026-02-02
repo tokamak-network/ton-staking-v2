@@ -9,8 +9,13 @@ optimizer_runs = 100
 solc_version = "0.8.19"
 build_info = true
 extra_output = ["evm.bytecode", "evm.deployedBytecode", "metadata"]
-
-fs_permissions = [{ access = "read", path = "./abis" }]
+ffi = true
+fs_permissions = [
+    { access = "read-write", path = "./deployments" },
+    { access = "read-write", path = ".devnet" },
+    { access = "read", path = "./abis" },
+    { access = "read-write", path = "./" }
+]
 
 [profile.production]
 via_ir = true

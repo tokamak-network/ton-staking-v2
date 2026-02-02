@@ -105,7 +105,7 @@ echo -e "${BLUE}  Input:  $TARGET_L1_ALLOC${NC}"
 echo -e "${BLUE}  Output: $STATE_DUMP_PATH${NC}"
 echo ""
 
-DEPLOY_OUTPUT=$(forge script script/DeployV3SlashForDevnet.s.sol:DeployV3SlashForDevnet \
+DEPLOY_OUTPUT=$(forge script script/DeployV3WithSlashingForDevnet.s.sol:DeployV3WithSlashingForDevnet \
     --sig "runForDevnetAlloc()" \
     --chain-id 900 \
     --ffi \
@@ -127,7 +127,7 @@ fi
 echo -e "${GREEN}  ✓ Genesis allocs generated${NC}"
 
 # Extract and save deployment addresses
-JSON_CONTENT=$(echo "$DEPLOY_OUTPUT" | sed -n '/=== DEPLOYMENT_JSON_START ===/,/=== DEPLOYMENT_JSON_END ===/p' | grep -v "===")
+JSON_CONTENT=$(echo "$DEPLOY_OUTPUT" | sed -n '/=== DEPLOYMENT_JSON_START ===/,/=== DEPLOYMENT_JSON_END ===/p' | grep -v "===" || true)
 if [ -n "$JSON_CONTENT" ]; then
     echo "$JSON_CONTENT" > "$DEVNET_DIR/addresses.json"
     echo -e "${GREEN}  ✓ Addresses saved to .devnet/addresses.json${NC}"
