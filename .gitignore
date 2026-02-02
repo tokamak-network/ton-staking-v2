@@ -41,3 +41,4 @@ backup/
 # test results
 op-e2e/test-results.txt
 *.test-results.txt
+lib/optimism/
