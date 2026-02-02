@@ -168,6 +168,8 @@ interface IRAT {
     /// @return validators 해당 L2에 등록된 검증자 주소 목록
     function getL2Validators(address systemConfig) external view returns (address[] memory validators);
 
+    // Note: getValidatorBLSPubKey는 RATFastWithdrawal.sol에서 제공 (Fast Withdrawal 기능)
+
     /// @notice 특정 L2의 검증자 활성 상태 확인
     /// @param validator 검증자 주소
     /// @param systemConfig L2의 SystemConfig 주소

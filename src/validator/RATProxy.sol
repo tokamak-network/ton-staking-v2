@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "../proxy/Proxy.sol";
 
 /**
  * @title RATProxy
- * @notice RAT 컨트랙트의 프록시
- * @dev OpenZeppelin TransparentUpgradeableProxy 사용
- * @dev ERC1967 storage slot을 사용하여 implementation storage와 충돌 방지
+ * @notice ETH 수신이 가능한 Proxy
+ * @dev Proxy.sol을 상속받아 receive() 함수만 오버라이드
+ * @dev Fast Withdrawal 수수료 등 ETH를 받아야 하는 컨트랙트에 사용
  */
-contract RATProxy is TransparentUpgradeableProxy {
-    constructor(
-        address _logic,
-        address admin_,
-        bytes memory _data
-    ) TransparentUpgradeableProxy(_logic, admin_, _data) {}
+contract RATProxy is Proxy {
+    /// @notice ETH 수신 허용
+    receive() external payable override {}
 }

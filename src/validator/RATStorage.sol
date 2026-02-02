@@ -4,7 +4,8 @@ pragma solidity ^0.8.4;
 /// @title RATStorage
 /// @notice Randomized Attention Test (RAT) 스토리지
 /// @dev Tokamak Economics Whitepaper V2 (December 9, 2025) 기준
-/// @dev OpenZeppelin TransparentUpgradeableProxy 사용으로 ERC1967 slot 기반 프록시와 충돌 없음
+/// @dev ProxyStorage, AccessibleCommon은 로직 컨트랙트(RAT.sol, RATFastWithdrawal.sol)에서 상속
+/// @dev Storage slot 순서: ProxyStorage → AccessibleCommon → RATStorage (Proxy.sol과 동일)
 contract RATStorage {
     // ==========================================
     // Constants
@@ -43,6 +44,7 @@ contract RATStorage {
         uint64 latestTestDeadline;      // 가장 최근 RAT 테스트 마감 시간 (기록용)
         uint32 validatorIndex;          // 검증자 인덱스
         bool isActive;                  // 활성 상태
+        bytes blsPublicKey;             // BLS12-381 공개키 (48 bytes, G1 point) - Fast Withdrawal용
     }
 
     /// @notice Attention Test 정보
@@ -161,8 +163,7 @@ contract RATStorage {
     /// @notice RAT 트리거 권한 주소 (DisputeGameFactory 등)
     address public authorizedTrigger;
 
-    /// @notice Owner 주소
-    address public owner;
+    // owner 변수 삭제 - AccessibleCommon (AccessControl) 사용
 
     // ==========================================
     // 슬래싱 금액 처리
@@ -210,6 +211,19 @@ contract RATStorage {
     /// @notice ValidatorReward 컨트랙트 주소 (V1.1: O(1) 보상 분배)
     /// @dev 검증자 등록/탈퇴/재활성화 시 ValidatorReward에 알림
     address public validatorReward;
+
+    // ==========================================
+    // Fast Withdrawal Storage
+    // ==========================================
+
+    /// @notice 처리된 출금 해시 (재실행 방지)
+    mapping(bytes32 => bool) public processedWithdrawals;
+
+    /// @notice 집계자 수수료율 (RAY 단위, 기본: 10% = 1e26)
+    uint256 public aggregatorFeeRate;
+
+    /// @notice Fast Withdrawal 활성화 여부
+    bool public fastWithdrawalEnabled;
 
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)

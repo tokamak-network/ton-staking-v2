@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import {ProxyStorage} from "../proxy/ProxyStorage.sol";
+import {AccessibleCommon} from "../common/AccessibleCommon.sol";
 import {RATStorage} from "./RATStorage.sol";
 import {IRAT} from "./IRAT.sol";
 import {RATInitParams, RATConfigParams} from "./RATTypes.sol";
@@ -65,15 +67,12 @@ error NotMigratedError();
  * - (4) C_off ≥ (c_m · n) / π_a - 최소 슬래싱 페널티
  * - (5) D_validator = C_off + Δ_validator - 검증자 담보금
  */
-contract RAT is RATStorage, IRAT {
+contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
     // ==========================================
     // Modifiers
     // ==========================================
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "not owner");
-        _;
-    }
+    // onlyOwner는 AccessibleCommon에서 상속 (AccessControl 기반)
 
     modifier onlySeigManager() {
         require(msg.sender == seigManager, "not seigManager");
@@ -110,7 +109,7 @@ contract RAT is RATStorage, IRAT {
         ton = params.ton;
         layer2Manager = params.layer2Manager;
         l1BridgeRegistry = params.l1BridgeRegistry;
-        owner = params.owner;
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
     }
 
     /// @notice RAT 설정 파라미터 설정 (owner만 호출 가능)
@@ -983,11 +982,7 @@ contract RAT is RATStorage, IRAT {
         validatorReward = _validatorReward;
     }
 
-    /// @notice Owner 변경
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "zero address");
-        owner = newOwner;
-    }
+    // transferOwnership은 AccessibleCommon에서 상속 (AccessControl 기반)
 
     /// @notice Pause 설정
     function setPaused(bool _paused) external onlyOwner {

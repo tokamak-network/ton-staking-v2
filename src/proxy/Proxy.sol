@@ -130,8 +130,8 @@ contract Proxy is ProxyStorage, AccessibleCommon, IProxyEvent, IProxyAction
     }
 
 
-    /// @dev receive ether
-    receive() external payable {
+    /// @dev receive ether (virtual for ProxyReceive override)
+    receive() external payable virtual {
         revert("cannot receive Ether");
     }
 
