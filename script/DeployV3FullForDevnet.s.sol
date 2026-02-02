@@ -32,7 +32,7 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
 import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
-import {RATProxy} from "../src/validator/RATProxy.sol";
+import {RATProxy} from "../src/validator/RATProxy.sol";  // Selector Routing Proxy (Proxy.sol 상속)
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 import {MockAnchorStateRegistry} from "../src/mocks/MockAnchorStateRegistry.sol";
@@ -660,18 +660,33 @@ contract DeployV3FullForDevnet is Script {
     function _deployV3Contracts(address deployer) internal {
         console.log("--- Step 8: Deploy V3 Contracts ---");
 
-        // Deploy RAT
+        // Deploy RAT implementation
         ratImpl = address(new RAT());
         console.log("RAT Impl:", ratImpl);
 
-        // Prepare RAT initialization data using RATInitParams struct
-        bytes memory ratInitData = _buildRATInitData(deployer);
-
-        // Deploy RAT proxy with separate admin (not deployer to avoid TransparentUpgradeableProxy admin restriction)
-        ratProxy = address(new RATProxy(ratImpl, PROXY_ADMIN, ratInitData));
+        // Deploy RAT proxy (Selector Routing Proxy 패턴)
+        // RATProxy는 Proxy.sol을 상속받아 receive()를 오버라이드한 프록시
+        RATProxy proxy = new RATProxy();
+        ratProxy = address(proxy);
         console.log("RAT Proxy:", ratProxy);
 
-        // Step 2: RAT 설정 파라미터 설정
+        // Step 2: 기본 구현체 설정 (upgradeTo)
+        proxy.upgradeTo(ratImpl);
+        console.log("RAT upgradeTo done");
+
+        // Step 3: 초기화 (initialize 호출)
+        RATInitParams memory params = RATInitParams({
+            seigManager: seigManagerProxy,
+            wton: wton,
+            ton: ton,
+            layer2Manager: layer2ManagerProxy,
+            l1BridgeRegistry: l1BridgeRegistryProxy,
+            owner: deployer
+        });
+        RAT(payable(ratProxy)).initialize(params);
+        console.log("RAT initialize done");
+
+        // Step 4: RAT 설정 파라미터 설정
         _configureRAT(ratProxy, deployer);
         console.log("RAT config set");
 
@@ -764,7 +779,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("DepositManager.setAddresses done");
 
         // Set RAT treasury to DAO (l1BridgeRegistry는 initialize에서 이미 설정됨)
-        RAT(ratProxy).setTreasury(daoCommitteeProxy);
+        RAT(payable(ratProxy)).setTreasury(daoCommitteeProxy);
         console.log("RAT.setTreasury done:", daoCommitteeProxy);
         console.log("");
     }
@@ -1065,22 +1080,6 @@ contract DeployV3FullForDevnet is Script {
         console.log("  CHALLENGER:", CHALLENGER);
     }
 
-    // ==========================================
-    // RAT 2단계 초기화 (stack too deep 회피)
-    // ==========================================
-    function _buildRATInitData(address deployer) internal view returns (bytes memory) {
-        // Step 1: 핵심 주소만으로 초기화 (6개 필드)
-        RATInitParams memory params = RATInitParams({
-            seigManager: seigManagerProxy,
-            wton: wton,
-            ton: ton,
-            layer2Manager: layer2ManagerProxy,
-            l1BridgeRegistry: l1BridgeRegistryProxy,
-            owner: deployer
-        });
-        return abi.encodeWithSelector(RAT.initialize.selector, params);
-    }
-
     function _configureRAT(address proxy, address deployer) internal {
         // Step 2: 설정 파라미터 설정
         RATConfigParams memory config = RATConfigParams({
@@ -1096,7 +1095,7 @@ contract DeployV3FullForDevnet is Script {
             attentionCost: RAT_ATTENTION_COST,
             relaxedValidatorCheck: RAT_RELAXED_VALIDATOR_CHECK
         });
-        RAT(proxy).setConfig(config);
+        RAT(payable(proxy)).setConfig(config);
     }
 
     // Helper functions to avoid stack too deep

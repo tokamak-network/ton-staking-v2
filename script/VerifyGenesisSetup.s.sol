@@ -157,7 +157,7 @@ contract VerifyGenesisSetup is Script {
     function _verifyRATGenesisStorage() internal {
         console.log("--- Verifying RAT Genesis Storage (from initialize) ---");
 
-        RAT rat = RAT(ratProxy);
+        RAT rat = RAT(payable(ratProxy));
 
         // These values should be set by RAT.initialize()
 
@@ -206,10 +206,10 @@ contract VerifyGenesisSetup is Script {
         _check("RAT.layer2Manager() = layer2ManagerProxy", layer2ManagerAddr == layer2ManagerProxy);
         console.log("  layer2Manager:", layer2ManagerAddr);
 
-        // owner (should be deployer)
-        address ownerAddr = rat.owner();
-        _check("RAT.owner() = deployer", ownerAddr == TON_STAKING_DEPLOYER);
-        console.log("  owner:", ownerAddr);
+        // owner check via AccessControl (should be deployer)
+        bool hasAdminRole = rat.hasRole(rat.DEFAULT_ADMIN_ROLE(), TON_STAKING_DEPLOYER);
+        _check("RAT.hasRole(DEFAULT_ADMIN_ROLE, deployer) = true", hasAdminRole);
+        console.log("  deployer has admin role:", hasAdminRole);
 
         console.log("");
     }
@@ -217,7 +217,7 @@ contract VerifyGenesisSetup is Script {
     function _verifyRATRuntimeStorage() internal {
         console.log("--- Verifying RAT Runtime Storage (set after genesis) ---");
 
-        RAT rat = RAT(ratProxy);
+        RAT rat = RAT(payable(ratProxy));
 
         // l1BridgeRegistry (set at runtime)
         address l1BridgeReg = rat.l1BridgeRegistry();

@@ -32,7 +32,7 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
 import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
-import {RATProxy} from "../src/validator/RATProxy.sol";
+import {RATProxy} from "../src/validator/RATProxy.sol";  // Selector Routing Proxy (Proxy.sol 상속)
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
 import {ValidatorRewardProxy} from "../src/validator/ValidatorRewardProxy.sol";
 
@@ -127,8 +127,8 @@ contract DeployV3Full is Script {
     address public validatorPoolProxy;
     address public validatorPoolImpl;
 
-    // Proxy Admin for TransparentUpgradeableProxy contracts (RAT, ValidatorReward)
-    // Using a separate admin to avoid "admin cannot fallback to proxy target" issue
+    // Proxy Admin for TransparentUpgradeableProxy contracts (ValidatorReward만 해당)
+    // RAT은 Selector Routing Proxy (RATProxy) 사용
     address public proxyAdmin;
 
     /// @notice Returns the proxy admin address
@@ -498,7 +498,7 @@ contract DeployV3Full is Script {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
-        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
+        RAT(payable(ratProxy)).setValidatorReward(validatorPoolProxy);
     }
 
     function _setupLayer2ManagerRefs(address deployer) internal {
@@ -592,10 +592,19 @@ contract DeployV3Full is Script {
     }
 
     // ==========================================
-    // RAT 2단계 초기화 (stack too deep 회피)
+    // RAT 배포 (Selector Routing Proxy 패턴)
     // ==========================================
     function _deployRATProxy(address deployer) internal returns (address) {
-        // Step 1: 핵심 주소만으로 프록시 배포
+        // Step 1: RATProxy 배포 (Selector Routing Proxy)
+        // RATProxy는 Proxy.sol을 상속받아 receive()를 오버라이드한 프록시
+        // TransparentUpgradeableProxy와 달리 생성자에 인자가 없음
+        RATProxy proxy = new RATProxy();
+        address proxyAddr = address(proxy);
+
+        // Step 2: 기본 구현체 설정 (upgradeTo)
+        proxy.upgradeTo(ratImpl);
+
+        // Step 3: 초기화 (initialize 호출)
         RATInitParams memory params = RATInitParams({
             seigManager: seigManagerProxy,
             wton: wton,
@@ -604,13 +613,12 @@ contract DeployV3Full is Script {
             l1BridgeRegistry: l1BridgeRegistryProxy,
             owner: deployer
         });
-        bytes memory initData = abi.encodeWithSelector(RAT.initialize.selector, params);
-        // Use proxyAdmin instead of deployer to avoid admin fallback issue
-        address proxy = address(new RATProxy(ratImpl, proxyAdmin, initData));
+        RAT(payable(proxyAddr)).initialize(params);
 
-        // Step 2: 설정 파라미터 설정
-        _configureRAT(proxy, deployer);
-        return proxy;
+        // Step 4: 설정 파라미터 설정 (setConfig)
+        _configureRAT(proxyAddr, deployer);
+
+        return proxyAddr;
     }
 
     function _configureRAT(address proxy, address deployer) internal {
@@ -627,7 +635,7 @@ contract DeployV3Full is Script {
             attentionCost: RAT_ATTENTION_COST,
             relaxedValidatorCheck: RAT_RELAXED_VALIDATOR_CHECK
         });
-        RAT(proxy).setConfig(config);
+        RAT(payable(proxy)).setConfig(config);
     }
 
     // ==========================================
