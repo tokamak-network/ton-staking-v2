@@ -33,8 +33,11 @@ clean:
 
 OPTIMISM_DIR := lib/optimism
 
-# Generate lib/optimism devnet allocs (prerequisite)
+# Generate lib/optimism devnet allocs (OPTIONAL - for updating config files)
+# NOTE: This is only needed when regenerating files in scripts/config/
+# Normal devnet setup does NOT require this step
 devnet-allocs-optimism:
+	@command -v just >/dev/null 2>&1 || { echo "Error: 'just' command not found. Install it from: https://github.com/casey/just"; exit 1; }
 	@echo "=== Building lib/optimism devnet allocs ==="
 	@if [ ! -f $(OPTIMISM_DIR)/packages/contracts-bedrock/forge-artifacts/DisputeGameFactory.sol/DisputeGameFactory.json ]; then \
 		echo "Building Optimism contracts (first time)..."; \
@@ -43,8 +46,9 @@ devnet-allocs-optimism:
 	@echo "Generating devnet allocs..."
 	cd $(OPTIMISM_DIR) && just devnet-allocs
 
-# Generate genesis file with all contracts (Asterisc-style offline generation)
-devnet-allocs-offline: devnet-allocs-optimism
+# Generate genesis file with all contracts (Fully offline - no lib/optimism needed)
+# All required files are pre-configured in scripts/config/
+devnet-allocs-offline:
 	@echo ""
 	@echo "=== Generating genesis-l1-staking-v3.json (offline) ==="
 	@chmod +x ./scripts/generate-allocs-offline.sh
@@ -57,8 +61,6 @@ devnet-allocs-offline: devnet-allocs-optimism
 devnet-clean:
 	@echo "Cleaning devnet state..."
 	@rm -rf .devnet
-	@echo "Cleaning lib/optimism devnet state..."
-	@rm -rf $(OPTIMISM_DIR)/.devnet
 	@echo "Devnet cleaned"
 
 # Show devnet status
@@ -192,7 +194,7 @@ help:
 	@echo "  make clean              Clean build artifacts"
 	@echo ""
 	@echo "E2E Testing (Automated):"
-	@echo "  make devnet-allocs-offline  Generate genesis with all contracts"
+	@echo "  make devnet-allocs-offline  Generate genesis (fully offline, no lib/optimism needed)"
 	@echo "  make test-e2e               Run E2E tests (starts isolated nodes)"
 	@echo "  make test-e2e-unit          Run E2E unit tests (no genesis needed)"
 	@echo "  make test-e2e-integration   Run E2E integration tests"

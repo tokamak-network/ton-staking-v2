@@ -187,7 +187,7 @@ library Type3EvidenceVerifier {
         require(_verifyPatriciaProofsWithRoot(ev, stateRoot), "ERR_MERKLE_PROOF");
 
         // 6. Divergence 검증 (완벽한 인접성 - LeafA와 LeafB 사이에 다른 리프가 없음을 증명)
-        require(_verifyDivergence(ev, stateRoot), "ERR_DIVERGENCE");
+        require(_verifyDivergence(ev), "ERR_DIVERGENCE");
 
         return true;
     }
@@ -532,8 +532,8 @@ library Type3EvidenceVerifier {
 
     /// @notice Divergence 검증 (완벽한 인접성)
     /// @dev LeafA와 LeafB 사이에 다른 리프가 없음을 분기점 노드로 증명
+    /// @dev leafA와 leafB의 proof는 _verifyPatriciaProofsWithRoot에서 이미 stateRoot에 대해 검증됨
     /// @param ev StateLeafEvidence 구조체
-    /// @param stateRoot 검증에 사용할 state root
     /// @return 검증 성공 여부
     ///
     /// NOTE: Boundary Proof 고려사항
@@ -563,7 +563,7 @@ library Type3EvidenceVerifier {
     /// require(_isLeafNode(items[witness.indexB]), "ERR_NOT_DIRECT_LEAF_B");
     /// ```
     /// 이는 indexA/indexB 슬롯이 리프 노드임을 강제하여 Boundary Proof를 완벽히 보장합니다.
-    function _verifyDivergence(StateLeafEvidence memory ev, bytes32 stateRoot)
+    function _verifyDivergence(StateLeafEvidence memory ev)
         internal
         pure
         returns (bool)

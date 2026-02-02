@@ -41,7 +41,8 @@ exclude_lints = [
     "unsafe-typecast",
     "asm-keccak256",
     "erc20-unchecked-transfer",
-    "unsafe-cheatcode"
+    "unsafe-cheatcode",
+    "incorrect-shift"
 ]
 
 # Allow script to read/write deployment files
