@@ -80,9 +80,40 @@ contract SeigManager_Slashing is
         // burn {v} {coinages[layer2]} tokens to the account
         _coinages[layer2].burnFrom(operator, operatorAmount);
 
+        // V3: Reset bridgedTONInfo for the slashed layer2 to prevent underflow
+        // when updateSeigniorage is called after re-staking
+        if (v3Migrated) {
+            _resetBridgedTONInfo(layer2);
+        }
+
         emit onSlashed(layer2, operator);
 
         return operatorAmount + totAmount;
+    }
+
+    /**
+     * @notice Reset V3 bridgedTONInfo state for a layer2 after slashing
+     * @dev This prevents arithmetic underflow in _syncEffectiveBridgedTon when
+     *      updateSeigniorage is called after re-staking
+     * @param layer2 The layer2 address to reset
+     */
+    function _resetBridgedTONInfo(address layer2) internal {
+        BridgedTONInfo storage info = bridgedTONInfo[layer2];
+        
+        // Subtract from global total before resetting
+        if (info.effectiveBridgedTON > 0) {
+            if (totalEffectiveBridgedTON >= info.effectiveBridgedTON) {
+                totalEffectiveBridgedTON -= info.effectiveBridgedTON;
+            } else {
+                // Safety: if somehow out of sync, just zero it out
+                totalEffectiveBridgedTON = 0;
+            }
+        }
+        
+        // Reset all V3 state for this layer2
+        info.effectiveBridgedTON = 0;
+        info.isEligible = false;
+        info.initialDebt = 0;
     }
 
     //////////////////////////////

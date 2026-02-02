@@ -2,8 +2,11 @@ package slashing
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -11,6 +14,24 @@ import (
 	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
 	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
+
+// ============================================================================
+// Package-level ABI parsers for contract calls
+// ============================================================================
+
+var (
+	// stakeOfABI is used to query staking amounts from SeigManager
+	stakeOfABI abi.ABI
+)
+
+func init() {
+	var err error
+
+	stakeOfABI, err = abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"layer2","type":"address"},{"internalType":"address","name":"account","type":"address"}],"name":"stakeOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`))
+	if err != nil {
+		panic("failed to parse stakeOfABI: " + err.Error())
+	}
+}
 
 // SlashingContracts holds all slashing-related contract instances
 type SlashingContracts struct {
@@ -203,6 +224,7 @@ func executeSlashing(
 }
 
 // getStakeBalance returns the stake balance for an account in a candidateAddOn
+// V3: Uses SeigManager.stakeOf() instead of deprecated DepositManager.accStaked()
 func getStakeBalance(
 	t *testing.T,
 	sys *rat.TONStakingSystem,
@@ -210,14 +232,18 @@ func getStakeBalance(
 	candidateAddOn common.Address,
 	account common.Address,
 ) *big.Int {
-	callOpts := &bind.CallOpts{Context: sys.Ctx}
+	callData, err := stakeOfABI.Pack("stakeOf", candidateAddOn, account)
+	require.NoError(t, err, "Failed to pack stakeOf call")
 
-	balance, err := contracts.DepositManager.AccStaked(
-		callOpts,
-		candidateAddOn,
-		account,
-	)
-	require.NoError(t, err, "Failed to get stake balance")
+	result, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SeigManagerProxy,
+		Data: callData,
+	}, nil)
+	require.NoError(t, err, "Failed to call SeigManager.stakeOf")
+
+	var balance *big.Int
+	err = stakeOfABI.UnpackIntoInterface(&balance, "stakeOf", result)
+	require.NoError(t, err, "Failed to unpack stakeOf result")
 
 	return balance
 }
