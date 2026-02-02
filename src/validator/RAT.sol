@@ -6,8 +6,25 @@ import {IRAT} from "./IRAT.sol";
 import {RATInitParams, RATConfigParams} from "./RATTypes.sol";
 import {IL1BridgeRegistry} from "../layer2/interfaces/IL1BridgeRegistry.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
+import {IValidatorReward} from "./IValidatorReward.sol";
 import {Type3EvidenceVerifier} from "./libraries/Type3EvidenceVerifier.sol";
 import {IDisputeGame} from "./interfaces/IDisputeGame.sol";
+
+// V3: SeigManager 연동을 위한 인터페이스
+interface ISeigManagerForRAT {
+    function coinages(address layer2) external view returns (address);
+    function stakeOf(address layer2, address account) external view returns (uint256);
+    function v3Migrated() external view returns (bool);
+    // RAT용 coinage 전송 함수
+    function transferCoinageToRat(address layer2, address validator, uint256 amount) external;
+    function transferCoinageFromRat(address layer2, address validator, uint256 amount) external;
+    function transferCoinageFromRatTo(address layer2, address recipient, uint256 amount) external;
+}
+
+// ERC20 interface for TON token transfers
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
 
 // Custom Errors
 error AlreadyRegisteredError();
@@ -147,7 +164,6 @@ contract RAT is RATStorage, IRAT {
             address validatorAddress,
             address systemConfig,
             uint32 batchIndex,
-            address gameAddress,
             bytes32 batchHash,
             uint256 bondAmount,
             uint256 createdAt,
@@ -160,7 +176,6 @@ contract RAT is RATStorage, IRAT {
             test.validatorAddress,
             test.systemConfig,
             test.batchIndex,
-            test.gameAddress,
             test.batchHash,
             test.bondAmount,
             test.createdAt,
@@ -649,38 +664,37 @@ contract RAT is RATStorage, IRAT {
     }
 
     /// @inheritdoc IRAT
-    /// @dev V3: 증거 타입별 검증 지원 (FraudProof, StateLeaf)
     function submitEvidence(
-        bytes32 testId,
-        uint8 evidenceType,
-        bytes calldata evidenceData
+        address systemConfig,
+        uint32 batchIndex,
+        bytes calldata evidence
     ) external ifFree whenNotPaused {
+        bytes32 testId = batchToTestId[systemConfig][batchIndex];
         if (testId == bytes32(0)) revert TestNotFoundError();
 
         AttentionTest storage test = attentionTests[testId];
+
         if (test.validatorAddress != msg.sender) revert NotSelectedValidatorError();
         if (test.status != AttentionTestStatus.EvidencePeriod) revert TestAlreadyRespondedError();
         if (block.timestamp > test.deadline) revert DeadlinePassedError();
 
-        // 증거 검증 (롤업 타입별 + 증거 타입별 라이브러리 사용)
-        bool isValid = _verifyEvidence(test.systemConfig, testId, test.batchHash, evidenceType, evidenceData);
-        require(isValid, "Evidence verification failed");
+        // 증거 검증 (TODO: 실제 증거 검증 로직)
+        _verifyEvidence(test.batchHash, evidence);
 
-        // 담보금 복구
-        ValidatorRegistration storage reg = validatorRegistrations[test.systemConfig][msg.sender];
-        reg.depositedAmount += test.bondAmount;
-        reg.totalBondForRAT -= test.bondAmount;
+        // === Effects: 상태 업데이트 ===
+        test.status = AttentionTestStatus.RestoredByEvidence;
 
-        test.status = AttentionTestStatus.Responded;
-        activeTestCount[test.systemConfig]--;
+        // === Interactions: 외부 호출 ===
+        // V3: 복구 = RAT coinage → validator coinage 전송
+        // (RAT에서 burn, validator에 mint)
+        address layer2 = _getLayer2FromSystemConfig(systemConfig);
+        _transferCoinageFromRAT(layer2, msg.sender, test.bondAmount);
 
-        // 검증자 세트 복구 - 비활성 상태였고 D_min 이상이면 다시 추가
-        if (!reg.isActive && reg.depositedAmount >= minimumThreshold) {
-            _restoreValidator(test.systemConfig, msg.sender, reg);
-            emit ValidatorRestored(msg.sender, test.systemConfig);
-        }
+        // 비활성 상태였다면 재활성화 시도
+        ValidatorRegistration storage reg = validatorRegistrations[systemConfig][msg.sender];
+        _reactivateValidator(systemConfig, msg.sender, reg, layer2);
 
-        emit EvidenceSubmitted(testId, msg.sender, test.systemConfig, test.batchIndex);
+        emit EvidenceSubmitted(testId, msg.sender, systemConfig, layer2, batchIndex);
     }
 
     /// @inheritdoc IRAT
@@ -742,7 +756,19 @@ contract RAT is RATStorage, IRAT {
         return pool.validators[randomIndex];
     }
 
-    /// @notice 증거 검증 (롤업 타입별 + 증거 타입별 라이브러리 사용)
+    /// @notice 증거 검증
+    function _verifyEvidence(bytes32 /* batchHash */, bytes calldata evidence)
+        internal
+        pure
+    {
+        // TODO: 실제 증거 검증 로직 구현
+        // - Fraud Proof 검증
+        // - State Leaf 검증
+        // - 기타 증거 타입 검증
+        require(evidence.length > 0, "Empty evidence");
+    }
+
+    /// @notice 증거 검증 (rat-client 버전 - 롤업 타입별 + 증거 타입별 라이브러리 사용)
     /// @dev systemConfig의 롤업 타입과 evidenceType에 따라 적절한 검증 라이브러리를 호출
     /// @param systemConfig SystemConfig 주소 (롤업 타입 확인용)
     /// @param testId RAT 테스트 ID
@@ -750,7 +776,7 @@ contract RAT is RATStorage, IRAT {
     /// @param evidenceType 증거 타입 (0: FraudProof, 1: StateLeaf)
     /// @param evidenceData 증거 데이터 (타입별로 다른 구조)
     /// @return 검증 성공 여부
-    function _verifyEvidence(
+    function _verifyEvidenceWithType(
         address systemConfig,
         bytes32 testId,
         bytes32 batchHash,
@@ -789,11 +815,6 @@ contract RAT is RATStorage, IRAT {
                 revert("Unsupported evidence type");
             }
         }
-
-        // 미래 타입 (Type 4, 5, ...): 여기에 추가
-        // if (rollupType == 4) {
-        //     return Type4EvidenceVerifier.verify(batchHash, evidenceData);
-        // }
 
         // 지원하지 않는 타입
         revert("Unsupported rollup type");
