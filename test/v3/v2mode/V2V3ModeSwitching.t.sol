@@ -22,7 +22,7 @@ contract V2V3ModeSwitchingTest is V2ModeTestBase {
         _baseSetUp();
 
         // RAT 참조 설정
-        rat = RAT(ratProxy);
+        rat = RAT(payable(ratProxy));
 
         // pause/unpause 및 exclude/include 셀렉터 등록
         _registerPausableSelectors();

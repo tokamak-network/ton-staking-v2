@@ -181,7 +181,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
         depositManager = DepositManagerV3(depositManagerProxy);
         layer2Registry = Layer2Registry(layer2RegistryProxy);
-        rat = RAT(ratProxy);
+        rat = RAT(payable(ratProxy));
 
         // Add owner as manager to register rollup types
         l1BridgeRegistry.addManager(owner);

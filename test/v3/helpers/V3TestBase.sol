@@ -118,7 +118,7 @@ abstract contract V3TestBase is Test, DeployV3Full {
         l1BridgeRegistry = L1BridgeRegistryV1_2(l1BridgeRegistryProxy);
         depositManager = DepositManagerV3(depositManagerProxy);
         layer2Registry = Layer2Registry(layer2RegistryProxy);
-        rat = RAT(ratProxy);
+        rat = RAT(payable(ratProxy));
 
         // 롤업 타입 등록 (TYPE 1, 2, 3)
         _registerDefaultRollupTypes();
@@ -316,7 +316,7 @@ abstract contract V3TestBase is Test, DeployV3Full {
         SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         // V1.1: RAT에도 ValidatorReward 설정 (O(1) 보상 분배용)
-        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
+        RAT(payable(ratProxy)).setValidatorReward(validatorPoolProxy);
 
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
             l1BridgeRegistryProxy,

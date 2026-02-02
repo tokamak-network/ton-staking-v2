@@ -330,52 +330,52 @@ contract SecurityPermissionsTest is V3TestBase {
     function test_SEC001_onlyOwner_rat() public {
         // setSlashingPenalty
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setSlashingPenalty(200 * RAY);
 
         // setValidatorBuffer
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setValidatorBuffer(200 * RAY);
 
         // setMinimumThreshold
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setMinimumThreshold(400 * RAY);
 
         // setRatTriggerProbability
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setRatTriggerProbability(0.5e27);
 
         // setEvidenceSubmissionPeriod
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setEvidenceSubmissionPeriod(2 hours);
 
         // setMaxValidatorsPerL2
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setMaxValidatorsPerL2(50);
 
         // setRelaxedValidatorCheck
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setRelaxedValidatorCheck(false);
 
         // setL1BridgeRegistry
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setL1BridgeRegistry(address(0x1234));
 
         // setTreasury
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.setTreasury(address(0x1234));
 
         // transferOwnership
         vm.prank(attacker);
-        vm.expectRevert("not owner");
+        vm.expectRevert("Accessible: Caller is not an admin");
         rat.transferOwnership(attacker);
     }
 
@@ -421,7 +421,7 @@ contract SecurityPermissionsTest is V3TestBase {
     /// @notice SEC-030: RAT transferOwnership - zero address 거부
     function test_SEC030_zeroAddress_transferOwnership() public {
         vm.prank(owner);
-        vm.expectRevert("zero address");
+        vm.expectRevert("Accessible: zero address");
         rat.transferOwnership(address(0));
     }
 
