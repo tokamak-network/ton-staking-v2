@@ -339,6 +339,8 @@ contract DeployV3FullForDevnet is Script {
         _deployV3Contracts(deployer);
         _deployDAO();
         _setupCrossReferences(deployer);
+        _migrateToV3(deployer);
+        _registerRollupTypes();
         _initializeOptimismPortal();
         _connectToOptimism();
         _registerLayer2();
@@ -357,7 +359,7 @@ contract DeployV3FullForDevnet is Script {
         // Read devnetL1.json using FFI (vm.readFile has permission issues with .devnet folder)
         string[] memory inputs = new string[](2);
         inputs[0] = "cat";
-        inputs[1] = ".devnet/devnetL1.json";
+        inputs[1] = string(abi.encodePacked(vm.projectRoot(), "/.devnet/devnetL1.json"));
 
         bytes memory result = vm.ffi(inputs);
         string memory json = string(result);
@@ -368,7 +370,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("SystemConfig:", systemConfig);
 
         // Read optimism-addresses.json for DisputeGameFactory and other contracts
-        inputs[1] = ".devnet/optimism-addresses.json";
+        inputs[1] = string(abi.encodePacked(vm.projectRoot(), "/.devnet/optimism-addresses.json"));
         result = vm.ffi(inputs);
         string memory addressesJson = string(result);
 
@@ -596,14 +598,27 @@ contract DeployV3FullForDevnet is Script {
     }
 
     function _setupSeigManagerV3CoreSelectors() internal {
-        // 핵심 함수만 등록 (6개) - 테스트/배포에 필요한 최소 함수
-        bytes4[] memory s = new bytes4[](6);
+        // V3 함수 등록 (migration + setters + RAT callbacks)
+        bytes4[] memory s = new bytes4[](17);
         s[0] = SeigManagerV3_1.setValidatorReward.selector;
         s[1] = SeigManagerV3_1.setV2Logic.selector;
         s[2] = SeigManagerV3_1.migrateToV3.selector;
         s[3] = SeigManagerV3_1.updateSeigniorage.selector;
         s[4] = SeigManagerV3_1.setRatContract.selector;
         s[5] = bytes4(keccak256("v3Migrated()"));
+        // V3 parameter setters
+        s[6] = SeigManagerV3_1.setDaoDistributionRatio.selector;
+        s[7] = SeigManagerV3_1.setMinStakingRatio.selector;
+        s[8] = SeigManagerV3_1.setValidatorDistributionRatio.selector;
+        s[9] = SeigManagerV3_1.setHalfSaturationPoint.selector;
+        s[10] = SeigManagerV3_1.setMaxChallengers.selector;
+        s[11] = SeigManagerV3_1.setMaxFraudProofCost.selector;
+        s[12] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
+        // RAT callback functions (CRITICAL for RAT trigger!)
+        s[13] = bytes4(keccak256("ratContract()"));
+        s[14] = SeigManagerV3_1.transferCoinageToRat.selector;
+        s[15] = SeigManagerV3_1.transferCoinageFromRat.selector;
+        s[16] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
     }
 
@@ -702,6 +717,10 @@ contract DeployV3FullForDevnet is Script {
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
+        // Set RAT contract address in SeigManager (CRITICAL for RAT trigger!)
+        SeigManagerV3_1(seigManagerProxy).setRatContract(ratProxy);
+        console.log("SeigManager.setRatContract done");
+
         // Layer2Manager.setAddresses (V3 - 2단계로 분리하여 stack too deep 회피)
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
             l1BridgeRegistryProxy,
@@ -751,10 +770,94 @@ contract DeployV3FullForDevnet is Script {
     }
 
     // ==========================================
-    // Step 10.5: Deploy MockAnchorStateRegistry (bytecode only)
+    // Step 10: Migrate to V3
+    // ==========================================
+    function _migrateToV3(address /* deployer */) internal {
+        console.log("--- Step 10: Migrate to V3 ---");
+
+        // Set V3 parameters before migration
+        SeigManagerV3_1(seigManagerProxy).setDaoDistributionRatio(200000000000000000000000000); // 0.2e27 (20%)
+        console.log("Set DAO distribution ratio: 20%");
+
+        SeigManagerV3_1(seigManagerProxy).setMinStakingRatio(100000000000000000000000000); // 0.1e27 (10%)
+        console.log("Set min staking ratio: 10%");
+
+        SeigManagerV3_1(seigManagerProxy).setValidatorDistributionRatio(200000000000000000000000000); // 0.2e27 (20%)
+        console.log("Set validator distribution ratio: 20%");
+
+        SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(10000000000000000000000000000000000); // 10M TON
+        console.log("Set half saturation point: 10M TON");
+
+        SeigManagerV3_1(seigManagerProxy).setMaxChallengers(10); // H_max
+        console.log("Set max challengers: 10");
+
+        SeigManagerV3_1(seigManagerProxy).setMaxFraudProofCost(1000000000000000000000000000); // 1000 WTON
+        console.log("Set max fraud proof cost: 1000 WTON");
+
+        SeigManagerV3_1(seigManagerProxy).setSequencerAdditionalReward(100000000000000000000000000); // 100 WTON
+        console.log("Set sequencer additional reward: 100 WTON");
+
+        // Now call migrateToV3()
+        SeigManagerV3_1(seigManagerProxy).migrateToV3();
+        console.log("SeigManager migrated to V3");
+        console.log("");
+    }
+
+    // ==========================================
+    // Step 10.5: Register Rollup Types for L2 Registration
+    // ==========================================
+    function _registerRollupTypes() internal {
+        console.log("--- Step 10.5: Register Rollup Types ---");
+
+        // Ensure msg.sender has Manager role
+        if (!L1BridgeRegistryV1_2(l1BridgeRegistryProxy).isManager(msg.sender)) {
+            L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addManager(msg.sender);
+            console.log("Added msg.sender as manager");
+        }
+
+        // TYPE 1: Optimism Legacy - V2 only
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addRollupType(
+            1,
+            "Optimism Legacy",
+            bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
+            bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
+            bytes4(0),                                  // no DisputeGameFactory
+            0,                                          // BRIDGE_PATTERN_ERC20
+            false                                       // V3 eligible = false
+        );
+        console.log("Registered Rollup Type 1: Optimism Legacy");
+
+        // TYPE 2: Optimism Bedrock - V2 only
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addRollupType(
+            2,
+            "Optimism Bedrock",
+            bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
+            bytes4(keccak256("optimismPortal()")),     // 0x0a49cb03
+            bytes4(0),                                  // no DisputeGameFactory
+            1,                                          // BRIDGE_PATTERN_NATIVE
+            false                                       // V3 eligible = false
+        );
+        console.log("Registered Rollup Type 2: Optimism Bedrock");
+
+        // TYPE 3: Bedrock with DisputeGame - V3 eligible
+        L1BridgeRegistryV1_2(l1BridgeRegistryProxy).addRollupType(
+            3,
+            "Optimism Bedrock DisputeGame",
+            bytes4(keccak256("l1StandardBridge()")),       // 0x078f29cf
+            bytes4(keccak256("optimismPortal()")),         // 0x0a49cb03
+            bytes4(keccak256("disputeGameFactory()")),     // 0x0a1e5c7d
+            1,                                              // BRIDGE_PATTERN_NATIVE
+            true                                            // V3 eligible = true
+        );
+        console.log("Registered Rollup Type 3: Optimism Bedrock DisputeGame (V3 eligible)");
+        console.log("");
+    }
+
+    // ==========================================
+    // Step 11: Deploy MockAnchorStateRegistry (bytecode only)
     // ==========================================
     function _initializeOptimismPortal() internal {
-        console.log("--- Step 10.5: Deploy MockAnchorStateRegistry ---");
+        console.log("--- Step 11: Deploy MockAnchorStateRegistry ---");
 
         // Validate required addresses
         require(disputeGameFactory != address(0), "DisputeGameFactory address required");
@@ -775,10 +878,10 @@ contract DeployV3FullForDevnet is Script {
     }
 
     // ==========================================
-    // Step 11: Log Optimism Integration Info (no vm.store)
+    // Step 12: Log Optimism Integration Info (no vm.store)
     // ==========================================
     function _connectToOptimism() internal view {
-        console.log("--- Step 11: Optimism Integration (Runtime Setup Required) ---");
+        console.log("--- Step 12: Optimism Integration (Runtime Setup Required) ---");
 
         // NOTE: All Optimism integration is done at test runtime via transactions:
         // - DisputeGameFactory.setRAT(ratProxy)
@@ -898,24 +1001,11 @@ contract DeployV3FullForDevnet is Script {
     }
 
     // ==========================================
-    // Step 12: Mint Test Tokens (Pure TON Staking - Genesis)
+    // Step 13: Mint Test Tokens (Pure TON Staking - Genesis)
     // ==========================================
     function _mintTestTokens() internal {
-        console.log("--- Step 12: Mint Test Tokens ---");
+        console.log("--- Step 13: Mint Test Tokens ---");
 
-        // Include all Anvil test accounts for E2E testing
-        address[10] memory testAccounts = [
-            OPTIMISM_DEPLOYER, // Account #0
-            DEPLOYER,          // Account #1
-            PROXY_ADMIN,       // Account #2
-            VALIDATOR,         // Account #3
-            PROPOSER,          // Account #4
-            CHALLENGER,        // Account #5
-            0x976EA74026E726554dB657fA54763abd0C3a0aa9, // Account #6
-            0x14dC79964da2C08b23698B3D3cc7Ca32193d9955, // Account #7
-            0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f, // Account #8
-            0xa0Ee7A142d267C1f36714E4a8F75612F20a79720  // Account #9
-        ];
         // Mint tokens to test accounts (100,000 TON and 100,000 WTON each)
         uint256 tonAmount = 100_000 * 1e18;  // TON uses 18 decimals
         uint256 wtonAmount = 100_000 * 1e27; // WTON uses 27 decimals (RAY)
