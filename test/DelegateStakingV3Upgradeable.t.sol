@@ -94,7 +94,8 @@ contract DelegateStakingV3UpgradeableTest is Test {
         assertEq(staking.layer2Manager(), address(layer2Manager));
         assertEq(staking.unbondingPeriod(), UNBONDING_PERIOD);
         assertEq(staking.owner(), owner);
-        assertEq(staking.version(), "1.0.0");
+        assertEq(staking.version(), "1.1.0");
+        assertEq(staking.minStakeAmount(), 100 ether); // DEFAULT_MIN_STAKE
     }
 
     function test_Initialize_CannotReinitialize() public {
@@ -257,7 +258,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // Verify state persisted
         assertEq(staking.getTotalStaked(), stakedBefore);
-        assertEq(staking.version(), "1.0.0");
+        assertEq(staking.version(), "1.1.0");
     }
 
     function test_Upgrade_WithReinitialization() public {
@@ -275,6 +276,238 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // State should be preserved
         assertEq(staking.getTotalStaked(), totalStakedBefore);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                   COMMISSION TIMELOCK TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CommissionTimelock_RequestAndApply() public {
+        // Register sequencer
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000); // 10%
+
+        // Request commission update
+        vm.prank(sequencer1);
+        staking.requestCommissionUpdate(2000); // 20%
+
+        // Check pending commission
+        (uint256 newCommission, uint256 effectiveTime) = staking.getPendingCommission(sequencer1);
+        assertEq(newCommission, 2000);
+        assertEq(effectiveTime, block.timestamp + 7 days);
+
+        // Try to apply before timelock - should fail
+        vm.prank(sequencer1);
+        vm.expectRevert(DelegateStakingV3Upgradeable.CommissionTimelockNotElapsed.selector);
+        staking.applyCommissionUpdate();
+
+        // Fast forward past timelock
+        vm.warp(block.timestamp + 7 days + 1);
+
+        // Apply commission update
+        vm.prank(sequencer1);
+        staking.applyCommissionUpdate();
+
+        // Verify commission updated
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertEq(info.commission, 2000);
+    }
+
+    function test_CommissionTimelock_Cancel() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.requestCommissionUpdate(2000);
+
+        // Cancel the update
+        vm.prank(sequencer1);
+        staking.cancelCommissionUpdate();
+
+        // Verify pending is cleared
+        (uint256 newCommission, uint256 effectiveTime) = staking.getPendingCommission(sequencer1);
+        assertEq(newCommission, 0);
+        assertEq(effectiveTime, 0);
+
+        // Commission should remain unchanged
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertEq(info.commission, 1000);
+    }
+
+    function test_CommissionTimelock_RevertIfNoPending() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(DelegateStakingV3Upgradeable.NoPendingCommission.selector);
+        staking.applyCommissionUpdate();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    MINIMUM STAKE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_MinStake_RevertIfBelowMinimum() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+
+        // Try to stake below minimum (99 TON < 100 TON)
+        vm.expectRevert(DelegateStakingV3Upgradeable.BelowMinimumStake.selector);
+        staking.stake(sequencer1, 99 ether);
+        vm.stopPrank();
+    }
+
+    function test_MinStake_SuccessAtMinimum() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+
+        // Stake exactly minimum (100 TON)
+        staking.stake(sequencer1, 100 ether);
+        vm.stopPrank();
+
+        assertEq(staking.getTotalStaked(), 100 ether);
+    }
+
+    function test_MinStake_AdditionBelowMinimumAllowed() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+
+        // Initial stake at minimum
+        staking.stake(sequencer1, 100 ether);
+
+        // Additional stake below minimum should work
+        staking.stake(sequencer1, 1 ether);
+        vm.stopPrank();
+
+        assertEq(staking.getTotalStaked(), 101 ether);
+    }
+
+    function test_SetMinStakeAmount() public {
+        vm.prank(owner);
+        staking.setMinStakeAmount(200 ether);
+
+        assertEq(staking.minStakeAmount(), 200 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    FLASH LOAN PROTECTION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_FlashLoanProtection_CooldownRequired() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        // Try to claim immediately - should fail
+        vm.expectRevert(DelegateStakingV3Upgradeable.StakeCooldownNotElapsed.selector);
+        staking.claimRewards(sequencer1);
+        vm.stopPrank();
+    }
+
+    function test_FlashLoanProtection_ClaimAfterCooldown() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Trigger seigniorage to create rewards
+        vm.prank(user2);
+        staking.triggerSeigniorage(sequencer1);
+
+        // Fast forward past cooldown (12 seconds)
+        vm.warp(block.timestamp + 13 seconds);
+
+        // Now claim should work
+        vm.prank(user1);
+        staking.claimRewards(sequencer1);
+    }
+
+    function test_FlashLoanProtection_UnstakeClaimsWithoutCooldown() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Trigger seigniorage
+        vm.prank(user2);
+        staking.triggerSeigniorage(sequencer1);
+
+        // Unstake should work immediately and auto-claim rewards
+        // (internal claim doesn't check cooldown)
+        vm.prank(user1);
+        staking.unstake(sequencer1, 500 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+               EMERGENCY WITHDRAW WITH REWARDS TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_EmergencyWithdraw_ClaimsRewards() public {
+        // Setup
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Trigger seigniorage to create rewards
+        vm.prank(user2);
+        staking.triggerSeigniorage(sequencer1);
+
+        // Check pending rewards exist
+        uint256 pendingBefore = staking.pendingRewards(user1, sequencer1);
+        assertGt(pendingBefore, 0);
+
+        // Activate emergency
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        // Fast forward past cooldown
+        vm.warp(block.timestamp + 3 days + 1);
+
+        // Record WTON balance before
+        uint256 wtonBefore = wton.balanceOf(user1);
+
+        // Emergency withdraw
+        vm.prank(user1);
+        staking.emergencyWithdraw(sequencer1);
+
+        // Verify rewards were claimed
+        uint256 wtonAfter = wton.balanceOf(user1);
+        assertGt(wtonAfter, wtonBefore);
+        assertEq(wtonAfter - wtonBefore, pendingBefore);
+
+        // Verify TON was returned
+        assertEq(ton.balanceOf(user1), INITIAL_BALANCE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -388,42 +621,46 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         assertEq(staking.getTotalStaked(), 1000 ether);
 
-        // 4. Trigger seigniorage
+        // 4. Wait for stake cooldown (flash loan protection)
+        vm.warp(block.timestamp + 13 seconds);
+
+        // 5. Trigger seigniorage
         vm.prank(user2);
         staking.triggerSeigniorage(sequencer1);
 
-        // 5. Check pending rewards
+        // 6. Check pending rewards
         uint256 pending = staking.pendingRewards(user1, sequencer1);
         assertGt(pending, 0);
 
-        // 6. Claim rewards
+        // 7. Claim rewards
         uint256 wtonBefore = wton.balanceOf(user1);
         vm.prank(user1);
         staking.claimRewards(sequencer1);
         assertGt(wton.balanceOf(user1), wtonBefore);
 
-        // 7. Unstake
+        // 8. Unstake
         vm.prank(user1);
         staking.unstake(sequencer1, 500 ether);
 
-        // 8. Wait for unbonding
+        // 9. Wait for unbonding
         vm.warp(block.timestamp + UNBONDING_PERIOD + 1);
 
-        // 9. Withdraw
+        // 10. Withdraw
         uint256 tonBefore = ton.balanceOf(user1);
         vm.prank(user1);
         staking.withdraw(sequencer1);
         assertEq(ton.balanceOf(user1), tonBefore + 500 ether);
 
-        // 10. Upgrade contract
+        // 11. Upgrade contract
         DelegateStakingV3Upgradeable newImpl = new DelegateStakingV3Upgradeable();
         vm.prank(owner);
         staking.upgradeToAndCall(address(newImpl), "");
 
-        // 11. Verify state persisted after upgrade
+        // 12. Verify state persisted after upgrade
         assertEq(staking.getTotalStaked(), 500 ether);
+        assertEq(staking.version(), "1.1.0");
 
-        // 12. Continue operations after upgrade
+        // 13. Continue operations after upgrade
         vm.prank(user1);
         staking.unstake(sequencer1, 500 ether);
 

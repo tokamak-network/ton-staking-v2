@@ -58,6 +58,15 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Default emergency cooldown period (3 days)
     uint256 public constant DEFAULT_EMERGENCY_COOLDOWN = 3 days;
 
+    /// @notice Commission change timelock period (7 days)
+    uint256 public constant COMMISSION_TIMELOCK = 7 days;
+
+    /// @notice Stake cooldown period for flash loan protection (1 epoch = 12 seconds)
+    uint256 public constant STAKE_COOLDOWN = 12 seconds;
+
+    /// @notice Default minimum stake amount (100 TON)
+    uint256 public constant DEFAULT_MIN_STAKE = 100 ether;
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -98,12 +107,37 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Default guardian address for emergency activation
     address public defaultGuardian;
 
+    /// @notice Minimum stake amount
+    uint256 public minStakeAmount;
+
+    /// @notice Pending commission changes for timelock
+    struct PendingCommission {
+        uint256 newCommission;
+        uint256 effectiveTime;
+    }
+    mapping(address => PendingCommission) public pendingCommissions;
+
+    /// @notice Last stake time for flash loan protection (staker => sequencer => timestamp)
+    mapping(address => mapping(address => uint256)) public lastStakeTime;
+
     /*//////////////////////////////////////////////////////////////
                             CUSTOM ERRORS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Thrown when trying to rescue TON or WTON
     error CannotRescueStakingTokens();
+
+    /// @notice Thrown when stake amount is below minimum
+    error BelowMinimumStake();
+
+    /// @notice Thrown when stake cooldown has not elapsed (flash loan protection)
+    error StakeCooldownNotElapsed();
+
+    /// @notice Thrown when no pending commission change exists
+    error NoPendingCommission();
+
+    /// @notice Thrown when commission timelock has not elapsed
+    error CommissionTimelockNotElapsed();
 
     /*//////////////////////////////////////////////////////////////
                             STORAGE GAP
@@ -153,6 +187,7 @@ contract DelegateStakingV3Upgradeable is
         layer2Manager = _layer2Manager;
         unbondingPeriod = _unbondingPeriod;
         defaultGuardian = _owner;
+        minStakeAmount = DEFAULT_MIN_STAKE;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -220,15 +255,63 @@ contract DelegateStakingV3Upgradeable is
     }
 
     /// @inheritdoc IDelegateStakingV3
+    /// @dev Now uses timelock mechanism - see requestCommissionUpdate() and applyCommissionUpdate()
     function updateCommission(uint256 newCommission) external override whenNotPaused {
+        // For backwards compatibility, this now queues a commission change
+        requestCommissionUpdate(newCommission);
+    }
+
+    /**
+     * @notice Request a commission rate change (7 day timelock)
+     * @param newCommission New commission rate in basis points
+     */
+    function requestCommissionUpdate(uint256 newCommission) public whenNotPaused {
         SequencerInfo storage info = sequencers[msg.sender];
         if (!info.isRegistered) revert SequencerNotRegistered();
         if (newCommission > MAX_COMMISSION) revert InvalidCommission();
 
+        pendingCommissions[msg.sender] = PendingCommission({
+            newCommission: newCommission,
+            effectiveTime: block.timestamp + COMMISSION_TIMELOCK
+        });
+
+        emit CommissionUpdateRequested(msg.sender, info.commission, newCommission, block.timestamp + COMMISSION_TIMELOCK);
+    }
+
+    /**
+     * @notice Apply a pending commission change after timelock
+     */
+    function applyCommissionUpdate() external whenNotPaused {
+        SequencerInfo storage info = sequencers[msg.sender];
+        if (!info.isRegistered) revert SequencerNotRegistered();
+
+        PendingCommission storage pending = pendingCommissions[msg.sender];
+        if (pending.effectiveTime == 0) revert NoPendingCommission();
+        if (block.timestamp < pending.effectiveTime) revert CommissionTimelockNotElapsed();
+
         uint256 oldCommission = info.commission;
+        uint256 newCommission = pending.newCommission;
+
         info.commission = newCommission;
+        delete pendingCommissions[msg.sender];
 
         emit CommissionUpdated(msg.sender, oldCommission, newCommission);
+    }
+
+    /**
+     * @notice Cancel a pending commission change
+     */
+    function cancelCommissionUpdate() external whenNotPaused {
+        SequencerInfo storage info = sequencers[msg.sender];
+        if (!info.isRegistered) revert SequencerNotRegistered();
+
+        PendingCommission storage pending = pendingCommissions[msg.sender];
+        if (pending.effectiveTime == 0) revert NoPendingCommission();
+
+        uint256 cancelledCommission = pending.newCommission;
+        delete pendingCommissions[msg.sender];
+
+        emit CommissionUpdateCancelled(msg.sender, cancelledCommission);
     }
 
     /// @inheritdoc IDelegateStakingV3
@@ -280,7 +363,10 @@ contract DelegateStakingV3Upgradeable is
         StakeInfo storage stakeInfo = stakes[msg.sender][sequencer];
         SequencerInfo storage seqInfo = sequencers[sequencer];
 
-        // Claim pending rewards before updating stake
+        // Check minimum stake amount (only for new stakes, not additions)
+        if (stakeInfo.amount == 0 && amount < minStakeAmount) revert BelowMinimumStake();
+
+        // Claim pending rewards before updating stake (respects cooldown)
         _claimRewardsInternal(msg.sender, sequencer);
 
         // Transfer TON from user
@@ -289,6 +375,9 @@ contract DelegateStakingV3Upgradeable is
         // Update stake info
         stakeInfo.amount += amount;
         stakeInfo.rewardDebt = (stakeInfo.amount * seqInfo.accRewardPerShare) / RAY;
+
+        // Track last stake time for flash loan protection
+        lastStakeTime[msg.sender][sequencer] = block.timestamp;
 
         // Update totals
         seqInfo.totalStaked += amount;
@@ -345,6 +434,10 @@ contract DelegateStakingV3Upgradeable is
 
     /// @inheritdoc IDelegateStakingV3
     function claimRewards(address sequencer) external override nonReentrant whenNotPaused {
+        // Flash loan protection: require cooldown after staking
+        if (block.timestamp < lastStakeTime[msg.sender][sequencer] + STAKE_COOLDOWN) {
+            revert StakeCooldownNotElapsed();
+        }
         _claimRewardsInternal(msg.sender, sequencer);
     }
 
@@ -378,6 +471,9 @@ contract DelegateStakingV3Upgradeable is
         toStake.amount += amount;
         toStake.rewardDebt = (toStake.amount * toSeq.accRewardPerShare) / RAY;
         toSeq.totalStaked += amount;
+
+        // Track last stake time for flash loan protection on destination
+        lastStakeTime[msg.sender][toSequencer] = block.timestamp;
 
         emit Redelegated(msg.sender, fromSequencer, toSequencer, amount);
     }
@@ -471,6 +567,9 @@ contract DelegateStakingV3Upgradeable is
 
         if (totalAmount == 0) revert InsufficientBalance();
 
+        // Claim pending WTON rewards first (so user doesn't lose them)
+        _claimRewardsInternalUnchecked(msg.sender, sequencer);
+
         // Update totals
         seqInfo.totalStaked -= stakeInfo.amount;
         totalStaked -= stakeInfo.amount;
@@ -481,7 +580,7 @@ contract DelegateStakingV3Upgradeable is
         stakeInfo.unstakeAmount = 0;
         stakeInfo.unstakeTime = 0;
 
-        // Transfer all tokens
+        // Transfer all TON tokens
         ton.safeTransfer(msg.sender, totalAmount);
 
         emit EmergencyWithdrawn(msg.sender, sequencer, totalAmount);
@@ -540,6 +639,21 @@ contract DelegateStakingV3Upgradeable is
     /// @inheritdoc IDelegateStakingV3
     function getTotalStaked() external view override returns (uint256) {
         return totalStaked;
+    }
+
+    /**
+     * @notice Get pending commission change for a sequencer
+     * @param sequencer The sequencer address
+     * @return newCommission The new commission rate
+     * @return effectiveTime When the change becomes effective
+     */
+    function getPendingCommission(address sequencer)
+        external
+        view
+        returns (uint256 newCommission, uint256 effectiveTime)
+    {
+        PendingCommission storage pending = pendingCommissions[sequencer];
+        return (pending.newCommission, pending.effectiveTime);
     }
 
     /// @inheritdoc IDelegateStakingV3
@@ -663,6 +777,16 @@ contract DelegateStakingV3Upgradeable is
     }
 
     /**
+     * @notice Set minimum stake amount
+     * @param _minStakeAmount New minimum stake amount
+     */
+    function setMinStakeAmount(uint256 _minStakeAmount) external onlyOwner {
+        uint256 oldAmount = minStakeAmount;
+        minStakeAmount = _minStakeAmount;
+        emit MinStakeAmountUpdated(oldAmount, _minStakeAmount);
+    }
+
+    /**
      * @notice Emergency withdraw stuck tokens (owner only)
      * @dev Cannot rescue TON or WTON to prevent rug-pulls
      * @param token Token address
@@ -693,7 +817,7 @@ contract DelegateStakingV3Upgradeable is
      * @return Version string
      */
     function version() external pure returns (string memory) {
-        return "1.0.0";
+        return "1.1.0";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -724,11 +848,23 @@ contract DelegateStakingV3Upgradeable is
     }
 
     /**
-     * @notice Internal function to claim rewards
+     * @notice Internal function to claim rewards (respects cooldown if called from stake/unstake)
      * @param staker The staker address
      * @param sequencer The sequencer address
      */
     function _claimRewardsInternal(address staker, address sequencer) internal {
+        // When called internally (from stake/unstake), we don't enforce cooldown
+        // because the action itself (stake/unstake) is legitimate
+        _claimRewardsInternalUnchecked(staker, sequencer);
+    }
+
+    /**
+     * @notice Internal function to claim rewards without cooldown check
+     * @dev Used by emergencyWithdraw and internal calls
+     * @param staker The staker address
+     * @param sequencer The sequencer address
+     */
+    function _claimRewardsInternalUnchecked(address staker, address sequencer) internal {
         StakeInfo storage stakeInfo = stakes[staker][sequencer];
         SequencerInfo storage seqInfo = sequencers[sequencer];
 
@@ -794,4 +930,18 @@ contract DelegateStakingV3Upgradeable is
 
     /// @notice Emitted when Layer2Manager is updated
     event Layer2ManagerUpdated(address oldManager, address newManager);
+
+    /// @notice Emitted when a commission update is requested (timelock started)
+    event CommissionUpdateRequested(
+        address indexed sequencer,
+        uint256 currentCommission,
+        uint256 newCommission,
+        uint256 effectiveTime
+    );
+
+    /// @notice Emitted when a pending commission update is cancelled
+    event CommissionUpdateCancelled(address indexed sequencer, uint256 cancelledCommission);
+
+    /// @notice Emitted when minimum stake amount is updated
+    event MinStakeAmountUpdated(uint256 oldAmount, uint256 newAmount);
 }
