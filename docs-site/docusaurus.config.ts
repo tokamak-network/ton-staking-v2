@@ -77,7 +77,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://github.com/tokamak-network/ton-staking-v2',
+          href: 'https://github.com/tokamak-network/ton-staking-v2/tree/ton-staking-v3/dev',
           label: 'GitHub',
           position: 'right',
         },
@@ -117,7 +117,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/tokamak-network/ton-staking-v2',
+              href: 'https://github.com/tokamak-network/ton-staking-v2/tree/ton-staking-v3/dev',
             },
             {
               label: 'Tokamak Network',
