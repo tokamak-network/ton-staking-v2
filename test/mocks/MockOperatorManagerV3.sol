@@ -165,6 +165,45 @@ contract MockOperatorManagerV3 {
     }
 
     /**
+     * @notice Check if address is the operator (required by DelegateStakingV3)
+     * @param addr Address to check
+     * @return True if address is the operator
+     */
+    function isOperator(address addr) external view returns (bool) {
+        return addr == operator;
+    }
+
+    /**
+     * @notice Claim ERC20 tokens (required by DelegateStakingV3._claimFromOperatorManager)
+     * @param token Token address to claim
+     * @param amount Amount to claim (max uint256 for all)
+     */
+    function claimERC20(address token, uint256 amount) external {
+        // Get either pending rewards or actual balance (whichever is set)
+        uint256 claimable = pendingRewards;
+        uint256 balance = IERC20(token).balanceOf(address(this));
+
+        // Use the smaller of claimable, balance, or requested amount
+        uint256 claimAmount = claimable > 0 ? claimable : balance;
+        if (amount < claimAmount) {
+            claimAmount = amount;
+        }
+        if (claimAmount > balance) {
+            claimAmount = balance;
+        }
+
+        if (claimAmount > 0) {
+            if (pendingRewards >= claimAmount) {
+                pendingRewards -= claimAmount;
+            } else {
+                pendingRewards = 0;
+            }
+            IERC20(token).safeTransfer(msg.sender, claimAmount);
+            emit RewardsClaimed(msg.sender, claimAmount);
+        }
+    }
+
+    /**
      * @notice Get layer2 address
      */
     function getLayer2() external view returns (address) {
