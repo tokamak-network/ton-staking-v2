@@ -526,4 +526,130 @@
 
 ---
 
-## 총계: **555개 테스트**
+## op-e2e/ (7개)
+
+### Go E2E 테스트 (faultproofs/)
+
+**위치**: `op-e2e/faultproofs/`
+
+| ID | 테스트 함수 | 파일 | 설명 |
+|----|------------|------|------|
+| **시스템 테스트** (3개) | | | |
+| SYS-001 | TestTONStakingSystemStartup | rat_system_test.go | 컨트랙트 배포 검증 (~1s) |
+| SYS-002 | TestAccountBalances | rat_system_test.go | Genesis 잔액 검증 (~1s) |
+| SYS-003 | TestRATContractCall | rat_system_test.go | RAT 컨트랙트 호출 검증 (~1s) |
+| **RAT 시나리오 테스트** (3개) | | | |
+| RAT-E2E-001 | TestSimpleRAT_ValidatorRegistration | rat_challenge_test.go | Validator 등록 플로우 (~4s) |
+| RAT-E2E-002 | TestSimpleRAT_GameCreation | rat_challenge_test.go | DisputeGame 생성 및 RAT 트리거 (~6s) |
+| RAT-E2E-003 | TestSimpleRAT_ChallengerWins | rat_challenge_test.go | Challenger 승리 전체 시나리오 (~20s) |
+| **RAT Client E2E 테스트** (1개) | | | |
+| RAT-CLIENT-E2E-001 | TestRATClient_EvidenceSubmission_E2E | rat_state_root_test.go | RAT Client 전체 통합 테스트 (~71s) |
+
+### RAT Client E2E 테스트 상세
+
+**TestRATClient_EvidenceSubmission_E2E** - 완전한 통합 테스트:
+- **L1 환경**: Isolated Anvil with genesis (모든 컨트랙트 사전 배포)
+- **L2 환경**: Isolated geth dev mode with archive state
+- **테스트 범위**:
+  1. L2 트랜잭션 생성 및 state 변경
+  2. OutputRootProof 계산 (version, stateRoot, messagePasserStorageRoot, blockHash)
+  3. Validator 등록 (prerequisite)
+  4. DisputeGame 생성 (RAT 자동 트리거)
+  5. RAT Client subprocess 실행
+  6. Adjacent Leaves 증거 생성 (debug API 사용)
+  7. StateLeafEvidence 온체인 제출
+  8. Type 3 Evidence Verifier 검증
+  9. Gas 사용량 측정 (~277k)
+
+**커버리지**:
+- ✅ L1 (Anvil) + L2 (geth) 통합
+- ✅ OutputRootProof 계산 및 검증
+- ✅ DisputeGame 생성 및 RAT 트리거
+- ✅ RAT Client subprocess 실행
+- ✅ Adjacent leaves 실제 증거 생성 (debug API)
+- ✅ StateLeafEvidence 온체인 제출 및 검증
+- ✅ Type 3 Evidence Verifier 통합
+
+**실행 시간**: ~80초 (전체 7개 테스트)
+
+**실행 명령**:
+```bash
+cd op-e2e && make test
+# 또는
+GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
+```
+
+---
+
+## RAT Client 유닛 테스트 (60개)
+
+### Go 유닛 테스트 (clients/rat-client-type3/)
+
+**위치**: `clients/rat-client-type3/pkg/`
+
+| 카테고리 | 테스트 수 | 파일 | 주요 테스트 |
+|---------|---------|------|-----------|
+| **Evidence** | 11개 | evidence/state_leaf_test.go | Adjacent leaves 생성, 검증 로직 |
+| **L2 Sync** | 32개 | l2sync/syncer_test.go | L2 블록 동기화, OutputRootProof 조회 |
+| **Submitter** | 8개 | submitter/adjacent_submitter_test.go | 증거 제출, ABI 인코딩 |
+| **Event Monitor** | 9개 | client/event_monitor_test.go | L1 이벤트 구독, 필터링 |
+
+**주요 테스트 케이스**:
+
+#### Evidence Package (11개)
+- Adjacent leaves 탐색 알고리즘 (binary search)
+- Divergence witness 생성 및 검증
+- OutputRootProof 구조 검증
+- State leaf RLP 인코딩/디코딩
+- Merkle proof 생성
+
+#### L2 Sync Package (32개)
+- L2 블록 헤더 조회
+- State root 추출
+- MessagePasser storage root 계산
+- OutputRootProof 생성
+- debug_accountRange API 호출
+- eth_getProof API 호출
+
+#### Submitter Package (8개)
+- StateLeafEvidence ABI 인코딩
+- submitEvidence 트랜잭션 생성
+- Gas estimation
+- Transaction receipt 검증
+
+#### Event Monitor Package (9개)
+- AttentionTestTriggered 이벤트 구독
+- 이벤트 필터링 (validator address)
+- 블록 범위 쿼리
+- 재연결 로직
+
+**실행 명령**:
+```bash
+cd clients/rat-client-type3
+go test ./pkg/...
+```
+
+---
+
+## 전체 테스트 통계
+
+### Solidity 테스트
+- **총 테스트**: 526개 통과
+- **커버리지**:
+  - V3 실효 커버리지: 88.5% (lines)
+  - 전체 시스템: 54.12% (lines, infrastructure 포함)
+- **실행 시간**: ~2분
+
+### Go 테스트
+- **op-e2e 테스트**: 7개 (시스템 3개 + RAT 시나리오 3개 + RAT Client E2E 1개)
+- **RAT Client 유닛 테스트**: 60개
+- **총 Go 테스트**: 67개
+- **실행 시간**:
+  - op-e2e: ~80초
+  - RAT Client 유닛: ~5초
+
+### 총계
+- **Solidity**: 526개
+- **Go E2E**: 7개
+- **Go Unit**: 60개
+- **전체**: **593개 테스트**

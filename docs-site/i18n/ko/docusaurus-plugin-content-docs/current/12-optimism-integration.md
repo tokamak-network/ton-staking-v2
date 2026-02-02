@@ -9,6 +9,23 @@ sidebar_position: 12
 
 ---
 
+## Optimism 포크 저장소
+
+**Repository:** https://github.com/tokamak-network/optimism
+**Branch:** `feature/ton-staking-v3`
+
+이 브랜치는 Optimism Bedrock을 기반으로 TON Staking V3 통합을 위해 다음 컨트랙트를 수정했습니다:
+- `DisputeGameFactory.sol` - RAT 트리거 추가
+- `FaultDisputeGame.sol` - RAT 콜백 추가
+- `OptimismPortal2.sol` - Bridged TON 변경 알림 추가
+- 인터페이스: `IRAT.sol`, `ISeigManager.sol`
+
+**통합 테스트:**
+- E2E 테스트는 이 포크된 Optimism 저장소의 컨트랙트와 함께 실행됩니다.
+- 테스트 위치: `op-e2e/faultproofs/` 디렉토리
+
+---
+
 ## 수정/생성된 파일 (Optimism 측)
 
 ### 새로운 인터페이스

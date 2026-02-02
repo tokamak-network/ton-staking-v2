@@ -479,7 +479,7 @@ contract SeigManagerV3_1 is
 │                         Off-chain Monitoring                                │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  검증자 클라이언트:                                                          │
+│  검증자 소프트웨어 (RAT Client):                                             │
 │                                                                             │
 │  1. RAT.AttentionTestTriggered 이벤트 구독                                  │
 │     │                                                                       │
@@ -487,10 +487,11 @@ contract SeigManagerV3_1 is
 │  2. 선택된 검증자인지 확인 (validator == myAddress)                         │
 │     │                                                                       │
 │     ▼                                                                       │
-│  3. 해당 L2 배치 검증                                                       │
-│     │                                                                       │
+│  3. L2 노드에서 Adjacent Leaves 증거 생성                                   │
+│     │  - debug_accountRange로 state trie 탐색                              │
+│     │  - OutputRootProof 및 Merkle Proof 생성                              │
 │     ▼                                                                       │
-│  4. RAT.submitEvidence() 호출                                               │
+│  4. RAT.submitEvidence() 자동 호출                                          │
 │                                                                             │
 │                                                                             │
 │  시퀀서 클라이언트:                                                          │

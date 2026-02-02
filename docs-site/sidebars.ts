@@ -83,13 +83,44 @@ const sidebars: SidebarsConfig = {
       label: 'L2 Integration',
       items: [
         '12-optimism-integration',
+        {
+          type: 'category',
+          label: 'RAT Client',
+          link: {
+            type: 'generated-index',
+            description: 'RAT Client implementation and operations specification for Type 3 rollups.',
+          },
+          items: [
+            'rat-client/overview',
+            'rat-client/adjacent-leaves-proof',
+            'rat-client/solidity-implementation',
+            'rat-client/go-client-implementation',
+            'rat-client/outputrootproof-verification',
+            'rat-client/deployment-operations',
+          ],
+        },
       ],
     },
     {
       type: 'category',
       label: 'Testing & Operations',
       items: [
-        '10-v3-test-lists',
+        {
+          type: 'category',
+          label: 'V3 Tests',
+          link: {
+            type: 'generated-index',
+            description: 'TON Staking V3 comprehensive test suite documentation.',
+          },
+          items: [
+            'v3-tests/overview',
+            'v3-tests/v2-mode-tests',
+            'v3-tests/v3-mode-tests',
+            'v3-tests/scenario-tests',
+            'v3-tests/e2e-tests',
+            'v3-tests/rat-client-unit-tests',
+          ],
+        },
         '11-seigniorage-update-cases',
       ],
     },

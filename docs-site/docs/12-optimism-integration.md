@@ -8,6 +8,23 @@ This document explains the integration implementation between Optimism L2 and TO
 
 ---
 
+## Optimism Fork Repository
+
+**Repository:** https://github.com/tokamak-network/optimism
+**Branch:** `feature/ton-staking-v3`
+
+This branch is based on Optimism Bedrock and includes modifications to the following contracts for TON Staking V3 integration:
+- `DisputeGameFactory.sol` - Added RAT trigger
+- `FaultDisputeGame.sol` - Added RAT callback
+- `OptimismPortal2.sol` - Added Bridged TON change notification
+- Interfaces: `IRAT.sol`, `ISeigManager.sol`
+
+**Integration Testing:**
+- E2E tests are run with contracts from this forked Optimism repository.
+- Test location: `op-e2e/faultproofs/` directory
+
+---
+
 ## Modified/Created Files (Optimism Side)
 
 ### New Interfaces

@@ -130,8 +130,8 @@ GOWORK=off go test -v -run TestSimpleRAT_ValidatorRegistration ./faultproofs
 # Game creation
 GOWORK=off go test -v -run TestSimpleRAT_GameCreation ./faultproofs
 
-# Evidence submission
-GOWORK=off go test -v -run TestSimpleRAT_EvidenceSubmission ./faultproofs
+# RAT Client E2E (real L2 + evidence submission)
+GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
 
 # Challenger wins (full flow)
 GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs
@@ -145,10 +145,7 @@ cd op-e2e
 GOWORK=off go test -v -run "TestTONStakingSystemStartup|TestAccountBalances|TestRATContractCall" ./faultproofs
 
 # RAT scenario tests only
-make test-rat-simple
-
-# All RAT tests
-make test-rat
+GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
 ```
 
 ### E2E with Logs
@@ -300,9 +297,11 @@ make test-e2e
 
 ### RAT Component
 ```bash
-# All RAT tests
+# Solidity RAT tests
 forge test --match-contract RAT
-cd op-e2e && make test-rat-simple
+
+# E2E RAT tests
+cd op-e2e && GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
 
 # Specific RAT test
 forge test --match-test test_RAT001_registerValidator_success -vvv
@@ -420,11 +419,10 @@ go clean -testcache
 
 ## 📚 Documentation Links
 
-- [README.md](./README.md) - Test overview
-- [unit-tests.md](./unit-tests.md) - Solidity unit tests
-- [integration-tests.md](./integration-tests.md) - Integration tests
-- [e2e-tests.md](./e2e-tests.md) - E2E tests guide
-- [op-e2e-genesis-setup.md](./op-e2e-genesis-setup.md) - Genesis setup
+- [README.md](./README.md) - Test overview and quick start
+- [QUICK-COMMANDS.md](./QUICK-COMMANDS.md) - This file (command reference)
+- [op-e2e/README.md](../../op-e2e/README.md) - E2E tests guide
+- [coverage-matrix.md](../coverage-matrix.md) - Test coverage analysis
 
 ---
 

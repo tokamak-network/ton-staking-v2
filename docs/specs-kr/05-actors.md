@@ -247,7 +247,122 @@ relaxedValidatorCheck 플래그:
 - 검증자 보상: v_j = (α · S_i) / |V_i| (활성 검증자만 분배)
 ```
 
-### 4.7 상호작용
+### 4.7 인프라 요구사항
+
+검증자는 다음 인프라를 **반드시** 운영해야 합니다:
+
+| 컴포넌트 | 요구사항 | 이유 |
+|---------|---------|------|
+| **L2 Full Archive Node** | op-geth with archive mode | 전체 L2 state history 보유 필요 |
+| **Debug API 활성화** | `--http.api=debug` | Adjacent leaves 탐색용 `debug_accountRange` |
+| **L1 RPC** | 안정적인 L1 연결 | RAT 이벤트 모니터링 및 증거 제출 |
+| **검증자 소프트웨어** | 실행 중인 검증자 프로그램 | 자동 증거 생성 및 제출 |
+
+**중요**: Public RPC로는 RAT 응답 불가능합니다. Debug API는 보안상 public RPC에서 제공되지 않으므로, 검증자는 **자체 L2 노드를 운영**해야 합니다.
+
+### 4.8 검증자 소프트웨어
+
+검증자는 **검증자 소프트웨어**(RAT Client)를 실행하여 RAT 테스트에 자동으로 응답해야 합니다.
+
+#### 4.8.1 검증자 소프트웨어란?
+
+검증자 소프트웨어는 검증자가 L2 full node를 운영하고 있음을 증명하기 위한 오프체인 프로그램입니다.
+
+**핵심 기능**:
+- L1 RAT 컨트랙트 이벤트 모니터링
+- L2 노드에서 증거 생성 (Adjacent Leaves 탐색)
+- L1에 증거 자동 제출
+
+**증명 방식**: State Root as Target
+- L2 state root를 랜덤값으로 사용
+- State trie에서 `leafA.key < stateRoot < leafB.key`인 인접한 두 account 찾기
+- 두 리프 사이에 다른 리프가 없음을 Divergence Witness로 증명
+- Public RPC 불가: `debug_accountRange`로 전체 trie 순회 필요
+
+#### 4.8.2 검증자 소프트웨어 동작 흐름
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  검증자 소프트웨어 (RAT Client)                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. L1 이벤트 모니터링                                            │
+│     RAT.AttentionTestTriggered(testId, validator, systemConfig) │
+│     │                                                            │
+│     ▼                                                            │
+│  2. 검증자 확인                                                   │
+│     if (validator == myAddress) → 증거 생성 시작                 │
+│     │                                                            │
+│     ▼                                                            │
+│  3. L2 노드에서 OutputRootProof 조회                             │
+│     - stateRoot = L2 block header의 state root                  │
+│     - messagePasserStorageRoot = L2ToL1MessagePasser storage     │
+│     - latestBlockHash = L2 block hash                           │
+│     │                                                            │
+│     ▼                                                            │
+│  4. Adjacent Leaves 탐색 (Debug API 사용)                        │
+│     debug_accountRange(blockHash, start, maxResults)            │
+│     → stateRoot를 bracket하는 leafA, leafB 찾기                 │
+│     → Binary search로 효율적 탐색                                │
+│     │                                                            │
+│     ▼                                                            │
+│  5. Merkle Proof 생성                                            │
+│     eth_getProof(addressA, [], blockNumber)                     │
+│     eth_getProof(addressB, [], blockNumber)                     │
+│     │                                                            │
+│     ▼                                                            │
+│  6. Divergence Witness 생성                                      │
+│     - divergenceNode: 분기점 브랜치 노드                         │
+│     - indexA, indexB: 두 리프의 슬롯 인덱스                       │
+│     - Gap 검증: indexA와 indexB 사이 빈 슬롯 확인                │
+│     │                                                            │
+│     ▼                                                            │
+│  7. 증거 제출                                                     │
+│     RAT.submitEvidence(                                          │
+│       systemConfig,                                              │
+│       batchIndex,                                                │
+│       abi.encode(StateLeafEvidence)                             │
+│     )                                                            │
+│     │                                                            │
+│     ▼                                                            │
+│  8. C_off 반환                                                   │
+│     RAT → Coinage: C_off 복구                                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 4.8.3 StateLeafEvidence 구조
+
+```solidity
+struct StateLeafEvidence {
+    bytes32 leafAKey;          // keccak256(addressA)
+    bytes leafAValue;          // RLP(accountA)
+    bytes[] leafAProof;        // Merkle proof for leafA
+    bytes32 leafBKey;          // keccak256(addressB)
+    bytes leafBValue;          // RLP(accountB)
+    bytes[] leafBProof;        // Merkle proof for leafB
+    bytes32 stateRoot;         // L2 state root (deprecated)
+    uint256 blockNumber;       // L2 block number
+    OutputRootProof outputRootProof;  // Proves stateRoot authenticity
+}
+
+struct OutputRootProof {
+    bytes32 version;                      // Always 0x0
+    bytes32 stateRoot;                    // L2 state root
+    bytes32 messagePasserStorageRoot;     // L2ToL1MessagePasser storage root
+    bytes32 latestBlockhash;              // L2 block hash
+}
+```
+
+**검증 로직 (온체인)**:
+1. OutputRootProof 검증: `hash(outputRootProof) == rootClaim`
+2. Adjacency 검증: `leafAKey < stateRoot < leafBKey`
+3. Merkle Proof 검증: 두 리프가 모두 stateRoot에서 검증됨
+4. Divergence Witness 검증: 두 리프 사이에 다른 리프 없음
+
+**Gas 비용**: ~277k (실제 측정값)
+
+### 4.9 상호작용
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -267,10 +382,22 @@ relaxedValidatorCheck 플래그:
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ RAT 응답:                                            │   │
-│  │   1. AttentionTestTriggered 이벤트 구독               │   │
-│  │   2. 선택된 경우 배치 검증                            │   │
-│  │   3. RAT.submitEvidence(systemConfig, batchIndex, .) │   │
+│  │ 인프라 준비:                                         │   │
+│  │   1. L2 Full Archive Node 운영 (op-geth)            │   │
+│  │      - Sync mode: archive                            │   │
+│  │      - Debug API 활성화: --http.api=debug           │   │
+│  │   2. 검증자 소프트웨어 실행                           │   │
+│  │      - L1 RPC 연결                                   │   │
+│  │      - L2 RPC 연결 (debug API 포함)                  │   │
+│  │      - 자동 모니터링 및 증거 제출                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ RAT 응답 (검증자 소프트웨어 자동 처리):               │   │
+│  │   1. AttentionTestTriggered 이벤트 감지               │   │
+│  │   2. L2 노드에서 Adjacent Leaves 탐색                │   │
+│  │   3. OutputRootProof 및 Merkle Proof 생성            │   │
+│  │   4. RAT.submitEvidence() 자동 제출                  │   │
 │  │   (기간: evidenceSubmissionPeriod 내)                │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │

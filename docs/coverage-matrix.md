@@ -159,7 +159,48 @@ V1_2 effective:         96.0% lines, 94.6% funcs, 59.3% branches
 - RefactorCoinageSnapshot 고급 기능
 - Bridge 이벤트 통합 테스트
 
+## E2E 테스트 (op-e2e)
+
+### Go 통합 테스트
+
+**총 7개 테스트** (3 system + 3 RAT scenario + 1 RAT client E2E)
+
+| 카테고리 | 테스트 | 설명 | 상태 |
+|---------|--------|------|------|
+| **System** (3) | TestTONStakingSystemStartup | 컨트랙트 배포 검증 | ✅ |
+| | TestAccountBalances | Genesis 잔액 검증 | ✅ |
+| | TestRATContractCall | RAT 컨트랙트 호출 | ✅ |
+| **RAT Scenario** (3) | TestSimpleRAT_ValidatorRegistration | Validator 등록 | ✅ |
+| | TestSimpleRAT_GameCreation | DisputeGame 생성 | ✅ |
+| | TestSimpleRAT_ChallengerWins | Challenger 승리 플로우 | ✅ |
+| **RAT Client E2E** (1) | TestRATClient_EvidenceSubmission_E2E | 실제 L2 + RAT client 통합 | ✅ |
+
+**RAT Client E2E 커버리지:**
+- ✅ L1 (Anvil) + L2 (geth) 통합
+- ✅ OutputRootProof 계산 및 검증
+- ✅ DisputeGame 생성 및 RAT 트리거
+- ✅ RAT client subprocess 실행
+- ✅ Adjacent leaves 실제 증거 생성 (debug API 사용)
+- ✅ StateLeafEvidence 온체인 제출 및 검증
+- ✅ Type 3 Evidence Verifier 통합
+- ✅ Gas 사용량: ~205k (실제 측정)
+
+### 테스트 실행
+
+```bash
+# op-e2e 디렉토리에서
+cd op-e2e
+
+# 모든 테스트 실행
+make test
+
+# 특정 테스트만 실행
+GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
+```
+
 ## 검증 명령어
+
+### Solidity 테스트
 
 ```bash
 # 모든 테스트 실행
@@ -177,6 +218,17 @@ genhtml lcov.info --branch-coverage --output-dir coverage
 # Lines: 54.12% (2906/5370)
 # Functions: 44.92% (469/1044)
 # Branches: 32.90% (456/1386)
+```
+
+### Go E2E 테스트
+
+```bash
+# op-e2e 디렉토리에서
+cd op-e2e && make test
+
+# 예상 결과:
+# 7 tests passed (3 system + 3 RAT scenario + 1 RAT client E2E)
+# Duration: ~80 seconds
 ```
 
 ## 결론

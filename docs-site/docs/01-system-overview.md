@@ -148,8 +148,14 @@ k = Half saturation point (halfSaturationPoint)
 A random test to verify that validators are actually monitoring the network.
 
 - **Trigger timing**: Probabilistically occurs when DisputeGame is created (π_a)
+- **Response method**: Validator Software (RAT Client) automatically generates and submits evidence from L2 node
+- **Evidence content**: Adjacent Leaves (two adjacent state leaves) + OutputRootProof
 - **Response period**: `evidenceSubmissionPeriod`
 - **No response**: C_off slashing (partial collateral confiscation)
+
+**Validator Software Requirements**:
+- Operate L2 Full Archive Node (op-geth with debug API)
+- Run Validator Software (RAT Client)
 
 ---
 
@@ -235,7 +241,10 @@ A random test to verify that validators are actually monitoring the network.
 6. Wait for validator response (evidenceSubmissionPeriod)
    │
    ├─ Evidence submitted (within Evidence Period):
-   │   ├─ submitEvidence() call
+   │   ├─ Validator Software generates evidence from L2 node
+   │   │   - Search Adjacent Leaves (debug_accountRange)
+   │   │   - Generate OutputRootProof and Merkle Proofs
+   │   ├─ Auto-call submitEvidence()
    │   ├─ Return C_off from RAT contract to validator (staking amount restored)
    │   └─ Attempt auto-reactivation after checking collateral threshold
    │

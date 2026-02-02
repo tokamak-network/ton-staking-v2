@@ -29,10 +29,10 @@ make test-e2e
 
 | Category | Tests | Duration | Language | Purpose |
 |----------|-------|----------|----------|---------|
-| **Unit Tests** | 150+ | ~2 min | Solidity | Individual contract functions |
-| **Integration Tests** | 8 | ~30 sec | Solidity | Cross-contract workflows |
-| **E2E Tests** | 7 | ~21 sec | Go | Complete system with real nodes |
-| **Total** | **165+** | **~3 min** | - | Full coverage |
+| **Unit Tests** | 515+ | ~2 min | Solidity | Individual contract functions |
+| **Integration Tests** | 11 | ~30 sec | Solidity | Cross-contract workflows |
+| **E2E Tests** | 7 | ~80 sec | Go | Complete system with real nodes |
+| **Total** | **533+** | **~4 min** | - | Full coverage |
 
 ---
 
@@ -53,7 +53,17 @@ forge test --match-contract RATTest
 forge test --gas-report
 ```
 
-📄 **Full Guide:** [unit-tests.md](./unit-tests.md)
+**Run:**
+```bash
+# All tests
+forge test
+
+# Specific contract
+forge test --match-contract RATTest
+
+# With gas report
+forge test --gas-report
+```
 
 ---
 
@@ -68,8 +78,6 @@ forge test --match-path "test/v3/scenarios/*.t.sol"
 # Specific scenario
 forge test --match-contract V3ScenarioRealTest
 ```
-
-📄 **Full Guide:** [integration-tests.md](./integration-tests.md)
 
 ---
 
@@ -88,7 +96,7 @@ make test-e2e
 cd op-e2e && make test
 ```
 
-📄 **Full Guide:** [e2e-tests.md](./e2e-tests.md)
+📄 **Full Guide:** See [op-e2e/README.md](../../op-e2e/README.md) for detailed E2E test documentation
 
 ---
 
@@ -106,7 +114,7 @@ forge test --match-contract SeigManager
 forge test --match-contract ValidatorReward
 
 # E2E RAT scenarios only
-cd op-e2e && make test-rat-simple
+cd op-e2e && GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
 ```
 
 ### Individual E2E Tests
@@ -119,8 +127,8 @@ GOWORK=off go test -v -run TestTONStakingSystemStartup ./faultproofs
 # Validator registration
 GOWORK=off go test -v -run TestSimpleRAT_ValidatorRegistration ./faultproofs
 
-# Evidence submission
-GOWORK=off go test -v -run TestSimpleRAT_EvidenceSubmission ./faultproofs
+# RAT Client E2E (with real L2 + evidence submission)
+GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
 
 # Challenger wins (full flow)
 GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs
@@ -172,11 +180,10 @@ cd op-e2e && make clean
 
 | Document | Description | When to Read |
 |----------|-------------|--------------|
-| [unit-tests.md](./unit-tests.md) | Solidity unit tests guide | Testing individual contracts |
-| [integration-tests.md](./integration-tests.md) | Solidity integration guide | Testing workflows |
-| [e2e-tests.md](./e2e-tests.md) | Go E2E tests guide | Testing complete system |
+| [README.md](./README.md) | Test overview and quick start | Start here |
 | [QUICK-COMMANDS.md](./QUICK-COMMANDS.md) | Command reference cheat sheet | Quick command lookup |
-| [op-e2e-genesis-setup.md](./op-e2e-genesis-setup.md) | Genesis file generation | Setting up E2E tests |
+| [op-e2e/README.md](../../op-e2e/README.md) | E2E tests guide (Go) | Testing complete system with real nodes |
+| [coverage-matrix.md](../coverage-matrix.md) | Test coverage analysis | Understanding test coverage |
 
 ---
 

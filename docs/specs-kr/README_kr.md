@@ -18,6 +18,7 @@
 | [10-v3-test-lists.md](./10-v3-test-lists.md) | V3 테스트 목록 |
 | [11-seigniorage-update-cases.md](./11-seigniorage-update-cases.md) | 시뇨리지 업데이트 케이스 상세 분석 |
 | [12-optimism-integration.md](./12-optimism-integration.md) | Optimism L2 통합 (RAT, SeigManager 연동) |
+| [13-rat-client-specification.md](./13-rat-client-specification.md) | RAT Client 구현 및 운영 스펙 (통합 문서: 개요, 구현, 배포, 운영) |
 
 ## 핵심 컨트랙트
 

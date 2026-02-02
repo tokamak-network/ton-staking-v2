@@ -478,7 +478,7 @@ contract SeigManagerV3_1 is
 │                         Off-chain Monitoring                                │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Validator Client:                                                          │
+│  Validator Software (RAT Client):                                           │
 │                                                                             │
 │  1. Subscribe to RAT.AttentionTestTriggered event                           │
 │     │                                                                       │
@@ -486,10 +486,11 @@ contract SeigManagerV3_1 is
 │  2. Check if selected validator (validator == myAddress)                    │
 │     │                                                                       │
 │     ▼                                                                       │
-│  3. Verify that L2 batch                                                    │
-│     │                                                                       │
+│  3. Generate Adjacent Leaves evidence from L2 node                          │
+│     │  - Search state trie with debug_accountRange                         │
+│     │  - Generate OutputRootProof and Merkle Proofs                        │
 │     ▼                                                                       │
-│  4. Call RAT.submitEvidence()                                               │
+│  4. Auto-call RAT.submitEvidence()                                          │
 │                                                                             │
 │                                                                             │
 │  Sequencer Client:                                                          │

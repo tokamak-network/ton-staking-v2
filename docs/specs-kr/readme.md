@@ -18,6 +18,7 @@
 | [10-v3-test-lists.md](./10-v3-test-lists.md) | V3 test lists |
 | [11-seigniorage-update-cases.md](./11-seigniorage-update-cases.md) | Detailed seigniorage update cases analysis |
 | [12-optimism-integration.md](./12-optimism-integration.md) | Optimism L2 integration (RAT, SeigManager hooks) |
+| [13-rat-client-specification.md](./13-rat-client-specification.md) | RAT Client implementation and operations specification (Integrated: overview, implementation, deployment, operations) |
 
 ## Core Contracts
 

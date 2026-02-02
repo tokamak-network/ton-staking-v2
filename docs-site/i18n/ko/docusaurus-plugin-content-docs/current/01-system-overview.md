@@ -149,8 +149,14 @@ k = 반포화점 (halfSaturationPoint)
 검증자가 네트워크를 실제로 모니터링하고 있는지 확인하는 무작위 테스트입니다.
 
 - **트리거 시점**: DisputeGame 생성 시 확률적으로 발생 (π_a)
+- **응답 방법**: 검증자 소프트웨어 (RAT Client)가 L2 노드에서 증거를 자동 생성 및 제출
+- **증거 내용**: Adjacent Leaves (인접한 두 state leaf) + OutputRootProof
 - **응답 기간**: `evidenceSubmissionPeriod`
 - **미응답 시**: C_off 슬래싱 (담보금 일부 몰수)
+
+**검증자 소프트웨어 요구사항**:
+- L2 Full Archive Node 운영 (op-geth with debug API)
+- 검증자 소프트웨어 (RAT Client) 실행
 
 ---
 
@@ -236,7 +242,10 @@ k = 반포화점 (halfSaturationPoint)
 6. 검증자 응답 대기 (evidenceSubmissionPeriod)
    │
    ├─ 증거 제출 시 (Evidence Period 내):
-   │   ├─ submitEvidence() 호출
+   │   ├─ 검증자 소프트웨어가 L2 노드에서 증거 생성
+   │   │   - Adjacent Leaves 탐색 (debug_accountRange)
+   │   │   - OutputRootProof 및 Merkle Proof 생성
+   │   ├─ submitEvidence() 자동 호출
    │   ├─ RAT 컨트랙트에서 검증자에게 C_off 반환 (스테이킹 금액 복구)
    │   └─ 담보금 임계값 체크 후 자동 재활성화 시도
    │
