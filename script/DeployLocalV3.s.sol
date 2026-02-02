@@ -42,6 +42,10 @@ contract DeployLocalV3Script is Script {
 
     function setUp() public {}
 
+    // Private keys for sequencers (Anvil default accounts)
+    uint256 constant SEQUENCER1_PK = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d; // Account #1
+    uint256 constant SEQUENCER2_PK = 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a; // Account #2
+
     function run() public {
         // Use Anvil's default account #0
         uint256 deployerPrivateKey = vm.envOr(
@@ -51,8 +55,8 @@ contract DeployLocalV3Script is Script {
         deployer = vm.addr(deployerPrivateKey);
 
         // Create test addresses
-        sequencer1 = vm.addr(2); // Anvil account #1
-        sequencer2 = vm.addr(3); // Anvil account #2
+        sequencer1 = vm.addr(SEQUENCER1_PK); // Anvil account #1
+        sequencer2 = vm.addr(SEQUENCER2_PK); // Anvil account #2
         layer2_1 = makeAddr("layer2_1");
         layer2_2 = makeAddr("layer2_2");
 
@@ -74,13 +78,16 @@ contract DeployLocalV3Script is Script {
         // 4. Deploy DelegateTrigger
         _deployTrigger();
 
-        // 5. Setup L2s and Sequencers
+        // 5. Setup L2s and Sequencers (without authorization)
         _setupL2sAndSequencers();
 
         // 6. Mint test tokens
         _mintTestTokens();
 
         vm.stopBroadcast();
+
+        // 7. Authorize DelegateStaking on OperatorManagers (requires sequencer keys)
+        _authorizeStakingOnOperatorManagers();
 
         // Print summary
         _printSummary();
@@ -156,16 +163,27 @@ contract DeployLocalV3Script is Script {
         console2.log("  Sequencer:", sequencer2);
         console2.log("  OperatorManager:", operatorManager2);
 
-        // Authorize DelegateStaking to claim from OperatorManagers
-        MockOperatorManagerV3(operatorManager1).authorizeClaimer(address(staking));
-        MockOperatorManagerV3(operatorManager2).authorizeClaimer(address(staking));
-        console2.log("DelegateStaking authorized on OperatorManagers");
-
         // Set up bridged TON (simulating bridge activity)
         uint256 bridgedAmount = 100_000 ether;
         seigManager.updateBridgedTON(layer2_1, bridgedAmount);
         seigManager.updateBridgedTON(layer2_2, bridgedAmount);
         console2.log("BridgedTON set to", bridgedAmount / 1e18, "for each L2");
+    }
+
+    function _authorizeStakingOnOperatorManagers() internal {
+        console2.log("\n--- Authorizing DelegateStaking on OperatorManagers ---");
+
+        // Sequencer1 authorizes DelegateStaking
+        vm.startBroadcast(SEQUENCER1_PK);
+        MockOperatorManagerV3(operatorManager1).authorizeClaimer(address(staking));
+        vm.stopBroadcast();
+        console2.log("Sequencer1 authorized DelegateStaking on OperatorManager1");
+
+        // Sequencer2 authorizes DelegateStaking
+        vm.startBroadcast(SEQUENCER2_PK);
+        MockOperatorManagerV3(operatorManager2).authorizeClaimer(address(staking));
+        vm.stopBroadcast();
+        console2.log("Sequencer2 authorized DelegateStaking on OperatorManager2");
     }
 
     function _mintTestTokens() internal {
