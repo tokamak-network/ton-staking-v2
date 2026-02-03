@@ -17,6 +17,13 @@ pragma solidity ^0.8.4;
  * 3. 분기 지점에서 두 노드가 형제임을 확인
  */
 library AdjacentLeavesVerifier {
+    // ==========================================
+    // Errors
+    // ==========================================
+
+    error InvalidProofElementLength();
+    error EmptyProof();
+    error SameLeaf();
     /// @notice 인접 리프 증명 검증
     /// @param stateRoot 검증할 State Root
     /// @param leafA 첫 번째 리프 (key-value 해시)
@@ -65,14 +72,21 @@ library AdjacentLeavesVerifier {
         bytes[] calldata proof
     ) internal pure returns (bytes32 root) {
         root = leaf;
-        for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 sibling = bytes32(proof[i]);
+        uint256 len = proof.length;
 
-            // 해시 순서 결정 (작은 값이 왼쪽)
-            if (root < sibling) {
-                root = keccak256(abi.encodePacked(root, sibling));
-            } else {
-                root = keccak256(abi.encodePacked(sibling, root));
+        unchecked {
+            for (uint256 i = 0; i < len; ++i) {
+                // proof 원소가 정확히 32바이트인지 검증
+                if (proof[i].length != 32) revert InvalidProofElementLength();
+
+                bytes32 sibling = bytes32(proof[i]);
+
+                // 해시 순서 결정 (작은 값이 왼쪽)
+                if (root < sibling) {
+                    root = keccak256(abi.encodePacked(root, sibling));
+                } else {
+                    root = keccak256(abi.encodePacked(sibling, root));
+                }
             }
         }
     }
@@ -91,34 +105,42 @@ library AdjacentLeavesVerifier {
         bytes32 currentA = leafA;
         bytes32 currentB = leafB;
 
-        uint256 minLen = proofsA.length < proofsB.length ? proofsA.length : proofsB.length;
+        uint256 lenA = proofsA.length;
+        uint256 lenB = proofsB.length;
+        uint256 minLen = lenA < lenB ? lenA : lenB;
 
         // 리프부터 루트 방향으로 경로 추적
-        for (uint256 i = 0; i < minLen; i++) {
-            bytes32 siblingA = bytes32(proofsA[i]);
-            bytes32 siblingB = bytes32(proofsB[i]);
+        unchecked {
+            for (uint256 i = 0; i < minLen; ++i) {
+                // proof 원소 길이 검증
+                if (proofsA[i].length != 32) revert InvalidProofElementLength();
+                if (proofsB[i].length != 32) revert InvalidProofElementLength();
 
-            // 같은 레벨에서 currentA가 siblingB이거나 currentB가 siblingA이면 인접
-            if (currentA == siblingB || currentB == siblingA) {
-                return true;
-            }
+                bytes32 siblingA = bytes32(proofsA[i]);
+                bytes32 siblingB = bytes32(proofsB[i]);
 
-            // 다음 레벨로 이동
-            if (currentA < siblingA) {
-                currentA = keccak256(abi.encodePacked(currentA, siblingA));
-            } else {
-                currentA = keccak256(abi.encodePacked(siblingA, currentA));
-            }
+                // 같은 레벨에서 currentA가 siblingB이거나 currentB가 siblingA이면 인접
+                if (currentA == siblingB || currentB == siblingA) {
+                    return true;
+                }
 
-            if (currentB < siblingB) {
-                currentB = keccak256(abi.encodePacked(currentB, siblingB));
-            } else {
-                currentB = keccak256(abi.encodePacked(siblingB, currentB));
-            }
+                // 다음 레벨로 이동
+                if (currentA < siblingA) {
+                    currentA = keccak256(abi.encodePacked(currentA, siblingA));
+                } else {
+                    currentA = keccak256(abi.encodePacked(siblingA, currentA));
+                }
 
-            // 경로가 합류하면 인접 (같은 조상)
-            if (currentA == currentB) {
-                return true;
+                if (currentB < siblingB) {
+                    currentB = keccak256(abi.encodePacked(currentB, siblingB));
+                } else {
+                    currentB = keccak256(abi.encodePacked(siblingB, currentB));
+                }
+
+                // 경로가 합류하면 인접 (같은 조상)
+                if (currentA == currentB) {
+                    return true;
+                }
             }
         }
 
@@ -154,12 +176,19 @@ library AdjacentLeavesVerifier {
 
         // 부모부터 루트까지 경로 검증
         bytes32 root = parent;
-        for (uint256 i = 0; i < commonProof.length; i++) {
-            bytes32 sibling = bytes32(commonProof[i]);
-            if (root < sibling) {
-                root = keccak256(abi.encodePacked(root, sibling));
-            } else {
-                root = keccak256(abi.encodePacked(sibling, root));
+        uint256 len = commonProof.length;
+
+        unchecked {
+            for (uint256 i = 0; i < len; ++i) {
+                // proof 원소 길이 검증
+                if (commonProof[i].length != 32) revert InvalidProofElementLength();
+
+                bytes32 sibling = bytes32(commonProof[i]);
+                if (root < sibling) {
+                    root = keccak256(abi.encodePacked(root, sibling));
+                } else {
+                    root = keccak256(abi.encodePacked(sibling, root));
+                }
             }
         }
 
