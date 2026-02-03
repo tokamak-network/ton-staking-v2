@@ -9,7 +9,9 @@ import {
     AlreadyRegisteredError,
     InsufficientCollateralError,
     DeadlinePassedError,
-    NotSelectedValidatorError
+    NotSelectedValidatorError,
+    InvalidMaxValidatorsError,
+    TreasuryNotSetError
 } from "../../../src/validator/RAT.sol";
 import {RATStorage} from "../../../src/validator/RATStorage.sol";
 import {RATConfigParams} from "../../../src/validator/RATTypes.sol";
@@ -815,7 +817,7 @@ contract RATTest is V3TestBase {
     function test_RAT007b_maxValidators_zeroNotAllowed() public {
         // maxValidatorsPerL2 = 0은 허용되지 않음 (DoS 방지)
         vm.prank(owner);
-        vm.expectRevert("invalid maxValidatorsPerL2");
+        vm.expectRevert(InvalidMaxValidatorsError.selector);
         rat.setMaxValidatorsPerL2(0);
     }
 
@@ -863,7 +865,7 @@ contract RATTest is V3TestBase {
         rat.setTreasury(address(0));
 
         // treasury가 0일 때 withdrawSlashingsToTreasury 호출 시 revert
-        vm.expectRevert("treasury not set");
+        vm.expectRevert(TreasuryNotSetError.selector);
         rat.withdrawSlashingsToTreasury(address(mockSystemConfig));
     }
 
