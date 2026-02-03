@@ -31,6 +31,7 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
+import {RATFastWithdrawal} from "../src/validator/RATFastWithdrawal.sol";
 import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";  // Selector Routing Proxy (Proxy.sol 상속)
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
@@ -275,6 +276,7 @@ contract DeployV3FullForDevnet is Script {
     // V3 Contracts
     address public ratProxy;
     address public ratImpl;
+    address public ratFastWithdrawalImpl;
     address public validatorPoolProxy;
     address public validatorPoolImpl;
 
@@ -664,6 +666,10 @@ contract DeployV3FullForDevnet is Script {
         ratImpl = address(new RAT());
         console.log("RAT Impl:", ratImpl);
 
+        // Deploy RATFastWithdrawal implementation
+        ratFastWithdrawalImpl = address(new RATFastWithdrawal());
+        console.log("RATFastWithdrawal Impl:", ratFastWithdrawalImpl);
+
         // Deploy RAT proxy (Selector Routing Proxy 패턴)
         // RATProxy는 Proxy.sol을 상속받아 receive()를 오버라이드한 프록시
         RATProxy proxy = new RATProxy();
@@ -689,6 +695,10 @@ contract DeployV3FullForDevnet is Script {
         // Step 4: RAT 설정 파라미터 설정
         _configureRAT(ratProxy, deployer);
         console.log("RAT config set");
+
+        // Step 5: Setup RATFastWithdrawal selectors on proxy
+        _setupRATFastWithdrawalSelectors();
+        console.log("RATFastWithdrawal selectors configured");
 
         // Deploy ValidatorReward
         validatorPoolImpl = address(new ValidatorRewardV1());
@@ -1061,6 +1071,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("");
         console.log("V3 Contracts:");
         console.log("  RAT Proxy:", ratProxy);
+        console.log("  RATFastWithdrawal Impl:", ratFastWithdrawalImpl);
         console.log("  ValidatorReward Proxy:", validatorPoolProxy);
         console.log("");
         console.log("Factory:");
@@ -1098,6 +1109,31 @@ contract DeployV3FullForDevnet is Script {
         RAT(payable(proxy)).setConfig(config);
     }
 
+    /// @notice Setup RATFastWithdrawal selectors on RAT proxy
+    /// @dev RATFastWithdrawal functions are routed via Selector Routing Proxy
+    function _setupRATFastWithdrawalSelectors() internal {
+        // Step 1: Set RATFastWithdrawal as alive implementation
+        RATProxy(payable(ratProxy)).setAliveImplementation2(ratFastWithdrawalImpl, true);
+
+        // Step 2: Register selectors for RATFastWithdrawal functions
+        bytes4[] memory selectors = new bytes4[](9);
+
+        // BLS Public Key Management
+        selectors[0] = RATFastWithdrawal.registerValidatorWithBLS.selector;
+        selectors[1] = RATFastWithdrawal.registerBLSPublicKey.selector;
+        selectors[2] = RATFastWithdrawal.getValidatorBLSPubKey.selector;
+        selectors[3] = RATFastWithdrawal.getBatchValidatorBLSPublicKeys.selector;
+        selectors[4] = RATFastWithdrawal.hasValidatorBLSKey.selector;
+        selectors[5] = RATFastWithdrawal.getActiveValidatorsWithBLS.selector;
+
+        // Fast Withdrawal Functions
+        selectors[6] = RATFastWithdrawal.setAggregatorFeeRate.selector;
+        selectors[7] = RATFastWithdrawal.setMinValidatorsForFastWithdrawal.selector;
+        selectors[8] = RATFastWithdrawal.verifyAndExecuteFastWithdrawal.selector;
+
+        RATProxy(payable(ratProxy)).setSelectorImplementations2(selectors, ratFastWithdrawalImpl);
+    }
+
     // Helper functions to avoid stack too deep
     function _buildJsonPart1() internal view returns (string memory) {
         return string(abi.encodePacked(
@@ -1124,6 +1160,7 @@ contract DeployV3FullForDevnet is Script {
         return string(abi.encodePacked(
             '  "operatorManagerFactory": "', vm.toString(operatorManagerFactory), '",\n',
             '  "ratProxy": "', vm.toString(ratProxy), '",\n',
+            '  "ratFastWithdrawalImpl": "', vm.toString(ratFastWithdrawalImpl), '",\n',
             '  "validatorRewardProxy": "', vm.toString(validatorPoolProxy), '",\n'
         ));
     }

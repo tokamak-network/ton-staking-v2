@@ -31,6 +31,7 @@ import {OperatorManagerV1_2} from "../src/layer2/OperatorManagerV1_2.sol";
 
 // V3 New Contracts
 import {RAT} from "../src/validator/RAT.sol";
+import {RATFastWithdrawal} from "../src/validator/RATFastWithdrawal.sol";
 import {RATInitParams, RATConfigParams} from "../src/validator/RATTypes.sol";
 import {RATProxy} from "../src/validator/RATProxy.sol";  // Selector Routing Proxy (Proxy.sol 상속)
 import {ValidatorRewardV1} from "../src/validator/ValidatorRewardV1.sol";
@@ -124,6 +125,7 @@ contract DeployV3Full is Script {
     // V3 Contracts
     address public ratProxy;
     address public ratImpl;
+    address public ratFastWithdrawalImpl;
     address public validatorPoolProxy;
     address public validatorPoolImpl;
 
@@ -458,10 +460,17 @@ contract DeployV3Full is Script {
         ratImpl = address(new RAT());
         // console.log("RAT Impl:", ratImpl);
 
+        // Deploy RATFastWithdrawal implementation
+        ratFastWithdrawalImpl = address(new RATFastWithdrawal());
+        // console.log("RATFastWithdrawal Impl:", ratFastWithdrawalImpl);
+
         // RAT 프록시는 별도 배포 (stack too deep 회피)
         ratProxy = _deployRATProxy(deployer);
         // console.log("RAT Proxy:", ratProxy);
         // console.log("RAT initialized");
+
+        // Setup RATFastWithdrawal selectors on proxy
+        _setupRATFastWithdrawalSelectors();
 
         // Deploy ValidatorReward implementation
         validatorPoolImpl = address(new ValidatorRewardV1());
@@ -636,6 +645,31 @@ contract DeployV3Full is Script {
             relaxedValidatorCheck: RAT_RELAXED_VALIDATOR_CHECK
         });
         RAT(payable(proxy)).setConfig(config);
+    }
+
+    /// @notice Setup RATFastWithdrawal selectors on RAT proxy
+    /// @dev RATFastWithdrawal functions are routed via Selector Routing Proxy
+    function _setupRATFastWithdrawalSelectors() internal {
+        // Step 1: Set RATFastWithdrawal as alive implementation
+        RATProxy(payable(ratProxy)).setAliveImplementation2(ratFastWithdrawalImpl, true);
+
+        // Step 2: Register selectors for RATFastWithdrawal functions
+        bytes4[] memory selectors = new bytes4[](9);
+
+        // BLS Public Key Management
+        selectors[0] = RATFastWithdrawal.registerValidatorWithBLS.selector;
+        selectors[1] = RATFastWithdrawal.registerBLSPublicKey.selector;
+        selectors[2] = RATFastWithdrawal.getValidatorBLSPubKey.selector;
+        selectors[3] = RATFastWithdrawal.getBatchValidatorBLSPublicKeys.selector;
+        selectors[4] = RATFastWithdrawal.hasValidatorBLSKey.selector;
+        selectors[5] = RATFastWithdrawal.getActiveValidatorsWithBLS.selector;
+
+        // Fast Withdrawal Functions
+        selectors[6] = RATFastWithdrawal.setAggregatorFeeRate.selector;
+        selectors[7] = RATFastWithdrawal.setMinValidatorsForFastWithdrawal.selector;
+        selectors[8] = RATFastWithdrawal.verifyAndExecuteFastWithdrawal.selector;
+
+        RATProxy(payable(ratProxy)).setSelectorImplementations2(selectors, ratFastWithdrawalImpl);
     }
 
     // ==========================================
