@@ -1,0 +1,28 @@
+# Fast Withdrawal Aggregator Configuration
+
+aggregator:
+  address: "0xAGGREGATOR_ADDRESS"
+  private_key: "0xPRIVATE_KEY"  # For submitting transactions
+
+l1:
+  rpc: "https://ethereum-rpc.example.com"
+  rat_contract: "0xRAT_CONTRACT_ADDRESS"
+  fast_withdrawal_contract: "0xFAST_WITHDRAWAL_CONTRACT"  # Portal or dedicated
+
+p2p:
+  listen_addr: "/ip4/0.0.0.0/tcp/9001"
+  bootstrap_peers:
+    - "/ip4/validator1.example.com/tcp/9000/p2p/QmValidator1"
+    - "/ip4/validator2.example.com/tcp/9000/p2p/QmValidator2"
+  dht_namespace: "/tokamak-rat-validators"
+  withdrawal_topic: "/tokamak/rat/withdrawal/1.0.0"
+
+fast_withdrawal:
+  response_timeout: 300       # 5 minutes (seconds)
+  min_validators: 3           # Minimum validators required
+  max_gas_price: 100          # gwei
+  submission_gas_limit: 500000
+
+log:
+  level: "info"  # debug, info, warn, error
+  format: "text" # json, text
