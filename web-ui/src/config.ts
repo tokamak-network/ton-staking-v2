@@ -2,6 +2,7 @@
 export const CONFIG = {
   chainId: 900,
   rpcUrl: 'http://localhost:8545',
+  l2RpcUrl: 'http://localhost:9545',
   chainName: 'TON Staking V3 Local',
   nativeCurrency: {
     name: 'Ethereum',
@@ -11,31 +12,72 @@ export const CONFIG = {
   
   // Contract addresses (loaded from .devnet/addresses.json)
   contracts: {
+    // Tokens
     ton: '0xd55b55304b5cf7607B6dEd6DA6EeB487918AaD2E',
     wton: '0x2B2fE3204CcB8282ac6bC31d485cB6aa010d193a',
+    
+    // Core Managers
     seigManager: '0x0f5D1ef48f12b6f691401bfe88c2037c690a6afe',
     depositManager: '0x90118d110B07ABB82Ba8980D1c5cC96EeA810d2C',
     layer2Manager: '0xcA03Dc4665A8C3603cb4Fd5Ce71Af9649dC00d44',
+    l1BridgeRegistry: '0x2dE080e97B0caE9825375D31f5D0eD5751fDf16D',
+    layer2Registry: '0x05Aa229Aec102f78CE0E852A812a388F076Aa555',
+    
+    // V3 Components
     rat: '0xE5BD5bDC03371fB239956dbbF40bD185D6c2ea28',
     validatorReward: '0x55cb3b67D9E65F0Cf4eABCAC84564a1bE6E3b06A',
+    
+    // Optimism Stack
+    systemConfig: '0x577AcB7fA48878245a854ba51eD051a5B47cF83f',
+    disputeGameFactory: '0x52d01b38b78b559142b04cc19f5cc50d5c03dbac',
   },
 };
 
 // Test accounts (from Anvil)
 export const TEST_ACCOUNTS = [
   {
-    name: 'Optimism Deployer',
+    name: 'Deployer / Operator',
     address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
     privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+    role: 'L2 Operator & Sequencer',
   },
   {
     name: 'TON Staking Deployer',
     address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
     privateKey: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+    role: 'Admin (Manager Role)',
   },
   {
-    name: 'Validator',
+    name: 'Validator #1',
     address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
     privateKey: '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+    role: 'RAT Validator',
+  },
+  {
+    name: 'Validator #2',
+    address: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+    privateKey: '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a',
+    role: 'RAT Validator',
+  },
+  {
+    name: 'Validator #3',
+    address: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+    privateKey: '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba',
+    role: 'RAT Validator',
   },
 ];
+
+// Rollup types
+export const ROLLUP_TYPES = {
+  0: 'Invalid',
+  1: 'Optimism Legacy',
+  2: 'Optimism Bedrock Native',
+  3: 'Optimism Bedrock DisputeGame',
+};
+
+// Status codes
+export const LAYER2_STATUS = {
+  0: 'None',
+  1: 'Registered',
+  2: 'Paused',
+};
