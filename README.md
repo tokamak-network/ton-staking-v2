@@ -119,6 +119,75 @@ make test-e2e
 
 ---
 
+## 🖥️ Local Devnet Setup
+
+### Prerequisites
+- Docker & Docker Compose
+- jq (JSON processor)
+- curl
+
+### Quick Start
+
+```bash
+# 1. Start devnet
+docker-compose up -d
+
+# 2. Check health
+./scripts/check-devnet-health.sh
+
+# 3. View logs
+docker-compose logs -f l2-node
+```
+
+### System Components
+
+| Component | Port | Description |
+|-----------|------|-------------|
+| **L1 (Geth v1.13.15)** | 8545 | Ethereum L1 with Clique PoA |
+| **L2 (op-geth)** | 9545 | Optimism L2 execution layer |
+| **op-node** | 7545 | L2 consensus/rollup node |
+| **Batcher** | - | Submits L2 batches to L1 |
+| **RAT Clients (3)** | - | Monitor RAT events |
+
+### Key Addresses
+
+```bash
+# L1 Contracts (genesis-deployed)
+DisputeGameFactory: 0x52d01b38b78b559142b04cc19f5cc50d5c03dbac
+SystemConfig:       0x577AcB7fA48878245a854ba51eD051a5B47cF83f
+RAT Contract:       0xE5BD5bDC03371fB239956dbbF40bD185D6c2ea28
+
+# Test Accounts
+Deployer:  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Validator: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+```
+
+### Health Check
+
+```bash
+# Run comprehensive health check
+./scripts/check-devnet-health.sh
+
+# Expected output:
+# ✅ All systems operational! Devnet is healthy.
+```
+
+### Troubleshooting
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# Restart specific service
+docker-compose restart l2-node
+
+# Full reset
+docker-compose down -v
+docker-compose up -d
+```
+
+---
+
 ## 📚 Documentation
 
 ### 🌐 Developer Guide (Recommended)
