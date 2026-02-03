@@ -1,8 +1,8 @@
 # TON Staking V3 + Fast Withdrawal Integration Design
 
 **작성일**: 2026-02-01
-**버전**: 2.1
-**상태**: 부분 구현 완료 (Smart Contract 완료, Go Client 미착수)
+**버전**: 2.2
+**상태**: Phase 1-2 완료 (Smart Contract + Go Client)
 **최종 업데이트**: 2026-02-03
 
 ## 목차
@@ -100,22 +100,37 @@ L1 Smart Contracts (신규)
   - ✅ Game Claim Check (DisputeGame 분쟁 감지)
   - ✅ OptimismPortal2 연동 인터페이스
 
+#### ✅ Go Clients (완료):
+- **Validator Node** (`clients/fast-withdrawal/validator/`):
+  - ✅ cmd/main.go - CLI 진입점, 전체 Validator 로직 통합
+  - ✅ pkg/config/config.go - YAML 설정 로드 및 검증
+  - ✅ pkg/p2p/node.go - libp2p 노드, DHT discovery, GossipSub
+  - ✅ pkg/signer/bls.go - herumi/bls-eth-go-binary 기반 BLS 서명
+  - ✅ pkg/handler/handler.go - SignatureRequest 검증 및 응답
+  - ✅ pkg/verifier/ - Type3 검증 (OutputRootProof, DisputeGame)
+  - ✅ config.example.yaml - 설정 템플릿
+  - ✅ 빌드 바이너리: 46MB
+
+- **Aggregator Service** (`clients/fast-withdrawal/aggregator/`):
+  - ✅ cmd/main.go - CLI 진입점, 전체 Aggregator 로직 통합
+  - ✅ pkg/config/config.go - YAML 설정 로드 및 검증
+  - ✅ pkg/monitor/l1_monitor.go - L1 이벤트 감시 (ABI decoding)
+  - ✅ pkg/p2p/network.go - libp2p 네트워크, SignatureRequest 브로드캐스트
+  - ✅ pkg/collector/collector.go - 서명 수집 및 off-chain BLS 검증
+  - ✅ pkg/collector/aggregator.go - BLS 서명 집약, *big.Int bitmap (무제한 검증자)
+  - ✅ pkg/submitter/submitter.go - L1 트랜잭션 제출 (ABI encoding)
+  - ✅ pkg/contracts/rat.go - RAT 컨트랙트 바인딩 (검증자 세트 로드)
+  - ✅ pkg/l2proof/provider.go - L2 OutputRootProof, WithdrawalProof 생성
+  - ✅ pkg/l2proof/types.go - 증명 타입 정의
+  - ✅ config.example.yaml - 설정 템플릿
+  - ✅ 빌드 바이너리: 47MB
+
 #### 🚧 작업 필요:
-- **Go Clients**:
-  - ❌ `clients/fast-withdrawal/validator/` - libp2p Validator Node (미착수)
-  - ❌ `clients/fast-withdrawal/aggregator/` - Aggregator Service (미착수)
-  - ⚠️ `clients/rat-client-type3/` - 기존 RAT Client (재사용 가능, 확장 필요)
-
-- **통합 작업**:
-  - ❌ libp2p 네트워크 구축
-  - ❌ BLS 서명 생성 (오프체인)
-  - ❌ Aggregator 서명 수집 로직
-  - ❌ L1 이벤트 모니터링 (FastWithdrawalRequested)
-
 - **배포 및 운영**:
   - ❌ Devnet/Testnet 배포
   - ❌ 배포 스크립트
   - ❌ 운영 가이드
+  - ❌ 통합 테스트 (E2E)
 
 ---
 
@@ -1919,35 +1934,37 @@ function calculateFee(uint256 amount) public view returns (uint256) {
 
 ## 7. 구현 로드맵
 
-### Phase 1: 기반 구축 (2-3주)
+### Phase 1: 기반 구축 (2-3주) ✅ 완료
 
-**Week 1-2: Smart Contract 개발**
-- [ ] `RAT.sol` 수정: BLS 공개키 등록 기능
-- [ ] `BLS12381.sol` 라이브러리 구현 (또는 기존 라이브러리 통합)
-- [ ] `FastWithdrawal.sol` 컨트랙트 구현
-- [ ] Unit tests (Foundry)
+**Week 1-2: Smart Contract 개발** ✅
+- [x] `RAT.sol` 수정: BLS 공개키 등록 기능
+- [x] `BLS12381.sol` 라이브러리 구현 (EIP-2537 precompiles)
+- [x] `RATFastWithdrawal.sol` 컨트랙트 구현
+- [x] Unit tests (Foundry) - 43개 테스트 통과
 
-**Week 3: Go libp2p 기반 구축**
-- [ ] libp2p Validator Node 구조 설계
-- [ ] BLS Signer 구현 (key generation, signing)
-- [ ] p2p network 기본 설정 (DHT, pubsub)
+**Week 3: Go libp2p 기반 구축** ✅
+- [x] libp2p Validator Node 구조 설계
+- [x] BLS Signer 구현 (herumi/bls-eth-go-binary)
+- [x] p2p network 기본 설정 (DHT, pubsub)
 
-### Phase 2: 핵심 기능 구현 (3-4주)
+### Phase 2: 핵심 기능 구현 (3-4주) ✅ 완료
 
-**Week 4-5: Validator Node 완성**
-- [ ] Withdrawal request handler
-- [ ] On-chain validation
-- [ ] Signature generation and publishing
-- [ ] Integration tests
+**Week 4-5: Validator Node 완성** ✅
+- [x] Withdrawal request handler
+- [x] On-chain validation (Type3Verifier)
+- [x] Signature generation and publishing
+- [x] config.example.yaml, 빌드 바이너리 46MB
 
-**Week 6-7: Aggregator Service 완성**
-- [ ] L1 event monitor
-- [ ] Signature request broadcaster
-- [ ] Signature collector
-- [ ] BLS aggregation
-- [ ] Proof submitter
+**Week 6-7: Aggregator Service 완성** ✅
+- [x] L1 event monitor (ABI decoding)
+- [x] Signature request broadcaster
+- [x] Signature collector (off-chain BLS 검증)
+- [x] BLS aggregation (*big.Int bitmap - 무제한 검증자)
+- [x] Proof submitter (ABI encoding)
+- [x] L2ProofProvider (OutputRootProof, WithdrawalProof)
+- [x] config.example.yaml, 빌드 바이너리 47MB
 
-### Phase 3: 통합 및 테스트 (2-3주)
+### Phase 3: 통합 및 테스트 (2-3주) 🚧 다음 단계
 
 **Week 8-9: End-to-End Integration**
 - [ ] Local testnet 배포 (Anvil)

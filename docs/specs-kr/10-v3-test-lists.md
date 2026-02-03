@@ -852,6 +852,113 @@ go test ./pkg/...
 
 ---
 
+## Fast Withdrawal Go 클라이언트 유닛 테스트 (71개)
+
+### Aggregator 테스트 (clients/fast-withdrawal/aggregator/)
+
+**위치**: `clients/fast-withdrawal/aggregator/pkg/`
+
+| 패키지 | 테스트 수 | 파일 | 주요 테스트 |
+|--------|---------|------|-----------|
+| **collector** | 12개 | collector/collector_test.go, aggregator_test.go | BLS 서명 수집, 집약, 비트맵 생성 |
+| **config** | 4개 | config/config_test.go | 설정 로드, 기본값, 유효성 검사 |
+| **contracts** | 15개 | contracts/rat_test.go | RAT ABI 파싱, 함수 패킹, 검증자 조회 |
+| **l2proof** | 9개 | l2proof/provider_test.go | OutputRoot 계산, WithdrawalHash, StorageKey |
+| **monitor** | 7개 | monitor/l1_monitor_test.go | L1 이벤트 토픽, 이벤트 파싱 |
+| **p2p** | 10개 | p2p/network_test.go | P2P 설정, JSON 직렬화, multiaddr 형식 |
+| **submitter** | 9개 | submitter/submitter_test.go | L1 트랜잭션 제출, ABI 인코딩, 구조체 검증 |
+| **types** | 5개 | types/types_test.go | SignatureRequest/Response JSON, RequestState |
+
+**주요 테스트 케이스**:
+
+#### Collector Package (12개)
+- `TestNewBLSAggregator` - BLS Aggregator 생성
+- `TestAggregateSignatures_Success` - 3명 검증자 서명 집약 성공
+- `TestAggregateSignatures_NotUnanimous` - 만장일치 아닐 때 거부
+- `TestVerifyAggregatedSignature` - 집약 서명 검증
+- `TestBitmapWith64PlusValidators` - 100명 검증자 big.Int 비트맵
+
+#### L2Proof Package (9개)
+- `TestComputeOutputRoot` - OutputRoot 계산 (Optimism 형식)
+- `TestComputeWithdrawalHash` - Withdrawal 해시 계산
+- `TestComputeStorageKey` - MessagePasser 스토리지 키
+
+#### Monitor Package (7개)
+- `TestFastWithdrawalRequestedTopic` - 이벤트 토픽 해시 검증
+- `TestParseEventManual` - 192 bytes 이벤트 데이터 파싱
+
+### Validator 테스트 (clients/fast-withdrawal/validator/)
+
+**위치**: `clients/fast-withdrawal/validator/pkg/`
+
+| 패키지 | 테스트 수 | 파일 | 주요 테스트 |
+|--------|---------|------|-----------|
+| **config** | 5개 | config/config_test.go | 설정 로드, 기본값, 유효성 검사 |
+| **handler** | 5개 | handler/handler_test.go | 요청 처리, 서명 생성, 검증 |
+| **p2p** | 3개 | p2p/node_test.go | libp2p 노드 생성, 연결, PubSub 메시징 |
+| **signer** | 5개 | signer/bls_test.go | BLS 키 생성, 서명, PoP 검증 |
+| **verifier** | 4개 | verifier/type3_test.go | Type3 검증, WithdrawalHash, OutputRoot |
+
+**주요 테스트 케이스**:
+
+#### Signer Package (5개)
+- `TestGenerateKey` - BLS12-381 키쌍 생성
+- `TestSign` - BLS 서명 생성 및 검증
+- `TestProofOfPossession` - PoP 생성 및 검증
+- `TestInvalidPrivateKey` - 잘못된 키 처리
+
+#### P2P Package (3개)
+- `TestNewValidatorNode` - libp2p 노드 생성
+- `TestTwoNodesCanConnect` - 노드 간 연결 테스트
+- `TestPubSubMessaging` - GossipSub 메시지 전송
+
+**실행 명령**:
+```bash
+# Aggregator 테스트
+cd clients/fast-withdrawal/aggregator
+GOWORK=off go test ./... -v
+
+# Validator 테스트
+cd clients/fast-withdrawal/validator
+GOWORK=off go test ./... -v
+```
+
+---
+
+## RAT Fast Withdrawal op-e2e 추가 테스트 (7개)
+
+### 고급 E2E 테스트 (rat_fast_withdrawal_advanced_test.go)
+
+**위치**: `op-e2e/faultproofs/rat_fast_withdrawal_advanced_test.go`
+
+| ID | 테스트 함수 | 설명 | 상태 |
+|----|------------|------|------|
+| RAT-FW-ADV-001 | TestSimpleRAT_FastWithdrawalFeeCalculation | 수수료 계산 로직 검증 | ✅ |
+| RAT-FW-ADV-002 | TestSimpleRAT_FastWithdrawalValidatorBitmap | 검증자 비트맵 계산 (1~100명) | ✅ |
+| RAT-FW-ADV-003 | TestSimpleRAT_FastWithdrawalMinValidators | 최소 검증자 요구사항 검증 | ✅ |
+| RAT-FW-ADV-004 | TestSimpleRAT_FastWithdrawalWithdrawalHash | 출금 해시 계산 검증 | ✅ |
+| RAT-FW-ADV-005 | TestSimpleRAT_FastWithdrawalSignatureMessage | 서명 메시지 형식 검증 | ✅ |
+| RAT-FW-ADV-006 | TestSimpleRAT_FastWithdrawalBLSKeyFormat | BLS 키 형식 요구사항 | ✅ |
+| RAT-FW-ADV-007 | TestSimpleRAT_FastWithdrawalAggregation | 서명 집약 테스트 | ✅ |
+
+**검증 항목**:
+
+- **수수료 계산**: aggregatorFeeRate 기반 수수료 분배
+- **비트맵**: 64명 초과 검증자를 위한 big.Int 지원
+- **최소 검증자**: minValidatorsForFastWithdrawal 요구사항
+- **해시 계산**: 결정론적 WithdrawalHash 생성
+- **서명 메시지**: TOKAMAK_FAST_WITHDRAWAL 도메인
+- **BLS 형식**: G1(48바이트), G2(96바이트) 크기 검증
+- **집약**: 3명 검증자 서명 XOR 집약
+
+**실행 명령**:
+```bash
+cd op-e2e
+GOWORK=off go test -v -run TestSimpleRAT_FastWithdrawal ./faultproofs/
+```
+
+---
+
 ## 전체 테스트 통계
 
 ### Solidity 테스트
@@ -869,24 +976,29 @@ go test ./pkg/...
 - **실행 시간**: ~2.5분
 
 ### Go 테스트
-- **ton-staking-v2 op-e2e 테스트**: 10개 ✅
+- **ton-staking-v2 op-e2e 테스트**: 17개 ✅
   - 시스템 테스트: 3개
   - RAT 시나리오: 3개
   - RAT Client E2E: 1개
-  - **RAT Fast Withdrawal: 3개** ✅ (신규 추가)
+  - **RAT Fast Withdrawal 기본**: 5개 ✅
+  - **RAT Fast Withdrawal 고급**: 7개 ✅ (신규 추가)
 - **Optimism op-e2e 테스트**: 1개 (OptimismPortal2 Fast Withdrawal 배포 검증) ✅
 - **RAT Client 유닛 테스트**: 60개
-- **총 Go 테스트**: 71개 ✅
+- **Fast Withdrawal Go 클라이언트 유닛 테스트**: 93개 ✅ (신규 추가)
+  - Aggregator: 71개
+  - Validator: 22개
+- **총 Go 테스트**: 171개 ✅
 - **실행 시간**:
-  - ton-staking-v2 op-e2e: ~48초 (RAT FW 3개 추가, 병렬 실행)
+  - ton-staking-v2 op-e2e: ~60초 (병렬 실행)
   - Optimism op-e2e: ~4초
   - RAT Client 유닛: ~5초
+  - Fast Withdrawal Go 클라이언트: ~8초
 
 ### 총계
 - **Solidity**: 693개 ✅ (V2: 44 + V3: 316 + Scenarios: 61 + Invariants: 148 + FW: 48 추가 + Game Claim: 5)
-- **Go E2E**: 8개 (ton-staking-v2: 7개 + Optimism: 1개) ✅
-- **Go Unit**: 60개 (RAT Client)
-- **전체**: **761개 테스트** (통과 757개 + 작성 중 3개)
+- **Go E2E**: 18개 (ton-staking-v2: 17개 + Optimism: 1개) ✅
+- **Go Unit**: 153개 (RAT Client 60개 + Fast Withdrawal 93개)
+- **전체**: **864개 테스트** ✅
 
 ### 테스트 카테고리 구성
 - **기본 기능 테스트**: 360개 (V2 44개 + V3 316개)
@@ -897,5 +1009,6 @@ go test ./pkg/...
   - Sequencer Journey: 3개
   - Validator Journey: 4개
 - **불변성 테스트**: 148개
-- **E2E 통합 테스트**: 8개 (ton-staking-v2 7개 + Optimism 1개) ✅
+- **E2E 통합 테스트**: 18개 (ton-staking-v2 17개 + Optimism 1개) ✅
 - **RAT Client 유닛**: 60개 (Go)
+- **Fast Withdrawal Go 클라이언트 유닛**: 93개 (Go) ✅ (신규 추가)

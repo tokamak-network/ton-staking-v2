@@ -18,10 +18,12 @@
 **Path:** `/Users/zena/tokamak-projects/optimism`  
 **Target File:** `packages/contracts-bedrock/src/L1/OptimismPortal2.sol`
 
+**What's Implemented:**
+- ✅ Go Clients: Validator Node + Aggregator Service (빌드 완료)
+
 **What's Not Implemented (Requires Optimism Fork Work):**
 - OptimismPortal2 modifications (described in this document)
 - op-e2e Go tests
-- Offchain infrastructure (Aggregator, Validator clients)
 
 ---
 

@@ -1,8 +1,8 @@
 # Fast Withdrawal 개발 계획서
 
 **작성일**: 2026-02-02
-**버전**: 1.1
-**상태**: Phase 1-2 완료 (Smart Contracts), Phase 2 Go Clients 진행 필요
+**버전**: 1.2
+**상태**: Phase 1-2 완료 (Smart Contracts + Go Clients)
 **최종 업데이트**: 2026-02-03
 
 ---
@@ -138,19 +138,52 @@ Phase 1: 기반 구축        [Week 1-3]   ████████✅✅✅ (�
   - RATFastWithdrawalLib.sol ✅
   - 43개 테스트 통과 ✅
 
-Phase 2: 핵심 기능 구현   [Week 4-7]   ░░░░░░░░⬜️⬜️⬜️⬜️⬜️⬜️⬜️⬜️ (진행 필요)
-  - Validator Node ⬜️ (미착수)
-  - Aggregator ⬜️ (미착수)
+Phase 2: 핵심 기능 구현   [Week 4-7]   ████████✅✅✅✅✅✅✅✅ (완료)
+  - Validator Node ✅ (완료 - 빌드 성공)
+  - Aggregator ✅ (완료 - 빌드 성공)
 
-Phase 3: 통합 테스트      [Week 8-10]  ░░░░░░░░░░░░░░░░░░░░⬜️⬜️⬜️⬜️
+Phase 3: 통합 테스트      [Week 8-10]  ░░░░░░░░░░░░░░░░░░░░⬜️⬜️⬜️⬜️ (다음 단계)
 Phase 4: 테스트넷 배포    [Week 11-12] ░░░░░░░░░░░░░░░░░░░░░░░░░░⬜️⬜️
 Phase 5: 메인넷 준비      [Week 13-15] ░░░░░░░░░░░░░░░░░░░░░░░░░░░░⬜️⬜️
 ```
 
 **현재 상태** (2026-02-03):
 - ✅ Phase 1 완료: Smart Contracts 완전 구현
-- 🚧 Phase 2 대기: Go Clients 미착수
-- 📍 **다음 작업**: Phase 2 Validator Node 개발 시작
+- ✅ Phase 2 완료: Go Clients (Validator + Aggregator) 완전 구현
+- 📍 **다음 작업**: Phase 3 통합 테스트 환경 구축
+
+### Phase 2 완료 내역 (Go Clients)
+
+#### Validator Node (`clients/fast-withdrawal/validator/`)
+- **cmd/main.go**: CLI 진입점, 전체 Validator 로직 통합
+- **pkg/config/config.go**: YAML 설정 로드 및 검증
+- **pkg/p2p/node.go**: libp2p 노드, DHT discovery, GossipSub
+- **pkg/signer/bls.go**: herumi/bls-eth-go-binary 기반 BLS 서명
+- **pkg/handler/handler.go**: SignatureRequest 검증 및 응답
+- **pkg/verifier/**: Type3 검증 (OutputRootProof, DisputeGame)
+- **config.example.yaml**: 설정 템플릿
+- 빌드 바이너리: 46MB
+
+#### Aggregator (`clients/fast-withdrawal/aggregator/`)
+- **cmd/main.go**: CLI 진입점, 전체 Aggregator 로직 통합
+- **pkg/config/config.go**: YAML 설정 로드 및 검증
+- **pkg/monitor/l1_monitor.go**: L1 이벤트 감시 (ABI decoding)
+- **pkg/p2p/network.go**: libp2p 네트워크, SignatureRequest 브로드캐스트
+- **pkg/collector/collector.go**: 서명 수집 및 off-chain BLS 검증
+- **pkg/collector/aggregator.go**: BLS 서명 집약, *big.Int bitmap (무제한 검증자)
+- **pkg/submitter/submitter.go**: L1 트랜잭션 제출 (ABI encoding)
+- **pkg/contracts/rat.go**: RAT 컨트랙트 바인딩 (검증자 세트 로드)
+- **pkg/l2proof/provider.go**: L2 OutputRootProof, WithdrawalProof 생성
+- **pkg/l2proof/types.go**: 증명 타입 정의
+- **config.example.yaml**: 설정 템플릿
+- 빌드 바이너리: 47MB
+
+#### 주요 개선사항 적용
+- ✅ BLS 서명 off-chain 검증 (수집 시점)
+- ✅ *big.Int bitmap으로 64명+ 검증자 지원
+- ✅ 실제 ABI encoding/decoding
+- ✅ RAT 컨트랙트에서 검증자 세트 로드
+- ✅ L2ToL1MessagePasser 기반 증명 생성
 
 ---
 
@@ -243,11 +276,14 @@ Phase 5: 메인넷 준비      [Week 13-15] ░░░░░░░░░░░░
 | 2.1.11 | main.go 및 CLI 구현 | Go | 0.5일 |
 | 2.1.12 | Validator Node 단위 테스트 | Go | 1일 |
 
-**산출물**:
-- `clients/fast-withdrawal/validator/cmd/main.go`
-- `clients/fast-withdrawal/validator/pkg/handler/`
-- `clients/fast-withdrawal/validator/pkg/verifier/`
-- `clients/fast-withdrawal/validator/config.example.yaml`
+**산출물**: ✅ 완료
+- `clients/fast-withdrawal/validator/cmd/main.go` ✅
+- `clients/fast-withdrawal/validator/pkg/config/config.go` ✅
+- `clients/fast-withdrawal/validator/pkg/p2p/node.go` ✅
+- `clients/fast-withdrawal/validator/pkg/signer/bls.go` ✅
+- `clients/fast-withdrawal/validator/pkg/handler/handler.go` ✅
+- `clients/fast-withdrawal/validator/pkg/verifier/` ✅
+- `clients/fast-withdrawal/validator/config.example.yaml` ✅
 
 #### Week 6-7: Aggregator Service
 
@@ -272,12 +308,18 @@ Phase 5: 메인넷 준비      [Week 13-15] ░░░░░░░░░░░░
 | 2.2.15 | main.go 및 CLI 구현 | Go | 0.5일 |
 | 2.2.16 | Aggregator 단위 테스트 | Go | 1일 |
 
-**산출물**:
-- `clients/fast-withdrawal/aggregator/cmd/main.go`
-- `clients/fast-withdrawal/aggregator/pkg/monitor/`
-- `clients/fast-withdrawal/aggregator/pkg/collector/`
-- `clients/fast-withdrawal/aggregator/pkg/submitter/`
-- `clients/fast-withdrawal/aggregator/config.example.yaml`
+**산출물**: ✅ 완료
+- `clients/fast-withdrawal/aggregator/cmd/main.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/config/config.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/monitor/l1_monitor.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/p2p/network.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/collector/collector.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/collector/aggregator.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/submitter/submitter.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/contracts/rat.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/l2proof/provider.go` ✅
+- `clients/fast-withdrawal/aggregator/pkg/l2proof/types.go` ✅
+- `clients/fast-withdrawal/aggregator/config.example.yaml` ✅
 
 ---
 

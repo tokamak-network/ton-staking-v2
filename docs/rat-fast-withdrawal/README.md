@@ -37,6 +37,8 @@ Latest feature: DisputeGame claim check functionality
 ## Implementation Status
 
 ### ✅ Completed
+
+**Smart Contracts (Phase 1)**
 - RAT Fast Withdrawal contract (`src/validator/RATFastWithdrawal.sol`)
 - BLS aggregated signature verification
 - Adjacent leaves proof verification
@@ -45,10 +47,19 @@ Latest feature: DisputeGame claim check functionality
 - Fee distribution (Aggregator + Validators)
 - Test coverage: 43 Solidity tests passed
 
-### ⏳ Pending (Separate Project)
+**Go Clients (Phase 2)**
+- Validator Node (`clients/fast-withdrawal/validator/`) - 46MB binary
+- Aggregator Service (`clients/fast-withdrawal/aggregator/`) - 47MB binary
+- libp2p P2P network (GossipSub + DHT)
+- BLS signing (herumi/bls-eth-go-binary)
+- L1 event monitoring, L2 proof generation
+- Off-chain BLS signature verification
+- *big.Int bitmap (unlimited validators)
+
+### ⏳ Pending
 - OptimismPortal2 integration
-- op-e2e Go tests
-- Offchain infrastructure (Aggregator, Validator clients)
+- E2E integration tests
+- Devnet/Testnet deployment
 
 ---
 
