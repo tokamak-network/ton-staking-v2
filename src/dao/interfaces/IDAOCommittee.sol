@@ -18,6 +18,7 @@ interface IDAOCommittee is IStorageStateCommittee {
     function increaseMaxMember(uint256 _newMaxMember, uint256 _quorum) external;
     function decreaseMaxMember(uint256 _reducingMemberIndex, uint256 _quorum) external;
     function createCandidate(string calldata _memo) external;
+    function createLotteryCandidate(string calldata _memo) external;
     function registerLayer2Candidate(address _layer2, string memory _memo) external;
     function registerLayer2CandidateByOwner(address _operator, address _layer2, string memory _memo) external;
     function changeMember(uint256 _memberIndex) external returns (bool);

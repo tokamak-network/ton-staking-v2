@@ -10,6 +10,7 @@ import { IDAOAgendaManager } from "./interfaces/IDAOAgendaManager.sol";
 import { ISeigManager } from "./interfaces/ISeigManager.sol";
 import { ICoinage } from "./interfaces/ICoinage.sol";
 import { ICandidateAddOnFactory } from "./interfaces/ICandidateAddOnFactory.sol";
+import { ILotteryCandidateFactory } from "./interfaces/ILotteryCandidateFactory.sol";
 import { LibAgenda } from "./lib/Agenda.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
@@ -82,6 +83,11 @@ contract DAOCommittee_V1 is
     );
 
     event CandidateContractCreated(
+        address indexed candidate,
+        address indexed candidateContract,
+        string memo
+    );
+    event LotteryCandidateContractCreated(
         address indexed candidate,
         address indexed candidateContract,
         string memo
@@ -182,6 +188,48 @@ contract DAOCommittee_V1 is
 
         emit CandidateContractCreated(_operator, candidateContract, _memo);
 
+    }
+
+    /// @notice Registers a new Lottery Candidate managed by msg.sender.
+    /// @param _memo Candidate Memo
+    function createLotteryCandidate(string calldata _memo)
+        external
+        validSeigManager
+        validLayer2Registry
+        validCommitteeL2Factory
+    {
+        address _operator = msg.sender;
+        require(!isExistCandidate(_operator), "DAOCommittee: candidate already registerd");
+        require(lotteryCandidateFactory != address(0), "DAOCommittee: lottery factory not set");
+
+        address candidateContract = ILotteryCandidateFactory(lotteryCandidateFactory).deploy(
+            _operator,
+            false,
+            _memo,
+            address(this),
+            address(seigManager)
+        );
+
+        require(
+            candidateContract != address(0),
+            "DAOCommittee: deployed candidateContract is zero"
+        );
+
+        require(
+            layer2Registry.registerAndDeployCoinage(candidateContract, address(seigManager)),
+            "DAOCommittee: failed to registerAndDeployCoinage"
+        );
+
+        _candidateInfos[_operator] = CandidateInfo({
+            candidateContract: candidateContract,
+            memberJoinedTime: 0,
+            indexMembers: 0,
+            rewardPeriod: 0,
+            claimedTimestamp: 0
+        });
+
+        candidates.push(_operator);
+        emit LotteryCandidateContractCreated(_operator, candidateContract, _memo);
     }
 
     /// @notice Registers a new Candidate managed by operator.

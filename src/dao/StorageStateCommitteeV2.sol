@@ -20,6 +20,7 @@ contract StorageStateCommitteeV2 {
     address public wton;
     address public layer2Manager;
     address public candidateAddOnFactory;
+    address public lotteryCandidateFactory;
 
     mapping(uint256 => address) public proxyImplementation;
     mapping(address => bool) public aliveImplementation;

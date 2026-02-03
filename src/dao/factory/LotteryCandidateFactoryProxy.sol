@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "../../proxy/Proxy.sol";
+import "./LotteryCandidateFactoryStorage.sol";
+
+contract LotteryCandidateFactoryProxy is Proxy, LotteryCandidateFactoryStorage {
+}

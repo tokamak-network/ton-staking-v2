@@ -16,8 +16,11 @@ import {Candidate} from "../src/dao/Candidate.sol";
 import {CandidateFactory} from "../src/dao/factory/CandidateFactory.sol";
 import {CandidateFactoryProxy} from "../src/dao/factory/CandidateFactoryProxy.sol";
 import {CandidateAddOnV1_1} from "../src/dao/CandidateAddOnV1_1.sol";
+import {LotteryCandidate} from "../src/dao/LotteryCandidate.sol";
 import {CandidateAddOnFactory} from "../src/dao/factory/CandidateAddOnFactory.sol";
 import {CandidateAddOnFactoryProxy} from "../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import {LotteryCandidateFactory} from "../src/dao/factory/LotteryCandidateFactory.sol";
+import {LotteryCandidateFactoryProxy} from "../src/dao/factory/LotteryCandidateFactoryProxy.sol";
 
 /**
  * @title DeployV3WithSlashing
@@ -45,8 +48,11 @@ contract DeployV3WithSlashing is DeployV3Full {
     CandidateFactory public candidateFactoryLogic;
     CandidateFactoryProxy public candidateFactoryProxy;
     CandidateAddOnV1_1 public candidateAddOnImpl;
+    LotteryCandidate public lotteryCandidateImpl;
     CandidateAddOnFactory public candidateAddOnFactoryLogic;
     CandidateAddOnFactoryProxy public candidateAddOnFactoryProxy;
+    LotteryCandidateFactory public lotteryCandidateFactoryLogic;
+    LotteryCandidateFactoryProxy public lotteryCandidateFactoryProxy;
 
     // Slashing parameters
     uint256 constant SLASHING_REWARD_RATE = 1000; // 10% = 1000 (basis points)
@@ -200,6 +206,7 @@ contract DeployV3WithSlashing is DeployV3Full {
         _deployDAOCommitteeOwner();
         _deployCandidateFactory();
         _deployCandidateAddOnFactory();
+        _deployLotteryCandidateFactory();
         _configureDAOCommittee();
         _configureLayer2ManagerDAO();
     }
@@ -235,7 +242,7 @@ contract DeployV3WithSlashing is DeployV3Full {
     }
 
     function _setupDAOOwnerSelectors1() internal {
-        bytes4[] memory selectors = new bytes4[](9);
+        bytes4[] memory selectors = new bytes4[](10);
         selectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
         selectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
         selectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
@@ -245,6 +252,7 @@ contract DeployV3WithSlashing is DeployV3Full {
         selectors[6] = DAOCommitteeOwner.setAgendaManager.selector;
         selectors[7] = DAOCommitteeOwner.setCandidateFactory.selector;
         selectors[8] = DAOCommitteeOwner.setTon.selector;
+        selectors[9] = DAOCommitteeOwner.setLotteryCandidateFactory.selector;
         DAOCommitteeProxy2(payable(daoCommitteeProxy)).setSelectorImplementations2(
             selectors,
             address(daoCommitteeOwner)
@@ -269,6 +277,7 @@ contract DeployV3WithSlashing is DeployV3Full {
 
     function _deployCandidateFactory() internal {
         candidateImpl = new Candidate();
+        lotteryCandidateImpl = new LotteryCandidate();
         candidateFactoryLogic = new CandidateFactory();
         candidateFactoryProxy = new CandidateFactoryProxy();
         candidateFactoryProxy.upgradeTo(address(candidateFactoryLogic));
@@ -298,10 +307,27 @@ contract DeployV3WithSlashing is DeployV3Full {
         );
     }
 
+    function _deployLotteryCandidateFactory() internal {
+        lotteryCandidateFactoryLogic = new LotteryCandidateFactory();
+        lotteryCandidateFactoryProxy = new LotteryCandidateFactoryProxy();
+        lotteryCandidateFactoryProxy.upgradeTo(address(lotteryCandidateFactoryLogic));
+
+        LotteryCandidateFactory(address(lotteryCandidateFactoryProxy)).setAddress(
+            address(depositManagerProxy),
+            daoCommitteeProxy,
+            address(lotteryCandidateImpl),
+            ton,
+            wton
+        );
+    }
+
     function _configureDAOCommittee() internal {
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(address(candidateFactoryProxy));
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(
             address(candidateAddOnFactoryProxy)
+        );
+        DAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(
+            address(lotteryCandidateFactoryProxy)
         );
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(address(layer2ManagerProxy));
         DAOCommitteeOwner(daoCommitteeProxy).setWton(wton);
@@ -353,6 +379,9 @@ contract DeployV3WithSlashing is DeployV3Full {
             daoCommitteeProxy
         );
         CandidateAddOnFactoryProxy(payable(address(candidateAddOnFactoryProxy))).transferOwnership(
+            daoCommitteeProxy
+        );
+        LotteryCandidateFactoryProxy(payable(address(lotteryCandidateFactoryProxy))).transferOwnership(
             daoCommitteeProxy
         );
     }

@@ -57,8 +57,11 @@ import {Candidate} from "../src/dao/Candidate.sol";
 import {CandidateFactory} from "../src/dao/factory/CandidateFactory.sol";
 import {CandidateFactoryProxy} from "../src/dao/factory/CandidateFactoryProxy.sol";
 import {CandidateAddOnV1_1} from "../src/dao/CandidateAddOnV1_1.sol";
+import {LotteryCandidate} from "../src/dao/LotteryCandidate.sol";
 import {CandidateAddOnFactory} from "../src/dao/factory/CandidateAddOnFactory.sol";
 import {CandidateAddOnFactoryProxy} from "../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import {LotteryCandidateFactory} from "../src/dao/factory/LotteryCandidateFactory.sol";
+import {LotteryCandidateFactoryProxy} from "../src/dao/factory/LotteryCandidateFactoryProxy.sol";
 
 /// @notice Proxy interface
 interface IProxy {
@@ -208,8 +211,11 @@ contract DeployV3SlashForDevnet is Script {
     CandidateFactory public candidateFactoryLogic;
     CandidateFactoryProxy public candidateFactoryProxy;
     CandidateAddOnV1_1 public candidateAddOnImpl;
+    LotteryCandidate public lotteryCandidateImpl;
     CandidateAddOnFactory public candidateAddOnFactoryLogic;
     CandidateAddOnFactoryProxy public candidateAddOnFactoryProxy;
+    LotteryCandidateFactory public lotteryCandidateFactoryLogic;
+    LotteryCandidateFactoryProxy public lotteryCandidateFactoryProxy;
 
     /// @notice Entry point for generating devnet allocs (without actual broadcast)
     /// @dev This is used to generate genesis allocs file
@@ -1018,7 +1024,7 @@ contract DeployV3SlashForDevnet is Script {
             true
         );
 
-        bytes4[] memory ownerSelectors = new bytes4[](17);
+        bytes4[] memory ownerSelectors = new bytes4[](18);
         ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
         ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
         ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
@@ -1036,6 +1042,7 @@ contract DeployV3SlashForDevnet is Script {
         ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
         ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
         ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
+        ownerSelectors[17] = DAOCommitteeOwner.setLotteryCandidateFactory.selector;
 
         DAOCommitteeProxy2(payable(daoCommitteeProxy)).setSelectorImplementations2(
             ownerSelectors,
@@ -1045,6 +1052,7 @@ contract DeployV3SlashForDevnet is Script {
 
         // Step 5: Candidate 구현체 배포
         candidateImpl = new Candidate();
+        lotteryCandidateImpl = new LotteryCandidate();
 
         // Step 6: CandidateFactory 배포 및 설정
         candidateFactoryLogic = new CandidateFactory();
@@ -1076,10 +1084,27 @@ contract DeployV3SlashForDevnet is Script {
         );
         console.log("CandidateAddOnFactory deployed and configured");
 
+        // Step 7.5: LotteryCandidateFactory 배포 및 설정
+        lotteryCandidateFactoryLogic = new LotteryCandidateFactory();
+        lotteryCandidateFactoryProxy = new LotteryCandidateFactoryProxy();
+        lotteryCandidateFactoryProxy.upgradeTo(address(lotteryCandidateFactoryLogic));
+
+        LotteryCandidateFactory(address(lotteryCandidateFactoryProxy)).setAddress(
+            address(depositManagerProxy),
+            daoCommitteeProxy,
+            address(lotteryCandidateImpl),
+            ton,
+            wton
+        );
+        console.log("LotteryCandidateFactory deployed and configured");
+
         // Step 8: DAOCommittee 추가 설정
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(address(candidateFactoryProxy));
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(
             address(candidateAddOnFactoryProxy)
+        );
+        DAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(
+            address(lotteryCandidateFactoryProxy)
         );
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(address(layer2ManagerProxy));
         DAOCommitteeOwner(daoCommitteeProxy).setWton(wton);
@@ -1160,6 +1185,12 @@ contract DeployV3SlashForDevnet is Script {
             daoCommitteeProxy
         );
         console.log("CandidateAddOnFactoryProxy ownership transferred to DAOCommitteeProxy");
+
+        // LotteryCandidateFactoryProxy
+        LotteryCandidateFactoryProxy(payable(address(lotteryCandidateFactoryProxy))).transferOwnership(
+            daoCommitteeProxy
+        );
+        console.log("LotteryCandidateFactoryProxy ownership transferred to DAOCommitteeProxy");
     }
 
     // ==========================================

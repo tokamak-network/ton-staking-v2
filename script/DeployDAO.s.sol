@@ -10,12 +10,15 @@ import {DAOCommittee_V1} from "../src/dao/DAOCommittee_V1.sol";
 import {DAOCommitteeOwner} from "../src/dao/DAOCommitteeOwner.sol";
 import {Candidate} from "../src/dao/Candidate.sol";
 import {CandidateAddOnV1_1} from "../src/dao/CandidateAddOnV1_1.sol";
+import {LotteryCandidate} from "../src/dao/LotteryCandidate.sol";
 
 // Factories
 import {CandidateFactory} from "../src/dao/factory/CandidateFactory.sol";
 import {CandidateFactoryProxy} from "../src/dao/factory/CandidateFactoryProxy.sol";
 import {CandidateAddOnFactory} from "../src/dao/factory/CandidateAddOnFactory.sol";
 import {CandidateAddOnFactoryProxy} from "../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import {LotteryCandidateFactory} from "../src/dao/factory/LotteryCandidateFactory.sol";
+import {LotteryCandidateFactoryProxy} from "../src/dao/factory/LotteryCandidateFactoryProxy.sol";
 
 /// @notice Interface for DAOCommitteeProxy (0.7.6 contract)
 interface IDAOCommitteeProxy {
@@ -74,12 +77,15 @@ contract DeployDAO is Script {
     // Candidate
     address public candidateImpl;
     address public candidateAddOnImpl;
+    address public lotteryCandidateImpl;
 
     // Factories
     address public candidateFactoryProxy;
     address public candidateFactoryImpl;
     address public candidateAddOnFactoryProxy;
     address public candidateAddOnFactoryImpl;
+    address public lotteryCandidateFactoryProxy;
+    address public lotteryCandidateFactoryImpl;
 
     function run() external virtual {
         uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
@@ -181,7 +187,7 @@ contract DeployDAO is Script {
         console.log("DAOCommitteeOwner set alive");
 
         // DAOCommitteeOwner 함수들을 라우팅
-        bytes4[] memory ownerSelectors = new bytes4[](17);
+        bytes4[] memory ownerSelectors = new bytes4[](18);
         ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
         ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
         ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
@@ -199,9 +205,10 @@ contract DeployDAO is Script {
         ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
         ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
         ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
+        ownerSelectors[17] = DAOCommitteeOwner.setLotteryCandidateFactory.selector;
 
         IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
-        console.log("DAOCommitteeOwner selectors registered (17 functions)");
+        console.log("DAOCommitteeOwner selectors registered (18 functions)");
 
         console.log("");
     }
@@ -219,6 +226,10 @@ contract DeployDAO is Script {
         // CandidateAddOnV1_1 구현체
         candidateAddOnImpl = address(new CandidateAddOnV1_1());
         console.log("CandidateAddOnV1_1 Impl:", candidateAddOnImpl);
+
+        // LotteryCandidate 구현체
+        lotteryCandidateImpl = address(new LotteryCandidate());
+        console.log("LotteryCandidate Impl:", lotteryCandidateImpl);
 
         console.log("");
     }
@@ -270,6 +281,24 @@ contract DeployDAO is Script {
         );
         console.log("CandidateAddOnFactory.setAddress done");
 
+        // LotteryCandidateFactory
+        lotteryCandidateFactoryImpl = address(new LotteryCandidateFactory());
+        console.log("LotteryCandidateFactory Impl:", lotteryCandidateFactoryImpl);
+
+        LotteryCandidateFactoryProxy lcfProxy = new LotteryCandidateFactoryProxy();
+        lotteryCandidateFactoryProxy = address(lcfProxy);
+        lcfProxy.upgradeTo(lotteryCandidateFactoryImpl);
+        console.log("LotteryCandidateFactory Proxy:", lotteryCandidateFactoryProxy);
+
+        LotteryCandidateFactory(lotteryCandidateFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            lotteryCandidateImpl,
+            ton,
+            wton
+        );
+        console.log("LotteryCandidateFactory.setAddress done");
+
         console.log("");
     }
 
@@ -288,6 +317,9 @@ contract DeployDAO is Script {
 
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
         console.log("DAO.setCandidateAddOnFactory done");
+
+        DAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(lotteryCandidateFactoryProxy);
+        console.log("DAO.setLotteryCandidateFactory done");
 
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("DAO.setLayer2Manager done");
@@ -312,10 +344,12 @@ contract DeployDAO is Script {
         console.log("Candidate:");
         console.log("  Candidate Impl:", candidateImpl);
         console.log("  CandidateAddOnV1_1 Impl:", candidateAddOnImpl);
+        console.log("  LotteryCandidate Impl:", lotteryCandidateImpl);
         console.log("");
         console.log("Factories:");
         console.log("  CandidateFactory Proxy:", candidateFactoryProxy);
         console.log("  CandidateAddOnFactory Proxy:", candidateAddOnFactoryProxy);
+        console.log("  LotteryCandidateFactory Proxy:", lotteryCandidateFactoryProxy);
     }
 
     function _saveDeployment() internal {
@@ -329,11 +363,13 @@ contract DeployDAO is Script {
         string memory part2 = string(abi.encodePacked(
             '  "daoCommitteeOwner": "', vm.toString(daoCommitteeOwner), '",\n',
             '  "candidateImpl": "', vm.toString(candidateImpl), '",\n',
-            '  "candidateAddOnImpl": "', vm.toString(candidateAddOnImpl), '",\n'
+            '  "candidateAddOnImpl": "', vm.toString(candidateAddOnImpl), '",\n',
+            '  "lotteryCandidateImpl": "', vm.toString(lotteryCandidateImpl), '",\n'
         ));
         string memory part3 = string(abi.encodePacked(
             '  "candidateFactoryProxy": "', vm.toString(candidateFactoryProxy), '",\n',
-            '  "candidateAddOnFactoryProxy": "', vm.toString(candidateAddOnFactoryProxy), '"\n',
+            '  "candidateAddOnFactoryProxy": "', vm.toString(candidateAddOnFactoryProxy), '",\n',
+            '  "lotteryCandidateFactoryProxy": "', vm.toString(lotteryCandidateFactoryProxy), '"\n',
             "}"
         ));
         string memory output = string(abi.encodePacked(part1, part2, part3));

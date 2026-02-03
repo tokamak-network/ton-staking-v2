@@ -17,10 +17,13 @@ import {DAOCommittee_V1} from "../../../src/dao/DAOCommittee_V1.sol";
 import {DAOCommitteeOwner} from "../../../src/dao/DAOCommitteeOwner.sol";
 import {Candidate} from "../../../src/dao/Candidate.sol";
 import {CandidateAddOnV1_1} from "../../../src/dao/CandidateAddOnV1_1.sol";
+import {LotteryCandidate} from "../../../src/dao/LotteryCandidate.sol";
 import {CandidateFactory} from "../../../src/dao/factory/CandidateFactory.sol";
 import {CandidateFactoryProxy} from "../../../src/dao/factory/CandidateFactoryProxy.sol";
 import {CandidateAddOnFactory} from "../../../src/dao/factory/CandidateAddOnFactory.sol";
 import {CandidateAddOnFactoryProxy} from "../../../src/dao/factory/CandidateAddOnFactoryProxy.sol";
+import {LotteryCandidateFactory} from "../../../src/dao/factory/LotteryCandidateFactory.sol";
+import {LotteryCandidateFactoryProxy} from "../../../src/dao/factory/LotteryCandidateFactoryProxy.sol";
 
 /// @title V2ModeTestBase
 /// @notice V2 모드 테스트를 위한 공통 베이스 컨트랙트
@@ -60,8 +63,10 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
     address public daoCommitteeOwner;
     address public candidateImpl;
     address public candidateAddOnImpl;
+    address public lotteryCandidateImpl;
     address public candidateFactoryProxy;
     address public candidateAddOnFactoryProxy;
+    address public lotteryCandidateFactoryProxy;
 
     // ==========================================
     // 테스트 계정
@@ -208,6 +213,7 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // DAO 설정
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
         DAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
+        DAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(lotteryCandidateFactoryProxy);
         DAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
         DAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
@@ -234,7 +240,7 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         // 4. Setup DAOCommitteeOwner selector routing
         IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
 
-        bytes4[] memory ownerSelectors = new bytes4[](17);
+        bytes4[] memory ownerSelectors = new bytes4[](18);
         ownerSelectors[0] = DAOCommitteeOwner.setCooldownTime.selector;
         ownerSelectors[1] = DAOCommitteeOwner.setCandidateAddOnFactory.selector;
         ownerSelectors[2] = DAOCommitteeOwner.setLayer2Manager.selector;
@@ -252,12 +258,14 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         ownerSelectors[14] = DAOCommitteeOwner.setCandidatesSeigManager.selector;
         ownerSelectors[15] = DAOCommitteeOwner.setCandidatesCommittee.selector;
         ownerSelectors[16] = DAOCommitteeOwner.daoExecuteTransaction.selector;
+        ownerSelectors[17] = DAOCommitteeOwner.setLotteryCandidateFactory.selector;
 
         IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
 
         // 5. Deploy Candidate implementations
         candidateImpl = address(new Candidate());
         candidateAddOnImpl = address(new CandidateAddOnV1_1());
+        lotteryCandidateImpl = address(new LotteryCandidate());
 
         // 6. Deploy factories with proxies
         CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
@@ -267,6 +275,10 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
         CandidateAddOnFactoryProxy caofProxy = new CandidateAddOnFactoryProxy();
         candidateAddOnFactoryProxy = address(caofProxy);
         caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
+
+        LotteryCandidateFactoryProxy lcfProxy = new LotteryCandidateFactoryProxy();
+        lotteryCandidateFactoryProxy = address(lcfProxy);
+        lcfProxy.upgradeTo(address(new LotteryCandidateFactory()));
 
         // 7. Configure factories
         CandidateFactory(candidateFactoryProxy).setAddress(
@@ -284,6 +296,14 @@ abstract contract V2ModeTestBase is Test, DeployV3Full {
             ton,
             wton,
             l1BridgeRegistryProxy
+        );
+
+        LotteryCandidateFactory(lotteryCandidateFactoryProxy).setAddress(
+            depositManagerProxy,
+            daoCommitteeProxy,
+            lotteryCandidateImpl,
+            ton,
+            wton
         );
     }
 

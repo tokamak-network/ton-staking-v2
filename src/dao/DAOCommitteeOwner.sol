@@ -84,6 +84,9 @@ contract DAOCommitteeOwner is
     event SetCandidateAddOnFactory(
         address candidateAddOnFactoryAddr
     );
+    event SetLotteryCandidateFactory(
+        address lotteryCandidateFactoryAddr
+    );
 
     /**
      * @notice Event that occurs when calling setLayer2Manager function
@@ -201,6 +204,18 @@ contract DAOCommitteeOwner is
         candidateAddOnFactory = _candidateAddOnFactory;
 
         emit SetCandidateAddOnFactory(_candidateAddOnFactory);
+    }
+
+    /// @notice Set the lotteryCandidateFactory
+    /// @param _lotteryCandidateFactory lotteryCandidateFactory address
+    function setLotteryCandidateFactory(address _lotteryCandidateFactory)
+        external
+        onlyOwner
+        nonZero(_lotteryCandidateFactory)
+    {
+        if (lotteryCandidateFactory == _lotteryCandidateFactory) revert SameAddressError(10);
+        lotteryCandidateFactory = _lotteryCandidateFactory;
+        emit SetLotteryCandidateFactory(_lotteryCandidateFactory);
     }
 
     /// @notice Set the layer2Manager
