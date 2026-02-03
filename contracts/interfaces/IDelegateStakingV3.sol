@@ -84,7 +84,6 @@ interface IDelegateStakingV3 {
     error NoPendingRewards();
     error Unauthorized();
     error InvalidOperatorManager();
-    error Layer2NotEligible();
     error EmergencyNotActive();
     error EmergencyAlreadyActive();
     error EmergencyCooldownNotElapsed();
@@ -216,46 +215,67 @@ interface IDelegateStakingV3 {
 
     /**
      * @notice Get staker's stake info for a sequencer
+     * @param staker The staker address
+     * @param sequencer The sequencer address
+     * @return StakeInfo struct containing amount, rewardDebt, unstakeAmount, and unstakeTime
      */
     function getStakeInfo(address staker, address sequencer) external view returns (StakeInfo memory);
 
     /**
      * @notice Get sequencer information
+     * @param sequencer The sequencer address
+     * @return SequencerInfo struct containing registration status, layer2, operatorManager, commission, etc.
      */
     function getSequencerInfo(address sequencer) external view returns (SequencerInfo memory);
 
     /**
      * @notice Get pending rewards for a staker
+     * @param staker The staker address
+     * @param sequencer The sequencer address
+     * @return Pending WTON reward amount (27 decimals)
      */
     function pendingRewards(address staker, address sequencer) external view returns (uint256);
 
     /**
      * @notice Get sequencer address by Layer2
+     * @param layer2 The Layer2 contract address
+     * @return Sequencer address (zero if not registered)
      */
     function getSequencerByLayer2(address layer2) external view returns (address);
 
     /**
      * @notice Get list of active sequencers
+     * @return Array of registered sequencer addresses
      */
     function getSequencerList() external view returns (address[] memory);
 
     /**
      * @notice Get total staked amount
+     * @return Total TON staked across all sequencers (18 decimals)
      */
     function getTotalStaked() external view returns (uint256);
 
     /**
      * @notice Get emergency config for a Layer2
+     * @param layer2 The Layer2 contract address
+     * @return EmergencyConfig struct containing isActive, activationTime, cooldownPeriod, and guardian
      */
     function getEmergencyConfig(address layer2) external view returns (EmergencyConfig memory);
 
     /**
      * @notice Check if Layer2 is eligible for V3 rewards
+     * @param layer2 The Layer2 contract address
+     * @return eligible True if Layer2 meets minimum stake requirement
+     * @return requiredStake Minimum stake required for eligibility
+     * @return currentStake Current stake amount for the Layer2
      */
     function checkLayer2Eligibility(address layer2) external view returns (bool eligible, uint256 requiredStake, uint256 currentStake);
 
     /**
      * @notice Get estimated seigniorage for a sequencer
+     * @param sequencer The sequencer address
+     * @return sequencerReward Estimated WTON reward for sequencer
+     * @return validatorReward Estimated WTON reward for validators/delegators
      */
     function estimateSeigniorage(address sequencer) external view returns (uint256 sequencerReward, uint256 validatorReward);
 }

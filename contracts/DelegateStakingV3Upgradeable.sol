@@ -76,6 +76,15 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Maximum unbonding period (30 days)
     uint256 public constant MAX_UNBONDING_PERIOD = 30 days;
 
+    /// @notice Basis points denominator for percentage calculations (100% = 10000)
+    uint256 private constant BASIS_POINTS = 10000;
+
+    /// @notice Minimum emergency cooldown period (1 hour)
+    uint256 public constant MIN_EMERGENCY_COOLDOWN = 1 hours;
+
+    /// @notice Maximum emergency cooldown period (14 days)
+    uint256 public constant MAX_EMERGENCY_COOLDOWN = 14 days;
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -156,6 +165,12 @@ contract DelegateStakingV3Upgradeable is
 
     /// @notice Thrown when unbonding period is out of bounds
     error UnbondingPeriodOutOfBounds();
+
+    /// @notice Thrown when trying to redelegate to the same sequencer
+    error CannotRedelegateToSame();
+
+    /// @notice Thrown when emergency cooldown period is out of bounds
+    error EmergencyCooldownOutOfBounds();
 
     /*//////////////////////////////////////////////////////////////
                             STORAGE GAP
@@ -476,7 +491,8 @@ contract DelegateStakingV3Upgradeable is
         uint256 amount
     ) external override nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
-        if (fromSequencer == toSequencer) revert Unauthorized();
+        if (toSequencer == address(0)) revert ZeroAddress();
+        if (fromSequencer == toSequencer) revert CannotRedelegateToSame();
         if (!sequencers[toSequencer].isRegistered) revert SequencerNotRegistered();
 
         StakeInfo storage fromStake = stakes[msg.sender][fromSequencer];
@@ -803,9 +819,12 @@ contract DelegateStakingV3Upgradeable is
     /**
      * @notice Set emergency cooldown period for a Layer2
      * @param layer2 The Layer2 address
-     * @param cooldownPeriod New cooldown period in seconds
+     * @param cooldownPeriod New cooldown period in seconds (must be between MIN and MAX_EMERGENCY_COOLDOWN)
      */
     function setEmergencyCooldown(address layer2, uint256 cooldownPeriod) external onlyOwner {
+        if (cooldownPeriod < MIN_EMERGENCY_COOLDOWN || cooldownPeriod > MAX_EMERGENCY_COOLDOWN) {
+            revert EmergencyCooldownOutOfBounds();
+        }
         uint256 oldCooldown = emergencyConfigs[layer2].cooldownPeriod;
         emergencyConfigs[layer2].cooldownPeriod = cooldownPeriod;
         emit EmergencyCooldownUpdated(layer2, oldCooldown, cooldownPeriod);
@@ -834,6 +853,7 @@ contract DelegateStakingV3Upgradeable is
             revert CannotRescueStakingTokens();
         }
         IERC20(token).safeTransfer(to, amount);
+        emit TokensRescued(token, to, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -842,17 +862,21 @@ contract DelegateStakingV3Upgradeable is
 
     /**
      * @notice Authorize upgrade to new implementation
-     * @dev Only owner can authorize upgrades
-     * @param newImplementation Address of the new implementation
+     * @dev Only owner can authorize upgrades. This function is called during UUPS upgrade process.
+     *      The newImplementation address is validated by UUPSUpgradeable to ensure it's a valid contract.
+     * @param newImplementation Address of the new implementation (unused but required by interface)
      */
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        // Authorization is handled by onlyOwner modifier
+        // No additional validation needed - UUPSUpgradeable validates the implementation
+    }
 
     /**
      * @notice Get the current implementation version
      * @return Version string
      */
     function version() external pure returns (string memory) {
-        return "1.2.0";
+        return "1.3.0";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -868,7 +892,7 @@ contract DelegateStakingV3Upgradeable is
         SequencerInfo storage info = sequencers[sequencer];
 
         // Calculate commission
-        uint256 commission = (amount * info.commission) / 10000;
+        uint256 commission = (amount * info.commission) / BASIS_POINTS;
         uint256 distributed = amount - commission;
 
         // Accumulate commission for sequencer
@@ -1010,4 +1034,7 @@ contract DelegateStakingV3Upgradeable is
 
     /// @notice Emitted when a Layer2's emergency cooldown is updated
     event EmergencyCooldownUpdated(address indexed layer2, uint256 oldCooldown, uint256 newCooldown);
+
+    /// @notice Emitted when stuck tokens are rescued
+    event TokensRescued(address indexed token, address indexed to, uint256 amount);
 }

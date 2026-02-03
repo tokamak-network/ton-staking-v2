@@ -94,7 +94,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
         assertEq(staking.layer2Manager(), address(layer2Manager));
         assertEq(staking.unbondingPeriod(), UNBONDING_PERIOD);
         assertEq(staking.owner(), owner);
-        assertEq(staking.version(), "1.2.0");
+        assertEq(staking.version(), "1.3.0");
         assertEq(staking.minStakeAmount(), 100 ether); // DEFAULT_MIN_STAKE
     }
 
@@ -258,7 +258,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // Verify state persisted
         assertEq(staking.getTotalStaked(), stakedBefore);
-        assertEq(staking.version(), "1.2.0");
+        assertEq(staking.version(), "1.3.0");
     }
 
     function test_Upgrade_WithReinitialization() public {
@@ -658,7 +658,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // 12. Verify state persisted after upgrade
         assertEq(staking.getTotalStaked(), 500 ether);
-        assertEq(staking.version(), "1.2.0");
+        assertEq(staking.version(), "1.3.0");
 
         // 13. Continue operations after upgrade
         vm.prank(user1);
@@ -1167,7 +1167,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
         ton.approve(address(staking), INITIAL_BALANCE);
         staking.stake(sequencer1, 1000 ether);
 
-        vm.expectRevert(IDelegateStakingV3.Unauthorized.selector);
+        vm.expectRevert(DelegateStakingV3Upgradeable.CannotRedelegateToSame.selector);
         staking.redelegate(sequencer1, sequencer1, 500 ether);
         vm.stopPrank();
     }
@@ -2048,5 +2048,96 @@ contract DelegateStakingV3UpgradeableTest is Test {
         assertEq(staking.MAX_BATCH_SIZE(), 50);
         assertEq(staking.MIN_UNBONDING_PERIOD(), 1 days);
         assertEq(staking.MAX_UNBONDING_PERIOD(), 30 days);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      LOW PRIORITY FIX TESTS (v1.3.0)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Redelegate_RevertIfZeroAddress() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.ZeroAddress.selector);
+        staking.redelegate(sequencer1, address(0), 500 ether);
+        vm.stopPrank();
+    }
+
+    function test_RescueTokens_EmitsEvent() public {
+        // Deploy a mock token
+        ERC20Mock otherToken = new ERC20Mock("OTHER", "OTH");
+        otherToken.mint(address(staking), 1000 ether);
+
+        // Expect TokensRescued event
+        vm.expectEmit(true, true, false, true);
+        emit DelegateStakingV3Upgradeable.TokensRescued(address(otherToken), owner, 500 ether);
+
+        vm.prank(owner);
+        staking.rescueTokens(address(otherToken), owner, 500 ether);
+    }
+
+    function test_SetEmergencyCooldown_RevertIfBelowMin() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Try to set cooldown below minimum (1 hour)
+        vm.expectRevert(DelegateStakingV3Upgradeable.EmergencyCooldownOutOfBounds.selector);
+        vm.prank(owner);
+        staking.setEmergencyCooldown(layer2_1, 30 minutes);
+    }
+
+    function test_SetEmergencyCooldown_RevertIfAboveMax() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Try to set cooldown above maximum (14 days)
+        vm.expectRevert(DelegateStakingV3Upgradeable.EmergencyCooldownOutOfBounds.selector);
+        vm.prank(owner);
+        staking.setEmergencyCooldown(layer2_1, 15 days);
+    }
+
+    function test_SetEmergencyCooldown_SuccessWithinBounds() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Set cooldown to 7 days (within bounds)
+        vm.prank(owner);
+        staking.setEmergencyCooldown(layer2_1, 7 days);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertEq(config.cooldownPeriod, 7 days);
+    }
+
+    function test_EmergencyCooldownConstants() public view {
+        assertEq(staking.MIN_EMERGENCY_COOLDOWN(), 1 hours);
+        assertEq(staking.MAX_EMERGENCY_COOLDOWN(), 14 days);
+    }
+
+    function test_BasisPointsUsedCorrectly() public {
+        // Register sequencer with 10% commission (1000 bp)
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Distribute rewards
+        uint256 rewardAmount = 1000 ether;
+        wton.mint(sequencer1, rewardAmount);
+
+        vm.startPrank(sequencer1);
+        wton.approve(address(staking), rewardAmount);
+        staking.receiveReward(rewardAmount);
+        vm.stopPrank();
+
+        // Commission should be exactly 10% = 100 ether
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertEq(info.totalCommission, 100 ether);
     }
 }
