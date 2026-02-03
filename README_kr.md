@@ -114,8 +114,20 @@ make test-e2e
 - **[테스트 가이드](./docs/test/README.md)** - 전체 테스트 개요
 - **[빠른 명령어](./docs/test/QUICK-COMMANDS.md)** - 모든 테스트 명령어 참조
 - **[E2E 테스트](./op-e2e/README.md)** - Go 기반 end-to-end 테스트
+- **[BLS 프리컴파일 테스트](./docs/BLS_PRECOMPILE_TESTING.md)** - EIP-2537 테스트 가이드
 
 **테스트 커버리지:** 175+ 유닛/통합 테스트 + 7개 E2E 테스트
+
+### BLS 프리컴파일 테스트 (EIP-2537)
+```bash
+# 메인넷 fork 테스트 (로컬 EVM에서 프리컴파일 미지원 시 자동 스킵)
+forge test --match-contract BLS12381MainnetForkTest -vv
+
+# 실제 메인넷에서 테스트 (읽기 전용, 트랜잭션 없음)
+forge script script/TestBLSOnMainnet.s.sol \
+  --rpc-url https://ethereum-rpc.publicnode.com -vvv
+```
+**참고:** Foundry 로컬 EVM은 아직 EIP-2537을 지원하지 않습니다. 자세한 내용은 [BLS 테스트 가이드](./docs/BLS_PRECOMPILE_TESTING.md)를 참조하세요.
 
 ---
 

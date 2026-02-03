@@ -480,7 +480,74 @@
 
 ---
 
-## scenarios/ (18개)
+## scenarios/ (61개)
+
+### FastWithdrawalScenarios.t.sol (21개)
+
+| ID | 테스트 함수 | 설명 |
+|----|------------|------|
+| FW-001 | test_FW001_setMinValidatorsForFastWithdrawal_onlyOwner | 최소 검증자 수 설정 (owner only) |
+| FW-002 | test_FW002_setAggregatorFeeRate_validRange | 수집자 수수료율 설정 (유효 범위) |
+| FW-003 | test_FW003_setAggregatorFeeRate_exceedsMax_reverts | 수수료율 상한 초과 시 revert |
+| FW-010 | test_FW010_getValidatorBLSPubKey_notRegistered | 미등록 검증자 BLS 공개키 조회 |
+| FW-011 | test_FW011_hasValidatorBLSKey_notRegistered | 미등록 검증자 BLS 키 확인 |
+| FW-012 | test_FW012_getBatchValidatorBLSPublicKeys_empty | 빈 배치 BLS 키 조회 |
+| FW-013 | test_FW013_getActiveValidatorsWithBLS_noValidators | 검증자 없을 때 활성 검증자 조회 |
+| FW-020 | test_FW020_registerValidator_then_checkBLSKey | 검증자 등록 후 BLS 키 확인 |
+| FW-021 | test_FW021_getActiveValidatorsWithBLS_afterBasicRegistration | 등록 후 활성 검증자 BLS 키 조회 |
+| FW-030 | test_FW030_verifyAndExecute_disabled_reverts | Fast Withdrawal 비활성화 시 revert |
+| FW-031 | test_FW031_verifyAndExecute_noValidators_reverts | 검증자 없을 때 revert |
+| FW-032 | test_FW032_processedWithdrawals_initialState | 처리된 출금 초기 상태 |
+| FW-040 | test_FW040_validatorBitmap_notUnanimous_reverts | 만장일치 아닐 때 revert |
+| FW-041 | test_FW041_validatorBitmap_unanimous_twoValidators | 2명 검증자 만장일치 |
+| FW-050 | test_FW050_invalidWithdrawalHash_reverts | 잘못된 출금 해시 시 revert |
+| FW-060 | test_FW060_distributeFees_zeroFee | 수수료 0일 때 분배 |
+| FW-061 | test_FW061_aggregatorFeeRate_calculation | 수집자 수수료 계산 |
+| FW-070 | test_FW070_portal_notSet_reverts | Portal 미설정 시 revert |
+| FW-080 | test_FW080_threeValidators_unanimousBitmap | 3명 검증자 만장일치 비트맵 |
+| FW-081 | test_FW081_threeValidators_partialBitmap_reverts | 3명 중 부분 동의 시 revert |
+| FW-090 | test_FW090_receive_acceptsEther | ETH 수령 가능 |
+
+### FastWithdrawalE2E.t.sol (22개)
+
+| ID | 테스트 함수 | 설명 |
+|----|------------|------|
+| **유닛 테스트** (3개) | | |
+| FW-E2E-UNIT-001 | test_Unit_StateRootComputation | State Root 계산 검증 |
+| FW-E2E-UNIT-002 | test_Unit_WithdrawalData | Withdrawal 데이터 구조 검증 |
+| FW-E2E-UNIT-003 | test_Unit_WithdrawalHashComputation | Withdrawal Hash 계산 검증 |
+| **Adjacent Leaves Verifier** (3개) | | |
+| FW-E2E-ALV-001 | test_AdjacentLeavesVerifier_ValidProof | 유효한 인접 리프 증명 |
+| FW-E2E-ALV-002 | test_AdjacentLeavesVerifier_InvalidRoot | 잘못된 루트 시 revert |
+| FW-E2E-ALV-003 | test_AdjacentLeavesVerifier_SameLeaf | 동일 리프 (invalid) |
+| **BLS 서명 검증** (4개) - requires BLS precompiles | | |
+| FW-E2E-BLS-001 | test_E2E_VerifyAndExecuteFastWithdrawal_WithBLS | BLS 서명 기본 검증 |
+| FW-E2E-BLS-002 | test_E2E_VerifyAndExecute_MultipleValidators | 다수 검증자 BLS 집계 |
+| FW-E2E-BLS-003 | test_E2E_VerifyAndExecute_NonUnanimous_Reverts | 만장일치 아닐 때 실패 |
+| FW-E2E-BLS-004 | test_E2E_VerifyAndExecute_InsufficientValidators_Reverts | 검증자 수 부족 시 실패 |
+| **전체 플로우** (12개) | | |
+| FW-E2E-001 | test_E2E_FastWithdrawal_FullFlow | **전체 플로우 통합 테스트 (등록→요청→검증→finalize→전송)** |
+| FW-E2E-002 | test_E2E_FastWithdrawal_DisabledReverts | Fast Withdrawal 비활성화 시나리오 |
+| FW-E2E-003 | test_E2E_FastWithdrawal_DuplicatePrevention | 중복 처리 방지 |
+| FW-E2E-004 | test_E2E_FastWithdrawal_FeeDistribution | 수수료 분배 검증 |
+| FW-E2E-005 | test_E2E_FastWithdrawal_ValidatorDeactivation | 검증자 비활성화 시나리오 |
+| FW-E2E-006 | test_E2E_FastWithdrawal_NoPortal | Portal 미설정 에러 |
+| FW-E2E-007 | test_E2E_FastWithdrawal_DeadlineExpiry | 마감 시간 만료 |
+| FW-E2E-008 | test_E2E_FastWithdrawal_LargeAmount | 대량 출금 테스트 |
+| FW-E2E-009 | test_E2E_FastWithdrawal_Sequential | 순차 출금 처리 |
+
+**Fast Withdrawal 플로우**:
+1. **검증자 등록**: BLS 공개키 등록
+2. **출금 요청**: L2→L1 출금 증명 + Fast Withdrawal 요청 (fee 지불)
+3. **RAT 검증**: 검증자들이 State Root 검증하고 BLS 서명 제출 (만장일치 필요)
+4. **즉시 Finalize**: RAT 검증 완료 후 7일 대기 없이 즉시 출금 완료
+5. **수수료 분배**: Aggregator + 검증자들에게 수수료 분배
+
+**특징**:
+- ✅ BLS 서명 집계로 만장일치 검증
+- ✅ 일반 출금 대기 시간(7일) 우회
+- ✅ ETHLockbox 연동 실제 ETH 전송
+- ⚠️ BLS precompile 필요 (EIP-2537)
 
 ### V3ScenarioReal.t.sol (8개)
 
@@ -539,11 +606,11 @@
 | SYS-002 | TestAccountBalances | rat_system_test.go | Genesis 잔액 검증 (~1s) |
 | SYS-003 | TestRATContractCall | rat_system_test.go | RAT 컨트랙트 호출 검증 (~1s) |
 | **RAT 시나리오 테스트** (3개) | | | |
-| RAT-E2E-001 | TestSimpleRAT_ValidatorRegistration | rat_challenge_test.go | Validator 등록 플로우 (~4s) |
-| RAT-E2E-002 | TestSimpleRAT_GameCreation | rat_challenge_test.go | DisputeGame 생성 및 RAT 트리거 (~6s) |
-| RAT-E2E-003 | TestSimpleRAT_ChallengerWins | rat_challenge_test.go | Challenger 승리 전체 시나리오 (~20s) |
+| RAT-E2E-001 | TestSimpleRAT_ValidatorRegistration | rat_challenge_test.go | Validator 등록 플로우 (~24s) |
+| RAT-E2E-002 | TestSimpleRAT_GameCreation | rat_challenge_test.go | DisputeGame 생성 및 RAT 트리거 (~26s) |
+| RAT-E2E-003 | TestSimpleRAT_ChallengerWins | rat_challenge_test.go | Challenger 승리 전체 시나리오 (~40s) |
 | **RAT Client E2E 테스트** (1개) | | | |
-| RAT-CLIENT-E2E-001 | TestRATClient_EvidenceSubmission_E2E | rat_state_root_test.go | RAT Client 전체 통합 테스트 (~71s) |
+| RAT-CLIENT-E2E-001 | TestRATClient_EvidenceSubmission_E2E | rat_state_root_test.go | RAT Client 전체 통합 테스트 (~53s) |
 
 ### RAT Client E2E 테스트 상세
 
@@ -570,14 +637,19 @@
 - ✅ StateLeafEvidence 온체인 제출 및 검증
 - ✅ Type 3 Evidence Verifier 통합
 
-**실행 시간**: ~80초 (전체 7개 테스트)
+**실행 시간**: ~45초 (전체 7개 테스트, 병렬 실행)
 
 **실행 명령**:
 ```bash
 cd op-e2e && make test
-# 또는
+# 또는 특정 테스트
 GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
 ```
+
+**Fast Withdrawal E2E 테스트 상태**:
+- ❌ **op-e2e Go 테스트 없음** (현재는 Solidity 테스트만 존재)
+- ✅ Solidity로 43개 테스트 완료 (FastWithdrawalScenarios + FastWithdrawalE2E)
+- 💡 향후 Go E2E 테스트 추가 권장 (실제 Anvil + L2 환경에서 전체 플로우 검증)
 
 ---
 
@@ -634,7 +706,11 @@ go test ./pkg/...
 ## 전체 테스트 통계
 
 ### Solidity 테스트
-- **총 테스트**: 526개 통과
+- **총 테스트**: 569개 통과
+  - V2 모드: 44개
+  - V3 모드: 316개
+  - Scenarios: 61개 (V3 8개 + Migration 7개 + Sequencer 3개 + Validator 4개 + **Fast Withdrawal 43개**)
+  - Invariants: 148개
 - **커버리지**:
   - V3 실효 커버리지: 88.5% (lines)
   - 전체 시스템: 54.12% (lines, infrastructure 포함)
@@ -642,14 +718,22 @@ go test ./pkg/...
 
 ### Go 테스트
 - **op-e2e 테스트**: 7개 (시스템 3개 + RAT 시나리오 3개 + RAT Client E2E 1개)
+  - Fast Withdrawal E2E: 0개 (Solidity로만 검증, Go 미구현)
 - **RAT Client 유닛 테스트**: 60개
 - **총 Go 테스트**: 67개
 - **실행 시간**:
-  - op-e2e: ~80초
+  - op-e2e: ~45초 (병렬 실행)
   - RAT Client 유닛: ~5초
 
 ### 총계
-- **Solidity**: 526개
+- **Solidity**: 569개 (V2: 44 + V3: 316 + Scenarios: 61 + Invariants: 148)
 - **Go E2E**: 7개
 - **Go Unit**: 60개
-- **전체**: **593개 테스트**
+- **전체**: **636개 테스트**
+
+### 테스트 카테고리 구성
+- **기본 기능 테스트**: 360개 (V2 44개 + V3 316개)
+- **시나리오 테스트**: 61개 (Fast Withdrawal 43개 포함)
+- **불변성 테스트**: 148개
+- **E2E 통합 테스트**: 7개 (Go)
+- **RAT Client 유닛**: 60개 (Go)

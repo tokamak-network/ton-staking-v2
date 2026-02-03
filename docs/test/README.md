@@ -31,8 +31,8 @@ make test-e2e
 |----------|-------|----------|----------|---------|
 | **Unit Tests** | 515+ | ~2 min | Solidity | Individual contract functions |
 | **Integration Tests** | 11 | ~30 sec | Solidity | Cross-contract workflows |
-| **E2E Tests** | 7 | ~80 sec | Go | Complete system with real nodes |
-| **Total** | **533+** | **~4 min** | - | Full coverage |
+| **E2E Tests** | 7 | ~45 sec | Go | Complete system with real nodes |
+| **Total** | **533+** | **~3.5 min** | - | Full coverage |
 
 ---
 
@@ -226,6 +226,6 @@ make test-e2e
   forge test          forge test         make test-e2e
         │                   │                   │
         ▼                   ▼                   ▼
-  150+ tests           8 tests             7 tests
-   ~2 min              ~30 sec             ~21 sec
+   150+ tests           8 tests             7 tests
+    ~2 min              ~30 sec             ~45 sec
 ```

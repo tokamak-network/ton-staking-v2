@@ -114,8 +114,20 @@ make test-e2e
 - **[Testing Guide](./docs/test/README.md)** - Complete testing overview
 - **[Quick Commands](./docs/test/QUICK-COMMANDS.md)** - All test commands reference
 - **[E2E Tests](./op-e2e/README.md)** - Go-based end-to-end tests
+- **[BLS Precompile Testing](./docs/BLS_PRECOMPILE_TESTING.md)** - EIP-2537 testing guide
 
 **Test Coverage:** 175+ unit/integration tests + 7 E2E tests
+
+### BLS Precompile Tests (EIP-2537)
+```bash
+# Mainnet fork tests (auto-skip if precompiles unavailable in local EVM)
+forge test --match-contract BLS12381MainnetForkTest -vv
+
+# Test on actual mainnet (read-only, no transactions)
+forge script script/TestBLSOnMainnet.s.sol \
+  --rpc-url https://ethereum-rpc.publicnode.com -vvv
+```
+**Note:** Foundry's local EVM doesn't support EIP-2537 yet. See [BLS Testing Guide](./docs/BLS_PRECOMPILE_TESTING.md) for details.
 
 ---
 

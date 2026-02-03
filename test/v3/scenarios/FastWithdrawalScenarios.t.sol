@@ -15,6 +15,7 @@ import {
     FastWithdrawalPortalNotSetError,
     FastWithdrawalInvalidValidatorBitmapError,
     FastWithdrawalNoValidatorsError,
+    FastWithdrawalInsufficientValidatorsError,
     InvalidAggregatorFeeRateError
 } from "../../../src/validator/RATFastWithdrawal.sol";
 
@@ -141,17 +142,22 @@ contract FastWithdrawalScenariosTest is V3TestBase {
     // Fast Withdrawal 활성화/비활성화 테스트
     // ==========================================
 
-    function test_FW001_setFastWithdrawalEnabled_onlyOwner() public {
+    function test_FW001_setMinValidatorsForFastWithdrawal_onlyOwner() public {
         // 비소유자가 호출 시 실패
         vm.prank(validator1);
         vm.expectRevert();
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         // 소유자가 호출 시 성공
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
-        assertTrue(rat.fastWithdrawalEnabled(), "Fast withdrawal should be enabled");
+        assertEq(rat.minValidatorsForFastWithdrawal(), 1, "Min validators should be 1");
+
+        // 0으로 설정하면 Fast Withdrawal 비활성화
+        vm.prank(owner);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(0);
+        assertEq(rat.minValidatorsForFastWithdrawal(), 0, "Min validators should be 0 (disabled)");
     }
 
     function test_FW002_setAggregatorFeeRate_validRange() public {
@@ -305,7 +311,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
 
     function test_FW031_verifyAndExecute_noValidators_reverts() public {
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         // 검증자 없음 확인
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 0, "Should have no validators");
@@ -342,7 +348,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         bytes memory aggregatedSignature = new bytes(256);
 
         vm.prank(aggregator);
-        vm.expectRevert(FastWithdrawalNoValidatorsError.selector);
+        vm.expectRevert(FastWithdrawalInsufficientValidatorsError.selector);
         ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 
@@ -368,7 +374,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 2, "Should have 2 validators");
 
@@ -418,7 +424,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 2, "Should have 2 validators");
 
@@ -470,7 +476,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
             nonce: 1,
@@ -567,7 +573,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig2));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
             nonce: 1,
@@ -621,7 +627,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 3, "Should have 3 validators");
 
@@ -675,7 +681,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         rat.registerValidator(address(mockSystemConfig));
 
         vm.prank(owner);
-        ratFastWithdrawal.setFastWithdrawalEnabled(true);
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1);
 
         Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
             nonce: 1,
