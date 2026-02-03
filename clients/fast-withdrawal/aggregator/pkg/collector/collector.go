@@ -7,8 +7,16 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/tokamak-network/ton-staking-v2/clients/fast-withdrawal/aggregator/pkg/types"
 )
+
+func init() {
+	// BLS12-381 초기화 (aggregator.go와 중복되지만 안전을 위해)
+	_ = bls.Init(bls.BLS12_381)
+	_ = bls.SetETHmode(bls.EthModeDraft07)
+}
 
 // SignatureCollector BLS 서명 수집 및 관리
 type SignatureCollector struct {
@@ -97,6 +105,11 @@ func (sc *SignatureCollector) AddSignature(resp *types.SignatureResponse) error 
 		return fmt.Errorf("signature from unknown validator: %s", resp.Validator.Hex())
 	}
 
+	// 오프체인 BLS 서명 검증
+	if err := sc.verifySignature(state.Request, resp); err != nil {
+		return fmt.Errorf("invalid signature from %s: %w", resp.Validator.Hex()[:10], err)
+	}
+
 	// 서명 추가
 	state.Signatures[resp.Validator] = resp
 	state.ReceivedCount++
@@ -177,6 +190,42 @@ func (sc *SignatureCollector) StartCleanupLoop(ctx context.Context, interval tim
 			sc.CleanupExpired()
 		}
 	}
+}
+
+// verifySignature 오프체인 BLS 서명 검증
+func (sc *SignatureCollector) verifySignature(req *types.SignatureRequest, resp *types.SignatureResponse) error {
+	// 1. 공개키 파싱
+	var pubKey bls.PublicKey
+	if err := pubKey.Deserialize(resp.PublicKey); err != nil {
+		return fmt.Errorf("failed to deserialize public key: %w", err)
+	}
+
+	// 2. 서명 파싱
+	var sig bls.Sign
+	if err := sig.Deserialize(resp.Signature); err != nil {
+		return fmt.Errorf("failed to deserialize signature: %w", err)
+	}
+
+	// 3. 메시지 재구성 (Solidity와 동일한 방식)
+	message := buildSigningMessage(req)
+
+	// 4. BLS 검증
+	if !sig.VerifyByte(&pubKey, message) {
+		return fmt.Errorf("BLS signature verification failed")
+	}
+
+	return nil
+}
+
+// buildSigningMessage 서명 메시지 생성 (Validator와 동일)
+func buildSigningMessage(req *types.SignatureRequest) []byte {
+	return crypto.Keccak256(
+		[]byte("TOKAMAK_FAST_WITHDRAWAL"),
+		req.RequestID[:],
+		req.User.Bytes(),
+		common.LeftPadBytes(req.Amount.Bytes(), 32),
+		common.LeftPadBytes(req.ChainID.Bytes(), 32),
+	)
 }
 
 // Stats 현재 상태 통계

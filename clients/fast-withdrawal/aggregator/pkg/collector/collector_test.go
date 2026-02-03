@@ -7,8 +7,39 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	bls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/tokamak-network/ton-staking-v2/clients/fast-withdrawal/aggregator/pkg/types"
 )
+
+func init() {
+	// BLS 초기화
+	_ = bls.Init(bls.BLS12_381)
+	_ = bls.SetETHmode(bls.EthModeDraft07)
+}
+
+// 테스트용 BLS 서명 생성 헬퍼
+func generateTestSignature(req *types.SignatureRequest) ([]byte, []byte) {
+	// BLS 키 생성
+	var secKey bls.SecretKey
+	secKey.SetByCSPRNG()
+
+	pubKey := secKey.GetPublicKey()
+
+	// 메시지 생성 (collector.go의 buildSigningMessage와 동일)
+	message := crypto.Keccak256(
+		[]byte("TOKAMAK_FAST_WITHDRAWAL"),
+		req.RequestID[:],
+		req.User.Bytes(),
+		common.LeftPadBytes(req.Amount.Bytes(), 32),
+		common.LeftPadBytes(req.ChainID.Bytes(), 32),
+	)
+
+	// 서명 생성
+	sig := secKey.SignByte(message)
+
+	return sig.Serialize(), pubKey.Serialize()
+}
 
 func TestNewSignatureCollector(t *testing.T) {
 	collector := NewSignatureCollector()
@@ -87,13 +118,16 @@ func TestAddSignature_Unanimous(t *testing.T) {
 		t.Logf("🎉 Callback triggered for request %x", requestID[:8])
 	})
 
-	// 서명 추가
+	// 유효한 BLS 서명 생성 및 추가
 	for i, validator := range validators {
+		// 실제 BLS 서명 생성
+		sig, pubKey := generateTestSignature(testReq)
+
 		resp := &types.SignatureResponse{
 			RequestID: testReq.RequestID,
 			Validator: validator,
-			Signature: make([]byte, 96), // Mock signature
-			PublicKey: make([]byte, 48), // Mock public key
+			Signature: sig,    // 유효한 BLS 서명
+			PublicKey: pubKey, // 유효한 BLS 공개키
 			Timestamp: uint64(time.Now().Unix()),
 		}
 
