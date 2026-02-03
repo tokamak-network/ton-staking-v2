@@ -444,9 +444,14 @@ delegate-staking/
 │       ├── MockOperatorManagerV3.sol
 │       └── MockLayer2ManagerV3.sol
 ├── docs/
-│   ├── API.md                            # API 문서
-│   ├── DEPLOYMENT.md                     # 배포 가이드
-│   └── ...
+│   ├── design/                           # 설계 및 요구사항
+│   │   ├── DESIGN.md
+│   │   └── ...
+│   ├── testing/                          # 테스트 결과
+│   │   └── LOCAL-TESTING-RESULTS.md
+│   └── guides/                           # 사용 가이드
+│       ├── API.md
+│       └── DEPLOYMENT.md
 ├── foundry.toml
 └── README.md
 ```
@@ -467,11 +472,20 @@ delegate-staking/
 
 ## 문서
 
-- [API 문서](./docs/API.md)
-- [배포 가이드](./docs/DEPLOYMENT.md)
-- [설계 문서 (한글)](./docs/DESIGN.md)
-- [설계 문서 (영문)](./docs/DESIGN_EN.md)
-- [V3 통합 논의 결과](./docs/v3-discussion-result.md)
+문서는 `docs/` 폴더에 카테고리별로 정리되어 있습니다. [문서 인덱스](./docs/README.md)
+
+### 가이드
+- [API 문서](./docs/guides/API.md)
+- [배포 가이드](./docs/guides/DEPLOYMENT.md)
+
+### 설계
+- [설계 문서 (한글)](./docs/design/DESIGN.md)
+- [설계 문서 (영문)](./docs/design/DESIGN_EN.md)
+- [V3 통합 논의 결과](./docs/design/v3-discussion-result.md)
+
+### 테스트
+- [로컬 테스트 가이드](./docs/testing/LOCAL-TESTING.md)
+- [테스트 결과](./docs/testing/LOCAL-TESTING-RESULTS.md)
 
 ## 라이선스
 
@@ -479,5 +493,5 @@ MIT License
 
 ## 참고 자료
 
-- [Tokamak Economics Whitepaper V3](./docs/Tokamak_Economics_Whitepaper_V3.pdf)
+- [Tokamak Economics Whitepaper V3](./docs/design/Tokamak_Economics_Whitepaper_V3.pdf)
 - [ton-staking-v2 Repository](https://github.com/tokamak-network/ton-staking-v2)
