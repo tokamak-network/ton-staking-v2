@@ -15,6 +15,9 @@ type Config struct {
 	// L1 Connection
 	L1 L1Config `yaml:"l1"`
 
+	// L2 Connection
+	L2 L2Config `yaml:"l2"`
+
 	// libp2p Network
 	P2P P2PConfig `yaml:"p2p"`
 
@@ -34,6 +37,10 @@ type L1Config struct {
 	RPC                    string `yaml:"rpc"`
 	RATContract            string `yaml:"rat_contract"`
 	FastWithdrawalContract string `yaml:"fast_withdrawal_contract"` // Portal or dedicated contract
+}
+
+type L2Config struct {
+	RPC string `yaml:"rpc"` // L2 RPC endpoint (op-geth)
 }
 
 type P2PConfig struct {

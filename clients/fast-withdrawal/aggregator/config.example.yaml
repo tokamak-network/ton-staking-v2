@@ -9,6 +9,9 @@ l1:
   rat_contract: "0xRAT_CONTRACT_ADDRESS"
   fast_withdrawal_contract: "0xFAST_WITHDRAWAL_CONTRACT"  # Portal or dedicated
 
+l2:
+  rpc: "https://l2-rpc.example.com"  # op-geth RPC endpoint for proof generation
+
 p2p:
   listen_addr: "/ip4/0.0.0.0/tcp/9001"
   bootstrap_peers:
