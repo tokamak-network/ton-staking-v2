@@ -43,6 +43,25 @@ error InvalidFactoryError();
 error MaxValidatorsReachedError();
 error Layer2NotFoundError();
 error NotMigratedError();
+error AlreadyInitializedError();
+error InvalidProbabilityError();
+error InvalidEvidencePeriodError();
+error InvalidSlashingPenaltyError();
+error InvalidMinimumThresholdError();
+error InvalidMaxValidatorsError();
+error EmptyEvidenceError();
+error RollupTypeNotSupportedError();
+error UnsupportedEvidenceTypeError();
+error TreasuryNotSetError();
+error PendingTestsNotExpiredError();
+error NoSlashingsToWithdrawError();
+error NotSeigManagerError();
+error NotAuthorizedTriggerError();
+
+// Rollup Type Constants
+uint8 constant ROLLUP_TYPE_LEGACY = 1;
+uint8 constant ROLLUP_TYPE_OPTIMISM_BEDROCK = 2;
+uint8 constant ROLLUP_TYPE_OPTIMISM_BEDROCK_WITH_DISPUTE_GAME = 3;
 
 // RATInitParams, RATConfigParams는 RATTypes.sol에서 정의됨 (순환 참조 방지)
 
@@ -75,12 +94,12 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
     // onlyOwner는 AccessibleCommon에서 상속 (AccessControl 기반)
 
     modifier onlySeigManager() {
-        require(msg.sender == seigManager, "not seigManager");
+        if (msg.sender != seigManager) revert NotSeigManagerError();
         _;
     }
 
     modifier onlyAuthorizedTrigger() {
-        require(msg.sender == authorizedTrigger, "not authorized");
+        if (msg.sender != authorizedTrigger) revert NotAuthorizedTriggerError();
         _;
     }
 
@@ -102,7 +121,7 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
     /// @param params 초기화 파라미터 구조체
     /// @dev 초기화 후 반드시 setConfig()를 호출하여 설정 파라미터 설정 필요
     function initialize(RATInitParams calldata params) external {
-        require(seigManager == address(0), "already initialized");
+        if (seigManager != address(0)) revert AlreadyInitializedError();
 
         seigManager = params.seigManager;
         wton = params.wton;
@@ -115,11 +134,15 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
     /// @notice RAT 설정 파라미터 설정 (owner만 호출 가능)
     /// @param config 설정 파라미터 구조체
     function setConfig(RATConfigParams calldata config) external onlyOwner {
-        require(config.ratTriggerProbability > 0 && config.ratTriggerProbability <= RAY, "invalid probability");
-        require(config.evidenceSubmissionPeriod > 0, "invalid evidence period");
-        require(config.slashingPenalty > 0, "invalid slashing penalty");
-        require(config.minimumThreshold >= config.slashingPenalty + config.validatorBuffer, "invalid minimum threshold");
-        require(config.maxValidatorsPerL2 > 0, "invalid maxValidatorsPerL2");
+        if (config.ratTriggerProbability == 0 || config.ratTriggerProbability > RAY) {
+            revert InvalidProbabilityError();
+        }
+        if (config.evidenceSubmissionPeriod == 0) revert InvalidEvidencePeriodError();
+        if (config.slashingPenalty == 0) revert InvalidSlashingPenaltyError();
+        if (config.minimumThreshold < config.slashingPenalty + config.validatorBuffer) {
+            revert InvalidMinimumThresholdError();
+        }
+        if (config.maxValidatorsPerL2 == 0) revert InvalidMaxValidatorsError();
 
         ratTriggerProbability = config.ratTriggerProbability;
         evidenceSubmissionPeriod = config.evidenceSubmissionPeriod;
@@ -600,16 +623,15 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
             return;
         }
 
+        // 본드 사용 후 남은 담보금이 removalThreshold 미만이면 검증자 제거
+        // bondAmount는 이미 _calculateCoffWithRelaxedCheck(n)로 계산됨
+        uint256 removalThreshold = bondAmount + (relaxedValidatorCheck ? 0 : validatorBuffer);
+
         // bondAmount 조정 (available보다 클 수 없음)
         if (available < bondAmount) bondAmount = available;
 
-        // 본드 사용 후 남은 담보금이 removalThreshold 미만이면 검증자 제거
-        {
-            uint256 removalThreshold = _calculateCoffWithRelaxedCheck(n)
-                + (relaxedValidatorCheck ? 0 : validatorBuffer);
-            if (available - bondAmount < removalThreshold) {
-                _removeValidator(systemConfig, selectedValidator, reg, layer2);
-            }
+        if (available - bondAmount < removalThreshold) {
+            _removeValidator(systemConfig, selectedValidator, reg, layer2);
         }
 
         _createAttentionTest(gameAddress, systemConfig, batchIndex, batchHash, selectedValidator, bondAmount, reg, layer2);
@@ -716,7 +738,8 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         if (test.status != AttentionTestStatus.EvidencePeriod) return;
 
         // deadline + challengeGameDuration 이후에는 복구 불가
-        if (block.timestamp > test.deadline + challengeGameDuration) return;
+        uint256 challengeEndTime = test.deadline + challengeGameDuration;
+        if (block.timestamp > challengeEndTime) return;
 
         // === Effects: 상태 업데이트 ===
         test.status = AttentionTestStatus.RestoredByChallenge;
@@ -764,7 +787,7 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         // - Fraud Proof 검증
         // - State Leaf 검증
         // - 기타 증거 타입 검증
-        require(evidence.length > 0, "Empty evidence");
+        if (evidence.length == 0) revert EmptyEvidenceError();
     }
 
     /// @notice 증거 검증 (rat-client 버전 - 롤업 타입별 + 증거 타입별 라이브러리 사용)
@@ -791,18 +814,18 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         uint8 rollupType = _getRollupType(systemConfig);
 
         // Type 1 (LEGACY), Type 2 (OPTIMISM_BEDROCK): RAT 미사용
-        if (rollupType == 1 || rollupType == 2) {
-            revert("RAT not supported for this rollup type");
+        if (rollupType == ROLLUP_TYPE_LEGACY || rollupType == ROLLUP_TYPE_OPTIMISM_BEDROCK) {
+            revert RollupTypeNotSupportedError();
         }
 
         // Type 3 (OPTIMISM_BEDROCK_WITH_DISPUTE_GAME)
-        if (rollupType == 3) {
+        if (rollupType == ROLLUP_TYPE_OPTIMISM_BEDROCK_WITH_DISPUTE_GAME) {
             // Evidence type 0: FraudProof (batch derivation)
             if (evidenceType == 0) {
                 return Type3EvidenceVerifier.verify(batchHash, evidenceData);
             }
             // Evidence type 1: StateLeaf (adjacent leaves)
-            else if (evidenceType == 1) {
+            if (evidenceType == 1) {
                 // DisputeGame에서 rootClaim 조회
                 AttentionTest storage test = attentionTests[testId];
                 bytes32 rootClaim = IDisputeGame(test.gameAddress).rootClaim();
@@ -810,13 +833,11 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
                 // rootClaim과 함께 검증 (State Root as Target)
                 return Type3EvidenceVerifier.verifyStateLeaf(rootClaim, evidenceData);
             }
-            else {
-                revert("Unsupported evidence type");
-            }
+            revert UnsupportedEvidenceTypeError();
         }
 
         // 지원하지 않는 타입
-        revert("Unsupported rollup type");
+        revert RollupTypeNotSupportedError();
     }
 
     /// @notice SystemConfig의 롤업 타입 조회
@@ -924,7 +945,7 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
 
     /// @inheritdoc IRAT
     function setMaxValidatorsPerL2(uint256 maxValidators) external onlyOwner {
-        require(maxValidators > 0, "invalid maxValidatorsPerL2");
+        if (maxValidators == 0) revert InvalidMaxValidatorsError();
         maxValidatorsPerL2 = maxValidators;
         emit MaxValidatorsPerL2Updated(maxValidators);
     }
@@ -993,19 +1014,20 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
     /// @dev V3: SeigManager를 통해 RAT coinage → Treasury coinage 전송
     /// @dev 모든 테스트의 deadline + 챌린지 게임 기간 + 안전 버퍼 이후에만 호출 가능
     /// @param systemConfig 슬래싱 금액을 전송할 L2의 SystemConfig 주소
-    function withdrawSlashingsToTreasury(address systemConfig) external {
-        require(treasury != address(0), "treasury not set");
+    function withdrawSlashingsToTreasury(address systemConfig) external ifFree {
+        if (treasury == address(0)) revert TreasuryNotSetError();
+
         // latestDeadlineTest: RAT 테스트 마감 시간
         // + challengeGameDuration: 챌린지 게임으로 복구 가능한 기간
         // + safetyBuffer: 안전 여유 시간 (기본 1일)
         uint256 withdrawableAfter = latestDeadlineTest[systemConfig] + challengeGameDuration + safetyBuffer;
-        require(block.timestamp > withdrawableAfter, "pending tests not expired");
+        if (block.timestamp <= withdrawableAfter) revert PendingTestsNotExpiredError();
 
         address layer2 = _getLayer2FromSystemConfig(systemConfig);
 
         // RAT의 해당 L2 coinage 잔액 조회
         uint256 ratBalance = ISeigManagerForRAT(seigManager).stakeOf(layer2, address(this));
-        require(ratBalance > 0, "no slashings to withdraw");
+        if (ratBalance == 0) revert NoSlashingsToWithdrawError();
 
         // SeigManager를 통해 RAT coinage → Treasury coinage 전송
         ISeigManagerForRAT(seigManager).transferCoinageFromRatTo(layer2, treasury, ratBalance);
