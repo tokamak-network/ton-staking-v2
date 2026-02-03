@@ -110,18 +110,20 @@ make devnet-allocs-offline
 
 ## 4단계: 로컬 네트워크 시작
 
-Docker Compose를 사용하여 L1(Anvil)과 L2(Optimism) 환경을 시작합니다.
+Docker Compose를 사용하여 L1(Geth)과 L2(Optimism) 환경을 시작합니다.
 
 ```bash
 make devnet-start
 ```
 
 **실행되는 서비스**:
-- `l1`: Anvil (L1 Ethereum, Chain ID 900, Port 8545)
-- `l2-execution`: op-geth (L2 실행 레이어, Chain ID 901, Port 9545)
-- `l2-node`: op-node (롤업 노드, Port 7545) - ⚠️ 현재 SystemConfig 이슈로 실행 실패
+- `l1`: Geth with Clique PoA (L1 Ethereum, Chain ID 900, Port 8545)
+- `l2-execution`: op-geth (L2 실행 레이어, Debug Mode, Chain ID 901, Port 9545)
+- `l2-node`: op-node (롤업 노드, Port 7545)
 - `l2-batcher`: 트랜잭션 배치 제출
 - `l2-proposer`: 상태 루트 제출
+
+**Note**: L1은 Geth를 사용합니다. Anvil은 블록 해시를 blockTag로 지원하지 않아 op-node와 호환되지 않습니다.
 
 **예상 시간**: 2-3분
 
@@ -141,15 +143,21 @@ ton-staking-l1                Up (healthy)
 ton-staking-l2-execution      Up (healthy)
 
 RPC Endpoints:
-  L1 (Anvil):          http://localhost:8545
-  L2 (op-geth):        http://localhost:9545
+  L1 (Geth):           http://localhost:8545
+  L2 (op-geth):        http://localhost:9545  (debug API enabled)
 
 Block Numbers:
   L1: 5
   L2: 0
 ```
 
-**⚠️ 알려진 이슈**: op-node가 SystemConfig의 `unsafeBlockSigner` 설정 문제로 시작되지 않습니다. 하지만 L1의 모든 TON Staking 기능은 정상적으로 작동합니다.
+**L2 Debug API 확인**:
+```bash
+# debug_accountRange 사용 가능 확인 (RAT Client용)
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"debug_accountRange","params":["latest",null,10,false,false,false],"id":1}' \
+  http://localhost:9545 | jq '.result.accounts | length'
+```
 
 ---
 
