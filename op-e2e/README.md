@@ -17,9 +17,11 @@ cd op-e2e && make test
 - **`faultproofs/rat_system_test.go`** - 3 system tests verifying startup, balances, and contract calls
 - **`faultproofs/rat_challenge_test.go`** - 4 RAT scenario tests (646 lines)
 - **`faultproofs/rat_state_root_test.go`** - RAT State Root E2E test with L2 geth integration (434 lines)
+- **`faultproofs/fast_withdrawal_test.go`** - 3 Fast Withdrawal tests (BLS registration, basic flow, configuration)
 - **`faultproofs/rat_challenge_helpers.go`** - Reusable test helpers (313 lines, 11 functions)
+- **`faultproofs/fast_withdrawal_helpers.go`** - Fast Withdrawal helpers (BLS keys, signatures, proofs)
 - **`e2eutils/rat/system.go`** - `StartTONStakingSystem()` helper that starts isolated Anvil nodes with genesis state
-- **`bindings/`** - Contract bindings (RAT, FaultDisputeGame, DelayedWETH, etc.)
+- **`bindings/`** - Contract bindings (RAT, RATFastWithdrawal, FaultDisputeGame, DelayedWETH, etc.)
 - **`Makefile`** - Test commands
 
 ## Test Architecture
@@ -36,8 +38,8 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 
 ## Tests
 
-**Total: 7 tests (3 system + 3 RAT scenario + 1 RAT Client E2E)**
-**Duration: ~35 seconds (parallel)**
+**Total: 10 tests (3 system + 3 RAT scenario + 1 RAT Client E2E + 3 Fast Withdrawal)**
+**Duration: ~60 seconds (parallel)**
 
 ### System Tests (3)
 
@@ -47,16 +49,16 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
 
 ### RAT Scenario Tests (3)
 
-4. **TestSimpleRAT_ValidatorRegistration** (~4s) - Validator registration with TON deposit
-5. **TestSimpleRAT_GameCreation** (~6s) - DisputeGame creation and RAT trigger
-6. **TestSimpleRAT_ChallengerWins** (~20s) - Full challenger wins scenario with bond claiming
+4. **TestSimpleRAT_ValidatorRegistration** (~24s) - Validator registration with TON deposit
+5. **TestSimpleRAT_GameCreation** (~26s) - DisputeGame creation and RAT trigger
+6. **TestSimpleRAT_ChallengerWins** (~40s) - Full challenger wins scenario with bond claiming
    - Includes 2-step credit claiming with DelayedWETH (7-day delay)
    - Dynamic withdrawal delay query from contract
    - Comprehensive bond restoration verification
 
 ### RAT Client E2E Test (1)
 
-7. **TestRATClient_EvidenceSubmission_E2E** (~71s) - Complete RAT client evidence submission flow with L2 integration
+7. **TestRATClient_EvidenceSubmission_E2E** (~53s) - Complete RAT client evidence submission flow with L2 integration
    - Starts isolated L1 (Anvil) with genesis containing all deployed contracts
    - Starts isolated L2 (geth dev mode) with archive state
    - Creates transactions on L2 to generate state changes
@@ -69,10 +71,38 @@ Tests use pre-deployed contracts from genesis file (`.devnet/genesis-l1-staking-
    - **Full integration test**: L1 + L2 + RAT client + OutputRootProof + StateLeafEvidence
    - **Type 3**: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME rollup architecture
 
+### Fast Withdrawal Tests (3)
+
+8. **TestFastWithdrawal_BLSRegistration** (~5s) - BLS public key registration for validators
+   - Registers validator with TON deposit
+   - Generates BLS12-381 key pair (48-byte public key, 32-byte private key)
+   - Creates BLS signature for registration proof
+   - Submits BLS public key to RATFastWithdrawal contract
+   - Verifies BLS key registration on-chain
+   - Queries active validators with BLS keys
+   - **Prerequisite test for Fast Withdrawal functionality**
+
+9. **TestFastWithdrawal_BasicFlow** (~10s) - Complete fast withdrawal flow structure
+   - Registers validator with BLS key
+   - Checks Fast Withdrawal configuration (enabled, min validators, fee rate)
+   - Creates mock withdrawal transaction
+   - Generates adjacent leaves proof structure
+   - Creates BLS signature for withdrawal hash
+   - Demonstrates verifyAndExecute flow
+   - **Note**: Skips actual execution (requires full L2 integration)
+
+10. **TestFastWithdrawal_Configuration** (~2s) - Fast Withdrawal configuration validation
+    - Queries Fast Withdrawal enabled status
+    - Validates minimum validators requirement
+    - Checks aggregator fee rate (basis points)
+    - Verifies max validators per L2
+    - Confirms minimum threshold settings
+    - **Configuration sanity checks**
+
 ## Running Tests
 
 ```bash
-# All tests (7 tests, ~80s)
+# All tests (10 tests, ~60s)
 make test
 
 # System tests only (3 tests)
@@ -83,6 +113,9 @@ GOWORK=off go test -v -run TestSimpleRAT ./faultproofs
 
 # RAT Client E2E test (requires L2 geth)
 GOWORK=off go test -v -run TestRATClient_EvidenceSubmission_E2E ./faultproofs
+
+# Fast Withdrawal tests (3 tests, ~17s)
+GOWORK=off go test -v -run TestFastWithdrawal ./faultproofs
 
 # Specific test
 GOWORK=off go test -v -run TestSimpleRAT_ChallengerWins ./faultproofs

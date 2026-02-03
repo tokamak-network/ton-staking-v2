@@ -1,4 +1,4 @@
-.PHONY: all test test-rat test-rat-simple help clean coverage deps fmt lint info build
+.PHONY: all test test-rat test-rat-simple test-fast-withdrawal help clean coverage deps fmt lint info build
 
 # Default target
 all: build test
@@ -19,15 +19,16 @@ help:
 	@echo "  make test                   # Run E2E tests (starts isolated nodes)"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build              Build all packages"
-	@echo "  make test               Run all E2E tests"
-	@echo "  make test-rat           Run all RAT tests"
-	@echo "  make clean              Clean build artifacts"
-	@echo "  make coverage           Run tests with coverage"
-	@echo "  make deps               Verify Go module dependencies"
-	@echo "  make fmt                Format Go code"
-	@echo "  make lint               Lint Go code"
-	@echo "  make info               Show environment info"
+	@echo "  make build                  Build all packages"
+	@echo "  make test                   Run all E2E tests (10 tests)"
+	@echo "  make test-rat               Run all RAT tests"
+	@echo "  make test-fast-withdrawal   Run Fast Withdrawal tests"
+	@echo "  make clean                  Clean build artifacts"
+	@echo "  make coverage               Run tests with coverage"
+	@echo "  make deps                   Verify Go module dependencies"
+	@echo "  make fmt                    Format Go code"
+	@echo "  make lint                   Lint Go code"
+	@echo "  make info                   Show environment info"
 	@echo ""
 
 # Run all E2E tests (requires genesis file)
@@ -66,6 +67,18 @@ test-rat-simple:
 		exit 1; \
 	fi
 	GOWORK=off go test -v -run "TestSimpleRAT" ./faultproofs/...
+
+# Run Fast Withdrawal tests
+test-fast-withdrawal:
+	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
+		echo "Error: Genesis file not found"; \
+		echo ""; \
+		echo "Run from project root:"; \
+		echo "  make devnet-allocs-offline"; \
+		exit 1; \
+	fi
+	@echo "Running Fast Withdrawal tests..."
+	GOWORK=off go test -v -run "TestFastWithdrawal" ./faultproofs/...
 
 # Clean build artifacts
 clean:
