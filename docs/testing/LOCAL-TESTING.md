@@ -170,3 +170,105 @@ forge test --match-test test_Stake -vvv
 ### 시뇨리지 트리거 실패
 - OperatorManager에 WTON 잔액 확인
 - DelegateStaking이 OperatorManager의 authorized claimer인지 확인
+
+---
+
+## 8. V3 Upgradeable 버전 테스트 (권장)
+
+UUPS Upgradeable 버전 (`DelegateStakingV3Upgradeable`)을 테스트하려면 다음 스크립트를 사용합니다.
+
+### 환경 배포
+
+```bash
+# Anvil 실행 (별도 터미널)
+anvil
+
+# V3 Upgradeable 환경 배포
+forge script script/DeployLocalV3Upgradeable.s.sol --rpc-url http://localhost:8545 --broadcast
+```
+
+배포 결과:
+
+```
+====================================================================
+           V3 UPGRADEABLE DEPLOYMENT SUMMARY
+====================================================================
+ Network: localhost (Anvil)    Chain ID: 31337
+--------------------------------------------------------------------
+ TOKENS
+   TON:
+      0x5FbDB2315678afecb367f032d93F642f64180aa3
+   WTON:
+      0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+--------------------------------------------------------------------
+ DELEGATE STAKING (UUPS UPGRADEABLE)
+   Implementation:
+      0x...
+   Proxy:
+      0x...
+====================================================================
+```
+
+### 상호작용 스크립트
+
+#### 전체 흐름 테스트 (권장)
+
+```bash
+forge script script/InteractV3Upgradeable.s.sol:FullFlowTest --rpc-url http://localhost:8545 --broadcast
+```
+
+이 스크립트는 다음을 자동으로 테스트합니다:
+1. 초기 상태 확인
+2. User1이 Sequencer1에 1000 TON 스테이킹
+3. 시뇨리지 트리거
+4. 보상 수령
+5. 커미션 수령
+6. 언스테이크 요청
+7. 인출 (unbonding 이후)
+
+#### 개별 스크립트
+
+```bash
+# TON 스테이킹
+forge script script/InteractV3Upgradeable.s.sol:StakeTON --rpc-url http://localhost:8545 --broadcast
+
+# 시뇨리지 트리거
+forge script script/InteractV3Upgradeable.s.sol:TriggerSeigniorage --rpc-url http://localhost:8545 --broadcast
+
+# 보상 수령
+forge script script/InteractV3Upgradeable.s.sol:ClaimRewards --rpc-url http://localhost:8545 --broadcast
+
+# 언스테이크
+forge script script/InteractV3Upgradeable.s.sol:Unstake --rpc-url http://localhost:8545 --broadcast
+
+# 인출
+forge script script/InteractV3Upgradeable.s.sol:Withdraw --rpc-url http://localhost:8545 --broadcast
+
+# 리델리게이션
+forge script script/InteractV3Upgradeable.s.sol:Redelegate --rpc-url http://localhost:8545 --broadcast
+
+# 커미션 수령 (시퀀서)
+forge script script/InteractV3Upgradeable.s.sol:ClaimCommission --rpc-url http://localhost:8545 --broadcast
+
+# 상태 조회
+forge script script/InteractV3Upgradeable.s.sol:ViewState --rpc-url http://localhost:8545 --broadcast
+```
+
+### 기본 주소 (Anvil 결정적 배포)
+
+DeployLocalV3Upgradeable.s.sol은 항상 동일한 주소에 배포됩니다:
+
+| 역할 | 주소 |
+|-----|------|
+| Deployer (#0) | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |
+| Sequencer1 (#1) | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` |
+| Sequencer2 (#2) | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` |
+| User1 (#3) | `0x90F79bf6EB2c4f870365E785982E1f101E93b906` |
+| User2 (#4) | `0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65` |
+
+### 업그레이드 테스트
+
+```bash
+# 업그레이드 가능 테스트
+forge test --match-path "test/DelegateStakingV3Upgradeable.t.sol" --match-test "Upgrade" -vvv
+```
