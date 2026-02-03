@@ -1,7 +1,10 @@
 version: '3.8'
 
 services:
-  # L1: Ethereum (Geth v1.13.x for PoA support)
+  # L1: Geth with Clique PoA
+  # - Beacon client NOT required (Clique PoA consensus)
+  # - op-node compatible (supports block hash as blockTag)
+  # - Auto-mines blocks every ~1 second
   l1:
     image: ethereum/client-go:v1.13.15
     platform: linux/amd64
@@ -65,7 +68,10 @@ services:
     networks:
       - ton-staking-network
 
-  # L2: op-geth (Execution Layer)
+  # L2: op-geth (Execution Layer) with Debug Mode
+  # - Archive mode for full state history
+  # - Debug API enabled for RAT Client (debug_accountRange)
+  # - Trace API enabled for transaction tracing
   l2-execution:
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
     platform: linux/amd64
@@ -90,13 +96,13 @@ services:
           --http \
           --http.addr=0.0.0.0 \
           --http.port=8545 \
-          --http.api=eth,net,web3,debug,txpool \
+          --http.api=eth,net,web3,debug,txpool,trace \
           --http.corsdomain=* \
           --http.vhosts=* \
           --ws \
           --ws.addr=0.0.0.0 \
           --ws.port=8546 \
-          --ws.api=eth,net,web3,debug,txpool \
+          --ws.api=eth,net,web3,debug,txpool,trace \
           --ws.origins=* \
           --authrpc.addr=0.0.0.0 \
           --authrpc.port=8551 \
@@ -106,7 +112,8 @@ services:
           --gcmode=archive \
           --maxpeers=0 \
           --networkid=901 \
-          --rollup.disabletxpoolgossip=true
+          --rollup.disabletxpoolgossip=true \
+          --verbosity=4
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
       interval: 5s
@@ -133,10 +140,11 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        exec op-node \
+         exec op-node \
           --l1=http://l1:8545 \
           --l1.rpckind=basic \
           --l1.trustrpc \
+          --l1.beacon.ignore \
           --l2=http://l2-execution:8551 \
           --l2.jwt-secret=/genesis/jwt-secret.txt \
           --rollup.config=/genesis/rollup.json \
