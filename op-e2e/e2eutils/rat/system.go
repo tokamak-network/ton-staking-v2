@@ -227,3 +227,132 @@ func getFreePort() (int, error) {
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
+
+// ForkConfig configuration for mainnet fork
+type ForkConfig struct {
+	RPCURL     string // Mainnet RPC URL (e.g., https://mainnet.infura.io/v3/KEY)
+	BlockNumber int64  // Block number to fork from (0 = latest)
+	ChainID    int64  // Chain ID to use (default: 900 for testing)
+}
+
+// StartTONStakingSystemWithFork starts a TON Staking system forked from mainnet
+// This enables testing with real EIP-2537 BLS precompiles
+func StartTONStakingSystemWithFork(t *testing.T, forkCfg *ForkConfig) *TONStakingSystem {
+	ctx := context.Background()
+
+	// Find project root
+	projectRoot, err := FindProjectRoot()
+	require.NoError(t, err, "Failed to find project root")
+
+	// Paths to generated files (for contract addresses)
+	genesisPath := filepath.Join(projectRoot, ".devnet", "genesis-l1-staking-v3.json")
+	addressesPath := filepath.Join(projectRoot, ".devnet", "addresses.json")
+
+	// Check if addresses file exists
+	if _, err := os.Stat(addressesPath); os.IsNotExist(err) {
+		t.Fatalf("Addresses file not found at %s. Run 'make devnet-allocs-offline' first", addressesPath)
+	}
+
+	// Read deployment addresses
+	addressesData, err := os.ReadFile(addressesPath)
+	require.NoError(t, err, "Failed to read addresses file")
+
+	var addresses DeploymentAddresses
+	err = json.Unmarshal(addressesData, &addresses)
+	require.NoError(t, err, "Failed to parse addresses file")
+
+	t.Logf("=== Starting TON Staking V3 System (Mainnet Fork) ===")
+	t.Logf("Fork RPC: %s", forkCfg.RPCURL)
+	if forkCfg.BlockNumber > 0 {
+		t.Logf("Fork Block: %d", forkCfg.BlockNumber)
+	} else {
+		t.Logf("Fork Block: latest")
+	}
+
+	// Create temp directory for this test
+	tempDir := t.TempDir()
+
+	// Get free port
+	port, err := getFreePort()
+	require.NoError(t, err, "Failed to get free port")
+
+	// Set chain ID
+	chainID := forkCfg.ChainID
+	if chainID == 0 {
+		chainID = 900 // Default test chain ID
+	}
+
+	// Build anvil command with fork
+	args := []string{
+		"--host", "0.0.0.0",
+		"--port", fmt.Sprintf("%d", port),
+		"--chain-id", fmt.Sprintf("%d", chainID),
+		"--block-time", "2",
+		"--code-size-limit", "100000",
+		"--fork-url", forkCfg.RPCURL,
+		"--accounts", "10",
+		"--balance", "10000",
+		"--mnemonic", "test test test test test test test test test test test junk",
+	}
+
+	// Add fork block number if specified
+	if forkCfg.BlockNumber > 0 {
+		args = append(args, "--fork-block-number", fmt.Sprintf("%d", forkCfg.BlockNumber))
+	}
+
+	// Also load genesis state to deploy our contracts on top of fork
+	args = append(args, "--init", genesisPath)
+
+	anvilCmd := exec.Command("anvil", args...)
+
+	// Redirect anvil output to test logs
+	anvilCmd.Stdout = &testWriter{t: t, prefix: "[anvil-fork] "}
+	anvilCmd.Stderr = &testWriter{t: t, prefix: "[anvil-fork] "}
+
+	err = anvilCmd.Start()
+	require.NoError(t, err, "Failed to start Anvil with fork")
+
+	t.Logf("Anvil (fork) started (PID: %d) on port %d", anvilCmd.Process.Pid, port)
+
+	// Wait for Anvil to be ready
+	rpcURL := fmt.Sprintf("http://localhost:%d", port)
+	var l1Client *ethclient.Client
+	for i := 0; i < 60; i++ { // Longer timeout for fork initialization
+		client, err := ethclient.Dial(rpcURL)
+		if err == nil {
+			_, err := client.ChainID(ctx)
+			if err == nil {
+				l1Client = client
+				break
+			}
+			client.Close()
+		}
+		time.Sleep(1 * time.Second)
+	}
+	require.NotNil(t, l1Client, "Failed to connect to Anvil (fork) after 60 seconds")
+
+	t.Logf("L1 client connected to %s", rpcURL)
+
+	sys := &TONStakingSystem{
+		T:             t,
+		Ctx:           ctx,
+		L1Client:      l1Client,
+		L1RPCURL:      rpcURL,
+		AnvilCmd:      anvilCmd,
+		AllocsPath:    genesisPath,
+		AddressesPath: addressesPath,
+		Addresses:     &addresses,
+		TempDir:       tempDir,
+	}
+
+	// Register cleanup
+	t.Cleanup(func() {
+		sys.Close()
+	})
+
+	t.Logf("=== TON Staking V3 System (Fork) Ready ===")
+	t.Logf("RAT: %s", addresses.RATProxy.Hex())
+	t.Logf("EIP-2537 BLS precompiles: ENABLED (via mainnet fork)")
+
+	return sys
+}
