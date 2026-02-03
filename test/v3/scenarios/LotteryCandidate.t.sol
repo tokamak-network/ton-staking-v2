@@ -156,6 +156,7 @@ contract LotteryCandidateScenarioTest is Test, V2ModeTestBase {
         uint256 user1BalanceBefore = lotteryCandidate.balanceOf(user1);
         uint256 user2BalanceBefore = lotteryCandidate.balanceOf(user2);
         uint256 totalBefore = lotteryCandidate.totalDeposited();
+        console.log("totalBefore", totalBefore);
 
         // Verify user balances are equal (500 TON each = 500e27 WTON)
         assertEq(user1BalanceBefore, user2BalanceBefore, "Equal user deposits");
@@ -170,6 +171,7 @@ contract LotteryCandidateScenarioTest is Test, V2ModeTestBase {
         uint256 user2BalanceAfter = lotteryCandidate.balanceOf(user2);
         uint256 operatorBalanceAfter = lotteryCandidate.balanceOf(operator1);
         uint256 totalAfter = lotteryCandidate.totalDeposited();
+        console.log("totalAfter", totalAfter);
 
         // Seigniorage should be distributed proportionally
         // If seigniorage was distributed, totalDeposited increases
