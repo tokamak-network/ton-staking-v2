@@ -689,4 +689,1179 @@ contract DelegateStakingV3UpgradeableTest is Test {
         vm.expectRevert();
         implementation.upgradeToAndCall(address(implementation), "");
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    SEQUENCER REGISTRATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RegisterSequencer_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertTrue(info.isRegistered);
+        assertEq(info.layer2, layer2_1);
+        assertEq(info.operatorManager, operatorManager1);
+        assertEq(info.commission, 1000);
+    }
+
+    function test_RegisterSequencer_RevertIfZeroLayer2() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.ZeroAddress.selector);
+        staking.registerSequencer(address(0), operatorManager1, 1000);
+    }
+
+    function test_RegisterSequencer_RevertIfZeroOperatorManager() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.ZeroAddress.selector);
+        staking.registerSequencer(layer2_1, address(0), 1000);
+    }
+
+    function test_RegisterSequencer_RevertIfAlreadyRegistered() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerAlreadyRegistered.selector);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+    }
+
+    function test_RegisterSequencer_RevertIfLayer2AlreadyRegistered() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Try to register same layer2 with different sequencer
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        // This should fail because layer2_1 is already registered
+        vm.prank(sequencer2);
+        vm.expectRevert(IDelegateStakingV3.Layer2AlreadyRegistered.selector);
+        staking.registerSequencer(layer2_1, operatorManager2, 1000);
+    }
+
+    function test_RegisterSequencer_RevertIfInvalidCommission() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.InvalidCommission.selector);
+        staking.registerSequencer(layer2_1, operatorManager1, 3001); // > MAX_COMMISSION
+    }
+
+    function test_RegisterSequencer_RevertIfNotOperator() public {
+        address notOperator = makeAddr("notOperator");
+        vm.prank(notOperator);
+        vm.expectRevert(IDelegateStakingV3.InvalidOperatorManager.selector);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DEREGISTER SEQUENCER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DeregisterSequencer_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.deregisterSequencer();
+
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertFalse(info.isRegistered);
+    }
+
+    function test_DeregisterSequencer_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.deregisterSequencer();
+    }
+
+    function test_DeregisterSequencer_RevertIfHasStakes() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.InsufficientBalance.selector);
+        staking.deregisterSequencer();
+    }
+
+    function test_DeregisterSequencer_TransfersCommission() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Trigger seigniorage to accumulate commission
+        vm.prank(user2);
+        staking.triggerSeigniorage(sequencer1);
+
+        // Unstake all
+        vm.warp(block.timestamp + 13 seconds);
+        vm.prank(user1);
+        staking.unstake(sequencer1, 1000 ether);
+
+        // Get commission before deregister
+        IDelegateStakingV3.SequencerInfo memory infoBefore = staking.getSequencerInfo(sequencer1);
+        uint256 commissionAmount = infoBefore.totalCommission;
+
+        uint256 wtonBefore = wton.balanceOf(sequencer1);
+
+        // Deregister
+        vm.prank(sequencer1);
+        staking.deregisterSequencer();
+
+        // Verify commission was transferred
+        assertEq(wton.balanceOf(sequencer1) - wtonBefore, commissionAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    COMMISSION UPDATE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_UpdateCommission_CallsRequestCommissionUpdate() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // updateCommission should internally call requestCommissionUpdate
+        vm.prank(sequencer1);
+        staking.updateCommission(2000);
+
+        (uint256 newCommission, uint256 effectiveTime) = staking.getPendingCommission(sequencer1);
+        assertEq(newCommission, 2000);
+        assertGt(effectiveTime, 0);
+    }
+
+    function test_RequestCommissionUpdate_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.requestCommissionUpdate(2000);
+    }
+
+    function test_RequestCommissionUpdate_RevertIfInvalidCommission() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.InvalidCommission.selector);
+        staking.requestCommissionUpdate(3001); // > MAX_COMMISSION
+    }
+
+    function test_ApplyCommissionUpdate_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.applyCommissionUpdate();
+    }
+
+    function test_CancelCommissionUpdate_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.cancelCommissionUpdate();
+    }
+
+    function test_CancelCommissionUpdate_RevertIfNoPending() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(DelegateStakingV3Upgradeable.NoPendingCommission.selector);
+        staking.cancelCommissionUpdate();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    AUTO TRIGGER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetAutoTrigger_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertTrue(info.autoTriggerEnabled);
+    }
+
+    function test_SetAutoTrigger_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.setAutoTrigger(true);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    RECEIVE REWARD TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ReceiveReward_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Sequencer sends reward
+        uint256 rewardAmount = 1000 ether * 1e9; // WTON
+        wton.mint(sequencer1, rewardAmount);
+
+        vm.startPrank(sequencer1);
+        wton.approve(address(staking), rewardAmount);
+        staking.receiveReward(rewardAmount);
+        vm.stopPrank();
+
+        // Verify rewards are pending
+        uint256 pending = staking.pendingRewards(user1, sequencer1);
+        assertGt(pending, 0);
+    }
+
+    function test_ReceiveReward_RevertIfZeroAmount() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.ZeroAmount.selector);
+        staking.receiveReward(0);
+    }
+
+    function test_ReceiveReward_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.receiveReward(1000);
+    }
+
+    function test_ReceiveReward_WithZeroTotalStaked() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // No one has staked yet
+        uint256 rewardAmount = 1000 ether * 1e9;
+        wton.mint(sequencer1, rewardAmount);
+
+        vm.startPrank(sequencer1);
+        wton.approve(address(staking), rewardAmount);
+        staking.receiveReward(rewardAmount);
+        vm.stopPrank();
+
+        // All goes to commission since no stakers
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        assertEq(info.totalCommission, rewardAmount * 1000 / 10000); // 10% commission
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CLAIM COMMISSION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ClaimCommission_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Trigger to accumulate commission
+        vm.prank(user2);
+        staking.triggerSeigniorage(sequencer1);
+
+        IDelegateStakingV3.SequencerInfo memory info = staking.getSequencerInfo(sequencer1);
+        uint256 commissionAmount = info.totalCommission;
+        assertGt(commissionAmount, 0);
+
+        uint256 wtonBefore = wton.balanceOf(sequencer1);
+
+        vm.prank(sequencer1);
+        staking.claimCommission();
+
+        assertEq(wton.balanceOf(sequencer1) - wtonBefore, commissionAmount);
+    }
+
+    function test_ClaimCommission_RevertIfNotRegistered() public {
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.claimCommission();
+    }
+
+    function test_ClaimCommission_RevertIfNoPending() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        vm.expectRevert(IDelegateStakingV3.NoPendingRewards.selector);
+        staking.claimCommission();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    STAKE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Stake_RevertIfZeroAmount() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.ZeroAmount.selector);
+        staking.stake(sequencer1, 0);
+    }
+
+    function test_Stake_RevertIfSequencerNotRegistered() public {
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.stake(sequencer1, 1000 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    UNSTAKE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Unstake_RevertIfZeroAmount() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.ZeroAmount.selector);
+        staking.unstake(sequencer1, 0);
+        vm.stopPrank();
+    }
+
+    function test_Unstake_RevertIfInsufficientBalance() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.InsufficientBalance.selector);
+        staking.unstake(sequencer1, 2000 ether);
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    WITHDRAW TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Withdraw_RevertIfNoUnstakeRequest() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.NoUnstakeRequest.selector);
+        staking.withdraw(sequencer1);
+        vm.stopPrank();
+    }
+
+    function test_Withdraw_RevertIfUnbondingPeriodNotElapsed() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        staking.unstake(sequencer1, 500 ether);
+
+        vm.expectRevert(IDelegateStakingV3.UnstakingPeriodNotElapsed.selector);
+        staking.withdraw(sequencer1);
+        vm.stopPrank();
+    }
+
+    function test_Withdraw_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        staking.unstake(sequencer1, 500 ether);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + UNBONDING_PERIOD + 1);
+
+        uint256 tonBefore = ton.balanceOf(user1);
+        vm.prank(user1);
+        staking.withdraw(sequencer1);
+        assertEq(ton.balanceOf(user1) - tonBefore, 500 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    REDELEGATE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Redelegate_Success() public {
+        // Setup two sequencers
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        // Stake to sequencer1
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        // Redelegate to sequencer2
+        staking.redelegate(sequencer1, sequencer2, 500 ether);
+        vm.stopPrank();
+
+        // Verify balances
+        IDelegateStakingV3.StakeInfo memory stake1 = staking.getStakeInfo(user1, sequencer1);
+        IDelegateStakingV3.StakeInfo memory stake2 = staking.getStakeInfo(user1, sequencer2);
+        assertEq(stake1.amount, 500 ether);
+        assertEq(stake2.amount, 500 ether);
+    }
+
+    function test_Redelegate_RevertIfZeroAmount() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.ZeroAmount.selector);
+        staking.redelegate(sequencer1, sequencer2, 0);
+        vm.stopPrank();
+    }
+
+    function test_Redelegate_RevertIfSameSequencer() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.Unauthorized.selector);
+        staking.redelegate(sequencer1, sequencer1, 500 ether);
+        vm.stopPrank();
+    }
+
+    function test_Redelegate_RevertIfTargetNotRegistered() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.redelegate(sequencer1, sequencer2, 500 ether);
+        vm.stopPrank();
+    }
+
+    function test_Redelegate_RevertIfInsufficientBalance() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.InsufficientBalance.selector);
+        staking.redelegate(sequencer1, sequencer2, 2000 ether);
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    TRIGGER SEIGNIORAGE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_TriggerSeigniorage_BySequencer() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        // Sequencer can trigger even without auto-trigger
+        vm.prank(sequencer1);
+        staking.triggerSeigniorage(sequencer1);
+    }
+
+    function test_TriggerSeigniorage_RevertIfNotRegistered() public {
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.SequencerNotRegistered.selector);
+        staking.triggerSeigniorage(sequencer1);
+    }
+
+    function test_TriggerSeigniorage_RevertIfAutoTriggerDisabled() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Auto-trigger is disabled by default
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.AutoTriggerDisabled.selector);
+        staking.triggerSeigniorage(sequencer1);
+    }
+
+    function test_BatchTriggerSeigniorage_Success() public {
+        // Setup two sequencers with auto-trigger
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+        wton.mint(operatorManager2, INITIAL_BALANCE * 1e9);
+        MockOperatorManagerV3(operatorManager2).mockSetPendingRewards(INITIAL_BALANCE * 1e9);
+
+        vm.prank(sequencer2);
+        MockOperatorManagerV3(operatorManager2).authorizeClaimer(address(staking));
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        vm.prank(sequencer2);
+        staking.setAutoTrigger(true);
+
+        // Stake to both
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 500 ether);
+        staking.stake(sequencer2, 500 ether);
+        vm.stopPrank();
+
+        // Batch trigger
+        address[] memory sequencersList = new address[](2);
+        sequencersList[0] = sequencer1;
+        sequencersList[1] = sequencer2;
+
+        vm.prank(user2);
+        staking.batchTriggerSeigniorage(sequencersList);
+
+        // Verify rewards for both
+        assertGt(staking.pendingRewards(user1, sequencer1), 0);
+        assertGt(staking.pendingRewards(user1, sequencer2), 0);
+    }
+
+    function test_BatchTriggerSeigniorage_SkipsUnregistered() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        address unregistered = makeAddr("unregistered");
+
+        address[] memory sequencersList = new address[](2);
+        sequencersList[0] = sequencer1;
+        sequencersList[1] = unregistered;
+
+        // Should not revert, just skip unregistered
+        vm.prank(user2);
+        staking.batchTriggerSeigniorage(sequencersList);
+    }
+
+    function test_BatchTriggerSeigniorage_SkipsAutoTriggerDisabled() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+        // Auto-trigger disabled
+
+        address[] memory sequencersList = new address[](1);
+        sequencersList[0] = sequencer1;
+
+        // Should not revert, just skip
+        vm.prank(user2);
+        staking.batchTriggerSeigniorage(sequencersList);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    EMERGENCY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ActivateEmergency_ByOwner() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertTrue(config.isActive);
+    }
+
+    function test_ActivateEmergency_ByGuardian() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address guardian = makeAddr("guardian");
+        vm.prank(owner);
+        staking.setLayer2Guardian(layer2_1, guardian);
+
+        vm.prank(guardian);
+        staking.activateEmergency(layer2_1);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertTrue(config.isActive);
+    }
+
+    function test_ActivateEmergency_RevertIfNotGuardian() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.NotGuardian.selector);
+        staking.activateEmergency(layer2_1);
+    }
+
+    function test_ActivateEmergency_RevertIfAlreadyActive() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        vm.prank(owner);
+        vm.expectRevert(IDelegateStakingV3.EmergencyAlreadyActive.selector);
+        staking.activateEmergency(layer2_1);
+    }
+
+    function test_DeactivateEmergency_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        vm.prank(owner);
+        staking.deactivateEmergency(layer2_1);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertFalse(config.isActive);
+    }
+
+    function test_DeactivateEmergency_RevertIfNotGuardian() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.NotGuardian.selector);
+        staking.deactivateEmergency(layer2_1);
+    }
+
+    function test_DeactivateEmergency_RevertIfNotActive() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        vm.expectRevert(IDelegateStakingV3.EmergencyNotActive.selector);
+        staking.deactivateEmergency(layer2_1);
+    }
+
+    function test_EmergencyWithdraw_RevertIfNotActive() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+
+        vm.expectRevert(IDelegateStakingV3.EmergencyNotActive.selector);
+        staking.emergencyWithdraw(sequencer1);
+        vm.stopPrank();
+    }
+
+    function test_EmergencyWithdraw_RevertIfCooldownNotElapsed() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        // Try immediately without waiting for cooldown
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.EmergencyCooldownNotElapsed.selector);
+        staking.emergencyWithdraw(sequencer1);
+    }
+
+    function test_EmergencyWithdraw_RevertIfZeroBalance() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        vm.warp(block.timestamp + 3 days + 1);
+
+        // User has no stake
+        vm.prank(user1);
+        vm.expectRevert(IDelegateStakingV3.InsufficientBalance.selector);
+        staking.emergencyWithdraw(sequencer1);
+    }
+
+    function test_EmergencyWithdraw_IncludesUnstakeAmount() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        staking.unstake(sequencer1, 500 ether);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        staking.activateEmergency(layer2_1);
+
+        vm.warp(block.timestamp + 3 days + 1);
+
+        uint256 tonBefore = ton.balanceOf(user1);
+        vm.prank(user1);
+        staking.emergencyWithdraw(sequencer1);
+
+        // Should receive both staked and unstaked amounts
+        assertEq(ton.balanceOf(user1) - tonBefore, 1000 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    VIEW FUNCTIONS TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_GetStakeInfo() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        IDelegateStakingV3.StakeInfo memory info = staking.getStakeInfo(user1, sequencer1);
+        assertEq(info.amount, 1000 ether);
+    }
+
+    function test_GetSequencerByLayer2() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        assertEq(staking.getSequencerByLayer2(layer2_1), sequencer1);
+    }
+
+    function test_GetSequencerList_ExcludesDeregistered() public {
+        // Register two sequencers
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        // Deregister sequencer1
+        vm.prank(sequencer1);
+        staking.deregisterSequencer();
+
+        address[] memory activeList = staking.getSequencerList();
+        assertEq(activeList.length, 1);
+        assertEq(activeList[0], sequencer2);
+    }
+
+    function test_GetTotalStaked() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        assertEq(staking.getTotalStaked(), 1000 ether);
+    }
+
+    function test_PendingRewards_ZeroIfNoStake() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        assertEq(staking.pendingRewards(user1, sequencer1), 0);
+    }
+
+    function test_GetEmergencyConfig() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertFalse(config.isActive);
+        assertEq(config.cooldownPeriod, 3 days);
+        assertEq(config.guardian, owner);
+    }
+
+    function test_CheckLayer2Eligibility_NoSeigManager() public {
+        // Create new staking with zero seigManager
+        DelegateStakingV3Upgradeable impl = new DelegateStakingV3Upgradeable();
+        bytes memory initData = abi.encodeCall(
+            DelegateStakingV3Upgradeable.initialize,
+            (address(ton), address(wton), address(0), address(layer2Manager), UNBONDING_PERIOD, owner)
+        );
+        ERC1967Proxy newProxy = new ERC1967Proxy(address(impl), initData);
+        DelegateStakingV3Upgradeable newStaking = DelegateStakingV3Upgradeable(address(newProxy));
+
+        (bool eligible, uint256 required, uint256 current) = newStaking.checkLayer2Eligibility(layer2_1);
+        assertTrue(eligible);
+        assertEq(required, 0);
+        assertEq(current, 0);
+    }
+
+    function test_CheckLayer2Eligibility_WithSeigManager() public {
+        // Setup mock with bridgedTON and stakedTON
+        seigManager.updateBridgedTON(layer2_1, 1000 ether);
+        seigManager.updateStakedTON(layer2_1, 200 ether);
+
+        (bool eligible, uint256 required, uint256 current) = staking.checkLayer2Eligibility(layer2_1);
+        // With 10% minStakingRatio: required = 1000 * 0.1 = 100 ether
+        assertTrue(eligible);
+        assertEq(required, 100 ether);
+        assertEq(current, 200 ether);
+    }
+
+    function test_CheckLayer2Eligibility_NotEligible() public {
+        // Setup mock with insufficient stake
+        seigManager.updateBridgedTON(layer2_1, 1000 ether);
+        seigManager.updateStakedTON(layer2_1, 50 ether); // Less than 10% of 1000
+
+        (bool eligible, uint256 required, uint256 current) = staking.checkLayer2Eligibility(layer2_1);
+        assertFalse(eligible);
+        assertEq(required, 100 ether);
+        assertEq(current, 50 ether);
+    }
+
+    function test_CheckLayer2Eligibility_ZeroBridged() public {
+        // No bridgedTON set - should return eligible with 0 requirements
+        (bool eligible, uint256 required, uint256 current) = staking.checkLayer2Eligibility(layer2_1);
+        assertTrue(eligible); // 0 >= 0
+        assertEq(required, 0);
+        assertEq(current, 0);
+    }
+
+    function test_EstimateSeigniorage_NotRegistered() public {
+        (uint256 seqReward, uint256 valReward) = staking.estimateSeigniorage(sequencer1);
+        assertEq(seqReward, 0);
+        assertEq(valReward, 0);
+    }
+
+    function test_EstimateSeigniorage_WithSeigManager() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // Setup mock with bridgedTON and stakedTON (must be eligible)
+        seigManager.updateBridgedTON(layer2_1, 1000 ether);
+        seigManager.updateStakedTON(layer2_1, 200 ether);
+
+        // Mine some blocks to generate seigniorage
+        vm.roll(block.number + 100);
+
+        (uint256 seqReward, uint256 valReward) = staking.estimateSeigniorage(sequencer1);
+        // Should have some rewards based on blocks passed
+        assertGt(seqReward, 0);
+        assertGt(valReward, 0);
+    }
+
+    function test_EstimateSeigniorage_ZeroBridgedTON() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        // No bridgedTON - returns (0, 0)
+        (uint256 seqReward, uint256 valReward) = staking.estimateSeigniorage(sequencer1);
+        assertEq(seqReward, 0);
+        assertEq(valReward, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    ADMIN FUNCTIONS TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetDefaultGuardian_Success() public {
+        address newGuardian = makeAddr("newGuardian");
+
+        vm.prank(owner);
+        staking.setDefaultGuardian(newGuardian);
+
+        assertEq(staking.defaultGuardian(), newGuardian);
+    }
+
+    function test_SetDefaultGuardian_RevertIfZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(IDelegateStakingV3.ZeroAddress.selector);
+        staking.setDefaultGuardian(address(0));
+    }
+
+    function test_SetLayer2Guardian_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address newGuardian = makeAddr("newGuardian");
+        vm.prank(owner);
+        staking.setLayer2Guardian(layer2_1, newGuardian);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertEq(config.guardian, newGuardian);
+    }
+
+    function test_SetLayer2Guardian_RevertIfZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(IDelegateStakingV3.ZeroAddress.selector);
+        staking.setLayer2Guardian(layer2_1, address(0));
+    }
+
+    function test_SetEmergencyCooldown_Success() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.setEmergencyCooldown(layer2_1, 7 days);
+
+        IDelegateStakingV3.EmergencyConfig memory config = staking.getEmergencyConfig(layer2_1);
+        assertEq(config.cooldownPeriod, 7 days);
+    }
+
+    function test_SetMinStakeAmount_EmitsEvent() public {
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit DelegateStakingV3Upgradeable.MinStakeAmountUpdated(100 ether, 200 ether);
+        staking.setMinStakeAmount(200 ether);
+    }
+
+    function test_SetUnbondingPeriod_OnlyOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.setUnbondingPeriod(14 days);
+    }
+
+    function test_SetSeigManager_OnlyOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.setSeigManager(address(0));
+    }
+
+    function test_SetLayer2Manager_OnlyOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.setLayer2Manager(address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    PAUSED STATE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RegisterSequencer_RevertsWhenPaused() public {
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+    }
+
+    function test_DeregisterSequencer_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.deregisterSequencer();
+    }
+
+    function test_Redelegate_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.redelegate(sequencer1, sequencer2, 500 ether);
+    }
+
+    function test_Withdraw_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        staking.unstake(sequencer1, 500 ether);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + UNBONDING_PERIOD + 1);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.withdraw(sequencer1);
+    }
+
+    function test_TriggerSeigniorage_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.setAutoTrigger(true);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.triggerSeigniorage(sequencer1);
+    }
+
+    function test_ReceiveReward_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.receiveReward(1000);
+    }
+
+    function test_ClaimCommission_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.claimCommission();
+    }
+
+    function test_SetAutoTrigger_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.setAutoTrigger(true);
+    }
+
+    function test_RequestCommissionUpdate_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.requestCommissionUpdate(2000);
+    }
+
+    function test_ApplyCommissionUpdate_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.requestCommissionUpdate(2000);
+
+        vm.warp(block.timestamp + 7 days + 1);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.applyCommissionUpdate();
+    }
+
+    function test_CancelCommissionUpdate_RevertsWhenPaused() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(sequencer1);
+        staking.requestCommissionUpdate(2000);
+
+        vm.prank(owner);
+        staking.pause();
+
+        vm.prank(sequencer1);
+        vm.expectRevert();
+        staking.cancelCommissionUpdate();
+    }
 }
