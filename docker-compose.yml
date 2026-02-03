@@ -1,0 +1,287 @@
+version: '3.8'
+
+services:
+  # L1: Ethereum (Geth v1.13.x for PoA support)
+  l1:
+    image: ethereum/client-go:v1.13.15
+    platform: linux/amd64
+    container_name: ton-staking-l1
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+    volumes:
+      - l1-data:/datadir
+      - ./.devnet:/genesis
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Initialize with custom genesis if not already done
+        if [ ! -d /datadir/geth ]; then
+          echo "Initializing Geth with custom genesis..."
+          geth init --datadir=/datadir /genesis/genesis-l1-staking-v3.json
+        fi
+        
+        # Create password file
+        echo "" > /tmp/password.txt
+        
+        # Import clique signer account (force reimport if needed)
+        mkdir -p /datadir/keystore
+        if ! ls /datadir/keystore/UTC-* >/dev/null 2>&1; then
+          echo "Importing clique signer account..."
+          echo "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" > /tmp/pk.txt
+          geth account import --datadir=/datadir --password=/tmp/password.txt /tmp/pk.txt 2>/dev/null || true
+          rm -f /tmp/pk.txt
+        fi
+        
+        # Start Geth with clique mining
+        exec geth \
+          --datadir=/datadir \
+          --http \
+          --http.addr=0.0.0.0 \
+          --http.port=8545 \
+          --http.api=eth,net,web3,debug,admin,personal,txpool,miner,clique \
+          --http.corsdomain=* \
+          --http.vhosts=* \
+          --ws \
+          --ws.addr=0.0.0.0 \
+          --ws.port=8546 \
+          --ws.api=eth,net,web3,debug,txpool \
+          --ws.origins=* \
+          --networkid=900 \
+          --nodiscover \
+          --maxpeers=0 \
+          --unlock=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+          --password=/tmp/password.txt \
+          --mine \
+          --miner.etherbase=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+          --allow-insecure-unlock \
+          --verbosity=3
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8545 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - ton-staking-network
+
+  # L2: op-geth (Execution Layer)
+  l2-execution:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-execution
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9545:8545"      # HTTP RPC
+      - "9546:8546"      # WebSocket
+      - "30303:30303"    # P2P
+    volumes:
+      - l2-execution-data:/data
+      - ./.devnet:/genesis
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Initializing L2 geth with genesis..."
+        rm -rf /data/geth /data/geth.ipc
+        geth init --datadir=/data /genesis/genesis-l2.json
+        exec geth \
+          --datadir=/data \
+          --http \
+          --http.addr=0.0.0.0 \
+          --http.port=8545 \
+          --http.api=eth,net,web3,debug,txpool \
+          --http.corsdomain=* \
+          --http.vhosts=* \
+          --ws \
+          --ws.addr=0.0.0.0 \
+          --ws.port=8546 \
+          --ws.api=eth,net,web3,debug,txpool \
+          --ws.origins=* \
+          --authrpc.addr=0.0.0.0 \
+          --authrpc.port=8551 \
+          --authrpc.vhosts=* \
+          --authrpc.jwtsecret=/genesis/jwt-secret.txt \
+          --syncmode=full \
+          --gcmode=archive \
+          --maxpeers=0 \
+          --networkid=901 \
+          --rollup.disabletxpoolgossip=true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - ton-staking-network
+
+  # L2: op-node (Consensus/Rollup Layer)
+  l2-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.7.0
+    platform: linux/amd64
+    container_name: ton-staking-l2-node
+    depends_on:
+      l1:
+        condition: service_healthy
+      l2-execution:
+        condition: service_healthy
+    ports:
+      - "7545:8545"      # RPC
+      - "9222:9222"      # P2P
+    volumes:
+      - ./.devnet:/genesis
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        exec op-node \
+          --l1=http://l1:8545 \
+          --l1.rpckind=basic \
+          --l1.trustrpc \
+          --l2=http://l2-execution:8551 \
+          --l2.jwt-secret=/genesis/jwt-secret.txt \
+          --rollup.config=/genesis/rollup.json \
+          --rpc.addr=0.0.0.0 \
+          --rpc.port=8545 \
+          --p2p.disable \
+          --sequencer.enabled \
+          --sequencer.l1-confs=0 \
+          --verifier.l1-confs=0 \
+          --log.level=info
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - ton-staking-network
+
+  # L2: op-batcher (Batch Submitter)
+  l2-batcher:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-batcher
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet:/genesis
+    environment:
+      - OP_BATCHER_L1_ETH_RPC=http://l1:8545
+      - OP_BATCHER_L2_ETH_RPC=http://l2-execution:8545
+      - OP_BATCHER_ROLLUP_RPC=http://l2-node:8545
+      - OP_BATCHER_POLL_INTERVAL=1s
+      - OP_BATCHER_SUB_SAFETY_MARGIN=6
+      - OP_BATCHER_NUM_CONFIRMATIONS=1
+      - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_BATCHER_RESUBMISSION_TIMEOUT=30s
+      - OP_BATCHER_LOG_LEVEL=info
+      - OP_BATCHER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+    command: >
+      op-batcher
+      --log.level=info
+    networks:
+      - ton-staking-network
+
+  # L2: op-proposer (Output Proposer)
+  l2-proposer:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-proposer
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet:/genesis
+    environment:
+      - OP_PROPOSER_L1_ETH_RPC=http://l1:8545
+      - OP_PROPOSER_ROLLUP_RPC=http://l2-node:8545
+      - OP_PROPOSER_GAME_FACTORY_ADDRESS=0x52d01b38b78b559142B04CC19F5cC50D5C03dbAc
+      - OP_PROPOSER_POLL_INTERVAL=12s
+      - OP_PROPOSER_NUM_CONFIRMATIONS=1
+      - OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_PROPOSER_RESUBMISSION_TIMEOUT=30s
+      - OP_PROPOSER_LOG_LEVEL=info
+      - OP_PROPOSER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - OP_PROPOSER_PROPOSAL_INTERVAL=12s
+    command: >
+      op-proposer
+      --log.level=info
+    networks:
+      - ton-staking-network
+
+  # RAT Client #1 (Validator Account #2)
+  rat-client-1:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-1
+    depends_on:
+      l1:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet:/genesis
+    environment:
+      - L1_RPC_URL=http://l1:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #2 (Validator Account #3)
+  rat-client-2:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-2
+    depends_on:
+      l1:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet:/genesis
+    environment:
+      - L1_RPC_URL=http://l1:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #3 (Validator Account #4)
+  rat-client-3:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-3
+    depends_on:
+      l1:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet:/genesis
+    environment:
+      - L1_RPC_URL=http://l1:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+volumes:
+  l1-data:
+  l2-execution-data:
+
+networks:
+  ton-staking-network:
+    driver: bridge
