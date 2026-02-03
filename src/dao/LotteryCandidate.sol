@@ -341,32 +341,9 @@ contract LotteryCandidate is ProxyStorage, AccessibleCommon, LotteryCandidateSto
     // Seigniorage Functions
     // ========================================
 
-    /// @notice Receive seigniorage and distribute to depositors based on their balance ratio
-    /// @param amount Amount of WTON seigniorage to distribute
-    function receiveSeigniorage(uint256 amount) external onlyOperator returns (bool) {
-        require(amount > 0, "LotteryCandidate: zero amount");
-        require(totalDeposited > 0, "LotteryCandidate: no depositors");
-
-        // Transfer WTON from operator
-        IERC20(wton).safeTransferFrom(msg.sender, address(this), amount);
-
-        // Distribute proportionally and deposit to DepositManager
-        _distributeSeigniorage(amount);
-        
-        totalDeposited += amount;
-
-        // Deposit to DepositManager for the contract
-        IERC20(wton).safeIncreaseAllowance(depositManager, amount);
-        require(
-            IDepositManager(depositManager).deposit(address(this), address(this), amount),
-            "LotteryCandidate: seigniorage deposit failed"
-        );
-
-        emit SeigniorageReceived(amount);
-        emit SeigniorageDistributed(amount, _depositors.length);
-        return true;
-    }
-
+    /// @notice Distribute seigniorage to depositors based on their balance ratio
+    /// @dev Called internally when coinage balance increases after updateSeigniorage
+    /// @param amount Amount of seigniorage to distribute (increase in coinage balance)
     function _distributeSeigniorage(uint256 amount) internal returns (uint256 distributed) {
         uint256 total = totalDeposited;
         uint256 len = _depositors.length;
@@ -383,7 +360,7 @@ contract LotteryCandidate is ProxyStorage, AccessibleCommon, LotteryCandidateSto
             }
         }
 
-        // Handle dust
+        // Handle dust - give remainder to last depositor with balance
         if (distributed < amount && len > 0) {
             for (uint256 i = len; i > 0; i--) {
                 address dep = _depositors[i - 1];
@@ -463,9 +440,50 @@ contract LotteryCandidate is ProxyStorage, AccessibleCommon, LotteryCandidateSto
         IDAOCommittee(committee).claimActivityReward(candidate);
     }
 
+    /// @notice Update seigniorage and distribute to depositors
+    /// @dev Calls SeigManager.updateSeigniorage() which increases coinage balance via factor
+    ///      The increase is then distributed proportionally to internal depositors
     function updateSeigniorage() external returns (bool) {
         require(seigManager != address(0), "LotteryCandidate: SeigManager not set");
+        
+        IERC20 coinage = _getCoinageToken();
+        
+        // Record coinage balance before update
+        uint256 balanceBefore = coinage.balanceOf(address(this));
+        
+        // Call SeigManager to mint seigniorage (increases coinage factor)
         require(ISeigManager(seigManager).updateSeigniorage(), "LotteryCandidate: updateSeigniorage failed");
+        
+        // Check coinage balance after update
+        uint256 balanceAfter = coinage.balanceOf(address(this));
+        
+        // If balance increased, distribute the seigniorage to internal depositors
+        if (balanceAfter > balanceBefore && totalDeposited > 0) {
+            uint256 seigniorage = balanceAfter - balanceBefore;
+            _distributeSeigniorage(seigniorage);
+            totalDeposited += seigniorage;
+            
+            emit SeigniorageReceived(seigniorage);
+            emit SeigniorageDistributed(seigniorage, _depositors.length);
+        }
+        
         return true;
+    }
+
+    /// @notice Retrieves the total staked balance on this candidate
+    /// @return totalsupply Total staked amount on this candidate
+    function totalStaked()
+        external
+        view
+        returns (uint256 totalsupply)
+    {
+        IERC20 coinage = _getCoinageToken();
+        return coinage.totalSupply();
+    }
+
+    /// @notice Get the coinage token for this candidate
+    /// @return The coinage token address
+    function _getCoinageToken() internal view returns (IERC20) {
+        return IERC20(ISeigManager(seigManager).coinages(address(this)));
     }
 }

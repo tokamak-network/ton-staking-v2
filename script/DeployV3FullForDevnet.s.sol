@@ -43,13 +43,10 @@ import {DAOCommittee_V1} from "../src/dao/DAOCommittee_V1.sol";
 import {DAOCommitteeOwner} from "../src/dao/DAOCommitteeOwner.sol";
 import {Candidate} from "../src/dao/Candidate.sol";
 import {CandidateAddOnV1_1} from "../src/dao/CandidateAddOnV1_1.sol";
-import {LotteryCandidate} from "../src/dao/LotteryCandidate.sol";
 import {CandidateFactory} from "../src/dao/factory/CandidateFactory.sol";
 import {CandidateFactoryProxy} from "../src/dao/factory/CandidateFactoryProxy.sol";
 import {CandidateAddOnFactory} from "../src/dao/factory/CandidateAddOnFactory.sol";
 import {CandidateAddOnFactoryProxy} from "../src/dao/factory/CandidateAddOnFactoryProxy.sol";
-import {LotteryCandidateFactory} from "../src/dao/factory/LotteryCandidateFactory.sol";
-import {LotteryCandidateFactoryProxy} from "../src/dao/factory/LotteryCandidateFactoryProxy.sol";
 
 // DAO Storage and AccessControl
 import {StorageStateCommittee} from "../src/dao/StorageStateCommittee.sol";
@@ -108,7 +105,6 @@ interface IDAOCommitteeProxy2 {
 interface IDAOCommitteeOwner {
     function setCandidateFactory(address _candidateFactory) external;
     function setCandidateAddOnFactory(address _candidateAddOnFactory) external;
-    function setLotteryCandidateFactory(address _lotteryCandidateFactory) external;
     function setSeigManager(address _seigManager) external;
     function setLayer2Manager(address _layer2Manager) external;
     function setLayer2Registry(address _layer2Registry) external;
@@ -289,10 +285,8 @@ contract DeployV3FullForDevnet is Script {
     address public daoCommitteeOwner;
     address public candidateImpl;
     address public candidateAddOnImpl;
-    address public lotteryCandidateImpl;
     address public candidateFactoryProxy;
     address public candidateAddOnFactoryProxy;
-    address public lotteryCandidateFactoryProxy;
     address public mockLayer2;  // Created Layer2 (CandidateAddOn)
     address public operatorManager; // Created OperatorManager for mockLayer2
 
@@ -826,13 +820,12 @@ contract DeployV3FullForDevnet is Script {
         // 4. Setup DAOCommitteeOwner selector routing
         IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoCommitteeOwner, true);
 
-        bytes4[] memory ownerSelectors = new bytes4[](6);
+        bytes4[] memory ownerSelectors = new bytes4[](5);
         ownerSelectors[0] = IDAOCommitteeOwner.setCandidateFactory.selector;
         ownerSelectors[1] = IDAOCommitteeOwner.setCandidateAddOnFactory.selector;
-        ownerSelectors[2] = IDAOCommitteeOwner.setLotteryCandidateFactory.selector;
-        ownerSelectors[3] = IDAOCommitteeOwner.setSeigManager.selector;
-        ownerSelectors[4] = IDAOCommitteeOwner.setLayer2Manager.selector;
-        ownerSelectors[5] = IDAOCommitteeOwner.setLayer2Registry.selector;
+        ownerSelectors[2] = IDAOCommitteeOwner.setSeigManager.selector;
+        ownerSelectors[3] = IDAOCommitteeOwner.setLayer2Manager.selector;
+        ownerSelectors[4] = IDAOCommitteeOwner.setLayer2Registry.selector;
 
         IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoCommitteeOwner);
         console.log("Owner selectors configured");
@@ -840,11 +833,9 @@ contract DeployV3FullForDevnet is Script {
         // 5. Deploy Candidate implementations
         candidateImpl = address(new Candidate());
         candidateAddOnImpl = address(new CandidateAddOnV1_1());
-        lotteryCandidateImpl = address(new LotteryCandidate());
         console.log("Candidate implementations:");
         console.log("  Candidate:", candidateImpl);
         console.log("  CandidateAddOnV1_1:", candidateAddOnImpl);
-        console.log("  LotteryCandidate:", lotteryCandidateImpl);
 
         // 6. Deploy factories with proxies
         CandidateFactoryProxy cfProxy = new CandidateFactoryProxy();
@@ -856,12 +847,6 @@ contract DeployV3FullForDevnet is Script {
         candidateAddOnFactoryProxy = address(caofProxy);
         caofProxy.upgradeTo(address(new CandidateAddOnFactory()));
         console.log("CandidateAddOnFactoryProxy:", candidateAddOnFactoryProxy);
-        console.log("LotteryCandidateFactoryProxy:", lotteryCandidateFactoryProxy);
-
-        LotteryCandidateFactoryProxy lcfProxy = new LotteryCandidateFactoryProxy();
-        lotteryCandidateFactoryProxy = address(lcfProxy);
-        lcfProxy.upgradeTo(address(new LotteryCandidateFactory()));
-        console.log("LotteryCandidateFactoryProxy:", lotteryCandidateFactoryProxy);
 
         // 7. Configure factories
         CandidateFactory(candidateFactoryProxy).setAddress(
@@ -880,20 +865,11 @@ contract DeployV3FullForDevnet is Script {
             wton,
             l1BridgeRegistryProxy
         );
-
-        LotteryCandidateFactory(lotteryCandidateFactoryProxy).setAddress(
-            depositManagerProxy,
-            daoCommitteeProxy,
-            lotteryCandidateImpl,
-            ton,
-            wton
-        );
         console.log("Factories configured");
 
         // 8. Configure DAO
         IDAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(candidateFactoryProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setCandidateAddOnFactory(candidateAddOnFactoryProxy);
-        IDAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(lotteryCandidateFactoryProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setLayer2Manager(layer2ManagerProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
@@ -1065,10 +1041,8 @@ contract DeployV3FullForDevnet is Script {
             '  "daoCommitteeOwner": "', vm.toString(daoCommitteeOwner), '",\n',
             '  "candidateImpl": "', vm.toString(candidateImpl), '",\n',
             '  "candidateAddOnImpl": "', vm.toString(candidateAddOnImpl), '",\n',
-            '  "lotteryCandidateImpl": "', vm.toString(lotteryCandidateImpl), '",\n',
             '  "candidateFactoryProxy": "', vm.toString(candidateFactoryProxy), '",\n',
             '  "candidateAddOnFactoryProxy": "', vm.toString(candidateAddOnFactoryProxy), '",\n',
-            '  "lotteryCandidateFactoryProxy": "', vm.toString(lotteryCandidateFactoryProxy), '",\n',
             '  "mockLayer2": "', vm.toString(mockLayer2), '",\n'
         ));
     }

@@ -58,6 +58,7 @@ contract LotteryCandidateStorage {
     // Seigniorage Distribution
     // ========================================
     // Seigniorage is distributed based on current _balances ratio
-    // When seigniorage arrives, it's added to users' _balances proportionally
-    uint256 public pendingSeigniorage;  // Seigniorage waiting to be distributed
+    // When updateSeigniorage is called, coinage totalSupply increases
+    // The increase is distributed proportionally to users' _balances
+    uint256 public lastCoinageTotalSupply;  // Last recorded coinage totalSupply for tracking seigniorage
 }
