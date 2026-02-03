@@ -123,20 +123,24 @@ make test-e2e
 
 ### Prerequisites
 - Docker & Docker Compose
+- Foundry (forge, cast)
 - jq (JSON processor)
 - curl
 
 ### Quick Start
 
 ```bash
-# 1. Start devnet
-docker-compose up -d
+# 1. Generate genesis (first time only)
+make devnet-allocs-offline
 
-# 2. Check health
+# 2. Start devnet (Geth L1 + Optimism L2)
+make devnet-start
+
+# 3. Check status
+make devnet-info
+
+# 4. Run health check
 ./scripts/check-devnet-health.sh
-
-# 3. View logs
-docker-compose logs -f l2-node
 ```
 
 ### System Components
@@ -144,10 +148,20 @@ docker-compose logs -f l2-node
 | Component | Port | Description |
 |-----------|------|-------------|
 | **L1 (Geth v1.13.15)** | 8545 | Ethereum L1 with Clique PoA |
-| **L2 (op-geth)** | 9545 | Optimism L2 execution layer |
+| **L2 (op-geth)** | 9545 | Optimism L2 execution layer (Debug Mode) |
 | **op-node** | 7545 | L2 consensus/rollup node |
 | **Batcher** | - | Submits L2 batches to L1 |
 | **RAT Clients (3)** | - | Monitor RAT events |
+
+**Why Geth instead of Anvil?**
+- op-node requires `eth_getStorageAt` with block hash as blockTag
+- Anvil doesn't support block hash as blockTag
+- Geth fully supports this, ensuring op-node compatibility
+
+**L2 Debug Mode:**
+- `debug_accountRange` API enabled for RAT Client
+- `trace` API enabled for transaction tracing
+- Archive mode for full state history
 
 ### Key Addresses
 
