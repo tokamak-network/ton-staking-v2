@@ -119,6 +119,27 @@ func fundAccount(t *testing.T, client *ethclient.Client, account common.Address,
 // Common test constants
 // ============================================================================
 
+// OptimismAddresses holds Optimism contract addresses from optimism-addresses.json
+type OptimismAddresses struct {
+	L1CrossDomainMessengerProxy       common.Address
+	L1ERC721BridgeProxy               common.Address
+	L1StandardBridgeProxy             common.Address
+	OptimismPortalProxy               common.Address
+	OptimismMintableERC20FactoryProxy common.Address
+}
+
+// loadOptimismAddresses loads Optimism addresses from optimism-addresses.json
+func loadOptimismAddresses(t *testing.T, sys *rat.TONStakingSystem) *OptimismAddresses {
+	// These addresses are from .devnet/optimism-addresses.json
+	return &OptimismAddresses{
+		L1CrossDomainMessengerProxy:       common.HexToAddress("0xfec5062b9a199b151bc1c9c28c549c1cb0cd1218"),
+		L1ERC721BridgeProxy:               common.HexToAddress("0xecad228ddf673e94fe7f26f0eba195ebcc8deb65"),
+		L1StandardBridgeProxy:             common.HexToAddress("0x95e1bdf199beb2d11174c9f15cb2d0d1d165bcf7"),
+		OptimismPortalProxy:               common.HexToAddress("0xbf6531954aa355f478e54fedff94d9d9e7008d79"),
+		OptimismMintableERC20FactoryProxy: common.HexToAddress("0x8abdb0917e5f7f1f6b971ff6189379adca1c2790"),
+	}
+}
+
 // Common test constants
 const (
 	// Test accounts private keys (Anvil test accounts)
@@ -417,6 +438,7 @@ func setRATTriggerProbabilityTo100Percent(t *testing.T, sys *rat.TONStakingSyste
 // initializeOptimismContracts initializes Optimism contracts at runtime.
 //
 // This function initializes:
+// - SystemConfig.initialize() - set L1StandardBridge, L1CrossDomainMessenger, etc.
 // - MockAnchorStateRegistry.initialize(systemConfig, disputeGameFactory, anchorRoot, gameType)
 // - DisputeGameFactory.setRAT(ratProxy)
 // - DisputeGameFactory.setInitBond(gameType, bond)
@@ -449,6 +471,93 @@ func initializeOptimismContracts(t *testing.T, sys *rat.TONStakingSystem) {
 		require.NoError(t, err, "Failed to send "+description)
 
 		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, description)
+	}
+
+	// ===========================================
+	// 0. Initialize SystemConfig (if not already initialized)
+	// ===========================================
+	// Check if SystemConfig.l1StandardBridge is set
+	systemConfigABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[],"name":"l1StandardBridge","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"l1CrossDomainMessenger","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"l1ERC721Bridge","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"optimismPortal","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[],"name":"optimismMintableERC20Factory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+	]`))
+	require.NoError(t, err)
+
+	// Load Optimism addresses
+	optimismAddresses := loadOptimismAddresses(t, sys)
+
+	// Check current l1StandardBridge
+	checkBridgeData, _ := systemConfigABI.Pack("l1StandardBridge")
+	bridgeResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.SystemConfig,
+		Data: checkBridgeData,
+	}, nil)
+	require.NoError(t, err)
+
+	var currentBridge common.Address
+	if len(bridgeResult) >= 32 {
+		currentBridge = common.BytesToAddress(bridgeResult)
+	}
+
+	if currentBridge == (common.Address{}) {
+		t.Log("SystemConfig not initialized, initializing now...")
+
+		// SystemConfig.initialize() ABI
+		initSystemConfigABI, err := abi.JSON(strings.NewReader(`[
+			{"inputs":[
+				{"internalType":"address","name":"_owner","type":"address"},
+				{"internalType":"uint256","name":"_overhead","type":"uint256"},
+				{"internalType":"uint256","name":"_scalar","type":"uint256"},
+				{"internalType":"bytes32","name":"_batcherHash","type":"bytes32"},
+				{"internalType":"uint64","name":"_gasLimit","type":"uint64"},
+				{"internalType":"address","name":"_unsafeBlockSigner","type":"address"},
+				{"components":[
+					{"internalType":"address","name":"l1CrossDomainMessenger","type":"address"},
+					{"internalType":"address","name":"l1ERC721Bridge","type":"address"},
+					{"internalType":"address","name":"l1StandardBridge","type":"address"},
+					{"internalType":"address","name":"disputeGameFactory","type":"address"},
+					{"internalType":"address","name":"optimismPortal","type":"address"},
+					{"internalType":"address","name":"optimismMintableERC20Factory","type":"address"}
+				],"internalType":"struct SystemConfig.Addresses","name":"_addresses","type":"tuple"}
+			],"name":"initialize","outputs":[],"stateMutability":"nonpayable","type":"function"}
+		]`))
+		require.NoError(t, err)
+
+		// Prepare SystemConfig.Addresses struct
+		addresses := struct {
+			L1CrossDomainMessenger       common.Address
+			L1ERC721Bridge               common.Address
+			L1StandardBridge             common.Address
+			DisputeGameFactory           common.Address
+			OptimismPortal               common.Address
+			OptimismMintableERC20Factory common.Address
+		}{
+			L1CrossDomainMessenger:       optimismAddresses.L1CrossDomainMessengerProxy,
+			L1ERC721Bridge:               optimismAddresses.L1ERC721BridgeProxy,
+			L1StandardBridge:             optimismAddresses.L1StandardBridgeProxy,
+			DisputeGameFactory:           sys.Addresses.DisputeGameFactory,
+			OptimismPortal:               optimismAddresses.OptimismPortalProxy,
+			OptimismMintableERC20Factory: optimismAddresses.OptimismMintableERC20FactoryProxy,
+		}
+
+		initData, err := initSystemConfigABI.Pack("initialize",
+			optimismDeployer,    // _owner
+			big.NewInt(2100),    // _overhead (default)
+			big.NewInt(1000000), // _scalar (default)
+			[32]byte{},          // _batcherHash (empty for devnet)
+			uint64(30000000),    // _gasLimit (30M)
+			optimismDeployer,    // _unsafeBlockSigner
+			addresses,           // _addresses
+		)
+		require.NoError(t, err)
+
+		sendTx(sys.Addresses.SystemConfig, initData, "SystemConfig.initialize")
+		t.Logf("✓ SystemConfig initialized with L1StandardBridge=%s", optimismAddresses.L1StandardBridgeProxy.Hex())
+	} else {
+		t.Logf("✓ SystemConfig already initialized (l1StandardBridge=%s)", currentBridge.Hex())
 	}
 
 	// ===========================================
@@ -530,15 +639,67 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 	// No need to call it again at runtime.
 
 	// ===========================================
-	// Call L1BridgeRegistry.addManager() to grant manager role (if not already granted)
+	// Step 1: Ensure rollupType 3 is registered in L1BridgeRegistry
 	// ===========================================
 	l1BridgeRegistryABI, err := abi.JSON(strings.NewReader(`[
 		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"addManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
 		{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isManager","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
 		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"},{"internalType":"uint8","name":"rollupType","type":"uint8"},{"internalType":"address","name":"l2TON","type":"address"},{"internalType":"string","name":"name","type":"string"}],"name":"registerRollupConfigByManager","outputs":[],"stateMutability":"nonpayable","type":"function"},
-		{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+		{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"rollupConfigWithDisputeGameFactory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"uint8","name":"rollupType","type":"uint8"}],"name":"isValidRollupType","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+		{"inputs":[{"internalType":"uint8","name":"rollupType","type":"uint8"},{"internalType":"string","name":"name","type":"string"},{"internalType":"uint8","name":"bridgePattern","type":"uint8"},{"internalType":"bytes4","name":"tvlContractGetter","type":"bytes4"},{"internalType":"bool","name":"isV3Eligible","type":"bool"}],"name":"addRollupType","outputs":[],"stateMutability":"nonpayable","type":"function"}
 	]`))
 	require.NoError(t, err)
+
+	// Check if rollupType 3 is already registered
+	checkRollupTypeData, err := l1BridgeRegistryABI.Pack("isValidRollupType", uint8(3))
+	require.NoError(t, err)
+
+	var isValidResult string
+	err = sys.L1Client.Client().Call(&isValidResult, "eth_call", map[string]any{
+		"to":   sys.Addresses.L1BridgeRegistryProxy,
+		"data": "0x" + common.Bytes2Hex(checkRollupTypeData),
+	}, "latest")
+	require.NoError(t, err, "Failed to check isValidRollupType")
+
+	isRollupType3Valid := isValidResult != "0x0000000000000000000000000000000000000000000000000000000000000000" && isValidResult != "0x"
+
+	if !isRollupType3Valid {
+		t.Log("RollupType 3 not registered, adding it now...")
+
+		// Prepare transaction arguments
+		var txHash common.Hash
+		txArgs := map[string]any{
+			"from":     deployer,
+			"to":       sys.Addresses.L1BridgeRegistryProxy,
+			"gas":      "0x100000",
+			"gasPrice": "0x" + gasPrice.Text(16),
+		}
+
+		// addRollupType(3, "OPTIMISM_BEDROCK_WITH_DISPUTE_GAME", 1 /* NATIVE */, bytes4(0), true /* V3Eligible */)
+		addRollupTypeData, err := l1BridgeRegistryABI.Pack("addRollupType",
+			uint8(3),                             // rollupType
+			"OPTIMISM_BEDROCK_WITH_DISPUTE_GAME", // name
+			uint8(1),                             // bridgePattern: NATIVE
+			[4]byte{0x00, 0x00, 0x00, 0x00},      // tvlContractGetter (empty)
+			true,                                 // isV3Eligible
+		)
+		require.NoError(t, err)
+
+		txArgs["data"] = "0x" + common.Bytes2Hex(addRollupTypeData)
+
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send L1BridgeRegistry.addRollupType")
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.addRollupType")
+		t.Log("✓ RollupType 3 registered")
+	} else {
+		t.Log("✓ RollupType 3 already registered")
+	}
+
+	// ===========================================
+	// Step 2: Call L1BridgeRegistry.addManager() to grant manager role (if not already granted)
+	// ===========================================
 
 	// Check if deployer is already a manager
 	callData, err := l1BridgeRegistryABI.Pack("isManager", deployer)
@@ -582,21 +743,100 @@ func registerSystemConfigInL1BridgeRegistry(t *testing.T, sys *rat.TONStakingSys
 	// ===========================================
 	// Call L1BridgeRegistry.registerRollupConfigByManager() via transaction
 	// ===========================================
-	// TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
-	callData, err = l1BridgeRegistryABI.Pack("registerRollupConfigByManager",
-		sys.Addresses.SystemConfig, // rollupConfig
-		uint8(3),                   // rollupType = OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
-		sys.Addresses.TON,          // l2TON
-		"DevnetOptimism",           // name
-	)
+	// Check if SystemConfig is already registered
+	getRollupInfoABI, err := abi.JSON(strings.NewReader(`[
+		{"inputs":[{"internalType":"address","name":"rollupConfig","type":"address"}],"name":"getRollupInfo","outputs":[{"internalType":"uint8","name":"rollupType_","type":"uint8"},{"internalType":"address","name":"l2TON_","type":"address"},{"internalType":"bool","name":"rejectedSeigs_","type":"bool"},{"internalType":"bool","name":"rejectedL2Deposit_","type":"bool"},{"internalType":"string","name":"name_","type":"string"}],"stateMutability":"view","type":"function"}
+	]`))
 	require.NoError(t, err)
 
-	txArgs["data"] = "0x" + common.Bytes2Hex(callData)
+	checkRollupData, err := getRollupInfoABI.Pack("getRollupInfo", sys.Addresses.SystemConfig)
+	require.NoError(t, err)
 
-	err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
-	require.NoError(t, err, "Failed to send L1BridgeRegistry.registerRollupConfigByManager")
+	rollupInfoResult, err := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+		To:   &sys.Addresses.L1BridgeRegistryProxy,
+		Data: checkRollupData,
+	}, nil)
+	require.NoError(t, err)
 
-	waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.registerRollupConfigByManager")
+	// Unpack getRollupInfo result properly
+	var rollupInfoData struct {
+		RollupType        uint8
+		L2TON             common.Address
+		RejectedSeigs     bool
+		RejectedL2Deposit bool
+		Name              string
+	}
+	err = getRollupInfoABI.UnpackIntoInterface(&rollupInfoData, "getRollupInfo", rollupInfoResult)
+	if err != nil {
+		t.Logf("Warning: Failed to unpack getRollupInfo: %v, assuming not registered", err)
+		rollupInfoData.RollupType = 0
+	}
+
+	t.Logf("DEBUG: getRollupInfo result - rollupType: %d, l2TON: %s, name: %s",
+		rollupInfoData.RollupType, rollupInfoData.L2TON.Hex(), rollupInfoData.Name)
+
+	if rollupInfoData.RollupType != 0 {
+		t.Logf("✓ SystemConfig already registered in L1BridgeRegistry with rollupType %d, skipping registration", rollupInfoData.RollupType)
+	} else {
+		t.Log("Registering SystemConfig in L1BridgeRegistry...")
+
+		// Verify rollupType 3 is valid before registering
+		checkValid, _ := l1BridgeRegistryABI.Pack("isValidRollupType", uint8(3))
+		validResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+			To:   &sys.Addresses.L1BridgeRegistryProxy,
+			Data: checkValid,
+		}, nil)
+		var isValid bool
+		if len(validResult) > 0 {
+			l1BridgeRegistryABI.UnpackIntoInterface(&isValid, "isValidRollupType", validResult)
+		}
+		t.Logf("DEBUG: isValidRollupType(3) = %v", isValid)
+
+		// TYPE 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+		callData, err = l1BridgeRegistryABI.Pack("registerRollupConfigByManager",
+			sys.Addresses.SystemConfig, // rollupConfig
+			uint8(3),                   // rollupType = OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+			sys.Addresses.TON,          // l2TON
+			"DevnetOptimism",           // name
+		)
+		require.NoError(t, err)
+
+		// Check if bridge is already registered
+		bridgeGetterABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"l1StandardBridge","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`))
+		bridgeGetterData, _ := bridgeGetterABI.Pack("l1StandardBridge")
+		bridgeResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+			To:   &sys.Addresses.SystemConfig,
+			Data: bridgeGetterData,
+		}, nil)
+		var bridgeAddr common.Address
+		if len(bridgeResult) >= 32 {
+			bridgeAddr = common.BytesToAddress(bridgeResult)
+		}
+		t.Logf("DEBUG: SystemConfig.l1StandardBridge() = %s", bridgeAddr.Hex())
+
+		// Check if bridge is already in l1Bridge mapping
+		checkBridgeABI, _ := abi.JSON(strings.NewReader(`[{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"l1Bridge","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}]`))
+		checkBridgeData, _ := checkBridgeABI.Pack("l1Bridge", bridgeAddr)
+		isBridgeRegisteredResult, _ := sys.L1Client.CallContract(sys.Ctx, ethereum.CallMsg{
+			To:   &sys.Addresses.L1BridgeRegistryProxy,
+			Data: checkBridgeData,
+		}, nil)
+		var isBridgeRegistered bool
+		if len(isBridgeRegisteredResult) > 0 {
+			checkBridgeABI.UnpackIntoInterface(&isBridgeRegistered, "l1Bridge", isBridgeRegisteredResult)
+		}
+		t.Logf("DEBUG: L1BridgeRegistry.l1Bridge[%s] = %v", bridgeAddr.Hex(), isBridgeRegistered)
+
+		t.Logf("DEBUG: Calling registerRollupConfigByManager(systemConfig=%s, rollupType=3, l2TON=%s, name=DevnetOptimism)",
+			sys.Addresses.SystemConfig.Hex(), sys.Addresses.TON.Hex())
+
+		txArgs["data"] = "0x" + common.Bytes2Hex(callData)
+
+		err = sys.L1Client.Client().Call(&txHash, "eth_sendTransaction", txArgs)
+		require.NoError(t, err, "Failed to send L1BridgeRegistry.registerRollupConfigByManager")
+
+		waitForTransactionReceipt(t, sys.Ctx, sys.L1Client, txHash, "L1BridgeRegistry.registerRollupConfigByManager")
+	}
 
 	// ===========================================
 	// Call SeigManager.migrateToV3() for V3 migration
