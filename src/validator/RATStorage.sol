@@ -222,8 +222,13 @@ contract RATStorage {
     /// @notice 집계자 수수료율 (RAY 단위, 기본: 10% = 1e26)
     uint256 public aggregatorFeeRate;
 
-    /// @notice Fast Withdrawal 활성화 여부
+    /// @notice DEPRECATED: minValidatorsForFastWithdrawal이 0이면 비활성화
     bool public fastWithdrawalEnabled;
+
+    /// @notice Fast Withdrawal을 위한 최소 검증자 수
+    /// @dev 0이면 Fast Withdrawal 비활성화
+    /// @dev 1 이상이면 해당 값 이상의 검증자가 서명해야 Fast Withdrawal 가능
+    uint256 public minValidatorsForFastWithdrawal;
 
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)

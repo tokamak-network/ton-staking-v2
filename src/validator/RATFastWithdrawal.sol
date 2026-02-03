@@ -64,7 +64,9 @@ error FastWithdrawalInvalidAdjacentLeavesError();
 error FastWithdrawalPortalNotSetError();
 error FastWithdrawalInvalidValidatorBitmapError();
 error FastWithdrawalNoValidatorsError();
+error FastWithdrawalInsufficientValidatorsError();
 error InvalidAggregatorFeeRateError();
+error InvalidMinValidatorsError();
 
 /**
  * @title RATFastWithdrawal
@@ -112,11 +114,11 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         address indexed aggregator
     );
 
-    /// @notice Fast Withdrawal 활성화 상태 변경 이벤트
-    event FastWithdrawalEnabledUpdated(bool enabled);
-
     /// @notice 집계자 수수료율 변경 이벤트
     event AggregatorFeeRateUpdated(uint256 newRate);
+
+    /// @notice 최소 검증자 수 변경 이벤트
+    event MinValidatorsForFastWithdrawalUpdated(uint256 newMinValidators);
 
     /// @notice 검증자 등록 이벤트 (BLS 포함 등록용)
     event ValidatorRegistered(
@@ -293,19 +295,19 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
     // Fast Withdrawal Functions
     // ==========================================
 
-    /// @notice Fast Withdrawal 활성화/비활성화
-    /// @param enabled 활성화 여부
-    function setFastWithdrawalEnabled(bool enabled) external onlyOwner {
-        fastWithdrawalEnabled = enabled;
-        emit FastWithdrawalEnabledUpdated(enabled);
-    }
-
     /// @notice 집계자 수수료율 설정
     /// @param rate 수수료율 (RAY 단위, 10% = 1e26)
     function setAggregatorFeeRate(uint256 rate) external onlyOwner {
         if (rate > RAY) revert InvalidAggregatorFeeRateError();
         aggregatorFeeRate = rate;
         emit AggregatorFeeRateUpdated(rate);
+    }
+
+    /// @notice Fast Withdrawal을 위한 최소 검증자 수 설정
+    /// @param minValidators 최소 검증자 수 (0이면 Fast Withdrawal 비활성화)
+    function setMinValidatorsForFastWithdrawal(uint256 minValidators) external onlyOwner {
+        minValidatorsForFastWithdrawal = minValidators;
+        emit MinValidatorsForFastWithdrawalUpdated(minValidators);
     }
 
     /// @notice BLS 집계 서명 + 인접 리프 증명으로 빠른 출금 실행
@@ -334,8 +336,14 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         // 검증자 정보 조회
         uint256 validatorCount = validatorPools[input.systemConfig].activeCount;
 
-        // 검증자 수 체크 (최소 1명 필요)
-        if (validatorCount == 0) revert FastWithdrawalNoValidatorsError();
+        // 최소 검증자 수 요구사항 체크
+        // minValidatorsForFastWithdrawal이 0이면 Fast Withdrawal 비활성화
+        // minValidatorsForFastWithdrawal이 설정되어 있으면 해당 값 이상 필요
+        uint256 minValidators = minValidatorsForFastWithdrawal;
+        if (minValidators == 0) revert FastWithdrawalDisabledError();
+        if (validatorCount < minValidators) {
+            revert FastWithdrawalInsufficientValidatorsError();
+        }
 
         // 만장일치 검증: 모든 검증자가 서명했는지 확인
         // validatorBitmap의 모든 비트가 1이어야 함 (예: 3명이면 0b111 = 7 = (1 << 3) - 1)
@@ -379,8 +387,6 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         RATFastWithdrawalLib.FastWithdrawalInput calldata input,
         Types.WithdrawalTransaction calldata _tx
     ) internal view returns (address portal) {
-        if (!fastWithdrawalEnabled) revert FastWithdrawalDisabledError();
-
         portal = _getOptimismPortal(input.systemConfig);
         if (portal == address(0)) revert FastWithdrawalPortalNotSetError();
 
