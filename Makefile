@@ -2,6 +2,7 @@
 .PHONY: devnet-allocs-optimism devnet-allocs-offline devnet-clean devnet-status
 .PHONY: test-e2e test-e2e-unit test-e2e-integration
 .PHONY: devnet-start devnet-stop devnet-info devnet-logs
+.PHONY: test-bls-fork test-bls-library-fork test-fast-withdrawal-fork test-bls-fork-public
 
 # Default target
 all: build
@@ -181,6 +182,71 @@ test-e2e-integration:
 	cd op-e2e && GOWORK=off go test -count=1 -v -run "TestRATIntegration" ./faultproofs/... -timeout 300s
 
 # ==========================================
+# BLS Signature Tests (Mainnet Fork)
+# ==========================================
+# These tests require EIP-2537 BLS precompiles (available after Ethereum Pectra upgrade, May 2025)
+# You need a mainnet RPC URL to fork from
+
+# Run all BLS-related tests with Mainnet fork
+# Usage: make test-bls-fork RPC_URL=https://your-mainnet-rpc-url
+test-bls-fork:
+	@echo ""
+	@echo "=== BLS Signature Tests (Mainnet Fork) ==="
+	@echo ""
+	@echo "⚠️  IMPORTANT: This test requires EIP-2537 support"
+	@echo "   - EIP-2537 is available after Ethereum Pectra upgrade (May 2025)"
+	@echo "   - Requires RPC_URL parameter or MAINNET_RPC_URL environment variable"
+	@echo ""
+	@if [ -z "$(RPC_URL)" ] && [ -z "$$MAINNET_RPC_URL" ]; then \
+		echo "❌ Error: No RPC URL provided"; \
+		echo "   Usage: make test-bls-fork RPC_URL=https://your-mainnet-rpc-url"; \
+		echo "   Or set: export MAINNET_RPC_URL=https://your-mainnet-rpc-url"; \
+		exit 1; \
+	fi
+	@FORK_URL=$${RPC_URL:-$$MAINNET_RPC_URL}; \
+	echo "Using RPC URL: $$FORK_URL"; \
+	echo ""; \
+	echo "Running BLS library tests..."; \
+	forge test --match-path "test/v3/BLS12381Fork.t.sol" --fork-url $$FORK_URL -vv; \
+	echo ""; \
+	echo "Running Fast Withdrawal E2E fork tests..."; \
+	forge test --match-path "test/v3/scenarios/FastWithdrawalE2EFork.t.sol" --fork-url $$FORK_URL -vv
+
+# Run only BLS library tests with Mainnet fork
+test-bls-library-fork:
+	@echo ""
+	@echo "=== BLS12381 Library Tests (Mainnet Fork) ==="
+	@echo ""
+	@if [ -z "$(RPC_URL)" ] && [ -z "$$MAINNET_RPC_URL" ]; then \
+		echo "❌ Error: No RPC URL provided"; \
+		echo "   Usage: make test-bls-library-fork RPC_URL=https://your-mainnet-rpc-url"; \
+		exit 1; \
+	fi
+	@FORK_URL=$${RPC_URL:-$$MAINNET_RPC_URL}; \
+	forge test --match-path "test/v3/BLS12381Fork.t.sol" --fork-url $$FORK_URL -vv
+
+# Run only Fast Withdrawal E2E tests with Mainnet fork
+test-fast-withdrawal-fork:
+	@echo ""
+	@echo "=== Fast Withdrawal E2E Tests (Mainnet Fork) ==="
+	@echo ""
+	@if [ -z "$(RPC_URL)" ] && [ -z "$$MAINNET_RPC_URL" ]; then \
+		echo "❌ Error: No RPC URL provided"; \
+		echo "   Usage: make test-fast-withdrawal-fork RPC_URL=https://your-mainnet-rpc-url"; \
+		exit 1; \
+	fi
+	@FORK_URL=$${RPC_URL:-$$MAINNET_RPC_URL}; \
+	forge test --match-path "test/v3/scenarios/FastWithdrawalE2EFork.t.sol" --fork-url $$FORK_URL -vv
+
+# Run BLS tests with public mainnet RPC (no API key needed, but may be rate-limited)
+test-bls-fork-public:
+	@echo ""
+	@echo "=== BLS Tests (Public Mainnet Fork) ==="
+	@echo "⚠️  Using public RPC - may be slow or rate-limited"
+	@echo ""
+	@$(MAKE) test-bls-fork RPC_URL=https://ethereum-rpc.publicnode.com
+
+# ==========================================
 # Help
 # ==========================================
 
@@ -192,6 +258,12 @@ help:
 	@echo "  make test               Run all Solidity tests"
 	@echo "  make test-v3            Run V3 tests only"
 	@echo "  make clean              Clean build artifacts"
+	@echo ""
+	@echo "BLS Signature Tests (Mainnet Fork):"
+	@echo "  make test-bls-fork RPC_URL=<url>        Run all BLS fork tests"
+	@echo "  make test-bls-library-fork RPC_URL=<url> Run BLS library tests only"
+	@echo "  make test-fast-withdrawal-fork RPC_URL=<url> Run Fast Withdrawal E2E fork tests"
+	@echo "  make test-bls-fork-public               Run with public RPC (may be slow)"
 	@echo ""
 	@echo "E2E Testing (Automated):"
 	@echo "  make devnet-allocs-offline  Generate genesis (fully offline, no lib/optimism needed)"
