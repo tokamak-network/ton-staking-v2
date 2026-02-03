@@ -1,0 +1,274 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.App-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem;
+  text-align: center;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.subtitle {
+  margin: 0.5rem 0 0 0;
+  opacity: 0.9;
+}
+
+.container {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.connect-section {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.connect-section h2 {
+  margin-bottom: 1rem;
+}
+
+.btn {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-small:hover {
+  background: #e5e7eb;
+}
+
+.test-accounts {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.test-account {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.address, .address-display {
+  font-family: monospace;
+  font-size: 0.875rem;
+  background: #f3f4f6;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  overflow-wrap: break-word;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.account-info, .balances, .staking-section, .info-section, .contracts-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.account-info h2, .balances h2, .staking-section h2, .info-section h2 {
+  margin-top: 0;
+  color: #1f2937;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.balance-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.balance-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+}
+
+.balance-value {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.input-group {
+  margin: 1.5rem 0;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.input, select.input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+
+.input:focus, select.input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.input-group small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.warning-box {
+  background: #fef3c7;
+  border: 2px solid #fbbf24;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.info-value {
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.contracts-list {
+  margin-top: 1rem;
+}
+
+.contract-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.contract-item:last-child {
+  border-bottom: none;
+}
+
+.contract-item code {
+  font-family: monospace;
+  font-size: 0.875rem;
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.footer {
+  background: #1f2937;
+  color: white;
+  text-align: center;
+  padding: 2rem;
+  margin-top: auto;
+}
+
+.footer a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .balance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
