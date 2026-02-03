@@ -30,7 +30,7 @@ echo -e "${YELLOW}Step 1: Starting Anvil...${NC}"
 pkill -f "anvil" 2>/dev/null || true
 sleep 1
 
-anvil --host 0.0.0.0 --port 8545 --chain-id 31337 &
+anvil --host 0.0.0.0 --port 8545 --chain-id 31337 --block-time 1 &
 ANVIL_PID=$!
 sleep 2
 
@@ -46,6 +46,7 @@ echo -e "${YELLOW}Step 2: Deploying LotteryCandidate contracts...${NC}"
 DEPLOY_OUTPUT=$(forge script script/DeployLotteryDemo.s.sol:DeployLotteryDemo \
     --rpc-url http://localhost:8545 \
     --broadcast \
+    --via-ir \
     --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
     2>&1)
 
@@ -92,6 +93,7 @@ echo "Test Accounts (import to MetaMask):"
 echo "  Operator: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 echo "  User1:    0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
 echo "  User2:    0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
+echo "  User3:    0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a"
 echo ""
 echo "Configuration JSON for frontend:"
 echo "$DEPLOYMENT_JSON"

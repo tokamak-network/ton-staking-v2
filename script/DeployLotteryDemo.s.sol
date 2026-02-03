@@ -12,6 +12,8 @@ import {Layer2RegistryProxy} from "../src/stake/Layer2RegistryProxy.sol";
 
 // Manager Implementations
 import {SeigManagerV1_2} from "../src/stake/managers/SeigManagerV1_2.sol";
+import {SeigManagerV3_1} from "../src/stake/managers/SeigManagerV3_1.sol";
+import {SeigManagerV3_2} from "../src/stake/managers/SeigManagerV3_2.sol";
 import {DepositManagerV3} from "../src/stake/managers/DepositManagerV3.sol";
 
 // Manager Proxies
@@ -49,6 +51,7 @@ interface IDAOCommitteeOwner {
     function setLotteryCandidateFactory(address _lotteryCandidateFactory) external;
     function setSeigManager(address _seigManager) external;
     function setLayer2Registry(address _layer2Registry) external;
+    function setCandidateFactory(address _candidateFactory) external;
 }
 
 /// @notice Simple DAO Proxy for LotteryCandidate Demo
@@ -127,6 +130,8 @@ contract DeployLotteryDemo is Script {
     address public coinageLogic;
     address public layer2RegistryProxy;
     address public seigManagerProxy;
+    address public seigManagerV3_1Impl;
+    address public seigManagerV3_2Impl;
     address public depositManagerProxy;
     address public daoCommitteeProxy;
     address public lotteryCandidateFactoryProxy;
@@ -193,7 +198,7 @@ contract DeployLotteryDemo is Script {
     function _initializeManagers() internal {
         console.log("--- Initialize Managers ---");
         
-        // SeigManager
+        // SeigManager - First deploy V1_2 as base implementation
         address seigImpl = address(new SeigManagerV1_2());
         IProxy(seigManagerProxy).upgradeTo(seigImpl);
         
@@ -216,7 +221,34 @@ contract DeployLotteryDemo is Script {
             10,             // adjustCommissionDelay
             1000.1e27       // minimumAmount
         );
-        console.log("SeigManager initialized");
+        
+        // Set local testing parameters to avoid mainnet defaults causing underflow
+        // seigStartBlock: use block 1 (must be > 0 to avoid using SEIG_START_MAINNET)
+        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(1);
+        // initialTotalSupply: 50M TON in RAY (50_000_000 * 1e27)
+        SeigManagerV1_2(seigManagerProxy).setInitialTotalSupply(50_000_000 * RAY);
+        // burntAmountAtDAO: 0 for local testing (must be set to avoid using BURNT_AMOUNT_MAINNET)
+        SeigManagerV1_2(seigManagerProxy).setBurntAmountAtDAO(1); // Use 1 instead of 0 to pass "same" check
+        
+        // Deploy V3 implementations and setup routing for updateSeigniorage
+        seigManagerV3_1Impl = address(new SeigManagerV3_1());
+        seigManagerV3_2Impl = address(new SeigManagerV3_2());
+        
+        // Set V3_1 and V3_2 as alive implementations
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV3_1Impl, true);
+        SeigManagerProxy(payable(seigManagerProxy)).setAliveImplementation2(seigManagerV3_2Impl, true);
+        
+        // Route updateSeigniorage to V3_1 (which delegates to V2 logic via V3_2)
+        bytes4[] memory v3Selectors = new bytes4[](3);
+        v3Selectors[0] = SeigManagerV3_1.updateSeigniorage.selector;
+        v3Selectors[1] = SeigManagerV3_1.setV2Logic.selector;
+        v3Selectors[2] = bytes4(keccak256("v3Migrated()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(v3Selectors, seigManagerV3_1Impl);
+        
+        // Set V2 logic address in V3_1 (for V2 mode seigniorage distribution)
+        SeigManagerV3_1(seigManagerProxy).setV2Logic(seigManagerV3_2Impl);
+        
+        console.log("SeigManager initialized with V3 routing");
 
         // DepositManager
         address depositImpl = address(new DepositManagerV3());
@@ -257,10 +289,11 @@ contract DeployLotteryDemo is Script {
         IDAOCommitteeProxy2(daoCommitteeProxy).upgradeTo2(daoV1);
         IDAOCommitteeProxy2(daoCommitteeProxy).setAliveImplementation2(daoOwner, true);
         
-        bytes4[] memory ownerSelectors = new bytes4[](3);
+        bytes4[] memory ownerSelectors = new bytes4[](4);
         ownerSelectors[0] = IDAOCommitteeOwner.setLotteryCandidateFactory.selector;
         ownerSelectors[1] = IDAOCommitteeOwner.setSeigManager.selector;
         ownerSelectors[2] = IDAOCommitteeOwner.setLayer2Registry.selector;
+        ownerSelectors[3] = IDAOCommitteeOwner.setCandidateFactory.selector;
         IDAOCommitteeProxy2(daoCommitteeProxy).setSelectorImplementations2(ownerSelectors, daoOwner);
         
         // LotteryCandidate Factory
@@ -279,7 +312,8 @@ contract DeployLotteryDemo is Script {
         );
         LotteryCandidateFactory(lotteryCandidateFactoryProxy).setDefaultEntryFee(10e27);
         
-        // Configure DAO
+        // Configure DAO - setCandidateFactory is needed for validCommitteeL2Factory modifier
+        IDAOCommitteeOwner(daoCommitteeProxy).setCandidateFactory(lotteryCandidateFactoryProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setLotteryCandidateFactory(lotteryCandidateFactoryProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setSeigManager(seigManagerProxy);
         IDAOCommitteeOwner(daoCommitteeProxy).setLayer2Registry(layer2RegistryProxy);
@@ -301,8 +335,8 @@ contract DeployLotteryDemo is Script {
         DAOCommittee_V1(daoCommitteeProxy).createLotteryCandidate("Lottery Demo");
         
         // Get created LotteryCandidate address
-        (address candidateContract, , , , ) = DAOCommittee_V1(daoCommitteeProxy).candidateInfos(OPERATOR);
-        lotteryCandidate = candidateContract;
+        StorageStateCommittee.CandidateInfo memory info = DAOCommittee_V1(daoCommitteeProxy).candidateInfos(OPERATOR);
+        lotteryCandidate = info.candidateContract;
         
         console.log("LotteryCandidate created:", lotteryCandidate);
         console.log("Operator:", OPERATOR);
@@ -368,30 +402,54 @@ contract DeployLotteryDemo is Script {
         console.log("");
     }
 
-    function _saveDeployment() internal view {
-        string memory json = string(abi.encodePacked(
+    function _jsonHeader() internal view returns (string memory) {
+        return string.concat(
             "{\n",
             '  "chainId": ', vm.toString(block.chainid), ',\n',
-            '  "rpcUrl": "http://localhost:8545",\n',
+            '  "rpcUrl": "http://localhost:8545",\n'
+        );
+    }
+
+    function _jsonCore() internal view returns (string memory) {
+        return string.concat(
             '  "ton": "', vm.toString(ton), '",\n',
             '  "wton": "', vm.toString(wton), '",\n',
             '  "seigManager": "', vm.toString(seigManagerProxy), '",\n',
             '  "depositManager": "', vm.toString(depositManagerProxy), '",\n',
             '  "layer2Registry": "', vm.toString(layer2RegistryProxy), '",\n',
-            '  "daoCommittee": "', vm.toString(daoCommitteeProxy), '",\n',
+            '  "daoCommittee": "', vm.toString(daoCommitteeProxy), '",\n'
+        );
+    }
+
+    function _jsonLottery() internal view returns (string memory) {
+        return string.concat(
             '  "lotteryCandidate": "', vm.toString(lotteryCandidate), '",\n',
             '  "lotteryCandidateFactory": "', vm.toString(lotteryCandidateFactoryProxy), '",\n',
             '  "operator": "', vm.toString(OPERATOR), '",\n',
-            '  "entryFee": "10000000000000000000000000000",\n',
+            '  "entryFee": "10000000000000000000000000000",\n'
+        );
+    }
+
+    function _jsonAccounts() internal view returns (string memory) {
+        return string.concat(
             '  "accounts": {\n',
             '    "deployer": "', vm.toString(DEPLOYER), '",\n',
             '    "operator": "', vm.toString(OPERATOR), '",\n',
             '    "user1": "', vm.toString(USER1), '",\n',
             '    "user2": "', vm.toString(USER2), '",\n',
             '    "user3": "', vm.toString(USER3), '"\n',
-            '  }\n',
+            "  }\n",
             "}"
-        ));
+        );
+    }
+
+    function _saveDeployment() internal view {
+        string memory json = string.concat(
+            _jsonHeader(),
+            _jsonCore(),
+            _jsonLottery(),
+            _jsonAccounts()
+        );
 
         console.log("\n=== DEPLOYMENT_JSON_START ===");
         console.log(json);

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { parseUnits } from 'viem'
 import { ERC20_ABI, LOTTERY_CANDIDATE_ABI } from '../contracts/abi'
@@ -12,6 +12,7 @@ export function DepositForm({ tonAddress, lotteryCandidateAddress }: Props) {
   const { address, isConnected } = useAccount()
   const [amount, setAmount] = useState('')
   const [step, setStep] = useState<'idle' | 'approving' | 'depositing'>('idle')
+  const depositTriggeredRef = useRef(false)
 
   const { data: allowance } = useReadContract({
     address: tonAddress,
@@ -56,21 +57,27 @@ export function DepositForm({ tonAddress, lotteryCandidateAddress }: Props) {
     }
   }
 
-  if (approveSuccess && step === 'approving') {
-    setStep('depositing')
-    const amountWei = parseUnits(amount, 18)
-    deposit({
-      address: lotteryCandidateAddress,
-      abi: LOTTERY_CANDIDATE_ABI,
-      functionName: 'depositTON',
-      args: [amountWei],
-    })
-  }
+  useEffect(() => {
+    if (approveSuccess && step === 'approving' && !depositTriggeredRef.current) {
+      depositTriggeredRef.current = true
+      setStep('depositing')
+      const amountWei = parseUnits(amount, 18)
+      deposit({
+        address: lotteryCandidateAddress,
+        abi: LOTTERY_CANDIDATE_ABI,
+        functionName: 'depositTON',
+        args: [amountWei],
+      })
+    }
+  }, [approveSuccess, step, amount, lotteryCandidateAddress, deposit])
 
-  if (depositSuccess && step === 'depositing') {
-    setStep('idle')
-    setAmount('')
-  }
+  useEffect(() => {
+    if (depositSuccess && step === 'depositing') {
+      setStep('idle')
+      setAmount('')
+      depositTriggeredRef.current = false
+    }
+  }, [depositSuccess, step])
 
   if (!isConnected) return null
 

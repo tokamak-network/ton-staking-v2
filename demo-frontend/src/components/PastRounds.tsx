@@ -45,10 +45,56 @@ export function PastRounds({ lotteryCandidateAddress }: Props) {
     ]),
   })
 
+  const { refetch: refetchCurrentRound } = useReadContracts({
+    contracts: [
+      {
+        address: lotteryCandidateAddress,
+        abi: LOTTERY_CANDIDATE_ABI,
+        functionName: 'currentRound',
+      },
+    ],
+  })
+
+  const { refetch: refetchRoundsData } = useReadContracts({
+    contracts: pastRounds.flatMap((round) => [
+      {
+        address: lotteryCandidateAddress,
+        abi: LOTTERY_CANDIDATE_ABI,
+        functionName: 'roundWinner',
+        args: [round],
+      },
+      {
+        address: lotteryCandidateAddress,
+        abi: LOTTERY_CANDIDATE_ABI,
+        functionName: 'roundPrizePool',
+        args: [round],
+      },
+      {
+        address: lotteryCandidateAddress,
+        abi: LOTTERY_CANDIDATE_ABI,
+        functionName: 'getRoundParticipantCount',
+        args: [round],
+      },
+    ]),
+  })
+
+  const handleRefresh = () => {
+    refetchCurrentRound()
+    refetchRoundsData()
+  }
+
   if (!pastRounds.length) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">📜 Past Rounds</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">📜 Past Rounds</h2>
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm"
+          >
+            🔄 Refresh
+          </button>
+        </div>
         <p className="text-gray-500 text-center py-8">No completed rounds yet</p>
       </div>
     )
@@ -61,7 +107,15 @@ export function PastRounds({ lotteryCandidateAddress }: Props) {
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">📜 Past Rounds</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-800">📜 Past Rounds</h2>
+        <button
+          onClick={handleRefresh}
+          className="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm"
+        >
+          🔄 Refresh
+        </button>
+      </div>
 
       <div className="space-y-3">
         {pastRounds.map((round, index) => {

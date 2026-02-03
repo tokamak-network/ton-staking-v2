@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts, usePublicClient } from 'wagmi'
 import { LOTTERY_CANDIDATE_ABI } from '../contracts/abi'
 import { formatUnits } from 'viem'
 
@@ -11,6 +11,10 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
   const { address, isConnected } = useAccount()
   const [prevBalance, setPrevBalance] = useState<bigint | null>(null)
   const [seigniorageReceived, setSeigniorageReceived] = useState<bigint | null>(null)
+  const [currentBlock, setCurrentBlock] = useState<bigint | null>(null)
+  const [isAdvancing, setIsAdvancing] = useState(false)
+  const [blocksToAdvance, setBlocksToAdvance] = useState('100')
+  const publicClient = usePublicClient()
 
   const { data, refetch } = useReadContracts({
     contracts: [
@@ -74,6 +78,44 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
     if (!value) return '0'
     return Number(formatUnits(value, 27)).toFixed(4)
   }
+
+  const fetchBlockNumber = async () => {
+    if (publicClient) {
+      const blockNum = await publicClient.getBlockNumber()
+      setCurrentBlock(blockNum)
+    }
+  }
+
+  const handleAdvanceBlocks = async () => {
+    const numBlocks = parseInt(blocksToAdvance)
+    if (isNaN(numBlocks) || numBlocks <= 0) return
+
+    setIsAdvancing(true)
+    try {
+      for (let i = 0; i < numBlocks; i++) {
+        await fetch('http://localhost:8545', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'evm_mine',
+            params: [],
+            id: i + 1,
+          }),
+        })
+      }
+      await fetchBlockNumber()
+      await refetch()
+    } catch (error) {
+      console.error('Failed to advance blocks:', error)
+    } finally {
+      setIsAdvancing(false)
+    }
+  }
+
+  useState(() => {
+    fetchBlockNumber()
+  })
 
   if (!isConnected) return null
 
@@ -165,6 +207,35 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
         >
           🔄 Refresh Data
         </button>
+
+        <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+          <p className="text-sm font-medium text-orange-700 mb-2">⚡ Dev Tools: Advance Blocks</p>
+          <p className="text-xs text-orange-600 mb-3">
+            Block #{currentBlock?.toString() ?? '...'} - Mine blocks to generate seigniorage
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={blocksToAdvance}
+              onChange={(e) => setBlocksToAdvance(e.target.value)}
+              min="1"
+              max="1000"
+              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg text-sm"
+              placeholder="Blocks"
+            />
+            <button
+              onClick={handleAdvanceBlocks}
+              disabled={isAdvancing}
+              className={`px-4 py-2 rounded-lg font-medium text-white text-sm ${
+                isAdvancing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-orange-500 hover:bg-orange-600'
+              }`}
+            >
+              {isAdvancing ? '⏳' : '⛏️ Mine'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
