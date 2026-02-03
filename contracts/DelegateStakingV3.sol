@@ -301,7 +301,7 @@ contract DelegateStakingV3 is IDelegateStakingV3, ReentrancyGuard, Ownable {
 
         ton.safeTransfer(msg.sender, amount);
 
-        emit Withdrawn(msg.sender, amount);
+        emit Withdrawn(msg.sender, sequencer, amount);
     }
 
     /// @inheritdoc IDelegateStakingV3

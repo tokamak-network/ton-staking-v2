@@ -94,7 +94,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
         assertEq(staking.layer2Manager(), address(layer2Manager));
         assertEq(staking.unbondingPeriod(), UNBONDING_PERIOD);
         assertEq(staking.owner(), owner);
-        assertEq(staking.version(), "1.1.0");
+        assertEq(staking.version(), "1.2.0");
         assertEq(staking.minStakeAmount(), 100 ether); // DEFAULT_MIN_STAKE
     }
 
@@ -258,7 +258,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // Verify state persisted
         assertEq(staking.getTotalStaked(), stakedBefore);
-        assertEq(staking.version(), "1.1.0");
+        assertEq(staking.version(), "1.2.0");
     }
 
     function test_Upgrade_WithReinitialization() public {
@@ -658,7 +658,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
 
         // 12. Verify state persisted after upgrade
         assertEq(staking.getTotalStaked(), 500 ether);
-        assertEq(staking.version(), "1.1.0");
+        assertEq(staking.version(), "1.2.0");
 
         // 13. Continue operations after upgrade
         vm.prank(user1);
@@ -1863,5 +1863,190 @@ contract DelegateStakingV3UpgradeableTest is Test {
         vm.prank(sequencer1);
         vm.expectRevert();
         staking.cancelCommissionUpdate();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    MEDIUM ISSUE FIX TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    // Test: sequencerList removes deregistered sequencers (swap-and-pop)
+    function test_SequencerListRemovesDeregistered() public {
+        // Register two sequencers
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        // Verify both are in the list
+        address[] memory list = staking.getSequencerList();
+        assertEq(list.length, 2);
+
+        // Deregister sequencer1
+        vm.prank(sequencer1);
+        staking.deregisterSequencer();
+
+        // Verify only sequencer2 remains
+        list = staking.getSequencerList();
+        assertEq(list.length, 1);
+        assertEq(list[0], sequencer2);
+    }
+
+    function test_GetSequencerCount() public {
+        assertEq(staking.getSequencerCount(), 0);
+
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        assertEq(staking.getSequencerCount(), 1);
+
+        address sequencer2 = makeAddr("sequencer2");
+        address layer2_2 = makeAddr("layer2_2");
+        vm.prank(owner);
+        address operatorManager2 = layer2Manager.registerLayer2(layer2_2, sequencer2);
+
+        vm.prank(sequencer2);
+        staking.registerSequencer(layer2_2, operatorManager2, 500);
+
+        assertEq(staking.getSequencerCount(), 2);
+
+        // Deregister one
+        vm.prank(sequencer1);
+        staking.deregisterSequencer();
+
+        assertEq(staking.getSequencerCount(), 1);
+    }
+
+    // Test: Batch size limit
+    function test_BatchTriggerSeigniorage_RevertIfExceedsBatchSize() public {
+        // Create array larger than MAX_BATCH_SIZE (50)
+        address[] memory largeList = new address[](51);
+        for (uint256 i = 0; i < 51; i++) {
+            largeList[i] = makeAddr(string.concat("seq", vm.toString(i)));
+        }
+
+        vm.expectRevert(DelegateStakingV3Upgradeable.BatchSizeExceeded.selector);
+        staking.batchTriggerSeigniorage(largeList);
+    }
+
+    function test_BatchTriggerSeigniorage_SuccessWithMaxBatchSize() public {
+        // Create array at exactly MAX_BATCH_SIZE (50) - should work
+        address[] memory maxList = new address[](50);
+        for (uint256 i = 0; i < 50; i++) {
+            maxList[i] = makeAddr(string.concat("seq", vm.toString(i)));
+        }
+
+        // Should not revert (will skip all since none are registered)
+        staking.batchTriggerSeigniorage(maxList);
+    }
+
+    // Test: Unbonding period bounds
+    function test_Initialize_RevertIfUnbondingPeriodTooLow() public {
+        DelegateStakingV3Upgradeable impl = new DelegateStakingV3Upgradeable();
+        bytes memory initData = abi.encodeCall(
+            DelegateStakingV3Upgradeable.initialize,
+            (address(ton), address(wton), address(seigManager), address(layer2Manager), 1 hours, owner) // < 1 day
+        );
+
+        vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
+        new ERC1967Proxy(address(impl), initData);
+    }
+
+    function test_Initialize_RevertIfUnbondingPeriodTooHigh() public {
+        DelegateStakingV3Upgradeable impl = new DelegateStakingV3Upgradeable();
+        bytes memory initData = abi.encodeCall(
+            DelegateStakingV3Upgradeable.initialize,
+            (address(ton), address(wton), address(seigManager), address(layer2Manager), 31 days, owner) // > 30 days
+        );
+
+        vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
+        new ERC1967Proxy(address(impl), initData);
+    }
+
+    function test_SetUnbondingPeriod_RevertIfOutOfBounds() public {
+        // Too low
+        vm.prank(owner);
+        vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
+        staking.setUnbondingPeriod(1 hours);
+
+        // Too high
+        vm.prank(owner);
+        vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
+        staking.setUnbondingPeriod(31 days);
+    }
+
+    function test_SetUnbondingPeriod_SuccessAtBounds() public {
+        // At minimum (1 day)
+        vm.prank(owner);
+        staking.setUnbondingPeriod(1 days);
+        assertEq(staking.unbondingPeriod(), 1 days);
+
+        // At maximum (30 days)
+        vm.prank(owner);
+        staking.setUnbondingPeriod(30 days);
+        assertEq(staking.unbondingPeriod(), 30 days);
+    }
+
+    // Test: New events for admin functions
+    function test_SetDefaultGuardian_EmitsEvent() public {
+        address newGuardian = makeAddr("newGuardian");
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit DelegateStakingV3Upgradeable.DefaultGuardianUpdated(owner, newGuardian);
+        staking.setDefaultGuardian(newGuardian);
+    }
+
+    function test_SetLayer2Guardian_EmitsEvent() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        address newGuardian = makeAddr("newGuardian");
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit DelegateStakingV3Upgradeable.Layer2GuardianUpdated(layer2_1, owner, newGuardian);
+        staking.setLayer2Guardian(layer2_1, newGuardian);
+    }
+
+    function test_SetEmergencyCooldown_EmitsEvent() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit DelegateStakingV3Upgradeable.EmergencyCooldownUpdated(layer2_1, 3 days, 7 days);
+        staking.setEmergencyCooldown(layer2_1, 7 days);
+    }
+
+    // Test: Withdrawn event includes sequencer
+    function test_Withdrawn_EventIncludesSequencer() public {
+        vm.prank(sequencer1);
+        staking.registerSequencer(layer2_1, operatorManager1, 1000);
+
+        vm.startPrank(user1);
+        ton.approve(address(staking), INITIAL_BALANCE);
+        staking.stake(sequencer1, 1000 ether);
+        staking.unstake(sequencer1, 500 ether);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + UNBONDING_PERIOD + 1);
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true);
+        emit IDelegateStakingV3.Withdrawn(user1, sequencer1, 500 ether);
+        staking.withdraw(sequencer1);
+    }
+
+    // Test: Constants are correct
+    function test_Constants() public view {
+        assertEq(staking.MAX_BATCH_SIZE(), 50);
+        assertEq(staking.MIN_UNBONDING_PERIOD(), 1 days);
+        assertEq(staking.MAX_UNBONDING_PERIOD(), 30 days);
     }
 }

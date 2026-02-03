@@ -55,7 +55,7 @@ interface IDelegateStakingV3 {
 
     event Staked(address indexed staker, address indexed sequencer, uint256 amount);
     event UnstakeRequested(address indexed staker, address indexed sequencer, uint256 amount, uint256 unlockTime);
-    event Withdrawn(address indexed staker, uint256 amount);
+    event Withdrawn(address indexed staker, address indexed sequencer, uint256 amount);
     event Redelegated(address indexed staker, address indexed fromSequencer, address indexed toSequencer, uint256 amount);
 
     event RewardsReceived(address indexed sequencer, uint256 totalAmount, uint256 commission, uint256 distributed);

@@ -3,8 +3,8 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -67,6 +67,15 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Default minimum stake amount (100 TON)
     uint256 public constant DEFAULT_MIN_STAKE = 100 ether;
 
+    /// @notice Maximum batch size for batch operations
+    uint256 public constant MAX_BATCH_SIZE = 50;
+
+    /// @notice Minimum unbonding period (1 day)
+    uint256 public constant MIN_UNBONDING_PERIOD = 1 days;
+
+    /// @notice Maximum unbonding period (30 days)
+    uint256 public constant MAX_UNBONDING_PERIOD = 30 days;
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -120,6 +129,9 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Last stake time for flash loan protection (staker => sequencer => timestamp)
     mapping(address => mapping(address => uint256)) public lastStakeTime;
 
+    /// @notice Mapping of sequencer address to index in sequencerList (1-indexed, 0 means not in list)
+    mapping(address => uint256) private sequencerIndex;
+
     /*//////////////////////////////////////////////////////////////
                             CUSTOM ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -139,12 +151,18 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Thrown when commission timelock has not elapsed
     error CommissionTimelockNotElapsed();
 
+    /// @notice Thrown when batch size exceeds maximum
+    error BatchSizeExceeded();
+
+    /// @notice Thrown when unbonding period is out of bounds
+    error UnbondingPeriodOutOfBounds();
+
     /*//////////////////////////////////////////////////////////////
                             STORAGE GAP
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Reserved storage space to allow for layout changes in future upgrades
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -163,8 +181,8 @@ contract DelegateStakingV3Upgradeable is
      * @notice Initialize the contract (replaces constructor)
      * @param _ton TON token address (18 decimals)
      * @param _wton WTON token address (27 decimals)
-     * @param _seigManager SeigManager V3 address
-     * @param _layer2Manager Layer2Manager address
+     * @param _seigManager SeigManager V3 address (can be zero for gradual setup)
+     * @param _layer2Manager Layer2Manager address (can be zero for gradual setup)
      * @param _unbondingPeriod Unbonding period in seconds
      * @param _owner Contract owner address
      */
@@ -177,9 +195,13 @@ contract DelegateStakingV3Upgradeable is
         address _owner
     ) external initializer {
         if (_ton == address(0) || _wton == address(0)) revert ZeroAddress();
+        if (_unbondingPeriod < MIN_UNBONDING_PERIOD || _unbondingPeriod > MAX_UNBONDING_PERIOD) {
+            revert UnbondingPeriodOutOfBounds();
+        }
 
         __Ownable_init(_owner);
         __Pausable_init();
+        // ReentrancyGuard uses transient storage (EIP-1153) in OZ 5.x, no init needed
 
         ton = IERC20(_ton);
         wton = IERC20(_wton);
@@ -221,7 +243,10 @@ contract DelegateStakingV3Upgradeable is
         });
 
         sequencerOfLayer2[layer2] = msg.sender;
+
+        // Add to sequencerList with index tracking
         sequencerList.push(msg.sender);
+        sequencerIndex[msg.sender] = sequencerList.length; // 1-indexed
 
         // Initialize emergency config
         emergencyConfigs[layer2] = EmergencyConfig({
@@ -250,6 +275,9 @@ contract DelegateStakingV3Upgradeable is
         // Clear layer2 mapping
         sequencerOfLayer2[info.layer2] = address(0);
         info.isRegistered = false;
+
+        // Remove from sequencerList using swap-and-pop
+        _removeFromSequencerList(msg.sender);
 
         emit SequencerDeregistered(msg.sender);
     }
@@ -429,7 +457,7 @@ contract DelegateStakingV3Upgradeable is
 
         ton.safeTransfer(msg.sender, amount);
 
-        emit Withdrawn(msg.sender, amount);
+        emit Withdrawn(msg.sender, sequencer, amount);
     }
 
     /// @inheritdoc IDelegateStakingV3
@@ -502,19 +530,23 @@ contract DelegateStakingV3Upgradeable is
 
     /// @inheritdoc IDelegateStakingV3
     function batchTriggerSeigniorage(address[] calldata _sequencerList) external override nonReentrant whenNotPaused {
-        for (uint256 i = 0; i < _sequencerList.length; i++) {
+        uint256 len = _sequencerList.length;
+        if (len > MAX_BATCH_SIZE) revert BatchSizeExceeded();
+
+        for (uint256 i = 0; i < len;) {
             address sequencer = _sequencerList[i];
             SequencerInfo storage info = sequencers[sequencer];
 
-            if (!info.isRegistered) continue;
-            if (!info.autoTriggerEnabled) continue;
+            if (info.isRegistered && info.autoTriggerEnabled) {
+                uint256 amount = _claimFromOperatorManager(info.operatorManager);
 
-            uint256 amount = _claimFromOperatorManager(info.operatorManager);
-
-            if (amount > 0) {
-                _distributeReward(sequencer, amount);
-                emit SeigniorageTriggered(sequencer, amount, msg.sender);
+                if (amount > 0) {
+                    _distributeReward(sequencer, amount);
+                    emit SeigniorageTriggered(sequencer, amount, msg.sender);
+                }
             }
+
+            unchecked { ++i; }
         }
     }
 
@@ -618,22 +650,8 @@ contract DelegateStakingV3Upgradeable is
 
     /// @inheritdoc IDelegateStakingV3
     function getSequencerList() external view override returns (address[] memory) {
-        uint256 activeCount = 0;
-        for (uint256 i = 0; i < sequencerList.length; i++) {
-            if (sequencers[sequencerList[i]].isRegistered) {
-                activeCount++;
-            }
-        }
-
-        address[] memory active = new address[](activeCount);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < sequencerList.length; i++) {
-            if (sequencers[sequencerList[i]].isRegistered) {
-                active[idx++] = sequencerList[i];
-            }
-        }
-
-        return active;
+        // sequencerList now only contains active sequencers (deregistered are removed)
+        return sequencerList;
     }
 
     /// @inheritdoc IDelegateStakingV3
@@ -698,6 +716,14 @@ contract DelegateStakingV3Upgradeable is
         }
     }
 
+    /**
+     * @notice Get the number of registered sequencers
+     * @return The count of active sequencers
+     */
+    function getSequencerCount() external view returns (uint256) {
+        return sequencerList.length;
+    }
+
     /*//////////////////////////////////////////////////////////////
                            ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -723,6 +749,9 @@ contract DelegateStakingV3Upgradeable is
      * @param _unbondingPeriod New unbonding period in seconds
      */
     function setUnbondingPeriod(uint256 _unbondingPeriod) external onlyOwner {
+        if (_unbondingPeriod < MIN_UNBONDING_PERIOD || _unbondingPeriod > MAX_UNBONDING_PERIOD) {
+            revert UnbondingPeriodOutOfBounds();
+        }
         uint256 oldPeriod = unbondingPeriod;
         unbondingPeriod = _unbondingPeriod;
         emit UnbondingPeriodUpdated(oldPeriod, _unbondingPeriod);
@@ -754,7 +783,9 @@ contract DelegateStakingV3Upgradeable is
      */
     function setDefaultGuardian(address _guardian) external onlyOwner {
         if (_guardian == address(0)) revert ZeroAddress();
+        address oldGuardian = defaultGuardian;
         defaultGuardian = _guardian;
+        emit DefaultGuardianUpdated(oldGuardian, _guardian);
     }
 
     /**
@@ -764,7 +795,9 @@ contract DelegateStakingV3Upgradeable is
      */
     function setLayer2Guardian(address layer2, address guardian) external onlyOwner {
         if (guardian == address(0)) revert ZeroAddress();
+        address oldGuardian = emergencyConfigs[layer2].guardian;
         emergencyConfigs[layer2].guardian = guardian;
+        emit Layer2GuardianUpdated(layer2, oldGuardian, guardian);
     }
 
     /**
@@ -773,7 +806,9 @@ contract DelegateStakingV3Upgradeable is
      * @param cooldownPeriod New cooldown period in seconds
      */
     function setEmergencyCooldown(address layer2, uint256 cooldownPeriod) external onlyOwner {
+        uint256 oldCooldown = emergencyConfigs[layer2].cooldownPeriod;
         emergencyConfigs[layer2].cooldownPeriod = cooldownPeriod;
+        emit EmergencyCooldownUpdated(layer2, oldCooldown, cooldownPeriod);
     }
 
     /**
@@ -817,7 +852,7 @@ contract DelegateStakingV3Upgradeable is
      * @return Version string
      */
     function version() external pure returns (string memory) {
-        return "1.1.0";
+        return "1.2.0";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -918,8 +953,30 @@ contract DelegateStakingV3Upgradeable is
         }
     }
 
+    /**
+     * @notice Remove a sequencer from the sequencerList using swap-and-pop
+     * @param sequencer The sequencer address to remove
+     */
+    function _removeFromSequencerList(address sequencer) internal {
+        uint256 index = sequencerIndex[sequencer];
+        if (index == 0) return; // Not in list
+
+        uint256 lastIndex = sequencerList.length;
+
+        if (index != lastIndex) {
+            // Swap with last element
+            address lastSequencer = sequencerList[lastIndex - 1];
+            sequencerList[index - 1] = lastSequencer;
+            sequencerIndex[lastSequencer] = index;
+        }
+
+        // Remove last element
+        sequencerList.pop();
+        delete sequencerIndex[sequencer];
+    }
+
     /*//////////////////////////////////////////////////////////////
-                          NEW EVENTS
+                               EVENTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Emitted when unbonding period is updated
@@ -944,4 +1001,13 @@ contract DelegateStakingV3Upgradeable is
 
     /// @notice Emitted when minimum stake amount is updated
     event MinStakeAmountUpdated(uint256 oldAmount, uint256 newAmount);
+
+    /// @notice Emitted when default guardian is updated
+    event DefaultGuardianUpdated(address oldGuardian, address newGuardian);
+
+    /// @notice Emitted when a Layer2's guardian is updated
+    event Layer2GuardianUpdated(address indexed layer2, address oldGuardian, address newGuardian);
+
+    /// @notice Emitted when a Layer2's emergency cooldown is updated
+    event EmergencyCooldownUpdated(address indexed layer2, uint256 oldCooldown, uint256 newCooldown);
 }
