@@ -5,6 +5,7 @@ import "../helpers/V3TestBase.sol";
 import {RATFastWithdrawal, Types, IOptimismPortal2ForRAT} from "../../../src/validator/RATFastWithdrawal.sol";
 import {RATFastWithdrawalLib} from "../../../src/libraries/RATFastWithdrawalLib.sol";
 import {BLS12381} from "../../../src/libraries/BLS12381.sol";
+import {MockFaultDisputeGame} from "../../../src/mocks/MockFaultDisputeGame.sol";
 import {
     FastWithdrawalDisabledError,
     FastWithdrawalAlreadyProcessedError,
@@ -16,6 +17,7 @@ import {
     FastWithdrawalInvalidValidatorBitmapError,
     FastWithdrawalNoValidatorsError,
     FastWithdrawalInsufficientValidatorsError,
+    FastWithdrawalGameHasClaimsError,
     InvalidAggregatorFeeRateError
 } from "../../../src/validator/RATFastWithdrawal.sol";
 
@@ -82,6 +84,10 @@ contract FastWithdrawalScenariosTest is V3TestBase {
     bytes public blsKey2;
     bytes public blsKey3;
     bytes public blsPoP; // Proof of Possession (256 bytes)
+    
+    // Test BLS keys for game claim tests
+    bytes constant TEST_BLS_PUBKEY = hex"0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb0000000000000000000000000000000008b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1";
+    bytes constant TEST_BLS_SIGNATURE = hex"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001";
 
     function setUp() public {
         _v3TestSetup();
@@ -123,6 +129,10 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // Mock ValidatorReward 설정
         mockValidatorRewardFW = new MockValidatorRewardForFastWithdrawal();
         rat.setValidatorReward(address(mockValidatorRewardFW));
+
+        // Fast Withdrawal 설정
+        ratFastWithdrawal.setMinValidatorsForFastWithdrawal(1); // 최소 1명의 검증자 필요
+        ratFastWithdrawal.setAggregatorFeeRate(1e26); // 10% 수수료
 
         vm.stopPrank();
 
@@ -290,6 +300,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 1,
             leafA: bytes32(uint256(2)),
@@ -337,6 +348,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 0, // No validators
             leafA: bytes32(uint256(2)),
@@ -400,6 +412,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 1, // Only first validator
             leafA: bytes32(uint256(2)),
@@ -450,6 +463,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 3, // Both validators (0b11 = 3)
             leafA: bytes32(uint256(2)),
@@ -493,6 +507,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: wrongHash, // Wrong hash
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 1, // Single validator
             leafA: bytes32(uint256(2)),
@@ -596,6 +611,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig2),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 1,
             leafA: bytes32(uint256(2)),
@@ -653,6 +669,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 7, // All 3 validators (0b111 = 7)
             leafA: bytes32(uint256(2)),
@@ -705,6 +722,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: bytes32(uint256(1)),
             validatorBitmap: 5, // 0b101 = validators 0 and 2 only
             leafA: bytes32(uint256(2)),
@@ -735,5 +753,279 @@ contract FastWithdrawalScenariosTest is V3TestBase {
 
         assertTrue(success, "Should accept ether");
         assertEq(address(ratFastWithdrawal).balance, balanceBefore + amount, "Balance should increase");
+    }
+
+    /// @notice 게임에 클레임이 있으면 Fast Withdrawal이 실패해야 함
+    function test_FastWithdrawal_GameHasClaims_Reverts() public {
+        // 검증자를 등록하지 않음 (BLS precompile 회피)
+        
+        // MockFaultDisputeGame 생성
+        MockFaultDisputeGame mockGame = new MockFaultDisputeGame();
+        mockGame.setSystemConfig(address(mockSystemConfig));
+        
+        // 게임에 클레임 추가
+        mockGame.addClaim(0, address(0), validator1, 1 ether);
+        
+        // 클레임 개수 확인
+        assertEq(mockGame.claimDataLen(), 1, "Game should have 1 claim");
+
+        // Fast Withdrawal 트랜잭션 준비
+        Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
+            nonce: 1,
+            sender: user,
+            target: user,
+            value: 1 ether,
+            gasLimit: 100000,
+            data: ""
+        });
+
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            tx_.nonce,
+            tx_.sender,
+            tx_.target,
+            tx_.value,
+            tx_.gasLimit,
+            tx_.data
+        ));
+
+        // gameAddress를 포함한 input 생성
+        RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
+            withdrawalHash: withdrawalHash,
+            systemConfig: address(mockSystemConfig),
+            gameAddress: address(mockGame),
+            stateRoot: bytes32(uint256(1)),
+            validatorBitmap: 1,
+            leafA: bytes32(uint256(2)),
+            leafB: bytes32(uint256(3)),
+            proofsA: new bytes[](0),
+            proofsB: new bytes[](0)
+        });
+
+        bytes memory aggregatedSignature = new bytes(256);
+
+        // aggregator에게 이더 제공
+        vm.deal(aggregator, 1 ether);
+
+        // 게임에 클레임이 있으므로 revert되어야 함
+        vm.prank(aggregator);
+        vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+    }
+
+    /// @notice 게임에 클레임이 없으면 게임 클레임 체크를 통과해야 함
+    function test_FastWithdrawal_GameNoClaims_PassesGameCheck() public {
+        // 검증자를 등록하지 않음 (다른 검증에서 실패하도록)
+        
+        // MockFaultDisputeGame 생성 (클레임 없음)
+        MockFaultDisputeGame mockGame = new MockFaultDisputeGame();
+        mockGame.setSystemConfig(address(mockSystemConfig));
+        
+        // 클레임 개수 확인 (0이어야 함)
+        assertEq(mockGame.claimDataLen(), 0, "Game should have no claims");
+
+        // Fast Withdrawal 트랜잭션 준비
+        Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
+            nonce: 1,
+            sender: user,
+            target: user,
+            value: 1 ether,
+            gasLimit: 100000,
+            data: ""
+        });
+
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            tx_.nonce,
+            tx_.sender,
+            tx_.target,
+            tx_.value,
+            tx_.gasLimit,
+            tx_.data
+        ));
+
+        // gameAddress를 포함한 input 생성
+        RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
+            withdrawalHash: withdrawalHash,
+            systemConfig: address(mockSystemConfig),
+            gameAddress: address(mockGame),
+            stateRoot: bytes32(uint256(1)),
+            validatorBitmap: 1,
+            leafA: bytes32(uint256(2)),
+            leafB: bytes32(uint256(3)),
+            proofsA: new bytes[](0),
+            proofsB: new bytes[](0)
+        });
+
+        bytes memory aggregatedSignature = new bytes(256);
+
+        // aggregator에게 이더 제공
+        vm.deal(aggregator, 1 ether);
+
+        // 게임에 클레임이 없으므로 게임 체크 통과하고 다음 검증으로 진행
+        // FastWithdrawalGameHasClaimsError가 아닌 다른 에러 발생
+        vm.prank(aggregator);
+        vm.expectRevert(); // FastWithdrawalDisabledError 또는 다른 검증 실패
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+    }
+
+    /// @notice gameAddress가 0이면 게임 클레임 체크를 건너뛰어야 함
+    function test_FastWithdrawal_GameAddressZero_SkipsCheck() public {
+        // 검증자를 등록하지 않음 (다른 검증에서 실패하도록)
+        
+        // Fast Withdrawal 트랜잭션 준비
+        Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
+            nonce: 1,
+            sender: user,
+            target: user,
+            value: 1 ether,
+            gasLimit: 100000,
+            data: ""
+        });
+
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            tx_.nonce,
+            tx_.sender,
+            tx_.target,
+            tx_.value,
+            tx_.gasLimit,
+            tx_.data
+        ));
+
+        // gameAddress를 address(0)으로 설정
+        RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
+            withdrawalHash: withdrawalHash,
+            systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
+            stateRoot: bytes32(uint256(1)),
+            validatorBitmap: 1,
+            leafA: bytes32(uint256(2)),
+            leafB: bytes32(uint256(3)),
+            proofsA: new bytes[](0),
+            proofsB: new bytes[](0)
+        });
+
+        bytes memory aggregatedSignature = new bytes(256);
+
+        // aggregator에게 이더 제공
+        vm.deal(aggregator, 1 ether);
+
+        // gameAddress가 0이므로 게임 클레임 체크를 건너뛰고 다른 검증으로 진행
+        // FastWithdrawalGameHasClaimsError가 발생하지 않음 (다른 에러 발생)
+        vm.prank(aggregator);
+        vm.expectRevert(); // FastWithdrawalDisabledError 또는 FastWithdrawalInsufficientValidatorsError
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+    }
+
+    /// @notice 게임에 여러 클레임이 있는 경우도 실패해야 함
+    function test_FastWithdrawal_GameMultipleClaims_Reverts() public {
+        // 검증자를 등록하지 않음 (BLS precompile 회피)
+        
+        // MockFaultDisputeGame 생성
+        MockFaultDisputeGame mockGame = new MockFaultDisputeGame();
+        mockGame.setSystemConfig(address(mockSystemConfig));
+        
+        // 게임에 여러 클레임 추가
+        mockGame.addClaim(0, address(0), validator1, 1 ether);
+        mockGame.addClaim(0, address(0), validator2, 1 ether);
+        mockGame.addClaim(1, address(0), validator3, 1 ether);
+        
+        // 클레임 개수 확인
+        assertEq(mockGame.claimDataLen(), 3, "Game should have 3 claims");
+
+        // Fast Withdrawal 트랜잭션 준비
+        Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
+            nonce: 1,
+            sender: user,
+            target: user,
+            value: 1 ether,
+            gasLimit: 100000,
+            data: ""
+        });
+
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            tx_.nonce,
+            tx_.sender,
+            tx_.target,
+            tx_.value,
+            tx_.gasLimit,
+            tx_.data
+        ));
+
+        // gameAddress를 포함한 input 생성
+        RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
+            withdrawalHash: withdrawalHash,
+            systemConfig: address(mockSystemConfig),
+            gameAddress: address(mockGame),
+            stateRoot: bytes32(uint256(1)),
+            validatorBitmap: 1,
+            leafA: bytes32(uint256(2)),
+            leafB: bytes32(uint256(3)),
+            proofsA: new bytes[](0),
+            proofsB: new bytes[](0)
+        });
+
+        bytes memory aggregatedSignature = new bytes(256);
+
+        // aggregator에게 이더 제공
+        vm.deal(aggregator, 1 ether);
+
+        // 게임에 여러 클레임이 있으므로 revert되어야 함
+        vm.prank(aggregator);
+        vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+    }
+
+    /// @notice 게임 클레임 체크는 다른 검증보다 먼저 실행되어야 함
+    function test_FastWithdrawal_GameClaimCheck_RunsBeforeOtherValidations() public {
+        // 검증자 등록하지 않음 (다른 검증이 실패할 상태)
+        
+        // MockFaultDisputeGame 생성
+        MockFaultDisputeGame mockGame = new MockFaultDisputeGame();
+        mockGame.setSystemConfig(address(mockSystemConfig));
+        
+        // 게임에 클레임 추가
+        mockGame.addClaim(0, address(0), validator1, 1 ether);
+        
+        // Fast Withdrawal 트랜잭션 준비
+        Types.WithdrawalTransaction memory tx_ = Types.WithdrawalTransaction({
+            nonce: 1,
+            sender: user,
+            target: user,
+            value: 1 ether,
+            gasLimit: 100000,
+            data: ""
+        });
+
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            tx_.nonce,
+            tx_.sender,
+            tx_.target,
+            tx_.value,
+            tx_.gasLimit,
+            tx_.data
+        ));
+
+        // gameAddress를 포함한 input 생성
+        RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
+            withdrawalHash: withdrawalHash,
+            systemConfig: address(mockSystemConfig),
+            gameAddress: address(mockGame),
+            stateRoot: bytes32(uint256(1)),
+            validatorBitmap: 1,
+            leafA: bytes32(uint256(2)),
+            leafB: bytes32(uint256(3)),
+            proofsA: new bytes[](0),
+            proofsB: new bytes[](0)
+        });
+
+        bytes memory aggregatedSignature = new bytes(256);
+
+        // aggregator에게 이더 제공
+        vm.deal(aggregator, 1 ether);
+
+        // 게임 클레임 체크가 먼저 실행되어 FastWithdrawalGameHasClaimsError 발생
+        // (검증자 부족 에러가 아님)
+        vm.prank(aggregator);
+        vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
     }
 }

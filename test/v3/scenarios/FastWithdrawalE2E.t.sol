@@ -558,6 +558,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 1,
             leafA: leafA,
@@ -623,6 +624,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 7,
             leafA: leafA,
@@ -666,6 +668,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 1,
             leafA: leafA,
@@ -711,6 +714,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 3,
             leafA: leafA,
@@ -774,6 +778,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: testWithdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 1,
             leafA: leafA,
@@ -832,6 +837,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
             systemConfig: address(mockSystemConfig),
+            gameAddress: address(0),
             stateRoot: validStateRoot,
             validatorBitmap: 1,
             leafA: leafA,
