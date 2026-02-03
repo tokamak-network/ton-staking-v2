@@ -23,6 +23,7 @@ library RATFastWithdrawalLib {
     struct FastWithdrawalInput {
         bytes32 withdrawalHash;
         address systemConfig;
+        address gameAddress;
         bytes32 stateRoot;
         uint256 validatorBitmap;
         bytes32 leafA;

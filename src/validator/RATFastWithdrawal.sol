@@ -8,6 +8,7 @@ import {BLS12381} from "../libraries/BLS12381.sol";
 import {RATFastWithdrawalLib} from "../libraries/RATFastWithdrawalLib.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 import {IValidatorReward} from "./IValidatorReward.sol";
+import {IDisputeGame} from "./interfaces/IDisputeGame.sol";
 
 // OptimismPortal2 인터페이스 (Fast Withdrawal용)
 interface IOptimismPortal2ForRAT {
@@ -65,6 +66,7 @@ error FastWithdrawalPortalNotSetError();
 error FastWithdrawalInvalidValidatorBitmapError();
 error FastWithdrawalNoValidatorsError();
 error FastWithdrawalInsufficientValidatorsError();
+error FastWithdrawalGameHasClaimsError();
 error InvalidAggregatorFeeRateError();
 error InvalidMinValidatorsError();
 
@@ -332,6 +334,12 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
     ) external payable ifFree whenNotPaused {
         // 사전 검증 (portal 주소 반환받아 재사용)
         address portal = _validateFastWithdrawalPreconditions(input, _tx);
+
+        // 게임 클레임 체크: DisputeGame에 클레임이 하나라도 있으면 Fast Withdrawal 불가
+        if (input.gameAddress != address(0)) {
+            uint256 claimCount = IDisputeGame(input.gameAddress).claimDataLen();
+            if (claimCount > 0) revert FastWithdrawalGameHasClaimsError();
+        }
 
         // 검증자 정보 조회
         uint256 validatorCount = validatorPools[input.systemConfig].activeCount;
