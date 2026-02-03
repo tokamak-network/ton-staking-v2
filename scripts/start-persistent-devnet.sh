@@ -3,9 +3,12 @@
 # Start TON Staking V3 Persistent Devnet (L1 + L2) with Docker Compose
 # =============================================================================
 # This script starts a complete local development environment with:
-#   - L1 (Ethereum/Anvil) with TON Staking V3 contracts
-#   - L2 (Optimism) with all Optimism contracts
-#   - All services (sequencer, batcher, proposer, etc.)
+#   - L1 (Geth with Clique PoA) with TON Staking V3 contracts
+#   - L2 (op-geth with Debug Mode) for RAT Client support
+#   - All services (op-node, batcher, proposer, etc.)
+# 
+# Note: Geth is used instead of Anvil for op-node compatibility.
+#       Anvil doesn't support block hash as blockTag, which op-node requires.
 # =============================================================================
 
 set -eo pipefail
@@ -68,7 +71,21 @@ if [ ! -f "$DEVNET_DIR/genesis-l1-staking-v3.json" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Genesis file found${NC}"
+# Check optimism-addresses.json (needed for rollup.json)
+if [ ! -f "$DEVNET_DIR/optimism-addresses.json" ]; then
+    echo -e "${RED}Error: optimism-addresses.json not found${NC}"
+    echo "Run 'make devnet-allocs-offline' first"
+    exit 1
+fi
+
+# Check addresses.json (needed for rollup.json)
+if [ ! -f "$DEVNET_DIR/addresses.json" ]; then
+    echo -e "${RED}Error: addresses.json not found${NC}"
+    echo "Run 'make devnet-allocs-offline' first"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Genesis files found${NC}"
 echo ""
 
 # Generate JWT secret for op-geth <-> op-node communication
@@ -95,7 +112,7 @@ cd "$PROJECT_ROOT"
 
 # Step 1: Start L1 first
 echo ""
-echo -e "${YELLOW}Step 1: Starting L1 (Anvil)...${NC}"
+echo -e "${YELLOW}Step 1: Starting L1 (Geth with Clique PoA)...${NC}"
 docker-compose up -d l1
 
 # Wait for L1 to be ready
@@ -178,6 +195,68 @@ EOF
 
 echo -e "${GREEN}✓ Initial rollup configuration created${NC}"
 
+# Step 2.5: Create L2 genesis file
+echo ""
+echo -e "${YELLOW}Step 2.5: Creating L2 genesis file...${NC}"
+
+# Create a minimal L2 genesis file with chain ID 901
+# Note: op-geth requires Optimism fork times to be properly set
+# - regolithTime, canyonTime, deltaTime must be set for OP-Stack compatibility
+# - shanghaiTime must equal canyonTime
+cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
+{
+  "config": {
+    "chainId": 901,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0,
+    "arrowGlacierBlock": 0,
+    "grayGlacierBlock": 0,
+    "mergeNetsplitBlock": 0,
+    "terminalTotalDifficulty": 0,
+    "terminalTotalDifficultyPassed": true,
+    "bedrockBlock": 0,
+    "regolithTime": 0,
+    "canyonTime": 0,
+    "shanghaiTime": 0,
+    "deltaTime": 0,
+    "optimism": {
+      "eip1559Elasticity": 6,
+      "eip1559Denominator": 50,
+      "eip1559DenominatorCanyon": 250
+    }
+  },
+  "nonce": "0x0",
+  "timestamp": "0x0",
+  "extraData": "0x",
+  "gasLimit": "0x1c9c380",
+  "difficulty": "0x0",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "alloc": {
+    "0x4200000000000000000000000000000000000015": {
+      "code": "0x",
+      "storage": {},
+      "balance": "0x0"
+    }
+  },
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "baseFeePerGas": "0x3b9aca00"
+}
+EOF
+
+echo -e "${GREEN}✓ L2 genesis file created${NC}"
+
 # Step 3: Start L2 execution layer
 echo ""
 echo -e "${YELLOW}Step 3: Starting L2 execution layer (op-geth)...${NC}"
@@ -249,8 +328,8 @@ docker-compose ps
 echo ""
 echo -e "${BLUE}=== RPC Endpoints ===${NC}"
 echo ""
-echo "L1 RPC (Anvil):          http://localhost:8545"
-echo "L2 RPC (op-geth):        http://localhost:9545"
+echo "L1 RPC (Geth):           http://localhost:8545"
+echo "L2 RPC (op-geth):        http://localhost:9545  (debug API enabled)"
 echo "L2 Rollup RPC (op-node): http://localhost:7545"
 echo ""
 

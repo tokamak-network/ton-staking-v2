@@ -33,7 +33,13 @@ TEST_ACCOUNTS='[
 ]'
 
 # Create full genesis.json with allocs (Ethereum standard format)
-jq --argjson testAccounts "$TEST_ACCOUNTS" '{
+# Using Clique PoA consensus for local development
+# - extraData contains: 32 bytes vanity + 20 bytes signer address + 65 bytes signature
+# - Signer is Account #0 (0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)
+CLIQUE_SIGNER="f39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+EXTRA_DATA="0x0000000000000000000000000000000000000000000000000000000000000000${CLIQUE_SIGNER}0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+jq --argjson testAccounts "$TEST_ACCOUNTS" --arg extraData "$EXTRA_DATA" '{
   config: {
     chainId: 900,
     homesteadBlock: 0,
@@ -48,20 +54,18 @@ jq --argjson testAccounts "$TEST_ACCOUNTS" '{
     londonBlock: 0,
     arrowGlacierBlock: 0,
     grayGlacierBlock: 0,
-    mergeNetsplitBlock: 0,
-    shanghaiTime: 0,
-    cancunTime: 0,
-    terminalTotalDifficulty: 0,
-    terminalTotalDifficultyPassed: true
+    clique: {
+      period: 1,
+      epoch: 30000
+    }
   },
   nonce: "0x0",
   timestamp: "0x0",
-  extraData: "0x",
+  extraData: $extraData,
   gasLimit: "0x1c9c380",
-  difficulty: "0x0",
+  difficulty: "0x1",
   mixHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
   coinbase: "0x0000000000000000000000000000000000000000",
-  baseFeePerGas: "0x3b9aca00",
   alloc: (. + ($testAccounts | map({(.): {balance: "0x21e19e0c9bab2400000"}}) | add))
 }' "$ALLOCS_FILE" > "$GENESIS_FILE"
 
