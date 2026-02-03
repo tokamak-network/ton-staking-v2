@@ -1,0 +1,25 @@
+# Fast Withdrawal Validator Node Configuration
+
+validator:
+  address: "0x1234567890123456789012345678901234567890"
+  bls_private_key: "0xabcdef..." # 32 bytes hex (BLS secret key)
+
+l1:
+  rpc: "https://ethereum-rpc.example.com"
+  rat_contract: "0xRAT_CONTRACT_ADDRESS"
+
+l2:
+  rpc: "http://localhost:8545"  # op-geth with debug API
+  opnode_rpc: "http://localhost:9545"  # optional
+
+p2p:
+  listen_addr: "/ip4/0.0.0.0/tcp/9000"
+  bootstrap_peers:
+    - "/ip4/1.2.3.4/tcp/9000/p2p/QmBootstrapPeer1"
+    - "/ip4/5.6.7.8/tcp/9000/p2p/QmBootstrapPeer2"
+  dht_namespace: "/tokamak-rat-validators"
+  withdrawal_topic: "/tokamak/rat/withdrawal/1.0.0"
+
+log:
+  level: "info"  # debug, info, warn, error
+  format: "text" # json, text

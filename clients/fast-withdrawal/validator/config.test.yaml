@@ -1,0 +1,23 @@
+# Test configuration for local testing
+
+validator:
+  address: "0x1234567890123456789012345678901234567890"
+  bls_private_key: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+
+l1:
+  rpc: "http://localhost:8545"  # Local anvil or test node
+  rat_contract: "0x0000000000000000000000000000000000000001"
+
+l2:
+  rpc: "http://localhost:9545"
+  opnode_rpc: ""  # optional
+
+p2p:
+  listen_addr: "/ip4/0.0.0.0/tcp/9000"
+  bootstrap_peers: []
+  dht_namespace: "/tokamak-rat-validators"
+  withdrawal_topic: "/tokamak/rat/withdrawal/1.0.0"
+
+log:
+  level: "info"
+  format: "text"
