@@ -261,3 +261,39 @@ rat-client-clean:
 test-rat-state-root:
 	@echo "Running RAT State Root test only..."
 	cd op-e2e && GOWORK=off go test -v ./faultproofs -run TestRATStateRootAsTarget -timeout 2m
+
+# ==========================================
+# RAT Client Docker Commands
+# ==========================================
+
+# Start all RAT clients
+rat-clients-start:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh start all
+
+# Start specific RAT client (1, 2, or 3)
+rat-client-start-%:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh start $*
+
+# Stop all RAT clients
+rat-clients-stop:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh stop all
+
+# Stop specific RAT client
+rat-client-stop-%:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh stop $*
+
+# Show RAT clients status
+rat-clients-status:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh status
+
+# Show logs for specific RAT client
+rat-client-logs-%:
+	@chmod +x ./scripts/manage-rat-clients.sh
+	@./scripts/manage-rat-clients.sh logs $*
+
+.PHONY: rat-clients-start rat-clients-stop rat-clients-status
