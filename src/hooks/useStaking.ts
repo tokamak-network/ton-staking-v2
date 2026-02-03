@@ -212,3 +212,85 @@ export function useApproveTon() {
 
   return { approve, isPending, isConfirming, isSuccess, error, hash };
 }
+
+// V3 Specific Hooks
+
+export function useTriggerSeigniorage() {
+  const address = useStakingContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const triggerSeigniorage = (sequencer: Address) => {
+    writeContract({
+      address,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'triggerSeigniorage',
+      args: [sequencer],
+    });
+  };
+
+  return { triggerSeigniorage, isPending, isConfirming, isSuccess, error, hash };
+}
+
+export function useEstimateSeigniorage(sequencer: Address | undefined) {
+  const address = useStakingContract();
+
+  return useReadContract({
+    address,
+    abi: DELEGATE_STAKING_ABI,
+    functionName: 'estimateSeigniorage',
+    args: sequencer ? [sequencer] : undefined,
+    query: { enabled: !!sequencer },
+  });
+}
+
+export function useContractVersion() {
+  const address = useStakingContract();
+
+  return useReadContract({
+    address,
+    abi: DELEGATE_STAKING_ABI,
+    functionName: 'version',
+  });
+}
+
+export function useSequencerCount() {
+  const address = useStakingContract();
+
+  return useReadContract({
+    address,
+    abi: DELEGATE_STAKING_ABI,
+    functionName: 'getSequencerCount',
+  });
+}
+
+export function useCheckLayer2Eligibility(layer2: Address | undefined) {
+  const address = useStakingContract();
+
+  return useReadContract({
+    address,
+    abi: DELEGATE_STAKING_ABI,
+    functionName: 'checkLayer2Eligibility',
+    args: layer2 ? [layer2] : undefined,
+    query: { enabled: !!layer2 },
+  });
+}
+
+export function useEmergencyWithdraw() {
+  const address = useStakingContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const emergencyWithdraw = (sequencer: Address) => {
+    writeContract({
+      address,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'emergencyWithdraw',
+      args: [sequencer],
+    });
+  };
+
+  return { emergencyWithdraw, isPending, isConfirming, isSuccess, error, hash };
+}

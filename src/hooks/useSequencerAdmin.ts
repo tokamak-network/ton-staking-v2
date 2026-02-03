@@ -11,16 +11,34 @@ export function useRegisterSequencer() {
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  const register = (layer2: Address, commission: bigint) => {
+  const register = (layer2: Address, operatorManager: Address, commission: bigint) => {
     writeContract({
       address,
       abi: DELEGATE_STAKING_ABI,
       functionName: 'registerSequencer',
-      args: [layer2, commission],
+      args: [layer2, operatorManager, commission],
     });
   };
 
   return { register, isPending, isConfirming, isSuccess, error, hash };
+}
+
+export function useSetAutoTrigger() {
+  const address = useStakingContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const setAutoTrigger = (enabled: boolean) => {
+    writeContract({
+      address,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'setAutoTrigger',
+      args: [enabled],
+    });
+  };
+
+  return { setAutoTrigger, isPending, isConfirming, isSuccess, error, hash };
 }
 
 export function useDeregisterSequencer() {

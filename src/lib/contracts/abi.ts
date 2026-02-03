@@ -1,25 +1,42 @@
+// DelegateStakingV3Upgradeable ABI (v1.3.0)
 export const DELEGATE_STAKING_ABI = [
-  {
-    inputs: [
-      { name: '_ton', type: 'address' },
-      { name: '_wton', type: 'address' },
-      { name: '_unbondingPeriod', type: 'uint256' },
-      { name: '_owner', type: 'address' },
-    ],
-    stateMutability: 'nonpayable',
-    type: 'constructor',
-  },
+  // Errors
+  { inputs: [], name: 'EmergencyNotActive', type: 'error' },
+  { inputs: [], name: 'EmergencyCooldownNotElapsed', type: 'error' },
   { inputs: [], name: 'InsufficientBalance', type: 'error' },
+  { inputs: [], name: 'InvalidAddress', type: 'error' },
   { inputs: [], name: 'InvalidCommission', type: 'error' },
   { inputs: [], name: 'Layer2AlreadyRegistered', type: 'error' },
+  { inputs: [], name: 'Layer2NotEligible', type: 'error' },
   { inputs: [], name: 'NoPendingRewards', type: 'error' },
   { inputs: [], name: 'NoUnstakeRequest', type: 'error' },
   { inputs: [], name: 'SequencerAlreadyRegistered', type: 'error' },
   { inputs: [], name: 'SequencerNotRegistered', type: 'error' },
+  { inputs: [], name: 'StakeCooldownNotElapsed', type: 'error' },
   { inputs: [], name: 'Unauthorized', type: 'error' },
   { inputs: [], name: 'UnstakingPeriodNotElapsed', type: 'error' },
   { inputs: [], name: 'ZeroAddress', type: 'error' },
   { inputs: [], name: 'ZeroAmount', type: 'error' },
+
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'sequencer', type: 'address' },
+      { indexed: false, name: 'enabled', type: 'bool' },
+    ],
+    name: 'AutoTriggerSet',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'sequencer', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+    ],
+    name: 'CommissionClaimed',
+    type: 'event',
+  },
   {
     anonymous: false,
     inputs: [
@@ -28,6 +45,33 @@ export const DELEGATE_STAKING_ABI = [
       { indexed: false, name: 'newCommission', type: 'uint256' },
     ],
     name: 'CommissionUpdated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'layer2', type: 'address' },
+      { indexed: false, name: 'activatedAt', type: 'uint256' },
+    ],
+    name: 'EmergencyActivated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'layer2', type: 'address' },
+    ],
+    name: 'EmergencyDeactivated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'staker', type: 'address' },
+      { indexed: true, name: 'sequencer', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+    ],
+    name: 'EmergencyWithdrawn',
     type: 'event',
   },
   {
@@ -59,7 +103,7 @@ export const DELEGATE_STAKING_ABI = [
       { indexed: false, name: 'commission', type: 'uint256' },
       { indexed: false, name: 'distributed', type: 'uint256' },
     ],
-    name: 'RewardsReceived',
+    name: 'SeigniorageReceived',
     type: 'event',
   },
   {
@@ -73,6 +117,7 @@ export const DELEGATE_STAKING_ABI = [
     inputs: [
       { indexed: true, name: 'sequencer', type: 'address' },
       { indexed: true, name: 'layer2', type: 'address' },
+      { indexed: true, name: 'operatorManager', type: 'address' },
       { indexed: false, name: 'commission', type: 'uint256' },
     ],
     name: 'SequencerRegistered',
@@ -108,6 +153,8 @@ export const DELEGATE_STAKING_ABI = [
     name: 'Withdrawn',
     type: 'event',
   },
+
+  // View Functions
   {
     inputs: [],
     name: 'MAX_COMMISSION',
@@ -117,23 +164,47 @@ export const DELEGATE_STAKING_ABI = [
   },
   {
     inputs: [],
-    name: 'claimCommission',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'STAKE_COOLDOWN',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'layer2', type: 'address' }],
+    name: 'checkLayer2Eligibility',
+    outputs: [
+      { name: 'eligible', type: 'bool' },
+      { name: 'requiredStake', type: 'uint256' },
+      { name: 'currentStake', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'layer2', type: 'address' }],
+    name: 'emergencyInfo',
+    outputs: [
+      { name: 'isActive', type: 'bool' },
+      { name: 'activatedAt', type: 'uint256' },
+    ],
+    stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [{ name: 'sequencer', type: 'address' }],
-    name: 'claimRewards',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'estimateSeigniorage',
+    outputs: [
+      { name: 'sequencerReward', type: 'uint256' },
+      { name: 'validatorReward', type: 'uint256' },
+    ],
+    stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'deregisterSequencer',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'getSequencerCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
     type: 'function',
   },
   {
@@ -144,10 +215,12 @@ export const DELEGATE_STAKING_ABI = [
         components: [
           { name: 'isRegistered', type: 'bool' },
           { name: 'layer2', type: 'address' },
+          { name: 'operatorManager', type: 'address' },
           { name: 'commission', type: 'uint256' },
           { name: 'totalStaked', type: 'uint256' },
           { name: 'accRewardPerShare', type: 'uint256' },
           { name: 'totalCommission', type: 'uint256' },
+          { name: 'autoTrigger', type: 'bool' },
         ],
         name: '',
         type: 'tuple',
@@ -176,6 +249,7 @@ export const DELEGATE_STAKING_ABI = [
           { name: 'rewardDebt', type: 'uint256' },
           { name: 'unstakeAmount', type: 'uint256' },
           { name: 'unstakeTime', type: 'uint256' },
+          { name: 'lastStakeTime', type: 'uint256' },
         ],
         name: '',
         type: 'tuple',
@@ -192,6 +266,27 @@ export const DELEGATE_STAKING_ABI = [
     type: 'function',
   },
   {
+    inputs: [],
+    name: 'layer2Manager',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
     inputs: [
       { name: 'staker', type: 'address' },
       { name: 'sequencer', type: 'address' },
@@ -202,8 +297,66 @@ export const DELEGATE_STAKING_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ name: 'amount', type: 'uint256' }],
-    name: 'receiveReward',
+    inputs: [],
+    name: 'seigManager',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'ton',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'unbondingPeriod',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'version',
+    outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'pure',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'wton',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+
+  // Write Functions
+  {
+    inputs: [],
+    name: 'claimCommission',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'sequencer', type: 'address' }],
+    name: 'claimRewards',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'deregisterSequencer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'sequencer', type: 'address' }],
+    name: 'emergencyWithdraw',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -222,9 +375,17 @@ export const DELEGATE_STAKING_ABI = [
   {
     inputs: [
       { name: 'layer2', type: 'address' },
+      { name: 'operatorManager', type: 'address' },
       { name: 'commission', type: 'uint256' },
     ],
     name: 'registerSequencer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'enabled', type: 'bool' }],
+    name: 'setAutoTrigger',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -240,24 +401,10 @@ export const DELEGATE_STAKING_ABI = [
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'ton',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'totalStaked',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'unbondingPeriod',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
+    inputs: [{ name: 'sequencer', type: 'address' }],
+    name: 'triggerSeigniorage',
+    outputs: [],
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -282,13 +429,6 @@ export const DELEGATE_STAKING_ABI = [
     name: 'withdraw',
     outputs: [],
     stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'wton',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
     type: 'function',
   },
 ] as const;

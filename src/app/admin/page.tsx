@@ -23,6 +23,7 @@ export default function AdminPage() {
   const { data: sequencerInfo, refetch } = useSequencerInfo(address);
 
   const [layer2Address, setLayer2Address] = useState('');
+  const [operatorManagerAddress, setOperatorManagerAddress] = useState('');
   const [commission, setCommission] = useState('');
   const [newCommission, setNewCommission] = useState('');
 
@@ -83,8 +84,12 @@ export default function AdminPage() {
       toast.error('Invalid Layer2 address');
       return;
     }
+    if (!isAddress(operatorManagerAddress)) {
+      toast.error('Invalid OperatorManager address');
+      return;
+    }
     const commissionBps = BigInt(Math.round(parseFloat(commission) * 100));
-    register(layer2Address as Address, commissionBps);
+    register(layer2Address as Address, operatorManagerAddress as Address, commissionBps);
   };
 
   const handleUpdateCommission = () => {
@@ -141,6 +146,19 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm text-slate-400">OperatorManager Address</label>
+              <Input
+                value={operatorManagerAddress}
+                onChange={(e) => setOperatorManagerAddress(e.target.value)}
+                placeholder="0x..."
+                className="bg-slate-800 border-slate-700"
+              />
+              <p className="text-xs text-slate-500">
+                The OperatorManager contract address from V3 Layer2Manager
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm text-slate-400">Commission Rate (%)</label>
               <Input
                 type="number"
@@ -161,7 +179,7 @@ export default function AdminPage() {
               variant="gradient"
               className="w-full"
               onClick={handleRegister}
-              disabled={isRegistering || !layer2Address || !commission}
+              disabled={isRegistering || !layer2Address || !operatorManagerAddress || !commission}
             >
               {isRegistering ? (
                 <>
