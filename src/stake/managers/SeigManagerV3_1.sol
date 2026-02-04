@@ -641,16 +641,16 @@ contract SeigManagerV3_1 is
         uint256 oldEffective = info.effectiveBridgedTON;
         uint256 newEffective = info.isEligible ? info.currentBridgedTON : 0;
 
-        // totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
-        if (newEffective != oldEffective) {
-            info.effectiveBridgedTON = newEffective;
-            if (oldEffective > totalEffectiveBridgedTON) {
-                // Safety check: if state is inconsistent, reset to zero
-                totalEffectiveBridgedTON = newEffective;
-            } else {
-                totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
-            }
-        }
+        totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+        // if (newEffective != oldEffective) {
+        //     info.effectiveBridgedTON = newEffective;
+        //     if (oldEffective > totalEffectiveBridgedTON) {
+        //         // Safety check: if state is inconsistent, reset to zero
+        //         totalEffectiveBridgedTON = newEffective;
+        //     } else {
+        //         totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+        //     }
+        // }
     }
 
     // ==========================================
