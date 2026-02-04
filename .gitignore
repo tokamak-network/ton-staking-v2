@@ -23,6 +23,8 @@ log-*.log
 
 # devnet files
 .devnet/
+.devnet-sepolia-fork/
+deployments/
 
 # OS files
 .DS_Store
@@ -42,3 +44,4 @@ backup/
 op-e2e/test-results.txt
 *.test-results.txt
 lib/optimism/
+lib/tokamak-dao-contracts/
