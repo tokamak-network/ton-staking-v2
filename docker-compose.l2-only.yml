@@ -1,0 +1,230 @@
+services:
+  # L2: op-geth (Execution Layer)
+  l2-execution:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-execution
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9545:8545"      # HTTP RPC
+      - "9546:8546"      # WebSocket
+      - "8551:8551"      # Auth RPC
+    volumes:
+      - l2-execution-data:/data
+      - ./.devnet-sepolia-fork:/genesis:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Initializing L2 geth with genesis..."
+        rm -rf /data/geth /data/geth.ipc
+        geth init --datadir=/data /genesis/genesis-l2.json
+        exec geth \
+          --datadir=/data \
+          --http \
+          --http.addr=0.0.0.0 \
+          --http.port=8545 \
+          --http.api=eth,net,web3,debug,txpool \
+          --http.corsdomain=* \
+          --http.vhosts=* \
+          --ws \
+          --ws.addr=0.0.0.0 \
+          --ws.port=8546 \
+          --ws.api=eth,net,web3,debug,txpool \
+          --ws.origins=* \
+          --authrpc.addr=0.0.0.0 \
+          --authrpc.port=8551 \
+          --authrpc.vhosts=* \
+          --authrpc.jwtsecret=/genesis/jwt-secret.txt \
+          --syncmode=full \
+          --gcmode=archive \
+          --maxpeers=0 \
+          --networkid=901 \
+          --rollup.disabletxpoolgossip=true \
+          --verbosity=3
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - ton-staking-network
+
+  # L2: op-node (Consensus/Rollup Layer)
+  l2-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.7.0
+    platform: linux/amd64
+    container_name: ton-staking-l2-node
+    depends_on:
+      l2-execution:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "7545:8545"      # RPC
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for L1..."
+        until wget -qO- --post-data='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' --header="Content-Type: application/json" http://host.docker.internal:8546 2>/dev/null | grep -q result; do
+          echo "L1 not ready, waiting..."
+          sleep 2
+        done
+        echo "L1 ready, starting op-node..."
+        exec op-node \
+          --l1=http://host.docker.internal:8546 \
+          --l1.rpckind=basic \
+          --l1.trustrpc \
+          --l1.beacon.ignore \
+          --l2=http://l2-execution:8551 \
+          --l2.jwt-secret=/genesis/jwt-secret.txt \
+          --rollup.config=/genesis/rollup.json \
+          --rpc.addr=0.0.0.0 \
+          --rpc.port=8545 \
+          --p2p.disable \
+          --sequencer.enabled \
+          --sequencer.l1-confs=0 \
+          --verifier.l1-confs=0 \
+          --log.level=info
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - ton-staking-network
+
+  # L2: op-batcher (Batch Submitter)
+  l2-batcher:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-batcher
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OP_BATCHER_L1_ETH_RPC=http://host.docker.internal:8546
+      - OP_BATCHER_L2_ETH_RPC=http://l2-execution:8545
+      - OP_BATCHER_ROLLUP_RPC=http://l2-node:8545
+      - OP_BATCHER_POLL_INTERVAL=1s
+      - OP_BATCHER_SUB_SAFETY_MARGIN=6
+      - OP_BATCHER_NUM_CONFIRMATIONS=1
+      - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_BATCHER_RESUBMISSION_TIMEOUT=30s
+      - OP_BATCHER_LOG_LEVEL=info
+      # Anvil account #0 private key
+      - OP_BATCHER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+    command: op-batcher --log.level=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # L2: op-proposer (Output Proposer)
+  l2-proposer:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-proposer
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OP_PROPOSER_L1_ETH_RPC=http://host.docker.internal:8546
+      - OP_PROPOSER_ROLLUP_RPC=http://l2-node:8545
+      - OP_PROPOSER_GAME_FACTORY_ADDRESS=0x52d01b38b78b559142B04CC19F5cC50D5C03dbAc
+      - OP_PROPOSER_POLL_INTERVAL=12s
+      - OP_PROPOSER_NUM_CONFIRMATIONS=1
+      - OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_PROPOSER_RESUBMISSION_TIMEOUT=30s
+      - OP_PROPOSER_LOG_LEVEL=info
+      # Anvil account #1 private key
+      - OP_PROPOSER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - OP_PROPOSER_PROPOSAL_INTERVAL=12s
+    command: op-proposer --log.level=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #1 (Anvil Account #3)
+  rat-client-1:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-rat-client-1
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis:ro
+    environment:
+      - L1_RPC_URL=http://host.docker.internal:8546
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #2 (Anvil Account #4)
+  rat-client-2:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-rat-client-2
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis:ro
+    environment:
+      - L1_RPC_URL=http://host.docker.internal:8546
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #3 (Anvil Account #5)
+  rat-client-3:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-rat-client-3
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis:ro
+    environment:
+      - L1_RPC_URL=http://host.docker.internal:8546
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+volumes:
+  l2-execution-data:
+
+networks:
+  ton-staking-network:
+    driver: bridge
