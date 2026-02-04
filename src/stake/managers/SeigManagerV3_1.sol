@@ -257,7 +257,9 @@ contract SeigManagerV3_1 is
     function onBridgedTonChange() external {
         if (!v3Migrated) return;
 
-        address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithPortal(msg.sender);
+        address rollupConfig = IL1BridgeRegistry(l1BridgeRegistry).rollupConfigWithPortal(
+            msg.sender
+        );
         if (rollupConfig == address(0)) return;
 
         uint8 rollupType = IL1BridgeRegistry(l1BridgeRegistry).rollupType(rollupConfig);
@@ -298,7 +300,12 @@ contract SeigManagerV3_1 is
         }
 
         info.isEligible = newEligible;
-        emit EligibilityChanged(layer2, newEligible, info.currentBridgedTON, info.effectiveBridgedTON);
+        emit EligibilityChanged(
+            layer2,
+            newEligible,
+            info.currentBridgedTON,
+            info.effectiveBridgedTON
+        );
     }
 
     // ==========================================
@@ -311,11 +318,9 @@ contract SeigManagerV3_1 is
     }
 
     /// @inheritdoc ISeigManagerV3
-    function checkCurrentEligibility(address layer2)
-        public
-        view
-        returns (bool eligible, uint256 requiredStake, uint256 currentStake)
-    {
+    function checkCurrentEligibility(
+        address layer2
+    ) public view returns (bool eligible, uint256 requiredStake, uint256 currentStake) {
         currentStake = getSequencerStaked(layer2);
 
         if (!v3Migrated) {
@@ -356,7 +361,10 @@ contract SeigManagerV3_1 is
     }
 
     /// @inheritdoc ISeigManagerV3
-    function hyperbolicSaturation(uint256 x, uint256 maxL2Allocation) public view returns (uint256 y) {
+    function hyperbolicSaturation(
+        uint256 x,
+        uint256 maxL2Allocation
+    ) public view returns (uint256 y) {
         if (x == 0) return 0;
         uint256 numerator = maxL2Allocation * x;
         uint256 denominator = halfSaturationPoint + x;
@@ -364,7 +372,11 @@ contract SeigManagerV3_1 is
     }
 
     /// @inheritdoc ISeigManagerV3
-    function calculateL2Seigniorage(address layer2, uint256 totalY, uint256 totalX) public view returns (uint256 seigniorage) {
+    function calculateL2Seigniorage(
+        address layer2,
+        uint256 totalY,
+        uint256 totalX
+    ) public view returns (uint256 seigniorage) {
         if (totalX == 0) return 0;
         uint256 effectiveBridged = bridgedTONInfo[layer2].effectiveBridgedTON;
         if (effectiveBridged == 0) return 0;
@@ -426,7 +438,11 @@ contract SeigManagerV3_1 is
             return (0, 0, 0, 0, 0, 0, 0, 0);
         }
 
-        return abi.decode(result, (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256));
+        return
+            abi.decode(
+                result,
+                (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256)
+            );
     }
 
     /// @notice 청구 가능 L2 시뇨리지 (V2/V3 분기)
@@ -484,8 +500,7 @@ contract SeigManagerV3_1 is
     }
 
     function updateSeigniorageLayer(address layer2) external returns (bool) {
-        if (!ICandidate(layer2).updateSeigniorage())
-            revert UpdateSeigniorageError();
+        if (!ICandidate(layer2).updateSeigniorage()) revert UpdateSeigniorageError();
         return true;
     }
 
@@ -503,7 +518,8 @@ contract SeigManagerV3_1 is
         if (minStakingRatio > RAY_UNIT) revert V3ParametersNotSetError();
         if (validatorDistributionRatio >= RAY_UNIT) revert V3ParametersNotSetError();
         if (maxChallengers == 0 || maxFraudProofCost == 0) revert V3ParametersNotSetError();
-        if (validatorDistributionRatio > 0 && validatorReward == address(0)) revert V3ParametersNotSetError();
+        if (validatorDistributionRatio > 0 && validatorReward == address(0))
+            revert V3ParametersNotSetError();
 
         currentPeriodId = 1;
         periods[1].startBlock = block.number;
@@ -540,14 +556,18 @@ contract SeigManagerV3_1 is
         }
 
         uint256 span = block.number - _lastSeigBlock;
-        if (_unpausedBlock > _lastSeigBlock)
-            span -= (_unpausedBlock - _pausedBlock);
+        if (_unpausedBlock > _lastSeigBlock) span -= (_unpausedBlock - _pausedBlock);
 
         uint256 A = span * _seigPerBlock;
         uint256 prevTotalSupply = _tot.totalSupply();
         _lastSeigBlock = block.number;
 
-        emit CommitLog1(_tot.totalSupply(), _totalSupplyOfTon(block.number), prevTotalSupply, prevTotalSupply);
+        emit CommitLog1(
+            _tot.totalSupply(),
+            _totalSupplyOfTon(block.number),
+            prevTotalSupply,
+            prevTotalSupply
+        );
 
         uint256 l2TotalSeigs = 0;
         uint256 layer2Seigs = 0;
@@ -560,12 +580,15 @@ contract SeigManagerV3_1 is
         return true;
     }
 
-    function _distributeV3Seigniorage(uint256 a2) internal returns (uint256 l2TotalSeigs, uint256 layer2Seigs) {
+    function _distributeV3Seigniorage(
+        uint256 a2
+    ) internal returns (uint256 l2TotalSeigs, uint256 layer2Seigs) {
         uint256 sDao = (a2 * daoDistributionRatio) / RAY_UNIT;
         uint256 L = a2 - sDao;
 
         if (totalEffectiveBridgedTON > 0) {
-            uint256 y = (L * totalEffectiveBridgedTON) / (halfSaturationPoint + totalEffectiveBridgedTON);
+            uint256 y = (L * totalEffectiveBridgedTON) /
+                (halfSaturationPoint + totalEffectiveBridgedTON);
             l2TotalSeigs = y;
             layer2Seigs = _distributeL2Rewards(y, totalEffectiveBridgedTON);
             _mintDaoReward(sDao, L, y);
@@ -576,7 +599,10 @@ contract SeigManagerV3_1 is
         }
     }
 
-    function _distributeL2Rewards(uint256 y, uint256 totalEffective) internal returns (uint256 layer2Seigs) {
+    function _distributeL2Rewards(
+        uint256 y,
+        uint256 totalEffective
+    ) internal returns (uint256 layer2Seigs) {
         address rollupConfig;
         bool allowed;
         (rollupConfig, allowed) = _allowIssuanceLayer2Seigs(msg.sender);
@@ -615,9 +641,15 @@ contract SeigManagerV3_1 is
         uint256 oldEffective = info.effectiveBridgedTON;
         uint256 newEffective = info.isEligible ? info.currentBridgedTON : 0;
 
+        // totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
         if (newEffective != oldEffective) {
             info.effectiveBridgedTON = newEffective;
-            totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+            if (oldEffective > totalEffectiveBridgedTON) {
+                // Safety check: if state is inconsistent, reset to zero
+                totalEffectiveBridgedTON = newEffective;
+            } else {
+                totalEffectiveBridgedTON = totalEffectiveBridgedTON + newEffective - oldEffective;
+            }
         }
     }
 
@@ -630,8 +662,10 @@ contract SeigManagerV3_1 is
     }
 
     function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
-        tos = (initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply) +
-            (_seigPerBlock * (blockNumber - (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock))) -
+        tos =
+            (initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply) +
+            (_seigPerBlock *
+                (blockNumber - (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock))) -
             (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
             (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
     }
@@ -646,7 +680,9 @@ contract SeigManagerV3_1 is
         return false;
     }
 
-    function _allowIssuanceLayer2Seigs(address layer2) internal view returns (address rollupConfig, bool allowed) {
+    function _allowIssuanceLayer2Seigs(
+        address layer2
+    ) internal view returns (address rollupConfig, bool allowed) {
         address tempRollupConfig;
         (tempRollupConfig, ) = ILayer2Manager(layer2Manager).layerInfo(layer2);
         rollupConfig = tempRollupConfig;
@@ -710,7 +746,11 @@ contract SeigManagerV3_1 is
         emit RATContractUpdated(rat);
     }
 
-    function transferCoinageToRat(address layer2, address validator, uint256 amount) external onlyRat whenV3Active {
+    function transferCoinageToRat(
+        address layer2,
+        address validator,
+        uint256 amount
+    ) external onlyRat whenV3Active {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         _checkCoinage(address(coinage));
         coinage.burnFrom(validator, amount);
@@ -718,7 +758,11 @@ contract SeigManagerV3_1 is
         emit CoinageTransferredForRAT(layer2, validator, ratContract, amount);
     }
 
-    function transferCoinageFromRat(address layer2, address validator, uint256 amount) external onlyRat whenV3Active {
+    function transferCoinageFromRat(
+        address layer2,
+        address validator,
+        uint256 amount
+    ) external onlyRat whenV3Active {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         _checkCoinage(address(coinage));
         coinage.burnFrom(ratContract, amount);
@@ -726,7 +770,11 @@ contract SeigManagerV3_1 is
         emit CoinageTransferredForRAT(layer2, ratContract, validator, amount);
     }
 
-    function transferCoinageFromRatTo(address layer2, address recipient, uint256 amount) external onlyRat {
+    function transferCoinageFromRatTo(
+        address layer2,
+        address recipient,
+        uint256 amount
+    ) external onlyRat {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         _checkCoinage(address(coinage));
         coinage.burnFrom(ratContract, amount);
@@ -738,7 +786,11 @@ contract SeigManagerV3_1 is
     // DepositManager Callbacks
     // ==========================================
 
-    function onDeposit(address layer2, address account, uint256 amount) external onlyDepositManager returns (bool) {
+    function onDeposit(
+        address layer2,
+        address account,
+        uint256 amount
+    ) external onlyDepositManager returns (bool) {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         _checkCoinage(address(coinage));
 
@@ -763,7 +815,11 @@ contract SeigManagerV3_1 is
         return true;
     }
 
-    function onWithdraw(address layer2, address account, uint256 amount) external onlyDepositManager returns (bool) {
+    function onWithdraw(
+        address layer2,
+        address account,
+        uint256 amount
+    ) external onlyDepositManager returns (bool) {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         _checkCoinage(address(coinage));
 
@@ -782,7 +838,10 @@ contract SeigManagerV3_1 is
         }
 
         if (v3Migrated && ratContract != address(0)) {
-            uint256 validatorMin = IRAT(ratContract).getValidatorMinCollateralForLayer2(layer2, account);
+            uint256 validatorMin = IRAT(ratContract).getValidatorMinCollateralForLayer2(
+                layer2,
+                account
+            );
             if (validatorMin > 0) {
                 if (newBalance < validatorMin) revert ValidatorMinCollateralError();
             }
@@ -797,7 +856,11 @@ contract SeigManagerV3_1 is
         return true;
     }
 
-    function _additionalTotBurnAmount(address layer2, address, uint256 amount) internal view returns (uint256) {
+    function _additionalTotBurnAmount(
+        address layer2,
+        address,
+        uint256 amount
+    ) internal view returns (uint256) {
         RefactorCoinageSnapshotI coinage = _coinages[layer2];
         uint256 coinageTotalSupply = coinage.totalSupply();
         if (coinageTotalSupply == 0) return 0;
@@ -845,11 +908,9 @@ contract SeigManagerV3_1 is
     }
 
     /// @notice layer2 보상 정보 조회
-    function getLayer2RewardInfo(address layer2) external view returns (
-        uint256 layer2Tvl,
-        uint256 initialDebt,
-        uint256 startBlock
-    ) {
+    function getLayer2RewardInfo(
+        address layer2
+    ) external view returns (uint256 layer2Tvl, uint256 initialDebt, uint256 startBlock) {
         Layer2Reward memory info = layer2RewardInfo[layer2];
         return (info.layer2Tvl, info.initialDebt, info.startBlock);
     }
@@ -923,7 +984,6 @@ contract SeigManagerV3_1 is
     function unpausedBlock() external view returns (uint256) {
         return _unpausedBlock;
     }
-
 
     /// @notice TON 총 공급량 조회
     function totalSupplyOfTon() external view returns (uint256) {

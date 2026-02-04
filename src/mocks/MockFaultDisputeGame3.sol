@@ -285,23 +285,19 @@ contract MockFaultDisputeGame3 is IDisputeGame {
     function _recordWinningChallenger(address _recipient) internal {
         // Exclude game creator (proposer/defender)
         if (_recipient == GAME_CREATOR) return;
-
-        // Use external tracker if available
-        if (winningChallengerTracker != address(0)) {
-            try
-                IWinningChallengerTracker(winningChallengerTracker).recordWinner(
-                    address(this),
-                    _recipient,
-                    GAME_CREATOR
-                )
-            {} catch {}
-            return;
-        }
-
-        // Otherwise use internal storage
-        if (_isWinningChallenger[_recipient]) return;
-        _isWinningChallenger[_recipient] = true;
         _winningChallengers.push(_recipient);
+
+        // // Use external tracker if available
+        // if (winningChallengerTracker != address(0)) {
+        //     try
+        //         IWinningChallengerTracker(winningChallengerTracker).recordWinner(
+        //             address(this),
+        //             _recipient,
+        //             GAME_CREATOR
+        //         )
+        //     {} catch {}
+        //     return;
+        // }
     }
 
     // ============================================
@@ -344,12 +340,12 @@ contract MockFaultDisputeGame3 is IDisputeGame {
     }
 
     function getWinningChallengers() external view returns (address[] memory) {
-        if (winningChallengerTracker != address(0)) {
-            return
-                IWinningChallengerTracker(winningChallengerTracker).getWinningChallengers(
-                    address(this)
-                );
-        }
+        // if (winningChallengerTracker != address(0)) {
+        //     return
+        //         IWinningChallengerTracker(winningChallengerTracker).getWinningChallengers(
+        //             address(this)
+        //         );
+        // }
         return _winningChallengers;
     }
 

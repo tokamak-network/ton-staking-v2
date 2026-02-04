@@ -89,14 +89,14 @@ func connectSlashingContracts(t *testing.T, sys *rat.TONStakingSystem) *Slashing
 }
 
 // registerOperatorWithCandidateAddOn registers an operator with CandidateAddOn
-// Returns: candidateAddOn address, operatorManager address
+// Returns: candidateAddOn address, operatorManager address, rollupConfig address
 func registerOperatorWithCandidateAddOn(
 	t *testing.T,
 	sys *rat.TONStakingSystem,
 	contracts *SlashingContracts,
 	operatorAuth *bind.TransactOpts,
 	stakeAmount *big.Int,
-) (common.Address, common.Address) {
+) (common.Address, common.Address, common.Address) {
 	// Use MockSystemConfig (deployed in Genesis for E2E tests)
 	// This provides unsafeBlockSigner, optimismPortal, etc.
 	// If MockSystemConfig is not present (zero address), fallback to SystemConfig
@@ -108,23 +108,30 @@ func registerOperatorWithCandidateAddOn(
 		t.Logf("Using MockSystemConfig: %s (pre-registered in Genesis)", rollupConfig.Hex())
 	}
 
-	// Step 1: Approve TON to Layer2Manager
-	ton, err := bindings.NewERC20(sys.Addresses.TON, sys.L1Client)
-	require.NoError(t, err, "Failed to connect to TON")
+	wton, err := bindings.NewWTON(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err, "Failed to connect to WTON")
 
-	approveTx, err := ton.Approve(operatorAuth, sys.Addresses.Layer2ManagerProxy, stakeAmount)
-	require.NoError(t, err, "Failed to approve TON")
+	mintTx, err := wton.Mint(operatorAuth, operatorAuth.From, stakeAmount)
+	require.NoError(t, err, "Failed to mint WTON")
+	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, mintTx)
+	require.NoError(t, err, "Failed to wait for WTON mint")
+	t.Logf("✓ Minted %s WTON to operator", stakeAmount.String())
+
+	wtonERC20ForApproval, err := bindings.NewERC20(sys.Addresses.WTON, sys.L1Client)
+	require.NoError(t, err, "Failed to connect to WTON as ERC20")
+
+	approveTx, err := wtonERC20ForApproval.Approve(operatorAuth, sys.Addresses.Layer2ManagerProxy, stakeAmount)
+	require.NoError(t, err, "Failed to approve WTON")
 
 	approveReceipt, err := bind.WaitMined(sys.Ctx, sys.L1Client, approveTx)
-	require.NoError(t, err, "Failed to wait for TON approval")
-	require.Equal(t, types.ReceiptStatusSuccessful, approveReceipt.Status, "TON approval failed")
+	require.NoError(t, err, "Failed to wait for WTON approval")
+	require.Equal(t, types.ReceiptStatusSuccessful, approveReceipt.Status, "WTON approval failed")
 
-	t.Logf("✓ Approved %s TON to Layer2Manager", stakeAmount.String())
+	t.Logf("✓ Approved %s WTON to Layer2Manager", stakeAmount.String())
 
-	// 1. Register CandidateAddOn via Layer2Manager
+	// Register CandidateAddOn via Layer2Manager
 	memo := "Test Operator for Slashing"
-	// rollupConfig already defined above
-	flagTon := true // Use TON (not WTON) - matches Forge test!
+	flagTon := false // Use WTON (operator has WTON balance from mint)
 
 	// Ensure high gas limit for complex registration (matches Forge's ~5.2M usage)
 	operatorAuth.GasLimit = 10000000
@@ -162,32 +169,7 @@ func registerOperatorWithCandidateAddOn(
 	t.Logf("✓ CandidateAddOn registered: %s", candidateAddOn.Hex())
 	t.Logf("✓ OperatorManager: %s", operatorManager.Hex())
 
-	// 2. Deposit stake via DepositManager
-	// We need to approve WTON to DepositManager first
-	wtonERC20, err := bindings.NewERC20(sys.Addresses.WTON, sys.L1Client)
-	require.NoError(t, err, "Failed to connect to WTON as ERC20")
-
-	// Mint some WTON or convert TON if needed - but Genesis already minted WTON to test accounts!
-	approveWtonTx, err := wtonERC20.Approve(operatorAuth, sys.Addresses.DepositManagerProxy, stakeAmount)
-	require.NoError(t, err, "Failed to approve WTON")
-	_, err = bind.WaitMined(sys.Ctx, sys.L1Client, approveWtonTx)
-	require.NoError(t, err, "Wait for WTON approval failed")
-	t.Logf("✓ Approved %s WTON to DepositManager", stakeAmount.String())
-
-	tx, err = contracts.DepositManager.Deposit(
-		operatorAuth,
-		candidateAddOn,
-		stakeAmount,
-	)
-	require.NoError(t, err, "Failed to deposit stake")
-
-	receipt, err = bind.WaitMined(sys.Ctx, sys.L1Client, tx)
-	require.NoError(t, err, "Failed to wait for deposit")
-	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Deposit failed")
-
-	t.Logf("✓ Deposited %s WTON", stakeAmount.String())
-
-	return candidateAddOn, operatorManager
+	return candidateAddOn, operatorManager, rollupConfig
 }
 
 // executeSlashing executes slashing for a given operator

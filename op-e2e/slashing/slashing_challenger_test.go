@@ -235,8 +235,8 @@ func setAnvilBalance(t *testing.T, rpcClient *rpc.Client, addr common.Address, b
 
 // deployMockDisputeGameFactory3 deploys a MockDisputeGameFactory3 contract.
 func deployMockDisputeGameFactory3(t *testing.T, sys *rat.TONStakingSystem) common.Address {
-	// Get deployer account
-	deployerKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	// Get deployer account - use Anvil account #6 to avoid CreateCollision with genesis deployer (account #0)
+	deployerKey, err := crypto.HexToECDSA("92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e")
 	require.NoError(t, err)
 	deployerAddr := crypto.PubkeyToAddress(deployerKey.PublicKey)
 

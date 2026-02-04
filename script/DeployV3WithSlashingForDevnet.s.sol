@@ -55,6 +55,10 @@ contract DeployV3WithSlashingForDevnet is DeployV3FullForDevnet {
         _registerLayer2();
         _mintTestTokens();
 
+        // Set seigStartBlock for devnet (prevents underflow in _totalSupplyOfTon calculation)
+        // Must be set before V3 migration and should be <= current block number
+        _setSeigStartBlock();
+
         // V3 Migration (after all setup is complete)
         _setupV3ParameterSelectors();
         _setV3Parameters();
@@ -104,6 +108,18 @@ contract DeployV3WithSlashingForDevnet is DeployV3FullForDevnet {
         console.log("Layer2Manager_Slashing Impl:", layer2ManagerSlashingImpl);
 
         console.log("");
+    }
+
+    // ==========================================
+    // Set SeigStartBlock for Devnet
+    // ==========================================
+    /// @notice Set seigStartBlock to 1 to prevent underflow in _totalSupplyOfTon calculation
+    /// @dev In devnet, block numbers start from 0, but SEIG_START_MAINNET is 10837698.
+    ///      Without this setting, (blockNumber - seigStartBlock) causes underflow.
+    function _setSeigStartBlock() internal {
+        console.log("--- Setting SeigStartBlock for Devnet ---");
+        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(1);
+        console.log("SeigManager seigStartBlock set to 1");
     }
 
     // ==========================================
@@ -311,6 +327,11 @@ contract DeployV3WithSlashingForDevnet is DeployV3FullForDevnet {
         json = string.concat(json, _jsonDAO());
         json = string.concat(json, _jsonOptimism());
         json = string.concat(json, _jsonEnd());
+
+        // Print JSON to console for scripts/generate-allocs-offline.sh to capture
+        console.log("\n=== DEPLOYMENT_JSON_START ===\n");
+        console.log(json);
+        console.log("\n=== DEPLOYMENT_JSON_END ===\n");
 
         vm.writeFile("deployments/v3-devnet-slashing.json", json);
         console.log("Deployment saved to deployments/v3-devnet-slashing.json");
