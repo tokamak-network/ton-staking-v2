@@ -246,20 +246,32 @@ export default function SequencerDetailPage() {
                 <Shield className="h-4 w-4 text-tokamak-blue" />
                 <h3 className="text-white font-medium text-sm">Estimated Seigniorage</h3>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Sequencer Reward (for delegators)</p>
-                  <p className="text-lg font-bold text-tokamak-cyan">
-                    {estimatedRewards ? formatWTON(estimatedRewards[0]) : '0'} WTON
+              {userAddress && stakeInfo && stakeInfo.amount > 0n ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Your Estimated Reward</p>
+                    <p className="text-lg font-bold text-tokamak-cyan">
+                      {estimatedRewards && info?.totalStaked && info.totalStaked > 0n
+                        ? formatWTON((estimatedRewards[0] * stakeInfo.amount) / info.totalStaked)
+                        : '0'} WTON
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Your Share of Pool</p>
+                    <p className="text-lg font-bold text-white">
+                      {info?.totalStaked && info.totalStaked > 0n
+                        ? (Number(stakeInfo.amount) / Number(info.totalStaked) * 100).toFixed(2)
+                        : '0'}%
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-slate-400 text-sm">
+                    {userAddress ? 'Stake to see your estimated rewards' : 'Connect wallet to see estimated rewards'}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Validator Reward</p>
-                  <p className="text-lg font-bold text-white">
-                    {estimatedRewards ? formatWTON(estimatedRewards[1]) : '0'} WTON
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
