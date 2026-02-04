@@ -110,45 +110,47 @@ make devnet-allocs-offline
 
 ## 4단계: 로컬 네트워크 시작
 
-Docker Compose를 사용하여 L1(Geth)과 L2(Optimism) 환경을 시작합니다.
+Sepolia Fork를 사용하는 L1과 Optimism L2 환경을 시작합니다.
 
 ```bash
-make devnet-start
+# Sepolia Fork 모드 시작 (권장)
+./scripts/local/start-sepolia-fork.sh
 ```
 
 **실행되는 서비스**:
-- `l1`: Geth with Clique PoA (L1 Ethereum, Chain ID 900, Port 8545)
+- `L1`: Anvil Sepolia Fork (Chain ID 900, Port 8546)
 - `l2-execution`: op-geth (L2 실행 레이어, Debug Mode, Chain ID 901, Port 9545)
 - `l2-node`: op-node (롤업 노드, Port 7545)
 - `l2-batcher`: 트랜잭션 배치 제출
 - `l2-proposer`: 상태 루트 제출
+- `rat-client-1,2,3`: RAT 검증자 클라이언트 (3개)
 
-**Note**: L1은 Geth를 사용합니다. Anvil은 블록 해시를 blockTag로 지원하지 않아 op-node와 호환되지 않습니다.
+**자동 설정 항목**:
+스크립트가 다음을 자동으로 설정합니다:
+- L2 롤업 등록 (Type 3: Optimism Bedrock DisputeGame)
+- Validator 3명 등록 (100 WTON 담보금)
+- RAT 파라미터 구성:
+  - slashingPenalty: 10 WTON
+  - evidenceSubmissionPeriod: 600초 (10분)
+  - relaxedValidatorCheck: true
+- 테스트 계정에 TON/WTON 발급 (Personal: 100k TON + 100k WTON)
 
-**예상 시간**: 2-3분
+**예상 시간**: 3-5분
 
 **정상 작동 확인**:
 ```bash
-# 새 터미널에서 실행
-make devnet-info
+# L1 체인 ID 확인
+cast chain-id --rpc-url http://localhost:8546
+# 출력: 900
+
+# L2 체인 ID 확인
+cast chain-id --rpc-url http://localhost:9545
+# 출력: 901
 ```
 
-출력 예시:
-```
-=== TON Staking V3 Devnet Information ===
-
-Container Status:
-NAME                          STATUS
-ton-staking-l1                Up (healthy)
-ton-staking-l2-execution      Up (healthy)
-
-RPC Endpoints:
-  L1 (Geth):           http://localhost:8545
-  L2 (op-geth):        http://localhost:9545  (debug API enabled)
-
-Block Numbers:
-  L1: 5
-  L2: 0
+**종료**:
+```bash
+./scripts/local/stop-sepolia-fork.sh
 ```
 
 **L2 Debug API 확인**:
@@ -167,7 +169,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 
 ```bash
 # L1 체인 ID 확인
-cast chain-id --rpc-url http://localhost:8545
+cast chain-id --rpc-url http://localhost:8546
 # 출력: 900
 
 # L2 체인 ID 확인
@@ -195,7 +197,7 @@ cat .devnet/addresses.json | jq '{ton, wton, seigManagerProxy, depositManagerPro
 ### 5-3. 계정 잔액 확인
 
 ```bash
-export RPC_URL="http://localhost:8545"
+export RPC_URL="http://localhost:8546"
 export TON=$(jq -r '.ton' .devnet/addresses.json)
 export DEPLOYER="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 
@@ -227,7 +229,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 ### 시나리오 1: TON 잔액 조회
 
 ```bash
-export RPC_URL="http://localhost:8545"
+export RPC_URL="http://localhost:8546"
 export TON=$(jq -r '.ton' .devnet/addresses.json)
 export DEPLOYER="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 
@@ -262,7 +264,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 # 배포 확인 스크립트
 cat > check-deployment.sh << 'EOF'
 #!/bin/bash
-RPC_URL="http://localhost:8545"
+RPC_URL="http://localhost:8546"
 
 echo "=== TON Staking V3 Deployment Verification ==="
 echo ""
@@ -469,7 +471,7 @@ Anvil과 cast의 버전 호환성 문제입니다. curl을 사용한 직접 RPC 
 export DATA=$(cast calldata "balanceOf(address)" $ADDRESS)
 curl -s -X POST -H "Content-Type: application/json" \
   -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$CONTRACT\",\"data\":\"$DATA\"},\"latest\"],\"id\":1}" \
-  http://localhost:8545
+  http://localhost:8546
 ```
 
 ### L2 블록이 생성되지 않음

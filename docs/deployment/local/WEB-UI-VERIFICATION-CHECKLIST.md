@@ -136,6 +136,37 @@ cast call $LAYER2_MANAGER "rollupConfigInfo(address)" $SYSTEM_CONFIG --rpc-url h
 
 ## 3️⃣ Validators 탭
 
+### ✅ Validator 자동 등록 (Step 10에서 완료)
+
+`start-sepolia-fork.sh` 스크립트의 **Step 10**에서 3명의 Validator가 자동으로 등록됩니다.
+
+| 역할 | 주소 | Anvil 계정 | Private Key |
+|------|------|------------|-------------|
+| Validator1 | `0x90F79bf6EB2c4f870365E785982E1f101E93b906` | #3 | `0x7c852118...` |
+| Validator2 | `0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65` | #4 | `0x47e179ec...` |
+| Validator3 | `0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc` | #5 | `0x8b3a350c...` |
+
+**자동 등록 과정** (검증자당):
+1. WTON approve → DepositManager
+2. WTON deposit → CandidateAddOn (100 WTON)
+3. RAT.registerValidator(systemConfig)
+
+**등록 확인**:
+```bash
+RAT=$(jq -r '.ratProxy' .devnet/addresses.json)
+SYSTEM_CONFIG=$(jq -r '.systemConfig' .devnet/addresses.json)
+
+# 검증자 수 확인
+cast call $RAT "getValidatorCount(address)(uint256)" $SYSTEM_CONFIG --rpc-url http://localhost:8545
+# 결과: 3
+
+# 검증자 목록 확인
+cast call $RAT "getL2Validators(address)(address[])" $SYSTEM_CONFIG --rpc-url http://localhost:8545
+# 결과: [0x90F7..., 0x15d3..., 0x9965...]
+```
+
+---
+
 ### 👥 Registered Validators (테이블 - 각 Validator당 5개 항목)
 
 ```bash
@@ -150,10 +181,9 @@ cast call $RAT "getL2Validators(address)(address[])" $SYSTEM_CONFIG --rpc-url ht
 # cast call $RAT "isValidatorActive(address,address)(bool)" $VALIDATOR_ADDR $SYSTEM_CONFIG --rpc-url http://localhost:8545
 ```
 
-**Validator가 0명일 경우**:
-- [ ] "No validators registered yet" 메시지 표시
+**Step 10 완료 후 (3명 등록됨)**:
 
-**Validator가 있을 경우 (각 Validator당)**:
+**각 Validator당 표시 항목**:
 - [ ] **Address**: Validator 주소 (6자...38자 형식)
 - [ ] **Deposit**: 숫자 WTON
 - [ ] **Available**: 숫자 WTON
@@ -314,39 +344,110 @@ cast call $TON "balanceOf(address)(uint256)" $L1_BRIDGE --rpc-url http://localho
 
 ## 7️⃣ Bridge to L2 탭
 
-### ⚡ Bridge ETH to L2 (Deposit) (4개 항목)
+### ⚠️ 알려진 제한사항 (중요!)
+
+**현재 Sepolia Fork 환경에서 Bridge 기능은 제한됩니다:**
+
+```
+Error: historical state is not available
+```
+
+**원인**:
+- Optimism 컨트랙트들(Portal, Bridge, Messenger)이 Sepolia에서 fork됨
+- Anvil fork 환경에서 이 컨트랙트들의 historical state 조회 시 오류 발생
+- TON Staking V3 컨트랙트는 allocs로 배포되어 정상 동작
+
+**영향받는 기능**:
+- ❌ Bridge ETH to L2 (L1StandardBridge.depositETH)
+- ❌ Bridge TON to L2 (L1StandardBridge.depositERC20)
+- ❌ OptimismPortal.depositTransaction
+- ❌ L1CrossDomainMessenger 관련 기능
+
+**해결 방법** (향후 작업):
+1. Optimism 컨트랙트도 allocs로 생성하여 배포
+2. 또는 전체 Optimism 스택을 로컬에서 새로 배포
+
+```bash
+# 에러 재현 명령어
+PORTAL=0xbF6531954Aa355f478e54fEDff94D9D9E7008D79
+cast send $PORTAL "depositTransaction(address,uint256,uint64,bool,bytes)" \
+    0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 10000000000000000 100000 false "0x" \
+    --value 0.01ether --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+    --rpc-url http://localhost:8545
+# 결과: Error: historical state is not available
+```
+
+---
+
+### ⚡ Bridge ETH to L2 (Deposit)
 
 ```bash
 # 검증 명령어
-# L1 Bridge, Portal, 사용자 ETH 잔액 조회
+SYSTEM_CONFIG=$(jq -r '.systemConfig' .devnet/addresses.json)
+L1_BRIDGE=$(cast call $SYSTEM_CONFIG "l1StandardBridge()(address)" --rpc-url http://localhost:8545)
+echo "L1 Standard Bridge: $L1_BRIDGE"
+
+# Bridge 상태 확인
+cast call $L1_BRIDGE "paused()(bool)" --rpc-url http://localhost:8545
+cast call $L1_BRIDGE "OTHER_BRIDGE()(address)" --rpc-url http://localhost:8545
 ```
 
-- [ ] **L1 Standard Bridge**: 주소 표시
+**UI 표시 항목**:
+- [ ] **L1 Standard Bridge**: 주소 표시 (0x95E1bDf...)
 - [ ] **Your L1 ETH Balance**: 숫자 ETH
 - [ ] **Portal ETH Balance**: 숫자 ETH
-- [ ] **입력 필드 및 버튼**: Amount (ETH) 입력 + Deposit ETH to L2 버튼
+- [ ] **입력 필드**: Amount (ETH) 입력 가능
+- [ ] **Deposit 버튼**: 클릭 가능
 - [ ] **Gas Limit 안내**: "200,000 (sufficient for standard bridge)"
 
-### 💎 Bridge TON to L2 (Deposit) (4개 항목)
+**기능 테스트**:
+- [ ] Deposit 버튼 클릭 시 에러 메시지 표시 (historical state 문제)
+- [ ] 에러 메시지가 사용자에게 명확하게 표시되는지 확인
+
+---
+
+### 💎 Bridge TON to L2 (Deposit)
 
 ```bash
 # 검증 명령어
-# L1 TON, L2 TON 주소, 사용자 TON 잔액 조회
+TON=$(jq -r '.ton' .devnet/addresses.json)
+L1_BRIDGE_REGISTRY=$(jq -r '.l1BridgeRegistryProxy' .devnet/addresses.json)
+SYSTEM_CONFIG=$(jq -r '.systemConfig' .devnet/addresses.json)
+
+# L2 TON 주소 확인
+cast call $L1_BRIDGE_REGISTRY "getRollupInfo(address)(uint8,address,bool,bool,string)" $SYSTEM_CONFIG --rpc-url http://localhost:8545
 ```
 
+**UI 표시 항목**:
 - [ ] **L1 TON**: 주소 표시
-- [ ] **L2 TON**: 주소 표시
+- [ ] **L2 TON**: 주소 표시 (from getRollupInfo)
 - [ ] **Your L1 TON Balance**: 숫자 TON
-- [ ] **입력 필드 및 버튼**: Amount (TON) 입력 + Deposit TON to L2 버튼
-- [ ] **Your L1 TON Balance (하단)**: 숫자 TON
+- [ ] **입력 필드**: Amount (TON) 입력 가능
+- [ ] **Deposit 버튼**: 클릭 가능
 
-### 📤 Withdraw ETH from L2 (3개 항목)
+**기능 테스트**:
+- [ ] Deposit 버튼 클릭 시 에러 메시지 표시 (historical state 문제)
+
+---
+
+### 📤 Withdraw ETH from L2
 
 **현재 상태**: ⚠️ L2 지갑 자동 전환 미구현
 
+```bash
+# L2 Standard Bridge 확인
+L2_BRIDGE=0x4200000000000000000000000000000000000010
+cast call $L2_BRIDGE "OTHER_BRIDGE()(address)" --rpc-url http://localhost:9545
+```
+
+**UI 표시 항목**:
 - [ ] **L2 Standard Bridge**: 0x4200000000000000000000000000000000000010 표시
 - [ ] **L2 RPC**: http://localhost:9545 표시
-- [ ] **입력 필드 및 버튼**: Amount (ETH) 입력 + Withdraw ETH from L2 버튼
+- [ ] **입력 필드**: Amount (ETH) 입력 가능
+- [ ] **Withdraw 버튼**: 클릭 가능
+
+**기능 테스트**:
+- [ ] L2 지갑 전환 필요 안내 메시지 표시
 
 ---
 
@@ -374,17 +475,76 @@ cast call $DISPUTE_FACTORY "gameCount()(uint256)" --rpc-url http://localhost:854
 
 ## 9️⃣ Balances 탭
 
-**현재 상태**: ⚠️ UI 메뉴에서 접근 불가 (activeTab 조건 누락)
+### 💰 Token Balances (6개 항목)
 
-**구현되어 있는 항목 (6개)**:
-- [ ] **ETH Balance**: 숫자 ETH
-- [ ] **TON Balance**: 숫자 TON
-- [ ] **WTON Balance**: 숫자 WTON
+```bash
+# 검증 명령어
+ACCOUNT=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266  # 연결된 지갑 주소
+TON=$(jq -r '.ton' .devnet/addresses.json)
+WTON=$(jq -r '.wton' .devnet/addresses.json)
+
+cast balance $ACCOUNT --rpc-url http://localhost:8545
+cast call $TON "balanceOf(address)(uint256)" $ACCOUNT --rpc-url http://localhost:8545
+cast call $WTON "balanceOf(address)(uint256)" $ACCOUNT --rpc-url http://localhost:8545
+```
+
+- [ ] **ETH Balance**: 숫자 ETH (화면 표시 + 온체인 일치)
+- [ ] **TON Balance**: 숫자 TON (화면 표시 + 온체인 일치)
+- [ ] **WTON Balance**: 숫자 WTON (화면 표시 + 온체인 일치)
 - [ ] **Staked Amount**: 숫자 WTON
 - [ ] **Pending Unstaked**: 숫자 WTON
 - [ ] **Withdrawal Requests**: 숫자
 
-**대안**: 각 기능 탭에서 관련 잔액 표시됨
+### 🚰 Faucet (Token Mint) 기능
+
+```bash
+# ETH 민트 (Anvil cheatcode)
+cast rpc anvil_setBalance $ACCOUNT 0x56BC75E2D63100000 --rpc-url http://localhost:8545
+# 100 ETH = 0x56BC75E2D63100000
+
+# TON은 mint 함수가 필요 (owner만 가능하거나 별도 faucet 필요)
+```
+
+**Faucet 버튼 동작 검증**:
+- [ ] **ETH Faucet**: 버튼 클릭 → 잔액 증가 → 화면 업데이트
+- [ ] **TON Faucet**: 버튼 클릭 → 잔액 증가 → 화면 업데이트
+- [ ] **WTON Faucet**: 버튼 클릭 → 잔액 증가 → 화면 업데이트
+
+### 🔄 Swap 기능 (TON ↔ WTON)
+
+```bash
+# TON → WTON 스왑 검증
+WTON=$(jq -r '.wton' .devnet/addresses.json)
+# WTON.swapFromTON(amount) 또는 WTON.deposit(amount)
+
+# WTON → TON 스왑 검증
+# WTON.swapToTON(amount) 또는 WTON.withdraw(amount)
+```
+
+**Swap 기능 검증**:
+- [ ] **TON → WTON 스왑**: 버튼 + 입력필드 표시
+- [ ] **스왑 후 TON 잔액 감소**: 화면 반영
+- [ ] **스왑 후 WTON 잔액 증가**: 화면 반영
+- [ ] **WTON → TON 스왑**: 버튼 + 입력필드 표시
+- [ ] **스왑 후 WTON 잔액 감소**: 화면 반영
+- [ ] **스왑 후 TON 잔액 증가**: 화면 반영
+
+### ⚠️ 잔액 업데이트 검증 (중요!)
+
+**알려진 이슈**:
+| 토큰 | Faucet/민트 후 화면 반영 | 스왑 후 화면 반영 |
+|------|-------------------------|------------------|
+| ETH | ✅ 정상 | N/A |
+| TON | ❌ 미반영 | ⚠️ 확인 필요 |
+| WTON | ❌ 미반영 | ⚠️ 확인 필요 |
+
+**원인 분석 필요**:
+- Web UI에서 TON/WTON balanceOf 조회 시점
+- useEffect 의존성 배열에 잔액 관련 상태 누락 가능
+- RPC 호출 실패 또는 캐싱 문제
+
+**수동 새로고침 필요 시**:
+- [ ] 페이지 새로고침(F5) 후 잔액 정상 표시
 
 ---
 
@@ -397,7 +557,34 @@ cast call $DISPUTE_FACTORY "gameCount()(uint256)" --rpc-url http://localhost:854
 2. 10초 대기
 3. 값이 변경되었는지 확인 (예: L1 Block: 1010)
 
-- [ ] **자동 업데이트 작동**: 10초 후 블록 번호 증가 확인
+- [ ] **블록 번호 자동 업데이트**: 10초 후 L1/L2 블록 번호 증가 확인
+
+### 💰 잔액 업데이트 검증 (중요!)
+
+```bash
+# 테스트 계정에 토큰 민트
+DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+TON=$(jq -r '.ton' .devnet/addresses.json)
+WTON=$(jq -r '.wton' .devnet/addresses.json)
+
+# ETH 민트 테스트
+cast rpc anvil_setBalance $DEPLOYER 0x56BC75E2D63100000 --rpc-url http://localhost:8545
+
+# TON 민트 테스트 (TON은 mint 함수가 있는 경우)
+# cast send $TON "mint(address,uint256)" $DEPLOYER 1000000000000000000000 --private-key ...
+
+# WTON 잔액 확인
+cast call $WTON "balanceOf(address)(uint256)" $DEPLOYER --rpc-url http://localhost:8545
+```
+
+**각 토큰별 자동 업데이트 검증**:
+- [ ] **ETH 잔액**: 민트 후 10초 내 화면 업데이트 ✅
+- [ ] **TON 잔액**: 민트/전송 후 10초 내 화면 업데이트
+- [ ] **WTON 잔액**: swap/전송 후 10초 내 화면 업데이트
+
+**알려진 이슈**:
+- ETH 잔액: 자동 업데이트 정상 ✅
+- TON 잔액: 자동 업데이트 지연 또는 미반영 ⚠️ (확인 필요)
 
 ---
 

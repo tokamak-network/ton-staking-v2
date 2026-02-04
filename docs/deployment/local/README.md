@@ -39,14 +39,15 @@ make devnet-info
 │     TON Staking V3 Local Devnet         │
 ├─────────────────────────────────────────┤
 │                                         │
-│  L1 (Geth)           L2 (Optimism)      │
+│  L1 (Anvil Fork)     L2 (Optimism)      │
 │  ├─ Chain ID: 900    ├─ Chain ID: 901  │
-│  ├─ Port: 8545       ├─ Port: 9545     │
-│  ├─ Clique PoA       ├─ op-geth        │
+│  ├─ Port: 8546       ├─ Port: 9545     │
+│  ├─ Sepolia Fork     ├─ op-geth        │
 │  └─ TON Staking      │  (Debug Mode)   │
-│     Contracts        ├─ op-node        │
-│                      ├─ batcher        │
-│                      └─ proposer       │
+│     + Optimism       ├─ op-node        │
+│     Contracts        ├─ batcher        │
+│                      ├─ proposer       │
+│                      └─ RAT Clients(3) │
 └─────────────────────────────────────────┘
 ```
 
@@ -86,9 +87,11 @@ rm -rf .devnet
 
 | 서비스 | URL | Chain ID | 비고 |
 |--------|-----|----------|------|
-| L1 (Geth) | http://localhost:8545 | 900 | Clique PoA |
+| L1 (Anvil) | http://localhost:8546 | 900 | Sepolia Fork |
 | L2 (op-geth) | http://localhost:9545 | 901 | Debug API 활성화 |
 | L2 Rollup | http://localhost:7545 | 901 | op-node |
+
+> **참고**: L1 포트는 8546입니다 (MetaMask 호환성을 위해 8545 대신 사용)
 
 ---
 
@@ -114,13 +117,16 @@ cat .devnet/addresses.json | jq '{ton, wton, seigManagerProxy, depositManagerPro
 
 ## 👥 테스트 계정
 
-| 이름 | 주소 | ETH | TON | 용도 |
-|------|------|-----|-----|------|
-| Account #0 | `0xf39Fd...2266` | 10,000 | - | Batcher/Proposer |
-| Account #1 | `0x70997...79C8` | 10,000 | 100,000 | Deployer/Staker |
-| Account #2 | `0x90F79...b906` | 10,000 | - | Validator |
+| 역할 | 주소 | 용도 |
+|------|------|------|
+| Operator | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` (Anvil #0) | 시퀀서/배처/프로포저 |
+| Manager | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` (Anvil #1) | 배포자/관리자 |
+| Validator1 | `0x90F79bf6EB2c4f870365E785982E1f101E93b906` (Anvil #3) | 검증자 |
+| Validator2 | `0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65` (Anvil #4) | 검증자 |
+| Validator3 | `0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc` (Anvil #5) | 검증자 |
+| Personal | `0x976EA74026E726554dB657fA54763abd0C3a0aa9` (Anvil #6) | 개인 테스트 (100k TON + 100k WTON) |
 
-Private Key는 [빠른 시작 가이드](./QUICKSTART.md#테스트-계정)에서 확인하세요.
+Private Key는 Anvil 기본 키를 사용합니다. [빠른 시작 가이드](./QUICKSTART.md#테스트-계정)에서 확인하세요.
 
 ---
 
@@ -128,9 +134,10 @@ Private Key는 [빠른 시작 가이드](./QUICKSTART.md#테스트-계정)에서
 
 - ✅ **L1 + L2 네트워크**: 정상 작동
 - ✅ **모든 컨트랙트**: 배포 완료
-- ✅ **기본 기능**: 토큰 조회, 트랜잭션 실행
-- ⚠️ **Validator 등록**: 수동 설정 필요
-- ⚠️ **RAT 테스트**: 파라미터 조정 필요
+- ✅ **L2 등록**: 자동 등록 (Rollup Type 3)
+- ✅ **Validator 등록**: 자동 등록 (3개)
+- ✅ **RAT 설정**: 자동 구성 완료
+- ✅ **테스트 계정**: TON/WTON 자동 발급
 
 자세한 내용은 **[현재 상태](./STATUS.md)**를 참조하세요.
 
@@ -140,14 +147,43 @@ Private Key는 [빠른 시작 가이드](./QUICKSTART.md#테스트-계정)에서
 
 ### ✅ 지금 바로 테스트 가능
 - L1/L2 네트워크 연결 확인
-- TON/WTON 잔액 조회
+- TON/WTON 잔액 조회 및 민팅
 - 컨트랙트 함수 호출
-- 기본 트랜잭션 전송
+- L2 스테이킹/출금
+- Validator 상태 확인
+- 시뇨리지 업데이트
+- Web UI 대시보드 사용
 
-### ⚠️ 추가 설정 필요
-- Validator 등록 ([가이드](./VALIDATOR-SETUP.md) 참조)
-- L2 스테이킹
-- RAT Challenge 응답
+### 📋 자동 설정 항목
+시작 스크립트(`start-sepolia-fork.sh`)에서 자동으로 설정됩니다:
+- L2 롤업 등록 (Type 3: Optimism Bedrock DisputeGame)
+- Validator 3명 등록 및 담보금 예치
+- RAT 파라미터 구성 (slashingPenalty, evidenceSubmissionPeriod 등)
+- 테스트 계정에 TON/WTON 발급
+
+---
+
+## 🌐 Web UI
+
+Web UI를 통해 대시보드에서 TON Staking V3 시스템을 관리할 수 있습니다.
+
+```bash
+# Web UI 시작
+cd web-ui && npm install && npm run dev
+
+# 브라우저에서 열기
+open http://localhost:5173
+```
+
+### Web UI 기능
+- **Overview**: 시스템 상태, 주요 컨트랙트 정보
+- **Sequencer**: 시퀀서 담보금 및 자격 상태
+- **Validators**: 검증자 목록 및 RAT 설정
+- **TON Staking**: 스테이킹/출금 기능
+- **Seigniorage**: 시뇨리지 상태 및 업데이트
+- **L1/L2 Information**: 네트워크 및 컨트랙트 상세 정보
+- **Bridge**: L2 브릿지 기능
+- **Balances**: 테스트 계정 잔액 및 민팅
 
 ---
 
@@ -156,7 +192,7 @@ Private Key는 [빠른 시작 가이드](./QUICKSTART.md#테스트-계정)에서
 ### 포트가 이미 사용 중
 ```bash
 # 프로세스 확인
-lsof -i :8545
+lsof -i :8546
 lsof -i :9545
 
 # 기존 환경 종료
