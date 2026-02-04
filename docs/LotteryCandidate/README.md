@@ -57,8 +57,6 @@ graph TD
 | [**Contracts 상세**](contracts.md) | `LotteryCandidate.sol`의 함수 명세, 스토리지 구조 및 상속 관계 |
 | [**사용 시나리오**](scenario.md) | 초기 설정부터 예치, 로터리 참여, 시뇨리지 수령까지의 전체 사용자 여정 |
 | [**프론트엔드 데모**](demo.md) | 로컬 환경에서 React 앱을 실행하고 기능을 직접 테스트하는 방법 |
-| [**트러블슈팅**](seigniorage-troubleshooting.md) | 시뇨리지 분배가 작동하지 않을 때의 원인 분석 및 해결책 |
-| [**개선 보고서**](seigniorage-update-report.md) | 최근 발생한 기술적 이슈(First-call trap 등)와 해결 과정에 대한 상세 리포트 |
 
 ---
 

@@ -55,7 +55,6 @@ Refer to the documents below for detailed information.
 | [**Contracts Details**](contracts.md) | `LotteryCandidate.sol` function specifications, storage structure, and inheritance. |
 | [**Usage Scenario**](scenario.md) | The entire user journey from initial setup to deposit, entry, and claiming seigniorage. |
 | [**Frontend Demo**](demo.md) | Guide to running the React app in a local environment and testing features directly. |
-| [**Troubleshooting**](seigniorage-troubleshooting.md) | Analysis and solutions for issues when seigniorage distribution is not working. |
 
 ---
 
