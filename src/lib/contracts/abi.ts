@@ -249,7 +249,6 @@ export const DELEGATE_STAKING_ABI = [
           { name: 'rewardDebt', type: 'uint256' },
           { name: 'unstakeAmount', type: 'uint256' },
           { name: 'unstakeTime', type: 'uint256' },
-          { name: 'lastStakeTime', type: 'uint256' },
         ],
         name: '',
         type: 'tuple',
