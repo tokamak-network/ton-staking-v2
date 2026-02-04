@@ -1,5 +1,7 @@
 # 🎰 LotteryCandidate: Staking-Based Lossless Lottery
 
+[English Version Available here](./en/README.md)
+
 `LotteryCandidate`는 Tokamak Network의 스테이킹 생태계를 활용한 **"원금 손실 없는 로터리(Lossless Lottery)"** 모델입니다. 사용자는 자신의 TON을 스테이킹하여 네트워크 보상(시뇨리지)을 받는 동시에, 매 라운드 추첨을 통해 추가적인 상금을 획득할 기회를 가집니다.
 
 ---

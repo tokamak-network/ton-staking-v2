@@ -21,13 +21,7 @@ foundryup
 
 ### 2. Install Node.js (v18 or higher)
 
-```bash
-node --version
-npm --version
-```
-
 ### 3. MetaMask Browser Extension
-Install [MetaMask](https://metamask.io/) in Chrome, Brave, Firefox, etc.
 
 ## Quick Start
 
@@ -43,13 +37,35 @@ chmod +x run-lottery-demo.sh
 This script automatically performs:
 1. ✅ Starts Anvil network (localhost:8545, block-time: 1s)
 2. ✅ Deploys LotteryCandidate contracts
-3. ✅ Initializes seigniorage (Auto-call to solve First-call trap)
+3. ✅ Initializes seigniorage (Auto-call to handle the First-call trap)
 4. ✅ Installs frontend dependencies
 5. ✅ Starts dev server (localhost:5173)
+
+### Execution Output
+
+When successfully running, you will see output like this:
+
+```
+============================
+🎉 Demo is ready!
+============================
+
+Step 2.5: Initializing seigniorage...
+Seigniorage initialized (startBlock set)
+
+Frontend: http://localhost:5173
+Anvil RPC: http://localhost:8545
+
+Test Accounts (import to MetaMask):
+  Operator: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+  User1:    0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+...
+```
 
 ## MetaMask Setup
 
 ### 1. Add Local Network
+
 Open MetaMask → Select Network → "Add Network" → "Add a network manually"
 
 | Field | Value |
@@ -60,26 +76,43 @@ Open MetaMask → Select Network → "Add Network" → "Add a network manually"
 | Currency Symbol | `ETH` |
 
 ### 2. Import Test Accounts
-MetaMask → Account Icon → "Import Account" → Enter Private Key
 
-| Role | Address | Private Key |
-| :--- | :--- | :--- |
-| **Operator** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
-| **User1** | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | `0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a` |
+MetaMask → Account Icon → "Import Account" → Enter the private keys shown in your terminal.
+
+---
 
 ## UI Component Guide
 
-### 🎰 Lottery Info
-- **Prize Pool**: Current accumulated prizes.
-- **Participants**: Number of users entered in the current round.
+### 🎰 Lottery Info (Top Left)
+- **Prize Pool**: Current accumulated prizes for this round.
+- **Participants**: Number of users who joined the current round.
 
-### 💰 Your Balance
-- **Deposited in Lottery**: Balance available for lottery and withdrawal.
+### 💰 Your Balance (Top Right)
+- **Deposited in Lottery**: User balance within the LotteryCandidate contract (available for lottery entry and withdrawal).
 
-### 📈 Seigniorage Distribution
-- **Claim Seigniorage**: Triggers `updateSeigniorage()`.
-- **Amount Received**: Detailed display in scientific notation for small rewards (e.g., `+1.9405e-7 WTON`).
+### 📈 Seigniorage Distribution (Bottom Right)
+Displays seigniorage info and provides a claim function.
+
+- **Total Deposited (Pool)**: Global pool size (WTON and Raw BigInt values).
+- **Your Share**: User's percentage of the pool.
+- **Claim Seigniorage**: Calls `updateSeigniorage()`.
+  - On success, it displays the reward in scientific notation (e.g., `+1.9405e-7 WTON`).
+  - Supports automatic data refetching.
 
 ### ⚡ Dev Tools: Advance Blocks
-- **Mine Button**: Instantly generates blocks.
-- **Recommendation**: Mine at least 100 blocks before claiming seigniorage to see noticeable changes.
+Tool for generating seigniorage quickly in the local environment.
+
+- **Mine Button**: Instantly mines the specified number of blocks.
+- Since seigniorage grows per block, it is recommended to mine at least 100 blocks before clicking "Claim Seigniorage".
+
+---
+
+## Demo Scenario (Summary)
+
+### Scenario: Integrated Experience
+1. Deposit 100 TON as **User1**.
+2. Click **Enter Lottery** to join the round.
+3. Click the **Mine** button to generate 100 blocks.
+4. Click **Claim Seigniorage** to verify network rewards.
+5. Switch to the **Operator** account and click **Draw Winner**.
+6. Switch back to the winning account to check the increased balance.
