@@ -360,13 +360,78 @@ if [ -f "$DEVNET_DIR/addresses.json" ]; then
 fi
 
 # =============================================================================
-section "9️⃣  Test Account Balances Verification"
+section "9️⃣  L2 Predeploy Contracts Verification"
+# =============================================================================
+
+L2_RPC="http://localhost:9545"
+
+check_predeploy() {
+    local name=$1
+    local addr=$2
+    local code=$(cast code $addr --rpc-url $L2_RPC 2>/dev/null || echo "0x")
+    if [ "$code" != "0x" ] && [ ${#code} -gt 10 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+check_start "L2 WETH predeploy"
+if check_predeploy "WETH" "0x4200000000000000000000000000000000000006"; then
+    check_pass "WETH deployed"
+    info "  Address: 0x4200000000000000000000000000000000000006"
+else
+    check_fail "WETH not deployed"
+fi
+
+check_start "L2 CrossDomainMessenger predeploy"
+if check_predeploy "L2CrossDomainMessenger" "0x4200000000000000000000000000000000000007"; then
+    check_pass "L2CrossDomainMessenger deployed"
+    info "  Address: 0x4200000000000000000000000000000000000007"
+else
+    check_fail "L2CrossDomainMessenger not deployed"
+fi
+
+check_start "L2 StandardBridge predeploy"
+if check_predeploy "L2StandardBridge" "0x4200000000000000000000000000000000000010"; then
+    check_pass "L2StandardBridge deployed"
+    info "  Address: 0x4200000000000000000000000000000000000010"
+else
+    check_fail "L2StandardBridge not deployed"
+fi
+
+check_start "L1Block predeploy"
+if check_predeploy "L1Block" "0x4200000000000000000000000000000000000015"; then
+    check_pass "L1Block deployed"
+    info "  Address: 0x4200000000000000000000000000000000000015"
+else
+    check_fail "L1Block not deployed"
+fi
+
+check_start "L2ToL1MessagePasser predeploy"
+if check_predeploy "L2ToL1MessagePasser" "0x4200000000000000000000000000000000000016"; then
+    check_pass "L2ToL1MessagePasser deployed"
+    info "  Address: 0x4200000000000000000000000000000000000016"
+else
+    check_fail "L2ToL1MessagePasser not deployed"
+fi
+
+check_start "GasPriceOracle predeploy"
+if check_predeploy "GasPriceOracle" "0x420000000000000000000000000000000000000F"; then
+    check_pass "GasPriceOracle deployed"
+    info "  Address: 0x420000000000000000000000000000000000000F"
+else
+    check_fail "GasPriceOracle not deployed"
+fi
+
+# =============================================================================
+section "🔟 Test Account Balances Verification"
 # =============================================================================
 
 if [ -f "$DEVNET_DIR/addresses.json" ]; then
     TON=$(jq -r '.ton' "$DEVNET_DIR/addresses.json")
     DEPLOYER="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
-    
+
     check_start "Deployer ETH balance"
     ETH_BAL=$(cast balance $DEPLOYER --rpc-url http://localhost:8545 2>/dev/null || echo "0")
     ETH_FORMATTED=$(cast from-wei $ETH_BAL 2>/dev/null || echo "0")
@@ -392,7 +457,7 @@ if [ -f "$DEVNET_DIR/addresses.json" ]; then
 fi
 
 # =============================================================================
-section "🔟 Web UI Verification"
+section "1️⃣1️⃣  Web UI Verification"
 # =============================================================================
 
 check_start "Web UI directory exists"

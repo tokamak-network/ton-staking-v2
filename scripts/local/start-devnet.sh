@@ -178,11 +178,25 @@ EOF
 
 echo -e "${GREEN}✓ Rollup configuration created${NC}"
 
-# Step 3: Create L2 genesis
+# Step 3: Create L2 genesis with predeploys
 echo ""
-echo -e "${YELLOW}Step 3: Creating L2 genesis...${NC}"
+echo -e "${YELLOW}Step 3: Creating L2 genesis with predeploys...${NC}"
 
-cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
+# Check if we already have a proper L2 genesis with predeploys
+L2_GENESIS_SIZE=$(stat -f%z "$DEVNET_DIR/genesis-l2.json" 2>/dev/null || echo "0")
+PREDEPLOY_COUNT=$(jq '.alloc | keys | map(select(startswith("0x4200"))) | length' "$DEVNET_DIR/genesis-l2.json" 2>/dev/null || echo "0")
+
+if [ "$L2_GENESIS_SIZE" -gt 1000000 ] && [ "$PREDEPLOY_COUNT" -gt 100 ]; then
+    echo -e "${GREEN}✓ L2 genesis with predeploys already exists ($PREDEPLOY_COUNT predeploys)${NC}"
+else
+    echo "  Generating L2 genesis with predeploys..."
+
+    # Try to generate using our script
+    if [ -x "$PROJECT_ROOT/scripts/generate-l2-genesis.sh" ]; then
+        "$PROJECT_ROOT/scripts/generate-l2-genesis.sh" || {
+            echo -e "${YELLOW}  Warning: L2 genesis generation failed, using minimal genesis${NC}"
+            # Fallback to minimal genesis
+            cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
 {
   "config": {
     "chainId": 901,
@@ -233,8 +247,16 @@ cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
   "baseFeePerGas": "0x3b9aca00"
 }
 EOF
+        }
+    else
+        echo -e "${RED}  Error: generate-l2-genesis.sh not found${NC}"
+        exit 1
+    fi
 
-echo -e "${GREEN}✓ L2 genesis created${NC}"
+    # Verify predeploys were generated
+    PREDEPLOY_COUNT=$(jq '.alloc | keys | map(select(startswith("0x4200"))) | length' "$DEVNET_DIR/genesis-l2.json" 2>/dev/null || echo "0")
+    echo -e "${GREEN}✓ L2 genesis created with $PREDEPLOY_COUNT predeploys${NC}"
+fi
 
 # Step 4: Start L2 execution
 echo ""

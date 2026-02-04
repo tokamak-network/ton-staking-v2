@@ -51,10 +51,10 @@ WARNINGS=0
 echo -e "${BLUE}[1/7] Checking Docker Containers...${NC}"
 
 CONTAINERS=(
-    "ton-staking-l1-sepolia-fork"
-    "ton-staking-l2-execution-sepolia-fork"
-    "ton-staking-l2-node-sepolia-fork"
-    "ton-staking-l2-batcher-sepolia-fork"
+    "ton-staking-l2-execution"
+    "ton-staking-l2-node"
+    "ton-staking-l2-batcher"
+    "ton-staking-l2-proposer"
 )
 
 for container in "${CONTAINERS[@]}"; do
@@ -83,7 +83,7 @@ done
 
 # Check RAT clients (optional)
 for i in 1 2 3; do
-    container="ton-staking-rat-client-$i-sepolia-fork"
+    container="ton-staking-rat-client-$i"
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         check_pass "$container: running"
     else
@@ -97,26 +97,39 @@ echo ""
 # =============================================================================
 echo -e "${BLUE}[2/7] Checking L1 RPC (Sepolia Fork)...${NC}"
 
-if curl -s -X POST http://localhost:8545 \
+if curl -s -X POST http://localhost:8546 \
     -H "Content-Type: application/json" \
     -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' > /tmp/l1_response.json 2>/dev/null; then
 
     L1_CHAIN_ID=$(jq -r '.result' /tmp/l1_response.json 2>/dev/null)
-    # Sepolia chain ID is 11155111 = 0xaa36a7
-    if [ "$L1_CHAIN_ID" = "0xaa36a7" ]; then
-        check_pass "L1 RPC: responding (Chain ID: 11155111 - Sepolia)"
+    # Local devnet chain ID is 900 = 0x384 (Sepolia fork but with local chain ID)
+    if [ "$L1_CHAIN_ID" = "0x384" ]; then
+        check_pass "L1 RPC: responding (Chain ID: 900 - Sepolia Fork)"
     else
         L1_CHAIN_ID_DEC=$((L1_CHAIN_ID))
-        check_warn "L1 RPC: responding (Chain ID: $L1_CHAIN_ID_DEC, expected: 11155111)"
+        check_warn "L1 RPC: responding (Chain ID: $L1_CHAIN_ID_DEC, expected: 900)"
         WARNINGS=$((WARNINGS + 1))
     fi
 
     # Check block number
-    L1_BLOCK=$(curl -s -X POST http://localhost:8545 \
+    L1_BLOCK=$(curl -s -X POST http://localhost:8546 \
         -H "Content-Type: application/json" \
         -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' | jq -r '.result')
     L1_BLOCK_DEC=$((L1_BLOCK))
     check_info "L1 Block Number: $L1_BLOCK_DEC"
+    
+    # Check if L1 is mining (Anvil auto-mine status)
+    L1_AUTOMINE=$(curl -s -X POST http://localhost:8546 \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","method":"anvil_getAutomine","params":[],"id":1}' 2>/dev/null | jq -r '.result')
+    
+    if [ "$L1_AUTOMINE" = "false" ]; then
+        check_fail "L1 auto-mining: DISABLED (Batcher cannot submit batches!)"
+        check_info "  Fix: curl -X POST http://localhost:8546 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"anvil_setIntervalMining\",\"params\":[12],\"id\":1}'"
+        ERRORS=$((ERRORS + 1))
+    else
+        check_pass "L1 auto-mining: enabled"
+    fi
 else
     check_fail "L1 RPC: not responding"
     ERRORS=$((ERRORS + 1))
@@ -181,7 +194,7 @@ if [ -f "$DEVNET_DIR/addresses.json" ]; then
             return
         fi
 
-        CODE=$(curl -s -X POST http://localhost:8545 \
+        CODE=$(curl -s -X POST http://localhost:8546 \
             -H "Content-Type: application/json" \
             -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$address\",\"latest\"],\"id\":1}" | jq -r '.result')
 
@@ -247,19 +260,32 @@ fi
 echo ""
 
 # =============================================================================
-# 6. Batcher Status
+# 6. Batcher and Proposer Status
 # =============================================================================
-echo -e "${BLUE}[6/7] Checking Batcher...${NC}"
+echo -e "${BLUE}[6/8] Checking Batcher and Proposer...${NC}"
 
-BATCHER_CONTAINER="ton-staking-l2-batcher-sepolia-fork"
+# Check Batcher
+BATCHER_CONTAINER="ton-staking-l2-batcher"
 if docker ps --format '{{.Names}}' | grep -q "$BATCHER_CONTAINER"; then
     BATCHER_LOGS=$(docker logs "$BATCHER_CONTAINER" 2>&1 | tail -20)
 
     if echo "$BATCHER_LOGS" | grep -q "Publishing\|Submitted"; then
         check_pass "Batcher: publishing transactions"
     elif echo "$BATCHER_LOGS" | grep -q "Sequencer is out of sync"; then
-        check_warn "Batcher: waiting for sequencer sync"
-        WARNINGS=$((WARNINGS + 1))
+        # Check if safe L2 is still at genesis (0)
+        if [ "$UNSAFE_L2" != "null" ] && [ "$SAFE_L2" != "null" ]; then
+            if [ "$SAFE_L2" = "0" ]; then
+                check_warn "Batcher: waiting for L1 blocks (safe L2 still at genesis)"
+                check_info "  This is normal - Batcher needs L1 to mine blocks to submit batches"
+                WARNINGS=$((WARNINGS + 1))
+            else
+                check_warn "Batcher: sequencer syncing (safe L2: $SAFE_L2)"
+                WARNINGS=$((WARNINGS + 1))
+            fi
+        else
+            check_warn "Batcher: waiting for sequencer sync"
+            WARNINGS=$((WARNINGS + 1))
+        fi
     elif echo "$BATCHER_LOGS" | grep -q "ERROR\|error"; then
         check_fail "Batcher: errors in logs"
         ERRORS=$((ERRORS + 1))
@@ -270,15 +296,61 @@ else
     check_fail "Batcher: not running"
     ERRORS=$((ERRORS + 1))
 fi
+
+# Check Proposer
+PROPOSER_CONTAINER="ton-staking-l2-proposer"
+if docker ps --format '{{.Names}}' | grep -q "$PROPOSER_CONTAINER"; then
+    PROPOSER_LOGS=$(docker logs "$PROPOSER_CONTAINER" 2>&1 | tail -20)
+
+    if echo "$PROPOSER_LOGS" | grep -q "Proposing\|Proposed\|output root published"; then
+        check_pass "Proposer: proposing output roots"
+    elif echo "$PROPOSER_LOGS" | grep -q "Skipping proposal for genesis block"; then
+        check_info "Proposer: skipping genesis block (normal)"
+    elif echo "$PROPOSER_LOGS" | grep -q "waiting\|Waiting"; then
+        check_info "Proposer: waiting for proposal interval"
+    elif echo "$PROPOSER_LOGS" | grep -q "ERROR\|error"; then
+        check_fail "Proposer: errors in logs"
+        ERRORS=$((ERRORS + 1))
+    else
+        check_pass "Proposer: running"
+    fi
+else
+    check_fail "Proposer: not running"
+    ERRORS=$((ERRORS + 1))
+fi
 echo ""
 
 # =============================================================================
-# 7. Test Account Balances
+# 7. RAT Clients Status
 # =============================================================================
-echo -e "${BLUE}[7/7] Checking Test Account Balances...${NC}"
+echo -e "${BLUE}[7/8] Checking RAT Clients...${NC}"
+
+for i in 1 2 3; do
+    RAT_CONTAINER="ton-staking-rat-client-$i"
+    if docker ps --format '{{.Names}}' | grep -q "$RAT_CONTAINER"; then
+        RAT_LOGS=$(docker logs "$RAT_CONTAINER" 2>&1 | tail -20)
+        
+        if echo "$RAT_LOGS" | grep -q "Monitoring\|monitoring\|Watching"; then
+            check_pass "RAT Client $i: monitoring events"
+        elif echo "$RAT_LOGS" | grep -q "ERROR\|error\|fatal"; then
+            check_warn "RAT Client $i: errors in logs"
+            WARNINGS=$((WARNINGS + 1))
+        else
+            check_pass "RAT Client $i: running"
+        fi
+    else
+        check_info "RAT Client $i: not running (optional)"
+    fi
+done
+echo ""
+
+# =============================================================================
+# 8. Test Account Balances
+# =============================================================================
+echo -e "${BLUE}[8/8] Checking Test Account Balances...${NC}"
 
 DEPLOYER="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-DEPLOYER_BALANCE=$(cast balance "$DEPLOYER" --rpc-url http://localhost:8545 --ether 2>/dev/null || echo "0")
+DEPLOYER_BALANCE=$(cast balance "$DEPLOYER" --rpc-url http://localhost:8546 --ether 2>/dev/null || echo "0")
 
 if [ -n "$DEPLOYER_BALANCE" ] && [ "$(echo "$DEPLOYER_BALANCE > 0" | bc)" -eq 1 ]; then
     check_pass "Deployer balance: ${DEPLOYER_BALANCE} ETH"

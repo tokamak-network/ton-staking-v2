@@ -118,6 +118,53 @@ fi
 echo ""
 
 # =============================================================================
+# Proposer & Batcher Status
+# =============================================================================
+echo -e "${BLUE}L2 Bridge Components:${NC}"
+
+# Proposer
+if docker ps --filter "name=ton-staking-l2-proposer" --format '{{.Names}}' 2>/dev/null | grep -q "ton-staking-l2-proposer"; then
+    PROPOSER_LOGS=$(docker logs ton-staking-l2-proposer 2>&1 | tail -10)
+    if echo "$PROPOSER_LOGS" | grep -q "Proposer started"; then
+        if echo "$PROPOSER_LOGS" | grep -q "Proposed output"; then
+            echo -e "  Proposer:            ${GREEN}✅ Actively proposing${NC}"
+        elif echo "$PROPOSER_LOGS" | grep -q "Skipping proposal for genesis"; then
+            echo -e "  Proposer:            ${GREEN}✅ Running (genesis skip)${NC}"
+        else
+            echo -e "  Proposer:            ${GREEN}✅ Running${NC}"
+        fi
+    else
+        echo -e "  Proposer:            ${YELLOW}⚠️  Started but no logs${NC}"
+    fi
+else
+    echo -e "  Proposer:            ${RED}❌ Not running${NC}"
+fi
+
+# Batcher
+if docker ps --filter "name=ton-staking-l2-batcher" --format '{{.Names}}' 2>/dev/null | grep -q "ton-staking-l2-batcher"; then
+    BATCHER_LOGS=$(docker logs ton-staking-l2-batcher 2>&1 | tail -10)
+    if echo "$BATCHER_LOGS" | grep -q "Publishing"; then
+        echo -e "  Batcher:             ${GREEN}✅ Publishing batches${NC}"
+    elif echo "$BATCHER_LOGS" | grep -q "Sequencer is out of sync"; then
+        # Extract sync info
+        UNSAFE_L2=$(echo "$BATCHER_LOGS" | grep "unsafeL2" | tail -1 | grep -oE "unsafeL2=[a-f0-9.]*:[0-9]+" | grep -oE "[0-9]+$" | head -1)
+        SAFE_L2=$(echo "$BATCHER_LOGS" | grep "safeL2=" | tail -1 | grep -oE "safeL2=[a-f0-9.]*:[0-9]+" | grep -oE "[0-9]+$" | head -1)
+        
+        if [ -n "$SAFE_L2" ] && [ "$SAFE_L2" -gt 0 ] 2>/dev/null; then
+            echo -e "  Batcher:             ${GREEN}✅ Synced (Safe L2: $SAFE_L2)${NC}"
+        else
+            echo -e "  Batcher:             ${YELLOW}⚠️  Syncing (Unsafe L2: $UNSAFE_L2, Safe L2: waiting)${NC}"
+        fi
+    else
+        echo -e "  Batcher:             ${GREEN}✅ Running${NC}"
+    fi
+else
+    echo -e "  Batcher:             ${RED}❌ Not running${NC}"
+fi
+
+echo ""
+
+# =============================================================================
 # 2. Contract Addresses
 # =============================================================================
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -311,10 +358,60 @@ echo "Active Validators:     $ACTIVE_L2_COUNT"
 echo ""
 
 # =============================================================================
-# 7. Account Balances
+# 7. RAT Clients (Validators)
 # =============================================================================
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}7. KEY ACCOUNT BALANCES${NC}"
+echo -e "${CYAN}7. RAT CLIENTS (VALIDATORS)${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+RAT_CLIENT_RUNNING=0
+RAT_CLIENT_TOTAL=3
+
+# Validator addresses associated with RAT clients
+RAT_VALIDATOR_ADDRS=(
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"  # rat-client-1
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906"  # rat-client-2
+    "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"  # rat-client-3
+)
+
+for i in 1 2 3; do
+    CLIENT_NAME="ton-staking-rat-client-$i"
+    VALIDATOR_ADDR="${RAT_VALIDATOR_ADDRS[$((i-1))]}"
+    
+    if docker ps --filter "name=$CLIENT_NAME" --format '{{.Names}}' 2>/dev/null | grep -q "$CLIENT_NAME"; then
+        RAT_CLIENT_RUNNING=$((RAT_CLIENT_RUNNING + 1))
+        
+        # Check if actively monitoring
+        CLIENT_LOGS=$(docker logs "$CLIENT_NAME" 2>&1 | tail -5)
+        if echo "$CLIENT_LOGS" | grep -q "Polled blocks\|Processing\|found.*events"; then
+            echo -e "  RAT Client $i:       ${GREEN}✅ Monitoring ($VALIDATOR_ADDR)${NC}"
+        else
+            echo -e "  RAT Client $i:       ${GREEN}✅ Running ($VALIDATOR_ADDR)${NC}"
+        fi
+    else
+        echo -e "  RAT Client $i:       ${RED}❌ Not running ($VALIDATOR_ADDR)${NC}"
+    fi
+done
+
+echo ""
+echo -e "${BLUE}Summary:${NC}"
+echo "  Running Clients:     $RAT_CLIENT_RUNNING / $RAT_CLIENT_TOTAL"
+
+if [ $RAT_CLIENT_RUNNING -eq $RAT_CLIENT_TOTAL ]; then
+    echo -e "  Status:              ${GREEN}✅ All RAT clients operational${NC}"
+elif [ $RAT_CLIENT_RUNNING -gt 0 ]; then
+    echo -e "  Status:              ${YELLOW}⚠️  Some RAT clients not running${NC}"
+else
+    echo -e "  Status:              ${RED}❌ No RAT clients running${NC}"
+fi
+
+echo ""
+
+# =============================================================================
+# 8. Account Balances
+# =============================================================================
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}8. KEY ACCOUNT BALANCES${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 ACCOUNTS=("$DEPLOYER_ADDR" "$TON_STAKING_DEPLOYER")
@@ -334,10 +431,10 @@ done
 echo ""
 
 # =============================================================================
-# 8. Quick Actions
+# 9. Quick Actions
 # =============================================================================
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}8. QUICK ACTIONS${NC}"
+echo -e "${CYAN}9. QUICK ACTIONS${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 echo "Start/Stop Services:"
@@ -348,6 +445,9 @@ echo ""
 echo "Check Logs:"
 echo "  docker logs ton-staking-l1 --tail 50"
 echo "  docker logs ton-staking-l2-node --tail 50"
+echo "  docker logs ton-staking-rat-client-1 --tail 50"
+echo "  docker logs ton-staking-rat-client-2 --tail 50"
+echo "  docker logs ton-staking-rat-client-3 --tail 50"
 echo ""
 
 echo "Register Validator to RAT:"

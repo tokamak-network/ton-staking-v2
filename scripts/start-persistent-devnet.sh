@@ -130,45 +130,43 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Step 2: Get L1 genesis hash and update rollup.json
+# Step 2: Get L1 LATEST block (not genesis) for rollup starting point
 echo ""
-echo -e "${YELLOW}Step 2: Configuring rollup with L1 genesis...${NC}"
+echo -e "${YELLOW}Step 2: Configuring rollup with L1 starting block...${NC}"
 
-# Get L1 genesis info via curl (more reliable than cast for Docker networks)
-L1_BLOCK_0=$(curl -s -X POST -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x0", false],"id":1}' \
+# Use LATEST block as L1 origin (not genesis block 0)
+L1_LATEST_BLOCK=$(curl -s -X POST -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}' \
     http://localhost:8545)
-L1_GENESIS_HASH=$(echo "$L1_BLOCK_0" | jq -r '.result.hash')
-L1_GENESIS_TIME_HEX=$(echo "$L1_BLOCK_0" | jq -r '.result.timestamp')
+L1_ORIGIN_HASH=$(echo "$L1_LATEST_BLOCK" | jq -r '.result.hash')
+L1_ORIGIN_NUMBER_HEX=$(echo "$L1_LATEST_BLOCK" | jq -r '.result.number')
+L1_ORIGIN_TIME_HEX=$(echo "$L1_LATEST_BLOCK" | jq -r '.result.timestamp')
 
-# Convert hex timestamp to decimal (or use current time if 0)
-if [ "$L1_GENESIS_TIME_HEX" = "0x0" ] || [ "$L1_GENESIS_TIME_HEX" = "0" ]; then
-    L1_GENESIS_TIME_DEC=$(date +%s)
-    echo "Genesis timestamp is 0, using current time"
-else
-    L1_GENESIS_TIME_DEC=$((L1_GENESIS_TIME_HEX))
-fi
+# Convert hex to decimal
+L1_ORIGIN_NUMBER_DEC=$((L1_ORIGIN_NUMBER_HEX))
+L1_ORIGIN_TIME_DEC=$((L1_ORIGIN_TIME_HEX))
 
-echo "L1 Genesis Hash: $L1_GENESIS_HASH"
-echo "L1 Genesis Time: $L1_GENESIS_TIME_DEC"
+echo "L1 Origin Block: #$L1_ORIGIN_NUMBER_DEC"
+echo "L1 Origin Hash: $L1_ORIGIN_HASH"
+echo "L1 Origin Time: $L1_ORIGIN_TIME_DEC"
 
 # Get OptimismPortal address for deposit_contract_address
 OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy' "$DEVNET_DIR/optimism-addresses.json")
 SYSTEM_CONFIG=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
 
-# Create rollup.json with correct values
+# Create rollup.json with correct values (using LATEST L1 block, not genesis)
 cat > "$DEVNET_DIR/rollup.json" <<EOF
 {
   "genesis": {
     "l1": {
-      "hash": "$L1_GENESIS_HASH",
-      "number": 0
+      "hash": "$L1_ORIGIN_HASH",
+      "number": $L1_ORIGIN_NUMBER_DEC
     },
     "l2": {
       "hash": "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
       "number": 0
     },
-    "l2_time": $L1_GENESIS_TIME_DEC,
+    "l2_time": $L1_ORIGIN_TIME_DEC,
     "system_config": {
       "batcherAddr": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       "overhead": "0x0000000000000000000000000000000000000000000000000000000000000834",
@@ -203,7 +201,8 @@ echo -e "${YELLOW}Step 2.5: Creating L2 genesis file...${NC}"
 # Note: op-geth requires Optimism fork times to be properly set
 # - regolithTime, canyonTime, deltaTime must be set for OP-Stack compatibility
 # - shanghaiTime must equal canyonTime
-cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
+L1_ORIGIN_TIME_HEX=$(printf '0x%x' $L1_ORIGIN_TIME_DEC)
+cat > "$DEVNET_DIR/genesis-l2.json" <<EOF
 {
   "config": {
     "chainId": 901,
@@ -235,7 +234,7 @@ cat > "$DEVNET_DIR/genesis-l2.json" <<'EOF'
     }
   },
   "nonce": "0x0",
-  "timestamp": "0x0",
+  "timestamp": "$L1_ORIGIN_TIME_HEX",
   "extraData": "0x",
   "gasLimit": "0x1c9c380",
   "difficulty": "0x0",

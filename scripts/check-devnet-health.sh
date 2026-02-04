@@ -198,14 +198,39 @@ fi
 echo ""
 
 # =============================================================================
-# 6. Batcher Status
+# 6. Proposer Status
 # =============================================================================
-echo -e "${BLUE}[6/7] Checking Batcher...${NC}"
+echo -e "${BLUE}[6/9] Checking Proposer...${NC}"
+
+if docker logs ton-staking-l2-proposer 2>&1 | tail -20 | grep -q "Proposer started"; then
+    if docker logs ton-staking-l2-proposer 2>&1 | tail -10 | grep -q "Skipping proposal for genesis block"; then
+        check_pass "Proposer: running (genesis skip is normal)"
+    elif docker logs ton-staking-l2-proposer 2>&1 | tail -10 | grep -q "Proposed output"; then
+        check_pass "Proposer: actively proposing outputs"
+    else
+        check_pass "Proposer: running"
+    fi
+else
+    PROPOSER_RUNNING=$(docker ps --filter "name=ton-staking-l2-proposer" --format '{{.Names}}')
+    if [ -n "$PROPOSER_RUNNING" ]; then
+        check_warn "Proposer: running but no activity logs"
+        WARNINGS=$((WARNINGS + 1))
+    else
+        check_fail "Proposer: not running"
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+echo ""
+
+# =============================================================================
+# 7. Batcher Status
+# =============================================================================
+echo -e "${BLUE}[7/9] Checking Batcher...${NC}"
 
 if docker logs ton-staking-l2-batcher 2>&1 | tail -20 | grep -q "Publishing"; then
     check_pass "Batcher: publishing transactions"
 elif docker logs ton-staking-l2-batcher 2>&1 | tail -20 | grep -q "Sequencer is out of sync"; then
-    check_warn "Batcher: waiting for sequencer sync"
+    check_warn "Batcher: waiting for sequencer sync (initial sync)"
     WARNINGS=$((WARNINGS + 1))
 else
     BATCHER_RUNNING=$(docker ps --filter "name=ton-staking-l2-batcher" --format '{{.Names}}')
@@ -219,9 +244,34 @@ fi
 echo ""
 
 # =============================================================================
-# 7. RAT Clients Status
+# 8. Batcher Sync Details
 # =============================================================================
-echo -e "${BLUE}[7/7] Checking RAT Clients...${NC}"
+echo -e "${BLUE}[8/9] Checking Batcher Sync Details...${NC}"
+
+BATCHER_LOGS=$(docker logs ton-staking-l2-batcher 2>&1 | tail -5)
+if echo "$BATCHER_LOGS" | grep -q "localSafeL2"; then
+    UNSAFE_L2=$(echo "$BATCHER_LOGS" | grep "unsafeL2" | tail -1 | grep -oE "unsafeL2=[a-f0-9.]*:[0-9]+" | grep -oE "[0-9]+$" | head -1)
+    SAFE_L2=$(echo "$BATCHER_LOGS" | grep "safeL2=" | tail -1 | grep -oE "safeL2=[a-f0-9.]*:[0-9]+" | grep -oE "[0-9]+$" | head -1)
+    
+    if [ -n "$UNSAFE_L2" ] && [ "$UNSAFE_L2" -gt 0 ] 2>/dev/null; then
+        check_info "Unsafe L2 Block: $UNSAFE_L2"
+    fi
+    
+    if [ -n "$SAFE_L2" ] && [ "$SAFE_L2" -gt 0 ] 2>/dev/null; then
+        check_pass "Safe L2 Block: $SAFE_L2 (finalized)"
+    else
+        check_warn "Safe L2 Block: 0 (waiting for finalization)"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+else
+    check_info "No sync status available yet"
+fi
+echo ""
+
+# =============================================================================
+# 9. RAT Clients Status
+# =============================================================================
+echo -e "${BLUE}[9/9] Checking RAT Clients...${NC}"
 
 for i in 1 2 3; do
     CLIENT="ton-staking-rat-client-$i"
