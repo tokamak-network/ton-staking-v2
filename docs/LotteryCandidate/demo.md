@@ -48,16 +48,28 @@ chmod +x run-lottery-demo.sh
 ```
 
 이 스크립트는 다음을 자동으로 수행합니다:
-1. ✅ Anvil 네트워크 시작 (localhost:8545)
+1. ✅ Anvil 네트워크 시작 (localhost:8545, block-time: 1s)
 2. ✅ LotteryCandidate 컨트랙트 배포
-3. ✅ 프론트엔드 의존성 설치
-4. ✅ 개발 서버 시작 (localhost:5173)
+3. ✅ 시뇨리지 초기화 (First-call trap 해결을 위한 자동 호출)
+4. ✅ 프론트엔드 의존성 설치
+5. ✅ 개발 서버 시작 (localhost:5173)
 
 ### 실행 결과
 
 스크립트가 성공적으로 실행되면 다음과 같은 정보가 출력됩니다:
 
 ```
+============================
+🎉 Demo is ready!
+============================
+
+Step 2.5: Initializing seigniorage...
+Seigniorage initialized (startBlock set)
+
+Frontend: http://localhost:5173
+...
+```
+
 ============================
 🎉 Demo is ready!
 ============================
@@ -183,11 +195,19 @@ TON을 LotteryCandidate에 예치합니다.
 
 시뇨리지 분배 정보 및 청구 기능을 제공합니다.
 
-- **Total Deposited (Pool)**: 전체 예치 풀
+- **Total Deposited (Pool)**: 전체 예치 풀 (WTON 단위 및 Raw BigInt 값 표시)
 - **Your Share**: 사용자의 점유율 (%)
 - **Claim Seigniorage**: 시뇨리지 청구 버튼
-  - 모든 예치자에게 비례 분배
-  - 블록마다 생성되는 보상
+  - 클릭 시 `updateSeigniorage()` 호출
+  - 성공 시 받은 시뇨리지 양을 과학적 표기법으로 상세 표시 (예: `+1.9405e-7 WTON`)
+  - 데이터 자동 갱신 (Refetch) 지원
+
+### ⚡ Dev Tools: Advance Blocks
+
+로컬 환경(Anvil)에서 시뇨리지를 빠르게 생성하기 위한 도구입니다.
+
+- **Mine 버튼**: 지정된 수만큼 블록을 즉시 생성합니다.
+- 시뇨리지는 블록 수에 비례하여 발생하므로, "Claim Seigniorage" 클릭 전 최소 100블록 이상 마이닝하는 것을 권장합니다.
 
 ### 📜 Past Rounds (좌측 하단)
 

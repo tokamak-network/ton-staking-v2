@@ -6,7 +6,7 @@
 2. **자금 예치**: 사용자가 `depositTON` 또는 `depositWTON`을 호출. 내부 잔액(`_balances`)에 기록되고 실제 자금은 `DepositManager`에 예치됨.
 3. **로터리 참여**: 사용자가 `enterLottery()`를 호출. 예치 잔액에서 참여 비용이 즉시 차감되고 Prize Pool로 이동.
 4. **추첨 및 지급**: 운영자가 `drawWinner()` 호출. 참여자 중 1명을 무작위로 뽑아 Prize Pool 전액을 당첨자의 내부 잔액에 가산.
-5. **시뇨리지 분배**: 운영자가 `receiveSeigniorage()`를 통해 시뇨리지 입금. 모든 예치자에게 현재 잔액 비율대로 분배되어 내부 잔액에 가산.
+5. **시뇨리지 분배**: 운영자 또는 사용자가 `updateSeigniorage()`를 호출. `SeigManager`로부터 발생한 네트워크 보상을 측정하여 모든 예치자에게 현재 잔액 비율대로 분배.
 
 ## 출금 (언스테이킹)
 
