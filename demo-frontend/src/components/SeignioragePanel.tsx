@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts, usePublicClient } from 'wagmi'
 import { LOTTERY_CANDIDATE_ABI } from '../contracts/abi'
 import { formatUnits } from 'viem'
@@ -68,15 +68,34 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
     })
   }
 
+  useEffect(() => {
+    if (updateSuccess) {
+      refetch()
+    }
+  }, [updateSuccess, refetch])
+
   if (updateSuccess && prevBalance && userBalance && userBalance > prevBalance) {
     if (seigniorageReceived !== userBalance - prevBalance) {
       setSeigniorageReceived(userBalance - prevBalance)
     }
   }
 
-  const formatWTON = (value: bigint | undefined) => {
+  const formatWTON = (value: bigint | undefined, decimals: number = 4) => {
     if (!value) return '0'
-    return Number(formatUnits(value, 27)).toFixed(4)
+    const num = Number(formatUnits(value, 27))
+    if (num < 0.0001 && num > 0) {
+      return num.toExponential(4)
+    }
+    return num.toFixed(decimals)
+  }
+
+  const formatSeigniorage = (value: bigint | undefined) => {
+    if (!value) return '0'
+    const num = Number(formatUnits(value, 27))
+    if (num < 0.0001 && num > 0) {
+      return `${num.toExponential(4)} (~${(num * 1e9).toFixed(2)} nWTON)`
+    }
+    return num.toFixed(8)
   }
 
   const fetchBlockNumber = async () => {
@@ -129,6 +148,9 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
           <p className="text-2xl font-bold text-green-700">
             {formatWTON(totalDeposited)} WTON
           </p>
+          <p className="text-xs text-gray-400 mt-1 font-mono break-all">
+            Raw: {totalDeposited?.toString() ?? '0'}
+          </p>
           <p className="text-sm text-gray-500 mt-1">
             {depositorCount?.toString() ?? '0'} depositors
           </p>
@@ -165,7 +187,12 @@ export function SeignioragePanel({ lotteryCandidateAddress }: Props) {
             <p className="text-green-700 font-medium">✅ Seigniorage Updated!</p>
             {seigniorageReceived && seigniorageReceived > 0n && (
               <p className="text-green-600 text-sm mt-1">
-                You received: +{formatWTON(seigniorageReceived)} WTON
+                You received: +{formatSeigniorage(seigniorageReceived)} WTON
+              </p>
+            )}
+            {seigniorageReceived === 0n && (
+              <p className="text-orange-600 text-sm mt-1">
+                No new seigniorage (try mining more blocks first)
               </p>
             )}
           </div>

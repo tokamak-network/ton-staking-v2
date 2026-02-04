@@ -70,6 +70,26 @@ echo -e "${YELLOW}Deployment Addresses:${NC}"
 echo "$DEPLOYMENT_JSON" | grep -E "(ton|wton|lotteryCandidate|operator)" | head -6
 echo ""
 
+# Step 2.5: Initialize seigniorage (first call sets startBlock)
+echo -e "${YELLOW}Step 2.5: Initializing seigniorage...${NC}"
+LOTTERY_ADDRESS=$(echo "$DEPLOYMENT_JSON" | grep '"lotteryCandidate"' | sed 's/.*: "\(0x[^"]*\)".*/\1/')
+
+if [ -n "$LOTTERY_ADDRESS" ]; then
+    # Wait for a new block (Anvil block-time is 1 second)
+    sleep 2
+    
+    # Call updateSeigniorage to set startBlock (first call)
+    cast send "$LOTTERY_ADDRESS" "updateSeigniorage()" \
+        --rpc-url http://localhost:8545 \
+        --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
+        > /dev/null 2>&1 || true
+    
+    echo -e "${GREEN}Seigniorage initialized (startBlock set)${NC}"
+else
+    echo -e "${YELLOW}Warning: Could not extract LotteryCandidate address for initialization${NC}"
+fi
+echo ""
+
 # Step 3: Install frontend dependencies
 echo -e "${YELLOW}Step 3: Installing frontend dependencies...${NC}"
 cd demo-frontend
