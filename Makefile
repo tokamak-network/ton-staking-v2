@@ -125,6 +125,26 @@ devnet-start:
 	@chmod +x ./scripts/start-persistent-devnet.sh
 	@./scripts/start-persistent-devnet.sh
 
+# Complete devnet setup (L1, L2, RAT Clients, Registration, Minting)
+devnet-setup-all:
+	@if [ ! -f .devnet/allocs-l1-staking-v3.json ]; then \
+		echo "Error: Genesis not found. Run 'make devnet-allocs-offline' first."; \
+		exit 1; \
+	fi
+	@echo "=== Complete Devnet Setup ==="
+	@echo "This will:"
+	@echo "  1. Start L1 + L2 nodes"
+	@echo "  2. Mint tokens for test accounts"
+	@echo "  3. Register L2 Operator"
+	@echo "  4. Register Validators"
+	@echo "  5. Start RAT Clients (3 validators)"
+	@echo ""
+	@chmod +x ./scripts/start-persistent-devnet.sh
+	@chmod +x ./scripts/setup-devnet-complete.sh
+	@./scripts/start-persistent-devnet.sh
+	@sleep 10
+	@./scripts/setup-devnet-complete.sh
+
 # Stop persistent devnet
 devnet-stop:
 	@chmod +x ./scripts/stop-devnet.sh

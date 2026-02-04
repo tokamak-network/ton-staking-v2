@@ -45,3 +45,4 @@ op-e2e/test-results.txt
 *.test-results.txt
 lib/optimism/
 lib/tokamak-dao-contracts/
+test-results/

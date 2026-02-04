@@ -152,8 +152,8 @@ services:
           --rpc.port=8545 \
           --p2p.disable \
           --sequencer.enabled \
-          --sequencer.l1-confs=0 \
-          --verifier.l1-confs=0 \
+          --sequencer.l1-confs=3 \
+          --verifier.l1-confs=3 \
           --log.level=info
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
