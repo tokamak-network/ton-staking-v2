@@ -14,11 +14,24 @@ import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
 import { useUIStore } from '@/stores/ui';
 import Link from 'next/link';
 
+// Helper to normalize stakeInfo from tuple or object format
+function normalizeStakeInfo(data: unknown): { amount: bigint; unstakeAmount: bigint } | null {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
+    return { amount: data[0] as bigint, unstakeAmount: data[2] as bigint };
+  }
+  // Object format with named properties
+  const obj = data as { amount?: bigint; unstakeAmount?: bigint };
+  return { amount: obj.amount || 0n, unstakeAmount: obj.unstakeAmount || 0n };
+}
+
 function StakePositionCard({ sequencer, userAddress }: { sequencer: Address; userAddress: Address }) {
-  const { data: stakeInfo } = useStakeInfo(userAddress, sequencer);
+  const { data: stakeInfoRaw } = useStakeInfo(userAddress, sequencer);
   const { data: pendingRewards } = usePendingRewards(userAddress, sequencer);
   const { openStakeModal, openUnstakeModal } = useUIStore();
 
+  const stakeInfo = normalizeStakeInfo(stakeInfoRaw);
   // Show card even if no stake, so user can stake
   const hasStake = stakeInfo && stakeInfo.amount > 0n;
 

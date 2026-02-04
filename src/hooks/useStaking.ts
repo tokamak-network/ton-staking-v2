@@ -344,9 +344,17 @@ export function useUserStakingStats(
     if (stakeResults) {
       for (const result of stakeResults) {
         if (result.status === 'success' && result.result) {
-          const stakeInfo = result.result as { amount: bigint; unstakeAmount: bigint };
-          totalStaked += stakeInfo.amount || 0n;
-          totalPendingUnstake += stakeInfo.unstakeAmount || 0n;
+          // Handle both array (tuple) and object formats
+          const data = result.result as readonly [bigint, bigint, bigint, bigint] | { amount: bigint; unstakeAmount: bigint };
+          if (Array.isArray(data)) {
+            // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
+            totalStaked += data[0] || 0n;
+            totalPendingUnstake += data[2] || 0n;
+          } else {
+            // Object format with named properties
+            totalStaked += data.amount || 0n;
+            totalPendingUnstake += data.unstakeAmount || 0n;
+          }
         }
       }
     }

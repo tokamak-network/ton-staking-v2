@@ -21,6 +21,19 @@ import Link from 'next/link';
 import { StakeModal } from '@/components/features/staking/StakeModal';
 import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
 import { toast } from 'sonner';
+import { useMemo } from 'react';
+
+// Helper to normalize stakeInfo from tuple or object format
+function normalizeStakeInfo(data: unknown): { amount: bigint; unstakeAmount: bigint } | null {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
+    return { amount: data[0] as bigint, unstakeAmount: data[2] as bigint };
+  }
+  // Object format with named properties
+  const obj = data as { amount?: bigint; unstakeAmount?: bigint };
+  return { amount: obj.amount || 0n, unstakeAmount: obj.unstakeAmount || 0n };
+}
 
 export default function SequencerDetailPage() {
   const params = useParams();
@@ -29,8 +42,10 @@ export default function SequencerDetailPage() {
   const { address: userAddress } = useAccount();
   const { data: info, isLoading } = useSequencerInfo(sequencerAddress);
   const { data: totalStaked } = useTotalStaked();
-  const { data: stakeInfo } = useStakeInfo(userAddress, sequencerAddress);
+  const { data: stakeInfoRaw } = useStakeInfo(userAddress, sequencerAddress);
   const { data: pendingRewards } = usePendingRewards(userAddress, sequencerAddress);
+
+  const stakeInfo = useMemo(() => normalizeStakeInfo(stakeInfoRaw), [stakeInfoRaw]);
 
   // Economics data
   const { data: eligibility } = useCheckLayer2Eligibility(info?.layer2);
