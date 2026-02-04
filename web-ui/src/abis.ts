@@ -166,6 +166,7 @@ export const OPTIMISM_PORTAL_ABI = [
   'function paused() view returns (bool)',
   'function l2Sender() view returns (address)',
   'function systemConfig() view returns (address)',
+  'function ethLockbox() view returns (address)',
 ];
 
 export const L1_STANDARD_BRIDGE_ABI = [

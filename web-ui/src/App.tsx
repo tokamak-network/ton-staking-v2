@@ -79,6 +79,35 @@ interface L2Info {
   portalTonBalance: string;
   portalEthBalance: string;
   bridgeTonBalance: string;
+  ethLockboxAddress: string;
+  ethLockboxBalance: string;
+}
+
+interface BlockInfo {
+  number: number;
+  hash: string;
+  parentHash: string;
+  timestamp: number;
+  miner: string;
+  gasUsed: string;
+  gasLimit: string;
+  baseFeePerGas?: string;
+  transactions: string[];
+}
+
+interface TransactionInfo {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: string;
+  gasPrice: string;
+  gasUsed?: string;
+  status?: number;
+  blockNumber: number;
+  blockHash: string;
+  transactionIndex: number;
+  data?: string;
+  methodId?: string;
 }
 
 function App() {
@@ -110,13 +139,28 @@ function App() {
   const [evidenceSubmissionPeriod, setEvidenceSubmissionPeriod] = useState<number>(0);
   const [l2Info, setL2Info] = useState<L2Info | null>(null);
 
-  // User Balances
+  // Block Explorer State
+  const [l1Blocks, setL1Blocks] = useState<BlockInfo[]>([]);
+  const [l2Blocks, setL2Blocks] = useState<BlockInfo[]>([]);
+  const [l1Transactions, setL1Transactions] = useState<TransactionInfo[]>([]);
+  const [l2Transactions, setL2Transactions] = useState<TransactionInfo[]>([]);
+  const [selectedBlock, setSelectedBlock] = useState<BlockInfo | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionInfo | null>(null);
+  const [blockSearchInput, setBlockSearchInput] = useState<string>('');
+  const [txSearchInput, setTxSearchInput] = useState<string>('');
+  const [explorerView, setExplorerView] = useState<'blocks' | 'transactions'>('blocks');
+
+  // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
   const [tonBalance, setTonBalance] = useState<string>('0');
   const [wtonBalance, setWtonBalance] = useState<string>('0');
   const [stakedAmount, setStakedAmount] = useState<string>('0');
   const [pendingUnstaked, setPendingUnstaked] = useState<string>('0');
   const [withdrawalRequests, setWithdrawalRequests] = useState<number>(0);
+
+  // User Balances (L2)
+  const [l2EthBalance, setL2EthBalance] = useState<string>('0');
+  const [l2TonBalance, setL2TonBalance] = useState<string>('0');
 
   // Seigniorage State
   const [selectedLayer2, setSelectedLayer2] = useState<string>('');
@@ -158,6 +202,30 @@ function App() {
     const interval = setInterval(loadDashboardData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Load blocks when explorer tab is active
+  useEffect(() => {
+    if (activeTab === 'l1-explorer') {
+      if (explorerView === 'blocks') {
+        loadL1Blocks(20);
+      } else {
+        loadL1Transactions(20);
+      }
+    } else if (activeTab === 'l2-explorer') {
+      if (explorerView === 'blocks') {
+        loadL2Blocks(20);
+      } else {
+        loadL2Transactions(20);
+      }
+    }
+  }, [activeTab, explorerView]);
+
+  // Load seigniorage info when operator tab is active
+  useEffect(() => {
+    if (activeTab === 'operator' && operatorInfo?.candidateAddOn && operatorInfo.candidateAddOn !== ethers.ZeroAddress) {
+      loadSeigniorageInfo(operatorInfo.candidateAddOn);
+    }
+  }, [activeTab, operatorInfo?.candidateAddOn]);
 
   const initializeProvider = async () => {
     try {
@@ -224,13 +292,15 @@ function App() {
     await Promise.all([
       loadNodeStatus(),
       loadRollupInfo(),
-      loadOperatorInfo(),
       loadValidators(),
       loadGames(),
       loadSystemParams(),
       loadL2Info(),
     ]);
-    // loadSeigniorageInfo는 Layer2 주소를 선택한 후에만 호출됩니다
+    
+    // Load operator info first, then load seigniorage info
+    await loadOperatorInfo();
+    
     // 잔액은 수동 새로고침 버튼으로 업데이트 (부하 감소)
   };
 
@@ -528,6 +598,24 @@ function App() {
       const portalContract = new ethers.Contract(portal, OPTIMISM_PORTAL_ABI, l1Provider);
       const tonContract = new ethers.Contract(CONFIG.contracts.ton, TON_ABI, l1Provider);
       
+      // ETHLockbox 주소 조회
+      let ethLockboxAddress = ethers.ZeroAddress;
+      let ethLockboxBal = 0n;
+      try {
+        // Try to get ethLockbox address from OptimismPortal
+        ethLockboxAddress = await portalContract.ethLockbox();
+        console.log('ETHLockbox address from portal:', ethLockboxAddress);
+        
+        if (ethLockboxAddress && ethLockboxAddress !== ethers.ZeroAddress) {
+          ethLockboxBal = await l1Provider.getBalance(ethLockboxAddress);
+          console.log('ETHLockbox balance:', ethers.formatEther(ethLockboxBal), 'ETH');
+        }
+      } catch (e) {
+        console.error('Failed to get ETHLockbox:', e);
+        // Fallback: try to get from optimism-addresses.json via config
+        // For now, set to zero
+      }
+      
       const [portalGuardian, portalPaused, portalTonBal, portalEthBal, bridgeTonBal] = await Promise.all([
         portalContract.guardian(),
         portalContract.paused(),
@@ -556,6 +644,8 @@ function App() {
         portalTonBalance: ethers.formatEther(portalTonBal),
         portalEthBalance: ethers.formatEther(portalEthBal),
         bridgeTonBalance: ethers.formatEther(bridgeTonBal),
+        ethLockboxAddress: ethLockboxAddress,
+        ethLockboxBalance: ethers.formatEther(ethLockboxBal),
       });
     } catch (error) {
       console.error('Failed to load L2 info:', error);
@@ -606,6 +696,25 @@ function App() {
           setPendingUnstaked('0');
           setWithdrawalRequests(0);
         }
+      }
+
+      // Load L2 balances
+      try {
+        const l2Eth = await l2Provider.getBalance(addr);
+        setL2EthBalance(ethers.formatEther(l2Eth));
+
+        // L2 TON balance (if L2 TON contract exists)
+        if (rollupInfo?.l2Ton && rollupInfo.l2Ton !== ethers.ZeroAddress) {
+          const l2TonContract = new ethers.Contract(rollupInfo.l2Ton, TON_ABI, l2Provider);
+          const l2Ton = await l2TonContract.balanceOf(addr);
+          setL2TonBalance(ethers.formatEther(l2Ton));
+        } else {
+          setL2TonBalance('0');
+        }
+      } catch (e) {
+        console.error('Failed to load L2 balances:', e);
+        setL2EthBalance('0');
+        setL2TonBalance('0');
       }
     } catch (error) {
       console.error('Failed to load user balances:', error);
@@ -793,6 +902,271 @@ function App() {
 
   const formatTimestamp = (ts: number) => {
     return new Date(ts * 1000).toLocaleString();
+  };
+
+  // Parse transaction input data
+  const parseInputData = (to: string | null, data: string) => {
+    if (!to || !data || data === '0x') {
+      return null;
+    }
+
+    // Map of contract addresses to ABIs
+    const contractABIs: Record<string, any[]> = {
+      [CONFIG.contracts.ton.toLowerCase()]: TON_ABI,
+      [CONFIG.contracts.wton.toLowerCase()]: WTON_ABI,
+      [CONFIG.contracts.seigManager.toLowerCase()]: SEIG_MANAGER_ABI,
+      [CONFIG.contracts.depositManager.toLowerCase()]: DEPOSIT_MANAGER_ABI,
+      [CONFIG.contracts.layer2Manager.toLowerCase()]: LAYER2_MANAGER_ABI,
+      [CONFIG.contracts.l1BridgeRegistry.toLowerCase()]: L1_BRIDGE_REGISTRY_ABI,
+      [CONFIG.contracts.layer2Registry.toLowerCase()]: LAYER2_REGISTRY_ABI,
+      [CONFIG.contracts.rat.toLowerCase()]: RAT_ABI,
+      [CONFIG.contracts.disputeGameFactory.toLowerCase()]: DISPUTE_GAME_FACTORY_ABI,
+      [CONFIG.contracts.systemConfig.toLowerCase()]: SYSTEM_CONFIG_ABI,
+    };
+
+    const abi = contractABIs[to.toLowerCase()];
+    if (!abi) {
+      return null;
+    }
+
+    try {
+      const iface = new ethers.Interface(abi);
+      const parsed = iface.parseTransaction({ data });
+      
+      if (parsed) {
+        return {
+          name: parsed.name,
+          signature: parsed.signature,
+          args: parsed.args.map((arg: any, idx: number) => ({
+            name: parsed.fragment.inputs[idx]?.name || `param${idx}`,
+            type: parsed.fragment.inputs[idx]?.type || 'unknown',
+            value: arg.toString(),
+          })),
+        };
+      }
+    } catch (e) {
+      console.error('Failed to parse input data:', e);
+    }
+
+    return null;
+  };
+
+  // Load L1 Blocks
+  const loadL1Blocks = async (count: number = 10) => {
+    try {
+      const currentBlock = await l1Provider.getBlockNumber();
+      const blocks: BlockInfo[] = [];
+      
+      for (let i = 0; i < count && currentBlock - i >= 0; i++) {
+        const blockNum = currentBlock - i;
+        const block = await l1Provider.getBlock(blockNum, true);
+        if (block) {
+          const txs = block.transactions as any[];
+          blocks.push({
+            number: block.number,
+            hash: block.hash || '',
+            parentHash: block.parentHash,
+            timestamp: block.timestamp,
+            miner: block.miner || '',
+            gasUsed: block.gasUsed.toString(),
+            gasLimit: block.gasLimit.toString(),
+            baseFeePerGas: block.baseFeePerGas?.toString(),
+            transactions: Array.isArray(txs) ? txs.map(tx => typeof tx === 'string' ? tx : tx.hash) : [],
+          });
+        }
+      }
+      
+      setL1Blocks(blocks);
+    } catch (error) {
+      console.error('Failed to load L1 blocks:', error);
+    }
+  };
+
+  // Load L2 Blocks
+  const loadL2Blocks = async (count: number = 10) => {
+    try {
+      const currentBlock = await l2Provider.getBlockNumber();
+      const blocks: BlockInfo[] = [];
+      
+      for (let i = 0; i < count && currentBlock - i >= 0; i++) {
+        const blockNum = currentBlock - i;
+        const block = await l2Provider.getBlock(blockNum, true);
+        if (block) {
+          const txs = block.transactions as any[];
+          blocks.push({
+            number: block.number,
+            hash: block.hash || '',
+            parentHash: block.parentHash,
+            timestamp: block.timestamp,
+            miner: block.miner || '',
+            gasUsed: block.gasUsed.toString(),
+            gasLimit: block.gasLimit.toString(),
+            baseFeePerGas: block.baseFeePerGas?.toString(),
+            transactions: Array.isArray(txs) ? txs.map(tx => typeof tx === 'string' ? tx : tx.hash) : [],
+          });
+        }
+      }
+      
+      setL2Blocks(blocks);
+    } catch (error) {
+      console.error('Failed to load L2 blocks:', error);
+    }
+  };
+
+  // Load Block Details
+  const loadBlockDetails = async (blockNumber: number, isL2: boolean = false) => {
+    try {
+      const provider = isL2 ? l2Provider : l1Provider;
+      const block = await provider.getBlock(blockNumber, true);
+      if (block) {
+        setSelectedBlock({
+          number: block.number,
+          hash: block.hash || '',
+          parentHash: block.parentHash,
+          timestamp: block.timestamp,
+          miner: block.miner || '',
+          gasUsed: block.gasUsed.toString(),
+          gasLimit: block.gasLimit.toString(),
+            baseFeePerGas: block.baseFeePerGas?.toString(),
+            transactions: Array.isArray(block.transactions) ? block.transactions.map(tx => typeof tx === 'string' ? tx : (tx as any).hash) : [],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load block details:', error);
+      alert('Block not found');
+    }
+  };
+
+  // Load Transaction Details
+  const loadTransactionDetails = async (txHash: string, isL2: boolean = false) => {
+    try {
+      const provider = isL2 ? l2Provider : l1Provider;
+      const tx = await provider.getTransaction(txHash);
+      const receipt = await provider.getTransactionReceipt(txHash);
+      
+      if (tx && receipt) {
+        const inputData = tx.data || '0x';
+        const methodId = inputData.length >= 10 ? inputData.substring(0, 10) : inputData;
+        
+        setSelectedTransaction({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: ethers.formatEther(tx.value),
+          gasPrice: tx.gasPrice?.toString() || '0',
+          gasUsed: receipt.gasUsed.toString(),
+          status: receipt.status ?? undefined,
+          blockNumber: tx.blockNumber ?? 0,
+          blockHash: tx.blockHash || '',
+          transactionIndex: tx.index,
+          data: inputData,
+          methodId: methodId,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load transaction details:', error);
+      alert('Transaction not found');
+    }
+  };
+
+  // Load Recent Transactions from L1
+  const loadL1Transactions = async (count: number = 20) => {
+    try {
+      const currentBlock = await l1Provider.getBlockNumber();
+      const transactions: TransactionInfo[] = [];
+      
+      let loaded = 0;
+      for (let i = 0; i < 50 && loaded < count; i++) {
+        const blockNum = currentBlock - i;
+        if (blockNum < 0) break;
+        
+        const block = await l1Provider.getBlock(blockNum, true);
+        if (block && block.transactions.length > 0) {
+          const txs = block.transactions as any[];
+          for (const txHash of txs) {
+            if (loaded >= count) break;
+            
+            try {
+              const hash = typeof txHash === 'string' ? txHash : txHash.hash;
+              const tx = await l1Provider.getTransaction(hash);
+              const receipt = await l1Provider.getTransactionReceipt(hash);
+              
+              if (tx && receipt) {
+                transactions.push({
+                  hash: tx.hash,
+                  from: tx.from,
+                  to: tx.to,
+                  value: ethers.formatEther(tx.value),
+                  gasPrice: tx.gasPrice?.toString() || '0',
+                  gasUsed: receipt.gasUsed.toString(),
+                  status: receipt.status ?? undefined,
+                  blockNumber: tx.blockNumber ?? 0,
+                  blockHash: tx.blockHash || '',
+                  transactionIndex: tx.index,
+                });
+                loaded++;
+              }
+            } catch (e) {
+              console.error('Failed to load tx:', e);
+            }
+          }
+        }
+      }
+      
+      setL1Transactions(transactions);
+    } catch (error) {
+      console.error('Failed to load L1 transactions:', error);
+    }
+  };
+
+  // Load Recent Transactions from L2
+  const loadL2Transactions = async (count: number = 20) => {
+    try {
+      const currentBlock = await l2Provider.getBlockNumber();
+      const transactions: TransactionInfo[] = [];
+      
+      let loaded = 0;
+      for (let i = 0; i < 50 && loaded < count; i++) {
+        const blockNum = currentBlock - i;
+        if (blockNum < 0) break;
+        
+        const block = await l2Provider.getBlock(blockNum, true);
+        if (block && block.transactions.length > 0) {
+          const txs = block.transactions as any[];
+          for (const txHash of txs) {
+            if (loaded >= count) break;
+            
+            try {
+              const hash = typeof txHash === 'string' ? txHash : txHash.hash;
+              const tx = await l2Provider.getTransaction(hash);
+              const receipt = await l2Provider.getTransactionReceipt(hash);
+              
+              if (tx && receipt) {
+                transactions.push({
+                  hash: tx.hash,
+                  from: tx.from,
+                  to: tx.to,
+                  value: ethers.formatEther(tx.value),
+                  gasPrice: tx.gasPrice?.toString() || '0',
+                  gasUsed: receipt.gasUsed.toString(),
+                  status: receipt.status ?? undefined,
+                  blockNumber: tx.blockNumber ?? 0,
+                  blockHash: tx.blockHash || '',
+                  transactionIndex: tx.index,
+                });
+                loaded++;
+              }
+            } catch (e) {
+              console.error('Failed to load tx:', e);
+            }
+          }
+        }
+      }
+      
+      setL2Transactions(transactions);
+    } catch (error) {
+      console.error('Failed to load L2 transactions:', error);
+    }
   };
 
   return (
@@ -991,10 +1365,38 @@ function App() {
                   </li>
                   <li>
                     <a 
-                      className={activeTab === 'balances' ? 'is-active' : ''} 
-                      onClick={() => { setActiveTab('balances'); setSidebarOpen(false); }}
+                      className={activeTab === 'l1-balances' ? 'is-active' : ''} 
+                      onClick={() => { setActiveTab('l1-balances'); setSidebarOpen(false); }}
                     >
-                      💰 Balances
+                      💰 L1 Balances
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      className={activeTab === 'l2-balances' ? 'is-active' : ''} 
+                      onClick={() => { setActiveTab('l2-balances'); setSidebarOpen(false); }}
+                    >
+                      💎 L2 Balances
+                    </a>
+                  </li>
+                </ul>
+
+                <p className="menu-label">Block Explorers</p>
+                <ul className="menu-list">
+                  <li>
+                    <a 
+                      className={activeTab === 'l1-explorer' ? 'is-active' : ''} 
+                      onClick={() => { setActiveTab('l1-explorer'); setSidebarOpen(false); }}
+                    >
+                      🔍 L1 Block Explorer
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      className={activeTab === 'l2-explorer' ? 'is-active' : ''} 
+                      onClick={() => { setActiveTab('l2-explorer'); setSidebarOpen(false); }}
+                    >
+                      🔎 L2 Block Explorer
                     </a>
                   </li>
                 </ul>
@@ -1009,41 +1411,54 @@ function App() {
                   <section className="card">
                     <h2>📡 Node Status</h2>
                     {nodeStatus && (
-                      <div className="status-grid">
-                        <div className="status-item">
-                          <span className="status-label">L1 Status:</span>
-                          <span className={nodeStatus.l1Running ? 'status-online' : 'status-offline'}>
-                            {nodeStatus.l1Running ? '🟢 Online' : '🔴 Offline'}
-                          </span>
-                        </div>
-                        <div className="status-item">
-                          <span className="status-label">L1 Block:</span>
-                          <span>{nodeStatus.l1Block}</span>
-                        </div>
-                        <div className="status-item">
-                          <span className="status-label">L1 Chain ID:</span>
-                          <span>{nodeStatus.l1ChainId}</span>
-                        </div>
-                        <div className="status-item">
-                          <span className="status-label">L2 Status:</span>
-                          <span className={nodeStatus.l2Running ? 'status-online' : 'status-offline'}>
-                            {nodeStatus.l2Running ? '🟢 Online' : '⚠️ Offline'}
-                          </span>
-                        </div>
-                        {nodeStatus.l2Running && (
-                          <>
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+                        {/* L1 Status */}
+                        <div>
+                          <h3 style={{marginBottom: '0.75rem', fontSize: '1rem', fontWeight: 'bold'}}>L1 Network</h3>
+                          <div className="status-grid">
                             <div className="status-item">
-                              <span className="status-label">L2 Block:</span>
-                              <span>{nodeStatus.l2Block}</span>
-                            </div>
-                            <div className="status-item">
-                              <span className="status-label">L2 Chain ID:</span>
-                              <span className={nodeStatus.l2ChainId === '901' ? 'status-online' : 'status-offline'}>
-                                {nodeStatus.l2ChainId} {nodeStatus.l2ChainId === '901' ? '✅' : '❌ (Expected: 901)'}
+                              <span className="status-label">Status:</span>
+                              <span className={nodeStatus.l1Running ? 'status-online' : 'status-offline'}>
+                                {nodeStatus.l1Running ? '🟢 Online' : '🔴 Offline'}
                               </span>
                             </div>
-                          </>
-                        )}
+                            <div className="status-item">
+                              <span className="status-label">Block:</span>
+                              <span>{nodeStatus.l1Block}</span>
+                            </div>
+                            <div className="status-item">
+                              <span className="status-label">Chain ID:</span>
+                              <span>{nodeStatus.l1ChainId}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* L2 Status */}
+                        <div>
+                          <h3 style={{marginBottom: '0.75rem', fontSize: '1rem', fontWeight: 'bold'}}>L2 Network</h3>
+                          <div className="status-grid">
+                            <div className="status-item">
+                              <span className="status-label">Status:</span>
+                              <span className={nodeStatus.l2Running ? 'status-online' : 'status-offline'}>
+                                {nodeStatus.l2Running ? '🟢 Online' : '⚠️ Offline'}
+                              </span>
+                            </div>
+                            {nodeStatus.l2Running && (
+                              <>
+                                <div className="status-item">
+                                  <span className="status-label">Block:</span>
+                                  <span>{nodeStatus.l2Block}</span>
+                                </div>
+                                <div className="status-item">
+                                  <span className="status-label">Chain ID:</span>
+                                  <span className={nodeStatus.l2ChainId === '901' ? 'status-online' : 'status-offline'}>
+                                    {nodeStatus.l2ChainId} {nodeStatus.l2ChainId === '901' ? '✅' : '❌ (Expected: 901)'}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </section>
@@ -1105,6 +1520,10 @@ function App() {
                         <span className="info-label">Min Collateral:</span>
                         <span>{parseFloat(minCollateral).toFixed(2)} WTON</span>
                       </div>
+                      <div className="info-row">
+                        <span className="info-label">Sequencer Min Stake:</span>
+                        <span>{parseFloat(sequencerMinStake).toFixed(2)} WTON</span>
+                      </div>
                     </div>
                   </section>
 
@@ -1164,27 +1583,52 @@ function App() {
                           <code>{operatorInfo.candidateAddOn}</code>
                         </div>
                         <div className="info-row">
+                          <span className="info-label">OperatorManager Staked Amount:</span>
+                          <span className="value-large" style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#2196F3'}}>
+                            {parseFloat(ethers.formatUnits(operatorInfo.sequencerStake, 27)).toFixed(2)} WTON
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Current Stake (T_i) from Eligibility:</span>
+                          <span className="value-large">
+                            {parseFloat(ethers.formatUnits(operatorInfo.currentStake, 27)).toFixed(2)} WTON
+                            {operatorInfo.sequencerStake !== operatorInfo.currentStake && (
+                              <span style={{marginLeft: '0.5rem', color: '#FF5722', fontSize: '0.9rem'}}>
+                                ⚠️ Different from staked amount
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="info-row">
+                          <span className="info-label">Required Stake (max(θ·B_i, D_seq)):</span>
+                          <span style={{fontSize: '1.05rem', fontWeight: 'bold'}}>
+                            {parseFloat(ethers.formatUnits(operatorInfo.requiredStake, 27)).toFixed(2)} WTON
+                          </span>
+                        </div>
+                        <div className="info-row">
                           <span className="info-label">Seigniorage Eligibility:</span>
                           <span className={operatorInfo.isEligible ? 'status-success' : 'status-error'}>
                             {operatorInfo.isEligible ? '✅ Eligible' : '❌ Not Eligible'}
+                            {!operatorInfo.isEligible && (
+                              <span style={{marginLeft: '0.5rem', fontSize: '0.9rem'}}>
+                                (Need {parseFloat(ethers.formatUnits(operatorInfo.requiredStake, 27)).toFixed(2)} WTON)
+                              </span>
+                            )}
                           </span>
-                        </div>
-                        <div className="info-row">
-                          <span className="info-label">Current Stake (T_i):</span>
-                          <span className="value-large">
-                            {parseFloat(ethers.formatUnits(operatorInfo.currentStake, 27)).toFixed(2)} WTON
-                          </span>
-                        </div>
-                        <div className="info-row">
-                          <span className="info-label">Required Stake (max(θ·B_i, D_seq)):</span>
-                          <span>{parseFloat(ethers.formatUnits(operatorInfo.requiredStake, 27)).toFixed(2)} WTON</span>
                         </div>
                         {seigniorageInfo && (
                           <div className="info-row">
                             <span className="info-label">Bridged TON (B_i):</span>
-                            <span>{parseFloat(seigniorageInfo.bridgedTon).toFixed(2)} TON</span>
+                            <span style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#FF9800'}}>
+                              {parseFloat(seigniorageInfo.bridgedTon).toFixed(2)} TON
+                            </span>
                           </div>
                         )}
+                        <div className="info-row">
+                          <span className="info-label">Minimum Sequencer Stake (D_seq):</span>
+                          <span>{parseFloat(sequencerMinStake).toFixed(2)} WTON</span>
+                        </div>
                         <div className="info-row">
                           <span className="info-label">Layer2Registry Status:</span>
                           <span className={operatorInfo.isLayer2Registered ? 'status-success' : 'status-error'}>
@@ -1193,8 +1637,14 @@ function App() {
                         </div>
                       </div>
                     )}
-                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
-                      T_i = Current Stake, θ = minStakingRatio, B_i = Bridged TON, D_seq = Sequencer minimum collateral
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
+                      <strong>📖 Explanation:</strong><br/>
+                      • <strong>OperatorManager Staked Amount</strong>: WTON staked by OperatorManager in CandidateAddOn = stakeOf(candidateAddOn, operatorManager)<br/>
+                      • <strong>Current Stake (T_i)</strong>: Effective stake from checkCurrentEligibility() - should match OperatorManager staked amount<br/>
+                      • <strong>Bridged TON (B_i)</strong>: Amount of TON bridged to L2<br/>
+                      • <strong>Required Stake</strong>: max(θ·B_i, D_seq) where θ = minStakingRatio (e.g., 0.1 = 10%)<br/>
+                      • <strong>Eligibility Condition</strong>: T_i ≥ max(θ·B_i, D_seq)<br/>
+                      • <strong>D_seq</strong>: Minimum sequencer stake (from SeigManager.minimumAmount())
                     </small>
                   </section>
 
@@ -1535,7 +1985,65 @@ function App() {
                 </div>
               )}
 
-              {/* Games Tab */}
+              {/* L2 Balances Tab */}
+              {activeTab === 'l2-balances' && (
+                <div className="section">
+                  <section className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h2 style={{ margin: 0 }}>💎 L2 Token Balances</h2>
+                      <button
+                        onClick={async () => {
+                          if (!address) {
+                            alert('Please connect wallet first');
+                            return;
+                          }
+                          try {
+                            setLoading(true);
+                            // Load rollup info first to get L2 TON address
+                            if (!rollupInfo) {
+                              await loadRollupInfo();
+                            }
+                            await loadUserBalances(address);
+                            alert('✅ Balances refreshed!');
+                          } catch (error: any) {
+                            console.error('Refresh failed:', error);
+                            alert(`❌ Refresh failed: ${error.message || 'Unknown error'}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading || !address}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.5rem 1rem' }}
+                      >
+                        {loading ? '⏳' : '🔄'} Refresh
+                      </button>
+                    </div>
+                    <div className="balance-cards">
+                      <div className="balance-card">
+                        <div className="balance-icon">⚡</div>
+                        <div className="balance-label">L2 ETH</div>
+                        <div className="balance-value">{parseFloat(l2EthBalance).toFixed(4)}</div>
+                        <div className="balance-network">Layer 2</div>
+                      </div>
+                      <div className="balance-card">
+                        <div className="balance-icon">🪙</div>
+                        <div className="balance-label">L2 TON</div>
+                        <div className="balance-value">{parseFloat(l2TonBalance).toFixed(4)}</div>
+                        <div className="balance-network">Layer 2</div>
+                      </div>
+                    </div>
+                    <div className="info-box" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #0ea5e9' }}>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#0369a1' }}>
+                        💡 <strong>Tip:</strong> L2 balances show your tokens on the Layer 2 network. 
+                        Use the Bridge tab to transfer assets between L1 and L2.
+                      </p>
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {/* Dispute Games Tab */}
               {activeTab === 'games' && (
                 <div className="section">
                   <section className="card">
@@ -1640,9 +2148,9 @@ function App() {
                           <code>{l2Info.portalGuardian}</code>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Portal Paused:</span>
-                          <span className={l2Info.portalPaused ? 'status-error' : 'status-success'}>
-                            {l2Info.portalPaused ? '⚠️ Paused' : '✅ Active'}
+                          <span className="info-label">Portal Status:</span>
+                          <span className={l2Info.portalPaused ? 'status-offline' : 'status-online'}>
+                            {l2Info.portalPaused ? '⏸️ Paused' : '✅ Active'}
                           </span>
                         </div>
                         <div className="info-row">
@@ -1718,31 +2226,11 @@ function App() {
                             <code>{CONFIG.contracts.systemConfig}</code>
                           </div>
                           <div className="info-row">
-                            <span className="info-label">Expected L2 Chain ID:</span>
-                            <span className="badge badge-success">901</span>
-                          </div>
-                          <div className="info-row">
-                            <span className="info-label">Actual L2 Chain ID:</span>
+                            <span className="info-label">L2 Chain ID:</span>
                             <span className={l2Info.l2ChainId === '901' ? 'badge badge-success' : l2Info.l2ChainId === 'N/A' ? 'badge' : 'badge badge-error'}>
                               {l2Info.l2ChainId}
                             </span>
                           </div>
-                          {l2Info.l2ChainId !== '901' && l2Info.l2ChainId !== 'N/A' && (
-                            <div className="info-row">
-                              <span className="info-label">Status:</span>
-                              <span className="status-error">
-                                ⚠️ Chain ID mismatch! L2 should be 901
-                              </span>
-                            </div>
-                          )}
-                          {l2Info.l2ChainId === 'N/A' && (
-                            <div className="info-row">
-                              <span className="info-label">Status:</span>
-                              <span className="status-warning">
-                                ⚠️ L2 not reachable. Check if L2 node is running.
-                              </span>
-                            </div>
-                          )}
                           <div className="info-row">
                             <span className="info-label">L2 Block Number:</span>
                             <span>{l2Info.l2BlockNumber}</span>
@@ -1868,8 +2356,38 @@ function App() {
               {activeTab === 'bridge' && (
                 <div className="section">
                   <section className="card">
-                    <h2>⚡ Bridge ETH to L2 (Deposit)</h2>
-                    <p>Bridge ETH from L1 to L2 using Optimism Portal</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div>
+                        <h2 style={{ margin: 0 }}>⚡ Bridge ETH to L2 (Deposit)</h2>
+                        <p style={{ margin: '0.5rem 0 0 0' }}>Bridge ETH from L1 to L2 using Optimism Portal</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!address) {
+                            alert('Please connect wallet first');
+                            return;
+                          }
+                          try {
+                            setLoading(true);
+                            await Promise.all([
+                              loadDashboardData(),
+                              loadUserBalances(address)
+                            ]);
+                            alert('✅ Data refreshed!');
+                          } catch (error: any) {
+                            console.error('Refresh failed:', error);
+                            alert(`❌ Refresh failed: ${error.message || 'Unknown error'}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading || !address}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
+                      >
+                        {loading ? '⏳' : '🔄'} Refresh Data
+                      </button>
+                    </div>
                     {l2Info && (
                       <>
                         <div className="info-list" style={{ marginBottom: '1rem' }}>
@@ -1884,6 +2402,14 @@ function App() {
                           <div className="info-row">
                             <span className="info-label">Portal ETH Balance:</span>
                             <span>{parseFloat(l2Info.portalEthBalance).toFixed(4)} ETH</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">ETHLockbox ETH Balance:</span>
+                            <span className="value-large">{parseFloat(l2Info.ethLockboxBalance).toFixed(4)} ETH</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">ETHLockbox Address:</span>
+                            <code>{l2Info.ethLockboxAddress}</code>
                           </div>
                         </div>
                         <div className="action-form">
@@ -2702,12 +3228,12 @@ function App() {
                 </div>
               )}
 
-              {/* Balances Tab */}
-              {activeTab === 'balances' && (
+              {/* L1 Balances Tab */}
+              {activeTab === 'l1-balances' && (
                 <div className="section">
                   <section className="card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h2 style={{ margin: 0 }}>💰 Your Token Balances</h2>
+                      <h2 style={{ margin: 0 }}>💰 L1 Token Balances</h2>
                       <button
                         onClick={async () => {
                           if (!address) {
@@ -3015,6 +3541,915 @@ function App() {
                         </div>
                       ))}
                     </div>
+                  </section>
+                </div>
+              )}
+
+              {/* L1 Block Explorer Tab */}
+              {activeTab === 'l1-explorer' && (
+                <div className="section">
+                  <section className="card">
+                    <h2>🔍 L1 Block Explorer</h2>
+                    <p>Explore L1 blockchain blocks and transactions</p>
+                    
+                    {/* View Toggle Tabs */}
+                    <div style={{display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '2px solid #e0e0e0'}}>
+                      <button
+                        onClick={() => setExplorerView('blocks')}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: 'none',
+                          border: 'none',
+                          borderBottom: explorerView === 'blocks' ? '3px solid #4CAF50' : '3px solid transparent',
+                          cursor: 'pointer',
+                          fontWeight: explorerView === 'blocks' ? 'bold' : 'normal',
+                          fontSize: '1rem',
+                          color: explorerView === 'blocks' ? '#4CAF50' : '#666',
+                        }}
+                      >
+                        📦 Blocks
+                      </button>
+                      <button
+                        onClick={() => setExplorerView('transactions')}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: 'none',
+                          border: 'none',
+                          borderBottom: explorerView === 'transactions' ? '3px solid #4CAF50' : '3px solid transparent',
+                          cursor: 'pointer',
+                          fontWeight: explorerView === 'transactions' ? 'bold' : 'normal',
+                          fontSize: '1rem',
+                          color: explorerView === 'transactions' ? '#4CAF50' : '#666',
+                        }}
+                      >
+                        📝 Transactions
+                      </button>
+                    </div>
+
+                    {explorerView === 'blocks' ? (
+                      <>
+                        <div className="action-form" style={{marginBottom: '1rem'}}>
+                      <input
+                        type="text"
+                        placeholder="Block number or hash"
+                        className="input"
+                        value={blockSearchInput}
+                        onChange={(e) => setBlockSearchInput(e.target.value)}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = blockSearchInput.trim();
+                          if (!input) return;
+                          
+                          if (input.startsWith('0x')) {
+                            alert('Hash search not yet implemented. Please enter a block number.');
+                          } else {
+                            loadBlockDetails(parseInt(input), false);
+                          }
+                        }}
+                        disabled={loading}
+                        className="btn btn-primary"
+                      >
+                        Search Block
+                      </button>
+                      <button
+                        onClick={() => loadL1Blocks(20)}
+                        disabled={loading}
+                        className="btn btn-secondary"
+                      >
+                        Load Latest Blocks
+                      </button>
+                    </div>
+
+                    <div className="action-form" style={{marginBottom: '1rem'}}>
+                      <input
+                        type="text"
+                        placeholder="Transaction hash"
+                        className="input"
+                        value={txSearchInput}
+                        onChange={(e) => setTxSearchInput(e.target.value)}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = txSearchInput.trim();
+                          if (!input) return;
+                          loadTransactionDetails(input, false);
+                        }}
+                        disabled={loading}
+                        className="btn btn-primary"
+                      >
+                        Search Transaction
+                      </button>
+                    </div>
+
+                    {selectedBlock && (
+                      <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                        <h3>Block Details</h3>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Block Number:</span>
+                            <span>{selectedBlock.number}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Block Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedBlock.hash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Parent Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedBlock.parentHash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Timestamp:</span>
+                            <span>{formatTimestamp(selectedBlock.timestamp)}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Miner:</span>
+                            <code>{selectedBlock.miner}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Gas Used:</span>
+                            <span>{selectedBlock.gasUsed} / {selectedBlock.gasLimit}</span>
+                          </div>
+                          {selectedBlock.baseFeePerGas && (
+                            <div className="info-row">
+                              <span className="info-label">Base Fee:</span>
+                              <span>{ethers.formatUnits(selectedBlock.baseFeePerGas, 'gwei')} Gwei</span>
+                            </div>
+                          )}
+                          <div className="info-row">
+                            <span className="info-label">Transactions:</span>
+                            <span>{selectedBlock.transactions.length} txs</span>
+                          </div>
+                        </div>
+
+                        {/* Transaction List in Block */}
+                        {selectedBlock.transactions.length > 0 && (
+                          <div style={{marginTop: '1.5rem'}}>
+                            <h4>Transactions in this Block</h4>
+                            <div className="table-container">
+                              <table className="validators-table">
+                                <thead>
+                                  <tr>
+                                    <th>TX Hash</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {selectedBlock.transactions.slice(0, 20).map((txHash) => (
+                                    <tr key={txHash}>
+                                      <td><code style={{fontSize: '0.75rem'}}>{txHash}</code></td>
+                                      <td>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedBlock(null);
+                                            loadTransactionDetails(txHash, false);
+                                          }}
+                                          className="btn btn-small btn-primary"
+                                        >
+                                          View Details
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            {selectedBlock.transactions.length > 20 && (
+                              <p style={{marginTop: '0.5rem', fontSize: '0.9rem', color: '#666'}}>
+                                Showing first 20 of {selectedBlock.transactions.length} transactions
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => setSelectedBlock(null)}
+                          className="btn btn-secondary"
+                          style={{marginTop: '1rem'}}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedTransaction && (
+                      <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                        <h3>Transaction Details</h3>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">TX Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedTransaction.hash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Status:</span>
+                            <span className={selectedTransaction.status === 1 ? 'status-success' : 'status-error'}>
+                              {selectedTransaction.status === 1 ? '✅ Success' : '❌ Failed'}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Block:</span>
+                            <span>{selectedTransaction.blockNumber}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">From:</span>
+                            <code>{selectedTransaction.from}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">To:</span>
+                            <code>{selectedTransaction.to || 'Contract Creation'}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Value:</span>
+                            <span>{selectedTransaction.value} ETH</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Gas Used:</span>
+                            <span>{selectedTransaction.gasUsed}</span>
+                          </div>
+                          {selectedTransaction.data && selectedTransaction.data !== '0x' && (() => {
+                            const parsed = parseInputData(selectedTransaction.to, selectedTransaction.data);
+                            return (
+                              <>
+                                {parsed ? (
+                                  <>
+                                    <div className="info-row">
+                                      <span className="info-label">Function:</span>
+                                      <code style={{fontSize: '0.9rem', padding: '0.25rem 0.5rem', background: '#e8f5e9', borderRadius: '4px', fontWeight: 'bold'}}>
+                                        {parsed.name}
+                                      </code>
+                                    </div>
+                                    <div className="info-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                                      <span className="info-label" style={{marginBottom: '0.5rem'}}>Parameters:</span>
+                                      <div style={{width: '100%', padding: '0.75rem', background: '#f5f5f5', borderRadius: '4px', border: '1px solid #ddd'}}>
+                                        {parsed.args.map((arg: any, idx: number) => (
+                                          <div key={idx} style={{marginBottom: '0.5rem', fontSize: '0.85rem'}}>
+                                            <strong>{arg.name}</strong> <span style={{color: '#666'}}>({arg.type})</span>: <code>{arg.value}</code>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="info-row">
+                                      <span className="info-label">Method ID:</span>
+                                      <code style={{fontSize: '0.9rem', padding: '0.25rem 0.5rem', background: '#e3f2fd', borderRadius: '4px'}}>
+                                        {selectedTransaction.methodId}
+                                      </code>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="info-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                                  <span className="info-label" style={{marginBottom: '0.5rem'}}>Input Data:</span>
+                                  <code style={{
+                                    fontSize: '0.75rem',
+                                    padding: '0.75rem',
+                                    background: '#f5f5f5',
+                                    borderRadius: '4px',
+                                    wordBreak: 'break-all',
+                                    width: '100%',
+                                    display: 'block',
+                                    maxHeight: '150px',
+                                    overflowY: 'auto',
+                                    border: '1px solid #ddd'
+                                  }}>
+                                    {selectedTransaction.data}
+                                  </code>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <button
+                          onClick={() => setSelectedTransaction(null)}
+                          className="btn btn-secondary"
+                          style={{marginTop: '1rem'}}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+
+                    {l1Blocks.length > 0 && !selectedBlock && !selectedTransaction && (
+                      <div style={{marginTop: '2rem'}}>
+                        <h3>Recent L1 Blocks</h3>
+                        <div className="table-container">
+                          <table className="validators-table">
+                            <thead>
+                              <tr>
+                                <th>Block</th>
+                                <th>Timestamp</th>
+                                <th>Txs</th>
+                                <th>Gas Used</th>
+                                <th>Miner</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {l1Blocks.map((block) => (
+                                <tr key={block.number}>
+                                  <td>{block.number}</td>
+                                  <td>{new Date(block.timestamp * 1000).toLocaleTimeString()}</td>
+                                  <td>{block.transactions.length}</td>
+                                  <td>{parseInt(block.gasUsed).toLocaleString()}</td>
+                                  <td><code style={{fontSize: '0.8rem'}}>{formatAddress(block.miner)}</code></td>
+                                  <td>
+                                    <button
+                                      onClick={() => loadBlockDetails(block.number, false)}
+                                      className="btn btn-small btn-primary"
+                                    >
+                                      View
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Transaction View */}
+                        <div className="action-form" style={{marginBottom: '1rem'}}>
+                          <input
+                            type="text"
+                            placeholder="Transaction hash"
+                            className="input"
+                            value={txSearchInput}
+                            onChange={(e) => setTxSearchInput(e.target.value)}
+                          />
+                          <button
+                            onClick={() => {
+                              const input = txSearchInput.trim();
+                              if (!input) return;
+                              loadTransactionDetails(input, false);
+                            }}
+                            disabled={loading}
+                            className="btn btn-primary"
+                          >
+                            Search Transaction
+                          </button>
+                          <button
+                            onClick={() => loadL1Transactions(20)}
+                            disabled={loading}
+                            className="btn btn-secondary"
+                          >
+                            Load Latest Transactions
+                          </button>
+                        </div>
+
+                        {selectedTransaction && (
+                          <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                            <h3>Transaction Details</h3>
+                            <div className="info-list">
+                              <div className="info-row">
+                                <span className="info-label">TX Hash:</span>
+                                <code style={{fontSize: '0.8rem'}}>{selectedTransaction.hash}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Status:</span>
+                                <span className={selectedTransaction.status === 1 ? 'status-success' : 'status-error'}>
+                                  {selectedTransaction.status === 1 ? '✅ Success' : '❌ Failed'}
+                                </span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Block:</span>
+                                <span>{selectedTransaction.blockNumber}</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">From:</span>
+                                <code>{selectedTransaction.from}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">To:</span>
+                                <code>{selectedTransaction.to || 'Contract Creation'}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Value:</span>
+                                <span>{selectedTransaction.value} ETH</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Gas Used:</span>
+                                <span>{selectedTransaction.gasUsed}</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Gas Price:</span>
+                                <span>{ethers.formatUnits(selectedTransaction.gasPrice, 'gwei')} Gwei</span>
+                              </div>
+                              {selectedTransaction.data && selectedTransaction.data !== '0x' && (
+                                <>
+                                  <div className="info-row">
+                                    <span className="info-label">Method ID:</span>
+                                    <code style={{fontSize: '0.9rem', padding: '0.25rem 0.5rem', background: '#e3f2fd', borderRadius: '4px'}}>
+                                      {selectedTransaction.methodId}
+                                    </code>
+                                  </div>
+                                  <div className="info-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                                    <span className="info-label" style={{marginBottom: '0.5rem'}}>Input Data:</span>
+                                    <code style={{
+                                      fontSize: '0.75rem',
+                                      padding: '0.75rem',
+                                      background: '#f5f5f5',
+                                      borderRadius: '4px',
+                                      wordBreak: 'break-all',
+                                      width: '100%',
+                                      display: 'block',
+                                      maxHeight: '150px',
+                                      overflowY: 'auto',
+                                      border: '1px solid #ddd'
+                                    }}>
+                                      {selectedTransaction.data}
+                                    </code>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setSelectedTransaction(null)}
+                              className="btn btn-secondary"
+                              style={{marginTop: '1rem'}}
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+
+                        {l1Transactions.length > 0 && !selectedTransaction && (
+                          <div style={{marginTop: '2rem'}}>
+                            <h3>Recent L1 Transactions</h3>
+                            <div className="table-container">
+                              <table className="validators-table">
+                                <thead>
+                                  <tr>
+                                    <th>TX Hash</th>
+                                    <th>Block</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Value (ETH)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {l1Transactions.map((tx) => (
+                                    <tr key={tx.hash}>
+                                      <td><code style={{fontSize: '0.75rem'}}>{tx.hash.substring(0, 10)}...</code></td>
+                                      <td>{tx.blockNumber}</td>
+                                      <td><code style={{fontSize: '0.75rem'}}>{formatAddress(tx.from)}</code></td>
+                                      <td><code style={{fontSize: '0.75rem'}}>{tx.to ? formatAddress(tx.to) : 'Contract'}</code></td>
+                                      <td>{parseFloat(tx.value).toFixed(4)}</td>
+                                      <td>
+                                        <span className={tx.status === 1 ? 'status-success' : 'status-error'}>
+                                          {tx.status === 1 ? '✅' : '❌'}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <button
+                                          onClick={() => loadTransactionDetails(tx.hash, false)}
+                                          className="btn btn-small btn-primary"
+                                        >
+                                          View
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {/* L2 Block Explorer Tab */}
+              {activeTab === 'l2-explorer' && (
+                <div className="section">
+                  <section className="card">
+                    <h2>🔎 L2 Block Explorer</h2>
+                    <p>Explore L2 blockchain blocks and transactions</p>
+                    
+                    {/* View Toggle Tabs */}
+                    <div style={{display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '2px solid #e0e0e0'}}>
+                      <button
+                        onClick={() => setExplorerView('blocks')}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: 'none',
+                          border: 'none',
+                          borderBottom: explorerView === 'blocks' ? '3px solid #4CAF50' : '3px solid transparent',
+                          cursor: 'pointer',
+                          fontWeight: explorerView === 'blocks' ? 'bold' : 'normal',
+                          fontSize: '1rem',
+                          color: explorerView === 'blocks' ? '#4CAF50' : '#666',
+                        }}
+                      >
+                        📦 Blocks
+                      </button>
+                      <button
+                        onClick={() => setExplorerView('transactions')}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: 'none',
+                          border: 'none',
+                          borderBottom: explorerView === 'transactions' ? '3px solid #4CAF50' : '3px solid transparent',
+                          cursor: 'pointer',
+                          fontWeight: explorerView === 'transactions' ? 'bold' : 'normal',
+                          fontSize: '1rem',
+                          color: explorerView === 'transactions' ? '#4CAF50' : '#666',
+                        }}
+                      >
+                        📝 Transactions
+                      </button>
+                    </div>
+
+                    {explorerView === 'blocks' ? (
+                      <>
+                        <div className="action-form" style={{marginBottom: '1rem'}}>
+                      <input
+                        type="text"
+                        placeholder="Block number or hash"
+                        className="input"
+                        value={blockSearchInput}
+                        onChange={(e) => setBlockSearchInput(e.target.value)}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = blockSearchInput.trim();
+                          if (!input) return;
+                          
+                          if (input.startsWith('0x')) {
+                            alert('Hash search not yet implemented. Please enter a block number.');
+                          } else {
+                            loadBlockDetails(parseInt(input), true);
+                          }
+                        }}
+                        disabled={loading}
+                        className="btn btn-primary"
+                      >
+                        Search Block
+                      </button>
+                      <button
+                        onClick={() => loadL2Blocks(20)}
+                        disabled={loading}
+                        className="btn btn-secondary"
+                      >
+                        Load Latest Blocks
+                      </button>
+                    </div>
+
+                    <div className="action-form" style={{marginBottom: '1rem'}}>
+                      <input
+                        type="text"
+                        placeholder="Transaction hash"
+                        className="input"
+                        value={txSearchInput}
+                        onChange={(e) => setTxSearchInput(e.target.value)}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = txSearchInput.trim();
+                          if (!input) return;
+                          loadTransactionDetails(input, true);
+                        }}
+                        disabled={loading}
+                        className="btn btn-primary"
+                      >
+                        Search Transaction
+                      </button>
+                    </div>
+
+                    {selectedBlock && (
+                      <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                        <h3>Block Details</h3>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Block Number:</span>
+                            <span>{selectedBlock.number}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Block Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedBlock.hash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Parent Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedBlock.parentHash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Timestamp:</span>
+                            <span>{formatTimestamp(selectedBlock.timestamp)}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Miner:</span>
+                            <code>{selectedBlock.miner}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Gas Used:</span>
+                            <span>{selectedBlock.gasUsed} / {selectedBlock.gasLimit}</span>
+                          </div>
+                          {selectedBlock.baseFeePerGas && (
+                            <div className="info-row">
+                              <span className="info-label">Base Fee:</span>
+                              <span>{ethers.formatUnits(selectedBlock.baseFeePerGas, 'gwei')} Gwei</span>
+                            </div>
+                          )}
+                          <div className="info-row">
+                            <span className="info-label">Transactions:</span>
+                            <span>{selectedBlock.transactions.length} txs</span>
+                          </div>
+                        </div>
+
+                        {/* Transaction List in Block */}
+                        {selectedBlock.transactions.length > 0 && (
+                          <div style={{marginTop: '1.5rem'}}>
+                            <h4>Transactions in this Block</h4>
+                            <div className="table-container">
+                              <table className="validators-table">
+                                <thead>
+                                  <tr>
+                                    <th>TX Hash</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {selectedBlock.transactions.slice(0, 20).map((txHash) => (
+                                    <tr key={txHash}>
+                                      <td><code style={{fontSize: '0.75rem'}}>{txHash}</code></td>
+                                      <td>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedBlock(null);
+                                            loadTransactionDetails(txHash, true);
+                                          }}
+                                          className="btn btn-small btn-primary"
+                                        >
+                                          View Details
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            {selectedBlock.transactions.length > 20 && (
+                              <p style={{marginTop: '0.5rem', fontSize: '0.9rem', color: '#666'}}>
+                                Showing first 20 of {selectedBlock.transactions.length} transactions
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => setSelectedBlock(null)}
+                          className="btn btn-secondary"
+                          style={{marginTop: '1rem'}}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedTransaction && (
+                      <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                        <h3>Transaction Details</h3>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">TX Hash:</span>
+                            <code style={{fontSize: '0.8rem'}}>{selectedTransaction.hash}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Status:</span>
+                            <span className={selectedTransaction.status === 1 ? 'status-success' : 'status-error'}>
+                              {selectedTransaction.status === 1 ? '✅ Success' : '❌ Failed'}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Block:</span>
+                            <span>{selectedTransaction.blockNumber}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">From:</span>
+                            <code>{selectedTransaction.from}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">To:</span>
+                            <code>{selectedTransaction.to || 'Contract Creation'}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Value:</span>
+                            <span>{selectedTransaction.value} ETH</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Gas Used:</span>
+                            <span>{selectedTransaction.gasUsed}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedTransaction(null)}
+                          className="btn btn-secondary"
+                          style={{marginTop: '1rem'}}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+
+                    {l2Blocks.length > 0 && !selectedBlock && !selectedTransaction && (
+                      <div style={{marginTop: '2rem'}}>
+                        <h3>Recent L2 Blocks</h3>
+                        <div className="table-container">
+                          <table className="validators-table">
+                            <thead>
+                              <tr>
+                                <th>Block</th>
+                                <th>Timestamp</th>
+                                <th>Txs</th>
+                                <th>Gas Used</th>
+                                <th>Miner</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {l2Blocks.map((block) => (
+                                <tr key={block.number}>
+                                  <td>{block.number}</td>
+                                  <td>{new Date(block.timestamp * 1000).toLocaleTimeString()}</td>
+                                  <td>{block.transactions.length}</td>
+                                  <td>{parseInt(block.gasUsed).toLocaleString()}</td>
+                                  <td><code style={{fontSize: '0.8rem'}}>{formatAddress(block.miner)}</code></td>
+                                  <td>
+                                    <button
+                                      onClick={() => loadBlockDetails(block.number, true)}
+                                      className="btn btn-small btn-primary"
+                                    >
+                                      View
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Transaction View */}
+                        <div className="action-form" style={{marginBottom: '1rem'}}>
+                          <input
+                            type="text"
+                            placeholder="Transaction hash"
+                            className="input"
+                            value={txSearchInput}
+                            onChange={(e) => setTxSearchInput(e.target.value)}
+                          />
+                          <button
+                            onClick={() => {
+                              const input = txSearchInput.trim();
+                              if (!input) return;
+                              loadTransactionDetails(input, true);
+                            }}
+                            disabled={loading}
+                            className="btn btn-primary"
+                          >
+                            Search Transaction
+                          </button>
+                          <button
+                            onClick={() => loadL2Transactions(20)}
+                            disabled={loading}
+                            className="btn btn-secondary"
+                          >
+                            Load Latest Transactions
+                          </button>
+                        </div>
+
+                        {selectedTransaction && (
+                          <div style={{marginTop: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px'}}>
+                            <h3>Transaction Details</h3>
+                            <div className="info-list">
+                              <div className="info-row">
+                                <span className="info-label">TX Hash:</span>
+                                <code style={{fontSize: '0.8rem'}}>{selectedTransaction.hash}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Status:</span>
+                                <span className={selectedTransaction.status === 1 ? 'status-success' : 'status-error'}>
+                                  {selectedTransaction.status === 1 ? '✅ Success' : '❌ Failed'}
+                                </span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Block:</span>
+                                <span>{selectedTransaction.blockNumber}</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">From:</span>
+                                <code>{selectedTransaction.from}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">To:</span>
+                                <code>{selectedTransaction.to || 'Contract Creation'}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Value:</span>
+                                <span>{selectedTransaction.value} ETH</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Gas Used:</span>
+                                <span>{selectedTransaction.gasUsed}</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Gas Price:</span>
+                                <span>{ethers.formatUnits(selectedTransaction.gasPrice, 'gwei')} Gwei</span>
+                              </div>
+                              {selectedTransaction.data && selectedTransaction.data !== '0x' && (
+                                <>
+                                  <div className="info-row">
+                                    <span className="info-label">Method ID:</span>
+                                    <code style={{fontSize: '0.9rem', padding: '0.25rem 0.5rem', background: '#e3f2fd', borderRadius: '4px'}}>
+                                      {selectedTransaction.methodId}
+                                    </code>
+                                  </div>
+                                  <div className="info-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                                    <span className="info-label" style={{marginBottom: '0.5rem'}}>Input Data:</span>
+                                    <code style={{
+                                      fontSize: '0.75rem',
+                                      padding: '0.75rem',
+                                      background: '#f5f5f5',
+                                      borderRadius: '4px',
+                                      wordBreak: 'break-all',
+                                      width: '100%',
+                                      display: 'block',
+                                      maxHeight: '150px',
+                                      overflowY: 'auto',
+                                      border: '1px solid #ddd'
+                                    }}>
+                                      {selectedTransaction.data}
+                                    </code>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setSelectedTransaction(null)}
+                              className="btn btn-secondary"
+                              style={{marginTop: '1rem'}}
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+
+                        {l2Transactions.length > 0 && !selectedTransaction && (
+                          <div style={{marginTop: '2rem'}}>
+                            <h3>Recent L2 Transactions</h3>
+                            <div className="table-container">
+                              <table className="validators-table">
+                                <thead>
+                                  <tr>
+                                    <th>TX Hash</th>
+                                    <th>Block</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Value (ETH)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {l2Transactions.map((tx) => (
+                                    <tr key={tx.hash}>
+                                      <td><code style={{fontSize: '0.75rem'}}>{tx.hash.substring(0, 10)}...</code></td>
+                                      <td>{tx.blockNumber}</td>
+                                      <td><code style={{fontSize: '0.75rem'}}>{formatAddress(tx.from)}</code></td>
+                                      <td><code style={{fontSize: '0.75rem'}}>{tx.to ? formatAddress(tx.to) : 'Contract'}</code></td>
+                                      <td>{parseFloat(tx.value).toFixed(4)}</td>
+                                      <td>
+                                        <span className={tx.status === 1 ? 'status-success' : 'status-error'}>
+                                          {tx.status === 1 ? '✅' : '❌'}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <button
+                                          onClick={() => loadTransactionDetails(tx.hash, true)}
+                                          className="btn btn-small btn-primary"
+                                        >
+                                          View
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </section>
                 </div>
               )}
