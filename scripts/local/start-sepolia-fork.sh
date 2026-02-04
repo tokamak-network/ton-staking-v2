@@ -23,8 +23,15 @@ DEVNET_DIR="$PROJECT_ROOT/.devnet"
 DEVNET_SEPOLIA_DIR="$PROJECT_ROOT/.devnet-sepolia-fork"
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.l2-only.yml"
 
+# Load .env file if exists
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
 # Default configuration
-SEPOLIA_RPC="${SEPOLIA_RPC:-https://ethereum-sepolia-rpc.publicnode.com}"
+SEPOLIA_RPC="${SEPOLIA_RPC:-${ETH_NODE_URI_sepolia:-https://ethereum-sepolia-rpc.publicnode.com}}"
 L1_BLOCK_TIME="${L1_BLOCK_TIME:-12}"
 L1_PORT="${L1_PORT:-8546}"
 ANVIL_LOG="${ANVIL_LOG:-/tmp/anvil.log}"
@@ -77,7 +84,9 @@ if pgrep -f "anvil.*$L1_PORT" > /dev/null; then
 fi
 
 # Start Anvil
-echo "Forking from: $SEPOLIA_RPC"
+# Mask API key in URL for security (hide everything after @ or hide API key pattern)
+MASKED_RPC=$(echo "$SEPOLIA_RPC" | sed -E 's/(apikey=)[^&]*/\1***/g; s/([a-zA-Z0-9]{20,})/\*\*\*/g')
+echo "Forking from: $MASKED_RPC"
 nohup anvil \
     --host 0.0.0.0 \
     --port $L1_PORT \
@@ -271,59 +280,57 @@ echo "L1 Hash: $L1_BLOCK_HASH"
 OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy // "0xbF6531954Aa355f478e54fEDff94D9D9E7008D79"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
 SYSTEM_CONFIG=$(jq -r '.SystemConfigProxy // "0x577AcB7fA48878245a854ba51eD051a5B47cF83f"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
 
-# Create genesis-l2.json
-L2_TIME_HEX=$(printf "0x%x" $L2_TIME)
-cat > "$DEVNET_SEPOLIA_DIR/genesis-l2.json" <<EOF
-{
-  "config": {
-    "chainId": 901,
-    "homesteadBlock": 0,
-    "eip150Block": 0,
-    "eip155Block": 0,
-    "eip158Block": 0,
-    "byzantiumBlock": 0,
-    "constantinopleBlock": 0,
-    "petersburgBlock": 0,
-    "istanbulBlock": 0,
-    "muirGlacierBlock": 0,
-    "berlinBlock": 0,
-    "londonBlock": 0,
-    "arrowGlacierBlock": 0,
-    "grayGlacierBlock": 0,
-    "mergeNetsplitBlock": 0,
-    "terminalTotalDifficulty": 0,
-    "terminalTotalDifficultyPassed": true,
-    "bedrockBlock": 0,
-    "regolithTime": 0,
-    "canyonTime": 0,
-    "shanghaiTime": 0,
-    "deltaTime": 0,
-    "optimism": {
-      "eip1559Elasticity": 6,
-      "eip1559Denominator": 50,
-      "eip1559DenominatorCanyon": 250
-    }
-  },
-  "nonce": "0x0",
-  "timestamp": "$L2_TIME_HEX",
-  "extraData": "0x",
-  "gasLimit": "0x1c9c380",
-  "difficulty": "0x0",
-  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "coinbase": "0x0000000000000000000000000000000000000000",
-  "alloc": {
-    "0x4200000000000000000000000000000000000015": {
-      "code": "0x",
-      "storage": {},
-      "balance": "0x0"
-    }
-  },
-  "number": "0x0",
-  "gasUsed": "0x0",
-  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "baseFeePerGas": "0x3b9aca00"
-}
-EOF
+# Generate or use L2 genesis with predeploys
+if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
+    echo "Using existing L2 genesis with predeploys..."
+    cp "$DEVNET_DIR/genesis-l2.json" "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
+
+    # Update timestamp
+    L2_TIME_HEX=$(printf "0x%x" $L2_TIME)
+    jq --arg ts "$L2_TIME_HEX" '.timestamp = $ts' "$DEVNET_SEPOLIA_DIR/genesis-l2.json" > /tmp/genesis-l2-updated.json
+    mv /tmp/genesis-l2-updated.json "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
+
+    # =============================================================================
+    # Fix L2 Predeploy Bridge Addresses (CRITICAL for L1<->L2 bridging)
+    # =============================================================================
+    echo "  Fixing L2 predeploy bridge addresses..."
+
+    # Get L1 addresses from optimism-addresses.json
+    L1_CROSS_DOMAIN_MESSENGER=$(jq -r '.L1CrossDomainMessengerProxy // "0x0000000000000000000000000000000000000000"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
+    L1_STANDARD_BRIDGE=$(jq -r '.L1StandardBridgeProxy // "0x0000000000000000000000000000000000000000"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
+
+    # Fix L2CrossDomainMessenger otherMessenger (storage slot 0xcf)
+    if [ "$L1_CROSS_DOMAIN_MESSENGER" != "0x0000000000000000000000000000000000000000" ]; then
+        MESSENGER_VALUE=$(printf "0x%064s" $(echo $L1_CROSS_DOMAIN_MESSENGER | sed 's/0x//') | tr ' ' '0')
+        jq --arg slot "0x00000000000000000000000000000000000000000000000000000000000000cf" \
+           --arg value "$MESSENGER_VALUE" \
+           '.alloc["0x4200000000000000000000000000000000000007"].storage[$slot] = $value' \
+           "$DEVNET_SEPOLIA_DIR/genesis-l2.json" > /tmp/genesis-l2-fixed.json
+        mv /tmp/genesis-l2-fixed.json "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
+        echo "    L2CrossDomainMessenger.otherMessenger = $L1_CROSS_DOMAIN_MESSENGER"
+    fi
+
+    # Fix L2StandardBridge otherBridge (storage slot 4)
+    if [ "$L1_STANDARD_BRIDGE" != "0x0000000000000000000000000000000000000000" ]; then
+        BRIDGE_VALUE=$(printf "0x%064s" $(echo $L1_STANDARD_BRIDGE | sed 's/0x//') | tr ' ' '0')
+        jq --arg slot "0x0000000000000000000000000000000000000000000000000000000000000004" \
+           --arg value "$BRIDGE_VALUE" \
+           '.alloc["0x4200000000000000000000000000000000000010"].storage[$slot] = $value' \
+           "$DEVNET_SEPOLIA_DIR/genesis-l2.json" > /tmp/genesis-l2-fixed.json
+        mv /tmp/genesis-l2-fixed.json "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
+        echo "    L2StandardBridge.otherBridge = $L1_STANDARD_BRIDGE"
+    fi
+
+    echo -e "${GREEN}  ✓ L2 bridge addresses fixed${NC}"
+
+    # Verify predeploys exist
+    PREDEPLOY_COUNT=$(jq '[.alloc | keys[] | select(startswith("0x4200"))] | length' "$DEVNET_SEPOLIA_DIR/genesis-l2.json")
+    echo "  Predeploy contracts: $PREDEPLOY_COUNT"
+else
+    echo -e "${RED}Error: L2 genesis with predeploys not found${NC}"
+    echo "Please run: ./scripts/generate-l2-genesis.sh"
+    exit 1
+fi
 
 # Create initial rollup.json (L2 hash will be updated after op-geth starts)
 cat > "$DEVNET_SEPOLIA_DIR/rollup.json" <<EOF
@@ -422,20 +429,107 @@ echo -e "${GREEN}✓ Batcher and proposer started${NC}"
 echo "Starting RAT clients..."
 docker compose -f "$COMPOSE_FILE" up -d rat-client-1 rat-client-2 rat-client-3
 echo -e "${GREEN}✓ RAT clients started (3 validators)${NC}"
+
+# Wait for L2 transaction indexing to complete
+echo ""
+echo -e "${YELLOW}Waiting for L2 transaction indexing to complete...${NC}"
+echo "  This may take up to 2 minutes on first startup."
+echo "  L2 needs to index transactions before accepting new ones."
+L2_RPC_CHECK="http://localhost:9545"
+for i in {1..60}; do
+    # Try a simple eth_call to check if indexing is ready
+    if cast call "0x4200000000000000000000000000000000000012" "deployments(address)(address)" "0x0000000000000000000000000000000000000001" --rpc-url "$L2_RPC_CHECK" &> /dev/null; then
+        echo ""
+        echo -e "${GREEN}✓ L2 transaction indexing complete${NC}"
+        break
+    fi
+    if [ $i -eq 60 ]; then
+        echo ""
+        echo -e "${YELLOW}Warning: L2 indexing check timeout (2 min), continuing anyway...${NC}"
+    fi
+    if [ $((i % 10)) -eq 0 ]; then
+        echo "  Still waiting for indexing... ($((i*2))s elapsed)"
+    fi
+    sleep 2
+done
 echo ""
 
 # =============================================================================
 # Step 8: Enable auto-mining on L1
 # =============================================================================
 echo -e "${YELLOW}Step 8: Enabling auto-mining on L1...${NC}"
-cast rpc anvil_setIntervalMining $L1_BLOCK_TIME --rpc-url "$RPC" > /dev/null
+curl -s -X POST "$RPC" \
+    -H "Content-Type: application/json" \
+    -d "{\"jsonrpc\":\"2.0\",\"method\":\"anvil_setIntervalMining\",\"params\":[$L1_BLOCK_TIME],\"id\":1}" > /dev/null
 echo -e "${GREEN}✓ L1 auto-mining enabled (${L1_BLOCK_TIME}s interval)${NC}"
 echo ""
 
 # =============================================================================
-# Step 9: Register L2 in TON Staking System
+# Step 9: Deploy L2 TON Token (OptimismMintableERC20)
 # =============================================================================
-echo -e "${YELLOW}Step 9: Registering L2 in TON Staking system...${NC}"
+echo -e "${YELLOW}Step 9: Deploying L2 TON token...${NC}"
+
+L1_TON_ADDR=$(jq -r '.ton' "$DEVNET_DIR/addresses.json")
+L2_RPC="http://localhost:9545"
+L2_TOKEN_FACTORY="0x4200000000000000000000000000000000000012"
+DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+# Wait for L2 to be fully ready (including tx indexing)
+echo "  Waiting for L2 RPC to be fully ready..."
+for i in {1..30}; do
+    if cast block-number --rpc-url "$L2_RPC" &> /dev/null; then
+        # Also check if tx indexing is complete by trying a simple call
+        if cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "0x0000000000000000000000000000000000000001" --rpc-url "$L2_RPC" &> /dev/null; then
+            echo "  L2 RPC ready"
+            break
+        fi
+    fi
+    if [ $i -eq 30 ]; then
+        echo -e "${YELLOW}  Warning: L2 may not be fully ready${NC}"
+    fi
+    sleep 2
+done
+
+# Check if L2 TON already exists
+L2_TON_ADDR=$(cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "$L1_TON_ADDR" --rpc-url "$L2_RPC" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
+
+if [ -z "$L2_TON_ADDR" ] || [ "$L2_TON_ADDR" = "0x0000000000000000000000000000000000000000" ]; then
+    echo "  Creating L2 TON token via OptimismMintableERC20Factory..."
+
+    # Retry up to 5 times
+    for attempt in {1..5}; do
+        if cast send "$L2_TOKEN_FACTORY" \
+            "createOptimismMintableERC20(address,string,string)" \
+            "$L1_TON_ADDR" "Tokamak Network" "TON" \
+            --rpc-url "$L2_RPC" \
+            --private-key "$DEPLOYER_KEY" > /dev/null 2>&1; then
+
+            L2_TON_ADDR=$(cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "$L1_TON_ADDR" --rpc-url "$L2_RPC")
+            echo -e "${GREEN}  ✓ L2 TON deployed: $L2_TON_ADDR${NC}"
+            break
+        else
+            if [ $attempt -lt 5 ]; then
+                echo "    Retry $attempt/5..."
+                sleep 5
+            else
+                echo -e "${RED}  ✗ Failed to deploy L2 TON after 5 attempts${NC}"
+                L2_TON_ADDR="0x0000000000000000000000000000000000000000"
+            fi
+        fi
+    done
+else
+    echo -e "${GREEN}  ✓ L2 TON already exists: $L2_TON_ADDR${NC}"
+fi
+
+# Save L2 TON address
+jq --arg l2ton "$L2_TON_ADDR" '. + {l2Ton: $l2ton}' "$DEVNET_DIR/addresses.json" > /tmp/addresses-updated.json
+mv /tmp/addresses-updated.json "$DEVNET_DIR/addresses.json"
+echo ""
+
+# =============================================================================
+# Step 10: Register L2 in TON Staking System
+# =============================================================================
+echo -e "${YELLOW}Step 10: Registering L2 in TON Staking system...${NC}"
 
 # Load contract addresses
 L1_BRIDGE_REGISTRY=$(jq -r '.l1BridgeRegistryProxy' "$DEVNET_DIR/addresses.json")
@@ -480,10 +574,18 @@ if [ -z "$TYPE3_SUPPORT" ] || [ "$TYPE3_SUPPORT" = '""' ]; then
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
 
     # Type 3: Optimism Bedrock DisputeGame (V3 eligible)
+    # cast send "$L1_BRIDGE_REGISTRY" \
+    #     "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
+    #     3 "Optimism Bedrock DisputeGame" 0x078f29cf 0x0a49cb03 0x0a1e5c7d 1 true \
+    #     --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
+
+
+    # Type 3(Sepolia Fork): Optimism Bedrock DisputeGame (V3 eligible)
     cast send "$L1_BRIDGE_REGISTRY" \
         "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-        3 "Optimism Bedrock DisputeGame" 0x078f29cf 0x0a49cb03 0x0a1e5c7d 1 true \
+        3 "Optimism Bedrock DisputeGame" 0x078f29cf 0x078f29cf 0x0a1e5c7d 1 true \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
+
 
     echo -e "${GREEN}  ✓ Rollup types registered${NC}"
 else
@@ -497,9 +599,12 @@ ROLLUP_TYPE=$(echo "$ROLLUP_INFO" | head -1)
 
 if [ "$ROLLUP_TYPE" = "0" ]; then
     echo "  Registering rollup config (Type 3)..."
+    # Get L2 TON address from Step 9
+    L2_TON_FOR_REGISTRY=$(jq -r '.l2Ton // "0x0000000000000000000000000000000000000000"' "$DEVNET_DIR/addresses.json")
+    echo "    L2 TON: $L2_TON_FOR_REGISTRY"
     cast send "$L1_BRIDGE_REGISTRY" \
         "registerRollupConfigByManager(address,uint8,address,string)" \
-        "$SYSTEM_CONFIG_ADDR" 3 "$TON_ADDR" "Devnet L2" \
+        "$SYSTEM_CONFIG_ADDR" 3 "$L2_TON_FOR_REGISTRY" "Devnet L2" \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null
     echo -e "${GREEN}  ✓ Rollup config registered${NC}"
 else
@@ -545,9 +650,9 @@ echo "    OperatorManager: $OPERATOR_MANAGER"
 echo ""
 
 # =============================================================================
-# Step 10: Register Validators
+# Step 11: Register Validators
 # =============================================================================
-echo -e "${YELLOW}Step 10: Registering validators...${NC}"
+echo -e "${YELLOW}Step 11: Registering validators...${NC}"
 
 # Validator accounts (Anvil default accounts)
 VALIDATOR1_KEY="0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
@@ -601,9 +706,9 @@ echo -e "${GREEN}  Total validators registered: $VALIDATOR_COUNT${NC}"
 echo ""
 
 # =============================================================================
-# Step 11: Configure RAT Parameters
+# Step 12: Configure RAT Parameters
 # =============================================================================
-echo -e "${YELLOW}Step 11: Configuring RAT parameters...${NC}"
+echo -e "${YELLOW}Step 12: Configuring RAT parameters...${NC}"
 
 # RAT configuration values (matching DeployV3FullForDevnet.s.sol)
 # All WTON values in RAY format (1e27)
@@ -655,9 +760,9 @@ echo "    Relaxed Check: $VERIFY_RELAXED"
 echo ""
 
 # =============================================================================
-# Step 12: Setup Personal Test Account
+# Step 13: Setup Personal Test Account
 # =============================================================================
-echo -e "${YELLOW}Step 12: Setting up Personal Test account...${NC}"
+echo -e "${YELLOW}Step 13: Setting up Personal Test account...${NC}"
 
 PERSONAL_ADDR="0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 PERSONAL_ETH="100000000000000000000000"  # 100000 ETH in wei
