@@ -1,7 +1,7 @@
 'use client';
 
 import { useAccount } from 'wagmi';
-import { useSequencerList, useStakeInfo, usePendingRewards, useTonBalance } from '@/hooks/useStaking';
+import { useSequencerList, useStakeInfo, usePendingRewards, useTonBalance, useUserStakingStats } from '@/hooks/useStaking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatTON, formatWTON, formatAddress } from '@/lib/utils';
@@ -11,26 +11,36 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Address } from 'viem';
 import { StakeModal } from '@/components/features/staking/StakeModal';
 import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
+import { useUIStore } from '@/stores/ui';
+import Link from 'next/link';
 
 function StakePositionCard({ sequencer, userAddress }: { sequencer: Address; userAddress: Address }) {
   const { data: stakeInfo } = useStakeInfo(userAddress, sequencer);
   const { data: pendingRewards } = usePendingRewards(userAddress, sequencer);
+  const { openStakeModal, openUnstakeModal } = useUIStore();
 
-  if (!stakeInfo || stakeInfo.amount === 0n) {
-    return null;
-  }
+  // Show card even if no stake, so user can stake
+  const hasStake = stakeInfo && stakeInfo.amount > 0n;
 
   return (
     <Card className="bg-slate-900/50 border-slate-800">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-sm text-slate-400">{formatAddress(sequencer)}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">Active</span>
+          <Link href={`/sequencers/${sequencer}`} className="font-mono text-sm text-slate-400 hover:text-white">
+            {formatAddress(sequencer)}
+          </Link>
+          {hasStake ? (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">Staked</span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-slate-500/20 text-slate-400">Not Staked</span>
+          )}
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div>
             <p className="text-xs text-slate-400">Staked</p>
-            <p className="text-sm font-medium text-white">{formatTON(stakeInfo.amount)} TON</p>
+            <p className="text-sm font-medium text-white">
+              {stakeInfo ? formatTON(stakeInfo.amount) : '0'} TON
+            </p>
           </div>
           <div>
             <p className="text-xs text-slate-400">Rewards</p>
@@ -40,7 +50,19 @@ function StakePositionCard({ sequencer, userAddress }: { sequencer: Address; use
           </div>
           <div>
             <p className="text-xs text-slate-400">Pending Unstake</p>
-            <p className="text-sm font-medium text-white">{formatTON(stakeInfo.unstakeAmount)} TON</p>
+            <p className="text-sm font-medium text-white">
+              {stakeInfo ? formatTON(stakeInfo.unstakeAmount) : '0'} TON
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="gradient" onClick={() => openStakeModal(sequencer)}>
+              Stake
+            </Button>
+            {hasStake && (
+              <Button size="sm" variant="outline" onClick={() => openUnstakeModal(sequencer)}>
+                Unstake
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -52,6 +74,7 @@ export default function DashboardPage() {
   const { address, isConnected } = useAccount();
   const { data: sequencers, isLoading } = useSequencerList();
   const { data: tonBalance } = useTonBalance(address);
+  const { totalStaked, totalPendingUnstake, totalRewards } = useUserStakingStats(address, sequencers);
 
   if (!isConnected) {
     return (
@@ -95,7 +118,9 @@ export default function DashboardPage() {
               </div>
               <p className="text-slate-400 text-sm">Total Staked</p>
             </div>
-            <p className="text-2xl font-bold text-white">---</p>
+            <p className="text-2xl font-bold text-white">
+              {formatTON(totalStaked)} TON
+            </p>
           </CardContent>
         </Card>
 
@@ -107,7 +132,9 @@ export default function DashboardPage() {
               </div>
               <p className="text-slate-400 text-sm">Claimable Rewards</p>
             </div>
-            <p className="text-2xl font-bold text-tokamak-cyan">---</p>
+            <p className="text-2xl font-bold text-tokamak-cyan">
+              {formatWTON(totalRewards)} WTON
+            </p>
           </CardContent>
         </Card>
 
@@ -119,7 +146,9 @@ export default function DashboardPage() {
               </div>
               <p className="text-slate-400 text-sm">Pending Unstake</p>
             </div>
-            <p className="text-2xl font-bold text-white">---</p>
+            <p className="text-2xl font-bold text-white">
+              {formatTON(totalPendingUnstake)} TON
+            </p>
           </CardContent>
         </Card>
       </div>

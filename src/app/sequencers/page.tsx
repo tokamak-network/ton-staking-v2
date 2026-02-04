@@ -8,6 +8,8 @@ import { Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { Address } from 'viem';
+import { StakeModal } from '@/components/features/staking/StakeModal';
+import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
 
 export default function SequencersPage() {
   const { data: sequencers, isLoading } = useSequencerList();
@@ -72,6 +74,10 @@ export default function SequencersPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Modals */}
+      <StakeModal />
+      <UnstakeModal />
     </div>
   );
 }

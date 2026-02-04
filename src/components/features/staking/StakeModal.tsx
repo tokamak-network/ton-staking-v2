@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -20,10 +21,11 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 
 export function StakeModal() {
   const { address } = useAccount();
+  const queryClient = useQueryClient();
   const { isStakeModalOpen, closeStakeModal, selectedSequencer } = useUIStore();
   const [amount, setAmount] = useState('');
 
-  const { data: balance } = useTonBalance(address);
+  const { data: balance, refetch: refetchBalance } = useTonBalance(address);
   const { data: allowance, refetch: refetchAllowance } = useTonAllowance(address);
   const { data: unbondingPeriod } = useUnbondingPeriod();
 
@@ -43,10 +45,15 @@ export function StakeModal() {
   useEffect(() => {
     if (stakeSuccess) {
       toast.success('Stake successful');
+      // Refetch all staking-related data
+      refetchBalance();
+      refetchAllowance();
+      // Invalidate all staking queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['readContract'] });
       setAmount('');
       closeStakeModal();
     }
-  }, [stakeSuccess, closeStakeModal]);
+  }, [stakeSuccess, closeStakeModal, queryClient, refetchBalance, refetchAllowance]);
 
   const handleSubmit = () => {
     if (!selectedSequencer || parsedAmount === 0n) return;

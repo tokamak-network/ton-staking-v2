@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import { Clock, Loader2 } from 'lucide-react';
 
 export function UnstakeModal() {
   const { address } = useAccount();
+  const queryClient = useQueryClient();
   const { isUnstakeModalOpen, closeUnstakeModal, selectedSequencer } = useUIStore();
   const [amount, setAmount] = useState('');
 
@@ -34,10 +36,12 @@ export function UnstakeModal() {
   useEffect(() => {
     if (isSuccess) {
       toast.success('Unstake request submitted');
+      // Invalidate all staking queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['readContract'] });
       setAmount('');
       closeUnstakeModal();
     }
-  }, [isSuccess, closeUnstakeModal]);
+  }, [isSuccess, closeUnstakeModal, queryClient]);
 
   const handleSubmit = () => {
     if (!selectedSequencer || parsedAmount === 0n) return;

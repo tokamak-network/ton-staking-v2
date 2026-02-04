@@ -1,10 +1,11 @@
 'use client';
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useChainId, useAccount } from 'wagmi';
 import { DELEGATE_STAKING_ABI, ERC20_ABI } from '@/lib/contracts/abi';
 import { getAddresses } from '@/lib/contracts/addresses';
 import { Address } from 'viem';
+import { useMemo } from 'react';
 
 export function useStakingContract() {
   const chainId = useChainId();
@@ -293,4 +294,73 @@ export function useEmergencyWithdraw() {
   };
 
   return { emergencyWithdraw, isPending, isConfirming, isSuccess, error, hash };
+}
+
+// Batch hook to get aggregated user stats across all sequencers
+export function useUserStakingStats(
+  userAddress: Address | undefined,
+  sequencers: readonly string[] | undefined
+) {
+  const stakingContractAddress = useStakingContract();
+
+  // Build contracts array for batch reading stake info
+  const stakeInfoContracts = useMemo(() => {
+    if (!userAddress || !sequencers || sequencers.length === 0) return [];
+    return sequencers.map((seq) => ({
+      address: stakingContractAddress,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'getStakeInfo' as const,
+      args: [userAddress, seq as Address],
+    }));
+  }, [userAddress, sequencers, stakingContractAddress]);
+
+  // Build contracts array for batch reading pending rewards
+  const rewardsContracts = useMemo(() => {
+    if (!userAddress || !sequencers || sequencers.length === 0) return [];
+    return sequencers.map((seq) => ({
+      address: stakingContractAddress,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'pendingRewards' as const,
+      args: [userAddress, seq as Address],
+    }));
+  }, [userAddress, sequencers, stakingContractAddress]);
+
+  const { data: stakeResults } = useReadContracts({
+    contracts: stakeInfoContracts,
+    query: { enabled: stakeInfoContracts.length > 0 },
+  });
+
+  const { data: rewardsResults } = useReadContracts({
+    contracts: rewardsContracts,
+    query: { enabled: rewardsContracts.length > 0 },
+  });
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    let totalStaked = 0n;
+    let totalPendingUnstake = 0n;
+    let totalRewards = 0n;
+
+    if (stakeResults) {
+      for (const result of stakeResults) {
+        if (result.status === 'success' && result.result) {
+          const stakeInfo = result.result as { amount: bigint; unstakeAmount: bigint };
+          totalStaked += stakeInfo.amount || 0n;
+          totalPendingUnstake += stakeInfo.unstakeAmount || 0n;
+        }
+      }
+    }
+
+    if (rewardsResults) {
+      for (const result of rewardsResults) {
+        if (result.status === 'success' && result.result) {
+          totalRewards += result.result as bigint;
+        }
+      }
+    }
+
+    return { totalStaked, totalPendingUnstake, totalRewards };
+  }, [stakeResults, rewardsResults]);
+
+  return totals;
 }

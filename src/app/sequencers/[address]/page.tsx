@@ -2,14 +2,21 @@
 
 import { useParams } from 'next/navigation';
 import { Address } from 'viem';
-import { useSequencerInfo, useTotalStaked, useStakeInfo, usePendingRewards } from '@/hooks/useStaking';
+import {
+  useSequencerInfo,
+  useTotalStaked,
+  useStakeInfo,
+  usePendingRewards,
+  useCheckLayer2Eligibility,
+  useEstimateSeigniorage,
+} from '@/hooks/useStaking';
 import { useAccount } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/ui';
 import { formatAddress, formatTON, formatWTON, formatPercent } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, ExternalLink, Copy } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, TrendingUp, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { StakeModal } from '@/components/features/staking/StakeModal';
 import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
@@ -24,6 +31,10 @@ export default function SequencerDetailPage() {
   const { data: totalStaked } = useTotalStaked();
   const { data: stakeInfo } = useStakeInfo(userAddress, sequencerAddress);
   const { data: pendingRewards } = usePendingRewards(userAddress, sequencerAddress);
+
+  // Economics data
+  const { data: eligibility } = useCheckLayer2Eligibility(info?.layer2);
+  const { data: estimatedRewards } = useEstimateSeigniorage(sequencerAddress);
 
   const { openStakeModal, openUnstakeModal } = useUIStore();
 
@@ -128,12 +139,12 @@ export default function SequencerDetailPage() {
       </div>
 
       {/* User Position */}
-      {userAddress && (
-        <Card className="bg-slate-900/50 border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-white">Your Position</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="bg-slate-900/50 border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-white">Your Position</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {userAddress ? (
             <div className="grid md:grid-cols-4 gap-6">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Staked Amount</p>
@@ -169,9 +180,123 @@ export default function SequencerDetailPage() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-slate-400 mb-4">Connect your wallet to view your position and stake</p>
+              <Button variant="gradient" onClick={() => openStakeModal(sequencerAddress)}>
+                Connect & Stake
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Economics & Saturation Info */}
+      <Card className="bg-slate-900/50 border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-tokamak-cyan" />
+            Economics & Rewards
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Eligibility Status */}
+          <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+            <div className="flex items-center gap-3 mb-3">
+              {eligibility?.[0] ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-yellow-400" />
+              )}
+              <h3 className="text-white font-medium">L2 Eligibility Status</h3>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Status</p>
+                <p className={`text-sm font-medium ${eligibility?.[0] ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {eligibility?.[0] ? 'Eligible for Rewards' : 'Not Eligible'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Required Stake (θ × Bridged TON)</p>
+                <p className="text-sm font-medium text-white">
+                  {eligibility?.[1] ? formatTON(eligibility[1]) : '---'} TON
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Current Stake</p>
+                <p className="text-sm font-medium text-white">
+                  {eligibility?.[2] ? formatTON(eligibility[2]) : '---'} TON
+                </p>
+              </div>
+            </div>
+            {eligibility && !eligibility[0] && eligibility[1] > 0n && (
+              <div className="mt-3 p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
+                <p className="text-xs text-yellow-200">
+                  This sequencer needs {formatTON(eligibility[1] - eligibility[2])} more TON staked to become eligible for seigniorage rewards.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Estimated Rewards */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="h-4 w-4 text-tokamak-blue" />
+                <h3 className="text-white font-medium text-sm">Estimated Seigniorage</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Sequencer Reward (for delegators)</p>
+                  <p className="text-lg font-bold text-tokamak-cyan">
+                    {estimatedRewards ? formatWTON(estimatedRewards[0]) : '0'} WTON
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Validator Reward</p>
+                  <p className="text-lg font-bold text-white">
+                    {estimatedRewards ? formatWTON(estimatedRewards[1]) : '0'} WTON
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+              <h3 className="text-white font-medium text-sm mb-3">Reward Distribution</h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400">Delegators</span>
+                    <span className="text-white">{100 - Number(info?.commission || 0) / 100}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-tokamak-blue to-tokamak-cyan"
+                      style={{ width: `${100 - Number(info?.commission || 0) / 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400">Sequencer Commission</span>
+                    <span className="text-white">{formatPercent(Number(info?.commission || 0))}</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500"
+                      style={{ width: `${Number(info?.commission || 0) / 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">
+                * Based on Hyperbolic Saturation Function (Economics Whitepaper V2)
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stake/Unstake Modals */}
       <StakeModal />
