@@ -297,3 +297,61 @@ rat-client-logs-%:
 	@./scripts/manage-rat-clients.sh logs $*
 
 .PHONY: rat-clients-start rat-clients-stop rat-clients-status
+
+# ==========================================
+# Local Devnet Commands (Custom Genesis)
+# ==========================================
+
+devnet-local-start:
+	@chmod +x ./scripts/local/start-devnet.sh
+	@./scripts/local/start-devnet.sh
+
+devnet-local-stop:
+	@chmod +x ./scripts/local/stop-devnet.sh
+	@./scripts/local/stop-devnet.sh
+
+devnet-local-info:
+	@chmod +x ./scripts/local/get-info.sh
+	@./scripts/local/get-info.sh
+
+devnet-local-health:
+	@chmod +x ./scripts/local/health-check.sh
+	@./scripts/local/health-check.sh
+
+devnet-local-logs:
+	@cd deployments/local && docker-compose logs -f
+
+# ==========================================
+# Sepolia Fork Devnet Commands
+# ==========================================
+
+devnet-sepolia-fork-start:
+	@chmod +x ./scripts/sepolia-fork/start-devnet.sh
+	@./scripts/sepolia-fork/start-devnet.sh
+
+devnet-sepolia-fork-stop:
+	@chmod +x ./scripts/sepolia-fork/stop-devnet.sh
+	@./scripts/sepolia-fork/stop-devnet.sh
+
+devnet-sepolia-fork-info:
+	@chmod +x ./scripts/sepolia-fork/get-info.sh
+	@./scripts/sepolia-fork/get-info.sh
+
+devnet-sepolia-fork-health:
+	@chmod +x ./scripts/sepolia-fork/health-check.sh
+	@./scripts/sepolia-fork/health-check.sh
+
+devnet-sepolia-fork-faucet:
+	@chmod +x ./scripts/sepolia-fork/faucet.sh
+	@./scripts/sepolia-fork/faucet.sh $(ADDRESS) $(AMOUNT)
+
+devnet-sepolia-fork-logs:
+	@cd deployments/sepolia-fork && docker-compose logs -f
+
+devnet-sepolia-fork-deploy-optimism:
+	@chmod +x ./scripts/sepolia-fork/deploy-optimism-contracts.sh
+	@./scripts/sepolia-fork/deploy-optimism-contracts.sh
+
+.PHONY: devnet-local-start devnet-local-stop devnet-local-info devnet-local-health devnet-local-logs
+.PHONY: devnet-sepolia-fork-start devnet-sepolia-fork-stop devnet-sepolia-fork-info devnet-sepolia-fork-health
+.PHONY: devnet-sepolia-fork-faucet devnet-sepolia-fork-logs devnet-sepolia-fork-deploy-optimism

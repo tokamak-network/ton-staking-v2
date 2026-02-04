@@ -203,6 +203,7 @@ contract DeployV3FullForDevnet is Script {
     address constant VALIDATOR = 0x90F79bf6EB2c4f870365E785982E1f101E93b906; // Anvil account #3
     address constant PROPOSER = 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65; // Anvil account #4
     address constant CHALLENGER = 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc; // Anvil account #5
+    address constant PERSONAL_TEST = 0x976EA74026E726554dB657fA54763abd0C3a0aa9; // Anvil account #6
 
     // RAY constant (27 decimals)
     uint256 constant RAY = 1e27;
@@ -1010,8 +1011,8 @@ contract DeployV3FullForDevnet is Script {
         uint256 tonAmount = 100_000 * 1e18;  // TON uses 18 decimals
         uint256 wtonAmount = 100_000 * 1e27; // WTON uses 27 decimals (RAY)
 
-        address[5] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER];
-        string[5] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER"];
+        address[6] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, PERSONAL_TEST];
+        string[6] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER", "PERSONAL_TEST"];
 
         for (uint256 i = 0; i < accounts.length; i++) {
             MockTON(ton).mint(accounts[i], tonAmount);
