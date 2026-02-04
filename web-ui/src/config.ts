@@ -1,9 +1,9 @@
 // TON Staking V3 Configuration
 export const CONFIG = {
-  chainId: 900,
-  rpcUrl: 'http://localhost:8545',
+  chainId: 900,  // Local devnet
+  rpcUrl: 'http://localhost:8546',
   l2RpcUrl: 'http://localhost:9545',
-  chainName: 'TON Staking V3 Local',
+  chainName: 'TON Staking V3 Sepolia Fork',
   nativeCurrency: {
     name: 'Ethereum',
     symbol: 'ETH',
@@ -50,7 +50,7 @@ export const TEST_ACCOUNTS = [
   {
     name: 'Validator #1',
     address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
-    privateKey: '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+    privateKey: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
     role: 'RAT Validator',
   },
   {
@@ -64,6 +64,12 @@ export const TEST_ACCOUNTS = [
     address: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
     privateKey: '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba',
     role: 'RAT Validator',
+  },
+  {
+    name: 'Personal Test',
+    address: '0x976EA74026E726554dB657fA54763abd0C3a0aa9',
+    privateKey: '0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e',
+    role: 'Personal Account (Anvil #6)',
   },
 ];
 

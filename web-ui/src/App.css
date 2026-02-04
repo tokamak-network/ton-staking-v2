@@ -1,8 +1,8 @@
 /* TON Staking V3 Dashboard - Sidebar Layout */
 
 :root {
-  --primary: #00b89c;
-  --primary-dark: #00a088;
+  --primary: #1e3a5f;
+  --primary-dark: #152a45;
   --info: #3e8ed0;
   --success: #48c78e;
   --warning: #ffe08a;
@@ -42,6 +42,15 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* Content wrapper for consistent width */
+.content-wrapper {
+  width: 100%;
+  min-width: 900px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* Header */
@@ -54,6 +63,13 @@ body {
   z-index: 100;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
 .App-header h1 {
   font-size: 1.5rem;
   margin: 0;
@@ -62,6 +78,39 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
+}
+
+.network-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.network-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.network-info {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-network {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  text-transform: none;
+}
+
+.btn-network:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .header-info {
@@ -190,6 +239,11 @@ body {
   padding: 2rem;
   overflow-y: auto;
   max-width: 100%;
+  min-width: 800px; /* Prevent layout shift between tabs */
+}
+
+.main-content > div {
+  min-height: calc(100vh - 200px); /* Consistent height */
 }
 
 /* Connect Section */
@@ -267,10 +321,11 @@ body {
 
 /* Dashboard Grid */
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  max-width: 900px;
 }
 
 .section {
@@ -278,6 +333,7 @@ body {
   flex-direction: column;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  max-width: 900px;
 }
 
 /* Card */
@@ -501,8 +557,9 @@ td code {
 /* Balance Cards */
 .balance-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+  max-width: 600px;
 }
 
 .balance-card {
@@ -694,10 +751,11 @@ td code {
 
   .main-content {
     padding: 1.5rem;
+    min-width: auto; /* Override for smaller screens */
   }
 
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+  .balance-cards {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -725,6 +783,7 @@ td code {
   .main-content {
     padding: 1rem;
     padding-top: 4rem;
+    min-width: auto; /* Override for mobile */
   }
 
   .App-header {
@@ -745,6 +804,7 @@ td code {
 
   .balance-cards {
     grid-template-columns: 1fr;
+    max-width: 100%;
   }
 
   .action-form {

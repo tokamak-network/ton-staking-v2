@@ -39,6 +39,9 @@ interface OperatorInfo {
   candidateAddOn: string;
   sequencerStake: string;
   isLayer2Registered: boolean;
+  isEligible: boolean;
+  requiredStake: string;
+  currentStake: string;
 }
 
 interface ValidatorInfo {
@@ -99,6 +102,12 @@ function App() {
   const [totalValidators, setTotalValidators] = useState<number>(0);
   const [activeValidators, setActiveValidators] = useState<number>(0);
   const [minCollateral, setMinCollateral] = useState<string>('0');
+  const [sequencerMinStake, setSequencerMinStake] = useState<string>('0');
+  const [slashingPenalty, setSlashingPenalty] = useState<string>('0');
+  const [validatorBuffer, setValidatorBuffer] = useState<string>('0');
+  const [relaxedValidatorCheck, setRelaxedValidatorCheck] = useState<boolean>(true);
+  const [maxValidatorsPerL2, setMaxValidatorsPerL2] = useState<number>(0);
+  const [evidenceSubmissionPeriod, setEvidenceSubmissionPeriod] = useState<number>(0);
   const [l2Info, setL2Info] = useState<L2Info | null>(null);
 
   // User Balances
@@ -222,6 +231,7 @@ function App() {
       loadL2Info(),
     ]);
     // loadSeigniorageInfo는 Layer2 주소를 선택한 후에만 호출됩니다
+    // 잔액은 수동 새로고침 버튼으로 업데이트 (부하 감소)
   };
 
   const loadNodeStatus = async () => {
@@ -325,6 +335,19 @@ function App() {
         }
       }
 
+      // Get eligibility status using checkCurrentEligibility
+      let isEligible = false;
+      let requiredStake = '0';
+      let currentStake = '0';
+      try {
+        const eligibility = await seigManager.checkCurrentEligibility(candidateAddOn);
+        isEligible = eligibility[0];
+        requiredStake = eligibility[1].toString();
+        currentStake = eligibility[2].toString();
+      } catch (e) {
+        console.error('Failed to load eligibility:', e);
+      }
+
       setOperatorInfo({
         operator,
         operatorManager,
@@ -332,6 +355,9 @@ function App() {
         candidateAddOn,
         sequencerStake,
         isLayer2Registered,
+        isEligible,
+        requiredStake,
+        currentStake,
       });
     } catch (error) {
       console.error('Failed to load operator info:', error);
@@ -362,8 +388,8 @@ function App() {
 
           validatorList.push({
             address: addr,
-            deposit: ethers.formatEther(deposit),
-            available: ethers.formatEther(available),
+            deposit: ethers.formatUnits(deposit, 27), // WTON uses ray (1e27)
+            available: ethers.formatUnits(available, 27), // WTON uses ray (1e27)
             isActive,
             ratRegistered,
           });
@@ -422,17 +448,29 @@ function App() {
 
       const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
 
-      const [migrated, total, active, minColl] = await Promise.all([
+      const [migrated, total, active, minColl, penalty, buffer, relaxed, maxVal, evidencePeriod, seqMinStake] = await Promise.all([
         seigManager.v3Migrated(),
         rat.getValidatorCount(CONFIG.contracts.systemConfig),
         rat.getActiveValidatorCount(CONFIG.contracts.systemConfig),
         rat.getDynamicMinimumCollateral(CONFIG.contracts.systemConfig),
+        rat.slashingPenalty(),
+        rat.validatorBuffer(),
+        rat.relaxedValidatorCheck(),
+        rat.maxValidatorsPerL2(),
+        rat.evidenceSubmissionPeriod(),
+        seigManager.minimumAmount(), // Sequencer minimum stake
       ]);
 
       setV3Migrated(migrated);
       setTotalValidators(Number(total));
       setActiveValidators(Number(active));
       setMinCollateral(ethers.formatUnits(minColl, 27)); // WTON (27 decimals)
+      setSequencerMinStake(ethers.formatUnits(seqMinStake, 27)); // WTON (27 decimals)
+      setSlashingPenalty(ethers.formatUnits(penalty, 27)); // WTON (27 decimals)
+      setValidatorBuffer(ethers.formatUnits(buffer, 27)); // WTON (27 decimals)
+      setRelaxedValidatorCheck(relaxed);
+      setMaxValidatorsPerL2(Number(maxVal));
+      setEvidenceSubmissionPeriod(Number(evidencePeriod));
     } catch (error) {
       console.error('Failed to load system params:', error);
     }
@@ -717,14 +755,25 @@ function App() {
       setLoading(true);
       const amountWei = ethers.parseUnits(amount, 27); // WTON is 27 decimals
       
-      // 1. Approve WTON
+      // 1. Approve WTON to DepositManager
       const wtonContract = new ethers.Contract(CONFIG.contracts.wton, WTON_ABI, signer);
-      const approveTx = await wtonContract.approve(CONFIG.contracts.seigManager, amountWei);
+      const approveTx = await wtonContract.approve(CONFIG.contracts.depositManager, amountWei);
       await approveTx.wait();
       
-      // 2. Deposit to SeigManager (which will update RAT collateral)
+      // 2. Deposit to CandidateAddOn (Layer2) via DepositManager
+      // deposit(layer2, account, amount) - stakes in account's name
+      // - layer2: CandidateAddOn address
+      // - account: OperatorManager address (so it's staked in sequencer's name)
+      const layer2Address = operatorInfo?.candidateAddOn;
+      const operatorManagerAddress = operatorInfo?.operatorManager;
+      if (!layer2Address || layer2Address === ethers.ZeroAddress) {
+        throw new Error('CandidateAddOn (Layer2) address not found');
+      }
+      if (!operatorManagerAddress || operatorManagerAddress === ethers.ZeroAddress) {
+        throw new Error('OperatorManager address not found');
+      }
       const depositManager = new ethers.Contract(CONFIG.contracts.depositManager, DEPOSIT_MANAGER_ABI, signer);
-      const depositTx = await depositManager.deposit(operatorInfo?.operatorManager || CONFIG.contracts.systemConfig, amountWei);
+      const depositTx = await depositManager['deposit(address,address,uint256)'](layer2Address, operatorManagerAddress, amountWei);
       await depositTx.wait();
       
       alert('Collateral added successfully!');
@@ -749,7 +798,67 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>🏗️ TON Staking V3 - Local Devnet Dashboard</h1>
+        <div className="header-top">
+          <h1>🏗️ TON Staking V3 - Local Devnet Dashboard</h1>
+          <div className="network-section">
+            <div className="network-buttons">
+              <button
+                className="btn btn-small btn-network"
+                onClick={async () => {
+                  try {
+                    await window.ethereum.request({
+                      method: 'wallet_switchEthereumChain',
+                      params: [{ chainId: '0x384' }], // 900 = 0x384
+                    });
+                  } catch (switchError: any) {
+                    if (switchError.code === 4902) {
+                      await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                          chainId: '0x384',
+                          chainName: 'TON Staking L1 (Devnet)',
+                          nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+                          rpcUrls: ['http://localhost:8546'],
+                        }],
+                      });
+                    }
+                  }
+                }}
+              >
+                🔗 L1
+              </button>
+              <button
+                className="btn btn-small btn-network"
+                onClick={async () => {
+                  try {
+                    await window.ethereum.request({
+                      method: 'wallet_switchEthereumChain',
+                      params: [{ chainId: '0x385' }], // 901 = 0x385
+                    });
+                  } catch (switchError: any) {
+                    if (switchError.code === 4902) {
+                      await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                          chainId: '0x385',
+                          chainName: 'TON Staking L2 (Devnet)',
+                          nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+                          rpcUrls: ['http://localhost:9545'],
+                        }],
+                      });
+                    }
+                  }
+                }}
+              >
+                🔗 L2
+              </button>
+            </div>
+            <div className="network-info">
+              <span>L1: localhost:8546 (ID: 900)</span>
+              <span>L2: localhost:9545 (ID: 901)</span>
+            </div>
+          </div>
+        </div>
         {address && (
           <div className="header-info">
             <span className="connected-badge">🟢 Connected: {formatAddress(address)}</span>
@@ -809,11 +918,11 @@ function App() {
                 <p className="menu-label">Management</p>
                 <ul className="menu-list">
                   <li>
-                    <a 
-                      className={activeTab === 'operator' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'operator' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('operator'); setSidebarOpen(false); }}
                     >
-                      👤 Operator
+                      🎯 Sequencer
                     </a>
                   </li>
                   <li>
@@ -842,22 +951,30 @@ function App() {
                   </li>
                 </ul>
 
-                <p className="menu-label">L2 Network</p>
+                <p className="menu-label">Network</p>
                 <ul className="menu-list">
                   <li>
-                    <a 
-                      className={activeTab === 'l2-info' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'l1-info' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('l1-info'); setSidebarOpen(false); }}
+                    >
+                      🔗 L1 Information
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'l2-info' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('l2-info'); setSidebarOpen(false); }}
                     >
                       🌐 L2 Information
                     </a>
                   </li>
                   <li>
-                    <a 
-                      className={activeTab === 'bridge' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'bridge' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('bridge'); setSidebarOpen(false); }}
                     >
-                      🌉 Bridge to L2
+                      🌉 Bridge
                     </a>
                   </li>
                 </ul>
@@ -992,7 +1109,7 @@ function App() {
                   </section>
 
                   <section className="card">
-                    <h2>📍 TON Staking V3 Core Contracts</h2>
+                    <h2>📍 Key Contracts</h2>
                     <div className="info-list">
                       <div className="info-row">
                         <span className="info-label">💰 TON:</span>
@@ -1002,40 +1119,6 @@ function App() {
                         <span className="info-label">💎 WTON:</span>
                         <code>{CONFIG.contracts.wton}</code>
                       </div>
-                      <div className="info-row">
-                        <span className="info-label">🎯 SeigManager:</span>
-                        <code>{CONFIG.contracts.seigManager}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">🏦 DepositManager:</span>
-                        <code>{CONFIG.contracts.depositManager}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">🏗️ Layer2Manager:</span>
-                        <code>{CONFIG.contracts.layer2Manager}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">📋 L1BridgeRegistry:</span>
-                        <code>{CONFIG.contracts.l1BridgeRegistry}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">📝 Layer2Registry:</span>
-                        <code>{CONFIG.contracts.layer2Registry}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">🎲 RAT:</span>
-                        <code>{CONFIG.contracts.rat}</code>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">🏆 ValidatorReward:</span>
-                        <code>{CONFIG.contracts.validatorReward}</code>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="card">
-                    <h2>🌉 Optimism Stack Contracts</h2>
-                    <div className="info-list">
                       <div className="info-row">
                         <span className="info-label">⚙️ SystemConfig:</span>
                         <code>{CONFIG.contracts.systemConfig}</code>
@@ -1061,15 +1144,15 @@ function App() {
                 </div>
               )}
 
-              {/* Operator Tab */}
+              {/* Sequencer Tab */}
               {activeTab === 'operator' && (
                 <div className="section">
                   <section className="card">
-                    <h2>👤 Operator & Sequencer Information</h2>
+                    <h2>🎯 Sequencer Information</h2>
                     {operatorInfo && (
                       <div className="info-list">
                         <div className="info-row">
-                          <span className="info-label">Operator Address:</span>
+                          <span className="info-label">Sequencer Address:</span>
                           <code>{operatorInfo.operator}</code>
                         </div>
                         <div className="info-row">
@@ -1077,19 +1160,31 @@ function App() {
                           <code>{operatorInfo.operatorManager}</code>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">OperatorManager.manager():</span>
-                          <code>{operatorInfo.operatorManagerManager}</code>
-                        </div>
-                        <div className="info-row">
                           <span className="info-label">CandidateAddOn (Layer2):</span>
                           <code>{operatorInfo.candidateAddOn}</code>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Sequencer Collateral:</span>
-                          <span className="value-large">
-                            {parseFloat(ethers.formatUnits(operatorInfo.sequencerStake, 27)).toFixed(2)} WTON
+                          <span className="info-label">Seigniorage Eligibility:</span>
+                          <span className={operatorInfo.isEligible ? 'status-success' : 'status-error'}>
+                            {operatorInfo.isEligible ? '✅ Eligible' : '❌ Not Eligible'}
                           </span>
                         </div>
+                        <div className="info-row">
+                          <span className="info-label">Current Stake (T_i):</span>
+                          <span className="value-large">
+                            {parseFloat(ethers.formatUnits(operatorInfo.currentStake, 27)).toFixed(2)} WTON
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Required Stake (max(θ·B_i, D_seq)):</span>
+                          <span>{parseFloat(ethers.formatUnits(operatorInfo.requiredStake, 27)).toFixed(2)} WTON</span>
+                        </div>
+                        {seigniorageInfo && (
+                          <div className="info-row">
+                            <span className="info-label">Bridged TON (B_i):</span>
+                            <span>{parseFloat(seigniorageInfo.bridgedTon).toFixed(2)} TON</span>
+                          </div>
+                        )}
                         <div className="info-row">
                           <span className="info-label">Layer2Registry Status:</span>
                           <span className={operatorInfo.isLayer2Registered ? 'status-success' : 'status-error'}>
@@ -1098,6 +1193,9 @@ function App() {
                         </div>
                       </div>
                     )}
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                      T_i = Current Stake, θ = minStakingRatio, B_i = Bridged TON, D_seq = Sequencer minimum collateral
+                    </small>
                   </section>
 
                   <section className="card">
@@ -1130,6 +1228,41 @@ function App() {
               {/* Validators Tab */}
               {activeTab === 'validators' && (
                 <div className="section">
+                  <section className="card">
+                    <h2>⚙️ Validator Configuration</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">Minimum Collateral (D_min):</span>
+                        <span>{parseFloat(minCollateral).toFixed(2)} WTON</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Slashing Penalty (C_off):</span>
+                        <span>{parseFloat(slashingPenalty).toFixed(2)} WTON</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Validator Buffer (Δ_validator):</span>
+                        <span>{parseFloat(validatorBuffer).toFixed(2)} WTON</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Collateral Check Mode:</span>
+                        <span className={relaxedValidatorCheck ? 'status-warning' : 'status-success'}>
+                          {relaxedValidatorCheck ? '⚠️ Relaxed (C_off based)' : '✅ Strict (D_min based)'}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Max Validators per L2:</span>
+                        <span>{maxValidatorsPerL2 === 0 ? 'Unlimited' : maxValidatorsPerL2}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Evidence Submission Period:</span>
+                        <span>{evidenceSubmissionPeriod} seconds</span>
+                      </div>
+                    </div>
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                      D_min = C_off + Δ_validator | Relaxed mode: validators deactivated when collateral {'<'} C_off
+                    </small>
+                  </section>
+
                   <section className="card">
                     <h2>👥 Registered Validators ({validators.length})</h2>
                     {validators.length === 0 ? (
@@ -1433,6 +1566,141 @@ function App() {
                         </table>
                       </div>
                     )}
+                  </section>
+                </div>
+              )}
+
+              {/* L1 Information Tab */}
+              {activeTab === 'l1-info' && (
+                <div className="section">
+                  <section className="card">
+                    <h2>🔗 L1 Network Information</h2>
+                    {nodeStatus && (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">L1 Chain ID:</span>
+                          <span className="badge badge-success">{nodeStatus.l1ChainId}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1 Block Number:</span>
+                          <span>{nodeStatus.l1Block}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1 RPC URL:</span>
+                          <code>{CONFIG.rpcUrl}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1 Status:</span>
+                          <span className={nodeStatus.l1Running ? 'status-success' : 'status-error'}>
+                            {nodeStatus.l1Running ? '✅ Running' : '❌ Not Running'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>⛓️ Optimism L1 Contracts</h2>
+                    {l2Info && (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">SystemConfig:</span>
+                          <code>{CONFIG.contracts.systemConfig}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">OptimismPortal:</span>
+                          <code>{l2Info.portal}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">DisputeGameFactory:</span>
+                          <code>{l2Info.disputeGameFactory}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1StandardBridge:</span>
+                          <code>{l2Info.l1Bridge}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1CrossDomainMessenger:</span>
+                          <code>{l2Info.l1CrossDomainMessenger}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Batch Inbox:</span>
+                          <code>{l2Info.batchInbox}</code>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>🔒 Portal Security Status</h2>
+                    {l2Info && (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Portal Guardian:</span>
+                          <code>{l2Info.portalGuardian}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Portal Paused:</span>
+                          <span className={l2Info.portalPaused ? 'status-error' : 'status-success'}>
+                            {l2Info.portalPaused ? '⚠️ Paused' : '✅ Active'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Portal ETH Balance:</span>
+                          <span>{parseFloat(l2Info.portalEthBalance).toFixed(4)} ETH</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Portal TON Balance:</span>
+                          <span>{parseFloat(l2Info.portalTonBalance).toFixed(4)} TON</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Bridge TON Balance:</span>
+                          <span>{parseFloat(l2Info.bridgeTonBalance).toFixed(4)} TON</span>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>📊 TON Staking V3 Contracts</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">TON:</span>
+                        <code>{CONFIG.contracts.ton}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">WTON:</span>
+                        <code>{CONFIG.contracts.wton}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">SeigManager:</span>
+                        <code>{CONFIG.contracts.seigManager}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">DepositManager:</span>
+                        <code>{CONFIG.contracts.depositManager}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Layer2Manager:</span>
+                        <code>{CONFIG.contracts.layer2Manager}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">L1BridgeRegistry:</span>
+                        <code>{CONFIG.contracts.l1BridgeRegistry}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Layer2Registry:</span>
+                        <code>{CONFIG.contracts.layer2Registry}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">RAT:</span>
+                        <code>{CONFIG.contracts.rat}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">ValidatorReward:</span>
+                        <code>{CONFIG.contracts.validatorReward}</code>
+                      </div>
+                    </div>
                   </section>
                 </div>
               )}
@@ -1772,15 +2040,15 @@ function App() {
                             onClick={async () => {
                               const input = document.getElementById('withdraw-eth-input') as HTMLInputElement;
                               const amount = input.value;
-                              if (!provider || !amount || parseFloat(amount) <= 0) {
-                                alert('Please enter a valid amount');
+                              if (!signer || !amount || parseFloat(amount) <= 0) {
+                                alert('Please connect wallet and enter a valid amount');
                                 return;
                               }
-                              
+
                               try {
                                 setLoading(true);
                                 const amountWei = ethers.parseEther(amount);
-                                
+
                                 // Switch to L2 network
                                 try {
                                   await window.ethereum.request({
@@ -1803,13 +2071,15 @@ function App() {
                                   }
                                 }
                                 
-                                const l2Signer = await provider.getSigner();
+                                // Create new provider after chain switch
+                                const l2Provider = new ethers.BrowserProvider(window.ethereum);
+                                const l2Signer = await l2Provider.getSigner();
                                 const l2BridgeContract = new ethers.Contract(
                                   '0x4200000000000000000000000000000000000010',
                                   L2_STANDARD_BRIDGE_ABI,
                                   l2Signer
                                 );
-                                
+
                                 // Withdraw ETH from L2
                                 const tx = await l2BridgeContract.bridgeETH(200000, '0x', { value: amountWei });
                                 await tx.wait();
@@ -1872,8 +2142,8 @@ function App() {
                             onClick={async () => {
                               const input = document.getElementById('withdraw-ton-input') as HTMLInputElement;
                               const amount = input.value;
-                              if (!provider || !amount || parseFloat(amount) <= 0) {
-                                alert('Please enter a valid amount');
+                              if (!signer || !amount || parseFloat(amount) <= 0) {
+                                alert('Please connect wallet and enter a valid amount');
                                 return;
                               }
                               
@@ -1903,8 +2173,10 @@ function App() {
                                   }
                                 }
                                 
-                                const l2Signer = await provider.getSigner();
-                                
+                                // Create new provider after chain switch
+                                const l2Provider = new ethers.BrowserProvider(window.ethereum);
+                                const l2Signer = await l2Provider.getSigner();
+
                                 // Approve L2 TON
                                 const l2TonContract = new ethers.Contract(rollupInfo.l2Ton, TON_ABI, l2Signer);
                                 const approveTx = await l2TonContract.approve(
@@ -2434,7 +2706,32 @@ function App() {
               {activeTab === 'balances' && (
                 <div className="section">
                   <section className="card">
-                    <h2>💰 Your Token Balances</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h2 style={{ margin: 0 }}>💰 Your Token Balances</h2>
+                      <button
+                        onClick={async () => {
+                          if (!address) {
+                            alert('Please connect wallet first');
+                            return;
+                          }
+                          try {
+                            setLoading(true);
+                            await loadUserBalances(address);
+                            alert('✅ Balances refreshed!');
+                          } catch (error: any) {
+                            console.error('Refresh failed:', error);
+                            alert(`❌ Refresh failed: ${error.message || 'Unknown error'}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading || !address}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.5rem 1rem' }}
+                      >
+                        {loading ? '⏳' : '🔄'} Refresh
+                      </button>
+                    </div>
                     <div className="balance-cards">
                       <div className="balance-card">
                         <div className="balance-icon">⚡</div>
@@ -2472,18 +2769,18 @@ function App() {
                           
                           try {
                             setLoading(true);
-                            
-                            // Send ETH from a test account (use account 0)
-                            const testAccount = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'; // Anvil default account
-                            const testSigner = await l1Provider.getSigner(testAccount);
-                            
-                            const tx = await testSigner.sendTransaction({
+
+                            // Send ETH from a test account using private key
+                            const testPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Anvil #0
+                            const testWallet = new ethers.Wallet(testPrivateKey, l1Provider);
+
+                            const tx = await testWallet.sendTransaction({
                               to: address,
-                              value: ethers.parseEther('100'), // 100 ETH
+                              value: ethers.parseEther('10'), // 10 ETH
                             });
                             await tx.wait();
-                            
-                            alert('✅ Successfully sent 100 ETH!');
+
+                            alert('✅ Successfully sent 10 ETH!');
                             
                             // 잔액 갱신
                             await loadUserBalances(address);
@@ -2498,7 +2795,7 @@ function App() {
                         disabled={loading || !signer}
                         className="btn btn-primary"
                       >
-                        {loading ? '⏳ Sending...' : '⚡ Get 100 ETH'}
+                        {loading ? '⏳ Sending...' : '⚡ Get 10 ETH'}
                       </button>
                       <button
                         onClick={async () => {
@@ -2513,14 +2810,14 @@ function App() {
                             // TON 컨트랙트에서 mint (devnet에서만 가능)
                             const tonContract = new ethers.Contract(CONFIG.contracts.ton, [
                               ...TON_ABI,
-                              'function mint(address to, uint256 amount) returns (bool)',
+                              'function mint(address to, uint256 amount)',
                             ], signer);
                             
-                            const amount = ethers.parseEther('10000'); // 10,000 TON
+                            const amount = ethers.parseEther('100'); // 100 TON
                             const tx = await tonContract.mint(address, amount);
                             await tx.wait();
-                            
-                            alert('✅ Successfully minted 10,000 TON!');
+
+                            alert('✅ Successfully minted 100 TON!');
                             
                             // 잔액 갱신
                             await loadUserBalances(address);
@@ -2535,7 +2832,7 @@ function App() {
                         disabled={loading || !signer}
                         className="btn btn-primary"
                       >
-                        {loading ? '⏳ Minting...' : '🪙 Get 10,000 TON'}
+                        {loading ? '⏳ Minting...' : '🪙 Get 100 TON'}
                       </button>
                       <button
                         onClick={async () => {
@@ -2553,11 +2850,11 @@ function App() {
                               'function mint(address to, uint256 amount) returns (bool)',
                             ], signer);
                             
-                            const amount = ethers.parseUnits('10000', 27); // 10,000 WTON (27 decimals)
+                            const amount = ethers.parseUnits('100', 27); // 100 WTON (27 decimals)
                             const tx = await wtonContract.mint(address, amount);
                             await tx.wait();
-                            
-                            alert('✅ Successfully minted 10,000 WTON!');
+
+                            alert('✅ Successfully minted 100 WTON!');
                             
                             // 잔액 갱신
                             await loadUserBalances(address);
@@ -2572,7 +2869,7 @@ function App() {
                         disabled={loading || !signer}
                         className="btn btn-primary"
                       >
-                        {loading ? '⏳ Minting...' : '💎 Get 10,000 WTON'}
+                        {loading ? '⏳ Minting...' : '💎 Get 100 WTON'}
                       </button>
                     </div>
                     <small>⚠️ Devnet only - These functions may not work on mainnet</small>
@@ -2681,6 +2978,42 @@ function App() {
                         <span className="info-label">Network:</span>
                         <span>{CONFIG.chainName} (Chain ID: {CONFIG.chainId})</span>
                       </div>
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <h2>🔑 Test Accounts (Anvil)</h2>
+                    <p style={{marginBottom: '1rem'}}>MetaMask에 테스트 계정을 추가하세요. <strong>이 계정들만</strong> 잔액 조회가 가능합니다.</p>
+                    <div className="test-accounts-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem'}}>
+                      {TEST_ACCOUNTS.map((account, idx) => (
+                        <div key={idx} className="test-account-card" style={{
+                          border: '1px solid #ddd',
+                          borderRadius: '8px',
+                          padding: '1rem',
+                          background: address?.toLowerCase() === account.address.toLowerCase() ? '#e8f5e9' : '#f9f9f9'
+                        }}>
+                          <div style={{fontWeight: 'bold', marginBottom: '0.5rem'}}>
+                            {account.name}
+                            {address?.toLowerCase() === account.address.toLowerCase() &&
+                              <span style={{marginLeft: '0.5rem', color: '#4caf50'}}>✓ 연결됨</span>
+                            }
+                          </div>
+                          <div style={{fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem'}}>{account.role}</div>
+                          <div style={{fontSize: '0.7rem', fontFamily: 'monospace', marginBottom: '0.75rem', wordBreak: 'break-all'}}>
+                            {account.address}
+                          </div>
+                          <button
+                            className="btn btn-primary"
+                            style={{width: '100%', padding: '0.5rem'}}
+                            onClick={() => {
+                              navigator.clipboard.writeText(account.privateKey);
+                              alert(`✅ Private Key 복사됨!\n\n📋 MetaMask 추가 방법:\n1. MetaMask 열기\n2. 계정 아이콘 클릭\n3. "계정 가져오기" 선택\n4. Private Key 붙여넣기 (Ctrl+V)\n5. "가져오기" 클릭`);
+                            }}
+                          >
+                            📋 Private Key 복사
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </section>
                 </div>

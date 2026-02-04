@@ -46,6 +46,7 @@ export const SEIG_MANAGER_ABI = [
 
 export const DEPOSIT_MANAGER_ABI = [
   'function deposit(address layer2, uint256 amount) returns (bool)',
+  'function deposit(address layer2, address account, uint256 amount) returns (bool)',
   'function requestWithdrawal(address layer2, uint256 amount) returns (bool)',
   'function processWithdrawal(address layer2, uint256 num) returns (bool)',
   'function pendingUnstaked(address layer2, address account) view returns (uint256)',
@@ -95,13 +96,25 @@ export const RAT_ABI = [
   'function getL2Validators(address systemConfig) view returns (address[])',
   'function isValidatorActive(address validator, address systemConfig) view returns (bool)',
   'function getValidatorRegistration(address validator, address systemConfig) view returns (uint256 collateral, uint32 validatorIndex, bool isActive)',
-  
+
   // Collateral Queries
   'function getValidatorDeposit(address validator, address systemConfig) view returns (uint256)',
   'function getAvailableCollateral(address validator, address systemConfig) view returns (uint256)',
   'function getDynamicMinimumCollateral(address systemConfig) view returns (uint256)',
   'function getValidatorMinCollateralForLayer2(address layer2, address validator) view returns (uint256)',
-  
+  'function getMinimumCollateral() view returns (uint256)',
+  'function getCoffWithRelaxedCheck(address systemConfig) view returns (uint256)',
+
+  // Config Parameters
+  'function slashingPenalty() view returns (uint256)',
+  'function validatorBuffer() view returns (uint256)',
+  'function minimumThreshold() view returns (uint256)',
+  'function relaxedValidatorCheck() view returns (bool)',
+  'function maxValidatorsPerL2() view returns (uint256)',
+  'function evidenceSubmissionPeriod() view returns (uint256)',
+  'function attentionCost() view returns (uint256)',
+  'function ratTriggerProbability() view returns (uint256)',
+
   // Actions
   'function registerValidator(address systemConfig)',
   'function deactivateValidator(address systemConfig)',
