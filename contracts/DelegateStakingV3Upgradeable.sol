@@ -5,9 +5,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {IDelegateStakingV3} from "./interfaces/IDelegateStakingV3.sol";
 
 /**
@@ -214,9 +214,9 @@ contract DelegateStakingV3Upgradeable is
             revert UnbondingPeriodOutOfBounds();
         }
 
-        __Ownable_init(_owner);
+        __Ownable_init();
         __Pausable_init();
-        // ReentrancyGuard uses transient storage (EIP-1153) in OZ 5.x, no init needed
+        _transferOwnership(_owner);
 
         ton = IERC20(_ton);
         wton = IERC20(_wton);

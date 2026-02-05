@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -86,8 +86,9 @@ contract DelegateTrigger is ReentrancyGuard, Ownable {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _wton, address _owner) Ownable(_owner) {
+    constructor(address _wton, address _owner) {
         if (_wton == address(0)) revert ZeroAddress();
+        _transferOwnership(_owner);
         wton = IERC20(_wton);
     }
 
