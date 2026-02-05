@@ -70,8 +70,8 @@ contract DelegateStakingV3Upgradeable is
     /// @notice Maximum batch size for batch operations
     uint256 public constant MAX_BATCH_SIZE = 50;
 
-    /// @notice Minimum unbonding period (1 day)
-    uint256 public constant MIN_UNBONDING_PERIOD = 1 days;
+    /// @notice Minimum unbonding period (5 minutes - allows testing with shorter periods)
+    uint256 public constant MIN_UNBONDING_PERIOD = 5 minutes;
 
     /// @notice Maximum unbonding period (30 days)
     uint256 public constant MAX_UNBONDING_PERIOD = 30 days;

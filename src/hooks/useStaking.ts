@@ -345,15 +345,17 @@ export function useUserStakingStats(
       for (const result of stakeResults) {
         if (result.status === 'success' && result.result) {
           // Handle both array (tuple) and object formats
-          const data = result.result as readonly [bigint, bigint, bigint, bigint] | { amount: bigint; unstakeAmount: bigint };
+          const data = result.result as unknown;
           if (Array.isArray(data)) {
             // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
-            totalStaked += data[0] || 0n;
-            totalPendingUnstake += data[2] || 0n;
+            const tupleData = data as [bigint, bigint, bigint, bigint];
+            totalStaked += tupleData[0] || 0n;
+            totalPendingUnstake += tupleData[2] || 0n;
           } else {
             // Object format with named properties
-            totalStaked += data.amount || 0n;
-            totalPendingUnstake += data.unstakeAmount || 0n;
+            const objData = data as { amount: bigint; unstakeAmount: bigint };
+            totalStaked += objData.amount || 0n;
+            totalPendingUnstake += objData.unstakeAmount || 0n;
           }
         }
       }
@@ -371,4 +373,59 @@ export function useUserStakingStats(
   }, [stakeResults, rewardsResults]);
 
   return totals;
+}
+
+// Hook to get stake info for multiple sequencers at once
+export function useMultipleStakeInfo(
+  userAddress: Address | undefined,
+  sequencers: readonly Address[]
+) {
+  const stakingContractAddress = useStakingContract();
+
+  const contracts = useMemo(() => {
+    if (!userAddress || sequencers.length === 0) return [];
+    return sequencers.map((seq) => ({
+      address: stakingContractAddress,
+      abi: DELEGATE_STAKING_ABI,
+      functionName: 'getStakeInfo' as const,
+      args: [userAddress, seq],
+    }));
+  }, [userAddress, sequencers, stakingContractAddress]);
+
+  const { data: results, isLoading, error } = useReadContracts({
+    contracts,
+    query: { enabled: contracts.length > 0 },
+  });
+
+  // Normalize results to a consistent format
+  const normalizedData = useMemo(() => {
+    if (!results) return undefined;
+
+    return results.map((result) => {
+      if (result.status !== 'success' || !result.result) {
+        return { amount: 0n, unstakeAmount: 0n, unstakeTime: 0n };
+      }
+
+      const data = result.result as unknown;
+      if (Array.isArray(data)) {
+        // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
+        const tupleData = data as [bigint, bigint, bigint, bigint];
+        return {
+          amount: tupleData[0] || 0n,
+          unstakeAmount: tupleData[2] || 0n,
+          unstakeTime: tupleData[3] || 0n,
+        };
+      } else {
+        // Object format
+        const objData = data as { amount?: bigint; unstakeAmount?: bigint; unstakeTime?: bigint };
+        return {
+          amount: objData.amount || 0n,
+          unstakeAmount: objData.unstakeAmount || 0n,
+          unstakeTime: objData.unstakeTime || 0n,
+        };
+      }
+    });
+  }, [results]);
+
+  return { data: normalizedData, isLoading, error };
 }

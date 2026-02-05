@@ -1950,7 +1950,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
         DelegateStakingV3Upgradeable impl = new DelegateStakingV3Upgradeable();
         bytes memory initData = abi.encodeCall(
             DelegateStakingV3Upgradeable.initialize,
-            (address(ton), address(wton), address(seigManager), address(layer2Manager), 1 hours, owner) // < 1 day
+            (address(ton), address(wton), address(seigManager), address(layer2Manager), 4 minutes, owner) // < 5 minutes
         );
 
         vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
@@ -1969,22 +1969,22 @@ contract DelegateStakingV3UpgradeableTest is Test {
     }
 
     function test_SetUnbondingPeriod_RevertIfOutOfBounds() public {
-        // Too low
+        // Too low (< 5 minutes)
         vm.prank(owner);
         vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
-        staking.setUnbondingPeriod(1 hours);
+        staking.setUnbondingPeriod(4 minutes);
 
-        // Too high
+        // Too high (> 30 days)
         vm.prank(owner);
         vm.expectRevert(DelegateStakingV3Upgradeable.UnbondingPeriodOutOfBounds.selector);
         staking.setUnbondingPeriod(31 days);
     }
 
     function test_SetUnbondingPeriod_SuccessAtBounds() public {
-        // At minimum (1 day)
+        // At minimum (5 minutes)
         vm.prank(owner);
-        staking.setUnbondingPeriod(1 days);
-        assertEq(staking.unbondingPeriod(), 1 days);
+        staking.setUnbondingPeriod(5 minutes);
+        assertEq(staking.unbondingPeriod(), 5 minutes);
 
         // At maximum (30 days)
         vm.prank(owner);
@@ -2046,7 +2046,7 @@ contract DelegateStakingV3UpgradeableTest is Test {
     // Test: Constants are correct
     function test_Constants() public view {
         assertEq(staking.MAX_BATCH_SIZE(), 50);
-        assertEq(staking.MIN_UNBONDING_PERIOD(), 1 days);
+        assertEq(staking.MIN_UNBONDING_PERIOD(), 5 minutes);
         assertEq(staking.MAX_UNBONDING_PERIOD(), 30 days);
     }
 

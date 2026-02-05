@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/ui';
 import { formatAddress, formatTON, formatWTON, formatPercent } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, Copy, TrendingUp, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { StakeModal } from '@/components/features/staking/StakeModal';
@@ -228,13 +229,32 @@ export default function SequencerDetailPage() {
                       Claim
                     </Button>
                   )}
-                  {canWithdraw && (
-                    <Button
-                      variant="gradient"
-                      onClick={() => openWithdrawModal(sequencerAddress)}
-                    >
-                      Withdraw
-                    </Button>
+                  {hasPendingUnstake && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant={canWithdraw ? 'gradient' : 'outline'}
+                              onClick={() => canWithdraw && openWithdrawModal(sequencerAddress)}
+                              disabled={!canWithdraw}
+                              className={!canWithdraw ? 'opacity-60 cursor-not-allowed' : ''}
+                            >
+                              Withdraw
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {canWithdraw
+                              ? 'Ready to withdraw'
+                              : stakeInfo && unbondingPeriod
+                              ? `Available at: ${new Date(Number(stakeInfo.unstakeTime + unbondingPeriod) * 1000).toLocaleString()}`
+                              : 'Calculating...'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
               </div>

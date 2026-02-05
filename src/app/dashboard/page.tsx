@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { useSequencerList, useStakeInfo, usePendingRewards, useTonBalance, useUserStakingStats, useUnbondingPeriod } from '@/hooks/useStaking';
+import { useSequencerList, useTonBalance, useUserStakingStats } from '@/hooks/useStaking';
+import { useFilteredSequencers, FilterTab } from '@/hooks/useFilteredSequencers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatTON, formatWTON, formatAddress } from '@/lib/utils';
+import { formatTON, formatWTON } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wallet, Coins, Gift, Clock } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -15,117 +16,24 @@ import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
 import { ClaimRewardsModal } from '@/components/features/staking/ClaimRewardsModal';
 import { WithdrawModal } from '@/components/features/staking/WithdrawModal';
 import { RedelegateModal } from '@/components/features/staking/RedelegateModal';
-import { UnstakeCountdown } from '@/components/features/staking/UnstakeCountdown';
-import { useUIStore } from '@/stores/ui';
-import Link from 'next/link';
-
-// Helper to normalize stakeInfo from tuple or object format
-function normalizeStakeInfo(data: unknown): { amount: bigint; unstakeAmount: bigint; unstakeTime: bigint } | null {
-  if (!data) return null;
-  if (Array.isArray(data)) {
-    // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
-    return { amount: data[0] as bigint, unstakeAmount: data[2] as bigint, unstakeTime: data[3] as bigint };
-  }
-  // Object format with named properties
-  const obj = data as { amount?: bigint; unstakeAmount?: bigint; unstakeTime?: bigint };
-  return { amount: obj.amount || 0n, unstakeAmount: obj.unstakeAmount || 0n, unstakeTime: obj.unstakeTime || 0n };
-}
-
-type FilterTab = 'all' | 'active' | 'pending';
-
-function StakePositionCard({ sequencer, userAddress }: { sequencer: Address; userAddress: Address }) {
-  const { data: stakeInfoRaw } = useStakeInfo(userAddress, sequencer);
-  const { data: pendingRewards } = usePendingRewards(userAddress, sequencer);
-  const { data: unbondingPeriod } = useUnbondingPeriod();
-  const { openStakeModal, openUnstakeModal, openClaimModal, openWithdrawModal, openRedelegateModal } = useUIStore();
-
-  const stakeInfo = normalizeStakeInfo(stakeInfoRaw);
-  const hasStake = stakeInfo && stakeInfo.amount > 0n;
-  const hasPendingUnstake = stakeInfo && stakeInfo.unstakeAmount > 0n;
-  const hasRewards = pendingRewards && pendingRewards > 0n;
-
-  // Check if withdraw is available
-  const now = BigInt(Math.floor(Date.now() / 1000));
-  const canWithdraw = stakeInfo && unbondingPeriod && stakeInfo.unstakeAmount > 0n &&
-    (stakeInfo.unstakeTime + unbondingPeriod <= now);
-
-  return (
-    <Card className="bg-slate-900/50 border-slate-800">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <Link href={`/sequencers/${sequencer}`} className="font-mono text-sm text-slate-400 hover:text-white">
-            {formatAddress(sequencer)}
-          </Link>
-          {hasStake ? (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">Staked</span>
-          ) : hasPendingUnstake ? (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-500/20 text-yellow-400">Pending</span>
-          ) : (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-slate-500/20 text-slate-400">Not Staked</span>
-          )}
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-          <div className="grid grid-cols-3 gap-4 flex-1">
-            <div>
-              <p className="text-xs text-slate-400">Staked</p>
-              <p className="text-sm font-medium text-white">
-                {stakeInfo ? formatTON(stakeInfo.amount) : '0'} TON
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Rewards</p>
-              <p className="text-sm font-medium text-tokamak-cyan">
-                {pendingRewards ? formatWTON(pendingRewards) : '0'} WTON
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Pending Unstake</p>
-              <p className="text-sm font-medium text-white">
-                {stakeInfo ? formatTON(stakeInfo.unstakeAmount) : '0'} TON
-              </p>
-              {hasPendingUnstake && unbondingPeriod && stakeInfo && (
-                <UnstakeCountdown unstakeTime={stakeInfo.unstakeTime} unbondingPeriod={unbondingPeriod} />
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-nowrap flex-shrink-0">
-            <Button size="sm" variant="gradient" onClick={() => openStakeModal(sequencer)}>
-              Stake
-            </Button>
-            {hasStake && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => openUnstakeModal(sequencer)}>
-                  Unstake
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => openRedelegateModal(sequencer)}>
-                  Redelegate
-                </Button>
-              </>
-            )}
-            {hasRewards && (
-              <Button size="sm" variant="outline" className="text-tokamak-cyan border-tokamak-cyan/50" onClick={() => openClaimModal(sequencer)}>
-                Claim
-              </Button>
-            )}
-            {canWithdraw && (
-              <Button size="sm" variant="gradient" onClick={() => openWithdrawModal(sequencer)}>
-                Withdraw
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { StakePositionCard } from '@/components/features/staking/StakePositionCard';
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
-  const { data: sequencers, isLoading } = useSequencerList();
+  const { data: sequencers, isLoading: isLoadingSequencers } = useSequencerList();
   const { data: tonBalance } = useTonBalance(address);
   const { totalStaked, totalPendingUnstake, totalRewards } = useUserStakingStats(address, sequencers);
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
+
+  // Convert sequencers to Address[] for the filter hook
+  const sequencerAddresses = (sequencers || []) as Address[];
+  const { filteredSequencers, isLoading: isLoadingFilter } = useFilteredSequencers(
+    sequencerAddresses,
+    filterTab,
+    address
+  );
+
+  const isLoading = isLoadingSequencers || (filterTab !== 'all' && isLoadingFilter);
 
   if (!isConnected) {
     return (
@@ -238,15 +146,28 @@ export default function DashboardPage() {
                 <Skeleton key={i} className="h-24 w-full" />
               ))}
             </div>
-          ) : sequencers && sequencers.length > 0 ? (
+          ) : filteredSequencers.length > 0 ? (
             <div className="space-y-4">
-              {sequencers.map((seq) => (
+              {filteredSequencers.map((seq) => (
                 <StakePositionCard
                   key={seq}
-                  sequencer={seq as Address}
+                  sequencer={seq}
                   userAddress={address!}
                 />
               ))}
+            </div>
+          ) : sequencerAddresses.length > 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-400 mb-4">
+                {filterTab === 'active'
+                  ? 'No active staking positions.'
+                  : filterTab === 'pending'
+                  ? 'No pending withdrawals.'
+                  : 'No staking positions.'}
+              </p>
+              <Button variant="outline" onClick={() => setFilterTab('all')}>
+                View All Positions
+              </Button>
             </div>
           ) : (
             <div className="text-center py-8">

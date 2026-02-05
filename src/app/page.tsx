@@ -1,9 +1,18 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Shield, Coins, Zap } from 'lucide-react';
+import { useTotalStaked, useSequencerList } from '@/hooks/useStaking';
+import { formatTON } from '@/lib/utils';
 
 export default function HomePage() {
+  const { data: totalStaked, isLoading: isLoadingStaked } = useTotalStaked();
+  const { data: sequencers, isLoading: isLoadingSequencers } = useSequencerList();
+
+  const activeSequencers = sequencers?.length || 0;
+
   return (
     <div className="space-y-16">
       {/* Hero Section */}
@@ -76,11 +85,15 @@ export default function HomePage() {
       <section className="bg-slate-900/50 rounded-2xl border border-slate-800 p-8">
         <div className="grid md:grid-cols-4 gap-8 text-center">
           <div>
-            <p className="text-3xl font-bold text-white">---</p>
-            <p className="text-slate-400 mt-1">Total Staked</p>
+            <p className="text-3xl font-bold text-white">
+              {isLoadingStaked ? '---' : totalStaked ? formatTON(totalStaked) : '0'}
+            </p>
+            <p className="text-slate-400 mt-1">Total Staked (TON)</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-white">---</p>
+            <p className="text-3xl font-bold text-white">
+              {isLoadingSequencers ? '---' : activeSequencers}
+            </p>
             <p className="text-slate-400 mt-1">Active Sequencers</p>
           </div>
           <div>

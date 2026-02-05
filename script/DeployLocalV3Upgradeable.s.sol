@@ -38,12 +38,15 @@ contract DeployLocalV3UpgradeableScript is Script {
     address public deployer;
     address public sequencer1;
     address public sequencer2;
+    address public sequencer3; // Ineligible sequencer (doesn't meet minimum deposit)
     address public user1;
     address public user2;
     address public layer2_1;
     address public layer2_2;
+    address public layer2_3;
     address public operatorManager1;
     address public operatorManager2;
+    address public operatorManager3;
 
     // Anvil default private keys
     uint256 constant DEPLOYER_PK = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; // Account #0
@@ -51,6 +54,7 @@ contract DeployLocalV3UpgradeableScript is Script {
     uint256 constant SEQUENCER2_PK = 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a; // Account #2
     uint256 constant USER1_PK = 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6; // Account #3
     uint256 constant USER2_PK = 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a; // Account #4
+    uint256 constant SEQUENCER3_PK = 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba; // Account #5 (Ineligible)
 
     function setUp() public {}
 
@@ -59,10 +63,12 @@ contract DeployLocalV3UpgradeableScript is Script {
         deployer = vm.addr(DEPLOYER_PK);
         sequencer1 = vm.addr(SEQUENCER1_PK);
         sequencer2 = vm.addr(SEQUENCER2_PK);
+        sequencer3 = vm.addr(SEQUENCER3_PK);
         user1 = vm.addr(USER1_PK);
         user2 = vm.addr(USER2_PK);
         layer2_1 = makeAddr("layer2_1");
         layer2_2 = makeAddr("layer2_2");
+        layer2_3 = makeAddr("layer2_3");
 
         console2.log("========== DEPLOYING V3 UPGRADEABLE TEST ENVIRONMENT ==========");
         console2.log("Deployer:", deployer);
@@ -139,7 +145,7 @@ contract DeployLocalV3UpgradeableScript is Script {
         console2.log("Implementation deployed at:", address(implementation));
 
         // 2. Prepare initialization data
-        uint256 unbondingPeriod = 7 days;
+        uint256 unbondingPeriod = 5 minutes; // Short period for testing
         bytes memory initData = abi.encodeWithSelector(
             DelegateStakingV3Upgradeable.initialize.selector,
             address(ton),
@@ -181,18 +187,31 @@ contract DeployLocalV3UpgradeableScript is Script {
         console2.log("  Sequencer:", sequencer2);
         console2.log("  OperatorManager:", operatorManager2);
 
+        // Register L2 #3 (Ineligible - doesn't meet minimum deposit)
+        operatorManager3 = layer2Manager.registerLayer2(layer2_3, sequencer3);
+        console2.log("L2 #3 registered (INELIGIBLE):");
+        console2.log("  Layer2:", layer2_3);
+        console2.log("  Sequencer:", sequencer3);
+        console2.log("  OperatorManager:", operatorManager3);
+
         // Set up bridged TON (simulating bridge activity)
         uint256 bridgedAmount = 100_000 ether;
         seigManager.updateBridgedTON(layer2_1, bridgedAmount);
         seigManager.updateBridgedTON(layer2_2, bridgedAmount);
+        seigManager.updateBridgedTON(layer2_3, bridgedAmount);
 
         // Set up staked TON for eligibility
+        // L2 #1 and #2: Eligible (stakedTON >= required)
+        // L2 #3: INELIGIBLE (stakedTON < required)
         uint256 stakedAmount = 10_000 ether;
+        uint256 insufficientStake = 100 ether; // Much lower than required
         seigManager.updateStakedTON(layer2_1, stakedAmount);
         seigManager.updateStakedTON(layer2_2, stakedAmount);
+        seigManager.updateStakedTON(layer2_3, insufficientStake); // Ineligible!
 
         console2.log("BridgedTON set to", bridgedAmount / 1e18, "for each L2");
-        console2.log("StakedTON set to", stakedAmount / 1e18, "for each L2");
+        console2.log("StakedTON L2#1, L2#2:", stakedAmount / 1e18);
+        console2.log("StakedTON L2#3 (INELIGIBLE):", insufficientStake / 1e18);
     }
 
     function _authorizeStakingOnOperatorManagers() internal {
@@ -209,6 +228,12 @@ contract DeployLocalV3UpgradeableScript is Script {
         MockOperatorManagerV3(operatorManager2).authorizeClaimer(proxy);
         vm.stopBroadcast();
         console2.log("Sequencer2 authorized DelegateStaking on OperatorManager2");
+
+        // Sequencer3 authorizes DelegateStaking (Ineligible)
+        vm.startBroadcast(SEQUENCER3_PK);
+        MockOperatorManagerV3(operatorManager3).authorizeClaimer(proxy);
+        vm.stopBroadcast();
+        console2.log("Sequencer3 authorized DelegateStaking on OperatorManager3 (INELIGIBLE)");
     }
 
     function _registerSequencers() internal {
@@ -227,6 +252,13 @@ contract DeployLocalV3UpgradeableScript is Script {
         staking.setAutoTrigger(true);
         vm.stopBroadcast();
         console2.log("Sequencer2 registered with 5% commission, auto-trigger enabled");
+
+        // Sequencer3 registers with 15% commission (INELIGIBLE - doesn't meet min deposit)
+        vm.startBroadcast(SEQUENCER3_PK);
+        staking.registerSequencer(layer2_3, operatorManager3, 1500);
+        staking.setAutoTrigger(false); // No auto-trigger since ineligible
+        vm.stopBroadcast();
+        console2.log("Sequencer3 registered with 15% commission (INELIGIBLE - min deposit not met)");
     }
 
     function _mintTestTokens() internal {
@@ -246,6 +278,7 @@ contract DeployLocalV3UpgradeableScript is Script {
         // Mint to sequencers
         ton.mint(sequencer1, mintAmount);
         ton.mint(sequencer2, mintAmount);
+        ton.mint(sequencer3, mintAmount);
 
         // Mint WTON to SeigManager (for seigniorage distribution)
         wton.mint(address(seigManager), wtonAmount * 10);
@@ -253,10 +286,12 @@ contract DeployLocalV3UpgradeableScript is Script {
         // Mint WTON to OperatorManagers (for testing claims)
         wton.mint(operatorManager1, wtonAmount);
         wton.mint(operatorManager2, wtonAmount);
+        wton.mint(operatorManager3, wtonAmount);
 
         // Update pending rewards
         MockOperatorManagerV3(operatorManager1).mockSetPendingRewards(wtonAmount);
         MockOperatorManagerV3(operatorManager2).mockSetPendingRewards(wtonAmount);
+        MockOperatorManagerV3(operatorManager3).mockSetPendingRewards(wtonAmount);
 
         console2.log("Minted 1M TON to deployer, users, and sequencers");
         console2.log("Minted WTON to V3 contracts for rewards");
@@ -292,10 +327,16 @@ contract DeployLocalV3UpgradeableScript is Script {
         _logAddress("Sequencer", sequencer2);
         _logAddress("OperatorManager", operatorManager2);
         console2.log("--------------------------------------------------------------------");
+        console2.log(" L2 #3 (INELIGIBLE - min deposit not met)                           ");
+        _logAddress("Layer2", layer2_3);
+        _logAddress("Sequencer", sequencer3);
+        _logAddress("OperatorManager", operatorManager3);
+        console2.log("--------------------------------------------------------------------");
         console2.log(" TEST ACCOUNTS (Anvil)                                              ");
         _logAddress("Deployer (#0)", deployer);
         _logAddress("Sequencer1 (#1)", sequencer1);
         _logAddress("Sequencer2 (#2)", sequencer2);
+        _logAddress("Sequencer3 (#5, INELIGIBLE)", sequencer3);
         _logAddress("User1 (#3)", user1);
         _logAddress("User2 (#4)", user2);
         console2.log("====================================================================");
