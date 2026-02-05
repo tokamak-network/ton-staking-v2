@@ -43,9 +43,11 @@ Tokamak Network V3의 **Sequencer Delegate Staking** 시스템을 위한 웹 인
 **필터 탭:**
 | 탭 | 표시 조건 | 설명 |
 |----|----------|------|
-| All | 모든 position | 사용자가 상호작용한 모든 Sequencer 표시 |
+| All | `stakedAmount > 0 \|\| unstakeAmount > 0` | 스테이킹 중이거나 언스테이킹 대기 중인 position만 표시 |
 | Active | `stakedAmount > 0` | 현재 스테이킹 중인 position만 표시 |
 | Pending | `unstakeAmount > 0` | 언스테이킹 대기 중인 position만 표시 |
+
+**중요**: 스테이킹을 하지 않은 시퀀서(stakedAmount === 0 && unstakeAmount === 0)는 어떤 필터에서도 표시하지 않음.
 
 **필터 동작:**
 - 기본값: "All" 탭 선택

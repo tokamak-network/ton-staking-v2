@@ -24,11 +24,6 @@ export function useFilteredSequencers(
       return [];
     }
 
-    // If 'all' filter or no stake data yet, return all sequencers
-    if (filterTab === 'all') {
-      return [...sequencers];
-    }
-
     // Wait for stake info to be loaded for filtering
     if (!stakeInfos) {
       return [];
@@ -38,13 +33,18 @@ export function useFilteredSequencers(
       const info = stakeInfos[index];
       if (!info) return false;
 
+      // Base condition: only show positions with stake or pending unstake
+      const hasPosition = info.amount > 0n || info.unstakeAmount > 0n;
+      if (!hasPosition) return false;
+
       switch (filterTab) {
         case 'active':
           return info.amount > 0n;
         case 'pending':
           return info.unstakeAmount > 0n;
+        case 'all':
         default:
-          return true;
+          return true; // already filtered by hasPosition above
       }
     });
   }, [sequencers, filterTab, userAddress, stakeInfos]);

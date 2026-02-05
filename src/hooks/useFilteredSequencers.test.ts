@@ -34,7 +34,7 @@ describe('useFilteredSequencers', () => {
   });
 
   describe('All filter', () => {
-    it('should return all sequencers when filter is "all"', () => {
+    it('should return only sequencers with stake or pending unstake when filter is "all"', () => {
       const sequencers = [SEQUENCER_1, SEQUENCER_2, SEQUENCER_3];
 
       // Set up stake info: seq1 has stake, seq2 has pending, seq3 has nothing
@@ -46,8 +46,25 @@ describe('useFilteredSequencers', () => {
         useFilteredSequencers(sequencers, 'all', TEST_USER)
       );
 
-      expect(result.current.filteredSequencers).toHaveLength(3);
-      expect(result.current.filteredSequencers).toEqual(sequencers);
+      // seq3 should be excluded because it has no stake and no pending unstake
+      expect(result.current.filteredSequencers).toHaveLength(2);
+      expect(result.current.filteredSequencers).toContain(SEQUENCER_1);
+      expect(result.current.filteredSequencers).toContain(SEQUENCER_2);
+      expect(result.current.filteredSequencers).not.toContain(SEQUENCER_3);
+    });
+
+    it('should return empty array when no sequencers have positions', () => {
+      const sequencers = [SEQUENCER_1, SEQUENCER_2];
+
+      // No stakes or pending unstakes
+      mockStakeInfoResults.set(`${TEST_USER}-${SEQUENCER_1}`, { amount: 0n, unstakeAmount: 0n });
+      mockStakeInfoResults.set(`${TEST_USER}-${SEQUENCER_2}`, { amount: 0n, unstakeAmount: 0n });
+
+      const { result } = renderHook(() =>
+        useFilteredSequencers(sequencers, 'all', TEST_USER)
+      );
+
+      expect(result.current.filteredSequencers).toHaveLength(0);
     });
   });
 

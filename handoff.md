@@ -1,133 +1,123 @@
-# Handoff Document - Delegate Staking Frontend
+# Delegate Staking 프로젝트 Handoff
+
+> **마지막 업데이트**: 2025-02-06
+> **브랜치**: master
+> **최신 커밋**: `3c91862` - fix: Migrate from OpenZeppelin v5 to v4.9.6
 
 ## 프로젝트 개요
-Tokamak Network V3 Delegate Staking dApp 프론트엔드 개발
 
-## 완료된 작업
+Tokamak Network V3의 **Sequencer Delegate Staking** 시스템을 위한 스마트 컨트랙트 및 웹 프론트엔드.
 
-### 1. useUserStakingStats 훅 수정 (React Hooks 규칙 위반 수정)
+## 최근 완료된 작업
 
-**문제**: 기존 코드가 `map` 내부에서 훅을 호출하여 React 규칙 위반
+### 1. Withdraw UX 개선 (커밋: `33ac91e`)
+- **StakePositionCard 컴포넌트 추출**: `src/components/features/staking/StakePositionCard.tsx`
+- **Withdraw 버튼**: Pending Unstake가 있으면 항상 표시 (unbonding 중에는 비활성화)
+- **툴팁**: 정확한 출금 가능 시간 표시
+- **적용 페이지**: `/dashboard`, `/sequencers/[address]`
 
-**해결**: `useReadContracts`를 사용한 배치 읽기로 변경
+### 2. Dashboard 필터 기능
+- **새 훅**: `src/hooks/useFilteredSequencers.ts`
+- **필터 탭**: All / Active / Pending
+  - All: `stakedAmount > 0 || unstakeAmount > 0` (스테이킹/언스테이킹이 있는 것만)
+  - Active: `stakedAmount > 0`
+  - Pending: `unstakeAmount > 0`
+- **중요**: 스테이킹을 하지 않은 시퀀서(amount=0, unstakeAmount=0)는 표시하지 않음
 
-**파일**: `src/hooks/useStaking.ts`
+### 3. 테스트 환경 설정
+- **Vitest 설정**: `vitest.config.ts`
+- **테스트 파일**:
+  - `src/components/features/staking/StakePositionCard.test.tsx` (9 tests)
+  - `src/hooks/useFilteredSequencers.test.ts` (8 tests)
+- **총 17개 테스트 통과**
 
-```typescript
-export function useUserStakingStats(
-  userAddress: Address | undefined,
-  sequencers: readonly string[] | undefined
-) {
-  const stakingContractAddress = useStakingContract();
+### 4. Unbonding Period 변경 (테스트용)
+- **컨트랙트**: `MIN_UNBONDING_PERIOD = 5 minutes` (기존 1 day)
+- **로컬 배포**: `unbondingPeriod = 5 minutes`
+- **파일**:
+  - `contracts/DelegateStakingV3Upgradeable.sol`
+  - `script/DeployLocalV3Upgradeable.s.sol`
+  - `test/DelegateStakingV3Upgradeable.t.sol`
 
-  const stakeInfoContracts = useMemo(() => {
-    if (!userAddress || !sequencers || sequencers.length === 0) return [];
-    return sequencers.map((seq) => ({
-      address: stakingContractAddress,
-      abi: DELEGATE_STAKING_ABI,
-      functionName: 'getStakeInfo' as const,
-      args: [userAddress, seq as Address],
-    }));
-  }, [userAddress, sequencers, stakingContractAddress]);
+## 현재 배포 상태 (Anvil 로컬)
 
-  // ... useReadContracts로 배치 읽기
-}
+| 컨트랙트 | 주소 |
+|---------|------|
+| Proxy (DelegateStakingV3) | `0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7` |
+| Implementation | `0x36b58F5C1969B7b6591D752ea6F5486D069010AB` |
+| TON | `0x04C89607413713Ec9775E14b954286519d836FEf` |
+| WTON | `0x4C4a2f8c81640e47606d3fd77B353E87Ba015584` |
+| DelegateTrigger | `0x0355B7B8cb128fA5692729Ab3AAa199C1753f726` |
+
+**Unbonding Period**: 5분
+
+## 주요 파일 구조
+
+```
+src/
+├── app/
+│   ├── dashboard/page.tsx      # 대시보드 (필터 기능 포함)
+│   ├── sequencers/
+│   │   └── [address]/page.tsx  # 시퀀서 상세
+│   └── page.tsx                # 홈
+├── components/features/staking/
+│   ├── StakePositionCard.tsx   # 포지션 카드 (NEW)
+│   ├── StakeModal.tsx
+│   ├── UnstakeModal.tsx
+│   ├── WithdrawModal.tsx
+│   ├── ClaimRewardsModal.tsx
+│   ├── RedelegateModal.tsx
+│   └── UnstakeCountdown.tsx
+├── hooks/
+│   ├── useStaking.ts           # 스테이킹 훅 (useMultipleStakeInfo 추가)
+│   └── useFilteredSequencers.ts # 필터링 훅 (NEW)
+└── stores/
+    └── ui.ts                   # UI 상태 (모달 관리)
 ```
 
-### 2. Wagmi 체인 설정 수정 (데이터 로딩 문제 해결)
+## 다음 작업 후보
 
-**문제**: 지갑 연결 없이 접속 시 wagmi가 mainnet(체인 ID 1)을 기본으로 사용하여 hardhat 로컬 노드 데이터를 읽지 못함
+### MVP 남은 항목 (tasks/frontend-plan.md 참조)
+- [ ] Phase 5: 대시보드 & 관리
+  - [ ] 활동 로그 (최근 트랜잭션)
+  - [ ] Sequencer Admin 페이지 완성
+- [ ] Phase 6: 테스트 & 최적화
+  - [ ] E2E 테스트 (Playwright)
+  - [ ] 성능 최적화
+  - [ ] 배포 설정
 
-**해결**: 개발 모드에서 hardhat을 첫 번째 체인으로 설정
+### 개선 사항
+- APY 계산 및 표시
+- 일괄 청구 (Batch Claim) 기능
+- 다크/라이트 모드 토글
 
-**파일**: `src/lib/wagmi.ts`
-
-```typescript
-const isDev = process.env.NODE_ENV === 'development';
-
-export const config = getDefaultConfig({
-  appName: 'Tokamak Delegate Staking',
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || 'demo-project-id',
-  chains: isDev ? [hardhat, mainnet, sepolia] : [mainnet, sepolia, hardhat],
-  ssr: true,
-});
-```
-
-### 3. E2E 테스트 작성
-
-**파일**: `tests/e2e/quick_test.py`
-
-- Playwright + Chromium 사용
-- `--no-sandbox` 플래그로 Windows 호환성 확보
-- `localhost` 대신 `127.0.0.1` 사용 (Playwright 연결 문제 해결)
-
-**테스트 결과**:
-- Sequencers 페이지: 2개 시퀀서 표시 (Total Staked, Commission, Layer2)
-- Dashboard: "Connect Your Wallet" 메시지 (지갑 미연결 시 정상)
-- Sequencer Detail: Economics & Rewards 섹션 포함 모든 데이터 표시
-
-## 현재 상태
-
-### 작동 확인된 기능
-- ✅ Sequencers 목록 페이지 - 실제 데이터 표시
-- ✅ Sequencer 상세 페이지 - 모든 섹션 작동
-- ✅ Dashboard - 지갑 연결 안내 표시 (미연결 시)
-
-### 테스트 실행 방법
+## 명령어
 
 ```bash
-# 1. Hardhat 노드 실행 (터미널 1)
-npx hardhat node
+# 프론트엔드 개발 서버
+npm run dev
 
-# 2. 컨트랙트 배포 (터미널 2)
-npx hardhat run scripts/deploy-local.ts --network localhost
+# UI 테스트
+npm run test:ui:run
 
-# 3. 프론트엔드 실행 (터미널 3)
-npm run dev -- -p 4000
+# 스마트 컨트랙트 빌드
+forge build
 
-# 4. E2E 테스트 실행 (터미널 4)
-python tests/e2e/quick_test.py
+# 스마트 컨트랙트 테스트
+forge test
+
+# Anvil 로컬 배포
+forge script script/DeployLocalV3Upgradeable.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 
-### 스크린샷 위치
-`tests/e2e/screenshots/`
-- `01_sequencers.png` - Sequencers 목록
-- `02_dashboard.png` - Dashboard
-- `03_detail.png` - Sequencer 상세
+## 설계 문서
 
-## 남은 작업 / 확인 필요 사항
+- `docs/design/FRONTEND-PRD.md` - 프론트엔드 요구사항 (Withdraw UX 상세 추가됨)
+- `docs/design/FRONTEND-ARCHITECTURE.md` - 아키텍처
+- `tasks/frontend-plan.md` - 개발 계획
 
-### 지갑 연결 후 테스트 필요
-- Dashboard의 "Total Staked", "Pending Unstake", "Claimable Rewards" 값 표시 확인
-- 실제 스테이킹/언스테이킹 트랜잭션 테스트
+## 참고사항
 
-### 포트 관련 참고사항
-- 포트 3000, 3001, 3005가 사용 중일 수 있음
-- 포트 4000 사용 권장
-- Playwright에서 `localhost` 대신 `127.0.0.1` 사용 필수
-
-## 주요 파일 목록
-
-| 파일 | 설명 |
-|------|------|
-| `src/hooks/useStaking.ts` | 스테이킹 관련 커스텀 훅 (useUserStakingStats 포함) |
-| `src/lib/wagmi.ts` | Wagmi/RainbowKit 설정 |
-| `src/app/dashboard/page.tsx` | Dashboard 페이지 |
-| `src/app/sequencers/page.tsx` | Sequencers 목록 페이지 |
-| `src/app/sequencers/[address]/page.tsx` | Sequencer 상세 페이지 |
-| `tests/e2e/quick_test.py` | E2E 테스트 스크립트 |
-
-## 트러블슈팅
-
-### 데이터가 로딩되지 않을 때
-1. Hardhat 노드가 실행 중인지 확인
-2. 컨트랙트가 배포되었는지 확인
-3. `src/lib/wagmi.ts`에서 hardhat이 첫 번째 체인인지 확인
-
-### Playwright 테스트 실패 시
-1. `127.0.0.1` 사용 (localhost X)
-2. Chromium에 `--no-sandbox` 플래그 추가
-3. 서버가 실행 중인지 curl로 확인: `curl http://127.0.0.1:4000`
-
----
-*마지막 업데이트: 2026-02-04*
+- **프로덕션 배포 시**: `MIN_UNBONDING_PERIOD`를 1 day 이상으로 복원 필요
+- **테스트 계정**: Anvil 기본 계정 사용 (Account #0~#5)
+- **환경변수**: `ANTHROPIC_SMALL_FAST_MODEL=claude-haiku-4-5`
