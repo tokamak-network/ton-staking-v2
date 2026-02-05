@@ -22,6 +22,7 @@ remappings = [
   '@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/',
   'forge-std/=lib/forge-std/src/',
   'ds-test/=lib/openzeppelin-contracts/lib/forge-std/lib/ds-test/src/',
+  'src/=lib/optimism/packages/contracts-bedrock/src/',
 ]
 
 [profile.default.fuzz]
