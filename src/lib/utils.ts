@@ -13,7 +13,7 @@ export function formatTON(value: bigint, decimals = 18): string {
   const divisor = BigInt(10 ** decimals);
   const intPart = value / divisor;
   const decPart = value % divisor;
-  const decStr = decPart.toString().padStart(decimals, '0').slice(0, 4);
+  const decStr = decPart.toString().padStart(decimals, '0').slice(0, 2);
   return `${intPart.toLocaleString()}.${decStr}`;
 }
 

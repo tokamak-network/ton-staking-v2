@@ -23,9 +23,9 @@ export const SEPOLIA_ADDRESSES: ChainAddresses = {
 // Local development addresses (anvil)
 // Deployed by: forge script script/DeployLocalV3Upgradeable.s.sol --rpc-url http://localhost:8545 --broadcast
 export const LOCAL_ADDRESSES: ChainAddresses = {
-  delegateStaking: '0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82', // Proxy
-  ton: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
-  wton: '0x0165878A594ca255338adfa4d48449f69242Eb8F',
+  delegateStaking: '0x4c5859f0F772848b2D91F1D83E2Fe57935348029', // Proxy
+  ton: '0x4826533B4897376654Bb4d4AD88B7faFD0C98528',
+  wton: '0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf',
 };
 
 export function getAddresses(chainId: number): ChainAddresses {

@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { Address } from 'viem';
+import { useMemo } from 'react';
 import {
   useSequencerInfo,
   useTotalStaked,
@@ -9,6 +10,7 @@ import {
   usePendingRewards,
   useCheckLayer2Eligibility,
   useEstimateSeigniorage,
+  useUnbondingPeriod,
 } from '@/hooks/useStaking';
 import { useAccount } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,19 +22,22 @@ import { ArrowLeft, ExternalLink, Copy, TrendingUp, Shield, AlertTriangle, Check
 import Link from 'next/link';
 import { StakeModal } from '@/components/features/staking/StakeModal';
 import { UnstakeModal } from '@/components/features/staking/UnstakeModal';
+import { ClaimRewardsModal } from '@/components/features/staking/ClaimRewardsModal';
+import { WithdrawModal } from '@/components/features/staking/WithdrawModal';
+import { RedelegateModal } from '@/components/features/staking/RedelegateModal';
+import { UnstakeCountdown } from '@/components/features/staking/UnstakeCountdown';
 import { toast } from 'sonner';
-import { useMemo } from 'react';
 
 // Helper to normalize stakeInfo from tuple or object format
-function normalizeStakeInfo(data: unknown): { amount: bigint; unstakeAmount: bigint } | null {
+function normalizeStakeInfo(data: unknown): { amount: bigint; unstakeAmount: bigint; unstakeTime: bigint } | null {
   if (!data) return null;
   if (Array.isArray(data)) {
     // Tuple format: [amount, rewardDebt, unstakeAmount, unstakeTime]
-    return { amount: data[0] as bigint, unstakeAmount: data[2] as bigint };
+    return { amount: data[0] as bigint, unstakeAmount: data[2] as bigint, unstakeTime: data[3] as bigint };
   }
   // Object format with named properties
-  const obj = data as { amount?: bigint; unstakeAmount?: bigint };
-  return { amount: obj.amount || 0n, unstakeAmount: obj.unstakeAmount || 0n };
+  const obj = data as { amount?: bigint; unstakeAmount?: bigint; unstakeTime?: bigint };
+  return { amount: obj.amount || 0n, unstakeAmount: obj.unstakeAmount || 0n, unstakeTime: obj.unstakeTime || 0n };
 }
 
 export default function SequencerDetailPage() {
@@ -44,6 +49,7 @@ export default function SequencerDetailPage() {
   const { data: totalStaked } = useTotalStaked();
   const { data: stakeInfoRaw } = useStakeInfo(userAddress, sequencerAddress);
   const { data: pendingRewards } = usePendingRewards(userAddress, sequencerAddress);
+  const { data: unbondingPeriod } = useUnbondingPeriod();
 
   const stakeInfo = useMemo(() => normalizeStakeInfo(stakeInfoRaw), [stakeInfoRaw]);
 
@@ -51,12 +57,20 @@ export default function SequencerDetailPage() {
   const { data: eligibility } = useCheckLayer2Eligibility(info?.layer2);
   const { data: estimatedRewards } = useEstimateSeigniorage(sequencerAddress);
 
-  const { openStakeModal, openUnstakeModal } = useUIStore();
+  const { openStakeModal, openUnstakeModal, openClaimModal, openWithdrawModal, openRedelegateModal } = useUIStore();
 
   const copyAddress = () => {
     navigator.clipboard.writeText(sequencerAddress);
     toast.success('Address copied to clipboard');
   };
+
+  // Check conditions
+  const hasStake = stakeInfo && stakeInfo.amount > 0n;
+  const hasPendingUnstake = stakeInfo && stakeInfo.unstakeAmount > 0n;
+  const hasRewards = pendingRewards && pendingRewards > 0n;
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  const canWithdraw = stakeInfo && unbondingPeriod && stakeInfo.unstakeAmount > 0n &&
+    (stakeInfo.unstakeTime + unbondingPeriod <= now);
 
   if (isLoading) {
     return (
@@ -160,39 +174,69 @@ export default function SequencerDetailPage() {
         </CardHeader>
         <CardContent>
           {userAddress ? (
-            <div className="grid md:grid-cols-4 gap-6">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Staked Amount</p>
-                <p className="text-xl font-bold text-white">
-                  {stakeInfo ? formatTON(stakeInfo.amount) : '0'} TON
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Pending Rewards</p>
-                <p className="text-xl font-bold text-tokamak-cyan">
-                  {pendingRewards ? formatWTON(pendingRewards) : '0'} WTON
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Pending Unstake</p>
-                <p className="text-xl font-bold text-white">
-                  {stakeInfo ? formatTON(stakeInfo.unstakeAmount) : '0'} TON
-                </p>
-              </div>
-              <div className="flex items-end gap-2">
-                <Button
-                  variant="gradient"
-                  onClick={() => openStakeModal(sequencerAddress)}
-                >
-                  Stake
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => openUnstakeModal(sequencerAddress)}
-                  disabled={!stakeInfo || stakeInfo.amount === 0n}
-                >
-                  Unstake
-                </Button>
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-4 gap-6">
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Staked Amount</p>
+                  <p className="text-xl font-bold text-white">
+                    {stakeInfo ? formatTON(stakeInfo.amount) : '0'} TON
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Pending Rewards</p>
+                  <p className="text-xl font-bold text-tokamak-cyan">
+                    {pendingRewards ? formatWTON(pendingRewards) : '0'} WTON
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Pending Unstake</p>
+                  <p className="text-xl font-bold text-white">
+                    {stakeInfo ? formatTON(stakeInfo.unstakeAmount) : '0'} TON
+                  </p>
+                  {hasPendingUnstake && unbondingPeriod && stakeInfo && (
+                    <UnstakeCountdown unstakeTime={stakeInfo.unstakeTime} unbondingPeriod={unbondingPeriod} />
+                  )}
+                </div>
+                <div className="flex items-end gap-1.5 flex-nowrap pr-4">
+                  <Button
+                    variant="gradient"
+                    onClick={() => openStakeModal(sequencerAddress)}
+                  >
+                    Stake
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => openUnstakeModal(sequencerAddress)}
+                    disabled={!hasStake}
+                  >
+                    Unstake
+                  </Button>
+                  {hasStake && (
+                    <Button
+                      variant="outline"
+                      onClick={() => openRedelegateModal(sequencerAddress)}
+                    >
+                      Redelegate
+                    </Button>
+                  )}
+                  {hasRewards && (
+                    <Button
+                      variant="outline"
+                      className="text-tokamak-cyan border-tokamak-cyan/50"
+                      onClick={() => openClaimModal(sequencerAddress)}
+                    >
+                      Claim
+                    </Button>
+                  )}
+                  {canWithdraw && (
+                    <Button
+                      variant="gradient"
+                      onClick={() => openWithdrawModal(sequencerAddress)}
+                    >
+                      Withdraw
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -233,7 +277,7 @@ export default function SequencerDetailPage() {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 mb-1">Required Stake (θ × Bridged TON)</p>
+                <p className="text-xs text-slate-400 mb-1">Required Stake (theta x Bridged TON)</p>
                 <p className="text-sm font-medium text-white">
                   {eligibility?.[1] ? formatTON(eligibility[1]) : '---'} TON
                 </p>
@@ -328,9 +372,12 @@ export default function SequencerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Stake/Unstake Modals */}
+      {/* All Modals */}
       <StakeModal />
       <UnstakeModal />
+      <ClaimRewardsModal />
+      <WithdrawModal />
+      <RedelegateModal />
     </div>
   );
 }
