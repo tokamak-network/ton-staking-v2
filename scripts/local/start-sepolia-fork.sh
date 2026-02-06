@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# Start TON Staking V3 Local Devnet (Sepolia Fork)
+# Start TON Staking V3 Local Devnet (Prague Hardfork)
 # =============================================================================
 # This script starts a complete local development environment with:
-#   - L1: Anvil forking Sepolia testnet
+#   - L1: Anvil with Prague hardfork (BLS precompiles enabled)
 #   - TON Staking V3 contracts deployed via allocs
 #   - L2: op-geth + op-node (Docker)
 # =============================================================================
@@ -31,12 +31,11 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # Default configuration
-SEPOLIA_RPC="${SEPOLIA_RPC:-${ETH_NODE_URI_sepolia:-https://ethereum-sepolia-rpc.publicnode.com}}"
 L1_BLOCK_TIME="${L1_BLOCK_TIME:-12}"
 L1_PORT="${L1_PORT:-8546}"
 ANVIL_LOG="${ANVIL_LOG:-/tmp/anvil.log}"
 
-echo -e "${BLUE}=== Starting TON Staking V3 Local Devnet (Sepolia Fork) ===${NC}"
+echo -e "${BLUE}=== Starting TON Staking V3 Local Devnet (Prague Hardfork) ===${NC}"
 echo ""
 
 # =============================================================================
@@ -72,9 +71,9 @@ echo -e "${GREEN}✓ All prerequisites met${NC}"
 echo ""
 
 # =============================================================================
-# Step 2: Start Anvil (Sepolia Fork)
+# Step 2: Start Anvil (Prague Hardfork - BLS precompiles enabled)
 # =============================================================================
-echo -e "${YELLOW}Step 2: Starting Anvil (Sepolia Fork)...${NC}"
+echo -e "${YELLOW}Step 2: Starting Anvil (Prague Hardfork)...${NC}"
 
 # Stop existing Anvil
 if pgrep -f "anvil.*$L1_PORT" > /dev/null; then
@@ -83,16 +82,15 @@ if pgrep -f "anvil.*$L1_PORT" > /dev/null; then
     sleep 2
 fi
 
-# Start Anvil
-# Mask API key in URL for security (hide everything after @ or hide API key pattern)
-MASKED_RPC=$(echo "$SEPOLIA_RPC" | sed -E 's/(apikey=)[^&]*/\1***/g; s/([a-zA-Z0-9]{20,})/\*\*\*/g')
-echo "Forking from: $MASKED_RPC"
+# Start Anvil with Prague hardfork (enables BLS precompiles at 0x0b-0x13)
+# No Sepolia fork = no re-org issues, independent chain
+echo "Starting independent chain with Prague hardfork (BLS precompiles enabled)"
+
 nohup anvil \
     --host 0.0.0.0 \
     --port $L1_PORT \
-    --fork-url "$SEPOLIA_RPC" \
+    --hardfork prague \
     --chain-id 900 \
-    --no-rate-limit \
     --gas-limit 30000000 \
     --code-size-limit 1000000 \
     > "$ANVIL_LOG" 2>&1 &
@@ -120,9 +118,9 @@ echo "L1 Block: $L1_BLOCK"
 echo ""
 
 # =============================================================================
-# Step 3: Deploy Optimism Contracts (via allocs) - to avoid historical state issues
+# Step 3: Deploy Optimism Contracts (via allocs)
 # =============================================================================
-echo -e "${YELLOW}Step 3: Deploying Optimism contracts (overriding fork state)...${NC}"
+echo -e "${YELLOW}Step 3: Deploying Optimism contracts...${NC}"
 
 OPTIMISM_ALLOCS_FILE="$SCRIPT_DIR/../config/optimism-allocs-l1.json"
 RPC="http://localhost:$L1_PORT"
@@ -173,7 +171,7 @@ if [ -f "$OPTIMISM_ALLOCS_FILE" ]; then
 
     echo -e "${GREEN}✓ All $TOTAL Optimism contracts deployed${NC}"
 else
-    echo -e "${YELLOW}⚠ Optimism allocs not found, using fork state${NC}"
+    echo -e "${YELLOW}⚠ Optimism allocs not found, skipping${NC}"
 fi
 echo ""
 
@@ -254,9 +252,60 @@ fi
 echo ""
 
 # =============================================================================
+# Step 5.5: Configure L1 SystemConfig Gas Scalars
+# =============================================================================
+echo -e "${YELLOW}Step 5.5: Configuring L1 SystemConfig gas scalars...${NC}"
+
+SYSTEM_CONFIG=$(jq -r '.SystemConfigProxy // "0x0"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
+
+if [ "$SYSTEM_CONFIG" != "0x0" ] && [ -n "$SYSTEM_CONFIG" ]; then
+    echo "  SystemConfig: $SYSTEM_CONFIG"
+    echo "  Setting baseFeeScalar=1000 (0.1%), blobBaseFeeScalar=1000 (0.1%)..."
+
+    # Set gas config using Ecotone format
+    cast send "$SYSTEM_CONFIG" "setGasConfigEcotone(uint32,uint32)" 1000 1000 \
+      --rpc-url "$RPC" \
+      --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+      > /dev/null 2>&1
+
+    # Verify update
+    SCALAR=$(cast call "$SYSTEM_CONFIG" "scalar()(bytes32)" --rpc-url "$RPC" 2>/dev/null || echo "0x0")
+    if [[ "$SCALAR" == *"03e8000003e8"* ]]; then
+        echo -e "${GREEN}  ✓ L1 SystemConfig gas scalars updated${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ Warning: SystemConfig update may have failed${NC}"
+        echo "    Expected: ...03e8000003e8"
+        echo "    Got:      $SCALAR"
+    fi
+else
+    echo -e "${YELLOW}  ⚠ Warning: SystemConfig address not found, skipping${NC}"
+fi
+echo ""
+
+# =============================================================================
 # Step 6: Setup L2 configuration
 # =============================================================================
 echo -e "${YELLOW}Step 6: Setting up L2 configuration...${NC}"
+
+# Check for old L2 data and warn user
+if [ -d "$DEVNET_SEPOLIA_DIR" ]; then
+    echo -e "${YELLOW}⚠ Warning: Old L2 configuration detected${NC}"
+    echo "  Previous run data exists at: $DEVNET_SEPOLIA_DIR"
+    echo ""
+    echo "  To ensure clean initialization with correct genesis:"
+    echo "  - Old data will be removed"
+    echo "  - L2 volumes will be deleted in Step 7"
+    echo ""
+    read -p "Continue with cleanup? [Y/n] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
+        echo "Aborted. Please run ./scripts/local/stop-sepolia-fork.sh first."
+        exit 1
+    fi
+    rm -rf "$DEVNET_SEPOLIA_DIR"
+    echo -e "${GREEN}✓ Old configuration removed${NC}"
+    echo ""
+fi
 
 mkdir -p "$DEVNET_SEPOLIA_DIR"
 
@@ -283,6 +332,32 @@ SYSTEM_CONFIG=$(jq -r '.SystemConfigProxy // "0x577AcB7fA48878245a854ba51eD051a5
 # Generate or use L2 genesis with predeploys
 if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
     echo "Using existing L2 genesis with predeploys..."
+
+    # Verify genesis file is valid
+    echo "  Verifying genesis file..."
+    FACTORY_CODE_IN_GENESIS=$(jq -r '.alloc["0x4200000000000000000000000000000000000012"].code // "0x"' "$DEVNET_DIR/genesis-l2.json")
+    PREDEPLOY_COUNT=$(jq '[.alloc | keys[] | select(startswith("0x4200"))] | length' "$DEVNET_DIR/genesis-l2.json")
+
+    if [ "$FACTORY_CODE_IN_GENESIS" = "0x" ] || [ ${#FACTORY_CODE_IN_GENESIS} -lt 100 ]; then
+        echo -e "${RED}Error: Genesis file is invalid or corrupted${NC}"
+        echo "  OptimismMintableERC20Factory code is missing"
+        echo "  Please regenerate genesis with:"
+        echo "    ./scripts/generate-optimism-allocs-new.sh"
+        echo "    cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json"
+        exit 1
+    fi
+
+    if [ $PREDEPLOY_COUNT -lt 2000 ]; then
+        echo -e "${RED}Error: Genesis file has insufficient predeploys${NC}"
+        echo "  Found: $PREDEPLOY_COUNT (expected: 2048)"
+        echo "  Please regenerate genesis with:"
+        echo "    ./scripts/generate-optimism-allocs-new.sh"
+        echo "    cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json"
+        exit 1
+    fi
+
+    echo -e "${GREEN}  ✓ Genesis file validated ($PREDEPLOY_COUNT predeploys)${NC}"
+
     cp "$DEVNET_DIR/genesis-l2.json" "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
 
     # Update timestamp
@@ -323,6 +398,23 @@ if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
 
     echo -e "${GREEN}  ✓ L2 bridge addresses fixed${NC}"
 
+    # =============================================================================
+    # Fix L1Block Fee Scalars (prevent rollup cost overflow)
+    # =============================================================================
+    echo "  Fixing L1Block fee scalars..."
+
+    # Set fee scalars for local devnet (low fees)
+    # baseFeeScalar = 1000 (0.1%)
+    # blobBaseFeeScalar = 1000 (0.1%)
+    # l1FeeScalar = 1000 (0.1%)
+
+    jq '.alloc["0x4200000000000000000000000000000000000015"].storage += {
+      "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000000000000000000000000000003e8",
+      "0x0000000000000000000000000000000000000000000000000000000000000005": "0x000000000000000000000000000000000000000000000000000003e8000003e8"
+    }' "$DEVNET_SEPOLIA_DIR/genesis-l2.json" > /tmp/genesis-l2-l1block-fixed.json
+    mv /tmp/genesis-l2-l1block-fixed.json "$DEVNET_SEPOLIA_DIR/genesis-l2.json"
+    echo -e "${GREEN}    ✓ L1Block fee scalars set (baseFee: 0.1%, blobBaseFee: 0.1%)${NC}"
+
     # Verify predeploys exist
     PREDEPLOY_COUNT=$(jq '[.alloc | keys[] | select(startswith("0x4200"))] | length' "$DEVNET_SEPOLIA_DIR/genesis-l2.json")
     echo "  Predeploy contracts: $PREDEPLOY_COUNT"
@@ -332,8 +424,28 @@ else
     exit 1
 fi
 
-# Create initial rollup.json (L2 hash will be updated after op-geth starts)
-cat > "$DEVNET_SEPOLIA_DIR/rollup.json" <<EOF
+# Use pre-generated rollup.json or create new one if not exists
+if [ -f "$DEVNET_DIR/rollup.json" ]; then
+    echo "Using pre-generated rollup.json from generate-optimism-allocs-sepolia.sh"
+    cp "$DEVNET_DIR/rollup.json" "$DEVNET_SEPOLIA_DIR/rollup.json"
+
+    # Update L1 genesis info with current Anvil block
+    jq --arg hash "$L1_BLOCK_HASH" \
+       --argjson num "$L1_BLOCK_NUM" \
+       --argjson time "$L2_TIME" \
+       '.genesis.l1.hash = $hash |
+        .genesis.l1.number = $num |
+        .genesis.l2_time = $time' \
+       "$DEVNET_SEPOLIA_DIR/rollup.json" > /tmp/rollup.json.tmp
+    mv /tmp/rollup.json.tmp "$DEVNET_SEPOLIA_DIR/rollup.json"
+
+    echo -e "${GREEN}✓ Rollup config updated with L1 genesis block${NC}"
+else
+    echo -e "${YELLOW}⚠ Warning: Pre-generated rollup.json not found${NC}"
+    echo "Creating rollup.json from scratch..."
+
+    # Fallback: Create rollup.json from scratch
+    cat > "$DEVNET_SEPOLIA_DIR/rollup.json" <<EOF
 {
   "genesis": {
     "l1": {
@@ -348,7 +460,7 @@ cat > "$DEVNET_SEPOLIA_DIR/rollup.json" <<EOF
     "system_config": {
       "batcherAddr": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       "overhead": "0x0000000000000000000000000000000000000000000000000000000000000834",
-      "scalar": "0x01000000000000000000000000000000000000000000000000000fa000000000",
+      "scalar": "0x010000000000000000000000000000000000000000000000000003e8000003e8",
       "gasLimit": 30000000
     }
   },
@@ -361,24 +473,30 @@ cat > "$DEVNET_SEPOLIA_DIR/rollup.json" <<EOF
   "regolith_time": 0,
   "canyon_time": 0,
   "delta_time": 0,
-  "ecotone_time": null,
-  "fjord_time": null,
+  "ecotone_time": 0,
+  "fjord_time": 0,
   "batch_inbox_address": "0xff00000000000000000000000000000000000901",
   "deposit_contract_address": "${OPTIMISM_PORTAL:-0xbF6531954Aa355f478e54fEDff94D9D9E7008D79}",
   "l1_system_config_address": "${SYSTEM_CONFIG:-0x577AcB7fA48878245a854ba51eD051a5B47cF83f}"
 }
 EOF
-
-echo -e "${GREEN}✓ L2 configuration created${NC}"
+    echo -e "${GREEN}✓ L2 configuration created${NC}"
+fi
 echo ""
+
+# Note: L1 (Anvil) uses automine by default - blocks are mined instantly
+# when transactions are submitted. Do NOT use anvil_setIntervalMining as it
+# re-seals existing blocks, changing hashes, which op-node detects as L1 re-orgs.
 
 # =============================================================================
 # Step 7: Start L2 services
 # =============================================================================
 echo -e "${YELLOW}Step 7: Starting L2 services (Docker)...${NC}"
 
-# Stop existing L2 containers
-docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+# Stop existing L2 containers and remove volumes (clean start)
+echo "Cleaning up existing L2 data..."
+docker compose -f "$COMPOSE_FILE" down -v 2>/dev/null || true
+sleep 2
 
 # Start op-geth first
 docker compose -f "$COMPOSE_FILE" up -d l2-execution
@@ -396,6 +514,53 @@ for i in {1..30}; do
     fi
     sleep 2
 done
+
+# Verify predeploy contracts are loaded
+echo "Verifying predeploy contracts..."
+L2_FACTORY="0x4200000000000000000000000000000000000012"
+FACTORY_CODE=$(cast code "$L2_FACTORY" --rpc-url http://localhost:9545 2>/dev/null || echo "0x")
+if [ "$FACTORY_CODE" = "0x" ] || [ ${#FACTORY_CODE} -lt 10 ]; then
+    echo -e "${RED}Error: Predeploy contracts not loaded properly${NC}"
+    echo "Factory code length: ${#FACTORY_CODE}"
+    echo "This indicates genesis was not loaded correctly."
+    docker logs ton-staking-l2-execution | tail -50
+    exit 1
+fi
+echo -e "${GREEN}✓ Predeploy contracts verified${NC}"
+
+# CRITICAL: Verify L1Block fee scalars to prevent rollup cost overflow
+echo "Verifying L1Block fee scalars..."
+L1_BLOCK_ADDR="0x4200000000000000000000000000000000000015"
+SLOT3_VALUE=$(cast storage "$L1_BLOCK_ADDR" 3 --rpc-url http://localhost:9545 2>/dev/null || echo "0x0")
+SLOT5_VALUE=$(cast storage "$L1_BLOCK_ADDR" 5 --rpc-url http://localhost:9545 2>/dev/null || echo "0x0")
+
+# Expected values (1000 = 0x3e8)
+EXPECTED_SLOT3="0x00000000000000000000000000000000000000000000000000000000000003e8"
+EXPECTED_SLOT5="0x000000000000000000000000000000000000000000000000000003e8000003e8"
+
+if [ "$SLOT3_VALUE" != "$EXPECTED_SLOT3" ]; then
+    echo -e "${RED}ERROR: L1Block slot 3 (l1FeeScalar) has wrong value!${NC}"
+    echo "  Expected: $EXPECTED_SLOT3"
+    echo "  Got:      $SLOT3_VALUE"
+    echo ""
+    echo "This will cause 'overflow in total rollup cost' errors!"
+    echo "Genesis was not loaded correctly. Stopping L2..."
+    docker compose -f "$COMPOSE_FILE" down
+    exit 1
+fi
+
+if [ "$SLOT5_VALUE" != "$EXPECTED_SLOT5" ]; then
+    echo -e "${RED}ERROR: L1Block slot 5 (Ecotone scalars) has wrong value!${NC}"
+    echo "  Expected: $EXPECTED_SLOT5"
+    echo "  Got:      $SLOT5_VALUE"
+    echo ""
+    echo "This will cause 'overflow in total rollup cost' errors!"
+    echo "Genesis was not loaded correctly. Stopping L2..."
+    docker compose -f "$COMPOSE_FILE" down
+    exit 1
+fi
+
+echo -e "${GREEN}✓ L1Block fee scalars verified (baseFee: 0.1%, blobBaseFee: 0.1%)${NC}"
 
 # Get L2 genesis hash
 L2_GENESIS_HASH=$(cast block 0 --rpc-url http://localhost:9545 --json | jq -r '.hash')
@@ -422,6 +587,9 @@ done
 
 # Start batcher and proposer
 echo "Starting batcher and proposer..."
+# Export DisputeGameFactory address for docker-compose env substitution
+export DISPUTE_GAME_FACTORY_ADDRESS=$(jq -r '.DisputeGameFactoryProxy' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
+echo "  DisputeGameFactory: $DISPUTE_GAME_FACTORY_ADDRESS"
 docker compose -f "$COMPOSE_FILE" up -d l2-batcher l2-proposer
 echo -e "${GREEN}✓ Batcher and proposer started${NC}"
 
@@ -455,33 +623,105 @@ done
 echo ""
 
 # =============================================================================
-# Step 8: Enable auto-mining on L1
+# Step 8: (Mining already configured in Step 6.5)
 # =============================================================================
-echo -e "${YELLOW}Step 8: Enabling auto-mining on L1...${NC}"
-curl -s -X POST "$RPC" \
-    -H "Content-Type: application/json" \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"anvil_setIntervalMining\",\"params\":[$L1_BLOCK_TIME],\"id\":1}" > /dev/null
-echo -e "${GREEN}✓ L1 auto-mining enabled (${L1_BLOCK_TIME}s interval)${NC}"
+
+# =============================================================================
+# Step 9: Bridge ETH from L1 to L2 (for gas fees)
+# =============================================================================
+echo -e "${YELLOW}Step 9: Bridging ETH from L1 to L2...${NC}"
+
+# Get OptimismPortal address (this is what op-node monitors for deposits)
+OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy // "0x0000000000000000000000000000000000000000"' "$DEVNET_DIR/optimism-addresses.json" 2>/dev/null)
+L2_RPC="http://localhost:9545"
+
+if [ "$OPTIMISM_PORTAL" = "0x0000000000000000000000000000000000000000" ]; then
+    echo -e "${RED}Error: OptimismPortal address not found${NC}"
+    exit 1
+fi
+
+# Deployer account (needs L2 ETH for gas)
+DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+DEPLOYER_ADDR="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+echo "  Depositing 10 ETH from L1 to L2 for deployer account..."
+echo "  OptimismPortal: $OPTIMISM_PORTAL"
+echo "  Target L2 address: $DEPLOYER_ADDR"
+
+# Deposit ETH via OptimismPortal (directly)
+# function depositTransaction(address _to, uint256 _value, uint64 _gasLimit, bool _isCreation, bytes memory _data)
+DEPOSIT_VALUE="10000000000000000000"  # 10 ETH in wei
+if cast send "$OPTIMISM_PORTAL" \
+    "depositTransaction(address,uint256,uint64,bool,bytes)" \
+    "$DEPLOYER_ADDR" \
+    "$DEPOSIT_VALUE" \
+    200000 \
+    false \
+    "0x" \
+    --value "10ether" \
+    --private-key "$DEPLOYER_KEY" \
+    --rpc-url "$RPC" \
+    --gas-limit 300000 > /dev/null 2>&1; then
+    echo -e "${GREEN}  ✓ ETH deposit transaction sent via OptimismPortal${NC}"
+else
+    echo -e "${YELLOW}  ⚠ ETH deposit may have failed, continuing...${NC}"
+fi
+
+# Wait for L1 to mine the deposit transaction
+echo "  Waiting for L1 to mine deposit transaction..."
+sleep $((L1_BLOCK_TIME + 2))
+
+# Wait for L2 to process the deposit (op-node needs to relay it)
+echo "  Waiting for L2 to process deposit..."
+echo "  This may take 30-60 seconds for op-node to relay the deposit to L2"
+for i in {1..30}; do
+    L2_BALANCE=$(cast balance "$DEPLOYER_ADDR" --rpc-url "$L2_RPC" 2>/dev/null || echo "0")
+
+    # Use bc for comparison to avoid bash integer overflow (ETH wei values exceed int64)
+    if [ "$L2_BALANCE" != "0" ] && [ "$(echo "$L2_BALANCE > 1000000000000000000" | bc)" -eq 1 ]; then
+        L2_BALANCE_ETH=$(echo "scale=4; $L2_BALANCE / 1000000000000000000" | bc)
+        echo -e "${GREEN}  ✓ L2 ETH received: ${L2_BALANCE_ETH} ETH${NC}"
+        break
+    fi
+
+    if [ $i -eq 30 ]; then
+        # Still show balance for debugging (may overflow in bash but bc handles it)
+        L2_BALANCE_ETH=$(echo "scale=4; $L2_BALANCE / 1000000000000000000" | bc 2>/dev/null || echo "0")
+        echo -e "${YELLOW}  ⚠ Warning: L2 ETH not detected after 60s${NC}"
+        echo "  L2 balance: ${L2_BALANCE_ETH} ETH (${L2_BALANCE} wei)"
+        echo "  Continuing anyway - deposit may still be processing..."
+    fi
+
+    if [ $((i % 5)) -eq 0 ]; then
+        echo "  Still waiting for deposit... (${i}0s elapsed)"
+    fi
+    sleep 2
+done
 echo ""
 
 # =============================================================================
-# Step 9: Deploy L2 TON Token (OptimismMintableERC20)
+# Step 10: Deploy L2 TON Token (OptimismMintableERC20)
 # =============================================================================
-echo -e "${YELLOW}Step 9: Deploying L2 TON token...${NC}"
+echo -e "${YELLOW}Step 10: Deploying L2 TON token...${NC}"
 
 L1_TON_ADDR=$(jq -r '.ton' "$DEVNET_DIR/addresses.json")
-L2_RPC="http://localhost:9545"
 L2_TOKEN_FACTORY="0x4200000000000000000000000000000000000012"
 DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 # Wait for L2 to be fully ready (including tx indexing)
 echo "  Waiting for L2 RPC to be fully ready..."
+L2_READY=false
 for i in {1..30}; do
     if cast block-number --rpc-url "$L2_RPC" &> /dev/null; then
-        # Also check if tx indexing is complete by trying a simple call
-        if cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "0x0000000000000000000000000000000000000001" --rpc-url "$L2_RPC" &> /dev/null; then
-            echo "  L2 RPC ready"
-            break
+        # Verify factory has code
+        FACTORY_CODE=$(cast code "$L2_TOKEN_FACTORY" --rpc-url "$L2_RPC" 2>/dev/null || echo "0x")
+        if [ "$FACTORY_CODE" != "0x" ] && [ ${#FACTORY_CODE} -gt 10 ]; then
+            # Also check if tx indexing is complete by trying a simple call
+            if cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "0x0000000000000000000000000000000000000001" --rpc-url "$L2_RPC" &> /dev/null; then
+                echo "  L2 RPC ready (factory verified)"
+                L2_READY=true
+                break
+            fi
         fi
     fi
     if [ $i -eq 30 ]; then
@@ -490,35 +730,86 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Check if L2 TON already exists
-L2_TON_ADDR=$(cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "$L1_TON_ADDR" --rpc-url "$L2_RPC" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
+if [ "$L2_READY" = false ]; then
+    echo -e "${RED}Error: L2 is not ready for transactions${NC}"
+    echo "Factory code check failed or RPC not responding"
+    exit 1
+fi
 
-if [ -z "$L2_TON_ADDR" ] || [ "$L2_TON_ADDR" = "0x0000000000000000000000000000000000000000" ]; then
+# Check if L2 TON already exists by looking for past deployment events
+echo "  Checking for existing L2 TON token..."
+# Convert L1 TON address to lowercase and pad to 32 bytes (64 hex chars)
+L1_TON_LOWER=$(echo "$L1_TON_ADDR" | tr '[:upper:]' '[:lower:]')
+L1_TON_PADDED=$(printf "0x%064s" "${L1_TON_LOWER#0x}" | tr ' ' '0')
+
+EXISTING_L2_TON=$(cast logs \
+    --from-block 0 \
+    --address "$L2_TOKEN_FACTORY" \
+    "OptimismMintableERC20Created(address indexed,address indexed,address)" \
+    --rpc-url "$L2_RPC" \
+    --json 2>/dev/null | jq -r --arg l1ton "$L1_TON_PADDED" \
+    '.[] | select(.topics[2] == $l1ton) | .topics[1]' | head -1)
+
+if [ -n "$EXISTING_L2_TON" ] && [ "$EXISTING_L2_TON" != "null" ]; then
+    L2_TON_ADDR="0x${EXISTING_L2_TON:26}"
+    echo -e "${GREEN}  ✓ L2 TON already exists: $L2_TON_ADDR${NC}"
+else
     echo "  Creating L2 TON token via OptimismMintableERC20Factory..."
 
-    # Retry up to 5 times
+    # Retry up to 5 times with longer delays
+    DEPLOY_SUCCESS=false
     for attempt in {1..5}; do
-        if cast send "$L2_TOKEN_FACTORY" \
+        echo "    Attempt $attempt/5..."
+
+        # Try to deploy with explicit gas limit
+        DEPLOY_OUTPUT=$(cast send "$L2_TOKEN_FACTORY" \
             "createOptimismMintableERC20(address,string,string)" \
             "$L1_TON_ADDR" "Tokamak Network" "TON" \
             --rpc-url "$L2_RPC" \
-            --private-key "$DEPLOYER_KEY" > /dev/null 2>&1; then
+            --private-key "$DEPLOYER_KEY" \
+            --gas-limit 2000000 2>&1)
 
-            L2_TON_ADDR=$(cast call "$L2_TOKEN_FACTORY" "deployments(address)(address)" "$L1_TON_ADDR" --rpc-url "$L2_RPC")
-            echo -e "${GREEN}  ✓ L2 TON deployed: $L2_TON_ADDR${NC}"
-            break
-        else
-            if [ $attempt -lt 5 ]; then
-                echo "    Retry $attempt/5..."
-                sleep 5
+        if [ $? -eq 0 ]; then
+            # Wait for transaction to be mined
+            sleep 5
+
+            # Check for deployment event directly (no need to parse TX hash)
+            # Query recent blocks for OptimismMintableERC20Created event
+            CURRENT_BLOCK=$(cast block-number --rpc-url "$L2_RPC" 2>/dev/null)
+            START_BLOCK=$((CURRENT_BLOCK - 10))
+
+            L2_TON_FROM_EVENT=$(timeout 10 cast logs \
+                --from-block "$START_BLOCK" \
+                --address "$L2_TOKEN_FACTORY" \
+                "OptimismMintableERC20Created(address indexed,address indexed,address)" \
+                --rpc-url "$L2_RPC" \
+                --json 2>/dev/null | jq -r --arg l1ton "$L1_TON_PADDED" \
+                '.[] | select(.topics[2] == $l1ton) | .topics[1]' | tail -1)
+
+            if [ -n "$L2_TON_FROM_EVENT" ] && [ "$L2_TON_FROM_EVENT" != "null" ]; then
+                L2_TON_ADDR="0x${L2_TON_FROM_EVENT:26}"
+                echo -e "${GREEN}  ✓ L2 TON deployed: $L2_TON_ADDR (from event)${NC}"
+                DEPLOY_SUCCESS=true
+                break
             else
-                echo -e "${RED}  ✗ Failed to deploy L2 TON after 5 attempts${NC}"
-                L2_TON_ADDR="0x0000000000000000000000000000000000000000"
+                echo "    Event not found yet, will retry..."
             fi
+
+        else
+            echo "    Deploy failed: $(echo "$DEPLOY_OUTPUT" | tail -1)"
+        fi
+
+        if [ $attempt -lt 5 ]; then
+            echo "    Waiting 10 seconds before retry..."
+            sleep 10
         fi
     done
-else
-    echo -e "${GREEN}  ✓ L2 TON already exists: $L2_TON_ADDR${NC}"
+
+    if [ "$DEPLOY_SUCCESS" = false ]; then
+        echo -e "${RED}  ✗ Failed to deploy L2 TON after 5 attempts${NC}"
+        echo "  Check L2 logs: docker logs ton-staking-l2-execution"
+        L2_TON_ADDR="0x0000000000000000000000000000000000000000"
+    fi
 fi
 
 # Save L2 TON address
@@ -527,9 +818,9 @@ mv /tmp/addresses-updated.json "$DEVNET_DIR/addresses.json"
 echo ""
 
 # =============================================================================
-# Step 10: Register L2 in TON Staking System
+# Step 11: Register L2 in TON Staking System
 # =============================================================================
-echo -e "${YELLOW}Step 10: Registering L2 in TON Staking system...${NC}"
+echo -e "${YELLOW}Step 11: Registering L2 in TON Staking system...${NC}"
 
 # Load contract addresses
 L1_BRIDGE_REGISTRY=$(jq -r '.l1BridgeRegistryProxy' "$DEVNET_DIR/addresses.json")
@@ -552,9 +843,14 @@ MIN_STAKE="1001000000000000000000000000000"
 
 # --- Step 8.1: Check if rollup types are registered ---
 echo "  Checking rollup type registration..."
-TYPE3_SUPPORT=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeInfo(uint8)(string,bytes4,bytes4,bytes4,uint8,bool)" 3 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
+TYPE3_BRIDGE_GETTER=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,uint8,string)" 3 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
 
-if [ -z "$TYPE3_SUPPORT" ] || [ "$TYPE3_SUPPORT" = '""' ]; then
+# Desired configuration for Type 3
+DESIRED_BRIDGE_GETTER="0x078f29cf"     # l1StandardBridge()
+DESIRED_TVL_GETTER="0x078f29cf"        # l1StandardBridge()
+DESIRED_DISPUTE_GETTER="0xf2b4e617"    # disputeGameFactory()
+
+if [ -z "$TYPE3_BRIDGE_GETTER" ] || [ "$TYPE3_BRIDGE_GETTER" = "0x00000000" ]; then
     echo "  Registering rollup types..."
 
     # Add manager if not already
@@ -574,22 +870,44 @@ if [ -z "$TYPE3_SUPPORT" ] || [ "$TYPE3_SUPPORT" = '""' ]; then
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
 
     # Type 3: Optimism Bedrock DisputeGame (V3 eligible)
-    # cast send "$L1_BRIDGE_REGISTRY" \
-    #     "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-    #     3 "Optimism Bedrock DisputeGame" 0x078f29cf 0x0a49cb03 0x0a1e5c7d 1 true \
-    #     --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
-
-
-    # Type 3(Sepolia Fork): Optimism Bedrock DisputeGame (V3 eligible)
     cast send "$L1_BRIDGE_REGISTRY" \
         "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-        3 "Optimism Bedrock DisputeGame" 0x078f29cf 0x078f29cf 0x0a1e5c7d 1 true \
+        3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" 1 true \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
-
 
     echo -e "${GREEN}  ✓ Rollup types registered${NC}"
 else
     echo -e "${GREEN}  ✓ Rollup types already registered${NC}"
+
+    # Check if Type 3 configuration matches desired values
+    echo "  Verifying Type 3 configuration..."
+    CURRENT_CONFIG=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,uint8,string)" 3 --rpc-url "$RPC" 2>/dev/null)
+    CURRENT_BRIDGE_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '1p' | tr -d '[:space:]')
+    CURRENT_TVL_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '2p' | tr -d '[:space:]')
+    CURRENT_DISPUTE_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '3p' | tr -d '[:space:]')
+
+    if [ "$CURRENT_TVL_GETTER" != "$DESIRED_TVL_GETTER" ] || \
+       [ "$CURRENT_BRIDGE_GETTER" != "$DESIRED_BRIDGE_GETTER" ] || \
+       [ "$CURRENT_DISPUTE_GETTER" != "$DESIRED_DISPUTE_GETTER" ]; then
+        echo -e "${YELLOW}  ⚠ Type 3 configuration mismatch detected${NC}"
+        echo "    Current: bridge=$CURRENT_BRIDGE_GETTER, tvl=$CURRENT_TVL_GETTER, dispute=$CURRENT_DISPUTE_GETTER"
+        echo "    Desired: bridge=$DESIRED_BRIDGE_GETTER, tvl=$DESIRED_TVL_GETTER, dispute=$DESIRED_DISPUTE_GETTER"
+        echo "  Updating Type 3 configuration..."
+
+        # Update rollup type configuration
+        cast send "$L1_BRIDGE_REGISTRY" \
+            "updateRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
+            3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" 1 true \
+            --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}  ✓ Type 3 configuration updated${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ Failed to update Type 3 configuration (may not have updateRollupType function)${NC}"
+        fi
+    else
+        echo -e "${GREEN}  ✓ Type 3 configuration is correct${NC}"
+    fi
 fi
 
 # --- Step 8.2: Register Rollup Config to L1BridgeRegistry ---
@@ -650,9 +968,9 @@ echo "    OperatorManager: $OPERATOR_MANAGER"
 echo ""
 
 # =============================================================================
-# Step 11: Register Validators
+# Step 12: Register Validators
 # =============================================================================
-echo -e "${YELLOW}Step 11: Registering validators...${NC}"
+echo -e "${YELLOW}Step 12: Registering validators...${NC}"
 
 # Validator accounts (Anvil default accounts)
 VALIDATOR1_KEY="0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
@@ -706,9 +1024,9 @@ echo -e "${GREEN}  Total validators registered: $VALIDATOR_COUNT${NC}"
 echo ""
 
 # =============================================================================
-# Step 12: Configure RAT Parameters
+# Step 13: Configure RAT Parameters
 # =============================================================================
-echo -e "${YELLOW}Step 12: Configuring RAT parameters...${NC}"
+echo -e "${YELLOW}Step 13: Configuring RAT parameters...${NC}"
 
 # RAT configuration values (matching DeployV3FullForDevnet.s.sol)
 # All WTON values in RAY format (1e27)
@@ -760,9 +1078,9 @@ echo "    Relaxed Check: $VERIFY_RELAXED"
 echo ""
 
 # =============================================================================
-# Step 13: Setup Personal Test Account
+# Step 14: Setup Personal Test Account
 # =============================================================================
-echo -e "${YELLOW}Step 13: Setting up Personal Test account...${NC}"
+echo -e "${YELLOW}Step 14: Setting up Personal Test account...${NC}"
 
 PERSONAL_ADDR="0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 PERSONAL_ETH="100000000000000000000000"  # 100000 ETH in wei
@@ -789,7 +1107,7 @@ echo ""
 echo -e "${GREEN}=== Devnet Started Successfully ===${NC}"
 echo ""
 echo -e "${BLUE}=== RPC Endpoints ===${NC}"
-echo "L1 (Anvil Sepolia Fork): http://localhost:$L1_PORT"
+echo "L1 (Anvil Prague):       http://localhost:$L1_PORT"
 echo "L2 (op-geth):            http://localhost:9545"
 echo "L2 Rollup (op-node):     http://localhost:7545"
 echo ""

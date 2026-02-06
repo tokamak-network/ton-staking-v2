@@ -125,7 +125,7 @@ if curl -s -X POST http://localhost:8546 \
     
     if [ "$L1_AUTOMINE" = "false" ]; then
         check_fail "L1 auto-mining: DISABLED (Batcher cannot submit batches!)"
-        check_info "  Fix: curl -X POST http://localhost:8546 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"anvil_setIntervalMining\",\"params\":[12],\"id\":1}'"
+        check_info "  Fix: Start evm_mine loop - see scripts/local/start-sepolia-fork.sh Step 6.5"
         ERRORS=$((ERRORS + 1))
     else
         check_pass "L1 auto-mining: enabled"

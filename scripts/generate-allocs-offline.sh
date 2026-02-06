@@ -72,7 +72,6 @@ echo -e "${GREEN}  ✓ Pre-configured files found${NC}"
 echo ""
 echo -e "${YELLOW}[2/4] Copying pre-configured files...${NC}"
 
-rm -rf "$DEVNET_DIR"
 mkdir -p "$DEVNET_DIR"
 
 # Copy all pre-configured files from scripts/config

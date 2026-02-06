@@ -141,7 +141,10 @@ cat > /tmp/l2-genesis-config.json <<'GENESIS_CONFIG'
     "regolithTime": 0,
     "canyonTime": 0,
     "shanghaiTime": 0,
+    "cancunTime": 0,
     "deltaTime": 0,
+    "ecotoneTime": 0,
+    "fjordTime": 0,
     "optimism": {
       "eip1559Elasticity": 6,
       "eip1559Denominator": 50,
@@ -223,8 +226,38 @@ else
     echo -e "    ${YELLOW}Warning: L1StandardBridge address not found, skipping fix${NC}"
 fi
 
+# =============================================================================
+# Fix L1Block fee scalars (prevent rollup cost overflow)
+# =============================================================================
+echo "  Fixing L1Block fee scalars..."
+
+# Set fee scalars for local devnet (low fees)
+# baseFeeScalar = 1000 (0.1%)
+# blobBaseFeeScalar = 1000 (0.1%)
+# l1FeeScalar = 1000 (0.1%)
+
+# Create jq script to update L1Block storage
+cat > /tmp/fix-l1block-genesis.jq <<'EOF'
+# Update L1Block (0x4200...0015) storage with proper fee scalars
+.alloc["0x4200000000000000000000000000000000000015"].storage += {
+  # Slot 3: l1FeeScalar (deprecated, but needed for backwards compatibility)
+  # 1000 = 0.001 = 0.1%
+  "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000000000000000000000000000003e8",
+
+  # Slot 5: Ecotone scalars (baseFeeScalar + blobBaseFeeScalar packed)
+  # Lower 32 bits: baseFeeScalar = 1000 (0x3e8)
+  # Upper 32 bits: blobBaseFeeScalar = 1000 (0x3e8)
+  # Combined: 64 hex chars (32 bytes) = 48 padding + 8 blob + 8 base
+  "0x0000000000000000000000000000000000000000000000000000000000000005": "0x000000000000000000000000000000000000000000000000000003e8000003e8"
+}
+EOF
+
+jq -f /tmp/fix-l1block-genesis.jq "$L2_GENESIS_PATH" > /tmp/genesis-l2-l1block.json
+mv /tmp/genesis-l2-l1block.json "$L2_GENESIS_PATH"
+echo -e "    ${GREEN}✓ L1Block fee scalars set (baseFee: 0.1%, blobBaseFee: 0.1%)${NC}"
+
 # Cleanup temp files
-rm -f /tmp/l2-genesis-config.json /tmp/l2-allocs-prefixed.json
+rm -f /tmp/l2-genesis-config.json /tmp/l2-allocs-prefixed.json /tmp/fix-l1block-genesis.jq /tmp/genesis-l2-l1block.json
 
 # Count predeploys
 PREDEPLOY_COUNT=$(jq '[.alloc | keys[] | select(startswith("0x4200"))] | length' "$L2_GENESIS_PATH")

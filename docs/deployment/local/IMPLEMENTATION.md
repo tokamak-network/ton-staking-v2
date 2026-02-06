@@ -162,7 +162,7 @@ l2-execution:
 
 ```yaml
 l2-node:
-  image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.7.0
+  image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.12.0
   platform: linux/amd64
   depends_on:
     l1:
@@ -1273,7 +1273,19 @@ docker compose -f docker-compose.l2-only.yml up -d l2-node
 ### Step 5: 자동 블록 생성 활성화
 
 ```bash
-cast rpc anvil_setIntervalMining 12 --rpc-url http://localhost:8545
+# auto-mine 비활성화 후 수동 evm_mine 루프 사용
+# (anvil_setIntervalMining은 블록 해시 불안정 문제로 사용하지 않음)
+curl -s -X POST http://localhost:8546 \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"evm_setAutomine","params":[false],"id":1}'
+
+# 12초마다 수동 마이닝
+while true; do
+    curl -s -X POST http://localhost:8546 \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","method":"evm_mine","params":[],"id":1}'
+    sleep 12
+done &
 ```
 
 ## 빠른 시작 (레거시 방법)
