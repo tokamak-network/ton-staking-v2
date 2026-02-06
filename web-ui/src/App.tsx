@@ -38,6 +38,7 @@ interface OperatorInfo {
   operatorManagerManager: string;
   candidateAddOn: string;
   sequencerStake: string;
+  operatorManagerWtonBalance: string;
   isLayer2Registered: boolean;
   isEligible: boolean;
   requiredStake: string;
@@ -48,6 +49,7 @@ interface ValidatorInfo {
   address: string;
   deposit: string;
   available: string;
+  wtonBalance: string;
   isActive: boolean;
   ratRegistered: boolean;
 }
@@ -138,6 +140,7 @@ function App() {
   const [maxValidatorsPerL2, setMaxValidatorsPerL2] = useState<number>(0);
   const [evidenceSubmissionPeriod, setEvidenceSubmissionPeriod] = useState<number>(0);
   const [l2Info, setL2Info] = useState<L2Info | null>(null);
+  const [validatorRewardWtonBalance, setValidatorRewardWtonBalance] = useState<string>('0');
 
   // Block Explorer State
   const [l1Blocks, setL1Blocks] = useState<BlockInfo[]>([]);
@@ -194,9 +197,120 @@ function App() {
     validatorRewardPerUint: string;
   } | null>(null);
 
+  // Load addresses from JSON files
+  const loadAddresses = async () => {
+    try {
+      const timestamp = Date.now(); // Cache buster
+      const [tonResponse, optimismResponse] = await Promise.all([
+        fetch(`/addresses.json?t=${timestamp}`),
+        fetch(`/optimism-addresses.json?t=${timestamp}`)
+      ]);
+      
+      if (tonResponse.ok) {
+        const addresses = await tonResponse.json();
+        console.log('📦 Loaded TON Staking addresses:', addresses);
+        
+        // Update CONFIG with deployed TON Staking addresses
+        if (addresses.ton) CONFIG.contracts.ton = addresses.ton;
+        if (addresses.wton) CONFIG.contracts.wton = addresses.wton;
+        if (addresses.seigManagerProxy) CONFIG.contracts.seigManager = addresses.seigManagerProxy;
+        if (addresses.depositManagerProxy) CONFIG.contracts.depositManager = addresses.depositManagerProxy;
+        if (addresses.layer2ManagerProxy) CONFIG.contracts.layer2Manager = addresses.layer2ManagerProxy;
+        if (addresses.l1BridgeRegistryProxy) CONFIG.contracts.l1BridgeRegistry = addresses.l1BridgeRegistryProxy;
+        if (addresses.layer2RegistryProxy) CONFIG.contracts.layer2Registry = addresses.layer2RegistryProxy;
+        if (addresses.ratProxy) CONFIG.contracts.rat = addresses.ratProxy;
+        if (addresses.validatorRewardProxy) CONFIG.contracts.validatorReward = addresses.validatorRewardProxy;
+        
+        // SystemConfig can come from either file, prefer ton-staking addresses.json
+        if (addresses.systemConfig) CONFIG.contracts.systemConfig = addresses.systemConfig;
+        if (addresses.disputeGameFactory) CONFIG.contracts.disputeGameFactory = addresses.disputeGameFactory;
+      } else {
+        console.warn('⚠️ addresses.json not found, using default config');
+      }
+      
+      if (optimismResponse.ok) {
+        const optimismAddresses = await optimismResponse.json();
+        console.log('📦 Loaded Optimism addresses:', optimismAddresses);
+        
+        // Update with Optimism addresses (if not already set)
+        if (optimismAddresses.SystemConfigProxy && !CONFIG.contracts.systemConfig) {
+          CONFIG.contracts.systemConfig = optimismAddresses.SystemConfigProxy;
+        }
+        if (optimismAddresses.DisputeGameFactoryProxy && !CONFIG.contracts.disputeGameFactory) {
+          CONFIG.contracts.disputeGameFactory = optimismAddresses.DisputeGameFactoryProxy;
+        }
+      }
+      
+      console.log('✅ CONFIG updated with deployed addresses:', CONFIG.contracts);
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Failed to load addresses:', error);
+      return false;
+    }
+  };
+
+  // Reload addresses and refresh ALL data
+  const reloadAddresses = async () => {
+    setLoading(true);
+    console.log('🔄 Starting address reload...');
+    try {
+      const success = await loadAddresses();
+      if (success) {
+        console.log('✅ Addresses loaded, clearing cached data...');
+        // Force clear all cached data
+        setNodeStatus(null);
+        setRollupInfo(null);
+        setOperatorInfo(null);
+        setValidators([]);
+        setGames([]);
+        setSeigniorageInfo(null);
+        setL2Info(null);
+        
+        console.log('🔄 Reloading dashboard data...');
+        // Reload all data with new addresses
+        await Promise.all([
+          loadNodeStatus(),
+          loadRollupInfo(),
+          loadValidators(),
+          loadGames(),
+          loadSystemParams(),
+          loadL2Info(),
+        ]);
+        
+        console.log('🔄 Reloading operator info...');
+        // Reload operator info (sequential, not parallel) - this also loads seigniorage info
+        await loadOperatorInfo().catch(err => {
+          console.warn('loadOperatorInfo failed:', err);
+        });
+        
+        console.log('🔄 Reloading user balances...');
+        // Reload user balances
+        if (address) {
+          await loadUserBalances(address);
+        }
+        
+        console.log('✅ All data reloaded with new addresses');
+        console.log('📊 Current CONFIG:', CONFIG.contracts);
+        alert('✅ Addresses and data reloaded successfully!');
+      } else {
+        alert('⚠️ Failed to reload addresses. Check console for details.');
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload addresses:', error);
+      alert('❌ Error reloading addresses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    initializeProvider();
-    loadDashboardData();
+    const initialize = async () => {
+      await loadAddresses();
+      initializeProvider();
+      await loadDashboardData();
+    };
+    
+    initialize();
     
     // Auto refresh every 10 seconds
     const interval = setInterval(loadDashboardData, 10000);
@@ -289,19 +403,26 @@ function App() {
   };
 
   const loadDashboardData = async () => {
-    await Promise.all([
-      loadNodeStatus(),
-      loadRollupInfo(),
-      loadValidators(),
-      loadGames(),
-      loadSystemParams(),
-      loadL2Info(),
-    ]);
-    
-    // Load operator info first, then load seigniorage info
-    await loadOperatorInfo();
-    
-    // 잔액은 수동 새로고침 버튼으로 업데이트 (부하 감소)
+    try {
+      await Promise.all([
+        loadNodeStatus(),
+        loadRollupInfo(),
+        loadValidators(),
+        loadGames(),
+        loadSystemParams(),
+        loadL2Info(),
+      ]);
+      
+      // Load operator info (non-critical, can fail)
+      await loadOperatorInfo().catch(err => {
+        console.warn('loadOperatorInfo failed but continuing:', err);
+      });
+      
+      // 잔액은 수동 새로고침 버튼으로 업데이트 (부하 감소)
+    } catch (error) {
+      console.error('loadDashboardData failed:', error);
+      // Don't throw - partial data is better than nothing
+    }
   };
 
   const loadNodeStatus = async () => {
@@ -337,22 +458,28 @@ function App() {
 
   const loadRollupInfo = async () => {
     try {
+      console.log('🔍 loadRollupInfo: Starting...');
       const registry = new ethers.Contract(
         CONFIG.contracts.l1BridgeRegistry,
         L1_BRIDGE_REGISTRY_ABI,
         l1Provider
       );
 
+      console.log('🔍 loadRollupInfo: Calling getRollupInfo for:', CONFIG.contracts.systemConfig);
       const info = await registry.getRollupInfo(CONFIG.contracts.systemConfig);
-      setRollupInfo({
+      console.log('🔍 loadRollupInfo: Got info:', info);
+      
+      const rollupData = {
         rollupType: Number(info[0]),
         l2Ton: info[1],
         rejectedSeigs: info[2],
         rejectedL2Deposit: info[3],
         name: info[4],
-      });
+      };
+      console.log('✅ loadRollupInfo: Setting rollupInfo:', rollupData);
+      setRollupInfo(rollupData);
     } catch (error) {
-      console.error('Failed to load rollup info:', error);
+      console.error('❌ Failed to load rollup info:', error);
     }
   };
 
@@ -380,6 +507,7 @@ function App() {
       const operatorManager = await layer2Manager.operatorOfRollupConfig(CONFIG.contracts.systemConfig);
 
       let sequencerStake = '0';
+      let operatorManagerWtonBalance = '0';
       let isLayer2Registered = false;
       let candidateAddOn = ethers.ZeroAddress;
       let operatorManagerManager = ethers.ZeroAddress;
@@ -398,6 +526,10 @@ function App() {
           // Get stake from SeigManager (stakeOf returns total staked amount)
           sequencerStake = (await seigManager.stakeOf(candidateAddOn, operatorManager)).toString();
 
+          // Get WTON balance of OperatorManager
+          const wtonContract = new ethers.Contract(CONFIG.contracts.wton, WTON_ABI, l1Provider);
+          operatorManagerWtonBalance = (await wtonContract.balanceOf(operatorManager)).toString();
+
           // Check Layer2Registry with CandidateAddOn address
           isLayer2Registered = await layer2Registry.layer2s(candidateAddOn);
         } catch (e) {
@@ -414,21 +546,32 @@ function App() {
         isEligible = eligibility[0];
         requiredStake = eligibility[1].toString();
         currentStake = eligibility[2].toString();
-      } catch (e) {
-        console.error('Failed to load eligibility:', e);
+      } catch (e: any) {
+        console.warn('checkCurrentEligibility not available (expected for V3 setup):', e?.message || e);
+        // This is expected - SeigManager may not support this candidateAddOn yet
       }
 
-      setOperatorInfo({
+      const opInfo = {
         operator,
         operatorManager,
         operatorManagerManager,
         candidateAddOn,
         sequencerStake,
+        operatorManagerWtonBalance,
         isLayer2Registered,
         isEligible,
         requiredStake,
         currentStake,
-      });
+      };
+      
+      setOperatorInfo(opInfo);
+      
+      // Load seigniorage info immediately after setting operator info
+      if (candidateAddOn && candidateAddOn !== ethers.ZeroAddress) {
+        await loadSeigniorageInfo(candidateAddOn).catch(err => {
+          console.warn('Failed to load seigniorage info in loadOperatorInfo:', err);
+        });
+      }
     } catch (error) {
       console.error('Failed to load operator info:', error);
     }
@@ -437,6 +580,7 @@ function App() {
   const loadValidators = async () => {
     try {
       const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+      const wtonContract = new ethers.Contract(CONFIG.contracts.wton, WTON_ABI, l1Provider);
 
       const validatorAddrs = await rat.getL2Validators(CONFIG.contracts.systemConfig);
       
@@ -447,6 +591,7 @@ function App() {
           const deposit = await rat.getValidatorDeposit(addr, CONFIG.contracts.systemConfig);
           const available = await rat.getAvailableCollateral(addr, CONFIG.contracts.systemConfig);
           const isActive = await rat.isValidatorActive(addr, CONFIG.contracts.systemConfig);
+          const wtonBal = await wtonContract.balanceOf(addr);
           
           let ratRegistered = false;
           try {
@@ -460,6 +605,7 @@ function App() {
             address: addr,
             deposit: ethers.formatUnits(deposit, 27), // WTON uses ray (1e27)
             available: ethers.formatUnits(available, 27), // WTON uses ray (1e27)
+            wtonBalance: ethers.formatUnits(wtonBal, 27), // WTON balance (27 decimals)
             isActive,
             ratRegistered,
           });
@@ -469,6 +615,14 @@ function App() {
       }
 
       setValidators(validatorList);
+      
+      // Load ValidatorReward contract WTON balance
+      try {
+        const validatorRewardBalance = await wtonContract.balanceOf(CONFIG.contracts.validatorReward);
+        setValidatorRewardWtonBalance(ethers.formatUnits(validatorRewardBalance, 27));
+      } catch (e) {
+        console.error('Failed to load ValidatorReward WTON balance:', e);
+      }
     } catch (error) {
       console.error('Failed to load validators:', error);
       setValidators([]);
@@ -548,6 +702,7 @@ function App() {
 
   const loadL2Info = async () => {
     try {
+      console.log('🔍 loadL2Info: Starting...');
       const systemConfig = new ethers.Contract(
         CONFIG.contracts.systemConfig,
         SYSTEM_CONFIG_ABI,
@@ -561,8 +716,9 @@ function App() {
         const network = await l2Provider.getNetwork();
         l2ChainId = network.chainId.toString();
         l2BlockNumber = (await l2Provider.getBlockNumber()).toString();
+        console.log('🔍 loadL2Info: L2 Chain ID:', l2ChainId, 'Block:', l2BlockNumber);
       } catch (e) {
-        console.log('L2 not available:', e);
+        console.warn('⚠️ L2 not available:', e);
       }
 
       // SystemConfig에서 정보 가져오기
@@ -624,7 +780,7 @@ function App() {
         tonContract.balanceOf(l1Bridge),
       ]);
 
-      setL2Info({
+      const l2Data = {
         l2ChainId,
         l2BlockNumber,
         batcherHash,
@@ -646,9 +802,11 @@ function App() {
         bridgeTonBalance: ethers.formatEther(bridgeTonBal),
         ethLockboxAddress: ethLockboxAddress,
         ethLockboxBalance: ethers.formatEther(ethLockboxBal),
-      });
+      };
+      console.log('✅ loadL2Info: Setting l2Info:', l2Data);
+      setL2Info(l2Data);
     } catch (error) {
-      console.error('Failed to load L2 info:', error);
+      console.error('❌ Failed to load L2 info:', error);
     }
   };
 
@@ -745,7 +903,6 @@ function App() {
         bridgedTon,
         effectiveBridgedTon,
         totalEffectiveBridgedTon,
-        eligibilityInfo,
         claimableAmount,
         isPaused,
         isRegistered,
@@ -762,7 +919,6 @@ function App() {
         layer2Manager.getBridgedTonByLayer(targetLayer2),
         seigManager.getEffectiveBridgedTon(targetLayer2),
         seigManager.totalEffectiveBridgedTON(),
-        seigManager.checkCurrentEligibility(targetLayer2),
         seigManager.claimableL2Seigniorage(targetLayer2),
         seigManager.paused(),
         layer2Registry.layer2s(targetLayer2),
@@ -775,6 +931,14 @@ function App() {
         seigManager.validatorRewardPerUint(),
       ]);
 
+      // checkCurrentEligibility는 별도 처리 (실패할 수 있음)
+      let eligibilityInfo: [boolean, any, any] = [false, 0n, 0n];
+      try {
+        eligibilityInfo = await seigManager.checkCurrentEligibility(targetLayer2);
+      } catch (e: any) {
+        console.warn('checkCurrentEligibility failed (expected for some setups):', e?.message || e);
+      }
+
       // RollupConfig 및 추가 정보 조회
       let rollupConfig = ethers.ZeroAddress;
       let layer2Status = 0;
@@ -785,7 +949,9 @@ function App() {
       let signersMatch = false;
 
       try {
-        rollupConfig = await layer2Manager.getRollupConfig(targetLayer2);
+        // layerInfo returns (rollupConfig, operator)
+        const layerInfo = await layer2Manager.layerInfo(targetLayer2);
+        rollupConfig = layerInfo[0]; // rollupConfig is first return value
         
         if (rollupConfig !== ethers.ZeroAddress) {
           layer2Status = await layer2Manager.statusLayer2(rollupConfig);
@@ -1408,6 +1574,58 @@ function App() {
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="dashboard-grid">
+                  {/* Reload Addresses Button */}
+                  <section className="card">
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                      <h2>🔄 Configuration</h2>
+                      <div style={{display: 'flex', gap: '0.5rem'}}>
+                        <button 
+                          onClick={reloadAddresses} 
+                          disabled={loading}
+                          className="btn btn-small"
+                          style={{padding: '0.5rem 1rem'}}
+                          title="Reload addresses from JSON files and refresh all data"
+                        >
+                          {loading ? '⏳ Reloading...' : '🔄 Reload Config'}
+                        </button>
+                        <button 
+                          onClick={() => window.location.reload()} 
+                          className="btn btn-small"
+                          style={{padding: '0.5rem 1rem', background: '#f44336'}}
+                          title="Full page reload (hard refresh)"
+                        >
+                          🔃 Full Refresh
+                        </button>
+                      </div>
+                    </div>
+                    <div className="info-grid" style={{fontSize: '0.9rem'}}>
+                      <div className="info-item">
+                        <span className="info-label">TON:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.ton}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">WTON:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.wton}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">SeigManager:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.seigManager}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">RAT:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.rat}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">SystemConfig:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.systemConfig}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">DisputeGameFactory:</span>
+                        <span style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{CONFIG.contracts.disputeGameFactory}</span>
+                      </div>
+                    </div>
+                  </section>
+
                   <section className="card">
                     <h2>📡 Node Status</h2>
                     {nodeStatus && (
@@ -1567,7 +1785,39 @@ function App() {
               {activeTab === 'operator' && (
                 <div className="section">
                   <section className="card">
-                    <h2>🎯 Sequencer Information</h2>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                      <h2 style={{margin: 0}}>🎯 Sequencer Information</h2>
+                      <button 
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            // loadOperatorInfo를 먼저 실행하고 결과를 받아옴
+                            await loadOperatorInfo();
+                            
+                            // operatorInfo가 업데이트되길 기다리고 loadSeigniorageInfo 실행
+                            // operatorInfo state가 업데이트되는 시간을 주기 위해 약간 대기
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            await loadL2Info();
+                            
+                            // operatorInfo 체크 후 seigniorage 로드
+                            const opInfo = operatorInfo;
+                            if (opInfo?.candidateAddOn && opInfo.candidateAddOn !== ethers.ZeroAddress) {
+                              await loadSeigniorageInfo(opInfo.candidateAddOn);
+                            }
+                          } catch (error) {
+                            console.error('Refresh failed:', error);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="btn btn-secondary"
+                        disabled={loading}
+                        style={{margin: 0}}
+                      >
+                        {loading ? '🔄 Refreshing...' : '🔄 Refresh Data'}
+                      </button>
+                    </div>
                     {operatorInfo && (
                       <div className="info-list">
                         <div className="info-row">
@@ -1617,14 +1867,12 @@ function App() {
                             )}
                           </span>
                         </div>
-                        {seigniorageInfo && (
-                          <div className="info-row">
-                            <span className="info-label">Bridged TON (B_i):</span>
-                            <span style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#FF9800'}}>
-                              {parseFloat(seigniorageInfo.bridgedTon).toFixed(2)} TON
-                            </span>
-                          </div>
-                        )}
+                        <div className="info-row">
+                          <span className="info-label">Bridged TON (B_i):</span>
+                          <span style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#FF9800'}}>
+                            {seigniorageInfo ? parseFloat(seigniorageInfo.bridgedTon).toFixed(2) : 'Loading...'} TON
+                          </span>
+                        </div>
                         <div className="info-row">
                           <span className="info-label">Minimum Sequencer Stake (D_seq):</span>
                           <span>{parseFloat(sequencerMinStake).toFixed(2)} WTON</span>
@@ -1679,6 +1927,25 @@ function App() {
               {activeTab === 'validators' && (
                 <div className="section">
                   <section className="card">
+                    <h2>💰 Validator Reward Contract</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">ValidatorReward Address:</span>
+                        <code>{CONFIG.contracts.validatorReward}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">ValidatorReward WTON Balance (시뇨리지):</span>
+                        <span className="value-large" style={{color: '#4CAF50', fontWeight: 'bold', fontSize: '1.2rem'}}>
+                          {parseFloat(validatorRewardWtonBalance).toFixed(4)} WTON
+                        </span>
+                      </div>
+                    </div>
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                      이 컨트랙트는 검증자들에게 분배될 시뇨리지를 보관합니다
+                    </small>
+                  </section>
+
+                  <section className="card">
                     <h2>⚙️ Validator Configuration</h2>
                     <div className="info-list">
                       <div className="info-row">
@@ -1725,6 +1992,7 @@ function App() {
                               <th>Address</th>
                               <th>Deposit</th>
                               <th>Available</th>
+                              <th>WTON Balance (시뇨리지)</th>
                               <th>RAT Status</th>
                               <th>Active</th>
                             </tr>
@@ -1735,6 +2003,9 @@ function App() {
                                 <td><code>{formatAddress(val.address)}</code></td>
                                 <td>{parseFloat(val.deposit).toFixed(2)} WTON</td>
                                 <td>{parseFloat(val.available).toFixed(2)} WTON</td>
+                                <td style={{color: '#4CAF50', fontWeight: 'bold'}}>
+                                  {parseFloat(val.wtonBalance).toFixed(4)} WTON
+                                </td>
                                 <td>
                                   <span className={val.ratRegistered ? 'status-success' : 'status-warning'}>
                                     {val.ratRegistered ? '✅ Registered' : '⚠️ Not Registered'}
@@ -2286,11 +2557,11 @@ function App() {
                         </div>
                         <div className="info-row">
                           <span className="info-label">Base Fee Scalar:</span>
-                          <span>{l2Info.basefeeScalar}</span>
+                          <span>{l2Info.basefeeScalar} ({(parseFloat(l2Info.basefeeScalar) / 1000000 * 100).toFixed(4)}%)</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">Blob Base Fee Scalar:</span>
-                          <span>{l2Info.blobbasefeeScalar}</span>
+                          <span>{l2Info.blobbasefeeScalar} ({(parseFloat(l2Info.blobbasefeeScalar) / 1000000 * 100).toFixed(4)}%)</span>
                         </div>
                       </div>
                     )}
@@ -2908,6 +3179,12 @@ function App() {
                             <div className="info-row">
                               <span className="info-label">Claimable Seigniorage (in OperatorManager):</span>
                               <span className="value-large">{parseFloat(seigniorageInfo.operatorManagerBalance).toFixed(4)} WTON</span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">OperatorManager WTON Balance (시뇨리지):</span>
+                              <span className="value-large" style={{color: '#4CAF50', fontWeight: 'bold'}}>
+                                {operatorInfo ? parseFloat(ethers.formatUnits(operatorInfo.operatorManagerWtonBalance, 27)).toFixed(4) : '0.00'} WTON
+                              </span>
                             </div>
                             <div className="info-row">
                               <span className="info-label">OperatorManager.manager():</span>

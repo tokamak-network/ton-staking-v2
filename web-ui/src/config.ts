@@ -24,12 +24,12 @@ export const CONFIG = {
     layer2Registry: '0x05Aa229Aec102f78CE0E852A812a388F076Aa555',
     
     // V3 Components
-    rat: '0xE5BD5bDC03371fB239956dbbF40bD185D6c2ea28',
-    validatorReward: '0x55cb3b67D9E65F0Cf4eABCAC84564a1bE6E3b06A',
+    rat: '0xAd5d57aD9bB17d34Debb88566ab2F5dB879Cc46F',
+    validatorReward: '0x7290f72B5C67052DDE8e6E179F7803c493e90d3f',
     
     // Optimism Stack
-    systemConfig: '0x577AcB7fA48878245a854ba51eD051a5B47cF83f',
-    disputeGameFactory: '0x52d01b38b78b559142b04cc19f5cc50d5c03dbac',
+    systemConfig: '0x696F338fC98A961E7D7E5b9aBeC0aC576394584a',
+    disputeGameFactory: '0x8cABeD669c6A8D01dcdd16d88541330171E516FE',
   },
 };
 
