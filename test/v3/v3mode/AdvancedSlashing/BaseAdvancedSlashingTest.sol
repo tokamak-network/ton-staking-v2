@@ -5,7 +5,6 @@ import "../BasicSlashing/BaseSlashingTest.sol";
 import {console} from "forge-std/console.sol";
 import {MockFaultDisputeGame3} from "../../../../src/mocks/MockFaultDisputeGame3.sol";
 import {MockDisputeGameFactory} from "../../../../src/mocks/MockDisputeGameFactory.sol";
-import {MockWinningChallengerTracker} from "../../../../src/mocks/MockWinningChallengerTracker.sol";
 
 /// @title BaseAdvancedSlashingTest
 /// @notice Base test contract for advanced slashing tests with multi-challenger support
@@ -15,9 +14,6 @@ abstract contract BaseAdvancedSlashingTest is BaseSlashingTest {
     address public challenger3;
     address public challenger4;
     address public challenger5;
-
-    // Winning challenger tracker for external tracking (for MockFaultDisputeGame3)
-    MockWinningChallengerTracker public winningChallengerTracker;
 
     function setUp() public virtual override {
         super.setUp();
@@ -32,9 +28,6 @@ abstract contract BaseAdvancedSlashingTest is BaseSlashingTest {
         vm.label(challenger3, "Challenger3");
         vm.label(challenger4, "Challenger4");
         vm.label(challenger5, "Challenger5");
-
-        // Deploy winning challenger tracker for MockFaultDisputeGame3
-        winningChallengerTracker = new MockWinningChallengerTracker();
     }
 
     /// @notice Setup dispute game with multiple winning challengers
@@ -67,8 +60,7 @@ abstract contract BaseAdvancedSlashingTest is BaseSlashingTest {
         );
 
         game = MockFaultDisputeGame3(address(gameFactory.create(gameType, rootClaim, extraData)));
-        // Initialize with external tracker address
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         // 3. Add challengers
         address[] memory challengers = _getChallengersByCount(numChallengers);
@@ -126,8 +118,7 @@ abstract contract BaseAdvancedSlashingTest is BaseSlashingTest {
         game = MockFaultDisputeGame3(
             address(gameFactory.create(_gameType, _rootClaim, _extraData))
         );
-        // Initialize with external tracker address
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
     }
 
     /// @notice Make challenger win the MockFaultDisputeGame3

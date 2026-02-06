@@ -61,7 +61,7 @@ contract WinnerTrackingTest is BaseAdvancedSlashingTest {
         MockFaultDisputeGame3 game = MockFaultDisputeGame3(
             address(gameFactory.create(gameType, rootClaim, extraData))
         );
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         // Challenger calls step
         vm.prank(challenger);
@@ -150,7 +150,7 @@ contract WinnerTrackingTest is BaseAdvancedSlashingTest {
         MockFaultDisputeGame3 game = MockFaultDisputeGame3(
             address(gameFactory.create(gameType, rootClaim, extraData))
         );
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         // Before any step, should have no winners
         assertEq(game.getWinningChallengersCount(), 0, "Should have 0 winners before step");

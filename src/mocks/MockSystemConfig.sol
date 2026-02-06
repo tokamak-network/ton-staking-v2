@@ -124,6 +124,11 @@ contract MockSystemConfig is Ownable {
         disputeGameFactory = _dispute;
     }
 
+    /// @notice Set the dispute game factory address (for testing - allows overwriting)
+    function setDisputeGameFactory(address _factory) external {
+        disputeGameFactory = _factory;
+    }
+
     /* ========== view ========== */
 
     function l1CrossDomainMessenger() external view returns (address addr_) {

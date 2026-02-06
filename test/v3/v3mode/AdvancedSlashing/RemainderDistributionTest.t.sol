@@ -165,7 +165,7 @@ contract RemainderDistributionTest is BaseAdvancedSlashingTest {
         );
 
         game = MockFaultDisputeGame3(address(gf.create(gameType, rootClaim, extraData)));
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         vm.prank(challenger);
         game.step();
@@ -241,7 +241,7 @@ contract RemainderDistributionTest is BaseAdvancedSlashingTest {
         );
 
         game = MockFaultDisputeGame3(address(gf.create(gameType, rootClaim, extraData)));
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         address[] memory challs = _getChallengersByCount(5);
         vm.prank(challs[0]);

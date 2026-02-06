@@ -18,14 +18,14 @@ import {
 } from "../layer2/lib/LibUDT.sol";
 import {Position, LibPosition} from "../layer2/lib/LibPosition.sol";
 
-/// @title IWinningChallengerTracker
-/// @notice Interface for external winning challenger tracker
-interface IWinningChallengerTracker {
-    function recordWinner(address game, address winner, address gameCreator) external;
-    function getWinningChallengers(address game) external view returns (address[] memory);
-    function getWinningChallengersCount(address game) external view returns (uint256);
-    function isWinningChallenger(address game, address challenger) external view returns (bool);
-}
+// /// @title IWinningChallengerTracker
+// /// @notice Interface for external winning challenger tracker
+// interface IWinningChallengerTracker {
+//     function recordWinner(address game, address winner, address gameCreator) external;
+//     function getWinningChallengers(address game) external view returns (address[] memory);
+//     function getWinningChallengersCount(address game) external view returns (uint256);
+//     function isWinningChallenger(address game, address challenger) external view returns (bool);
+// }
 
 /// @title MockFaultDisputeGame3
 /// @notice More realistic mock that simulates the actual FaultDisputeGame flow
@@ -77,7 +77,7 @@ contract MockFaultDisputeGame3 is IDisputeGame {
 
     // Winning challenger tracking (internal storage for simple tests)
     mapping(address => bool) internal _isWinningChallenger;
-    address[] internal _winningChallengers;
+    address[] public winningChallengers;
 
     // External tracker support (optional, for realistic E2E tests)
     address public winningChallengerTracker;
@@ -285,19 +285,11 @@ contract MockFaultDisputeGame3 is IDisputeGame {
     function _recordWinningChallenger(address _recipient) internal {
         // Exclude game creator (proposer/defender)
         if (_recipient == GAME_CREATOR) return;
-        _winningChallengers.push(_recipient);
+        // Prevent duplicates
+        if (_isWinningChallenger[_recipient]) return;
 
-        // // Use external tracker if available
-        // if (winningChallengerTracker != address(0)) {
-        //     try
-        //         IWinningChallengerTracker(winningChallengerTracker).recordWinner(
-        //             address(this),
-        //             _recipient,
-        //             GAME_CREATOR
-        //         )
-        //     {} catch {}
-        //     return;
-        // }
+        _isWinningChallenger[_recipient] = true;
+        winningChallengers.push(_recipient);
     }
 
     // ============================================
@@ -346,27 +338,27 @@ contract MockFaultDisputeGame3 is IDisputeGame {
         //             address(this)
         //         );
         // }
-        return _winningChallengers;
+        return winningChallengers;
     }
 
     function getWinningChallengersCount() external view returns (uint256) {
-        if (winningChallengerTracker != address(0)) {
-            return
-                IWinningChallengerTracker(winningChallengerTracker).getWinningChallengersCount(
-                    address(this)
-                );
-        }
-        return _winningChallengers.length;
+        // if (winningChallengerTracker != address(0)) {
+        //     return
+        //         IWinningChallengerTracker(winningChallengerTracker).getWinningChallengersCount(
+        //             address(this)
+        //         );
+        // }
+        return winningChallengers.length;
     }
 
     function isWinningChallenger(address _challenger) external view returns (bool) {
-        if (winningChallengerTracker != address(0)) {
-            return
-                IWinningChallengerTracker(winningChallengerTracker).isWinningChallenger(
-                    address(this),
-                    _challenger
-                );
-        }
+        // if (winningChallengerTracker != address(0)) {
+        //     return
+        //         IWinningChallengerTracker(winningChallengerTracker).isWinningChallenger(
+        //             address(this),
+        //             _challenger
+        //         );
+        // }
         return _isWinningChallenger[_challenger];
     }
 

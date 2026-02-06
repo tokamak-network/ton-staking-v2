@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import {MockFaultDisputeGame3} from "../../../../src/mocks/MockFaultDisputeGame3.sol";
 import {MockDisputeGameFactory3} from "../../../../src/mocks/MockDisputeGameFactory3.sol";
-import {MockWinningChallengerTracker} from "../../../../src/mocks/MockWinningChallengerTracker.sol";
 import {GameStatus} from "../../../../src/layer2/lib/Types.sol";
 import {Claim, GameType} from "../../../../src/layer2/lib/LibUDT.sol";
 
@@ -14,7 +13,6 @@ import {Claim, GameType} from "../../../../src/layer2/lib/LibUDT.sol";
 /// @dev Uses MockFaultDisputeGame3 which has move(), step(), resolveClaim()
 contract RealisticGameFlowTest is Test {
     MockDisputeGameFactory3 public factory;
-    MockWinningChallengerTracker public winningChallengerTracker;
 
     address public proposer; // Game creator (defender)
     address public challenger1; // First challenger
@@ -27,7 +25,6 @@ contract RealisticGameFlowTest is Test {
 
     function setUp() public {
         factory = new MockDisputeGameFactory3();
-        winningChallengerTracker = new MockWinningChallengerTracker();
 
         proposer = makeAddr("proposer");
         challenger1 = makeAddr("challenger1");
@@ -298,8 +295,7 @@ contract RealisticGameFlowTest is Test {
             address(factory.create(gameType, rootClaim, extraData))
         );
 
-        // Initialize with external tracker address
-        game.initialize(address(winningChallengerTracker));
+        game.initialize();
 
         return game;
     }
