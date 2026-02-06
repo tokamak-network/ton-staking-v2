@@ -17,14 +17,16 @@ services:
     command:
       - |
         echo "Initializing L2 geth with genesis..."
-        rm -rf /data/geth /data/geth.ipc
+        # Complete cleanup of old data
+        rm -rf /data/geth /data/geth.ipc /data/keystore /data/chaindata
+        # Force clean init
         geth init --datadir=/data /genesis/genesis-l2.json
         exec geth \
           --datadir=/data \
           --http \
           --http.addr=0.0.0.0 \
           --http.port=8545 \
-          --http.api=eth,net,web3,debug,txpool \
+          --http.api=eth,net,web3,debug,txpool,miner \
           --http.corsdomain=* \
           --http.vhosts=* \
           --ws \
@@ -52,7 +54,7 @@ services:
 
   # L2: op-node (Consensus/Rollup Layer)
   l2-node:
-    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.7.0
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.12.0
     platform: linux/amd64
     container_name: ton-staking-l2-node
     depends_on:
@@ -115,6 +117,7 @@ services:
       - OP_BATCHER_NUM_CONFIRMATIONS=1
       - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
       - OP_BATCHER_RESUBMISSION_TIMEOUT=30s
+      - OP_BATCHER_MAX_CHANNEL_DURATION=1
       - OP_BATCHER_LOG_LEVEL=info
       # Anvil account #0 private key
       - OP_BATCHER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
@@ -136,7 +139,7 @@ services:
     environment:
       - OP_PROPOSER_L1_ETH_RPC=http://host.docker.internal:8546
       - OP_PROPOSER_ROLLUP_RPC=http://l2-node:8545
-      - OP_PROPOSER_GAME_FACTORY_ADDRESS=0x52d01b38b78b559142B04CC19F5cC50D5C03dbAc
+      - OP_PROPOSER_GAME_FACTORY_ADDRESS=${DISPUTE_GAME_FACTORY_ADDRESS:-0x52d01b38b78b559142B04CC19F5cC50D5C03dbAc}
       - OP_PROPOSER_POLL_INTERVAL=12s
       - OP_PROPOSER_NUM_CONFIRMATIONS=1
       - OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3

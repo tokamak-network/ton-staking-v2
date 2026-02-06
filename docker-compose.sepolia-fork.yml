@@ -68,7 +68,7 @@ services:
           --http \
           --http.addr=0.0.0.0 \
           --http.port=8545 \
-          --http.api=eth,net,web3,debug,txpool,trace \
+          --http.api=eth,net,web3,debug,txpool,trace,miner \
           --http.corsdomain=* \
           --http.vhosts=* \
           --ws \
@@ -96,7 +96,7 @@ services:
 
   # L2: op-node (Consensus/Rollup Layer)
   l2-node:
-    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.7.0
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.12.0
     platform: linux/amd64
     container_name: ton-staking-l2-node-sepolia-fork
     depends_on:
@@ -154,6 +154,7 @@ services:
       - OP_BATCHER_NUM_CONFIRMATIONS=1
       - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
       - OP_BATCHER_RESUBMISSION_TIMEOUT=30s
+      - OP_BATCHER_MAX_CHANNEL_DURATION=1
       - OP_BATCHER_LOG_LEVEL=info
       - OP_BATCHER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
     command: >
