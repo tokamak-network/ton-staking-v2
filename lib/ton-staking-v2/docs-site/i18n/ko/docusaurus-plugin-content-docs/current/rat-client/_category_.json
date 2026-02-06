@@ -1,8 +1,0 @@
-{
-  "label": "RAT Client",
-  "position": 13,
-  "link": {
-    "type": "generated-index",
-    "description": "Type 3 롤업을 위한 RAT (Randomized Attention Test) Client 구현 및 운영에 대해 알아보세요."
-  }
-}

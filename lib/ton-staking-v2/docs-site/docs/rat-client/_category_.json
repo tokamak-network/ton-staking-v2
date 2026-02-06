@@ -1,8 +1,0 @@
-{
-  "label": "RAT Client",
-  "position": 13,
-  "link": {
-    "type": "generated-index",
-    "description": "Learn about the RAT (Randomized Attention Test) Client implementation and operation for Type 3 rollups."
-  }
-}
