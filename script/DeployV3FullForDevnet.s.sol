@@ -600,7 +600,7 @@ contract DeployV3FullForDevnet is Script {
 
     function _setupSeigManagerV3CoreSelectors() internal {
         // V3 함수 등록 (migration + setters + RAT callbacks)
-        bytes4[] memory s = new bytes4[](17);
+        bytes4[] memory s = new bytes4[](18);
         s[0] = SeigManagerV3_1.setValidatorReward.selector;
         s[1] = SeigManagerV3_1.setV2Logic.selector;
         s[2] = SeigManagerV3_1.migrateToV3.selector;
@@ -615,12 +615,39 @@ contract DeployV3FullForDevnet is Script {
         s[10] = SeigManagerV3_1.setMaxChallengers.selector;
         s[11] = SeigManagerV3_1.setMaxFraudProofCost.selector;
         s[12] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
+        s[13] = SeigManagerV3_1.excludeFromL2Seigniorage.selector;
         // RAT callback functions (CRITICAL for RAT trigger!)
-        s[13] = bytes4(keccak256("ratContract()"));
-        s[14] = SeigManagerV3_1.transferCoinageToRat.selector;
-        s[15] = SeigManagerV3_1.transferCoinageFromRat.selector;
-        s[16] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        s[14] = bytes4(keccak256("ratContract()"));
+        s[15] = SeigManagerV3_1.transferCoinageToRat.selector;
+        s[16] = SeigManagerV3_1.transferCoinageFromRat.selector;
+        s[17] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
+
+        // Register V3 View functions (21 functions - removed duplicate ratContract())
+        bytes4[] memory views = new bytes4[](21);
+        views[0] = SeigManagerV3_1.getEffectiveBridgedTon.selector;
+        views[1] = SeigManagerV3_1.checkCurrentEligibility.selector;
+        views[2] = SeigManagerV3_1.getSequencerStaked.selector;
+        views[3] = SeigManagerV3_1.hyperbolicSaturation.selector;
+        views[4] = SeigManagerV3_1.calculateL2Seigniorage.selector;
+        views[5] = SeigManagerV3_1.calculateSequencerReward.selector;
+        views[6] = SeigManagerV3_1.estimateL2Seigniorage.selector;
+        views[7] = SeigManagerV3_1.claimableL2Seigniorage.selector;
+        views[8] = bytes4(keccak256("daoDistributionRatio()"));
+        views[9] = bytes4(keccak256("halfSaturationPoint()"));
+        views[10] = bytes4(keccak256("totalEffectiveBridgedTON()"));
+        views[11] = bytes4(keccak256("v3MigrationBlock()"));
+        views[12] = bytes4(keccak256("validatorReward()"));
+        views[13] = bytes4(keccak256("minStakingRatio()"));
+        views[14] = bytes4(keccak256("validatorDistributionRatio()"));
+        views[15] = bytes4(keccak256("maxChallengers()"));
+        views[16] = bytes4(keccak256("maxFraudProofCost()"));
+        views[17] = bytes4(keccak256("sequencerAdditionalReward()"));
+        views[18] = bytes4(keccak256("bridgedTONRewardPerUint()"));
+        views[19] = bytes4(keccak256("validatorRewardPerUint()"));
+        views[20] = bytes4(keccak256("bridgedTONInfo(address)"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(views, seigManagerV3_1Impl);
+        console.log("Registered 21 V3 view functions to SeigManager");
     }
 
     // ==========================================
@@ -715,12 +742,19 @@ contract DeployV3FullForDevnet is Script {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
 
+        SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
+        console.log("SeigManager.setL1BridgeRegistry done");
+
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
         // Set RAT contract address in SeigManager (CRITICAL for RAT trigger!)
         SeigManagerV3_1(seigManagerProxy).setRatContract(ratProxy);
         console.log("SeigManager.setRatContract done");
+
+        // Set ValidatorReward in RAT (for O(1) reward distribution)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
+        console.log("RAT.setValidatorReward done");
 
         // Layer2Manager.setAddresses (V3 - 2단계로 분리하여 stack too deep 회피)
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
