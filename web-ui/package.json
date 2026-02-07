@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "bash ../scripts/sync-web-ui-config.sh && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.10",

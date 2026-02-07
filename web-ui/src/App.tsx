@@ -334,9 +334,13 @@ function App() {
     }
   }, [activeTab, explorerView]);
 
-  // Load seigniorage info when operator tab is active
+  // Load seigniorage info when operator or seigniorage tab is active
   useEffect(() => {
-    if (activeTab === 'operator' && operatorInfo?.candidateAddOn && operatorInfo.candidateAddOn !== ethers.ZeroAddress) {
+    if ((activeTab === 'operator' || activeTab === 'seigniorage') && operatorInfo?.candidateAddOn && operatorInfo.candidateAddOn !== ethers.ZeroAddress) {
+      // Auto-populate selectedLayer2 for seigniorage tab
+      if (activeTab === 'seigniorage' && !selectedLayer2) {
+        setSelectedLayer2(operatorInfo.candidateAddOn);
+      }
       loadSeigniorageInfo(operatorInfo.candidateAddOn);
     }
   }, [activeTab, operatorInfo?.candidateAddOn]);
@@ -568,7 +572,7 @@ function App() {
       
       // Load seigniorage info immediately after setting operator info
       if (candidateAddOn && candidateAddOn !== ethers.ZeroAddress) {
-        await loadSeigniorageInfo(candidateAddOn).catch(err => {
+        await loadSeigniorageInfo(candidateAddOn, CONFIG.contracts.systemConfig).catch(err => {
           console.warn('Failed to load seigniorage info in loadOperatorInfo:', err);
         });
       }
@@ -879,13 +883,13 @@ function App() {
     }
   };
 
-  const loadSeigniorageInfo = async (layer2Address?: string) => {
+  const loadSeigniorageInfo = async (layer2Address?: string, knownRollupConfig?: string) => {
     try {
       // Use provided address or selected address or default to candidateAddOn
       const targetLayer2 = layer2Address || selectedLayer2 || operatorInfo?.candidateAddOn;
-      
+
       console.log('Loading seigniorage info for:', targetLayer2);
-      
+
       if (!targetLayer2 || targetLayer2 === ethers.ZeroAddress) {
         console.log('No valid layer2 address');
         setSeigniorageInfo(null);
@@ -949,12 +953,33 @@ function App() {
       let signersMatch = false;
 
       try {
-        // layerInfo returns (rollupConfig, operator)
-        const layerInfo = await layer2Manager.layerInfo(targetLayer2);
-        rollupConfig = layerInfo[0]; // rollupConfig is first return value
-        
+        // Resolve rollupConfig: use provided value, check operatorInfo, or try contract lookup
+        if (knownRollupConfig && knownRollupConfig !== ethers.ZeroAddress) {
+          rollupConfig = knownRollupConfig;
+        } else if (operatorInfo?.candidateAddOn?.toLowerCase() === targetLayer2.toLowerCase()) {
+          rollupConfig = CONFIG.contracts.systemConfig;
+        } else {
+          // Try getRollupConfig (may fail for addresses not in the mapping)
+          try {
+            rollupConfig = await layer2Manager.getRollupConfig(targetLayer2);
+          } catch {
+            // Fallback: check if systemConfig's operator matches this layer2
+            try {
+              const opMgr = await layer2Manager.operatorOfRollupConfig(CONFIG.contracts.systemConfig);
+              if (opMgr !== ethers.ZeroAddress) {
+                const candidateAddr = await layer2Manager.candidateAddOnOfOperator(opMgr);
+                if (candidateAddr.toLowerCase() === targetLayer2.toLowerCase()) {
+                  rollupConfig = CONFIG.contracts.systemConfig;
+                }
+              }
+            } catch {
+              console.warn('Fallback rollupConfig resolution also failed');
+            }
+          }
+        }
+
         if (rollupConfig !== ethers.ZeroAddress) {
-          layer2Status = await layer2Manager.statusLayer2(rollupConfig);
+          layer2Status = Number(await layer2Manager.statusLayer2(rollupConfig));
           
           // OperatorManager 정보 조회
           const operatorManager = await layer2Manager.operatorOfRollupConfig(rollupConfig);
@@ -1007,7 +1032,7 @@ function App() {
         daoDistributionRatio: (Number(daoDistributionRatio) / 1e27 * 100).toFixed(2), // RAY to percentage
         minStakingRatio: (Number(minStakingRatio) / 1e27 * 100).toFixed(2),
         validatorDistributionRatio: (Number(validatorDistributionRatio) / 1e27 * 100).toFixed(2),
-        halfSaturationPoint: ethers.formatEther(halfSaturationPoint), // TON is 18 decimals
+        halfSaturationPoint: ethers.formatUnits(halfSaturationPoint, 27), // WTON 27 decimals (same value as TON)
         bridgedTONRewardPerUint: ethers.formatUnits(bridgedTONRewardPerUint, 27), // WEI_UNIT (27 decimals)
         validatorRewardPerUint: ethers.formatUnits(validatorRewardPerUint, 27),
       };
@@ -3137,6 +3162,70 @@ function App() {
                   {selectedLayer2 && ethers.isAddress(selectedLayer2) && (
                     <>
                       <section className="card">
+                        <h2>🔄 Update Seigniorage</h2>
+                        <p>Trigger seigniorage distribution for this Layer2</p>
+                        {seigniorageInfo?.isPaused ? (
+                          <div className="warning-box">
+                            <p>⚠️ Seigniorage is currently paused. Cannot update until unpaused.</p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="info-list" style={{ marginBottom: '1rem' }}>
+                              <div className="info-row">
+                                <span className="info-label">Blocks Since Last Update:</span>
+                                <span className="badge badge-success">
+                                  {seigniorageInfo ? parseInt(seigniorageInfo.currentBlock) - parseInt(seigniorageInfo.lastSeigBlock) : 0}
+                                </span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Eligible for Distribution:</span>
+                                <span className={seigniorageInfo?.isEligible ? 'status-success' : 'status-error'}>
+                                  {seigniorageInfo?.isEligible ? '✅ Yes' : '❌ No'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="action-form">
+                              <button
+                                onClick={async () => {
+                                  if (!signer) {
+                                    alert('Please connect wallet first');
+                                    return;
+                                  }
+
+                                  try {
+                                    setLoading(true);
+
+                                    const seigManager = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
+                                    const tx = await seigManager.updateSeigniorageLayer(selectedLayer2);
+                                    await tx.wait();
+
+                                    alert('✅ Seigniorage updated successfully!');
+                                    await loadDashboardData();
+                                    if (address) await loadUserBalances(address);
+                                    if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
+                                  } catch (error: any) {
+                                    console.error('Update seigniorage failed:', error);
+                                    alert(`❌ Failed: ${error.message || 'Unknown error'}`);
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }}
+                                disabled={loading || !signer || !selectedLayer2}
+                                className="btn btn-primary"
+                              >
+                                {loading ? '⏳ Updating...' : '🔄 Update Seigniorage'}
+                              </button>
+                            </div>
+                            <small>
+                              {seigniorageInfo?.isEligible
+                                ? 'Trigger seigniorage distribution and claim rewards'
+                                : 'Not eligible - ensure you have sufficient stake and bridged TON'}
+                            </small>
+                          </>
+                        )}
+                      </section>
+
+                      <section className="card">
                         <h2>✅ Layer2 Registration Status</h2>
                         <div className="info-list">
                           <div className="info-row">
@@ -3177,13 +3266,15 @@ function App() {
                               <code>{seigniorageInfo.operatorManagerAddress}</code>
                             </div>
                             <div className="info-row">
-                              <span className="info-label">Claimable Seigniorage (in OperatorManager):</span>
-                              <span className="value-large">{parseFloat(seigniorageInfo.operatorManagerBalance).toFixed(4)} WTON</span>
+                              <span className="info-label">Claimable L2 Seigniorage:</span>
+                              <span className="value-large" style={{color: '#FF9800', fontWeight: 'bold'}}>
+                                {parseFloat(seigniorageInfo.claimableAmount).toFixed(4)} WTON
+                              </span>
                             </div>
                             <div className="info-row">
                               <span className="info-label">OperatorManager WTON Balance (시뇨리지):</span>
                               <span className="value-large" style={{color: '#4CAF50', fontWeight: 'bold'}}>
-                                {operatorInfo ? parseFloat(ethers.formatUnits(operatorInfo.operatorManagerWtonBalance, 27)).toFixed(4) : '0.00'} WTON
+                                {parseFloat(seigniorageInfo.operatorManagerBalance).toFixed(4)} WTON
                               </span>
                             </div>
                             <div className="info-row">
@@ -3253,6 +3344,92 @@ function App() {
                       </section>
 
                       <section className="card">
+                        <h2>🔧 Modify Seigniorage Parameters</h2>
+                        <p style={{fontSize: '0.85rem', color: '#666', marginBottom: '1rem'}}>SeigManager owner only (DAO or deployer)</p>
+                        <div className="info-list">
+                          <div className="info-row" style={{flexWrap: 'wrap', gap: '0.5rem'}}>
+                            <span className="info-label" style={{minWidth: '200px'}}>Half Saturation Point (k):</span>
+                            <div className="action-form" style={{flex: 1, marginBottom: 0}}>
+                              <input type="text" placeholder="TON amount (e.g. 10000)" className="input" id="param-halfSaturationPoint" style={{fontFamily: 'monospace', maxWidth: '200px'}} />
+                              <button className="btn btn-primary" disabled={loading || !signer} onClick={async () => {
+                                const val = (document.getElementById('param-halfSaturationPoint') as HTMLInputElement).value.trim();
+                                if (!val || isNaN(Number(val))) { alert('Enter a valid number (TON)'); return; }
+                                try {
+                                  setLoading(true);
+                                  const seig = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
+                                  const tx = await seig.setHalfSaturationPoint(ethers.parseUnits(val, 27));
+                                  await tx.wait();
+                                  alert('Half Saturation Point updated!');
+                                  if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
+                                } catch (e: any) { alert(`Failed: ${e.message || e}`); }
+                                finally { setLoading(false); }
+                              }}>{loading ? '...' : 'Set'}</button>
+                            </div>
+                          </div>
+                          <div className="info-row" style={{flexWrap: 'wrap', gap: '0.5rem'}}>
+                            <span className="info-label" style={{minWidth: '200px'}}>DAO Distribution Ratio (%):</span>
+                            <div className="action-form" style={{flex: 1, marginBottom: 0}}>
+                              <input type="text" placeholder="% (e.g. 20)" className="input" id="param-daoRatio" style={{fontFamily: 'monospace', maxWidth: '200px'}} />
+                              <button className="btn btn-primary" disabled={loading || !signer} onClick={async () => {
+                                const val = (document.getElementById('param-daoRatio') as HTMLInputElement).value.trim();
+                                if (!val || isNaN(Number(val)) || Number(val) > 100) { alert('Enter 0-100'); return; }
+                                try {
+                                  setLoading(true);
+                                  const seig = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
+                                  const ray = BigInt(Math.round(Number(val) * 1e25)) * 100n;
+                                  const tx = await seig.setDaoDistributionRatio(ray);
+                                  await tx.wait();
+                                  alert('DAO Distribution Ratio updated!');
+                                  if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
+                                } catch (e: any) { alert(`Failed: ${e.message || e}`); }
+                                finally { setLoading(false); }
+                              }}>{loading ? '...' : 'Set'}</button>
+                            </div>
+                          </div>
+                          <div className="info-row" style={{flexWrap: 'wrap', gap: '0.5rem'}}>
+                            <span className="info-label" style={{minWidth: '200px'}}>Min Staking Ratio (%):</span>
+                            <div className="action-form" style={{flex: 1, marginBottom: 0}}>
+                              <input type="text" placeholder="% (e.g. 10)" className="input" id="param-minStaking" style={{fontFamily: 'monospace', maxWidth: '200px'}} />
+                              <button className="btn btn-primary" disabled={loading || !signer} onClick={async () => {
+                                const val = (document.getElementById('param-minStaking') as HTMLInputElement).value.trim();
+                                if (!val || isNaN(Number(val)) || Number(val) > 100) { alert('Enter 0-100'); return; }
+                                try {
+                                  setLoading(true);
+                                  const seig = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
+                                  const ray = BigInt(Math.round(Number(val) * 1e25)) * 100n;
+                                  const tx = await seig.setMinStakingRatio(ray);
+                                  await tx.wait();
+                                  alert('Min Staking Ratio updated!');
+                                  if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
+                                } catch (e: any) { alert(`Failed: ${e.message || e}`); }
+                                finally { setLoading(false); }
+                              }}>{loading ? '...' : 'Set'}</button>
+                            </div>
+                          </div>
+                          <div className="info-row" style={{flexWrap: 'wrap', gap: '0.5rem'}}>
+                            <span className="info-label" style={{minWidth: '200px'}}>Validator Distribution Ratio (%):</span>
+                            <div className="action-form" style={{flex: 1, marginBottom: 0}}>
+                              <input type="text" placeholder="% (e.g. 20)" className="input" id="param-valRatio" style={{fontFamily: 'monospace', maxWidth: '200px'}} />
+                              <button className="btn btn-primary" disabled={loading || !signer} onClick={async () => {
+                                const val = (document.getElementById('param-valRatio') as HTMLInputElement).value.trim();
+                                if (!val || isNaN(Number(val)) || Number(val) > 100) { alert('Enter 0-100'); return; }
+                                try {
+                                  setLoading(true);
+                                  const seig = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
+                                  const ray = BigInt(Math.round(Number(val) * 1e25)) * 100n;
+                                  const tx = await seig.setValidatorDistributionRatio(ray);
+                                  await tx.wait();
+                                  alert('Validator Distribution Ratio updated!');
+                                  if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
+                                } catch (e: any) { alert(`Failed: ${e.message || e}`); }
+                                finally { setLoading(false); }
+                              }}>{loading ? '...' : 'Set'}</button>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="card">
                         <h2>💰 Seigniorage Update History</h2>
                         {seigniorageInfo ? (
                           <>
@@ -3273,12 +3450,129 @@ function App() {
                                   {parseInt(seigniorageInfo.currentBlock) - parseInt(seigniorageInfo.lastSeigBlock)} blocks
                                 </span>
                               </div>
-                              <div className="info-row">
-                                <span className="info-label">Estimated Pending Seigniorage:</span>
-                                <span className="value-large">
-                                  {((parseInt(seigniorageInfo.currentBlock) - parseInt(seigniorageInfo.lastSeigBlock)) * parseFloat(seigniorageInfo.seigPerBlock) * (1 - parseFloat(seigniorageInfo.daoDistributionRatio) / 100)).toFixed(4)} WTON
-                                </span>
-                              </div>
+                              {(() => {
+                                const span = parseInt(seigniorageInfo.currentBlock) - parseInt(seigniorageInfo.lastSeigBlock);
+                                const seigPerBlock = parseFloat(seigniorageInfo.seigPerBlock);
+                                const daoRatio = parseFloat(seigniorageInfo.daoDistributionRatio) / 100;
+                                const valRatio = parseFloat(seigniorageInfo.validatorDistributionRatio) / 100;
+                                const A = span * seigPerBlock;
+                                const sDao = A * daoRatio;
+                                const L = A - sDao;
+                                const k = parseFloat(seigniorageInfo.halfSaturationPoint);
+                                const totalEffective = parseFloat(seigniorageInfo.totalEffectiveBridgedTon);
+                                const thisEffective = parseFloat(seigniorageInfo.effectiveBridgedTon);
+                                const y = totalEffective > 0 ? (L * totalEffective) / (k + totalEffective) : 0;
+                                const unallocated = L - y;
+                                const thisShare = totalEffective > 0 ? (y * thisEffective) / totalEffective : 0;
+                                const seqReward = thisShare * (1 - valRatio);
+                                const valReward = thisShare * valRatio;
+                                return (
+                                  <>
+                                    <div style={{ backgroundColor: 'var(--card-bg, #f8f9fa)', border: '1px solid var(--border, #dee2e6)', borderRadius: '8px', padding: '1rem', marginBottom: '0.5rem' }}>
+                                      <strong style={{ fontSize: '0.95rem' }}>Step 1: Total Seigniorage (A)</strong>
+                                      <div className="info-list" style={{ marginTop: '0.5rem' }}>
+                                        <div className="info-row">
+                                          <span className="info-label">span (blocks):</span>
+                                          <span>{span}</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">seigPerBlock:</span>
+                                          <span>{seigPerBlock.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">A = span x seigPerBlock:</span>
+                                          <span style={{ fontWeight: 'bold' }}>{A.toFixed(4)} WTON</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ backgroundColor: 'var(--card-bg, #f8f9fa)', border: '1px solid var(--border, #dee2e6)', borderRadius: '8px', padding: '1rem', marginBottom: '0.5rem' }}>
+                                      <strong style={{ fontSize: '0.95rem' }}>Step 2: DAO Distribution</strong>
+                                      <div className="info-list" style={{ marginTop: '0.5rem' }}>
+                                        <div className="info-row">
+                                          <span className="info-label">daoDistributionRatio (d):</span>
+                                          <span>{seigniorageInfo.daoDistributionRatio}%</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">sDao = A x d:</span>
+                                          <span>{sDao.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">L = A - sDao (L2 Pool):</span>
+                                          <span style={{ fontWeight: 'bold' }}>{L.toFixed(4)} WTON</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ backgroundColor: 'var(--card-bg, #f8f9fa)', border: '1px solid var(--border, #dee2e6)', borderRadius: '8px', padding: '1rem', marginBottom: '0.5rem' }}>
+                                      <strong style={{ fontSize: '0.95rem' }}>Step 3: Hyperbolic Saturation y = L x X / (k + X)</strong>
+                                      <div className="info-list" style={{ marginTop: '0.5rem' }}>
+                                        <div className="info-row">
+                                          <span className="info-label">X (totalEffectiveBridgedTON):</span>
+                                          <span>{totalEffective.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">k (halfSaturationPoint):</span>
+                                          <span>{k.toLocaleString()} TON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">y = L x X / (k + X):</span>
+                                          <span style={{ fontWeight: 'bold' }}>{y.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">Saturation Rate (y / L):</span>
+                                          <span>{L > 0 ? ((y / L) * 100).toFixed(2) : '0'}%</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">Unallocated (L - y, staker reward):</span>
+                                          <span>{unallocated.toFixed(4)} WTON</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ backgroundColor: 'var(--card-bg, #f8f9fa)', border: '1px solid var(--border, #dee2e6)', borderRadius: '8px', padding: '1rem', marginBottom: '0.5rem' }}>
+                                      <strong style={{ fontSize: '0.95rem' }}>Step 4: This L2 Share</strong>
+                                      <div className="info-list" style={{ marginTop: '0.5rem' }}>
+                                        <div className="info-row">
+                                          <span className="info-label">This L2 effectiveBridgedTON:</span>
+                                          <span>{thisEffective.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">Share = y x thisEffective / totalEffective:</span>
+                                          <span style={{ fontWeight: 'bold' }}>{thisShare.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">validatorDistributionRatio:</span>
+                                          <span>{seigniorageInfo.validatorDistributionRatio}%</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">Sequencer Reward = share x (1 - valRatio):</span>
+                                          <span style={{ color: '#2196F3', fontWeight: 'bold' }}>{seqReward.toFixed(4)} WTON</span>
+                                        </div>
+                                        <div className="info-row">
+                                          <span className="info-label">Validator Reward = share x valRatio:</span>
+                                          <span style={{ color: '#9C27B0', fontWeight: 'bold' }}>{valReward.toFixed(4)} WTON</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ backgroundColor: '#fff3e0', border: '1px solid #FFB74D', borderRadius: '8px', padding: '1rem', marginBottom: '0.5rem' }}>
+                                      <strong style={{ fontSize: '0.95rem' }}>Claimable L2 Seigniorage (from contract):</strong>
+                                      <div className="info-list" style={{ marginTop: '0.5rem' }}>
+                                        <div className="info-row">
+                                          <span className="info-label">claimableL2Seigniorage(layer2):</span>
+                                          <span className="value-large" style={{color: '#FF9800', fontWeight: 'bold'}}>
+                                            {parseFloat(seigniorageInfo.claimableAmount).toFixed(4)} WTON
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <small style={{ display: 'block', color: 'var(--text-light)', marginTop: '0.3rem', lineHeight: '1.5' }}>
+                                        Contract view function. Step 4의 계산과 일치해야 합니다. 차이가 있으면 이미 claim된 보상이나 eligibility 변경 때문일 수 있습니다.
+                                      </small>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                               <div className="info-row">
                                 <span className="info-label">System Paused:</span>
                                 <span className={seigniorageInfo.isPaused ? 'status-error' : 'status-success'}>
@@ -3333,7 +3627,7 @@ function App() {
                         {seigniorageInfo ? (
                           <div className="info-list" style={{ marginBottom: '1rem' }}>
                             <div className="info-row">
-                              <span className="info-label">Bridged TON (Portal Balance):</span>
+                              <span className="info-label">Bridged TON:</span>
                               <span className="value-large">{parseFloat(seigniorageInfo.bridgedTon).toFixed(4)} TON</span>
                             </div>
                             <div className="info-row">
@@ -3437,69 +3731,6 @@ function App() {
                         )}
                       </section>
 
-                      <section className="card">
-                        <h2>🔄 Update Seigniorage</h2>
-                        <p>Trigger seigniorage distribution for this Layer2</p>
-                        {seigniorageInfo?.isPaused ? (
-                          <div className="warning-box">
-                            <p>⚠️ Seigniorage is currently paused. Cannot update until unpaused.</p>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="info-list" style={{ marginBottom: '1rem' }}>
-                              <div className="info-row">
-                                <span className="info-label">Blocks Since Last Update:</span>
-                                <span className="badge badge-success">
-                                  {seigniorageInfo ? parseInt(seigniorageInfo.currentBlock) - parseInt(seigniorageInfo.lastSeigBlock) : 0}
-                                </span>
-                              </div>
-                              <div className="info-row">
-                                <span className="info-label">Eligible for Distribution:</span>
-                                <span className={seigniorageInfo?.isEligible ? 'status-success' : 'status-error'}>
-                                  {seigniorageInfo?.isEligible ? '✅ Yes' : '❌ No'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="action-form">
-                              <button
-                                onClick={async () => {
-                                  if (!signer) {
-                                    alert('Please connect wallet first');
-                                    return;
-                                  }
-                                  
-                                  try {
-                                    setLoading(true);
-                                    
-                                    const seigManager = new ethers.Contract(CONFIG.contracts.seigManager, SEIG_MANAGER_ABI, signer);
-                                    const tx = await seigManager.updateSeigniorage();
-                                    await tx.wait();
-                                    
-                                    alert('✅ Seigniorage updated successfully!');
-                                    await loadDashboardData();
-                                    if (address) await loadUserBalances(address);
-                                    if (selectedLayer2) await loadSeigniorageInfo(selectedLayer2);
-                                  } catch (error: any) {
-                                    console.error('Update seigniorage failed:', error);
-                                    alert(`❌ Failed: ${error.message || 'Unknown error'}`);
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }}
-                                disabled={loading || !signer || !selectedLayer2}
-                                className="btn btn-primary"
-                              >
-                                {loading ? '⏳ Updating...' : '🔄 Update Seigniorage'}
-                              </button>
-                            </div>
-                            <small>
-                              {seigniorageInfo?.isEligible 
-                                ? 'Trigger seigniorage distribution and claim rewards' 
-                                : 'Not eligible - ensure you have sufficient stake and bridged TON'}
-                            </small>
-                          </>
-                        )}
-                      </section>
                     </>
                   )}
                 </div>

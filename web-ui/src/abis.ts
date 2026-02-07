@@ -28,6 +28,7 @@ export const SEIG_MANAGER_ABI = [
   'function minimumAmount() view returns (uint256)',
   'function claimableL2Seigniorage(address layer2) view returns (uint256)',
   'function updateSeigniorage() returns (bool)',
+  'function updateSeigniorageLayer(address layer2) returns (bool)',
   'function lastSeigBlock() view returns (uint256)',
   'function paused() view returns (bool)',
   
@@ -42,6 +43,12 @@ export const SEIG_MANAGER_ABI = [
   'function validatorRewardPerUint() view returns (uint256)',
   'function seigPerBlock() view returns (uint256)',
   'function halfSaturationPoint() view returns (uint256)',
+
+  // V3 Setter Functions (onlyOwner)
+  'function setHalfSaturationPoint(uint256 k)',
+  'function setDaoDistributionRatio(uint256 ratio)',
+  'function setMinStakingRatio(uint256 ratio)',
+  'function setValidatorDistributionRatio(uint256 ratio)',
 ];
 
 export const DEPOSIT_MANAGER_ABI = [
