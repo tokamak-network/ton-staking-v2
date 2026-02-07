@@ -843,12 +843,14 @@ MIN_STAKE="1001000000000000000000"
 
 # --- Step 8.1: Check if rollup types are registered ---
 echo "  Checking rollup type registration..."
-TYPE3_BRIDGE_GETTER=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,uint8,string)" 3 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
+TYPE3_BRIDGE_GETTER=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,bytes4,uint8,string,bool)" 3 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
 
 # Desired configuration for Type 3
 DESIRED_BRIDGE_GETTER="0x078f29cf"     # l1StandardBridge()
-DESIRED_TVL_GETTER="0x078f29cf"        # l1StandardBridge()
+DESIRED_TVL_GETTER="0x078f29cf"        # l1StandardBridge() - TON은 ERC20이라 bridge에 lock됨
 DESIRED_DISPUTE_GETTER="0xf2b4e617"    # disputeGameFactory()
+DESIRED_SEIGNOTIFIER_GETTER="0x0a49cb03"        # optimismPortal()
+DESIRED_BRIDGE_PATTERN="0"                        # BRIDGE_PATTERN_ERC20
 
 if [ -z "$TYPE3_BRIDGE_GETTER" ] || [ "$TYPE3_BRIDGE_GETTER" = "0x00000000" ]; then
     echo "  Registering rollup types..."
@@ -859,20 +861,20 @@ if [ -z "$TYPE3_BRIDGE_GETTER" ] || [ "$TYPE3_BRIDGE_GETTER" = "0x00000000" ]; t
 
     # Type 1: Optimism Legacy
     cast send "$L1_BRIDGE_REGISTRY" \
-        "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-        1 "Optimism Legacy" 0x078f29cf 0x078f29cf 0x00000000 0 false \
+        "addRollupType(uint8,string,bytes4,bytes4,bytes4,bytes4,uint8,bool)" \
+        1 "Optimism Legacy" 0x078f29cf 0x078f29cf 0x00000000 0x00000000 0 false \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
 
     # Type 2: Optimism Bedrock
     cast send "$L1_BRIDGE_REGISTRY" \
-        "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-        2 "Optimism Bedrock" 0x078f29cf 0x0a49cb03 0x00000000 1 false \
+        "addRollupType(uint8,string,bytes4,bytes4,bytes4,bytes4,uint8,bool)" \
+        2 "Optimism Bedrock" 0x078f29cf 0x0a49cb03 0x00000000 0x00000000 0 false \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
 
     # Type 3: Optimism Bedrock DisputeGame (V3 eligible)
     cast send "$L1_BRIDGE_REGISTRY" \
-        "addRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-        3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" 1 true \
+        "addRollupType(uint8,string,bytes4,bytes4,bytes4,bytes4,uint8,bool)" \
+        3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" "$DESIRED_SEIGNOTIFIER_GETTER" "$DESIRED_BRIDGE_PATTERN" true \
         --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1 || true
 
     echo -e "${GREEN}  ✓ Rollup types registered${NC}"
@@ -881,23 +883,27 @@ else
 
     # Check if Type 3 configuration matches desired values
     echo "  Verifying Type 3 configuration..."
-    CURRENT_CONFIG=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,uint8,string)" 3 --rpc-url "$RPC" 2>/dev/null)
+    CURRENT_CONFIG=$(cast call "$L1_BRIDGE_REGISTRY" "rollupTypeConfig(uint8)(bytes4,bytes4,bytes4,bytes4,uint8,string,bool)" 3 --rpc-url "$RPC" 2>/dev/null)
     CURRENT_BRIDGE_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '1p' | tr -d '[:space:]')
     CURRENT_TVL_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '2p' | tr -d '[:space:]')
     CURRENT_DISPUTE_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '3p' | tr -d '[:space:]')
+    CURRENT_SEIGNOTIFIER_GETTER=$(echo "$CURRENT_CONFIG" | sed -n '4p' | tr -d '[:space:]')
+    CURRENT_BRIDGE_PATTERN=$(echo "$CURRENT_CONFIG" | sed -n '5p' | tr -d '[:space:]')
 
-    if [ "$CURRENT_TVL_GETTER" != "$DESIRED_TVL_GETTER" ] || \
-       [ "$CURRENT_BRIDGE_GETTER" != "$DESIRED_BRIDGE_GETTER" ] || \
-       [ "$CURRENT_DISPUTE_GETTER" != "$DESIRED_DISPUTE_GETTER" ]; then
+    if [ "$CURRENT_BRIDGE_GETTER" != "$DESIRED_BRIDGE_GETTER" ] || \
+       [ "$CURRENT_TVL_GETTER" != "$DESIRED_TVL_GETTER" ] || \
+       [ "$CURRENT_DISPUTE_GETTER" != "$DESIRED_DISPUTE_GETTER" ] || \
+       [ "$CURRENT_SEIGNOTIFIER_GETTER" != "$DESIRED_SEIGNOTIFIER_GETTER" ] || \
+       [ "$CURRENT_BRIDGE_PATTERN" != "$DESIRED_BRIDGE_PATTERN" ]; then
         echo -e "${YELLOW}  ⚠ Type 3 configuration mismatch detected${NC}"
-        echo "    Current: bridge=$CURRENT_BRIDGE_GETTER, tvl=$CURRENT_TVL_GETTER, dispute=$CURRENT_DISPUTE_GETTER"
-        echo "    Desired: bridge=$DESIRED_BRIDGE_GETTER, tvl=$DESIRED_TVL_GETTER, dispute=$DESIRED_DISPUTE_GETTER"
+        echo "    Current: bridge=$CURRENT_BRIDGE_GETTER, tvl=$CURRENT_TVL_GETTER, dispute=$CURRENT_DISPUTE_GETTER, seigNotifier=$CURRENT_SEIGNOTIFIER_GETTER, pattern=$CURRENT_BRIDGE_PATTERN"
+        echo "    Desired: bridge=$DESIRED_BRIDGE_GETTER, tvl=$DESIRED_TVL_GETTER, dispute=$DESIRED_DISPUTE_GETTER, seigNotifier=$DESIRED_SEIGNOTIFIER_GETTER, pattern=$DESIRED_BRIDGE_PATTERN"
         echo "  Updating Type 3 configuration..."
 
         # Update rollup type configuration
         cast send "$L1_BRIDGE_REGISTRY" \
-            "updateRollupType(uint8,string,bytes4,bytes4,bytes4,uint8,bool)" \
-            3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" 1 true \
+            "updateRollupType(uint8,string,bytes4,bytes4,bytes4,bytes4,uint8,bool)" \
+            3 "Optimism Bedrock DisputeGame" "$DESIRED_BRIDGE_GETTER" "$DESIRED_TVL_GETTER" "$DESIRED_DISPUTE_GETTER" "$DESIRED_SEIGNOTIFIER_GETTER" "$DESIRED_BRIDGE_PATTERN" true \
             --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
 
         if [ $? -eq 0 ]; then
@@ -1111,10 +1117,10 @@ DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 SEIG_ADDR=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
 
 # Read actual TON totalSupply and convert to WTON (27 decimals) = TON * 1e9
-TON_TOTAL_SUPPLY=$(cast call "$TON_ADDR" "totalSupply()(uint256)" --rpc-url "$RPC" 2>/dev/null)
+TON_TOTAL_SUPPLY=$(cast call "$TON_ADDR" "totalSupply()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
 # Convert TON (18 decimals) to WTON (27 decimals): multiply by 1e9
-INITIAL_TOTAL_SUPPLY=$(python3 -c "print(int($TON_TOTAL_SUPPLY) * 10**9)")
-echo "  TON totalSupply: $TON_TOTAL_SUPPLY ($(python3 -c "print(int($TON_TOTAL_SUPPLY) / 10**18)") TON)"
+INITIAL_TOTAL_SUPPLY=$(python3 -c "print(int('$TON_TOTAL_SUPPLY') * 10**9)")
+echo "  TON totalSupply: $TON_TOTAL_SUPPLY ($(python3 -c "print(int('$TON_TOTAL_SUPPLY') / 10**18)") TON)"
 echo "  initialTotalSupply (WTON): $INITIAL_TOTAL_SUPPLY"
 
 # Set seigStartBlock to current block
@@ -1132,6 +1138,45 @@ echo -e "${GREEN}  ✓ initialTotalSupply set from actual TON totalSupply${NC}"
 cast send "$SEIG_ADDR" "setBurntAmountAtDAO(uint256)" "1" \
     --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
 echo -e "${GREEN}  ✓ burntAmountAtDAO set to 1${NC}"
+echo ""
+
+# =============================================================================
+# Step 16: Initialize Optimism Contracts for TON Staking V3
+# =============================================================================
+echo -e "${YELLOW}Step 16: Initializing Optimism contracts for TON Staking V3...${NC}"
+
+SEIG_MANAGER_PROXY=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
+RAT_PROXY=$(jq -r '.ratProxy' "$DEVNET_DIR/addresses.json")
+OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy' "$DEVNET_DIR/optimism-addresses.json")
+DISPUTE_GAME_FACTORY=$(jq -r '.DisputeGameFactoryProxy' "$DEVNET_DIR/optimism-addresses.json")
+SYSTEM_CONFIG_ADDR=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
+
+# --- 16.1: OptimismPortal2.setSeigManager() ---
+# Requires proxyAdminOwner - read from contract, then impersonate on Anvil
+PORTAL_ADMIN_OWNER=$(cast call "$OPTIMISM_PORTAL" "proxyAdminOwner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+echo "  OptimismPortal proxyAdminOwner: $PORTAL_ADMIN_OWNER"
+
+cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+cast send "$OPTIMISM_PORTAL" "setSeigManager(address)" "$SEIG_MANAGER_PROXY" \
+    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+echo -e "${GREEN}  ✓ OptimismPortal2.setSeigManager set to $SEIG_MANAGER_PROXY${NC}"
+
+# --- 16.2: DisputeGameFactory.setRAT() ---
+DGF_OWNER=$(cast call "$DISPUTE_GAME_FACTORY" "owner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+echo "  DisputeGameFactory owner: $DGF_OWNER"
+
+cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+cast send "$DISPUTE_GAME_FACTORY" "setRAT(address)" "$RAT_PROXY" \
+    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+echo -e "${GREEN}  ✓ DisputeGameFactory.setRAT set to $RAT_PROXY${NC}"
+
+# --- 16.3: DisputeGameFactory.setSystemConfig() ---
+cast send "$DISPUTE_GAME_FACTORY" "setSystemConfig(address)" "$SYSTEM_CONFIG_ADDR" \
+    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+echo -e "${GREEN}  ✓ DisputeGameFactory.setSystemConfig set to $SYSTEM_CONFIG_ADDR${NC}"
+
 echo ""
 
 # =============================================================================
