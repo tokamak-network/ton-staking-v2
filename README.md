@@ -172,13 +172,13 @@ For testing with Sepolia testnet state:
 ./scripts/generate-optimism-allocs-new.sh
 cp scripts/config/optimism-allocs-l1-new.json scripts/config/optimism-allocs-l1.json
 cp scripts/config/optimism-addresses-new.json scripts/config/optimism-addresses.json
-cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json
+cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json
 
 # 2. Start Sepolia fork devnet
-./scripts/local/start-sepolia-fork.sh
+./scripts/local/start-dev.sh
 
 # 3. Stop devnet
-./scripts/local/stop-sepolia-fork.sh
+./scripts/local/stop-dev.sh
 ```
 
 **📖 See detailed guide:** [Local Devnet (Sepolia Fork)](./scripts/local/README.md)

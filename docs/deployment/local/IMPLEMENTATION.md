@@ -699,7 +699,7 @@ cast rpc anvil_setNonce "$addr" "$nonce" --rpc-url $RPC
 
 ```bash
 # 1. 데브넷 시작 (L1 + L2 + RAT Clients + L2 등록 전체 자동화)
-./scripts/local/start-sepolia-fork.sh
+./scripts/local/start-dev.sh
 
 # 2. 상태 확인
 docker ps --filter "name=ton-staking"   # 컨테이너 상태 (7개)
@@ -722,7 +722,7 @@ cd web-ui && npm install && npm run dev
 # http://localhost:5173 접속
 
 # 6. 종료
-./scripts/local/stop-sepolia-fork.sh
+./scripts/local/stop-dev.sh
 ```
 
 ### 시작 스크립트가 수행하는 작업
@@ -1199,7 +1199,7 @@ cast call $RAT "getValidatorRegistration(address,address)(uint256,uint32,bool)" 
 ./scripts/generate-allocs-offline.sh
 
 # 2. Sepolia Fork 데브넷 시작
-./scripts/local/start-sepolia-fork.sh
+./scripts/local/start-dev.sh
 
 # 3. 상태 확인
 cast block-number --rpc-url http://localhost:8545  # L1
@@ -1214,7 +1214,7 @@ tail -f /tmp/anvil.log           # L1
 docker logs -f ton-staking-l2-node  # L2
 
 # 6. 종료
-./scripts/local/stop-sepolia-fork.sh
+./scripts/local/stop-dev.sh
 ```
 
 ## 상세 시작 절차
@@ -1385,8 +1385,8 @@ ton-staking-v2/
 ├── docker-compose.l2-only.yml            # ★ L2 서비스 (op-geth, op-node, batcher, proposer)
 │
 ├── scripts/local/
-│   ├── start-sepolia-fork.sh             # ★ 시작 스크립트 (권장)
-│   ├── stop-sepolia-fork.sh              # ★ 종료 스크립트
+│   ├── start-dev.sh             # ★ 시작 스크립트 (권장)
+│   ├── stop-dev.sh              # ★ 종료 스크립트
 │   ├── start-devnet.sh                   # Geth Clique용 (레거시)
 │   └── stop-devnet.sh                    # Geth Clique용 (레거시)
 │

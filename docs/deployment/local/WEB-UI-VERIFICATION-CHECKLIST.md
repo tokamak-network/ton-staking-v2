@@ -138,7 +138,7 @@ cast call $LAYER2_MANAGER "rollupConfigInfo(address)" $SYSTEM_CONFIG --rpc-url h
 
 ### ✅ Validator 자동 등록 (Step 10에서 완료)
 
-`start-sepolia-fork.sh` 스크립트의 **Step 10**에서 3명의 Validator가 자동으로 등록됩니다.
+`start-dev.sh` 스크립트의 **Step 10**에서 3명의 Validator가 자동으로 등록됩니다.
 
 | 역할 | 주소 | Anvil 계정 | Private Key |
 |------|------|------------|-------------|

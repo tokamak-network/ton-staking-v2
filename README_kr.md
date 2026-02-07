@@ -172,13 +172,13 @@ Sepolia 테스트넷 상태로 테스트하려면:
 ./scripts/generate-optimism-allocs-new.sh
 cp scripts/config/optimism-allocs-l1-new.json scripts/config/optimism-allocs-l1.json
 cp scripts/config/optimism-addresses-new.json scripts/config/optimism-addresses.json
-cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json
+cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json
 
 # 2. Sepolia fork devnet 시작
-./scripts/local/start-sepolia-fork.sh
+./scripts/local/start-dev.sh
 
 # 3. Devnet 중지
-./scripts/local/stop-sepolia-fork.sh
+./scripts/local/stop-dev.sh
 ```
 
 **📖 상세 가이드:** [로컬 Devnet (Sepolia Fork)](./scripts/local/README.md)

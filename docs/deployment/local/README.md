@@ -155,7 +155,7 @@ Private Key는 Anvil 기본 키를 사용합니다. [빠른 시작 가이드](./
 - Web UI 대시보드 사용
 
 ### 📋 자동 설정 항목
-시작 스크립트(`start-sepolia-fork.sh`)에서 자동으로 설정됩니다:
+시작 스크립트(`start-dev.sh`)에서 자동으로 설정됩니다:
 - L2 롤업 등록 (Type 3: Optimism Bedrock DisputeGame)
 - Validator 3명 등록 및 담보금 예치
 - RAT 파라미터 구성 (slashingPenalty, evidenceSubmissionPeriod 등)

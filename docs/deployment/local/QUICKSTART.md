@@ -114,7 +114,7 @@ Sepolia Fork를 사용하는 L1과 Optimism L2 환경을 시작합니다.
 
 ```bash
 # Sepolia Fork 모드 시작 (권장)
-./scripts/local/start-sepolia-fork.sh
+./scripts/local/start-dev.sh
 ```
 
 **실행되는 서비스**:
@@ -150,7 +150,7 @@ cast chain-id --rpc-url http://localhost:9545
 
 **종료**:
 ```bash
-./scripts/local/stop-sepolia-fork.sh
+./scripts/local/stop-dev.sh
 ```
 
 **L2 Debug API 확인**:

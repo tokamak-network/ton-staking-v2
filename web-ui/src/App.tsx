@@ -1965,14 +1965,14 @@ function App() {
                         <code>{CONFIG.contracts.validatorReward}</code>
                       </div>
                       <div className="info-row">
-                        <span className="info-label">ValidatorReward WTON Balance (시뇨리지):</span>
+                        <span className="info-label">ValidatorReward WTON Balance (Seigniorage):</span>
                         <span className="value-large" style={{color: '#4CAF50', fontWeight: 'bold', fontSize: '1.2rem'}}>
                           {parseFloat(validatorRewardWtonBalance).toFixed(4)} WTON
                         </span>
                       </div>
                     </div>
                     <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
-                      이 컨트랙트는 검증자들에게 분배될 시뇨리지를 보관합니다
+                      This contract holds seigniorage to be distributed to validators
                     </small>
                   </section>
 
@@ -2023,7 +2023,7 @@ function App() {
                               <th>Address</th>
                               <th>Deposit</th>
                               <th>Available</th>
-                              <th>WTON Balance (시뇨리지)</th>
+                              <th>WTON Balance (Seigniorage)</th>
                               <th>RAT Status</th>
                               <th>Active</th>
                             </tr>
@@ -3278,7 +3278,7 @@ function App() {
                               </span>
                             </div>
                             <div className="info-row">
-                              <span className="info-label">OperatorManager WTON Balance (시뇨리지):</span>
+                              <span className="info-label">OperatorManager WTON Balance (Seigniorage):</span>
                               <span className="value-large" style={{color: '#4CAF50', fontWeight: 'bold'}}>
                                 {parseFloat(seigniorageInfo.operatorManagerBalance).toFixed(4)} WTON
                               </span>
@@ -3573,7 +3573,7 @@ function App() {
                                         </div>
                                       </div>
                                       <small style={{ display: 'block', color: 'var(--text-light)', marginTop: '0.3rem', lineHeight: '1.5' }}>
-                                        Contract view function. Step 4의 계산과 일치해야 합니다. 차이가 있으면 이미 claim된 보상이나 eligibility 변경 때문일 수 있습니다.
+                                        Contract view function. Should match Step 4 calculation. Differences may be due to already claimed rewards or eligibility changes.
                                       </small>
                                     </div>
                                   </>
@@ -3637,11 +3637,11 @@ function App() {
                               <span className="value-large">{parseFloat(seigniorageInfo.bridgedTon).toFixed(4)} TON</span>
                             </div>
                             <div className="info-row">
-                              <span className="info-label">Required Stake (최소 담보금):</span>
+                              <span className="info-label">Required Stake (Min Collateral):</span>
                               <span className="value-large">{parseFloat(seigniorageInfo.requiredStake).toFixed(4)} WTON</span>
                             </div>
                             <div className="info-row">
-                              <span className="info-label">Current Stake (현재 담보금):</span>
+                              <span className="info-label">Current Stake (Collateral):</span>
                               <span className="value-large">{parseFloat(seigniorageInfo.currentStake).toFixed(4)} WTON</span>
                             </div>
                             <div className="info-row">
@@ -4023,7 +4023,7 @@ function App() {
 
                   <section className="card">
                     <h2>🔑 Test Accounts (Anvil)</h2>
-                    <p style={{marginBottom: '1rem'}}>MetaMask에 테스트 계정을 추가하세요. <strong>이 계정들만</strong> 잔액 조회가 가능합니다.</p>
+                    <p style={{marginBottom: '1rem'}}>Add test accounts to MetaMask. <strong>Only these accounts</strong> can check balances.</p>
                     <div className="test-accounts-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem'}}>
                       {TEST_ACCOUNTS.map((account, idx) => (
                         <div key={idx} className="test-account-card" style={{
@@ -4035,7 +4035,7 @@ function App() {
                           <div style={{fontWeight: 'bold', marginBottom: '0.5rem'}}>
                             {account.name}
                             {address?.toLowerCase() === account.address.toLowerCase() &&
-                              <span style={{marginLeft: '0.5rem', color: '#4caf50'}}>✓ 연결됨</span>
+                              <span style={{marginLeft: '0.5rem', color: '#4caf50'}}>✓ Connected</span>
                             }
                           </div>
                           <div style={{fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem'}}>{account.role}</div>
@@ -4047,10 +4047,10 @@ function App() {
                             style={{width: '100%', padding: '0.5rem'}}
                             onClick={() => {
                               navigator.clipboard.writeText(account.privateKey);
-                              alert(`✅ Private Key 복사됨!\n\n📋 MetaMask 추가 방법:\n1. MetaMask 열기\n2. 계정 아이콘 클릭\n3. "계정 가져오기" 선택\n4. Private Key 붙여넣기 (Ctrl+V)\n5. "가져오기" 클릭`);
+                              alert(`✅ Private Key copied!\n\n📋 How to add to MetaMask:\n1. Open MetaMask\n2. Click account icon\n3. Select "Import Account"\n4. Paste Private Key (Ctrl+V)\n5. Click "Import"`);
                             }}
                           >
-                            📋 Private Key 복사
+                            📋 Copy Private Key
                           </button>
                         </div>
                       ))}
