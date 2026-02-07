@@ -213,7 +213,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
 
     // SeigManager parameters
-    uint256 constant SEIG_PER_BLOCK = 3.92e18; // 3.92 TON per block
+    uint256 constant SEIG_PER_BLOCK = 3.92e27; // 3.92 TON per block (ray unit)
     uint256 constant GLOBAL_WITHDRAWAL_DELAY = 10; // 10 blocks for fast testing
 
     // RAT parameters (Testing-optimized)
@@ -565,6 +565,12 @@ contract DeployV3FullForDevnet is Script {
         );
         console.log("SeigManager setData done");
 
+        // Set devnet-specific parameters (avoid mainnet fallback constants)
+        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(block.number);
+        SeigManagerV1_2(seigManagerProxy).setInitialTotalSupply(500_000 * 1e27); // 500k TON in WTON (27 decimals)
+        SeigManagerV1_2(seigManagerProxy).setBurntAmountAtDAO(1); // non-zero to avoid mainnet fallback
+        console.log("SeigManager devnet parameters set (seigStartBlock, initialTotalSupply, burntAmountAtDAO)");
+
         // Setup SeigManager multi-implementation routing (V3: V1_2 기본 + V3_1, V3_2)
         _setupSeigManagerV3Routing();
 
@@ -600,7 +606,7 @@ contract DeployV3FullForDevnet is Script {
 
     function _setupSeigManagerV3CoreSelectors() internal {
         // V3 함수 등록 (migration + setters + RAT callbacks)
-        bytes4[] memory s = new bytes4[](18);
+        bytes4[] memory s = new bytes4[](20);
         s[0] = SeigManagerV3_1.setValidatorReward.selector;
         s[1] = SeigManagerV3_1.setV2Logic.selector;
         s[2] = SeigManagerV3_1.migrateToV3.selector;
@@ -621,6 +627,9 @@ contract DeployV3FullForDevnet is Script {
         s[15] = SeigManagerV3_1.transferCoinageToRat.selector;
         s[16] = SeigManagerV3_1.transferCoinageFromRat.selector;
         s[17] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        // Seigniorage distribution functions
+        s[18] = SeigManagerV3_1.updateSeigniorageLayer.selector;
+        s[19] = SeigManagerV3_1.claimL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
 
         // Register V3 View functions (21 functions - removed duplicate ratContract())
@@ -665,6 +674,10 @@ contract DeployV3FullForDevnet is Script {
         // Add DepositManager as WTON minter (for withdrawal processing)
         MockWTON(wton).addMinter(depositManagerProxy);
         console.log("WTON.addMinter(depositManagerProxy) done");
+
+        // Add Layer2Manager as WTON minter (for TON->WTON swap in registerCandidateAddOn)
+        MockWTON(wton).addMinter(layer2ManagerProxy);
+        console.log("WTON.addMinter(layer2ManagerProxy) done");
         console.log("");
     }
 
@@ -820,8 +833,8 @@ contract DeployV3FullForDevnet is Script {
         SeigManagerV3_1(seigManagerProxy).setValidatorDistributionRatio(200000000000000000000000000); // 0.2e27 (20%)
         console.log("Set validator distribution ratio: 20%");
 
-        SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(10000000000000000000000000000000000); // 10M TON
-        console.log("Set half saturation point: 10M TON");
+        SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(10_000_000e27); // 10,000,000 TON in WTON (27 decimals)
+        console.log("Set half saturation point: 10,000,000 TON");
 
         SeigManagerV3_1(seigManagerProxy).setMaxChallengers(10); // H_max
         console.log("Set max challengers: 10");
@@ -1041,21 +1054,20 @@ contract DeployV3FullForDevnet is Script {
     function _mintTestTokens() internal {
         console.log("--- Step 13: Mint Test Tokens ---");
 
-        // Mint tokens to test accounts (100,000 TON and 100,000 WTON each)
+        // Mint TON only to test accounts (100,000 TON each)
+        // WTON is obtained by swapping TON -> WTON on-chain (avoids confusion with seigniorage rewards)
         uint256 tonAmount = 100_000 * 1e18;  // TON uses 18 decimals
-        uint256 wtonAmount = 100_000 * 1e27; // WTON uses 27 decimals (RAY)
 
         address[6] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, PERSONAL_TEST];
         string[6] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER", "PERSONAL_TEST"];
 
         for (uint256 i = 0; i < accounts.length; i++) {
             MockTON(ton).mint(accounts[i], tonAmount);
-            MockWTON(wton).mint(accounts[i], wtonAmount);
             console.log("Minted to", names[i], accounts[i]);
         }
 
-        console.log("Minted 100,000 TON and 100,000 WTON to 10 Anvil test accounts");
-        console.log("  Including: OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, and 5 more");
+        console.log("Minted 100,000 TON to 6 test accounts");
+        console.log("  Including: OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, PERSONAL_TEST");
         console.log("");
     }
 
@@ -1094,7 +1106,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("  Optimism Deployer:", OPTIMISM_DEPLOYER, "(Anvil #0)");
         console.log("  TON Staking Deployer:", DEPLOYER, "(Anvil #1)");
         console.log("");
-        console.log("Test Accounts (each has 100k TON + 100k WTON):");
+        console.log("Test Accounts (each has 100k TON):");
         console.log("  VALIDATOR:", VALIDATOR);
         console.log("  PROPOSER:", PROPOSER);
         console.log("  CHALLENGER:", CHALLENGER);

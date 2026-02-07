@@ -334,14 +334,16 @@ contract DeployV3Full is Script {
     }
 
     function _setupSeigManagerV3CoreSelectors() internal {
-        // 핵심 함수만 등록 (6개) - 테스트/배포에 필요한 최소 함수
-        bytes4[] memory s = new bytes4[](6);
+        // 핵심 함수만 등록 (8개) - 테스트/배포에 필요한 최소 함수
+        bytes4[] memory s = new bytes4[](8);
         s[0] = SeigManagerV3_1.setValidatorReward.selector;
         s[1] = SeigManagerV3_1.setV2Logic.selector;
         s[2] = SeigManagerV3_1.migrateToV3.selector;
         s[3] = SeigManagerV3_1.updateSeigniorage.selector;
         s[4] = SeigManagerV3_1.setRatContract.selector;
         s[5] = bytes4(keccak256("v3Migrated()"));
+        s[6] = SeigManagerV3_1.updateSeigniorageLayer.selector;
+        s[7] = SeigManagerV3_1.claimL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
     }
 
