@@ -29,8 +29,8 @@ export const CONFIG = {
     validatorReward: '0xBa3e08b4753E68952031102518379ED2fDADcA30',
 
     // Optimism Stack
-    systemConfig: '0x20baa7e14340090b5f741647f1ab08868eeb9bbd',
-    disputeGameFactory: '0xa68bbb8c42f5a22f518ac6e56128192c8cf2ca0a',
+    systemConfig: '0x9833d27c6d44eed34d966c1b7069554efa4eb52f',
+    disputeGameFactory: '0x60c630e5f9448fa855fd3d89fc993fe5f05c0319',
   },
 };
 
