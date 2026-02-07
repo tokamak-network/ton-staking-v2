@@ -32,13 +32,13 @@ echo ""
 # Check required files
 if [ ! -f "$DEVNET_ADDRESSES" ]; then
     echo -e "${RED}Error: .devnet/addresses.json not found${NC}"
-    echo "Run ./scripts/generate-optimism-allocs-sepolia.sh first"
+    echo "Run ./scripts/generate-optimism-allocs.sh first"
     exit 1
 fi
 
 if [ ! -f "$OPTIMISM_ADDRESSES" ]; then
     echo -e "${RED}Error: scripts/config/optimism-addresses.json not found${NC}"
-    echo "Run ./scripts/generate-optimism-allocs-sepolia.sh first"
+    echo "Run ./scripts/generate-optimism-allocs.sh first"
     exit 1
 fi
 

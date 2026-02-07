@@ -299,7 +299,7 @@ if [ -d "$DEVNET_SEPOLIA_DIR" ]; then
     read -p "Continue with cleanup? [Y/n] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
-        echo "Aborted. Please run ./scripts/local/stop-sepolia-fork.sh first."
+        echo "Aborted. Please run ./scripts/local/stop-dev.sh first."
         exit 1
     fi
     rm -rf "$DEVNET_SEPOLIA_DIR"
@@ -343,7 +343,7 @@ if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
         echo "  OptimismMintableERC20Factory code is missing"
         echo "  Please regenerate genesis with:"
         echo "    ./scripts/generate-optimism-allocs-new.sh"
-        echo "    cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json"
+        echo "    cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json"
         exit 1
     fi
 
@@ -352,7 +352,7 @@ if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
         echo "  Found: $PREDEPLOY_COUNT (expected: 2048)"
         echo "  Please regenerate genesis with:"
         echo "    ./scripts/generate-optimism-allocs-new.sh"
-        echo "    cp scripts/config/genesis-l2-new.json .devnet/genesis-l2.json"
+        echo "    cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json"
         exit 1
     fi
 
@@ -426,7 +426,7 @@ fi
 
 # Use pre-generated rollup.json or create new one if not exists
 if [ -f "$DEVNET_DIR/rollup.json" ]; then
-    echo "Using pre-generated rollup.json from generate-optimism-allocs-sepolia.sh"
+    echo "Using pre-generated rollup.json from generate-optimism-allocs.sh"
     cp "$DEVNET_DIR/rollup.json" "$DEVNET_SEPOLIA_DIR/rollup.json"
 
     # Update L1 genesis info with current Anvil block
@@ -1220,7 +1220,7 @@ echo "  L2:    docker logs -f ton-staking-l2-node"
 echo "  RAT:   docker logs -f ton-staking-rat-client-1"
 echo ""
 echo -e "${YELLOW}Stop:${NC}"
-echo "  ./scripts/local/stop-sepolia-fork.sh"
+echo "  ./scripts/local/stop-dev.sh"
 echo ""
 echo -e "${YELLOW}Web UI:${NC}"
 echo "  cd web-ui && npm run dev"

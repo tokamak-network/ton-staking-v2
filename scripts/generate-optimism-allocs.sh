@@ -13,8 +13,8 @@
 #   - forge, just, go, jq installed
 #
 # Usage:
-#   ./scripts/generate-optimism-allocs-sepolia.sh
-#   OPTIMISM_MONOREPO_DIR=/path/to/optimism ./scripts/generate-optimism-allocs-sepolia.sh
+#   ./scripts/generate-optimism-allocs.sh
+#   OPTIMISM_MONOREPO_DIR=/path/to/optimism ./scripts/generate-optimism-allocs.sh
 # =============================================================================
 
 set -eo pipefail
@@ -179,7 +179,6 @@ jq '{
   DisputeGameFactoryProxy: .DisputeGameFactoryProxy
 }' "$DEVNET_ALLOCS_DIR/addresses.json" > "$OUTPUT_DIR/optimism-addresses.json"
 
-cp "$OUTPUT_DIR/optimism-addresses.json" "$OUTPUT_DIR/optimism-addresses-sepolia.json"
 cp "$OUTPUT_DIR/optimism-addresses.json" "$DEVNET_DIR/optimism-addresses.json"
 echo -e "${GREEN}  ✓ Generated optimism-addresses.json${NC}"
 echo ""
@@ -230,8 +229,6 @@ cat > "$DEVNET_DIR/rollup.json" <<EOF
 }
 EOF
 
-cp "$DEVNET_DIR/rollup.json" "$OUTPUT_DIR/rollup-sepolia.json"
-
 echo -e "${GREEN}  ✓ rollup.json generated${NC}"
 echo "  deposit_contract_address: $OPTIMISM_PORTAL"
 echo "  l1_system_config_address: $SYSTEM_CONFIG"
@@ -247,7 +244,6 @@ if [ -f "$SCRIPT_DIR/generate-l2-genesis.sh" ]; then
         echo -e "${GREEN}  ✓ L2 genesis generated${NC}"
 
         if [ -f "$DEVNET_DIR/genesis-l2.json" ]; then
-            cp "$DEVNET_DIR/genesis-l2.json" "$OUTPUT_DIR/genesis-l2-sepolia.json"
             PREDEPLOY_COUNT=$(jq '[.alloc | keys[] | select(startswith("0x4200"))] | length' "$DEVNET_DIR/genesis-l2.json")
             echo "  Predeploy contracts: $PREDEPLOY_COUNT"
         fi
@@ -354,5 +350,5 @@ if [ -f "$DEVNET_DIR/addresses.json" ]; then
     echo ""
 fi
 echo -e "${CYAN}Next Steps:${NC}"
-echo "  Start devnet: ./scripts/local/start-sepolia-fork.sh"
+echo "  Start devnet: ./scripts/local/start-dev.sh"
 echo ""
