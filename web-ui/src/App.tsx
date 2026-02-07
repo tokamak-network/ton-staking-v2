@@ -1011,8 +1011,8 @@ function App() {
         lastSeigBlock: lastSeigBlock.toString(),
         currentBlock: currentBlock.toString(),
         bridgedTon: ethers.formatEther(bridgedTon), // TON is 18 decimals
-        effectiveBridgedTon: ethers.formatEther(effectiveBridgedTon), // TON is 18 decimals
-        totalEffectiveBridgedTon: ethers.formatEther(totalEffectiveBridgedTon), // TON is 18 decimals
+        effectiveBridgedTon: ethers.formatUnits(effectiveBridgedTon, 27), // WTON is 27 decimals
+        totalEffectiveBridgedTon: ethers.formatUnits(totalEffectiveBridgedTon, 27), // WTON is 27 decimals
         isEligible: eligibilityInfo[0],
         requiredStake: ethers.formatUnits(eligibilityInfo[1], 27), // WTON is 27 decimals
         currentStake: ethers.formatUnits(eligibilityInfo[2], 27), // WTON is 27 decimals
@@ -1896,6 +1896,12 @@ function App() {
                           <span className="info-label">Bridged TON (B_i):</span>
                           <span style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#FF9800'}}>
                             {seigniorageInfo ? parseFloat(seigniorageInfo.bridgedTon).toFixed(2) : 'Loading...'} TON
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L2 effectiveBridgedTON:</span>
+                          <span style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#FF9800'}}>
+                            {seigniorageInfo ? parseFloat(seigniorageInfo.effectiveBridgedTon).toFixed(4) : 'Loading...'} WTON
                           </span>
                         </div>
                         <div className="info-row">
@@ -3325,7 +3331,7 @@ function App() {
                             </div>
                             <div className="info-row">
                               <span className="info-label">Total Effective Bridged TON (x):</span>
-                              <span className="value-large">{parseFloat(seigniorageInfo.totalEffectiveBridgedTon).toFixed(4)} TON</span>
+                              <span className="value-large">{parseFloat(seigniorageInfo.totalEffectiveBridgedTon).toFixed(4)} WTON</span>
                             </div>
                             <div className="info-row">
                               <span className="info-label">My Bridged TON:</span>
