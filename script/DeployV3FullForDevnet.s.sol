@@ -92,6 +92,8 @@ interface IOptimismPortal2 {
     ) external;
     function anchorStateRegistry() external view returns (address);
     function systemConfig() external view returns (address);
+    function setSeigManager(address _seigManager) external;
+    function seigManager() external view returns (address);
 }
 
 /// @notice DAOCommitteeProxy2 interface
@@ -632,6 +634,22 @@ contract DeployV3FullForDevnet is Script {
         s[19] = SeigManagerV3_1.claimL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
 
+        // Callback and additional functions (7개)
+        // onBridgedTonChange: Portal에서 브릿지 시 호출 (eligibility 업데이트)
+        // onStakingChange: DepositManager에서 deposit/withdraw 시 호출
+        // includeFromL2Seigniorage: L2 시뇨리지 포함
+        // onDeposit, onWithdraw: V3에서 validator 최소 담보 체크
+        // pause, unpause: 일시정지 관리 함수
+        bytes4[] memory callbacks = new bytes4[](7);
+        callbacks[0] = SeigManagerV3_1.onBridgedTonChange.selector;
+        callbacks[1] = SeigManagerV3_1.onStakingChange.selector;
+        callbacks[2] = SeigManagerV3_1.includeFromL2Seigniorage.selector;
+        callbacks[3] = SeigManagerV3_1.onDeposit.selector;
+        callbacks[4] = SeigManagerV3_1.onWithdraw.selector;
+        callbacks[5] = bytes4(keccak256("pause()"));
+        callbacks[6] = bytes4(keccak256("unpause()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(callbacks, seigManagerV3_1Impl);
+
         // Register V3 View functions (21 functions - removed duplicate ratContract())
         bytes4[] memory views = new bytes4[](21);
         views[0] = SeigManagerV3_1.getEffectiveBridgedTon.selector;
@@ -870,6 +888,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(0),                                  // no DisputeGameFactory
+            bytes4(0),                                  // no seigNotifier
             0,                                          // BRIDGE_PATTERN_ERC20
             false                                       // V3 eligible = false
         );
@@ -882,6 +901,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(keccak256("optimismPortal()")),     // 0x0a49cb03
             bytes4(0),                                  // no DisputeGameFactory
+            bytes4(0),                                  // no seigNotifier (V3 not supported)
             1,                                          // BRIDGE_PATTERN_NATIVE
             false                                       // V3 eligible = false
         );
@@ -894,6 +914,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),       // 0x078f29cf
             bytes4(keccak256("optimismPortal()")),         // 0x0a49cb03
             bytes4(keccak256("disputeGameFactory()")),     // 0x0a1e5c7d
+            bytes4(keccak256("optimismPortal()")),         // 0x0a49cb03 - portal triggers onBridgedTonChange
             1,                                              // BRIDGE_PATTERN_NATIVE
             true                                            // V3 eligible = true
         );
@@ -917,11 +938,19 @@ contract DeployV3FullForDevnet is Script {
         anchorStateRegistry = address(mockASR);
         console.log("MockAnchorStateRegistry deployed:", anchorStateRegistry);
 
-        // NOTE: All Optimism contract initialization is done at test runtime via transactions:
+        // NOTE: Some Optimism contract initialization is done at test runtime via transactions:
         // - MockAnchorStateRegistry.initialize()
         // - OptimismPortal.initialize()
         // - DisputeGameFactory.setRAT(), setInitBond()
-        console.log("Optimism contracts will be initialized at test runtime");
+
+        // Set SeigManager on OptimismPortal (requires proxyAdminOwner = OPTIMISM_DEPLOYER)
+        // This must be in allocs so bridge transactions trigger onBridgedTonChange() from genesis
+        vm.stopBroadcast();
+        vm.prank(OPTIMISM_DEPLOYER);
+        IOptimismPortal2(optimismPortal).setSeigManager(seigManagerProxy);
+        vm.startBroadcast();
+        console.log("OptimismPortal.seigManager set to:", seigManagerProxy);
+        console.log("OptimismPortal.seigManager (verified):", IOptimismPortal2(optimismPortal).seigManager());
         console.log("");
     }
 
