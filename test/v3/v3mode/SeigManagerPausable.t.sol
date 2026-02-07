@@ -41,14 +41,14 @@ contract SeigManagerPausableTest is V3TestBase {
         vm.stopPrank();
     }
 
-    /// @notice includeFromL2Seigniorage, claimL2Seigniorage 셀렉터 등록
+    /// @notice includeFromL2Seigniorage 셀렉터 등록
     /// @dev pause/unpause는 _setupSeigManagerV3AllTestSelectors에서 이미 등록됨
     ///      excludeFromL2Seigniorage는 _setupSeigManagerV3ParameterSelectors에서 이미 등록됨
+    ///      claimL2Seigniorage는 _setupSeigManagerV3CoreSelectors에서 이미 등록됨
     function _registerPausableSelectors() internal {
         vm.startPrank(owner);
-        bytes4[] memory selectors = new bytes4[](2);
+        bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = SeigManagerV3_1.includeFromL2Seigniorage.selector;
-        selectors[1] = SeigManagerV3_1.claimL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(selectors, seigManagerV3_1Impl);
         vm.stopPrank();
     }

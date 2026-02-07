@@ -131,6 +131,72 @@ forge script script/TestBLSOnMainnet.s.sol \
 
 ---
 
+## 🖥️ 로컬 개발 환경 (Devnet)
+
+### 사전 준비
+- Docker & Docker Compose
+- Foundry (forge, cast)
+- jq (JSON 프로세서)
+- curl
+
+### 빠른 시작
+
+```bash
+# 1. Genesis 생성 (최초 1회만)
+make devnet-allocs-offline
+
+# 2. Devnet 시작 (Geth L1 + Optimism L2)
+make devnet-start
+
+# 3. 상태 확인
+make devnet-info
+
+# 4. 헬스 체크
+./scripts/check-devnet-health.sh
+```
+
+### 시스템 구성 요소
+
+| 구성 요소 | 포트 | 설명 |
+|-----------|------|-------------|
+| **L1 (Geth v1.13.15)** | 8545 | Clique PoA를 사용하는 Ethereum L1 |
+| **L2 (op-geth)** | 9545 | Optimism L2 실행 레이어 (Debug Mode) |
+| **op-node** | 7545 | L2 합의/롤업 노드 |
+| **Batcher** | - | L2 배치를 L1에 제출 |
+| **RAT Clients (3)** | - | RAT 이벤트 모니터링 |
+
+**Geth를 사용하는 이유:**
+- op-node는 blockTag로 block hash를 사용하는 `eth_getStorageAt` 필요
+- Anvil은 block hash를 blockTag로 지원하지 않음
+- Geth는 완전히 지원하여 op-node 호환성 보장
+
+**L2 Debug Mode:**
+- RAT Client를 위한 `debug_accountRange` API 활성화
+- 트랜잭션 추적을 위한 `trace` API 활성화
+- 전체 상태 히스토리를 위한 Archive mode
+
+### 대안: Sepolia Fork Devnet
+
+Sepolia 테스트넷 상태로 테스트하려면:
+
+```bash
+# 1. 새로운 Optimism L1/L2 genesis 생성 (최초 1회만)
+./scripts/generate-optimism-allocs-new.sh
+cp scripts/config/optimism-allocs-l1-new.json scripts/config/optimism-allocs-l1.json
+cp scripts/config/optimism-addresses-new.json scripts/config/optimism-addresses.json
+cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json
+
+# 2. Sepolia fork devnet 시작
+./scripts/local/start-dev.sh
+
+# 3. Devnet 중지
+./scripts/local/stop-dev.sh
+```
+
+**📖 상세 가이드:** [로컬 Devnet (Sepolia Fork)](./scripts/local/README.md)
+
+---
+
 ## 📚 문서
 
 ### 🌐 개발자 가이드 (권장)

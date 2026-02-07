@@ -547,20 +547,18 @@ contract L1BridgeRegistryV1_2 is
         l1Bridge[bridgeAddr] = true;
         emit AddedBridge(rollupConfig, bridgeAddr);
 
-        // 2. Register TVL query address (if different from bridge)
-        getter = config.tvlContractGetter;
-        if (getter != bytes4(0) && getter != config.bridgeContractGetter) {
+        // 2. Register seig notifier contract (the contract that triggers onBridgedTonChange)
+        getter = config.seigNotifierGetter;
+        if (getter != bytes4(0)) {
             (success, data) = rollupConfig.staticcall(
                 abi.encodeWithSelector(getter)
             );
             if (success && data.length >= 32) {
-                address tvlAddr = abi.decode(data, (address));
-                if (tvlAddr != address(0) && tvlAddr != bridgeAddr) {
-                    // TVL contract is different from bridge contract
-                    // Register it as portal for TVL queries
-                    portal[tvlAddr] = true;
-                    rollupConfigWithPortal[tvlAddr] = rollupConfig;
-                    emit AddedPortal(rollupConfig, tvlAddr);
+                address notifierAddr = abi.decode(data, (address));
+                if (notifierAddr != address(0)) {
+                    portal[notifierAddr] = true;
+                    rollupConfigWithPortal[notifierAddr] = rollupConfig;
+                    emit AddedPortal(rollupConfig, notifierAddr);
                 }
             }
         }
@@ -617,15 +615,15 @@ contract L1BridgeRegistryV1_2 is
         address bridgeAddr = abi.decode(data, (address));
         if (bridgeAddr == address(0) || l1Bridge[bridgeAddr]) return false;
 
-        // 2. Check TVL address if different from bridge (portal check)
-        if (config.tvlContractGetter != bytes4(0) && config.tvlContractGetter != config.bridgeContractGetter) {
-            (bool tvlSuccess, bytes memory tvlData) = rollupConfig.staticcall(
-                abi.encodeWithSelector(config.tvlContractGetter)
+        // 2. Check seig notifier address (portal check)
+        if (config.seigNotifierGetter != bytes4(0)) {
+            (bool notifierSuccess, bytes memory notifierData) = rollupConfig.staticcall(
+                abi.encodeWithSelector(config.seigNotifierGetter)
             );
-            if (tvlSuccess && tvlData.length >= 32) {
-                address tvlAddr = abi.decode(tvlData, (address));
-                // If portal address already used by another rollupConfig, not available
-                if (tvlAddr != address(0) && portal[tvlAddr]) return false;
+            if (notifierSuccess && notifierData.length >= 32) {
+                address notifierAddr = abi.decode(notifierData, (address));
+                // If notifier address already used by another rollupConfig, not available
+                if (notifierAddr != address(0) && portal[notifierAddr]) return false;
             }
         }
 
@@ -683,6 +681,7 @@ contract L1BridgeRegistryV1_2 is
      * @param bridgeContractGetter Function selector to get deposit bridge address
      * @param tvlContractGetter Function selector to get TVL query address
      * @param disputeGameFactoryGetter Function selector to get DisputeGameFactory address (bytes4(0) if not applicable)
+     * @param seigNotifierGetter Function selector to get seigniorage notifier address (bytes4(0) if not applicable)
      * @param bridgePattern Bridge function pattern (0=ERC20, 1=NATIVE, 2=CUSTOM, ...)
      */
     event RollupTypeAdded(
@@ -691,6 +690,7 @@ contract L1BridgeRegistryV1_2 is
         bytes4 bridgeContractGetter,
         bytes4 tvlContractGetter,
         bytes4 disputeGameFactoryGetter,
+        bytes4 seigNotifierGetter,
         uint8 bridgePattern
     );
 
@@ -701,6 +701,7 @@ contract L1BridgeRegistryV1_2 is
      * @param bridgeContractGetter Function selector for deposit bridge
      * @param tvlContractGetter Function selector for TVL query
      * @param disputeGameFactoryGetter Function selector for DisputeGameFactory (bytes4(0) if not applicable)
+     * @param seigNotifierGetter Function selector for seigniorage notifier (bytes4(0) if not applicable)
      * @param bridgePattern Bridge pattern
      * @param v3Eligible Whether V3 eligible
      */
@@ -710,6 +711,7 @@ contract L1BridgeRegistryV1_2 is
         bytes4 bridgeContractGetter,
         bytes4 tvlContractGetter,
         bytes4 disputeGameFactoryGetter,
+        bytes4 seigNotifierGetter,
         uint8 bridgePattern,
         bool v3Eligible
     );
@@ -726,6 +728,7 @@ contract L1BridgeRegistryV1_2 is
      * @param _bridgeContractGetter Function selector to get deposit bridge address from rollupConfig
      * @param _tvlContractGetter Function selector to get TVL query address from rollupConfig
      * @param _disputeGameFactoryGetter Function selector to get DisputeGameFactory address (bytes4(0) if not applicable)
+     * @param _seigNotifierGetter Function selector to get the contract that triggers onBridgedTonChange (bytes4(0) if not applicable)
      * @param _bridgePattern Bridge function pattern (0=ERC20, 1=NATIVE, 2=CUSTOM, ...)
      * @param _v3Eligible Whether this type is eligible for V3 whitepaper seigniorage
      */
@@ -735,6 +738,7 @@ contract L1BridgeRegistryV1_2 is
         bytes4 _bridgeContractGetter,
         bytes4 _tvlContractGetter,
         bytes4 _disputeGameFactoryGetter,
+        bytes4 _seigNotifierGetter,
         uint8 _bridgePattern,
         bool _v3Eligible
     ) external onlyManager {
@@ -753,11 +757,12 @@ contract L1BridgeRegistryV1_2 is
             bridgeContractGetter: _bridgeContractGetter,
             tvlContractGetter: _tvlContractGetter,
             disputeGameFactoryGetter: _disputeGameFactoryGetter,
+            seigNotifierGetter: _seigNotifierGetter,
             bridgePattern: _bridgePattern,
             name: _name
         });
 
-        emit RollupTypeAdded(_type, _name, _bridgeContractGetter, _tvlContractGetter, _disputeGameFactoryGetter, _bridgePattern);
+        emit RollupTypeAdded(_type, _name, _bridgeContractGetter, _tvlContractGetter, _disputeGameFactoryGetter, _seigNotifierGetter, _bridgePattern);
     }
 
     /**
@@ -768,6 +773,7 @@ contract L1BridgeRegistryV1_2 is
      * @param _bridgeContractGetter Function selector for deposit bridge address
      * @param _tvlContractGetter Function selector for TVL query address
      * @param _disputeGameFactoryGetter Function selector for DisputeGameFactory (bytes4(0) if not applicable)
+     * @param _seigNotifierGetter Function selector for seigniorage notifier (bytes4(0) if not applicable)
      * @param _bridgePattern Bridge function pattern (0=ERC20, 1=NATIVE, 2=CUSTOM, ...)
      * @param _v3Eligible Whether the type should be eligible for V3 seigniorage
      */
@@ -777,6 +783,7 @@ contract L1BridgeRegistryV1_2 is
         bytes4 _bridgeContractGetter,
         bytes4 _tvlContractGetter,
         bytes4 _disputeGameFactoryGetter,
+        bytes4 _seigNotifierGetter,
         uint8 _bridgePattern,
         bool _v3Eligible
     ) external onlyManager {
@@ -792,6 +799,7 @@ contract L1BridgeRegistryV1_2 is
         bool configChanged = config.bridgeContractGetter != _bridgeContractGetter ||
                             config.tvlContractGetter != _tvlContractGetter ||
                             config.disputeGameFactoryGetter != _disputeGameFactoryGetter ||
+                            config.seigNotifierGetter != _seigNotifierGetter ||
                             config.bridgePattern != _bridgePattern;
         bool eligibilityChanged = currentV3Eligible != _v3Eligible;
 
@@ -811,10 +819,11 @@ contract L1BridgeRegistryV1_2 is
         config.bridgeContractGetter = _bridgeContractGetter;
         config.tvlContractGetter = _tvlContractGetter;
         config.disputeGameFactoryGetter = _disputeGameFactoryGetter;
+        config.seigNotifierGetter = _seigNotifierGetter;
         config.bridgePattern = _bridgePattern;
         config.name = _name;
 
-        emit RollupTypeUpdated(_type, _name, _bridgeContractGetter, _tvlContractGetter, _disputeGameFactoryGetter, _bridgePattern, _v3Eligible);
+        emit RollupTypeUpdated(_type, _name, _bridgeContractGetter, _tvlContractGetter, _disputeGameFactoryGetter, _seigNotifierGetter, _bridgePattern, _v3Eligible);
     }
 
     // ==========================================

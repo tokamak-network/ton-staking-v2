@@ -93,6 +93,8 @@ interface IOptimismPortal2 {
     ) external;
     function anchorStateRegistry() external view returns (address);
     function systemConfig() external view returns (address);
+    function setSeigManager(address _seigManager) external;
+    function seigManager() external view returns (address);
 }
 
 /// @notice DAOCommitteeProxy2 interface
@@ -204,6 +206,7 @@ contract DeployV3FullForDevnet is Script {
     address constant VALIDATOR = 0x90F79bf6EB2c4f870365E785982E1f101E93b906; // Anvil account #3
     address constant PROPOSER = 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65; // Anvil account #4
     address constant CHALLENGER = 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc; // Anvil account #5
+    address constant PERSONAL_TEST = 0x976EA74026E726554dB657fA54763abd0C3a0aa9; // Anvil account #6
 
     // RAY constant (27 decimals)
     uint256 constant RAY = 1e27;
@@ -213,7 +216,7 @@ contract DeployV3FullForDevnet is Script {
     // ==========================================
 
     // SeigManager parameters
-    uint256 constant SEIG_PER_BLOCK = 3.92e18; // 3.92 TON per block
+    uint256 constant SEIG_PER_BLOCK = 3.92e27; // 3.92 TON per block (ray unit)
     uint256 constant GLOBAL_WITHDRAWAL_DELAY = 10; // 10 blocks for fast testing
 
     // RAT parameters (Testing-optimized)
@@ -566,6 +569,12 @@ contract DeployV3FullForDevnet is Script {
         );
         console.log("SeigManager setData done");
 
+        // Set devnet-specific parameters (avoid mainnet fallback constants)
+        SeigManagerV1_2(seigManagerProxy).setSeigStartBlock(block.number);
+        SeigManagerV1_2(seigManagerProxy).setInitialTotalSupply(500_000 * 1e27); // 500k TON in WTON (27 decimals)
+        SeigManagerV1_2(seigManagerProxy).setBurntAmountAtDAO(1); // non-zero to avoid mainnet fallback
+        console.log("SeigManager devnet parameters set (seigStartBlock, initialTotalSupply, burntAmountAtDAO)");
+
         // Setup SeigManager multi-implementation routing (V3: V1_2 기본 + V3_1, V3_2)
         _setupSeigManagerV3Routing();
 
@@ -601,7 +610,7 @@ contract DeployV3FullForDevnet is Script {
 
     function _setupSeigManagerV3CoreSelectors() internal {
         // V3 함수 등록 (migration + setters + RAT callbacks)
-        bytes4[] memory s = new bytes4[](17);
+        bytes4[] memory s = new bytes4[](20);
         s[0] = SeigManagerV3_1.setValidatorReward.selector;
         s[1] = SeigManagerV3_1.setV2Logic.selector;
         s[2] = SeigManagerV3_1.migrateToV3.selector;
@@ -616,12 +625,58 @@ contract DeployV3FullForDevnet is Script {
         s[10] = SeigManagerV3_1.setMaxChallengers.selector;
         s[11] = SeigManagerV3_1.setMaxFraudProofCost.selector;
         s[12] = SeigManagerV3_1.setSequencerAdditionalReward.selector;
+        s[13] = SeigManagerV3_1.excludeFromL2Seigniorage.selector;
         // RAT callback functions (CRITICAL for RAT trigger!)
-        s[13] = bytes4(keccak256("ratContract()"));
-        s[14] = SeigManagerV3_1.transferCoinageToRat.selector;
-        s[15] = SeigManagerV3_1.transferCoinageFromRat.selector;
-        s[16] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        s[14] = bytes4(keccak256("ratContract()"));
+        s[15] = SeigManagerV3_1.transferCoinageToRat.selector;
+        s[16] = SeigManagerV3_1.transferCoinageFromRat.selector;
+        s[17] = SeigManagerV3_1.transferCoinageFromRatTo.selector;
+        // Seigniorage distribution functions
+        s[18] = SeigManagerV3_1.updateSeigniorageLayer.selector;
+        s[19] = SeigManagerV3_1.claimL2Seigniorage.selector;
         SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(s, seigManagerV3_1Impl);
+
+        // Callback and additional functions (7개)
+        // onBridgedTonChange: Portal에서 브릿지 시 호출 (eligibility 업데이트)
+        // onStakingChange: DepositManager에서 deposit/withdraw 시 호출
+        // includeFromL2Seigniorage: L2 시뇨리지 포함
+        // onDeposit, onWithdraw: V3에서 validator 최소 담보 체크
+        // pause, unpause: 일시정지 관리 함수
+        bytes4[] memory callbacks = new bytes4[](7);
+        callbacks[0] = SeigManagerV3_1.onBridgedTonChange.selector;
+        callbacks[1] = SeigManagerV3_1.onStakingChange.selector;
+        callbacks[2] = SeigManagerV3_1.includeFromL2Seigniorage.selector;
+        callbacks[3] = SeigManagerV3_1.onDeposit.selector;
+        callbacks[4] = SeigManagerV3_1.onWithdraw.selector;
+        callbacks[5] = bytes4(keccak256("pause()"));
+        callbacks[6] = bytes4(keccak256("unpause()"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(callbacks, seigManagerV3_1Impl);
+
+        // Register V3 View functions (21 functions - removed duplicate ratContract())
+        bytes4[] memory views = new bytes4[](21);
+        views[0] = SeigManagerV3_1.getEffectiveBridgedTon.selector;
+        views[1] = SeigManagerV3_1.checkCurrentEligibility.selector;
+        views[2] = SeigManagerV3_1.getSequencerStaked.selector;
+        views[3] = SeigManagerV3_1.hyperbolicSaturation.selector;
+        views[4] = SeigManagerV3_1.calculateL2Seigniorage.selector;
+        views[5] = SeigManagerV3_1.calculateSequencerReward.selector;
+        views[6] = SeigManagerV3_1.estimateL2Seigniorage.selector;
+        views[7] = SeigManagerV3_1.claimableL2Seigniorage.selector;
+        views[8] = bytes4(keccak256("daoDistributionRatio()"));
+        views[9] = bytes4(keccak256("halfSaturationPoint()"));
+        views[10] = bytes4(keccak256("totalEffectiveBridgedTON()"));
+        views[11] = bytes4(keccak256("v3MigrationBlock()"));
+        views[12] = bytes4(keccak256("validatorReward()"));
+        views[13] = bytes4(keccak256("minStakingRatio()"));
+        views[14] = bytes4(keccak256("validatorDistributionRatio()"));
+        views[15] = bytes4(keccak256("maxChallengers()"));
+        views[16] = bytes4(keccak256("maxFraudProofCost()"));
+        views[17] = bytes4(keccak256("sequencerAdditionalReward()"));
+        views[18] = bytes4(keccak256("bridgedTONRewardPerUint()"));
+        views[19] = bytes4(keccak256("validatorRewardPerUint()"));
+        views[20] = bytes4(keccak256("bridgedTONInfo(address)"));
+        SeigManagerProxy(payable(seigManagerProxy)).setSelectorImplementations2(views, seigManagerV3_1Impl);
+        console.log("Registered 21 V3 view functions to SeigManager");
     }
 
     // ==========================================
@@ -639,6 +694,10 @@ contract DeployV3FullForDevnet is Script {
         // Add DepositManager as WTON minter (for withdrawal processing)
         MockWTON(wton).addMinter(depositManagerProxy);
         console.log("WTON.addMinter(depositManagerProxy) done");
+
+        // Add Layer2Manager as WTON minter (for TON->WTON swap in registerCandidateAddOn)
+        MockWTON(wton).addMinter(layer2ManagerProxy);
+        console.log("WTON.addMinter(layer2ManagerProxy) done");
         console.log("");
     }
 
@@ -739,12 +798,19 @@ contract DeployV3FullForDevnet is Script {
         SeigManagerV1_2(seigManagerProxy).setLayer2Manager(layer2ManagerProxy);
         console.log("SeigManager.setLayer2Manager done");
 
+        SeigManagerV1_2(seigManagerProxy).setL1BridgeRegistry(l1BridgeRegistryProxy);
+        console.log("SeigManager.setL1BridgeRegistry done");
+
         SeigManagerV3_1(seigManagerProxy).setValidatorReward(validatorPoolProxy);
         console.log("SeigManager.setValidatorReward done");
 
         // Set RAT contract address in SeigManager (CRITICAL for RAT trigger!)
         SeigManagerV3_1(seigManagerProxy).setRatContract(ratProxy);
         console.log("SeigManager.setRatContract done");
+
+        // Set ValidatorReward in RAT (for O(1) reward distribution)
+        RAT(ratProxy).setValidatorReward(validatorPoolProxy);
+        console.log("RAT.setValidatorReward done");
 
         // Layer2Manager.setAddresses (V3 - 2단계로 분리하여 stack too deep 회피)
         Layer2ManagerV3(layer2ManagerProxy).setAddresses1(
@@ -810,8 +876,8 @@ contract DeployV3FullForDevnet is Script {
         SeigManagerV3_1(seigManagerProxy).setValidatorDistributionRatio(200000000000000000000000000); // 0.2e27 (20%)
         console.log("Set validator distribution ratio: 20%");
 
-        SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(10000000000000000000000000000000000); // 10M TON
-        console.log("Set half saturation point: 10M TON");
+        SeigManagerV3_1(seigManagerProxy).setHalfSaturationPoint(10_000_000e27); // 10,000,000 TON in WTON (27 decimals)
+        console.log("Set half saturation point: 10,000,000 TON");
 
         SeigManagerV3_1(seigManagerProxy).setMaxChallengers(10); // H_max
         console.log("Set max challengers: 10");
@@ -847,6 +913,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(0),                                  // no DisputeGameFactory
+            bytes4(0),                                  // no seigNotifier
             0,                                          // BRIDGE_PATTERN_ERC20
             false                                       // V3 eligible = false
         );
@@ -859,6 +926,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),   // 0x078f29cf
             bytes4(keccak256("optimismPortal()")),     // 0x0a49cb03
             bytes4(0),                                  // no DisputeGameFactory
+            bytes4(0),                                  // no seigNotifier (V3 not supported)
             1,                                          // BRIDGE_PATTERN_NATIVE
             false                                       // V3 eligible = false
         );
@@ -871,6 +939,7 @@ contract DeployV3FullForDevnet is Script {
             bytes4(keccak256("l1StandardBridge()")),       // 0x078f29cf
             bytes4(keccak256("optimismPortal()")),         // 0x0a49cb03
             bytes4(keccak256("disputeGameFactory()")),     // 0x0a1e5c7d
+            bytes4(keccak256("optimismPortal()")),         // 0x0a49cb03 - portal triggers onBridgedTonChange
             1,                                              // BRIDGE_PATTERN_NATIVE
             true                                            // V3 eligible = true
         );
@@ -894,11 +963,19 @@ contract DeployV3FullForDevnet is Script {
         anchorStateRegistry = address(mockASR);
         console.log("MockAnchorStateRegistry deployed:", anchorStateRegistry);
 
-        // NOTE: All Optimism contract initialization is done at test runtime via transactions:
+        // NOTE: Some Optimism contract initialization is done at test runtime via transactions:
         // - MockAnchorStateRegistry.initialize()
         // - OptimismPortal.initialize()
         // - DisputeGameFactory.setRAT(), setInitBond()
-        console.log("Optimism contracts will be initialized at test runtime");
+
+        // Set SeigManager on OptimismPortal (requires proxyAdminOwner = OPTIMISM_DEPLOYER)
+        // This must be in allocs so bridge transactions trigger onBridgedTonChange() from genesis
+        vm.stopBroadcast();
+        vm.prank(OPTIMISM_DEPLOYER);
+        IOptimismPortal2(optimismPortal).setSeigManager(seigManagerProxy);
+        vm.startBroadcast();
+        console.log("OptimismPortal.seigManager set to:", seigManagerProxy);
+        console.log("OptimismPortal.seigManager (verified):", IOptimismPortal2(optimismPortal).seigManager());
         console.log("");
     }
 
@@ -1031,21 +1108,20 @@ contract DeployV3FullForDevnet is Script {
     function _mintTestTokens() internal {
         console.log("--- Step 13: Mint Test Tokens ---");
 
-        // Mint tokens to test accounts (100,000 TON and 100,000 WTON each)
+        // Mint TON only to test accounts (100,000 TON each)
+        // WTON is obtained by swapping TON -> WTON on-chain (avoids confusion with seigniorage rewards)
         uint256 tonAmount = 100_000 * 1e18;  // TON uses 18 decimals
-        uint256 wtonAmount = 100_000 * 1e27; // WTON uses 27 decimals (RAY)
 
-        address[5] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER];
-        string[5] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER"];
+        address[6] memory accounts = [OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, PERSONAL_TEST];
+        string[6] memory names = ["OPTIMISM_DEPLOYER", "DEPLOYER", "VALIDATOR", "PROPOSER", "CHALLENGER", "PERSONAL_TEST"];
 
         for (uint256 i = 0; i < accounts.length; i++) {
             MockTON(ton).mint(accounts[i], tonAmount);
-            MockWTON(wton).mint(accounts[i], wtonAmount);
             console.log("Minted to", names[i], accounts[i]);
         }
 
-        console.log("Minted 100,000 TON and 100,000 WTON to 10 Anvil test accounts");
-        console.log("  Including: OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, and 5 more");
+        console.log("Minted 100,000 TON to 6 test accounts");
+        console.log("  Including: OPTIMISM_DEPLOYER, DEPLOYER, VALIDATOR, PROPOSER, CHALLENGER, PERSONAL_TEST");
         console.log("");
     }
 
@@ -1085,7 +1161,7 @@ contract DeployV3FullForDevnet is Script {
         console.log("  Optimism Deployer:", OPTIMISM_DEPLOYER, "(Anvil #0)");
         console.log("  TON Staking Deployer:", DEPLOYER, "(Anvil #1)");
         console.log("");
-        console.log("Test Accounts (each has 100k TON + 100k WTON):");
+        console.log("Test Accounts (each has 100k TON):");
         console.log("  VALIDATOR:", VALIDATOR);
         console.log("  PROPOSER:", PROPOSER);
         console.log("  CHALLENGER:", CHALLENGER);

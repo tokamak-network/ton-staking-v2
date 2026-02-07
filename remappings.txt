@@ -20,3 +20,4 @@ solady-v0.0.245/=lib/optimism/packages/contracts-bedrock/lib/solady-v0.0.245/src
 solady/=lib/optimism/packages/contracts-bedrock/lib/solady/
 solmate/=lib/optimism/packages/contracts-bedrock/lib/solmate/src/
 tokamak-dao-contracts/=lib/tokamak-dao-contracts/
+src/=lib/optimism/packages/contracts-bedrock/src/

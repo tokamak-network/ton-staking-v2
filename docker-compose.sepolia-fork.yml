@@ -1,0 +1,267 @@
+version: '3.8'
+
+services:
+  # L1: Anvil Fork from Sepolia
+  # - Forks Sepolia testnet for realistic L1 environment
+  # - Supports local ETH minting via anvil_setBalance
+  # - Block time: 12 seconds (matches Sepolia)
+  l1-sepolia-fork:
+    image: ethereumoptimism/foundry:latest
+    platform: linux/amd64
+    container_name: ton-staking-l1-sepolia-fork
+    ports:
+      - "8545:8545"
+    environment:
+      - SEPOLIA_RPC=${SEPOLIA_RPC:-https://rpc.sepolia.org}
+      - FORK_BLOCK=${FORK_BLOCK:-latest}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Starting Anvil fork from Sepolia..."
+        echo "RPC: ${SEPOLIA_RPC}"
+        echo "Fork Block: ${FORK_BLOCK}"
+        
+        exec anvil \
+          --host 0.0.0.0 \
+          --port 8545 \
+          --fork-url "${SEPOLIA_RPC}" \
+          --fork-block-number ${FORK_BLOCK} \
+          --block-time 12 \
+          --chain-id 11155111 \
+          --no-rate-limit \
+          --gas-limit 30000000 \
+          --code-size-limit 1000000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8545 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - ton-staking-network
+
+  # L2: op-geth (Execution Layer) with Debug Mode
+  # - Same as local devnet
+  # - Archive mode for full state history
+  # - Debug API enabled for RAT Client
+  l2-execution:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-execution-sepolia-fork
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9545:8545"      # HTTP RPC
+      - "9546:8546"      # WebSocket
+      - "30303:30303"    # P2P
+    volumes:
+      - l2-execution-data-sepolia-fork:/data
+      - ./.devnet-sepolia-fork:/genesis
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Initializing L2 geth with genesis..."
+        rm -rf /data/geth /data/geth.ipc
+        geth init --datadir=/data /genesis/genesis-l2.json
+        exec geth \
+          --datadir=/data \
+          --http \
+          --http.addr=0.0.0.0 \
+          --http.port=8545 \
+          --http.api=eth,net,web3,debug,txpool,trace,miner \
+          --http.corsdomain=* \
+          --http.vhosts=* \
+          --ws \
+          --ws.addr=0.0.0.0 \
+          --ws.port=8546 \
+          --ws.api=eth,net,web3,debug,txpool,trace \
+          --ws.origins=* \
+          --authrpc.addr=0.0.0.0 \
+          --authrpc.port=8551 \
+          --authrpc.vhosts=* \
+          --authrpc.jwtsecret=/genesis/jwt-secret.txt \
+          --syncmode=full \
+          --gcmode=archive \
+          --maxpeers=0 \
+          --networkid=901 \
+          --rollup.disabletxpoolgossip=true \
+          --verbosity=4
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - ton-staking-network
+
+  # L2: op-node (Consensus/Rollup Layer)
+  l2-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.12.0
+    platform: linux/amd64
+    container_name: ton-staking-l2-node-sepolia-fork
+    depends_on:
+      l1-sepolia-fork:
+        condition: service_healthy
+      l2-execution:
+        condition: service_healthy
+    ports:
+      - "7545:8545"      # RPC
+      - "9222:9222"      # P2P
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+         exec op-node \
+          --l1=http://l1-sepolia-fork:8545 \
+          --l1.rpckind=basic \
+          --l1.trustrpc \
+          --l1.beacon.ignore \
+          --l2=http://l2-execution:8551 \
+          --l2.jwt-secret=/genesis/jwt-secret.txt \
+          --rollup.config=/genesis/rollup.json \
+          --rpc.addr=0.0.0.0 \
+          --rpc.port=8545 \
+          --p2p.disable \
+          --sequencer.enabled \
+          --sequencer.l1-confs=0 \
+          --verifier.l1-confs=0 \
+          --log.level=info
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - ton-staking-network
+
+  # L2: op-batcher (Batch Submitter)
+  l2-batcher:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-batcher-sepolia-fork
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    environment:
+      - OP_BATCHER_L1_ETH_RPC=http://l1-sepolia-fork:8545
+      - OP_BATCHER_L2_ETH_RPC=http://l2-execution:8545
+      - OP_BATCHER_ROLLUP_RPC=http://l2-node:8545
+      - OP_BATCHER_POLL_INTERVAL=1s
+      - OP_BATCHER_SUB_SAFETY_MARGIN=6
+      - OP_BATCHER_NUM_CONFIRMATIONS=1
+      - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_BATCHER_RESUBMISSION_TIMEOUT=30s
+      - OP_BATCHER_MAX_CHANNEL_DURATION=1
+      - OP_BATCHER_LOG_LEVEL=info
+      - OP_BATCHER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+    command: >
+      op-batcher
+      --log.level=info
+    networks:
+      - ton-staking-network
+
+  # L2: op-proposer (Output Proposer)
+  l2-proposer:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:latest
+    platform: linux/amd64
+    container_name: ton-staking-l2-proposer-sepolia-fork
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    environment:
+      - OP_PROPOSER_L1_ETH_RPC=http://l1-sepolia-fork:8545
+      - OP_PROPOSER_ROLLUP_RPC=http://l2-node:8545
+      - OP_PROPOSER_GAME_FACTORY_ADDRESS=0x52d01b38b78b559142B04CC19F5cC50D5C03dbAc
+      - OP_PROPOSER_POLL_INTERVAL=12s
+      - OP_PROPOSER_NUM_CONFIRMATIONS=1
+      - OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
+      - OP_PROPOSER_RESUBMISSION_TIMEOUT=30s
+      - OP_PROPOSER_LOG_LEVEL=info
+      - OP_PROPOSER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - OP_PROPOSER_PROPOSAL_INTERVAL=12s
+    command: >
+      op-proposer
+      --log.level=info
+    networks:
+      - ton-staking-network
+
+  # RAT Client #1 (Validator Account #2)
+  rat-client-1:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-1-sepolia-fork
+    depends_on:
+      l1-sepolia-fork:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    environment:
+      - L1_RPC_URL=http://l1-sepolia-fork:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #2 (Validator Account #3)
+  rat-client-2:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-2-sepolia-fork
+    depends_on:
+      l1-sepolia-fork:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    environment:
+      - L1_RPC_URL=http://l1-sepolia-fork:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # RAT Client #3 (Validator Account #4)
+  rat-client-3:
+    build:
+      context: ./clients/rat-client-type3
+      dockerfile: Dockerfile
+    container_name: ton-staking-rat-client-3-sepolia-fork
+    depends_on:
+      l1-sepolia-fork:
+        condition: service_healthy
+      l2-node:
+        condition: service_healthy
+    volumes:
+      - ./.devnet-sepolia-fork:/genesis
+    environment:
+      - L1_RPC_URL=http://l1-sepolia-fork:8545
+      - L2_RPC_URL=http://l2-execution:8545
+      - PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=info
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+volumes:
+  l2-execution-data-sepolia-fork:
+
+networks:
+  ton-staking-network:
+    driver: bridge

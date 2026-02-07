@@ -43,6 +43,11 @@ contract L1BridgeRegistryV1_2Storage {
                                             // TYPE 1,2: bytes4(0) (no factory)
                                             // TYPE 3: disputeGameFactory() = 0x0a1e5c7d
                                             // TYPE 4+: custom or bytes4(0) if not applicable
+        bytes4 seigNotifierGetter;          // Function selector to call on rollupConfig to get the contract that triggers onBridgedTonChange()
+                                            // TYPE 1: bytes4(0) (no notifier)
+                                            // TYPE 2: bytes4(0) (V3 not supported)
+                                            // TYPE 3: optimismPortal() = 0x0a49cb03
+                                            // TYPE 4+: custom or bytes4(0) if not applicable
         uint8 bridgePattern;                // Which bridge function pattern to use for deposits (0=ERC20, 1=NATIVE, 2=CUSTOM, ...)
         string name;                        // Type name (e.g., "Legacy", "Bedrock", "DisputeGame")
     }

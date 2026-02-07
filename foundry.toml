@@ -30,6 +30,8 @@ runs = 256
 ffi = true
 
 [lint]
+enabled = false
+exclude_paths = ["lib/"]
 exclude_lints = [
     "mixed-case-function",
     "mixed-case-variable",

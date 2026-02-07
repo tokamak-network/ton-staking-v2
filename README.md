@@ -131,6 +131,109 @@ forge script script/TestBLSOnMainnet.s.sol \
 
 ---
 
+## 🖥️ Local Devnet Setup
+
+### Prerequisites
+- Docker & Docker Compose
+- Foundry (forge, cast)
+- jq (JSON processor)
+- curl
+
+### Quick Start
+
+```bash
+# 1. Generate genesis (first time only)
+make devnet-allocs-offline
+
+# 2. Start devnet (Geth L1 + Optimism L2)
+make devnet-start
+
+# 3. Check status
+make devnet-info
+
+# 4. Run health check
+./scripts/check-devnet-health.sh
+```
+
+### System Components
+
+| Component | Port | Description |
+|-----------|------|-------------|
+| **L1 (Geth v1.13.15)** | 8545 | Ethereum L1 with Clique PoA |
+| **L2 (op-geth)** | 9545 | Optimism L2 execution layer (Debug Mode) |
+| **op-node** | 7545 | L2 consensus/rollup node |
+| **Batcher** | - | Submits L2 batches to L1 |
+| **RAT Clients (3)** | - | Monitor RAT events |
+
+**Why Geth instead of Anvil?**
+- op-node requires `eth_getStorageAt` with block hash as blockTag
+- Anvil doesn't support block hash as blockTag
+- Geth fully supports this, ensuring op-node compatibility
+
+**L2 Debug Mode:**
+- `debug_accountRange` API enabled for RAT Client
+- `trace` API enabled for transaction tracing
+- Archive mode for full state history
+
+### Alternative: Sepolia Fork Devnet
+
+For testing with Sepolia testnet state:
+
+```bash
+# 1. Generate new Optimism L1/L2 genesis (first time only)
+./scripts/generate-optimism-allocs-new.sh
+cp scripts/config/optimism-allocs-l1-new.json scripts/config/optimism-allocs-l1.json
+cp scripts/config/optimism-addresses-new.json scripts/config/optimism-addresses.json
+cp scripts/config/genesis-l2-optimism.json .devnet/genesis-l2.json
+
+# 2. Start Sepolia fork devnet
+./scripts/local/start-dev.sh
+
+# 3. Stop devnet
+./scripts/local/stop-dev.sh
+```
+
+**📖 See detailed guide:** [Local Devnet (Sepolia Fork)](./scripts/local/README.md)
+
+### Key Addresses
+
+```bash
+# L1 Contracts (genesis-deployed)
+DisputeGameFactory: 0x52d01b38b78b559142b04cc19f5cc50d5c03dbac
+SystemConfig:       0x577AcB7fA48878245a854ba51eD051a5B47cF83f
+RAT Contract:       0xE5BD5bDC03371fB239956dbbF40bD185D6c2ea28
+
+# Test Accounts
+Deployer:  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Validator: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+```
+
+### Health Check
+
+```bash
+# Run comprehensive health check
+./scripts/check-devnet-health.sh
+
+# Expected output:
+# ✅ All systems operational! Devnet is healthy.
+```
+
+### Troubleshooting
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# Restart specific service
+docker-compose restart l2-node
+
+# Full reset
+docker-compose down -v
+docker-compose up -d
+```
+
+---
+
 ## 📚 Documentation
 
 ### 🌐 Developer Guide (Recommended)

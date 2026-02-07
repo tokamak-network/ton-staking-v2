@@ -756,6 +756,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
             bytes4(0),                                  // disputeGameFactoryGetter (none)
+            bytes4(0),                                  // seigNotifierGetter (none)
             0,                                          // BRIDGE_PATTERN_ERC20
             false                                       // V3 eligible = false (V2 only)
         );
@@ -768,6 +769,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
             bytes4(0),                                  // disputeGameFactoryGetter (none)
+            bytes4(0),                                  // seigNotifierGetter (none)
             1,                                          // BRIDGE_PATTERN_NATIVE
             false                                       // V3 eligible = false (V2 only)
         );
@@ -780,6 +782,7 @@ contract V3ScenarioRealTest is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
             bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            bytes4(keccak256("optimismPortal()")),         // seigNotifierGetter (0x0a49cb03)
             1,                                              // BRIDGE_PATTERN_NATIVE
             true                                            // V3 eligible = true
         );

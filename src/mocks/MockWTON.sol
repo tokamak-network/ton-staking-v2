@@ -39,6 +39,16 @@ contract MockWTON is ERC20 {
         _burn(from, amount);
     }
 
+    /// @notice Swap TON to WTON (1 TON = 1e9 WTON in RAY)
+    /// @dev Caller must have approved TON to this contract first
+    /// @param tonAmount TON amount (18 decimals)
+    function swapFromTON(uint256 tonAmount) external returns (bool) {
+        IERC20(ton).transferFrom(msg.sender, address(this), tonAmount);
+        uint256 wtonAmount = tonAmount * 1e9;
+        _mint(msg.sender, wtonAmount);
+        return true;
+    }
+
     function swapToTONAndTransfer(address to, uint256 wtonAmount) external returns (bool) {
         _burn(msg.sender, wtonAmount);
         // Convert WTON (27 decimals) to TON (18 decimals) and transfer
