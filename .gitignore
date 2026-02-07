@@ -64,3 +64,4 @@ web-ui/public/optimism-addresses.json
 
 # untitled/temp files
 src/stake/managers/Untitled
+/tests/
