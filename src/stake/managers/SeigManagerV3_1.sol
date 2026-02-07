@@ -904,10 +904,15 @@ contract SeigManagerV3_1 is
     }
 
     function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
-        tos = (initialTotalSupply == 0 ? INITIAL_TOTAL_SUPPLY_MAINNET : initialTotalSupply) +
-            (_seigPerBlock * (blockNumber - (seigStartBlock == 0 ? SEIG_START_MAINNET : seigStartBlock))) -
+        bool isMainnet = block.chainid == 1;
+        uint256 initial = initialTotalSupply == 0 ? (isMainnet ? INITIAL_TOTAL_SUPPLY_MAINNET : 0) : initialTotalSupply;
+        uint256 startBlock = seigStartBlock == 0 ? (isMainnet ? SEIG_START_MAINNET : 0) : seigStartBlock;
+        uint256 burnt = burntAmountAtDAO == 0 ? (isMainnet ? BURNT_AMOUNT_MAINNET : 0) : burntAmountAtDAO;
+
+        tos = initial +
+            (_seigPerBlock * (blockNumber - startBlock)) -
             (ITON(_ton).balanceOf(address(1)) * (10 ** 9)) -
-            (burntAmountAtDAO == 0 ? BURNT_AMOUNT_MAINNET : burntAmountAtDAO);
+            burnt;
     }
 
     function _isExcludedFromSeigniorage(address layer2) internal view returns (bool) {

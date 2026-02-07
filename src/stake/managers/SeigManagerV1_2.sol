@@ -823,10 +823,10 @@ contract SeigManagerV1_2 is ProxyStorage, AuthControlSeigManager, SeigManagerSto
 
 
   function _totalSupplyOfTon(uint256 blockNumber) internal view returns (uint256 tos) {
-
-    uint256 startBlock = (seigStartBlock == 0? SEIG_START_MAINNET: seigStartBlock);
-    uint256 initial = (initialTotalSupply == 0? INITIAL_TOTAL_SUPPLY_MAINNET: initialTotalSupply);
-    uint256 burntAmount =(burntAmountAtDAO == 0? BURNT_AMOUNT_MAINNET: burntAmountAtDAO);
+    bool isMainnet = block.chainid == 1;
+    uint256 startBlock = seigStartBlock == 0 ? (isMainnet ? SEIG_START_MAINNET : 0) : seigStartBlock;
+    uint256 initial = initialTotalSupply == 0 ? (isMainnet ? INITIAL_TOTAL_SUPPLY_MAINNET : 0) : initialTotalSupply;
+    uint256 burntAmount = burntAmountAtDAO == 0 ? (isMainnet ? BURNT_AMOUNT_MAINNET : 0) : burntAmountAtDAO;
 
     tos = initial
       + (_seigPerBlock * (blockNumber - startBlock))
