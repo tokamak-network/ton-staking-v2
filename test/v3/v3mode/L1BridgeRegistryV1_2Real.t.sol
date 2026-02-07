@@ -218,12 +218,8 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         );
 
         assertEq(l1BridgeRegistry.rollupType(address(systemConfigType2)), 2, "Type should be 2");
-        assertTrue(l1BridgeRegistry.portal(portal1), "Portal should be registered");
-        assertEq(
-            l1BridgeRegistry.rollupConfigWithPortal(portal1),
-            address(systemConfigType2),
-            "rollupConfigWithPortal should be set"
-        );
+        // TYPE 2 has no seigNotifierGetter, so portal is NOT registered
+        assertFalse(l1BridgeRegistry.portal(portal1), "Portal should NOT be registered for TYPE 2");
     }
 
     /// @notice LBR-021: TYPE 2 등록 시 l2TON이 zero address면 revert
@@ -532,15 +528,18 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
 
     /// @notice LBR-074: 동일 portal 사용 시 등록 불가
     function test_LBR074_availableForRegistration_falseWhenPortalUsed() public {
+        // Use TYPE 3 since it has seigNotifierGetter that registers portal
         vm.prank(manager);
-        l1BridgeRegistry.registerRollupConfigByManager(address(systemConfigType2), 2, l2TON, "Test");
+        l1BridgeRegistry.registerRollupConfigByManager(address(systemConfigType3), 3, l2TON, "Test");
 
+        // Create a new config that shares the same portal (portal2) as systemConfigType3
         SimpleMockSystemConfig newConfig = new SimpleMockSystemConfig();
         newConfig.setL1StandardBridge(address(0x8001));
-        newConfig.setOptimismPortal(portal1);
+        newConfig.setOptimismPortal(portal2);
+        newConfig.setDisputeGameFactory(address(0x8002));
 
         assertFalse(
-            l1BridgeRegistry.availableForRegistration(address(newConfig), 2),
+            l1BridgeRegistry.availableForRegistration(address(newConfig), 3),
             "Should not be available when portal already used"
         );
     }
@@ -663,7 +662,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
 
         // TYPE 3 확인
         L1BridgeRegistryV1_2Storage.RollupTypeConfig memory config3 = l1BridgeRegistry.getRollupTypeConfig(3);
-        assertEq(config3.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 3 getter");
+        assertEq(config3.tvlContractGetter, bytes4(keccak256("optimismPortal()")), "TYPE 3 tvl getter");
         assertEq(config3.bridgePattern, 1, "TYPE 3 pattern is NATIVE");
         assertEq(config3.name, "Optimism Bedrock DisputeGame", "TYPE 3 name");
         assertTrue(l1BridgeRegistry.isValidRollupType(3), "TYPE 3 is V3 eligible");
@@ -682,6 +681,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("bridge()")),      // bridgeContractGetter
             bytes4(keccak256("bridge()")),      // tvlContractGetter
             bytes4(0),                           // disputeGameFactoryGetter (none)
+            bytes4(0),                           // seigNotifierGetter (none)
             2,  // BRIDGE_PATTERN_CUSTOM
             true
         );
@@ -710,6 +710,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("invalid()")),     // bridgeContractGetter
             bytes4(keccak256("invalid()")),     // tvlContractGetter
             bytes4(0),                           // disputeGameFactoryGetter
+            bytes4(0),                           // seigNotifierGetter
             0,
             false
         );
@@ -725,6 +726,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("duplicate()")),   // bridgeContractGetter
             bytes4(keccak256("duplicate()")),   // tvlContractGetter
             bytes4(0),                           // disputeGameFactoryGetter
+            bytes4(0),                           // seigNotifierGetter
             0,
             false
         );
@@ -740,6 +742,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("unauthorized()")),    // bridgeContractGetter
             bytes4(keccak256("unauthorized()")),    // tvlContractGetter
             bytes4(0),                               // disputeGameFactoryGetter
+            bytes4(0),                               // seigNotifierGetter
             0,
             false
         );
@@ -755,6 +758,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter
             bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter
             bytes4(0),                                  // disputeGameFactoryGetter
+            bytes4(0),                                  // seigNotifierGetter
             0,
             true  // V3 eligible로 변경
         );
@@ -779,6 +783,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("nonexistent()")),     // bridgeContractGetter
             bytes4(keccak256("nonexistent()")),     // tvlContractGetter
             bytes4(0),                               // disputeGameFactoryGetter
+            bytes4(0),                               // seigNotifierGetter
             0,
             false
         );
@@ -794,6 +799,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),  // Same bridgeContractGetter
             bytes4(keccak256("l1StandardBridge()")),  // Same tvlContractGetter
             bytes4(0),                                 // Same disputeGameFactoryGetter
+            bytes4(0),                                 // Same seigNotifierGetter
             0,  // Same pattern
             false  // Same V3 eligibility
         );
@@ -847,6 +853,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),  // bridgeContractGetter (기존 함수 재사용)
             bytes4(keccak256("l1StandardBridge()")),  // tvlContractGetter
             bytes4(0),                                 // disputeGameFactoryGetter (none)
+            bytes4(0),                                 // seigNotifierGetter (none)
             1,  // BRIDGE_PATTERN_NATIVE
             true  // V3 eligible
         );
@@ -905,11 +912,12 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
     /// @notice LBR-113: TYPE 2 동적 등록 검증 - bridge와 TVL이 다른 주소
     function test_LBR113_type2_dynamicRegistration_bridgeAndTvlDifferent() public {
         // TYPE 2: bridgeContractGetter(l1StandardBridge)와 tvlContractGetter(optimismPortal)가 다름
+        // But TYPE 2 has no seigNotifierGetter, so portal is NOT registered
         SimpleMockSystemConfig config = new SimpleMockSystemConfig();
         address bridge = address(0x7101);
-        address portal = address(0x7102);
+        address portalAddr = address(0x7102);
         config.setL1StandardBridge(bridge);
-        config.setOptimismPortal(portal);
+        config.setOptimismPortal(portalAddr);
 
         vm.prank(manager);
         l1BridgeRegistry.registerRollupConfigByManager(
@@ -922,15 +930,8 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
         // l1Bridge에 bridge 주소 등록 확인
         assertTrue(l1BridgeRegistry.l1Bridge(bridge), "Bridge should be registered to l1Bridge mapping");
 
-        // portal 매핑에 portal 주소 등록 확인 (tvlGetter가 다르므로)
-        assertTrue(l1BridgeRegistry.portal(portal), "Portal should be registered to portal mapping");
-
-        // rollupConfigWithPortal 매핑 확인
-        assertEq(
-            l1BridgeRegistry.rollupConfigWithPortal(portal),
-            address(config),
-            "Portal should be mapped to rollupConfig"
-        );
+        // TYPE 2 has no seigNotifierGetter, so portal is NOT registered
+        assertFalse(l1BridgeRegistry.portal(portalAddr), "Portal should NOT be registered for TYPE 2");
 
         // rollupConfig 등록 확인
         (uint8 rollupType, , , , ) = l1BridgeRegistry.getRollupInfo(address(config));
@@ -1048,6 +1049,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("l1StandardBridge()")),   // tvlContractGetter (0x078f29cf)
             bytes4(0),                                  // disputeGameFactoryGetter (none)
+            bytes4(0),                                  // seigNotifierGetter (none)
             0,                                          // BRIDGE_PATTERN_ERC20
             false                                       // V3 eligible = false (V2 only)
         );
@@ -1060,6 +1062,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),   // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("optimismPortal()")),     // tvlContractGetter (0x0a49cb03)
             bytes4(0),                                  // disputeGameFactoryGetter (none)
+            bytes4(0),                                  // seigNotifierGetter (none)
             1,                                          // BRIDGE_PATTERN_NATIVE
             false                                       // V3 eligible = false (V2 only)
         );
@@ -1072,6 +1075,7 @@ contract L1BridgeRegistryV1_2Test is Test, DeployV3Full {
             bytes4(keccak256("l1StandardBridge()")),       // bridgeContractGetter (0x078f29cf)
             bytes4(keccak256("optimismPortal()")),         // tvlContractGetter (0x0a49cb03)
             bytes4(keccak256("disputeGameFactory()")),     // disputeGameFactoryGetter (0x0a1e5c7d)
+            bytes4(keccak256("optimismPortal()")),         // seigNotifierGetter (0x0a49cb03)
             1,                                              // BRIDGE_PATTERN_NATIVE
             true                                            // V3 eligible = true
         );
