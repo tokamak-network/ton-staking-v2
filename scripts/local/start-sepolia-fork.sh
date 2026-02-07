@@ -838,8 +838,8 @@ MANAGER_ADDR="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 OPERATOR_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 OPERATOR_ADDR="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
-# Minimum staking amount (1001 WTON in RAY = 1001 * 1e27)
-MIN_STAKE="1001000000000000000000000000000"
+# Minimum staking amount (1001 TON in 18 decimals)
+MIN_STAKE="1001000000000000000000"
 
 # --- Step 8.1: Check if rollup types are registered ---
 echo "  Checking rollup type registration..."
@@ -935,15 +935,15 @@ ROLLUP_CONFIG_INFO=$(cast call "$LAYER2_MANAGER" "rollupConfigInfo(address)(uint
 ROLLUP_STATUS=$(echo "$ROLLUP_CONFIG_INFO" | head -1)
 
 if [ "$ROLLUP_STATUS" = "0" ]; then
-    echo "  Approving WTON to Layer2Manager..."
-    cast send "$WTON_ADDR" "approve(address,uint256)" "$LAYER2_MANAGER" \
+    echo "  Approving TON to Layer2Manager..."
+    cast send "$TON_ADDR" "approve(address,uint256)" "$LAYER2_MANAGER" \
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff \
         --private-key "$OPERATOR_KEY" --rpc-url "$RPC" > /dev/null
 
-    echo "  Registering CandidateAddOn with 1001 WTON stake..."
+    echo "  Registering CandidateAddOn with 1001 TON stake..."
     cast send "$LAYER2_MANAGER" \
         "registerCandidateAddOn(address,uint256,bool,string)" \
-        "$SYSTEM_CONFIG_ADDR" "$MIN_STAKE" false "Devnet L2 Operator" \
+        "$SYSTEM_CONFIG_ADDR" "$MIN_STAKE" true "Devnet L2 Operator" \
         --private-key "$OPERATOR_KEY" --rpc-url "$RPC" > /dev/null
 
     echo -e "${GREEN}  ✓ CandidateAddOn registered${NC}"
@@ -986,8 +986,8 @@ RAT=$(jq -r '.ratProxy' "$DEVNET_DIR/addresses.json")
 # Get CandidateAddOn address (layer2 for deposits)
 CANDIDATE_ADDON=$(cast call "$LAYER2_MANAGER" "getLayer2BySystemConfig(address)(address)" "$SYSTEM_CONFIG_ADDR" --rpc-url "$RPC")
 
-# Deposit amount: 100 WTON (100 * 1e27 = 1e29 ray)
-VALIDATOR_DEPOSIT="100000000000000000000000000000"
+# Deposit amount: 100 TON (100 * 1e18)
+VALIDATOR_DEPOSIT="100000000000000000000"
 
 register_validator() {
     local KEY=$1
@@ -996,14 +996,16 @@ register_validator() {
 
     echo "  Registering $NAME ($ADDR)..."
 
-    # Step 1: Approve WTON
-    cast send "$WTON_ADDR" "approve(address,uint256)" "$DEPOSIT_MANAGER" \
+    # Step 1: Approve TON to WTON (for TON -> WTON -> Deposit flow)
+    cast send "$TON_ADDR" "approve(address,uint256)" "$WTON_ADDR" \
         "115792089237316195423570985008687907853269984665640564039457584007913129639935" \
         --private-key "$KEY" --rpc-url "$RPC" --gas-limit 100000 > /dev/null 2>&1
 
-    # Step 2: Deposit to CandidateAddOn
-    cast send "$DEPOSIT_MANAGER" "deposit(address,uint256)" "$CANDIDATE_ADDON" "$VALIDATOR_DEPOSIT" \
-        --private-key "$KEY" --rpc-url "$RPC" --gas-limit 500000 > /dev/null 2>&1
+    # Step 2: Deposit TON via approveAndCall(WTON, amount, abi.encode(depositManager, layer2))
+    # TON.approveAndCall -> WTON.onApprove (TON->WTON) -> DepositManager.deposit
+    CALLBACK_DATA=$(cast abi-encode "f(address,address)" "$DEPOSIT_MANAGER" "$CANDIDATE_ADDON")
+    cast send "$TON_ADDR" "approveAndCall(address,uint256,bytes)" "$WTON_ADDR" "$VALIDATOR_DEPOSIT" "$CALLBACK_DATA" \
+        --private-key "$KEY" --rpc-url "$RPC" --gas-limit 1000000 > /dev/null 2>&1
 
     # Step 3: Register with RAT
     cast send "$RAT" "registerValidator(address)" "$SYSTEM_CONFIG_ADDR" \
@@ -1085,7 +1087,6 @@ echo -e "${YELLOW}Step 14: Setting up Personal Test account...${NC}"
 PERSONAL_ADDR="0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 PERSONAL_ETH="100000000000000000000000"  # 100000 ETH in wei
 PERSONAL_TON="100000000000000000000000"  # 100000 TON (18 decimals)
-PERSONAL_WTON="100000000000000000000000000000000"  # 100000 WTON (27 decimals = ray)
 
 # Set ETH balance
 cast rpc anvil_setBalance "$PERSONAL_ADDR" "$(printf '0x%x' $PERSONAL_ETH)" --rpc-url "$RPC" > /dev/null 2>&1
@@ -1094,11 +1095,43 @@ cast rpc anvil_setBalance "$PERSONAL_ADDR" "$(printf '0x%x' $PERSONAL_ETH)" --rp
 cast send "$TON_ADDR" "mint(address,uint256)" "$PERSONAL_ADDR" "$PERSONAL_TON" \
     --private-key "$OPERATOR_KEY" --rpc-url "$RPC" > /dev/null 2>&1
 
-# Mint WTON
+# Mint WTON for Personal account
+PERSONAL_WTON="100000000000000000000000000000000"  # 100000 WTON (27 decimals)
 cast send "$WTON_ADDR" "mint(address,uint256)" "$PERSONAL_ADDR" "$PERSONAL_WTON" \
     --private-key "$OPERATOR_KEY" --rpc-url "$RPC" > /dev/null 2>&1
 
 echo -e "${GREEN}  ✓ Personal Test account ready (100k ETH + 100k TON + 100k WTON)${NC}"
+echo ""
+
+# =============================================================================
+# Step 15: Set SeigManager devnet parameters (seigStartBlock, initialTotalSupply)
+# =============================================================================
+echo -e "${YELLOW}Step 15: Setting SeigManager seigniorage start parameters...${NC}"
+DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+SEIG_ADDR=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
+
+# Read actual TON totalSupply and convert to WTON (27 decimals) = TON * 1e9
+TON_TOTAL_SUPPLY=$(cast call "$TON_ADDR" "totalSupply()(uint256)" --rpc-url "$RPC" 2>/dev/null)
+# Convert TON (18 decimals) to WTON (27 decimals): multiply by 1e9
+INITIAL_TOTAL_SUPPLY=$(python3 -c "print(int($TON_TOTAL_SUPPLY) * 10**9)")
+echo "  TON totalSupply: $TON_TOTAL_SUPPLY ($(python3 -c "print(int($TON_TOTAL_SUPPLY) / 10**18)") TON)"
+echo "  initialTotalSupply (WTON): $INITIAL_TOTAL_SUPPLY"
+
+# Set seigStartBlock to current block
+CURRENT_BLOCK=$(cast block-number --rpc-url "$RPC")
+cast send "$SEIG_ADDR" "setSeigStartBlock(uint256)" "$CURRENT_BLOCK" \
+    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+echo -e "${GREEN}  ✓ seigStartBlock set to $CURRENT_BLOCK${NC}"
+
+# Set initialTotalSupply from actual TON totalSupply
+cast send "$SEIG_ADDR" "setInitialTotalSupply(uint256)" "$INITIAL_TOTAL_SUPPLY" \
+    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+echo -e "${GREEN}  ✓ initialTotalSupply set from actual TON totalSupply${NC}"
+
+# Set burntAmountAtDAO to 1 (non-zero to avoid mainnet fallback on chainId==1)
+cast send "$SEIG_ADDR" "setBurntAmountAtDAO(uint256)" "1" \
+    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+echo -e "${GREEN}  ✓ burntAmountAtDAO set to 1${NC}"
 echo ""
 
 # =============================================================================
@@ -1124,7 +1157,7 @@ echo "Rollup Type:    3 (Optimism Bedrock DisputeGame)"
 echo "Operator:       $OPERATOR_ADDR"
 echo "OperatorManager: $OPERATOR_MANAGER"
 echo ""
-echo -e "${BLUE}=== Test Accounts (100k TON + 100k WTON each) ===${NC}"
+echo -e "${BLUE}=== Test Accounts (100k TON each) ===${NC}"
 echo "Operator:   0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (Anvil #0)"
 echo "Manager:    0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (Anvil #1)"
 echo "Validator1: 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (Anvil #3)"

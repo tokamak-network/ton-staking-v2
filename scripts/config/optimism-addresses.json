@@ -1,9 +1,9 @@
 {
-  "SystemConfigProxy": "0x4c94ba6e019244d765fbffa93bb0cf20fb19b0b0",
-  "OptimismPortalProxy": "0x0f53a92a8d3bb2f7b16636c919636cbf57fa3d14",
-  "L1StandardBridgeProxy": "0xadd61673f6423cad23dc5966e30a5939d493b924",
-  "L1CrossDomainMessengerProxy": "0x1785dae161fd12912ee274fcc7a448aaf0e560ed",
-  "L1ERC721BridgeProxy": "0x60ac20489e3bfe0da236aef1c70c9b573366df7b",
-  "OptimismMintableERC20FactoryProxy": "0x3b156d211bcba0d2b3a8e7748ff923d4a87863df",
-  "DisputeGameFactoryProxy": "0xcfea2a78821b0d27d6b811c66edb265db72c15ae"
+  "SystemConfigProxy": "0x22a7da6664e3a44e2edea421dedddfe99d9ddd26",
+  "OptimismPortalProxy": "0x91fe3b616688a02045c829457b83ca82df151629",
+  "L1StandardBridgeProxy": "0x3bf2ec4f4de6591618e99a3c882af8a9d0a298d0",
+  "L1CrossDomainMessengerProxy": "0x1ff8c8fb4b03016810102e59719ba11dc43401a1",
+  "L1ERC721BridgeProxy": "0x54a0e0d4856219af48cac26d9d2500dc342a3676",
+  "OptimismMintableERC20FactoryProxy": "0x5dc89d6a811d170a6c5c1410ffe6194e91f1f219",
+  "DisputeGameFactoryProxy": "0x98895526b37fb39e8881ef30b97de5b6a2385b63"
 }
