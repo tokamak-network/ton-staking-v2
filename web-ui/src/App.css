@@ -834,6 +834,114 @@ td code {
   }
 }
 
+/* Summary Cards Grid */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  background-color: white;
+  border-radius: 6px;
+  padding: 1.25rem;
+  text-align: center;
+  border: 2px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.summary-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0.5em 1em -0.125em rgba(10, 10, 10, 0.1);
+}
+
+.summary-card .summary-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.summary-card .summary-label {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 0.25rem;
+}
+
+/* Clickable Table Row */
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clickable-row:hover {
+  background-color: #e8f4fd !important;
+}
+
+.clickable-row.selected {
+  background-color: #d0e8f7 !important;
+  border-left: 3px solid var(--primary);
+}
+
+/* Game Detail Panel */
+.game-detail-panel {
+  background-color: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.game-detail-panel h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Interval Bar Chart */
+.interval-bar-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 80px;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.interval-bar {
+  flex: 1;
+  min-width: 8px;
+  max-width: 40px;
+  background-color: var(--info);
+  border-radius: 2px 2px 0 0;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.interval-bar:hover {
+  background-color: var(--primary);
+}
+
+.interval-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
+}
+
+/* Responsive - Mobile: Summary Cards */
+@media (max-width: 768px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* Overlay for mobile sidebar */
 @media (max-width: 768px) {
   .sidebar.is-active::before {

@@ -79,6 +79,33 @@ interface EnhancedGameInfo extends GameInfo {
   ratTestId: string;
 }
 
+interface ClaimDataInfo {
+  index: number;
+  parentIndex: number;
+  counteredBy: string;
+  claimant: string;
+  bond: string;
+  claim: string;
+  position: number;
+  clock: number;
+}
+
+interface GameDetailInfo extends EnhancedGameInfo {
+  createdAt: number;
+  resolvedAt: number;
+  maxClockDuration: number;
+  startingBlockNumber: number;
+  claims: ClaimDataInfo[];
+  ratTestDetail: AttentionTestInfo | null;
+}
+
+interface GameStatusSummary {
+  total: number;
+  inProgress: number;
+  challengerWins: number;
+  defenderWins: number;
+}
+
 interface SyncStatus {
   currentL1: { number: number; hash: string };
   unsafeL2: { number: number; hash: string };
@@ -96,6 +123,15 @@ interface ProposerInfo {
   lag: number;
   isHealthy: boolean;
   recentGames: EnhancedGameInfo[];
+  proposerAddress: string;
+  proposerAddressSource: string;  // 'config' | 'claimant' - 주소 출처
+  gameIntervals: number[];
+  outputRoots: { index: number; l2Block: number; rootClaim: string; blockRange: string }[];
+  ethBalance: string;
+  lastGameAge: number;
+  initBond: string;       // 게임 생성 시 필요한 ETH bond (DisputeGameFactory.initBonds)
+  gameType: number;        // 생성하는 게임 타입 (보통 0 = FaultDisputeGame)
+  inferredProposalInterval: number; // 게임 타임스탬프에서 추론한 실제 proposal interval (초)
 }
 
 interface BatcherInfo {
@@ -107,6 +143,12 @@ interface BatcherInfo {
   recentBatchTxs: BatchTxInfo[];
   isHealthy: boolean;
   batchInbox: string;
+  avgBatchInterval: number;
+  totalDataBytes: number;
+  avgDataPerTx: number;
+  avgGasPerTx: number;
+  txCount: number;
+  daType: string;
 }
 
 interface BatchTxInfo {
@@ -115,6 +157,7 @@ interface BatchTxInfo {
   timestamp: number;
   gasUsed: string;
   dataSize: number;
+  type: number;
 }
 
 interface L2Info {
@@ -218,6 +261,8 @@ function App() {
   const [blsValidators, setBlsValidators] = useState<string[]>([]);
   const [minValidatorsForFW, setMinValidatorsForFW] = useState<number>(0);
   const [factoryInfo, setFactoryInfo] = useState<{gameImpl: string; initBond: string} | null>(null);
+  const [selectedGameDetail, setSelectedGameDetail] = useState<GameDetailInfo | null>(null);
+  const [gameStatusSummary, setGameStatusSummary] = useState<GameStatusSummary>({ total: 0, inProgress: 0, challengerWins: 0, defenderWins: 0 });
 
   // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
@@ -431,6 +476,11 @@ function App() {
 
     if (['validators', 'games', 'proposer', 'batcher'].includes(activeTab)) {
       interval = setInterval(loadTabData, 10000);
+    }
+
+    // Clear game detail when leaving games tab
+    if (activeTab !== 'games') {
+      setSelectedGameDetail(null);
     }
 
     return () => {
@@ -1334,11 +1384,89 @@ function App() {
 
       const result = enhanced.reverse();
       setEnhancedGames(result);
+
+      // Compute game status summary
+      const summary: GameStatusSummary = { total: result.length, inProgress: 0, challengerWins: 0, defenderWins: 0 };
+      for (const g of result) {
+        if (g.status === 0) summary.inProgress++;
+        else if (g.status === 1) summary.challengerWins++;
+        else if (g.status === 2) summary.defenderWins++;
+      }
+      setGameStatusSummary(summary);
+
       return result;
     } catch (e) {
       console.warn('Failed to load enhanced games:', e);
       setEnhancedGames([]);
       return [];
+    }
+  };
+
+  const loadGameDetail = async (game: EnhancedGameInfo) => {
+    try {
+      const gameProxy = new ethers.Contract(game.proxy, DISPUTE_GAME_ABI, l1Provider);
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+
+      const [createdAt, resolvedAt, maxClockDuration, startingBlockNumber] = await Promise.all([
+        gameProxy.createdAt().catch(() => 0),
+        gameProxy.resolvedAt().catch(() => 0),
+        gameProxy.maxClockDuration().catch(() => 0),
+        gameProxy.startingBlockNumber().catch(() => 0),
+      ]);
+
+      // Load claim data (max 50)
+      const claimCount = Math.min(game.claimCount, 50);
+      const claims: ClaimDataInfo[] = [];
+      for (let i = 0; i < claimCount; i++) {
+        try {
+          const cd = await gameProxy.claimData(i);
+          claims.push({
+            index: i,
+            parentIndex: Number(cd[0]),
+            counteredBy: cd[1],
+            claimant: cd[2],
+            bond: ethers.formatEther(cd[3]),
+            claim: cd[4],
+            position: Number(cd[5]),
+            clock: Number(cd[6]),
+          });
+        } catch {
+          break;
+        }
+      }
+
+      // Load RAT test detail if linked
+      let ratTestDetail: AttentionTestInfo | null = null;
+      if (game.ratTestId) {
+        try {
+          const testData = await rat.getAttentionTest(game.ratTestId);
+          const statusLabels: Record<number, string> = { 0: 'Pending', 1: 'EvidencePeriod', 2: 'Slashed', 3: 'Restored', 4: 'Resolved' };
+          ratTestDetail = {
+            testId: game.ratTestId,
+            validator: testData[0],
+            batchIndex: Number(testData[1]),
+            bondAmount: ethers.formatUnits(testData[2], 27),
+            deadline: Number(testData[3]),
+            status: Number(testData[4]),
+            statusLabel: statusLabels[Number(testData[4])] || 'Unknown',
+          };
+        } catch {
+          // no RAT test detail
+        }
+      }
+
+      const detail: GameDetailInfo = {
+        ...game,
+        createdAt: Number(createdAt),
+        resolvedAt: Number(resolvedAt),
+        maxClockDuration: Number(maxClockDuration),
+        startingBlockNumber: Number(startingBlockNumber),
+        claims,
+        ratTestDetail,
+      };
+      setSelectedGameDetail(detail);
+    } catch (e) {
+      console.warn('Failed to load game detail:', e);
     }
   };
 
@@ -1355,16 +1483,82 @@ function App() {
       const gamesLast24h = eg.filter(g => now - g.timestamp < 86400).length;
 
       let averageInterval = 0;
+      let gameIntervals: number[] = [];
       if (eg.length >= 2) {
         const sorted = [...eg].sort((a, b) => a.timestamp - b.timestamp);
-        const intervals = sorted.slice(1).map((g, i) => g.timestamp - sorted[i].timestamp);
-        averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        gameIntervals = sorted.slice(1).map((g, i) => g.timestamp - sorted[i].timestamp);
+        averageInterval = gameIntervals.reduce((a, b) => a + b, 0) / gameIntervals.length;
       }
 
       const latestGame = eg.length > 0 ? eg[0] : null;
       const latestL2Block = latestGame?.l2BlockNumber || 0;
       const safeL2 = ss?.safeL2?.number || 0;
       const lag = safeL2 - latestL2Block;
+      const lastGameAge = latestGame ? now - latestGame.timestamp : 0;
+
+      // Proposer address: primary source is CONFIG (from docker-compose private key)
+      // If games exist, verify by reading claimData(0).claimant from latest game
+      let proposerAddress = CONFIG.proposerAddress || '';
+      let proposerAddressSource = proposerAddress ? 'config' : '';
+      let proposerEthBalance = '0';
+
+      // If games exist, get the actual proposer from the game's root claim (claimant)
+      if (latestGame) {
+        try {
+          const gameProxy = new ethers.Contract(latestGame.proxy, DISPUTE_GAME_ABI, l1Provider);
+          const rootClaimData = await gameProxy.claimData(0);
+          const claimant = rootClaimData[2]; // claimant field
+          if (claimant && claimant !== ethers.ZeroAddress) {
+            proposerAddress = claimant;
+            proposerAddressSource = 'claimant';
+          }
+        } catch {
+          // fallback to config address
+        }
+      }
+
+      if (proposerAddress && proposerAddress !== ethers.ZeroAddress) {
+        try {
+          const bal = await l1Provider.getBalance(proposerAddress);
+          proposerEthBalance = ethers.formatEther(bal);
+        } catch {
+          // ignore
+        }
+      }
+
+      // Get factory info: initBond and gameType
+      let initBond = '0';
+      let gameType = 0;
+      try {
+        const [bond, impl] = await Promise.all([
+          factory.initBonds(0).catch(() => 0n),
+          factory.gameImpls(0).catch(() => ethers.ZeroAddress),
+        ]);
+        initBond = ethers.formatEther(bond);
+        // gameType 0 is the default FaultDisputeGame
+        gameType = impl !== ethers.ZeroAddress ? 0 : -1;
+      } catch {
+        // ignore
+      }
+
+      // Infer actual proposal interval from the median of game intervals
+      let inferredProposalInterval = 0;
+      if (gameIntervals.length > 0) {
+        const sortedIntervals = [...gameIntervals].sort((a, b) => a - b);
+        inferredProposalInterval = sortedIntervals[Math.floor(sortedIntervals.length / 2)]; // median
+      }
+
+      // Build output roots from enhanced games
+      const sorted = [...eg].sort((a, b) => a.index - b.index);
+      const outputRoots = sorted.map((g, idx) => {
+        const prevBlock = idx > 0 ? sorted[idx - 1].l2BlockNumber : 0;
+        return {
+          index: g.index,
+          l2Block: g.l2BlockNumber,
+          rootClaim: g.rootClaim,
+          blockRange: `${prevBlock + 1} - ${g.l2BlockNumber}`,
+        };
+      });
 
       setProposerInfo({
         totalGames,
@@ -1376,6 +1570,15 @@ function App() {
         lag,
         isHealthy: totalGames > 0 && (latestGame ? (now - latestGame.timestamp < 600) : false),
         recentGames: eg.slice(0, 10),
+        proposerAddress,
+        proposerAddressSource,
+        gameIntervals,
+        outputRoots,
+        ethBalance: proposerEthBalance,
+        lastGameAge,
+        initBond,
+        gameType,
+        inferredProposalInterval,
       });
     } catch (e) {
       console.warn('Failed to load proposer info:', e);
@@ -1421,6 +1624,7 @@ function App() {
                   timestamp: block.timestamp,
                   gasUsed: receipt?.gasUsed?.toString() || '0',
                   dataSize: tx.data ? Math.floor((tx.data.length - 2) / 2) : 0,
+                  type: tx.type ?? 0,
                 });
               }
             } catch {
@@ -1429,6 +1633,30 @@ function App() {
           }
         } catch {
           // skip block
+        }
+      }
+
+      // Compute batch metrics
+      let avgBatchInterval = 0;
+      let totalDataBytes = 0;
+      let avgDataPerTx = 0;
+      let avgGasPerTx = 0;
+      let daType = 'calldata';
+
+      if (batchTxs.length > 0) {
+        totalDataBytes = batchTxs.reduce((sum, tx) => sum + tx.dataSize, 0);
+        avgDataPerTx = Math.round(totalDataBytes / batchTxs.length);
+        const totalGas = batchTxs.reduce((sum, tx) => sum + parseInt(tx.gasUsed), 0);
+        avgGasPerTx = Math.round(totalGas / batchTxs.length);
+
+        // Detect DA type from tx types
+        const hasBlobTx = batchTxs.some(tx => tx.type === 3);
+        daType = hasBlobTx ? 'blobs' : 'calldata';
+
+        if (batchTxs.length >= 2) {
+          const sorted = [...batchTxs].sort((a, b) => a.timestamp - b.timestamp);
+          const intervals = sorted.slice(1).map((tx, i) => tx.timestamp - sorted[i].timestamp);
+          avgBatchInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
         }
       }
 
@@ -1441,6 +1669,12 @@ function App() {
         recentBatchTxs: batchTxs,
         isHealthy: safeLag < 50,
         batchInbox: batchInboxAddr,
+        avgBatchInterval,
+        totalDataBytes,
+        avgDataPerTx,
+        avgGasPerTx,
+        txCount: batchTxs.length,
+        daType,
       });
     } catch (e) {
       console.warn('Failed to load batcher info:', e);
@@ -2897,6 +3131,26 @@ function App() {
               {/* Dispute Games Tab */}
               {activeTab === 'games' && (
                 <div className="section">
+                  {/* Game Status Summary Cards */}
+                  <div className="summary-cards">
+                    <div className="summary-card">
+                      <div className="summary-value">{gameStatusSummary.total}</div>
+                      <div className="summary-label">Total Games</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-value" style={{color: '#2196F3'}}>{gameStatusSummary.inProgress}</div>
+                      <div className="summary-label">In Progress</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-value" style={{color: '#f14668'}}>{gameStatusSummary.challengerWins}</div>
+                      <div className="summary-label">Challenger Wins</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-value" style={{color: '#48c78e'}}>{gameStatusSummary.defenderWins}</div>
+                      <div className="summary-label">Defender Wins</div>
+                    </div>
+                  </div>
+
                   <section className="card">
                     <h2>🏭 Factory Overview</h2>
                     <div className="info-list">
@@ -2925,6 +3179,7 @@ function App() {
 
                   <section className="card">
                     <h2>🎮 Recent Dispute Games ({enhancedGames.length || games.length})</h2>
+                    <small style={{display: 'block', marginBottom: '0.75rem', color: 'var(--text-light)'}}>Click a row to view game details</small>
                     {(enhancedGames.length === 0 && games.length === 0) ? (
                       <p className="empty-state">No dispute games created yet</p>
                     ) : enhancedGames.length > 0 ? (
@@ -2948,7 +3203,11 @@ function App() {
                               const statusLabels: Record<number, string> = { 0: 'InProgress', 1: 'ChallengerWins', 2: 'DefenderWins' };
                               const statusColors: Record<number, string> = { 0: '', 1: 'badge-error', 2: 'badge-success' };
                               return (
-                                <tr key={idx}>
+                                <tr
+                                  key={idx}
+                                  className={`clickable-row ${selectedGameDetail?.proxy === game.proxy ? 'selected' : ''}`}
+                                  onClick={() => loadGameDetail(game)}
+                                >
                                   <td>{game.index}</td>
                                   <td><span className="badge">{game.gameType}</span></td>
                                   <td>
@@ -2992,6 +3251,121 @@ function App() {
                         </table>
                       </div>
                     )}
+
+                    {/* Game Detail Panel */}
+                    {selectedGameDetail && (
+                      <div className="game-detail-panel">
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <h3>Game #{selectedGameDetail.index} Details</h3>
+                          <button className="btn btn-small btn-secondary" onClick={() => setSelectedGameDetail(null)}>Close</button>
+                        </div>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Proxy:</span>
+                            <code>{selectedGameDetail.proxy}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Status:</span>
+                            <span className={`badge ${selectedGameDetail.status === 1 ? 'badge-error' : selectedGameDetail.status === 2 ? 'badge-success' : ''}`}>
+                              {selectedGameDetail.status === 0 ? 'InProgress' : selectedGameDetail.status === 1 ? 'ChallengerWins' : 'DefenderWins'}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Root Claim:</span>
+                            <code>{selectedGameDetail.rootClaim}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">L2 Block:</span>
+                            <span>{selectedGameDetail.l2BlockNumber}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Starting Block:</span>
+                            <span>{selectedGameDetail.startingBlockNumber}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Created At:</span>
+                            <span>{selectedGameDetail.createdAt > 0 ? formatTimestamp(selectedGameDetail.createdAt) : 'N/A'}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Resolved At:</span>
+                            <span>{selectedGameDetail.resolvedAt > 0 ? formatTimestamp(selectedGameDetail.resolvedAt) : 'Not resolved'}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Max Clock Duration:</span>
+                            <span>{selectedGameDetail.maxClockDuration}s ({Math.round(selectedGameDetail.maxClockDuration / 60)}m)</span>
+                          </div>
+                        </div>
+
+                        {/* RAT Test Info */}
+                        {selectedGameDetail.ratTestDetail && (
+                          <>
+                            <h3 style={{marginTop: '1.5rem'}}>RAT Test Info</h3>
+                            <div className="info-list">
+                              <div className="info-row">
+                                <span className="info-label">Test ID:</span>
+                                <code>{selectedGameDetail.ratTestDetail.testId.substring(0, 18)}...</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Validator:</span>
+                                <code>{formatAddress(selectedGameDetail.ratTestDetail.validator)}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Status:</span>
+                                <span className={`badge ${
+                                  selectedGameDetail.ratTestDetail.status === 2 ? 'badge-error' :
+                                  selectedGameDetail.ratTestDetail.status === 3 ? 'badge-success' : 'badge-warning'
+                                }`}>
+                                  {selectedGameDetail.ratTestDetail.statusLabel}
+                                </span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Bond:</span>
+                                <span>{parseFloat(selectedGameDetail.ratTestDetail.bondAmount).toFixed(2)} WTON</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Deadline:</span>
+                                <span>{formatTimestamp(selectedGameDetail.ratTestDetail.deadline)}</span>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Claim Data Table */}
+                        {selectedGameDetail.claims.length > 0 && (
+                          <>
+                            <h3 style={{marginTop: '1.5rem'}}>Claim Data ({selectedGameDetail.claims.length})</h3>
+                            <div className="table-container">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Parent</th>
+                                    <th>Claimant</th>
+                                    <th>Countered By</th>
+                                    <th>Bond</th>
+                                    <th>Claim</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {selectedGameDetail.claims.map((c) => (
+                                    <tr key={c.index}>
+                                      <td>{c.index}</td>
+                                      <td>{c.parentIndex}</td>
+                                      <td><code>{formatAddress(c.claimant)}</code></td>
+                                      <td>
+                                        {c.counteredBy === ethers.ZeroAddress ? '-' : <code>{formatAddress(c.counteredBy)}</code>}
+                                      </td>
+                                      <td>{parseFloat(c.bond).toFixed(4)} ETH</td>
+                                      <td><code>{c.claim.substring(0, 10)}...</code></td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </section>
                 </div>
               )}
@@ -3010,21 +3384,57 @@ function App() {
                           </span>
                         </div>
                         <div className="info-row">
+                          <span className="info-label">Proposer Address:</span>
+                          <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                            <code>{proposerInfo.proposerAddress || 'Unknown'}</code>
+                            <span className="badge" style={{fontSize: '0.65rem'}}>
+                              {proposerInfo.proposerAddressSource === 'claimant' ? 'from game claimant' :
+                               proposerInfo.proposerAddressSource === 'config' ? 'from config' : 'unknown'}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">ETH Balance:</span>
+                          <span className={parseFloat(proposerInfo.ethBalance) < parseFloat(proposerInfo.initBond) ? 'status-error' : ''}>
+                            {parseFloat(proposerInfo.ethBalance).toFixed(4)} ETH
+                            {parseFloat(proposerInfo.ethBalance) < parseFloat(proposerInfo.initBond) && ' ⚠️ Below initBond'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Init Bond (게임 생성 비용):</span>
+                          <span>{proposerInfo.initBond} ETH</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Game Type:</span>
+                          <span className="badge">{proposerInfo.gameType === 0 ? '0 (FaultDisputeGame)' : proposerInfo.gameType}</span>
+                        </div>
+                        <div className="info-row">
                           <span className="info-label">Total Games Created:</span>
                           <span className="badge">{proposerInfo.totalGames}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Latest Game Timestamp:</span>
-                          <span>{proposerInfo.latestGame ? formatTimestamp(proposerInfo.latestGame.timestamp) : 'N/A'}</span>
+                          <span className="info-label">Latest Game:</span>
+                          <span>{proposerInfo.latestGame ? formatTimestamp(proposerInfo.latestGame.timestamp) : 'No games yet'}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Latest L2 Block Proposed:</span>
+                          <span className="info-label">Latest Proposed L2 Block:</span>
                           <span>{proposerInfo.latestGame?.l2BlockNumber || 'N/A'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Last Game Age:</span>
+                          <span className={proposerInfo.lastGameAge > 600 ? 'status-warning' : ''}>
+                            {proposerInfo.lastGameAge > 0 ? `${proposerInfo.lastGameAge}s (${Math.round(proposerInfo.lastGameAge / 60)}m ago)` : 'N/A'}
+                          </span>
                         </div>
                       </div>
                     ) : (
                       <p className="empty-state">Loading proposer info...</p>
                     )}
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
+                      <strong>op-proposer 동작:</strong> 매 poll interval(12s)마다 L2 output root를 확인하고,
+                      proposal interval 이후 root가 변경되었으면 DisputeGameFactory.create()를 호출하여 새 게임을 생성합니다.
+                      게임 생성 시 initBond만큼의 ETH가 필요합니다.
+                    </small>
                   </section>
 
                   <section className="card">
@@ -3078,11 +3488,87 @@ function App() {
                           <span className="info-label">Average Interval:</span>
                           <span>{proposerInfo.averageInterval > 0 ? `${proposerInfo.averageInterval}s` : 'N/A'}</span>
                         </div>
+                        <div className="info-row">
+                          <span className="info-label">Game Creation Rate:</span>
+                          <span>
+                            {proposerInfo.averageInterval > 0
+                              ? `${(3600 / proposerInfo.averageInterval).toFixed(1)} games/hr`
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Inferred Proposal Interval (중앙값):</span>
+                          <span>{proposerInfo.inferredProposalInterval > 0 ? `${proposerInfo.inferredProposalInterval}s` : 'N/A'}</span>
+                        </div>
                       </div>
                     ) : (
                       <p className="empty-state">Loading...</p>
                     )}
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                      Proposal Interval은 게임 타임스탬프 차이의 중앙값에서 추론합니다. 설정값(OP_PROPOSER_PROPOSAL_INTERVAL)과 비교하세요.
+                    </small>
                   </section>
+
+                  {/* Game Creation Timeline */}
+                  {proposerInfo && proposerInfo.gameIntervals.length > 0 && (
+                    <section className="card">
+                      <h2>📈 Game Creation Timeline</h2>
+                      <small style={{display: 'block', marginBottom: '0.5rem', color: 'var(--text-light)'}}>
+                        Bar height = interval between consecutive games (seconds)
+                      </small>
+                      <div className="interval-bar-container">
+                        {(() => {
+                          const maxInterval = Math.max(...proposerInfo.gameIntervals);
+                          return proposerInfo.gameIntervals.map((interval, idx) => (
+                            <div
+                              key={idx}
+                              className="interval-bar"
+                              style={{
+                                height: `${maxInterval > 0 ? (interval / maxInterval) * 100 : 0}%`,
+                                backgroundColor: interval > proposerInfo.averageInterval * 2 ? '#f14668' :
+                                  interval > proposerInfo.averageInterval * 1.5 ? '#ffe08a' : '#3e8ed0',
+                              }}
+                              title={`Game ${idx + 1} → ${idx + 2}: ${interval}s`}
+                            />
+                          ));
+                        })()}
+                      </div>
+                      <div className="interval-bar-label">
+                        <span>Oldest</span>
+                        <span>Avg: {proposerInfo.averageInterval}s</span>
+                        <span>Latest</span>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Output Root Details */}
+                  {proposerInfo && proposerInfo.outputRoots.length > 0 && (
+                    <section className="card">
+                      <h2>📋 Output Root Details</h2>
+                      <div className="table-container">
+                        <table className="games-table">
+                          <thead>
+                            <tr>
+                              <th>Game #</th>
+                              <th>L2 Block</th>
+                              <th>Root Claim</th>
+                              <th>Block Range</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {proposerInfo.outputRoots.slice(-10).reverse().map((root, idx) => (
+                              <tr key={idx}>
+                                <td>{root.index}</td>
+                                <td>{root.l2Block}</td>
+                                <td><code>{root.rootClaim.substring(0, 10)}...</code></td>
+                                <td>{root.blockRange}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
 
                   <section className="card">
                     <h2>🎮 Recent Games</h2>
@@ -3144,7 +3630,14 @@ function App() {
                         </div>
                         <div className="info-row">
                           <span className="info-label">ETH Balance:</span>
-                          <span>{parseFloat(batcherInfo.ethBalance).toFixed(4)} ETH</span>
+                          <span className={parseFloat(batcherInfo.ethBalance) < 0.1 ? 'status-error' : ''}>
+                            {parseFloat(batcherInfo.ethBalance).toFixed(4)} ETH
+                            {parseFloat(batcherInfo.ethBalance) < 0.1 && ' ⚠️ Low Balance'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">DA Type:</span>
+                          <span className="badge">{batcherInfo.daType}</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">L1 Nonce:</span>
@@ -3155,6 +3648,68 @@ function App() {
                       <p className="empty-state">Loading batcher info... (requires L2 info to be loaded first)</p>
                     )}
                   </section>
+
+                  {/* Batch Submission Metrics - L1 TX 분석 기반 */}
+                  {batcherInfo && batcherInfo.txCount > 0 && (
+                    <section className="card">
+                      <h2>📊 Batch Submission Metrics</h2>
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Recent Batch TXs (L1 스캔):</span>
+                          <span className="badge">{batcherInfo.txCount}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Average Batch Interval:</span>
+                          <span>{batcherInfo.avgBatchInterval > 0 ? `${batcherInfo.avgBatchInterval}s` : 'N/A'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Submission Rate:</span>
+                          <span>
+                            {batcherInfo.avgBatchInterval > 0
+                              ? `${(3600 / batcherInfo.avgBatchInterval).toFixed(1)} batches/hr`
+                              : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                      <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                        최근 50개 L1 블록에서 Batcher→BatchInbox TX를 스캔하여 계산합니다.
+                      </small>
+                    </section>
+                  )}
+
+                  {/* Data Throughput - L1 TX calldata/blob 분석 */}
+                  {batcherInfo && batcherInfo.txCount > 0 && (
+                    <section className="card">
+                      <h2>📈 L1 Data Throughput</h2>
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Total Calldata:</span>
+                          <span>{(batcherInfo.totalDataBytes / 1024).toFixed(1)} KB ({batcherInfo.totalDataBytes.toLocaleString()} bytes)</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Avg Calldata per TX:</span>
+                          <span>{batcherInfo.avgDataPerTx.toLocaleString()} bytes</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Avg Gas per TX:</span>
+                          <span>{batcherInfo.avgGasPerTx.toLocaleString()}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Gas Efficiency:</span>
+                          <span>{batcherInfo.avgGasPerTx > 0 ? `${(batcherInfo.avgDataPerTx / batcherInfo.avgGasPerTx * 1000).toFixed(2)} bytes/kgas` : 'N/A'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">DA Type:</span>
+                          <span className="badge">{batcherInfo.daType}</span>
+                        </div>
+                      </div>
+                      <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
+                        <strong>op-batcher 동작:</strong> L2 블록들을 channel로 묶고 압축한 후 frame 단위로 분할하여 L1에 제출합니다.
+                        DA Type이 blobs이면 EIP-4844 blob TX(type 3)로, calldata면 일반 TX로 제출합니다.
+                        Channel 내부 정보(압축률, pending blocks 등)는 batcher 메트릭스 포트가 노출되지 않아 여기서 표시할 수 없습니다.
+                      </small>
+                    </section>
+                  )}
 
                   <section className="card">
                     <h2>📈 L2 Head Progress</h2>
@@ -3199,6 +3754,7 @@ function App() {
                           <thead>
                             <tr>
                               <th>TX Hash</th>
+                              <th>Type</th>
                               <th>L1 Block</th>
                               <th>Time</th>
                               <th>Gas Used</th>
@@ -3209,6 +3765,11 @@ function App() {
                             {batcherInfo.recentBatchTxs.map((tx, idx) => (
                               <tr key={idx}>
                                 <td><code>{tx.hash.substring(0, 10)}...{tx.hash.substring(62)}</code></td>
+                                <td>
+                                  <span className="badge">
+                                    {tx.type === 3 ? 'Blob' : tx.type === 2 ? 'EIP-1559' : 'Legacy'}
+                                  </span>
+                                </td>
                                 <td>{tx.blockNumber}</td>
                                 <td>{formatTimestamp(tx.timestamp)}</td>
                                 <td>{parseInt(tx.gasUsed).toLocaleString()}</td>

@@ -163,6 +163,9 @@ export const DISPUTE_GAME_ABI = [
   'function gameType() view returns (uint32)',
   'function l2BlockNumber() view returns (uint256)',
   'function claimDataLen() view returns (uint256)',
+  'function claimData(uint256) view returns (uint32 parentIndex, address counteredBy, address claimant, uint128 bond, bytes32 claim, uint128 position, uint128 clock)',
+  'function maxClockDuration() view returns (uint64)',
+  'function startingBlockNumber() view returns (uint256)',
 ];
 
 export const VALIDATOR_REWARD_ABI = [

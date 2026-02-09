@@ -33,6 +33,11 @@ export const CONFIG = {
     systemConfig: '0x9833d27c6d44eed34d966c1b7069554efa4eb52f',
     disputeGameFactory: '0x60c630e5f9448fa855fd3d89fc993fe5f05c0319',
   },
+
+  // Optimism Service Accounts (from docker-compose env vars)
+  // These are derived from private keys used by op-proposer and op-batcher
+  proposerAddress: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',  // Anvil Account #1 (OP_PROPOSER_PRIVATE_KEY)
+  batcherAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',   // Anvil Account #0 (OP_BATCHER_PRIVATE_KEY)
 };
 
 // Test accounts (from Anvil)
