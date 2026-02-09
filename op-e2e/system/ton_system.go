@@ -307,89 +307,9 @@ func (s *TONSystem) GetSeigManager() (*bindings.SeigManagerSlashing, error) {
 	return bindings.NewSeigManagerSlashing(s.Addresses.SeigManagerProxy, s.L1Client)
 }
 
-// GetDisputeGameFactory3 returns a MockDisputeGameFactory3 contract binding.
-func (s *TONSystem) GetDisputeGameFactory3(addr common.Address) (*bindings.MockDisputeGameFactory3, error) {
-	return bindings.NewMockDisputeGameFactory3(addr, s.L1Client)
-}
-
-// GetFaultDisputeGame3 returns a MockFaultDisputeGame3 contract binding.
-func (s *TONSystem) GetFaultDisputeGame3(addr common.Address) (*bindings.MockFaultDisputeGame3, error) {
-	return bindings.NewMockFaultDisputeGame3(addr, s.L1Client)
-}
-
-// CreateDisputeGame creates a new dispute game using MockDisputeGameFactory3.
-func (s *TONSystem) CreateDisputeGame(auth *bind.TransactOpts, factoryAddr common.Address, gameType uint32, rootClaim [32]byte, extraData []byte) (common.Address, error) {
-	factory, err := s.GetDisputeGameFactory3(factoryAddr)
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to get factory: %w", err)
-	}
-
-	tx, err := factory.Create(auth, gameType, rootClaim, extraData)
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to create game: %w", err)
-	}
-
-	receipt, err := bind.WaitMined(s.Ctx, s.L1Client, tx)
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to wait for tx: %w", err)
-	}
-
-	// Parse the DisputeGameCreated event to get the game address
-	for _, log := range receipt.Logs {
-		if len(log.Topics) >= 2 {
-			// DisputeGameCreated event has game address as first indexed topic
-			gameAddr := common.BytesToAddress(log.Topics[1].Bytes())
-			return gameAddr, nil
-		}
-	}
-
-	return common.Address{}, fmt.Errorf("game address not found in logs")
-}
-
-// GetWinningChallengers returns the winning challengers from a dispute game.
-func (s *TONSystem) GetWinningChallengers(gameAddr common.Address) ([]common.Address, error) {
-	game, err := s.GetFaultDisputeGame3(gameAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get game: %w", err)
-	}
-
-	challengers, err := game.GetWinningChallengers(&bind.CallOpts{Context: s.Ctx})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get winning challengers: %w", err)
-	}
-
-	return challengers, nil
-}
-
-// IsWinningChallenger checks if an address is a winning challenger.
-func (s *TONSystem) IsWinningChallenger(gameAddr common.Address, challenger common.Address) (bool, error) {
-	game, err := s.GetFaultDisputeGame3(gameAddr)
-	if err != nil {
-		return false, fmt.Errorf("failed to get game: %w", err)
-	}
-
-	isWinner, err := game.IsWinningChallenger(&bind.CallOpts{Context: s.Ctx}, challenger)
-	if err != nil {
-		return false, fmt.Errorf("failed to check winning challenger: %w", err)
-	}
-
-	return isWinner, nil
-}
-
-// GetGameStatus returns the status of a dispute game.
-func (s *TONSystem) GetGameStatus(gameAddr common.Address) (uint8, error) {
-	game, err := s.GetFaultDisputeGame3(gameAddr)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get game: %w", err)
-	}
-
-	status, err := game.Status(&bind.CallOpts{Context: s.Ctx})
-	if err != nil {
-		return 0, fmt.Errorf("failed to get game status: %w", err)
-	}
-
-	return status, nil
-}
+// Note: Mock-based dispute game functions have been removed.
+// Use the real FaultDisputeGame and op-challenger for dispute game testing.
+// See op-e2e/slashing/real_game_helpers.go for the new approach.
 
 // GameStatus constants matching the Solidity enum.
 const (
