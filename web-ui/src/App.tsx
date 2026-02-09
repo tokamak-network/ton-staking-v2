@@ -4,7 +4,7 @@ import { CONFIG, TEST_ACCOUNTS, ROLLUP_TYPES } from './config';
 import {
   TON_ABI, WTON_ABI, SEIG_MANAGER_ABI, DEPOSIT_MANAGER_ABI,
   LAYER2_MANAGER_ABI, L1_BRIDGE_REGISTRY_ABI, LAYER2_REGISTRY_ABI,
-  RAT_ABI, DISPUTE_GAME_FACTORY_ABI, SYSTEM_CONFIG_ABI,
+  RAT_ABI, DISPUTE_GAME_FACTORY_ABI, DISPUTE_GAME_ABI, SYSTEM_CONFIG_ABI,
   OPTIMISM_PORTAL_ABI, L1_STANDARD_BRIDGE_ABI, L2_STANDARD_BRIDGE_ABI, OPERATOR_MANAGER_ABI
 } from './abis';
 import './App.css';
@@ -59,6 +59,62 @@ interface GameInfo {
   gameType: number;
   timestamp: number;
   proxy: string;
+}
+
+interface AttentionTestInfo {
+  testId: string;
+  validator: string;
+  batchIndex: number;
+  bondAmount: string;
+  deadline: number;
+  status: number;
+  statusLabel: string;
+}
+
+interface EnhancedGameInfo extends GameInfo {
+  rootClaim: string;
+  status: number;
+  l2BlockNumber: number;
+  claimCount: number;
+  ratTestId: string;
+}
+
+interface SyncStatus {
+  currentL1: { number: number; hash: string };
+  unsafeL2: { number: number; hash: string };
+  safeL2: { number: number; hash: string };
+  finalizedL2: { number: number; hash: string };
+}
+
+interface ProposerInfo {
+  totalGames: number;
+  latestGame: EnhancedGameInfo | null;
+  syncStatus: SyncStatus | null;
+  gamesLast1h: number;
+  gamesLast24h: number;
+  averageInterval: number;
+  lag: number;
+  isHealthy: boolean;
+  recentGames: EnhancedGameInfo[];
+}
+
+interface BatcherInfo {
+  address: string;
+  ethBalance: string;
+  nonce: number;
+  syncStatus: SyncStatus | null;
+  safeLag: number;
+  recentBatchTxs: BatchTxInfo[];
+  isHealthy: boolean;
+  batchInbox: string;
+}
+
+interface BatchTxInfo {
+  hash: string;
+  blockNumber: number;
+  timestamp: number;
+  gasUsed: string;
+  dataSize: number;
 }
 
 interface L2Info {
@@ -152,6 +208,16 @@ function App() {
   const [blockSearchInput, setBlockSearchInput] = useState<string>('');
   const [txSearchInput, setTxSearchInput] = useState<string>('');
   const [explorerView, setExplorerView] = useState<'blocks' | 'transactions'>('blocks');
+
+  // Enhanced monitoring state
+  const [attentionTests, setAttentionTests] = useState<AttentionTestInfo[]>([]);
+  const [enhancedGames, setEnhancedGames] = useState<EnhancedGameInfo[]>([]);
+  const [proposerInfo, setProposerInfo] = useState<ProposerInfo | null>(null);
+  const [batcherInfo, setBatcherInfo] = useState<BatcherInfo | null>(null);
+  const [validatorEvents, setValidatorEvents] = useState<{type: string; validator: string; amount: string; testId: string; blockNumber: number; timestamp: number}[]>([]);
+  const [blsValidators, setBlsValidators] = useState<string[]>([]);
+  const [minValidatorsForFW, setMinValidatorsForFW] = useState<number>(0);
+  const [factoryInfo, setFactoryInfo] = useState<{gameImpl: string; initBond: string} | null>(null);
 
   // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
@@ -344,6 +410,33 @@ function App() {
       loadSeigniorageInfo(operatorInfo.candidateAddOn);
     }
   }, [activeTab, operatorInfo?.candidateAddOn]);
+
+  // Load enhanced data when relevant tabs are active
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const loadTabData = async () => {
+      if (activeTab === 'validators') {
+        await Promise.all([loadAttentionTests(), loadValidatorEvents(), loadBLSInfo()]);
+      } else if (activeTab === 'games') {
+        await loadEnhancedGames();
+      } else if (activeTab === 'proposer') {
+        await loadProposerInfo();
+      } else if (activeTab === 'batcher') {
+        await loadBatcherInfo();
+      }
+    };
+
+    loadTabData();
+
+    if (['validators', 'games', 'proposer', 'batcher'].includes(activeTab)) {
+      interval = setInterval(loadTabData, 10000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeTab]);
 
   const initializeProvider = async () => {
     try {
@@ -1045,6 +1138,315 @@ function App() {
     }
   };
 
+  // ===== Enhanced monitoring load functions =====
+
+  const loadSyncStatus = async (): Promise<SyncStatus | null> => {
+    try {
+      const response = await fetch(CONFIG.opNodeRpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'optimism_syncStatus', params: [], id: 1 }),
+      });
+      const data = await response.json();
+      if (data.result) {
+        const ss: SyncStatus = {
+          currentL1: { number: data.result.current_l1?.number || 0, hash: data.result.current_l1?.hash || '' },
+          unsafeL2: { number: data.result.unsafe_l2?.number || 0, hash: data.result.unsafe_l2?.hash || '' },
+          safeL2: { number: data.result.safe_l2?.number || 0, hash: data.result.safe_l2?.hash || '' },
+          finalizedL2: { number: data.result.finalized_l2?.number || 0, hash: data.result.finalized_l2?.hash || '' },
+        };
+        return ss;
+      }
+    } catch (e) {
+      console.warn('op-node sync status unavailable:', e);
+    }
+    return null;
+  };
+
+  const loadAttentionTests = async () => {
+    try {
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+      const currentBlock = await l1Provider.getBlockNumber();
+      const fromBlock = Math.max(0, currentBlock - 2000);
+
+      const filter = rat.filters.AttentionTestTriggered();
+      const events = await rat.queryFilter(filter, fromBlock, currentBlock);
+
+      const tests: AttentionTestInfo[] = [];
+      for (const event of events.slice(-20)) {
+        try {
+          const log = event as ethers.EventLog;
+          const testId = log.args[0];
+          const testData = await rat.getAttentionTest(testId);
+          const statusLabels: Record<number, string> = { 0: 'Pending', 1: 'EvidencePeriod', 2: 'Slashed', 3: 'Restored', 4: 'Resolved' };
+          tests.push({
+            testId,
+            validator: testData[0],
+            batchIndex: Number(testData[1]),
+            bondAmount: ethers.formatUnits(testData[2], 27),
+            deadline: Number(testData[3]),
+            status: Number(testData[4]),
+            statusLabel: statusLabels[Number(testData[4])] || 'Unknown',
+          });
+        } catch (e) {
+          console.warn('Failed to load attention test details:', e);
+        }
+      }
+      setAttentionTests(tests.reverse());
+    } catch (e) {
+      console.warn('Failed to load attention tests:', e);
+      setAttentionTests([]);
+    }
+  };
+
+  const loadValidatorEvents = async () => {
+    try {
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+      const currentBlock = await l1Provider.getBlockNumber();
+      const fromBlock = Math.max(0, currentBlock - 2000);
+
+      const [evidenceEvents, slashedEvents, restoredEvents] = await Promise.all([
+        rat.queryFilter(rat.filters.EvidenceSubmitted(), fromBlock, currentBlock).catch(() => []),
+        rat.queryFilter(rat.filters.ValidatorSlashed(), fromBlock, currentBlock).catch(() => []),
+        rat.queryFilter(rat.filters.BondRestored(), fromBlock, currentBlock).catch(() => []),
+      ]);
+
+      const allEvents: {type: string; validator: string; amount: string; testId: string; blockNumber: number; timestamp: number}[] = [];
+
+      for (const ev of evidenceEvents) {
+        const log = ev as ethers.EventLog;
+        const block = await l1Provider.getBlock(log.blockNumber);
+        allEvents.push({
+          type: 'EvidenceSubmitted',
+          validator: log.args[1],
+          amount: '0',
+          testId: log.args[0],
+          blockNumber: log.blockNumber,
+          timestamp: block?.timestamp || 0,
+        });
+      }
+      for (const ev of slashedEvents) {
+        const log = ev as ethers.EventLog;
+        const block = await l1Provider.getBlock(log.blockNumber);
+        allEvents.push({
+          type: 'ValidatorSlashed',
+          validator: log.args[1],
+          amount: ethers.formatUnits(log.args[2], 27),
+          testId: log.args[0],
+          blockNumber: log.blockNumber,
+          timestamp: block?.timestamp || 0,
+        });
+      }
+      for (const ev of restoredEvents) {
+        const log = ev as ethers.EventLog;
+        const block = await l1Provider.getBlock(log.blockNumber);
+        allEvents.push({
+          type: 'BondRestored',
+          validator: log.args[1],
+          amount: ethers.formatUnits(log.args[2], 27),
+          testId: log.args[0],
+          blockNumber: log.blockNumber,
+          timestamp: block?.timestamp || 0,
+        });
+      }
+
+      allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
+      setValidatorEvents(allEvents.slice(0, 30));
+    } catch (e) {
+      console.warn('Failed to load validator events:', e);
+      setValidatorEvents([]);
+    }
+  };
+
+  const loadBLSInfo = async () => {
+    try {
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+      const [blsVals, minFW] = await Promise.all([
+        rat.getActiveValidatorsWithBLS(CONFIG.contracts.systemConfig).catch(() => []),
+        rat.minValidatorsForFastWithdrawal().catch(() => 0),
+      ]);
+      setBlsValidators(Array.from(blsVals).map((v: any) => v.toLowerCase()));
+      setMinValidatorsForFW(Number(minFW));
+    } catch (e) {
+      console.warn('Failed to load BLS info:', e);
+    }
+  };
+
+  const loadEnhancedGames = async (): Promise<EnhancedGameInfo[]> => {
+    try {
+      const factory = new ethers.Contract(CONFIG.contracts.disputeGameFactory, DISPUTE_GAME_FACTORY_ABI, l1Provider);
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+
+      const gameCount = await factory.gameCount();
+      const total = Number(gameCount);
+      const maxGames = Math.min(total, 20);
+      const enhanced: EnhancedGameInfo[] = [];
+
+      // Load factory info
+      try {
+        const [gameImpl, initBond] = await Promise.all([
+          factory.gameImpls(0).catch(() => ethers.ZeroAddress),
+          factory.initBonds(0).catch(() => 0n),
+        ]);
+        setFactoryInfo({
+          gameImpl,
+          initBond: ethers.formatEther(initBond),
+        });
+      } catch (e) {
+        console.warn('Failed to load factory info:', e);
+      }
+
+      for (let i = total - maxGames; i < total; i++) {
+        try {
+          const game = await factory.gameAtIndex(i);
+          const gameProxy = new ethers.Contract(game[2], DISPUTE_GAME_ABI, l1Provider);
+
+          const [rootClaim, status, l2Block, claimCount] = await Promise.all([
+            gameProxy.rootClaim().catch(() => ethers.ZeroHash),
+            gameProxy.status().catch(() => 0),
+            gameProxy.l2BlockNumber().catch(() => 0),
+            gameProxy.claimDataLen().catch(() => 0),
+          ]);
+
+          let ratTestId = '';
+          try {
+            ratTestId = await rat.gameToTestId(game[2]);
+            if (ratTestId === ethers.ZeroHash) ratTestId = '';
+          } catch {
+            // no RAT test linked
+          }
+
+          enhanced.push({
+            index: i,
+            gameType: Number(game[0]),
+            timestamp: Number(game[1]),
+            proxy: game[2],
+            rootClaim,
+            status: Number(status),
+            l2BlockNumber: Number(l2Block),
+            claimCount: Number(claimCount),
+            ratTestId,
+          });
+        } catch (e) {
+          console.warn(`Failed to load enhanced game ${i}:`, e);
+        }
+      }
+
+      const result = enhanced.reverse();
+      setEnhancedGames(result);
+      return result;
+    } catch (e) {
+      console.warn('Failed to load enhanced games:', e);
+      setEnhancedGames([]);
+      return [];
+    }
+  };
+
+  const loadProposerInfo = async () => {
+    try {
+      const ss = await loadSyncStatus();
+      const eg = await loadEnhancedGames();
+
+      const factory = new ethers.Contract(CONFIG.contracts.disputeGameFactory, DISPUTE_GAME_FACTORY_ABI, l1Provider);
+      const totalGames = Number(await factory.gameCount());
+
+      const now = Math.floor(Date.now() / 1000);
+      const gamesLast1h = eg.filter(g => now - g.timestamp < 3600).length;
+      const gamesLast24h = eg.filter(g => now - g.timestamp < 86400).length;
+
+      let averageInterval = 0;
+      if (eg.length >= 2) {
+        const sorted = [...eg].sort((a, b) => a.timestamp - b.timestamp);
+        const intervals = sorted.slice(1).map((g, i) => g.timestamp - sorted[i].timestamp);
+        averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      }
+
+      const latestGame = eg.length > 0 ? eg[0] : null;
+      const latestL2Block = latestGame?.l2BlockNumber || 0;
+      const safeL2 = ss?.safeL2?.number || 0;
+      const lag = safeL2 - latestL2Block;
+
+      setProposerInfo({
+        totalGames,
+        latestGame,
+        syncStatus: ss,
+        gamesLast1h,
+        gamesLast24h,
+        averageInterval: Math.round(averageInterval),
+        lag,
+        isHealthy: totalGames > 0 && (latestGame ? (now - latestGame.timestamp < 600) : false),
+        recentGames: eg.slice(0, 10),
+      });
+    } catch (e) {
+      console.warn('Failed to load proposer info:', e);
+    }
+  };
+
+  const loadBatcherInfo = async () => {
+    try {
+      const ss = await loadSyncStatus();
+
+      // Get batcher address from l2Info.batcherHash
+      if (!l2Info) return;
+      const batcherAddr = '0x' + l2Info.batcherHash.slice(-40);
+      const batchInboxAddr = l2Info.batchInbox;
+
+      const [ethBal, nonce] = await Promise.all([
+        l1Provider.getBalance(batcherAddr),
+        l1Provider.getTransactionCount(batcherAddr),
+      ]);
+
+      const safeLag = (ss?.unsafeL2?.number || 0) - (ss?.safeL2?.number || 0);
+
+      // Scan last 50 L1 blocks for batcher -> batchInbox txs
+      const currentBlock = await l1Provider.getBlockNumber();
+      const batchTxs: BatchTxInfo[] = [];
+
+      for (let i = 0; i < 50 && batchTxs.length < 20; i++) {
+        const blockNum = currentBlock - i;
+        if (blockNum < 0) break;
+        try {
+          const block = await l1Provider.getBlock(blockNum, true);
+          if (!block) continue;
+          for (const txHash of block.transactions) {
+            const hash = typeof txHash === 'string' ? txHash : (txHash as any).hash;
+            try {
+              const tx = await l1Provider.getTransaction(hash);
+              if (tx && tx.from.toLowerCase() === batcherAddr.toLowerCase() &&
+                  tx.to?.toLowerCase() === batchInboxAddr.toLowerCase()) {
+                const receipt = await l1Provider.getTransactionReceipt(hash);
+                batchTxs.push({
+                  hash: tx.hash,
+                  blockNumber: tx.blockNumber || blockNum,
+                  timestamp: block.timestamp,
+                  gasUsed: receipt?.gasUsed?.toString() || '0',
+                  dataSize: tx.data ? Math.floor((tx.data.length - 2) / 2) : 0,
+                });
+              }
+            } catch {
+              // skip tx
+            }
+          }
+        } catch {
+          // skip block
+        }
+      }
+
+      setBatcherInfo({
+        address: batcherAddr,
+        ethBalance: ethers.formatEther(ethBal),
+        nonce,
+        syncStatus: ss,
+        safeLag,
+        recentBatchTxs: batchTxs,
+        isHealthy: safeLag < 50,
+        batchInbox: batchInboxAddr,
+      });
+    } catch (e) {
+      console.warn('Failed to load batcher info:', e);
+    }
+  };
+
   const handleAddCollateral = async (amount: string) => {
     if (!signer || !amount || parseFloat(amount) <= 0) {
       alert('Please enter a valid amount');
@@ -1555,16 +1957,32 @@ function App() {
                     </a>
                   </li>
                   <li>
-                    <a 
-                      className={activeTab === 'l1-balances' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'proposer' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('proposer'); setSidebarOpen(false); }}
+                    >
+                      📡 Proposer
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'batcher' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('batcher'); setSidebarOpen(false); }}
+                    >
+                      📦 Batcher
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'l1-balances' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('l1-balances'); setSidebarOpen(false); }}
                     >
                       💰 L1 Balances
                     </a>
                   </li>
                   <li>
-                    <a 
-                      className={activeTab === 'l2-balances' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'l2-balances' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('l2-balances'); setSidebarOpen(false); }}
                     >
                       💎 L2 Balances
@@ -2054,6 +2472,137 @@ function App() {
                       </div>
                     )}
                   </section>
+
+                  <section className="card">
+                    <h2>🔑 BLS & Fast Withdrawal Status</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">BLS-Enabled Validators:</span>
+                        <span className="badge badge-success">{blsValidators.length}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Min Validators for Fast Withdrawal:</span>
+                        <span className="badge">{minValidatorsForFW}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Fast Withdrawal Ready:</span>
+                        <span className={blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? 'status-success' : 'status-warning'}>
+                          {blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? '✅ Yes' : '⚠️ Not enough BLS validators'}
+                        </span>
+                      </div>
+                    </div>
+                    {validators.length > 0 && (
+                      <div className="table-container" style={{marginTop: '1rem'}}>
+                        <table className="validators-table">
+                          <thead>
+                            <tr>
+                              <th>Address</th>
+                              <th>Active</th>
+                              <th>BLS Key</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {validators.map((val, idx) => (
+                              <tr key={idx}>
+                                <td><code>{formatAddress(val.address)}</code></td>
+                                <td>
+                                  <span className={val.isActive ? 'status-online' : 'status-offline'}>
+                                    {val.isActive ? '🟢' : '🔴'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={blsValidators.includes(val.address.toLowerCase()) ? 'status-success' : 'status-warning'}>
+                                    {blsValidators.includes(val.address.toLowerCase()) ? '✅ Registered' : '❌ None'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>🧪 Recent Attention Tests ({attentionTests.length})</h2>
+                    {attentionTests.length === 0 ? (
+                      <p className="empty-state">No attention tests found in recent blocks</p>
+                    ) : (
+                      <div className="table-container">
+                        <table className="validators-table">
+                          <thead>
+                            <tr>
+                              <th>Test ID</th>
+                              <th>Validator</th>
+                              <th>Batch Index</th>
+                              <th>Bond Amount</th>
+                              <th>Deadline</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {attentionTests.map((test, idx) => (
+                              <tr key={idx}>
+                                <td><code>{test.testId.substring(0, 10)}...</code></td>
+                                <td><code>{formatAddress(test.validator)}</code></td>
+                                <td>{test.batchIndex}</td>
+                                <td>{parseFloat(test.bondAmount).toFixed(2)} WTON</td>
+                                <td>{formatTimestamp(test.deadline)}</td>
+                                <td>
+                                  <span className={`badge ${
+                                    test.status === 1 ? 'badge-warning' :
+                                    test.status === 2 ? 'badge-error' :
+                                    test.status === 3 ? 'badge-success' : ''
+                                  }`}>
+                                    {test.statusLabel}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>📋 Validator Event Log ({validatorEvents.length})</h2>
+                    {validatorEvents.length === 0 ? (
+                      <p className="empty-state">No validator events found in recent blocks</p>
+                    ) : (
+                      <div className="table-container">
+                        <table className="validators-table">
+                          <thead>
+                            <tr>
+                              <th>Time</th>
+                              <th>Event</th>
+                              <th>Validator</th>
+                              <th>Amount</th>
+                              <th>Test ID</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {validatorEvents.map((ev, idx) => (
+                              <tr key={idx}>
+                                <td>{formatTimestamp(ev.timestamp)}</td>
+                                <td>
+                                  <span className={`badge ${
+                                    ev.type === 'ValidatorSlashed' ? 'badge-error' :
+                                    ev.type === 'BondRestored' ? 'badge-success' : 'badge-warning'
+                                  }`}>
+                                    {ev.type}
+                                  </span>
+                                </td>
+                                <td><code>{formatAddress(ev.validator)}</code></td>
+                                <td>{ev.amount !== '0' ? `${parseFloat(ev.amount).toFixed(2)} WTON` : '-'}</td>
+                                <td><code>{ev.testId.substring(0, 10)}...</code></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
                 </div>
               )}
 
@@ -2349,9 +2898,76 @@ function App() {
               {activeTab === 'games' && (
                 <div className="section">
                   <section className="card">
-                    <h2>🎮 Recent Dispute Games ({games.length})</h2>
-                    {games.length === 0 ? (
+                    <h2>🏭 Factory Overview</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">Factory Address:</span>
+                        <code>{CONFIG.contracts.disputeGameFactory}</code>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Total Game Count:</span>
+                        <span className="badge">{enhancedGames.length > 0 ? enhancedGames[0].index + 1 : games.length}</span>
+                      </div>
+                      {factoryInfo && (
+                        <>
+                          <div className="info-row">
+                            <span className="info-label">Game Implementation:</span>
+                            <code>{factoryInfo.gameImpl}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Init Bond:</span>
+                            <span>{factoryInfo.initBond} ETH</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <h2>🎮 Recent Dispute Games ({enhancedGames.length || games.length})</h2>
+                    {(enhancedGames.length === 0 && games.length === 0) ? (
                       <p className="empty-state">No dispute games created yet</p>
+                    ) : enhancedGames.length > 0 ? (
+                      <div className="table-container">
+                        <table className="games-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Type</th>
+                              <th>Status</th>
+                              <th>Root Claim</th>
+                              <th>L2 Block</th>
+                              <th>Claims</th>
+                              <th>Proxy</th>
+                              <th>Created</th>
+                              <th>RAT</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {enhancedGames.map((game, idx) => {
+                              const statusLabels: Record<number, string> = { 0: 'InProgress', 1: 'ChallengerWins', 2: 'DefenderWins' };
+                              const statusColors: Record<number, string> = { 0: '', 1: 'badge-error', 2: 'badge-success' };
+                              return (
+                                <tr key={idx}>
+                                  <td>{game.index}</td>
+                                  <td><span className="badge">{game.gameType}</span></td>
+                                  <td>
+                                    <span className={`badge ${statusColors[game.status] || ''}`}>
+                                      {statusLabels[game.status] || `Status(${game.status})`}
+                                    </span>
+                                  </td>
+                                  <td><code>{game.rootClaim.substring(0, 10)}...</code></td>
+                                  <td>{game.l2BlockNumber}</td>
+                                  <td>{game.claimCount}</td>
+                                  <td><code>{formatAddress(game.proxy)}</code></td>
+                                  <td>{formatTimestamp(game.timestamp)}</td>
+                                  <td>{game.ratTestId ? '✅' : '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     ) : (
                       <div className="table-container">
                         <table className="games-table">
@@ -2375,6 +2991,235 @@ function App() {
                           </tbody>
                         </table>
                       </div>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {/* Proposer Tab */}
+              {activeTab === 'proposer' && (
+                <div className="section">
+                  <section className="card">
+                    <h2>📡 Proposer Health Status</h2>
+                    {proposerInfo ? (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Status:</span>
+                          <span className={proposerInfo.isHealthy ? 'status-success' : 'status-error'}>
+                            {proposerInfo.isHealthy ? '✅ Healthy' : '⚠️ Unhealthy'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Total Games Created:</span>
+                          <span className="badge">{proposerInfo.totalGames}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Latest Game Timestamp:</span>
+                          <span>{proposerInfo.latestGame ? formatTimestamp(proposerInfo.latestGame.timestamp) : 'N/A'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Latest L2 Block Proposed:</span>
+                          <span>{proposerInfo.latestGame?.l2BlockNumber || 'N/A'}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="empty-state">Loading proposer info...</p>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>🔄 Sync Status</h2>
+                    {proposerInfo?.syncStatus ? (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Current L1 Block:</span>
+                          <span>{proposerInfo.syncStatus.currentL1.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Unsafe L2 Head:</span>
+                          <span>{proposerInfo.syncStatus.unsafeL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Safe L2 Head:</span>
+                          <span>{proposerInfo.syncStatus.safeL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Finalized L2 Head:</span>
+                          <span>{proposerInfo.syncStatus.finalizedL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Proposer Lag (Safe - Latest Proposed):</span>
+                          <span className={`badge ${
+                            proposerInfo.lag < 10 ? 'badge-success' :
+                            proposerInfo.lag < 50 ? 'badge-warning' : 'badge-error'
+                          }`}>
+                            {proposerInfo.lag} blocks
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="empty-state">op-node not reachable</p>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>📊 Activity Metrics</h2>
+                    {proposerInfo ? (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Games in Last 1h:</span>
+                          <span className="badge">{proposerInfo.gamesLast1h}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Games in Last 24h:</span>
+                          <span className="badge">{proposerInfo.gamesLast24h}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Average Interval:</span>
+                          <span>{proposerInfo.averageInterval > 0 ? `${proposerInfo.averageInterval}s` : 'N/A'}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="empty-state">Loading...</p>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>🎮 Recent Games</h2>
+                    {proposerInfo && proposerInfo.recentGames.length > 0 ? (
+                      <div className="table-container">
+                        <table className="games-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Status</th>
+                              <th>L2 Block</th>
+                              <th>Claims</th>
+                              <th>Created</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {proposerInfo.recentGames.map((game, idx) => {
+                              const statusLabels: Record<number, string> = { 0: 'InProgress', 1: 'ChallengerWins', 2: 'DefenderWins' };
+                              return (
+                                <tr key={idx}>
+                                  <td>{game.index}</td>
+                                  <td><span className="badge">{statusLabels[game.status] || `${game.status}`}</span></td>
+                                  <td>{game.l2BlockNumber}</td>
+                                  <td>{game.claimCount}</td>
+                                  <td>{formatTimestamp(game.timestamp)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="empty-state">No games found</p>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {/* Batcher Tab */}
+              {activeTab === 'batcher' && (
+                <div className="section">
+                  <section className="card">
+                    <h2>📦 Batcher Health Status</h2>
+                    {batcherInfo ? (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Status:</span>
+                          <span className={batcherInfo.isHealthy ? 'status-success' : 'status-error'}>
+                            {batcherInfo.isHealthy ? '✅ Healthy' : '⚠️ Unhealthy (high safe lag)'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Batcher Address:</span>
+                          <code>{batcherInfo.address}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Batch Inbox:</span>
+                          <code>{batcherInfo.batchInbox}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">ETH Balance:</span>
+                          <span>{parseFloat(batcherInfo.ethBalance).toFixed(4)} ETH</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L1 Nonce:</span>
+                          <span>{batcherInfo.nonce}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="empty-state">Loading batcher info... (requires L2 info to be loaded first)</p>
+                    )}
+                  </section>
+
+                  <section className="card">
+                    <h2>📈 L2 Head Progress</h2>
+                    {batcherInfo?.syncStatus ? (
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">Unsafe L2 Head:</span>
+                          <span>{batcherInfo.syncStatus.unsafeL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Safe L2 Head:</span>
+                          <span>{batcherInfo.syncStatus.safeL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Finalized L2 Head:</span>
+                          <span>{batcherInfo.syncStatus.finalizedL2.number}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Safe Lag (Unsafe - Safe):</span>
+                          <span className={`badge ${
+                            batcherInfo.safeLag < 20 ? 'badge-success' :
+                            batcherInfo.safeLag < 50 ? 'badge-warning' : 'badge-error'
+                          }`}>
+                            {batcherInfo.safeLag} blocks
+                            {batcherInfo.safeLag < 20 ? ' (Good)' : batcherInfo.safeLag < 50 ? ' (Behind)' : ' (Critical)'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="empty-state">op-node not reachable</p>
+                    )}
+                    <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
+                      Safe head advances when batcher submits batches to L1
+                    </small>
+                  </section>
+
+                  <section className="card">
+                    <h2>📋 Recent Batch Transactions ({batcherInfo?.recentBatchTxs.length || 0})</h2>
+                    {batcherInfo && batcherInfo.recentBatchTxs.length > 0 ? (
+                      <div className="table-container">
+                        <table className="games-table">
+                          <thead>
+                            <tr>
+                              <th>TX Hash</th>
+                              <th>L1 Block</th>
+                              <th>Time</th>
+                              <th>Gas Used</th>
+                              <th>Data Size</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batcherInfo.recentBatchTxs.map((tx, idx) => (
+                              <tr key={idx}>
+                                <td><code>{tx.hash.substring(0, 10)}...{tx.hash.substring(62)}</code></td>
+                                <td>{tx.blockNumber}</td>
+                                <td>{formatTimestamp(tx.timestamp)}</td>
+                                <td>{parseInt(tx.gasUsed).toLocaleString()}</td>
+                                <td>{tx.dataSize.toLocaleString()} bytes</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="empty-state">No batch transactions found in recent blocks</p>
                     )}
                   </section>
                 </div>

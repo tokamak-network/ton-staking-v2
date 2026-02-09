@@ -4,6 +4,7 @@ export const CONFIG = {
   chainId: 900,  // Local devnet
   rpcUrl: 'http://localhost:8546',
   l2RpcUrl: 'http://localhost:9545',
+  opNodeRpcUrl: 'http://localhost:7545',
   chainName: 'TON Staking V3 Sepolia Fork',
   nativeCurrency: {
     name: 'Ethereum',

@@ -112,6 +112,18 @@ export const RAT_ABI = [
   'function getMinimumCollateral() view returns (uint256)',
   'function getCoffWithRelaxedCheck(address systemConfig) view returns (uint256)',
 
+  // Attention Test Queries
+  'function getAttentionTest(bytes32 testId) view returns (address validator, uint256 batchIndex, uint256 bondAmount, uint256 deadline, uint8 status)',
+  'function getAttentionTestStatus(bytes32 testId) view returns (uint8)',
+  'function challengeGameDuration() view returns (uint256)',
+  'function safetyBuffer() view returns (uint256)',
+  'function gameToTestId(address game) view returns (bytes32)',
+
+  // BLS Queries
+  'function hasValidatorBLSKey(address validator, address systemConfig) view returns (bool)',
+  'function getActiveValidatorsWithBLS(address systemConfig) view returns (address[])',
+  'function minValidatorsForFastWithdrawal() view returns (uint256)',
+
   // Config Parameters
   'function slashingPenalty() view returns (uint256)',
   'function validatorBuffer() view returns (uint256)',
@@ -126,12 +138,21 @@ export const RAT_ABI = [
   'function registerValidator(address systemConfig)',
   'function deactivateValidator(address systemConfig)',
   'function addCollateral(address systemConfig, uint256 amount)',
+
+  // Events
+  'event AttentionTestTriggered(bytes32 indexed testId, address indexed validator, uint256 batchIndex, uint256 bondAmount, uint256 deadline)',
+  'event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, bytes evidence)',
+  'event ValidatorSlashed(bytes32 indexed testId, address indexed validator, uint256 penaltyAmount)',
+  'event BondRestored(bytes32 indexed testId, address indexed validator, uint256 bondAmount)',
 ];
 
 export const DISPUTE_GAME_FACTORY_ABI = [
   'function gameCount() view returns (uint256)',
   'function gameAtIndex(uint256 index) view returns (uint32 gameType, uint64 timestamp, address proxy)',
   'function games(uint32 gameType, bytes32 rootClaim, bytes extraData) view returns (address proxy, uint64 timestamp)',
+  'function findLatestGames(uint32 gameType, uint256 start, uint256 n) view returns (tuple(uint256 index, bytes32 metadata, uint64 timestamp, bytes32 rootClaim, bytes extraData)[])',
+  'function gameImpls(uint32 gameType) view returns (address)',
+  'function initBonds(uint32 gameType) view returns (uint256)',
 ];
 
 export const DISPUTE_GAME_ABI = [
@@ -140,6 +161,8 @@ export const DISPUTE_GAME_ABI = [
   'function createdAt() view returns (uint64)',
   'function resolvedAt() view returns (uint64)',
   'function gameType() view returns (uint32)',
+  'function l2BlockNumber() view returns (uint256)',
+  'function claimDataLen() view returns (uint256)',
 ];
 
 export const VALIDATOR_REWARD_ABI = [
@@ -174,6 +197,8 @@ export const OPTIMISM_PORTAL_ABI = [
   'function l2Sender() view returns (address)',
   'function systemConfig() view returns (address)',
   'function ethLockbox() view returns (address)',
+  'function ratContract() view returns (address)',
+  'function fastWithdrawalResponsePeriod() view returns (uint256)',
 ];
 
 export const L1_STANDARD_BRIDGE_ABI = [
