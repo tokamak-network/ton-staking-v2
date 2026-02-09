@@ -32,6 +32,7 @@ type RATClientAdjacentService struct {
 	stakingContract  common.Address
 	validatorAddress common.Address
 	privateKey       *ecdsa.PrivateKey
+	deadlineBuffer   time.Duration
 
 	// Components
 	eventMonitor *monitor.EventMonitor
@@ -71,9 +72,10 @@ type AdjacentServiceConfig struct {
 	ValidatorAddress common.Address
 	PrivateKey       *ecdsa.PrivateKey
 
-	// Gas settings
-	GasLimit    uint64
-	MaxGasPrice *big.Int
+	// Submission
+	DeadlineBuffer time.Duration
+	GasLimit       uint64
+	MaxGasPrice    *big.Int
 }
 
 // NewRATClientAdjacentService creates a new RAT client service using adjacent leaves
@@ -170,6 +172,11 @@ func NewRATClientAdjacentService(config *AdjacentServiceConfig) (*RATClientAdjac
 		config.StakingContract.Hex(),
 		config.ValidatorAddress.Hex())
 
+	deadlineBuffer := config.DeadlineBuffer
+	if deadlineBuffer == 0 {
+		deadlineBuffer = 2 * time.Minute
+	}
+
 	return &RATClientAdjacentService{
 		l1RPCURL:         config.L1RPCURL,
 		l2RPCURL:         config.L2RPCURL,
@@ -178,6 +185,7 @@ func NewRATClientAdjacentService(config *AdjacentServiceConfig) (*RATClientAdjac
 		stakingContract:  config.StakingContract,
 		validatorAddress: config.ValidatorAddress,
 		privateKey:       config.PrivateKey,
+		deadlineBuffer:   deadlineBuffer,
 		eventMonitor:     eventMonitor,
 		stateSyncer:      stateSyncer,
 		submitter:        evidenceSubmitter,
@@ -313,8 +321,9 @@ func (s *RATClientAdjacentService) handleAttentionTest(event *monitor.AttentionT
 
 	// Check deadline
 	timeRemaining := event.Deadline.Int64() - time.Now().Unix()
-	if timeRemaining < 600 { // 10 minutes buffer
-		return fmt.Errorf("deadline too close: %d seconds remaining", timeRemaining)
+	bufferSeconds := int64(s.deadlineBuffer.Seconds())
+	if timeRemaining < bufferSeconds {
+		return fmt.Errorf("deadline too close: %d seconds remaining (buffer=%ds)", timeRemaining, bufferSeconds)
 	}
 
 	log.Printf("Deadline check passed - remaining=%d seconds", timeRemaining)

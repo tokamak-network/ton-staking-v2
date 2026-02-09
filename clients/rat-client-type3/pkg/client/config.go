@@ -94,11 +94,11 @@ func DefaultConfig() *Config {
 
 		// Monitoring
 		PollInterval:     12 * time.Second,
-		Confirmations:    2, // Testnet/devnet value (mainnet should use 64)
+		Confirmations:    1, // Devnet value (mainnet should use 12~64)
 		StartBlockNumber: 0,
 
 		// Submission
-		DeadlineBuffer: 10 * time.Minute,
+		DeadlineBuffer: 2 * time.Minute,
 		GasLimit:       500000,
 		MaxGasPrice:    500_000_000_000,
 

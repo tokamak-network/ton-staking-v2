@@ -96,6 +96,7 @@ func run(c *cli.Context) error {
 		StakingContract:  common.Address{}, // Not used
 		ValidatorAddress: config.ValidatorAddress,
 		PrivateKey:       config.GetPrivateKey(),
+		DeadlineBuffer:   config.DeadlineBuffer,
 		GasLimit:         config.GasLimit,
 		MaxGasPrice:      new(big.Int).SetUint64(config.MaxGasPrice),
 	}
