@@ -143,6 +143,43 @@ make test-slashing-devnet
 go test -v -timeout 30m -run "TestRealChallenger" ./slashing/...
 ```
 
+### 테스트 특징
+
+이 테스트 스위트는 **실제 FaultDisputeGame.sol**과 **실제 op-challenger 서비스**를 사용하여 가장 현실적인 환경에서 테스트합니다.
+
+| 특징 | 설명 |
+|------|------|
+| **컨트랙트** | ✅ 실제 FaultDisputeGame.sol 사용 (Mock 아님) |
+| **인프라** | Full Optimism devnet (L1+L2+op-node+batcher) - 완전한 롤업 환경 |
+| **Challenger** | 실제 op-challenger 서비스 자동 실행 (`game.StartChallenger()`) |
+| **게임 생성** | `disputegame.NewFactoryHelper()` - Optimism 시스템 통합 |
+| **테스트 수** | 11개 (TestRealChallenger_* 5개 + TestMultiChallenger_* 6개) |
+| **실행 시간** | ~90초 per test |
+| **목적** | 실제 op-challenger 통합 검증, 실제 운영 환경과 유사한 테스트 |
+| **Go Workspace** | 필요 (lib/optimism 패키지 사용) |
+
+**사용 시나리오:**
+- 실제 op-challenger 서비스 통합 검증이 필요할 때
+- 실제 운영 환경과 유사한 조건에서 테스트하고 싶을 때
+- Full Optimism devnet 환경에서 end-to-end 테스트가 필요할 때
+
+**다른 테스트와의 차이:**
+
+| 구분 | `test-slashing-all` | `test-real-challenger` (이 문서) |
+|------|---------------------|----------------------------------|
+| **컨트랙트** | 실제 FaultDisputeGame.sol | 실제 FaultDisputeGame.sol |
+| **인프라** | Anvil (L1만) | Full Optimism devnet (L1+L2+op-node+batcher) |
+| **Challenger** | 수동 호출 (`rat.AttackClaim`) | 실제 op-challenger 서비스 |
+| **게임 생성** | `rat.CreateDisputeGame()` | `disputegame.NewFactoryHelper()` |
+| **테스트 수** | 41개 (모든 카테고리) | 11개 (op-challenger 통합만) |
+| **실행 시간** | ~2분 (전체) | ~90초 per test |
+| **목적** | 빠른 슬래싱 로직 검증 | 실제 op-challenger 통합 검증 |
+| **권장 사용** | CI/CD, 빠른 피드백 | 실제 운영 환경 검증 |
+
+**언제 사용하나요?**
+- `test-slashing-all`: 슬래싱 로직의 빠른 검증, 다양한 엣지 케이스 테스트
+- `test-real-challenger`: 실제 op-challenger 서비스와의 통합 검증, 실제 운영 환경 시뮬레이션
+
 ### 테스트 목록 확인
 
 ```bash

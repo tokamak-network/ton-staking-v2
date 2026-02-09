@@ -127,6 +127,7 @@ test-multi-challenger:
 	go test -v -timeout 30m -run "TestMultiChallenger" ./slashing/...
 
 # Run slashing integration tests (Task 4: Real Slashing Integration)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-slashing-integration:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -135,9 +136,10 @@ test-slashing-integration:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestSlashingIntegration" ./slashing/...
+	go test -v -timeout 10m -run "TestSlashingIntegration" ./slashing/...
 
 # Run reward distribution tests (Task 5: Reward Distribution Verification)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-reward-distribution:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -146,9 +148,10 @@ test-reward-distribution:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestRewardDistribution" ./slashing/...
+	go test -v -timeout 10m -run "TestRewardDistribution" ./slashing/...
 
 # Run edge case tests (Category 1)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-edge-cases:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -157,9 +160,10 @@ test-edge-cases:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestEdgeCase" ./slashing/...
+	go test -v -timeout 10m -run "TestEdgeCase" ./slashing/...
 
 # Run delegator protection tests (Category 2)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-delegator-protection:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -168,9 +172,10 @@ test-delegator-protection:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestDelegatorProtection" ./slashing/...
+	go test -v -timeout 10m -run "TestDelegatorProtection" ./slashing/...
 
 # Run complex scenario tests (Category 3)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-complex-scenarios:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -179,9 +184,10 @@ test-complex-scenarios:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestComplexScenario" ./slashing/...
+	go test -v -timeout 10m -run "TestComplexScenario" ./slashing/...
 
 # Run permission and security tests (Category 4)
+# Note: Uses Go workspace mode (requires lib/optimism packages)
 test-permission-security:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -190,7 +196,7 @@ test-permission-security:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	GOWORK=off go test -v -timeout 10m -run "TestPermission|TestSecurity" ./slashing/...
+	go test -v -timeout 10m -run "TestPermission|TestSecurity" ./slashing/...
 
 # Run all slashing tests (all categories)
 # Note: Requires Go workspace (uses lib/optimism packages)

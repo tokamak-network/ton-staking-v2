@@ -23,10 +23,11 @@ make devnet-allocs-offline
 # 2. op-e2e 디렉토리로 이동
 cd op-e2e
 
-# 3. 전체 슬래싱 테스트 실행 (41개 테스트, ~2분)
+# 3. 전체 슬래싱 테스트 실행 (41개 테스트, ~2분) - 권장
 make test-slashing-all
 
-# 또는 카테고리별 실행
+# 카테고리별 실행 (선택 사항)
+# 모든 카테고리별 테스트는 Go workspace 모드를 사용합니다 (lib/optimism 패키지 필요)
 make test-edge-cases            # Category 1: Edge Cases (6개)
 make test-delegator-protection  # Category 2: Delegator Protection (4개)
 make test-complex-scenarios     # Category 3: Complex Scenarios (5개)
@@ -34,6 +35,49 @@ make test-permission-security   # Category 4: Permission & Security (7개)
 make test-slashing-integration  # Task 4: 슬래싱 연동 (4개)
 make test-reward-distribution   # Task 5: 보상 분배 (6개)
 ```
+
+---
+
+## 테스트 특징
+
+### `test-slashing-all`의 특징
+
+이 테스트 스위트는 **실제 FaultDisputeGame.sol**을 사용하지만, 빠른 슬래싱 로직 검증을 위해 경량화된 환경을 사용합니다.
+
+| 특징 | 설명 |
+|------|------|
+| **컨트랙트** | ✅ 실제 FaultDisputeGame.sol 사용 (Mock 아님) |
+| **인프라** | Anvil 기반 (L1만) - 빠른 실행 |
+| **Challenger** | 수동 호출 방식 (`rat.AttackClaim()`, `rat.ResolveGame()`) |
+| **게임 생성** | `rat.CreateDisputeGame()` - Genesis에 배포된 실제 DisputeGameFactory 사용 |
+| **테스트 수** | 41개 (모든 카테고리 포함) |
+| **실행 시간** | ~2분 (전체) |
+| **목적** | 빠른 슬래싱 로직 검증, 다양한 엣지 케이스 테스트 |
+| **Go Workspace** | 필요 (lib/optimism 패키지 사용) |
+
+**사용 시나리오:**
+- 슬래싱 로직의 빠른 검증이 필요할 때
+- 다양한 엣지 케이스와 경계 조건 테스트
+- CI/CD 파이프라인에서 빠른 피드백이 필요할 때
+
+**참고:** 실제 op-challenger 서비스 통합 테스트는 `make test-real-challenger`를 사용하세요.
+
+### 다른 테스트와의 비교
+
+| 구분 | `test-slashing-all` (이 문서) | `test-real-challenger` |
+|------|-------------------------------|------------------------|
+| **컨트랙트** | 실제 FaultDisputeGame.sol | 실제 FaultDisputeGame.sol |
+| **인프라** | Anvil (L1만) | Full Optimism devnet (L1+L2+op-node+batcher) |
+| **Challenger** | 수동 호출 (`rat.AttackClaim`) | 실제 op-challenger 서비스 |
+| **게임 생성** | `rat.CreateDisputeGame()` | `disputegame.NewFactoryHelper()` |
+| **테스트 수** | 41개 (모든 카테고리) | 11개 (op-challenger 통합만) |
+| **실행 시간** | ~2분 (전체) | ~90초 per test |
+| **목적** | 빠른 슬래싱 로직 검증 | 실제 op-challenger 통합 검증 |
+| **권장 사용** | CI/CD, 빠른 피드백 | 실제 운영 환경 검증 |
+
+**언제 사용하나요?**
+- `test-slashing-all`: 슬래싱 로직의 빠른 검증, 다양한 엣지 케이스 테스트
+- `test-real-challenger`: 실제 op-challenger 서비스와의 통합 검증, 실제 운영 환경 시뮬레이션
 
 ---
 
@@ -292,7 +336,7 @@ cd op-e2e
 # =============================================
 make test-slashing-all        # 모든 슬래싱 테스트 실행 (권장)
 # 또는
-GOWORK=off go test -v ./slashing/... -timeout 900s
+go test -v ./slashing/... -timeout 900s
 
 # =============================================
 # 카테고리별 테스트 실행
@@ -301,32 +345,32 @@ GOWORK=off go test -v ./slashing/... -timeout 900s
 # Task 4: 슬래싱 연동 테스트
 make test-slashing-integration
 # 또는
-GOWORK=off go test -v -run "TestSlashingIntegration" ./slashing/... -timeout 600s
+go test -v -run "TestSlashingIntegration" ./slashing/... -timeout 600s
 
 # Task 5: 보상 분배 테스트
 make test-reward-distribution
 # 또는
-GOWORK=off go test -v -run "TestRewardDistribution" ./slashing/... -timeout 600s
+go test -v -run "TestRewardDistribution" ./slashing/... -timeout 600s
 
 # Category 1: Edge Cases (경계 조건 테스트)
 make test-edge-cases
 # 또는
-GOWORK=off go test -v -run "TestEdgeCase" ./slashing/... -timeout 600s
+go test -v -run "TestEdgeCase" ./slashing/... -timeout 600s
 
 # Category 2: Delegator Protection (위임자 보호 테스트)
 make test-delegator-protection
 # 또는
-GOWORK=off go test -v -run "TestDelegatorProtection" ./slashing/... -timeout 600s
+go test -v -run "TestDelegatorProtection" ./slashing/... -timeout 600s
 
 # Category 3: Complex Scenarios (복잡한 시나리오 테스트)
 make test-complex-scenarios
 # 또는
-GOWORK=off go test -v -run "TestComplexScenario" ./slashing/... -timeout 600s
+go test -v -run "TestComplexScenario" ./slashing/... -timeout 600s
 
 # Category 4: Permission & Security (권한/보안 테스트)
 make test-permission-security
 # 또는
-GOWORK=off go test -v -run "TestPermission|TestSecurity" ./slashing/... -timeout 600s
+go test -v -run "TestPermission|TestSecurity" ./slashing/... -timeout 600s
 
 # =============================================
 # 기타 테스트
@@ -455,10 +499,11 @@ src/mocks/
 ### 전체 테스트
 | 타겟 | 설명 |
 |------|------|
-| `make test-slashing-all` | 🆕 **모든 슬래싱 테스트 실행 (권장)** |
-| `make test-slashing` | 기본 슬래싱 테스트 실행 |
+| `make test-slashing-all` | 🆕 **모든 슬래싱 테스트 실행 (권장)** - Go workspace 모드 사용 |
 
 ### 카테고리별 테스트
+> **참고**: 모든 카테고리별 테스트는 Go workspace 모드를 사용합니다 (lib/optimism 패키지 필요). 전체 테스트 실행(`make test-slashing-all`)을 권장합니다.
+
 | 타겟 | 설명 |
 |------|------|
 | `make test-slashing-integration` | Task 4: 슬래싱 연동 테스트 |
@@ -467,6 +512,11 @@ src/mocks/
 | `make test-delegator-protection` | 🆕 Category 2: Delegator Protection 테스트 |
 | `make test-complex-scenarios` | 🆕 Category 3: Complex Scenarios 테스트 |
 | `make test-permission-security` | 🆕 Category 4: Permission & Security 테스트 |
+
+### 기타 테스트
+| 타겟 | 설명 |
+|------|------|
+| `make test-slashing` | 기본 슬래싱 테스트 실행 |
 
 ### 기타 테스트
 | 타겟 | 설명 |
@@ -656,8 +706,6 @@ ok  github.com/tokamak-network/ton-staking-v2/op-e2e/slashing
 9. **~~Permission & Security (Category 4)~~**: ✅ 완료 (2026-02-06)
    - `permission_security_test.go` 구현 (7개 테스트)
    - 권한 검증, 보안 취약점 방지 테스트
-
-### 미완료 작업 (별도 마일스톤)
 
 10. **~~실제 op-challenger 연동 (Task 6)~~**: ✅ 완료 (2026-02-07)
     - Mock이 아닌 실제 Optimism op-challenger 서비스를 사용한 테스트
