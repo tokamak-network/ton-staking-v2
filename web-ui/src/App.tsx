@@ -5,7 +5,8 @@ import {
   TON_ABI, WTON_ABI, SEIG_MANAGER_ABI, DEPOSIT_MANAGER_ABI,
   LAYER2_MANAGER_ABI, L1_BRIDGE_REGISTRY_ABI, LAYER2_REGISTRY_ABI,
   RAT_ABI, DISPUTE_GAME_FACTORY_ABI, DISPUTE_GAME_ABI, SYSTEM_CONFIG_ABI,
-  OPTIMISM_PORTAL_ABI, L1_STANDARD_BRIDGE_ABI, L2_STANDARD_BRIDGE_ABI, OPERATOR_MANAGER_ABI
+  OPTIMISM_PORTAL_ABI, L1_STANDARD_BRIDGE_ABI, L2_STANDARD_BRIDGE_ABI, OPERATOR_MANAGER_ABI,
+  DELAYED_WETH_ABI
 } from './abis';
 import './App.css';
 
@@ -64,8 +65,12 @@ interface GameInfo {
 interface AttentionTestInfo {
   testId: string;
   validator: string;
+  systemConfig: string;
   batchIndex: number;
+  gameAddress: string;
+  batchHash: string;
   bondAmount: string;
+  createdAt: number;
   deadline: number;
   status: number;
   statusLabel: string;
@@ -211,6 +216,35 @@ interface TransactionInfo {
   methodId?: string;
 }
 
+interface GameWithdrawalSettings {
+  // FaultDisputeGame (immutable)
+  gameProxy: string;
+  gameImplAddress: string;
+  maxClockDuration: number;
+  clockExtension: number;
+  maxGameDepth: number;
+  splitDepth: number;
+  absolutePrestate: string;
+  l2ChainId: number;
+  wethAddress: string;
+  // DelayedWETH
+  wethDelay: number;
+  // OptimismPortal2
+  portalAddress: string;
+  proofMaturityDelay: number;
+  disputeGameFinalityDelay: number;
+  fastWithdrawalResponsePeriod: number;
+  ratContractOnPortal: string;
+  seigManagerOnPortal: string;
+  // DisputeGameFactory
+  dgfAddress: string;
+  initBond: string;
+  // RAT
+  ratAddress: string;
+  evidenceSubmissionPeriod: number;
+  minValidatorsForFW: number;
+}
+
 function App() {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [l1Provider] = useState<ethers.JsonRpcProvider>(new ethers.JsonRpcProvider(CONFIG.rpcUrl));
@@ -263,6 +297,7 @@ function App() {
   const [factoryInfo, setFactoryInfo] = useState<{gameImpl: string; initBond: string} | null>(null);
   const [selectedGameDetail, setSelectedGameDetail] = useState<GameDetailInfo | null>(null);
   const [gameStatusSummary, setGameStatusSummary] = useState<GameStatusSummary>({ total: 0, inProgress: 0, challengerWins: 0, defenderWins: 0 });
+  const [gameWithdrawalSettings, setGameWithdrawalSettings] = useState<GameWithdrawalSettings | null>(null);
 
   // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
@@ -469,6 +504,8 @@ function App() {
         await loadProposerInfo();
       } else if (activeTab === 'batcher') {
         await loadBatcherInfo();
+      } else if (activeTab === 'game-settings') {
+        await loadGameWithdrawalSettings();
       }
     };
 
@@ -478,8 +515,8 @@ function App() {
       interval = setInterval(loadTabData, 10000);
     }
 
-    // Clear game detail when leaving games tab
-    if (activeTab !== 'games') {
+    // Clear game detail when leaving games/proposer tab
+    if (activeTab !== 'games' && activeTab !== 'proposer') {
       setSelectedGameDetail(null);
     }
 
@@ -1216,33 +1253,53 @@ function App() {
   const loadAttentionTests = async () => {
     try {
       const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
-      const currentBlock = await l1Provider.getBlockNumber();
-      const fromBlock = Math.max(0, currentBlock - 2000);
+      const factory = new ethers.Contract(CONFIG.contracts.disputeGameFactory, DISPUTE_GAME_FACTORY_ABI, l1Provider);
+      const systemConfig = CONFIG.contracts.systemConfig;
+      const statusLabels: Record<number, string> = {
+        0: '-',
+        1: 'Awaiting Evidence',
+        2: 'Challenge Period',
+        3: 'Refunded (Evidence)',
+        4: 'Refunded (Challenge Won)',
+        5: 'Slashed'
+      };
 
-      const filter = rat.filters.AttentionTestTriggered();
-      const events = await rat.queryFilter(filter, fromBlock, currentBlock);
-
+      // batchToTestId(systemConfig, batchIndex) 스토리지를 순회하여 어텐션 테스트 조회
+      const gameCount = await factory.gameCount();
+      const maxBatchIndex = Number(gameCount);
       const tests: AttentionTestInfo[] = [];
-      for (const event of events.slice(-20)) {
+      let consecutiveEmpty = 0;
+
+      for (let i = 0; i < maxBatchIndex && consecutiveEmpty < 5; i++) {
         try {
-          const log = event as ethers.EventLog;
-          const testId = log.args[0];
+          const testId = await rat.batchToTestId(systemConfig, i);
+          if (!testId || testId === ethers.ZeroHash) {
+            consecutiveEmpty++;
+            continue;
+          }
+          consecutiveEmpty = 0;
           const testData = await rat.getAttentionTest(testId);
-          const statusLabels: Record<number, string> = { 0: 'Pending', 1: 'EvidencePeriod', 2: 'Slashed', 3: 'Restored', 4: 'Resolved' };
           tests.push({
             testId,
-            validator: testData[0],
-            batchIndex: Number(testData[1]),
-            bondAmount: ethers.formatUnits(testData[2], 27),
-            deadline: Number(testData[3]),
-            status: Number(testData[4]),
-            statusLabel: statusLabels[Number(testData[4])] || 'Unknown',
+            validator: testData[0],        // validatorAddress
+            systemConfig: testData[1],     // systemConfig
+            batchIndex: Number(testData[2]), // batchIndex
+            batchHash: testData[3],        // batchHash
+            bondAmount: ethers.formatUnits(testData[4], 27), // bondAmount
+            createdAt: Number(testData[5]), // createdAt
+            deadline: Number(testData[6]), // deadline
+            status: Number(testData[7]),   // status
+            statusLabel: statusLabels[Number(testData[7])] || 'Unknown',
+            gameAddress: '',
           });
         } catch (e) {
-          console.warn('Failed to load attention test details:', e);
+          consecutiveEmpty++;
         }
       }
-      setAttentionTests(tests.reverse());
+
+      // 최신순 정렬 (deadline 기준)
+      tests.sort((a, b) => b.deadline - a.deadline);
+      setAttentionTests(tests);
     } catch (e) {
       console.warn('Failed to load attention tests:', e);
       setAttentionTests([]);
@@ -1281,7 +1338,7 @@ function App() {
         allEvents.push({
           type: 'ValidatorSlashed',
           validator: log.args[1],
-          amount: ethers.formatUnits(log.args[2], 27),
+          amount: ethers.formatUnits(log.args[4], 27),  // slashedAmount (5th arg)
           testId: log.args[0],
           blockNumber: log.blockNumber,
           timestamp: block?.timestamp || 0,
@@ -1293,7 +1350,7 @@ function App() {
         allEvents.push({
           type: 'BondRestored',
           validator: log.args[1],
-          amount: ethers.formatUnits(log.args[2], 27),
+          amount: ethers.formatUnits(log.args[4], 27),  // restoredAmount (5th arg)
           testId: log.args[0],
           blockNumber: log.blockNumber,
           timestamp: block?.timestamp || 0,
@@ -1440,15 +1497,26 @@ function App() {
       if (game.ratTestId) {
         try {
           const testData = await rat.getAttentionTest(game.ratTestId);
-          const statusLabels: Record<number, string> = { 0: 'Pending', 1: 'EvidencePeriod', 2: 'Slashed', 3: 'Restored', 4: 'Resolved' };
+          const statusLabels: Record<number, string> = {
+            0: '-',
+            1: 'Awaiting Evidence',
+            2: 'Challenge Period',
+            3: 'Refunded (Evidence)',
+            4: 'Refunded (Challenge Won)',
+            5: 'Slashed'
+          };
           ratTestDetail = {
             testId: game.ratTestId,
-            validator: testData[0],
-            batchIndex: Number(testData[1]),
-            bondAmount: ethers.formatUnits(testData[2], 27),
-            deadline: Number(testData[3]),
-            status: Number(testData[4]),
-            statusLabel: statusLabels[Number(testData[4])] || 'Unknown',
+            validator: testData[0],        // validatorAddress
+            systemConfig: testData[1],     // systemConfig
+            batchIndex: Number(testData[2]), // batchIndex
+            batchHash: testData[3],        // batchHash
+            bondAmount: ethers.formatUnits(testData[4], 27), // bondAmount
+            createdAt: Number(testData[5]), // createdAt
+            deadline: Number(testData[6]), // deadline
+            status: Number(testData[7]),   // status
+            statusLabel: statusLabels[Number(testData[7])] || 'Unknown',
+            gameAddress: game.proxy,
           };
         } catch {
           // no RAT test detail
@@ -1681,6 +1749,91 @@ function App() {
     }
   };
 
+  const loadGameWithdrawalSettings = async () => {
+    try {
+      const dgfAddress = CONFIG.contracts.disputeGameFactory;
+      const portalAddress = l2Info?.portal || '';
+      const ratAddress = CONFIG.contracts.rat;
+
+      const dgf = new ethers.Contract(dgfAddress, DISPUTE_GAME_FACTORY_ABI, l1Provider);
+
+      // 1. Get game impl and init bond from factory
+      const [gameImplAddress, initBond, gameCount] = await Promise.all([
+        dgf.gameImpls(0),
+        dgf.initBonds(0),
+        dgf.gameCount(),
+      ]);
+
+      // 2. Determine which address to use for immutable reads (proxy preferred)
+      let gameProxy = '';
+      let gameReadAddress = gameImplAddress;
+      if (Number(gameCount) > 0) {
+        const [, , proxy] = await dgf.gameAtIndex(0);
+        gameProxy = proxy;
+        gameReadAddress = proxy;
+      }
+
+      // 3. Read game immutable values
+      const gameContract = new ethers.Contract(gameReadAddress, DISPUTE_GAME_ABI, l1Provider);
+      const [maxClockDuration, clockExtension, maxGameDepth, splitDepth, absolutePrestate, l2ChainId, wethAddress] = await Promise.all([
+        gameContract.maxClockDuration(),
+        gameContract.clockExtension(),
+        gameContract.maxGameDepth(),
+        gameContract.splitDepth(),
+        gameContract.absolutePrestate(),
+        gameContract.l2ChainId(),
+        gameContract.weth(),
+      ]);
+
+      // 4. DelayedWETH delay
+      const wethContract = new ethers.Contract(wethAddress, DELAYED_WETH_ABI, l1Provider);
+      const wethDelay = await wethContract.delay();
+
+      // 5. Portal settings
+      const portal = new ethers.Contract(portalAddress, OPTIMISM_PORTAL_ABI, l1Provider);
+      const [proofMaturityDelay, disputeGameFinalityDelay, fastWithdrawalResp, ratContractOnPortal, seigManagerOnPortal] = await Promise.all([
+        portal.proofMaturityDelaySeconds(),
+        portal.disputeGameFinalityDelaySeconds(),
+        portal.fastWithdrawalResponsePeriod(),
+        portal.ratContract(),
+        portal.seigManager(),
+      ]);
+
+      // 6. RAT settings
+      const rat = new ethers.Contract(ratAddress, RAT_ABI, l1Provider);
+      const [evidencePeriod, minValFW] = await Promise.all([
+        rat.evidenceSubmissionPeriod(),
+        rat.minValidatorsForFastWithdrawal(),
+      ]);
+
+      setGameWithdrawalSettings({
+        gameProxy,
+        gameImplAddress,
+        maxClockDuration: Number(maxClockDuration),
+        clockExtension: Number(clockExtension),
+        maxGameDepth: Number(maxGameDepth),
+        splitDepth: Number(splitDepth),
+        absolutePrestate,
+        l2ChainId: Number(l2ChainId),
+        wethAddress,
+        wethDelay: Number(wethDelay),
+        portalAddress,
+        proofMaturityDelay: Number(proofMaturityDelay),
+        disputeGameFinalityDelay: Number(disputeGameFinalityDelay),
+        fastWithdrawalResponsePeriod: Number(fastWithdrawalResp),
+        ratContractOnPortal,
+        seigManagerOnPortal,
+        dgfAddress,
+        initBond: ethers.formatEther(initBond),
+        ratAddress,
+        evidenceSubmissionPeriod: Number(evidencePeriod),
+        minValidatorsForFW: Number(minValFW),
+      });
+    } catch (e) {
+      console.warn('Failed to load game/withdrawal settings:', e);
+    }
+  };
+
   const handleAddCollateral = async (amount: string) => {
     if (!signer || !amount || parseFloat(amount) <= 0) {
       alert('Please enter a valid amount');
@@ -1728,7 +1881,21 @@ function App() {
   };
 
   const formatTimestamp = (ts: number) => {
-    return new Date(ts * 1000).toLocaleString();
+    return new Date(ts * 1000).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60 ? (seconds % 60) + 's' : ''}`.trim();
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    let result = `${h}h`;
+    if (m) result += ` ${m}m`;
+    if (s) result += ` ${s}s`;
+    return result;
   };
 
   // Parse transaction input data
@@ -2143,11 +2310,35 @@ function App() {
                     </a>
                   </li>
                   <li>
-                    <a 
-                      className={activeTab === 'seigniorage' ? 'is-active' : ''} 
+                    <a
+                      className={activeTab === 'seigniorage' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('seigniorage'); setSidebarOpen(false); }}
                     >
                       💰 Seigniorage
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'proposer' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('proposer'); setSidebarOpen(false); }}
+                    >
+                      📡 Proposer
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'batcher' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('batcher'); setSidebarOpen(false); }}
+                    >
+                      📦 Batcher
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className={activeTab === 'game-settings' ? 'is-active' : ''}
+                      onClick={() => { setActiveTab('game-settings'); setSidebarOpen(false); }}
+                    >
+                      ⚙️ 게임/출금 설정
                     </a>
                   </li>
                 </ul>
@@ -2188,22 +2379,6 @@ function App() {
                       onClick={() => { setActiveTab('games'); setSidebarOpen(false); }}
                     >
                       🎮 Dispute Games
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className={activeTab === 'proposer' ? 'is-active' : ''}
-                      onClick={() => { setActiveTab('proposer'); setSidebarOpen(false); }}
-                    >
-                      📡 Proposer
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className={activeTab === 'batcher' ? 'is-active' : ''}
-                      onClick={() => { setActiveTab('batcher'); setSidebarOpen(false); }}
-                    >
-                      📦 Batcher
                     </a>
                   </li>
                   <li>
@@ -2758,18 +2933,17 @@ function App() {
                   </section>
 
                   <section className="card">
-                    <h2>🧪 Recent Attention Tests ({attentionTests.length})</h2>
+                    <h2>🧪 Attention Tests ({attentionTests.length})</h2>
                     {attentionTests.length === 0 ? (
-                      <p className="empty-state">No attention tests found in recent blocks</p>
+                      <p className="empty-state">No attention tests found</p>
                     ) : (
                       <div className="table-container">
                         <table className="validators-table">
                           <thead>
                             <tr>
-                              <th>Test ID</th>
+                              <th>Batch</th>
                               <th>Validator</th>
-                              <th>Batch Index</th>
-                              <th>Bond Amount</th>
+                              <th>Penalty</th>
                               <th>Deadline</th>
                               <th>Status</th>
                             </tr>
@@ -2777,19 +2951,34 @@ function App() {
                           <tbody>
                             {attentionTests.map((test, idx) => (
                               <tr key={idx}>
-                                <td><code>{test.testId.substring(0, 10)}...</code></td>
+                                <td>#{test.batchIndex}</td>
                                 <td><code>{formatAddress(test.validator)}</code></td>
-                                <td>{test.batchIndex}</td>
                                 <td>{parseFloat(test.bondAmount).toFixed(2)} WTON</td>
                                 <td>{formatTimestamp(test.deadline)}</td>
                                 <td>
-                                  <span className={`badge ${
-                                    test.status === 1 ? 'badge-warning' :
-                                    test.status === 2 ? 'badge-error' :
-                                    test.status === 3 ? 'badge-success' : ''
-                                  }`}>
-                                    {test.statusLabel}
-                                  </span>
+                                  {test.status === 5 ? (
+                                    <span className="badge badge-error">
+                                      Slashed (-{parseFloat(test.bondAmount).toFixed(2)} WTON)
+                                    </span>
+                                  ) : test.status === 3 ? (
+                                    <span className="badge badge-success">
+                                      Refunded (Evidence)
+                                    </span>
+                                  ) : test.status === 4 ? (
+                                    <span className="badge badge-success">
+                                      Refunded (Challenge Won)
+                                    </span>
+                                  ) : test.status === 1 ? (
+                                    <span className="badge badge-warning">
+                                      Awaiting Evidence
+                                    </span>
+                                  ) : test.status === 2 ? (
+                                    <span className="badge badge-warning">
+                                      Challenge Period
+                                    </span>
+                                  ) : (
+                                    <span className="badge">-</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -2799,44 +2988,6 @@ function App() {
                     )}
                   </section>
 
-                  <section className="card">
-                    <h2>📋 Validator Event Log ({validatorEvents.length})</h2>
-                    {validatorEvents.length === 0 ? (
-                      <p className="empty-state">No validator events found in recent blocks</p>
-                    ) : (
-                      <div className="table-container">
-                        <table className="validators-table">
-                          <thead>
-                            <tr>
-                              <th>Time</th>
-                              <th>Event</th>
-                              <th>Validator</th>
-                              <th>Amount</th>
-                              <th>Test ID</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {validatorEvents.map((ev, idx) => (
-                              <tr key={idx}>
-                                <td>{formatTimestamp(ev.timestamp)}</td>
-                                <td>
-                                  <span className={`badge ${
-                                    ev.type === 'ValidatorSlashed' ? 'badge-error' :
-                                    ev.type === 'BondRestored' ? 'badge-success' : 'badge-warning'
-                                  }`}>
-                                    {ev.type}
-                                  </span>
-                                </td>
-                                <td><code>{formatAddress(ev.validator)}</code></td>
-                                <td>{ev.amount !== '0' ? `${parseFloat(ev.amount).toFixed(2)} WTON` : '-'}</td>
-                                <td><code>{ev.testId.substring(0, 10)}...</code></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </section>
                 </div>
               )}
 
@@ -3170,7 +3321,7 @@ function App() {
                           </div>
                           <div className="info-row">
                             <span className="info-label">Init Bond:</span>
-                            <span>{factoryInfo.initBond} ETH</span>
+                            <span>{parseFloat(factoryInfo.initBond).toFixed(6)} ETH</span>
                           </div>
                         </>
                       )}
@@ -3312,8 +3463,8 @@ function App() {
                               <div className="info-row">
                                 <span className="info-label">Status:</span>
                                 <span className={`badge ${
-                                  selectedGameDetail.ratTestDetail.status === 2 ? 'badge-error' :
-                                  selectedGameDetail.ratTestDetail.status === 3 ? 'badge-success' : 'badge-warning'
+                                  selectedGameDetail.ratTestDetail.status === 5 ? 'badge-error' :
+                                  selectedGameDetail.ratTestDetail.status === 3 || selectedGameDetail.ratTestDetail.status === 4 ? 'badge-success' : 'badge-warning'
                                 }`}>
                                   {selectedGameDetail.ratTestDetail.statusLabel}
                                 </span>
@@ -3402,11 +3553,23 @@ function App() {
                         </div>
                         <div className="info-row">
                           <span className="info-label">Init Bond (게임 생성 비용):</span>
-                          <span>{proposerInfo.initBond} ETH</span>
+                          <span>{parseFloat(proposerInfo.initBond).toFixed(6)} ETH</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">Game Type:</span>
                           <span className="badge">{proposerInfo.gameType === 0 ? '0 (FaultDisputeGame)' : proposerInfo.gameType}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Proposal Interval (설정):</span>
+                          <span className="badge">{CONFIG.proposerSettings.proposalInterval}s ({CONFIG.proposerSettings.proposalInterval / 60}분)</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Poll Interval (설정):</span>
+                          <span>{CONFIG.proposerSettings.pollInterval}s</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Allow Non-Finalized:</span>
+                          <span className="badge">{CONFIG.proposerSettings.allowNonFinalized ? 'Yes (safe_l2 기준)' : 'No (finalized_l2 기준)'}</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">Total Games Created:</span>
@@ -3431,9 +3594,11 @@ function App() {
                       <p className="empty-state">Loading proposer info...</p>
                     )}
                     <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
-                      <strong>op-proposer 동작:</strong> 매 poll interval(12s)마다 L2 output root를 확인하고,
-                      proposal interval 이후 root가 변경되었으면 DisputeGameFactory.create()를 호출하여 새 게임을 생성합니다.
+                      <strong>op-proposer 동작:</strong> 매 poll interval({CONFIG.proposerSettings.pollInterval}s)마다 L2 output root를 확인하고,
+                      proposal interval({CONFIG.proposerSettings.proposalInterval}s = {CONFIG.proposerSettings.proposalInterval / 60}분) 이후 root가 변경되었으면
+                      DisputeGameFactory.create()를 호출하여 새 게임을 생성합니다.
                       게임 생성 시 initBond만큼의 ETH가 필요합니다.
+                      {CONFIG.proposerSettings.allowNonFinalized && ' (AllowNonFinalized: safe_l2 기준으로 제안)'}
                     </small>
                   </section>
 
@@ -3545,6 +3710,9 @@ function App() {
                   {proposerInfo && proposerInfo.outputRoots.length > 0 && (
                     <section className="card">
                       <h2>📋 Output Root Details</h2>
+                      <small style={{display: 'block', marginBottom: '0.5rem', color: 'var(--text-light)'}}>
+                        행을 클릭하면 게임 상세 정보를 볼 수 있습니다.
+                      </small>
                       <div className="table-container">
                         <table className="games-table">
                           <thead>
@@ -3556,17 +3724,139 @@ function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {proposerInfo.outputRoots.slice(-10).reverse().map((root, idx) => (
-                              <tr key={idx}>
-                                <td>{root.index}</td>
-                                <td>{root.l2Block}</td>
-                                <td><code>{root.rootClaim.substring(0, 10)}...</code></td>
-                                <td>{root.blockRange}</td>
-                              </tr>
-                            ))}
+                            {proposerInfo.outputRoots.slice(-10).reverse().map((root, idx) => {
+                              const game = enhancedGames.find(g => g.index === root.index);
+                              return (
+                                <tr
+                                  key={idx}
+                                  className={`clickable-row ${selectedGameDetail?.index === root.index ? 'selected' : ''}`}
+                                  onClick={() => game && loadGameDetail(game)}
+                                >
+                                  <td>{root.index}</td>
+                                  <td>{root.l2Block}</td>
+                                  <td><code>{root.rootClaim.substring(0, 10)}...</code></td>
+                                  <td>{root.blockRange}</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Game Detail Panel (inline) */}
+                      {selectedGameDetail && (
+                        <div className="game-detail-panel" style={{marginTop: '1rem'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <h3>Game #{selectedGameDetail.index} Details</h3>
+                            <button className="btn btn-small btn-secondary" onClick={() => setSelectedGameDetail(null)}>Close</button>
+                          </div>
+                          <div className="info-list">
+                            <div className="info-row">
+                              <span className="info-label">Proxy:</span>
+                              <code>{selectedGameDetail.proxy}</code>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Status:</span>
+                              <span className={`badge ${selectedGameDetail.status === 1 ? 'badge-error' : selectedGameDetail.status === 2 ? 'badge-success' : ''}`}>
+                                {selectedGameDetail.status === 0 ? 'InProgress' : selectedGameDetail.status === 1 ? 'ChallengerWins' : 'DefenderWins'}
+                              </span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Root Claim:</span>
+                              <code>{selectedGameDetail.rootClaim}</code>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">L2 Block:</span>
+                              <span>{selectedGameDetail.l2BlockNumber}</span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Starting Block:</span>
+                              <span>{selectedGameDetail.startingBlockNumber}</span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Created At:</span>
+                              <span>{selectedGameDetail.createdAt > 0 ? formatTimestamp(selectedGameDetail.createdAt) : 'N/A'}</span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Resolved At:</span>
+                              <span>{selectedGameDetail.resolvedAt > 0 ? formatTimestamp(selectedGameDetail.resolvedAt) : 'Not resolved'}</span>
+                            </div>
+                            <div className="info-row">
+                              <span className="info-label">Max Clock Duration:</span>
+                              <span>{selectedGameDetail.maxClockDuration}s ({Math.round(selectedGameDetail.maxClockDuration / 60)}m)</span>
+                            </div>
+                          </div>
+
+                          {/* RAT Test Info */}
+                          {selectedGameDetail.ratTestDetail && (
+                            <>
+                              <h3 style={{marginTop: '1.5rem'}}>RAT Test Info</h3>
+                              <div className="info-list">
+                                <div className="info-row">
+                                  <span className="info-label">Test ID:</span>
+                                  <code>{selectedGameDetail.ratTestDetail.testId.substring(0, 18)}...</code>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Validator:</span>
+                                  <code>{formatAddress(selectedGameDetail.ratTestDetail.validator)}</code>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Status:</span>
+                                  <span className={`badge ${
+                                    selectedGameDetail.ratTestDetail.status === 5 ? 'badge-error' :
+                                    selectedGameDetail.ratTestDetail.status === 3 || selectedGameDetail.ratTestDetail.status === 4 ? 'badge-success' : 'badge-warning'
+                                  }`}>
+                                    {selectedGameDetail.ratTestDetail.statusLabel}
+                                  </span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Bond:</span>
+                                  <span>{parseFloat(selectedGameDetail.ratTestDetail.bondAmount).toFixed(2)} WTON</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Deadline:</span>
+                                  <span>{formatTimestamp(selectedGameDetail.ratTestDetail.deadline)}</span>
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Claim Data Table */}
+                          {selectedGameDetail.claims.length > 0 && (
+                            <>
+                              <h3 style={{marginTop: '1.5rem'}}>Claim Data ({selectedGameDetail.claims.length})</h3>
+                              <div className="table-container">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>#</th>
+                                      <th>Parent</th>
+                                      <th>Claimant</th>
+                                      <th>Countered By</th>
+                                      <th>Bond</th>
+                                      <th>Claim</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedGameDetail.claims.map((c) => (
+                                      <tr key={c.index}>
+                                        <td>{c.index}</td>
+                                        <td>{c.parentIndex}</td>
+                                        <td><code>{formatAddress(c.claimant)}</code></td>
+                                        <td>
+                                          {c.counteredBy === ethers.ZeroAddress ? '-' : <code>{formatAddress(c.counteredBy)}</code>}
+                                        </td>
+                                        <td>{parseFloat(c.bond).toFixed(6)} ETH</td>
+                                        <td><code>{c.claim.substring(0, 10)}...</code></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </section>
                   )}
 
@@ -3640,6 +3930,14 @@ function App() {
                           <span className="badge">{batcherInfo.daType}</span>
                         </div>
                         <div className="info-row">
+                          <span className="info-label">Poll Interval (설정):</span>
+                          <span>{CONFIG.batcherSettings.pollInterval}s</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Max Channel Duration (설정):</span>
+                          <span>{CONFIG.batcherSettings.maxChannelDuration} L1 blocks</span>
+                        </div>
+                        <div className="info-row">
                           <span className="info-label">L1 Nonce:</span>
                           <span>{batcherInfo.nonce}</span>
                         </div>
@@ -3704,9 +4002,10 @@ function App() {
                         </div>
                       </div>
                       <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
-                        <strong>op-batcher 동작:</strong> L2 블록들을 channel로 묶고 압축한 후 frame 단위로 분할하여 L1에 제출합니다.
+                        <strong>op-batcher 동작:</strong> 매 poll interval({CONFIG.batcherSettings.pollInterval}s)마다 새 L2 블록을 확인하고,
+                        channel로 묶어 압축 후 frame 단위로 분할하여 L1에 제출합니다.
+                        Max Channel Duration: {CONFIG.batcherSettings.maxChannelDuration} L1 block.
                         DA Type이 blobs이면 EIP-4844 blob TX(type 3)로, calldata면 일반 TX로 제출합니다.
-                        Channel 내부 정보(압축률, pending blocks 등)는 batcher 메트릭스 포트가 노출되지 않아 여기서 표시할 수 없습니다.
                       </small>
                     </section>
                   )}
@@ -3783,6 +4082,187 @@ function App() {
                       <p className="empty-state">No batch transactions found in recent blocks</p>
                     )}
                   </section>
+                </div>
+              )}
+
+              {/* Game/Withdrawal Settings Tab */}
+              {activeTab === 'game-settings' && (
+                <div className="section">
+                  {gameWithdrawalSettings ? (
+                    <>
+                      {/* Card 1: Dispute Game Settings */}
+                      <section className="card">
+                        <h2>🎮 Dispute Game 설정</h2>
+                        <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
+                          컨트랙트: FaultDisputeGame impl (<code>{gameWithdrawalSettings.gameImplAddress}</code>)
+                          {gameWithdrawalSettings.gameProxy && <>, 참조 Proxy (<code>{gameWithdrawalSettings.gameProxy}</code>)</>}
+                        </p>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Max Clock Duration:</span>
+                            <span>{gameWithdrawalSettings.maxClockDuration}초 ({formatDuration(gameWithdrawalSettings.maxClockDuration)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Clock Extension:</span>
+                            <span>{gameWithdrawalSettings.clockExtension}초 ({formatDuration(gameWithdrawalSettings.clockExtension)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Max Game Depth:</span>
+                            <span>{gameWithdrawalSettings.maxGameDepth}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Split Depth:</span>
+                            <span>{gameWithdrawalSettings.splitDepth}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Absolute Prestate:</span>
+                            <code style={{ fontSize: '0.85em' }}>{gameWithdrawalSettings.absolutePrestate}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">L2 Chain ID:</span>
+                            <span>{gameWithdrawalSettings.l2ChainId}</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Init Bond (DGF):</span>
+                            <span>{gameWithdrawalSettings.initBond} ETH</span>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Card 2: Bond Withdrawal Settings (DelayedWETH) */}
+                      <section className="card">
+                        <h2>💰 Bond 출금 설정 (DelayedWETH)</h2>
+                        <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
+                          컨트랙트: <code>{gameWithdrawalSettings.wethAddress}</code>
+                        </p>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Withdrawal Delay:</span>
+                            <span>{gameWithdrawalSettings.wethDelay}초 ({formatDuration(gameWithdrawalSettings.wethDelay)})</span>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Card 3: Withdrawal Settings (OptimismPortal2) */}
+                      <section className="card">
+                        <h2>🚪 출금 설정 (OptimismPortal2)</h2>
+                        <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
+                          컨트랙트: <code>{gameWithdrawalSettings.portalAddress}</code>
+                        </p>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Proof Maturity Delay:</span>
+                            <span>{gameWithdrawalSettings.proofMaturityDelay}초 ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Dispute Game Finality Delay:</span>
+                            <span>{gameWithdrawalSettings.disputeGameFinalityDelay}초 ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Fast Withdrawal Response Period:</span>
+                            <span>{gameWithdrawalSettings.fastWithdrawalResponsePeriod}초 ({formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">RAT Contract:</span>
+                            <code>{gameWithdrawalSettings.ratContractOnPortal}</code>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">SeigManager:</span>
+                            <code>{gameWithdrawalSettings.seigManagerOnPortal}</code>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Card 4: RAT Verification Settings */}
+                      <section className="card">
+                        <h2>🔍 RAT 검증 설정</h2>
+                        <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
+                          컨트랙트: <code>{gameWithdrawalSettings.ratAddress}</code>
+                        </p>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Evidence Submission Period:</span>
+                            <span>{gameWithdrawalSettings.evidenceSubmissionPeriod}초 ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Min Validators for Fast Withdrawal:</span>
+                            <span>{gameWithdrawalSettings.minValidatorsForFW}</span>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Card 5: Timing Summary Table */}
+                      <section className="card">
+                        <h2>📋 전체 타이밍 요약</h2>
+                        <div className="table-container">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>설정</th>
+                                <th>값</th>
+                                <th>컨트랙트</th>
+                                <th>변경 가능</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>Max Clock Duration</td>
+                                <td>{formatDuration(gameWithdrawalSettings.maxClockDuration)}</td>
+                                <td>FaultDisputeGame</td>
+                                <td>❌ Immutable</td>
+                              </tr>
+                              <tr>
+                                <td>Clock Extension</td>
+                                <td>{formatDuration(gameWithdrawalSettings.clockExtension)}</td>
+                                <td>FaultDisputeGame</td>
+                                <td>❌ Immutable</td>
+                              </tr>
+                              <tr>
+                                <td>DelayedWETH Delay</td>
+                                <td>{formatDuration(gameWithdrawalSettings.wethDelay)}</td>
+                                <td>DelayedWETH</td>
+                                <td>✅ Owner</td>
+                              </tr>
+                              <tr>
+                                <td>Proof Maturity Delay</td>
+                                <td>{formatDuration(gameWithdrawalSettings.proofMaturityDelay)}</td>
+                                <td>OptimismPortal2</td>
+                                <td>❌ Immutable</td>
+                              </tr>
+                              <tr>
+                                <td>Dispute Game Finality Delay</td>
+                                <td>{formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)}</td>
+                                <td>OptimismPortal2</td>
+                                <td>❌ Immutable</td>
+                              </tr>
+                              <tr>
+                                <td>Fast Withdrawal Response Period</td>
+                                <td>{formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)}</td>
+                                <td>OptimismPortal2</td>
+                                <td>✅ Owner</td>
+                              </tr>
+                              <tr>
+                                <td>Evidence Submission Period</td>
+                                <td>{formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)}</td>
+                                <td>RAT</td>
+                                <td>✅ Owner</td>
+                              </tr>
+                              <tr>
+                                <td>Init Bond</td>
+                                <td>{gameWithdrawalSettings.initBond} ETH</td>
+                                <td>DisputeGameFactory</td>
+                                <td>✅ Owner</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </>
+                  ) : (
+                    <section className="card">
+                      <p className="empty-state">Loading game/withdrawal settings...</p>
+                    </section>
+                  )}
                 </div>
               )}
 

@@ -113,11 +113,13 @@ export const RAT_ABI = [
   'function getCoffWithRelaxedCheck(address systemConfig) view returns (uint256)',
 
   // Attention Test Queries
-  'function getAttentionTest(bytes32 testId) view returns (address validator, uint256 batchIndex, uint256 bondAmount, uint256 deadline, uint8 status)',
+  'function getAttentionTest(bytes32 testId) view returns (address validatorAddress, address systemConfig, uint32 batchIndex, bytes32 batchHash, uint256 bondAmount, uint256 createdAt, uint256 deadline, uint8 status)',
   'function getAttentionTestStatus(bytes32 testId) view returns (uint8)',
   'function challengeGameDuration() view returns (uint256)',
   'function safetyBuffer() view returns (uint256)',
   'function gameToTestId(address game) view returns (bytes32)',
+  'function batchToTestId(address systemConfig, uint32 batchIndex) view returns (bytes32)',
+  'function activeTestCount(address systemConfig) view returns (uint256)',
 
   // BLS Queries
   'function hasValidatorBLSKey(address validator, address systemConfig) view returns (bool)',
@@ -140,10 +142,10 @@ export const RAT_ABI = [
   'function addCollateral(address systemConfig, uint256 amount)',
 
   // Events
-  'event AttentionTestTriggered(bytes32 indexed testId, address indexed validator, uint256 batchIndex, uint256 bondAmount, uint256 deadline)',
-  'event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, bytes evidence)',
-  'event ValidatorSlashed(bytes32 indexed testId, address indexed validator, uint256 penaltyAmount)',
-  'event BondRestored(bytes32 indexed testId, address indexed validator, uint256 bondAmount)',
+  'event AttentionTestTriggered(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address gameAddress, uint32 batchIndex, uint256 deadline)',
+  'event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)',
+  'event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)',
+  'event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)',
 ];
 
 export const DISPUTE_GAME_FACTORY_ABI = [
@@ -166,6 +168,12 @@ export const DISPUTE_GAME_ABI = [
   'function claimData(uint256) view returns (uint32 parentIndex, address counteredBy, address claimant, uint128 bond, bytes32 claim, uint128 position, uint128 clock)',
   'function maxClockDuration() view returns (uint64)',
   'function startingBlockNumber() view returns (uint256)',
+  'function clockExtension() view returns (uint64)',
+  'function maxGameDepth() view returns (uint256)',
+  'function splitDepth() view returns (uint256)',
+  'function weth() view returns (address)',
+  'function absolutePrestate() view returns (bytes32)',
+  'function l2ChainId() view returns (uint256)',
 ];
 
 export const VALIDATOR_REWARD_ABI = [
@@ -202,6 +210,9 @@ export const OPTIMISM_PORTAL_ABI = [
   'function ethLockbox() view returns (address)',
   'function ratContract() view returns (address)',
   'function fastWithdrawalResponsePeriod() view returns (uint256)',
+  'function proofMaturityDelaySeconds() view returns (uint256)',
+  'function disputeGameFinalityDelaySeconds() view returns (uint256)',
+  'function seigManager() view returns (address)',
 ];
 
 export const L1_STANDARD_BRIDGE_ABI = [
@@ -214,6 +225,11 @@ export const L1_STANDARD_BRIDGE_ABI = [
   'function paused() view returns (bool)',
   'function finalizeBridgeETH(address _from, address _to, uint256 _amount, bytes calldata _extraData)',
   'function finalizeBridgeERC20(address _localToken, address _remoteToken, address _from, address _to, uint256 _amount, bytes calldata _extraData)',
+];
+
+export const DELAYED_WETH_ABI = [
+  'function delay() view returns (uint256)',
+  'function owner() view returns (address)',
 ];
 
 export const L2_STANDARD_BRIDGE_ABI = [

@@ -457,7 +457,6 @@ body {
   font-weight: 600;
   background-color: var(--primary);
   color: white;
-  text-transform: uppercase;
 }
 
 .badge-success {
@@ -469,8 +468,12 @@ body {
   color: rgba(0, 0, 0, 0.7);
 }
 
-.badge-danger {
+.badge-danger, .badge-error {
   background-color: var(--danger);
+}
+
+.badge-info {
+  background-color: #3298dc;
 }
 
 /* Contracts Compact */
