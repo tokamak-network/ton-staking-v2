@@ -20,6 +20,9 @@ test/v3/v3mode/AdvancedSlashing/
 # 전체 AdvancedSlashing 테스트 실행
 forge test --match-path "test/v3/v3mode/AdvancedSlashing/*.t.sol" -v
 
+# 전체 BasicSlashing 테스트 실행
+forge test --match-path "test/v3/v3mode/BasicSlashing/*.t.sol" -v
+
 # 특정 테스트 파일 실행
 forge test --match-contract SingleChallengerTest -vvv
 

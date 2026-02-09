@@ -2,6 +2,19 @@
 
 > **개요**: 실제 op-challenger 서비스를 실행하여 Slashing 통합 테스트를 구현합니다. 현재 수동 호출 방식에서 자동 challenge 감지 방식으로 전환합니다.
 
+---
+
+## ⚠️ 이 문서는 Mock 기반 구현 계획입니다 (역사 기록)
+
+**2026-02-07**: Mock 기반 테스트가 **실제 FaultDisputeGame**으로 전환 완료되었습니다.
+
+👉 **최신 문서**: [real-faultdisputegame-migration-complete.md](./real-faultdisputegame-migration-complete.md)
+
+---
+
+> **참고**: 아래 내용은 **MockFaultDisputeGame3 기반** 테스트 계획입니다.
+> 실제 FaultDisputeGame.sol 테스트는 위 링크를 참조하세요.
+
 ## 진행 상태
 
 | Phase | 내용 | 상태 |
@@ -11,6 +24,8 @@
 | Phase 3 | Multi-Challenger Slashing 테스트 작성 | ✅ Complete |
 | Phase 4 | Makefile 및 빌드 환경 설정 | ✅ Complete |
 | Phase 5 | Contract Bindings 업데이트 (getWinningChallengers 등) | ✅ Complete |
+
+> **참고**: Winning Challenger 추적 기능은 별도의 `WinningChallengerTracker` 컨트랙트가 아닌 **DisputeGame 내부에 직접 구현**되어 있습니다. `MockFaultDisputeGame3.sol`에서 `_isWinningChallenger` mapping과 `winningChallengers` array를 통해 관리합니다.
 
 ---
 
@@ -151,10 +166,12 @@ test-real-challenger: build-challenger-deps
 
 ### Phase 5: Contract Bindings 업데이트
 
-다중 challenger 기능을 위한 새 인터페이스 반영:
-- `getWinningChallengers()` 
-- `getWinningChallengersCount()`
-- `isWinningChallenger(address)`
+다중 challenger 기능을 위한 인터페이스가 **MockFaultDisputeGame3** 컨트랙트에 직접 구현됨:
+- `getWinningChallengers()` - 승리한 challenger 주소 배열 반환
+- `getWinningChallengersCount()` - 승리한 challenger 수 반환
+- `isWinningChallenger(address)` - 특정 주소가 승리 challenger인지 확인
+
+> **참고**: 이전 계획에서는 외부 `WinningChallengerTracker` 컨트랙트로 분리하려 했으나, FaultDisputeGame 사이즈 이슈 해결 후 **DisputeGame 내장 방식**으로 구현되었습니다.
 
 ---
 
