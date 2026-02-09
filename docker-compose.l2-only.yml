@@ -112,7 +112,7 @@ services:
       - OP_BATCHER_L1_ETH_RPC=http://host.docker.internal:8546
       - OP_BATCHER_L2_ETH_RPC=http://l2-execution:8545
       - OP_BATCHER_ROLLUP_RPC=http://l2-node:8545
-      - OP_BATCHER_POLL_INTERVAL=1s
+      - OP_BATCHER_POLL_INTERVAL=2s
       - OP_BATCHER_SUB_SAFETY_MARGIN=6
       - OP_BATCHER_NUM_CONFIRMATIONS=1
       - OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT=3
@@ -126,9 +126,12 @@ services:
       - ton-staking-network
     restart: unless-stopped
 
-  # L2: op-proposer (Output Proposer)
+  # L2: op-proposer (Output Proposer) - locally built for RAT gas fix
   l2-proposer:
-    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:latest
+    build:
+      context: ./lib/optimism
+      dockerfile: ops/docker/op-stack-go/Dockerfile
+      target: op-proposer-target
     platform: linux/amd64
     container_name: ton-staking-l2-proposer
     depends_on:
@@ -147,7 +150,8 @@ services:
       - OP_PROPOSER_LOG_LEVEL=info
       # Anvil account #1 private key
       - OP_PROPOSER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
-      - OP_PROPOSER_PROPOSAL_INTERVAL=12s
+      - OP_PROPOSER_PROPOSAL_INTERVAL=300s
+      - OP_PROPOSER_ALLOW_NON_FINALIZED=true
     command: op-proposer --log.level=info
     networks:
       - ton-staking-network

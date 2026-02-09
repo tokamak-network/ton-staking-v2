@@ -10,4 +10,7 @@ const __dirname = dirname(__filename)
 export default defineConfig({
   plugins: [react()],
   root: resolve(__dirname),
+  server: {
+    port: 5183,
+  },
 })

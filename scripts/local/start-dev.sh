@@ -283,6 +283,71 @@ fi
 echo ""
 
 # =============================================================================
+# Step 5.6: Initialize Optimism Contracts for TON Staking V3
+# (Must run BEFORE L2 services start, so proposer uses correct initBond)
+# =============================================================================
+echo -e "${YELLOW}Step 5.6: Initializing Optimism contracts for TON Staking V3...${NC}"
+
+SEIG_MANAGER_PROXY=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
+RAT_PROXY=$(jq -r '.ratProxy' "$DEVNET_DIR/addresses.json")
+OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy' "$DEVNET_DIR/optimism-addresses.json")
+DISPUTE_GAME_FACTORY=$(jq -r '.DisputeGameFactoryProxy' "$DEVNET_DIR/optimism-addresses.json")
+SYSTEM_CONFIG_ADDR=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
+
+# --- 5.6.1: OptimismPortal2.setSeigManager() ---
+PORTAL_ADMIN_OWNER=$(cast call "$OPTIMISM_PORTAL" "proxyAdminOwner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+echo "  OptimismPortal proxyAdminOwner: $PORTAL_ADMIN_OWNER"
+
+cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+cast send "$OPTIMISM_PORTAL" "setSeigManager(address)" "$SEIG_MANAGER_PROXY" \
+    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+
+VERIFY_SEIG=$(cast call "$OPTIMISM_PORTAL" "seigManager()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$VERIFY_SEIG" | tr '[:upper:]' '[:lower:]')" = "$(echo "$SEIG_MANAGER_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo -e "${GREEN}  ✓ OptimismPortal2.setSeigManager verified: $SEIG_MANAGER_PROXY${NC}"
+else
+    echo -e "${RED}  ✗ OptimismPortal2.setSeigManager FAILED! Got: $VERIFY_SEIG${NC}"
+fi
+
+# --- 5.6.2: DisputeGameFactory.setRAT() ---
+DGF_OWNER=$(cast call "$DISPUTE_GAME_FACTORY" "owner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+echo "  DisputeGameFactory owner: $DGF_OWNER"
+
+cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+cast send "$DISPUTE_GAME_FACTORY" "setRAT(address)" "$RAT_PROXY" \
+    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+
+VERIFY_RAT=$(cast call "$DISPUTE_GAME_FACTORY" "rat()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$VERIFY_RAT" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo -e "${GREEN}  ✓ DisputeGameFactory.setRAT verified: $RAT_PROXY${NC}"
+else
+    echo -e "${RED}  ✗ DisputeGameFactory.setRAT FAILED! Got: $VERIFY_RAT${NC}"
+fi
+
+# --- 5.6.3: DisputeGameFactory.setSystemConfig() ---
+cast send "$DISPUTE_GAME_FACTORY" "setSystemConfig(address)" "$SYSTEM_CONFIG_ADDR" \
+    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+echo -e "${GREEN}  ✓ DisputeGameFactory.setSystemConfig set to $SYSTEM_CONFIG_ADDR${NC}"
+
+# --- 5.6.4: DisputeGameFactory.setInitBond() ---
+# 0.0025 ETH (~10,000 KRW @ 1 ETH = 4,000,000 KRW)
+INIT_BOND_WEI="2500000000000000"
+cast send "$DISPUTE_GAME_FACTORY" "setInitBond(uint32,uint256)" 0 "$INIT_BOND_WEI" \
+    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+
+VERIFY_INIT_BOND=$(cast call "$DISPUTE_GAME_FACTORY" "initBonds(uint32)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null)
+if [ "$VERIFY_INIT_BOND" = "$INIT_BOND_WEI" ] || echo "$VERIFY_INIT_BOND" | grep -q "2500000000000000"; then
+    echo -e "${GREEN}  ✓ DisputeGameFactory.setInitBond verified: 0.0025 ETH (gameType 0)${NC}"
+else
+    echo -e "${RED}  ✗ DisputeGameFactory.setInitBond FAILED! Got: $VERIFY_INIT_BOND (expected: $INIT_BOND_WEI)${NC}"
+fi
+
+cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+
+echo ""
+
+# =============================================================================
 # Step 6: Setup L2 configuration
 # =============================================================================
 echo -e "${YELLOW}Step 6: Setting up L2 configuration...${NC}"
@@ -1094,8 +1159,9 @@ PERSONAL_ADDR="0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 PERSONAL_ETH="100000000000000000000000"  # 100000 ETH in wei
 PERSONAL_TON="100000000000000000000000"  # 100000 TON (18 decimals)
 
-# Set ETH balance
-cast rpc anvil_setBalance "$PERSONAL_ADDR" "$(printf '0x%x' $PERSONAL_ETH)" --rpc-url "$RPC" > /dev/null 2>&1
+# Set ETH balance (use python3 for hex conversion to avoid printf overflow on large numbers)
+PERSONAL_ETH_HEX=$(python3 -c "print(hex(int('$PERSONAL_ETH')))")
+cast rpc anvil_setBalance "$PERSONAL_ADDR" "$PERSONAL_ETH_HEX" --rpc-url "$RPC" > /dev/null 2>&1
 
 # Mint TON
 cast send "$TON_ADDR" "mint(address,uint256)" "$PERSONAL_ADDR" "$PERSONAL_TON" \
@@ -1113,7 +1179,8 @@ echo ""
 # Step 15: Set SeigManager devnet parameters (seigStartBlock, initialTotalSupply)
 # =============================================================================
 echo -e "${YELLOW}Step 15: Setting SeigManager seigniorage start parameters...${NC}"
-DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+# SeigManager admin is Account #1 (TON Staking Deployer), not Account #0
+SEIG_ADMIN_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 SEIG_ADDR=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
 
 # Read actual TON totalSupply and convert to WTON (27 decimals) = TON * 1e9
@@ -1123,60 +1190,36 @@ INITIAL_TOTAL_SUPPLY=$(python3 -c "print(int('$TON_TOTAL_SUPPLY') * 10**9)")
 echo "  TON totalSupply: $TON_TOTAL_SUPPLY ($(python3 -c "print(int('$TON_TOTAL_SUPPLY') / 10**18)") TON)"
 echo "  initialTotalSupply (WTON): $INITIAL_TOTAL_SUPPLY"
 
-# Set seigStartBlock to current block
+# Set seigStartBlock to current block (skip if already set to avoid "same" revert)
 CURRENT_BLOCK=$(cast block-number --rpc-url "$RPC")
-cast send "$SEIG_ADDR" "setSeigStartBlock(uint256)" "$CURRENT_BLOCK" \
-    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
-echo -e "${GREEN}  ✓ seigStartBlock set to $CURRENT_BLOCK${NC}"
+CURRENT_SEIG_START=$(cast call "$SEIG_ADDR" "seigStartBlock()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$CURRENT_SEIG_START" != "$CURRENT_BLOCK" ]; then
+    cast send "$SEIG_ADDR" "setSeigStartBlock(uint256)" "$CURRENT_BLOCK" \
+        --private-key "$SEIG_ADMIN_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ seigStartBlock set to $CURRENT_BLOCK${NC}"
+else
+    echo -e "${GREEN}  ✓ seigStartBlock already $CURRENT_BLOCK${NC}"
+fi
 
-# Set initialTotalSupply from actual TON totalSupply
-cast send "$SEIG_ADDR" "setInitialTotalSupply(uint256)" "$INITIAL_TOTAL_SUPPLY" \
-    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
-echo -e "${GREEN}  ✓ initialTotalSupply set from actual TON totalSupply${NC}"
+# Set initialTotalSupply from actual TON totalSupply (skip if already set)
+CURRENT_ITS=$(cast call "$SEIG_ADDR" "initialTotalSupply()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$CURRENT_ITS" != "$INITIAL_TOTAL_SUPPLY" ]; then
+    cast send "$SEIG_ADDR" "setInitialTotalSupply(uint256)" "$INITIAL_TOTAL_SUPPLY" \
+        --private-key "$SEIG_ADMIN_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ initialTotalSupply set from actual TON totalSupply${NC}"
+else
+    echo -e "${GREEN}  ✓ initialTotalSupply already correct${NC}"
+fi
 
-# Set burntAmountAtDAO to 1 (non-zero to avoid mainnet fallback on chainId==1)
-cast send "$SEIG_ADDR" "setBurntAmountAtDAO(uint256)" "1" \
-    --private-key "$DEPLOYER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
-echo -e "${GREEN}  ✓ burntAmountAtDAO set to 1${NC}"
-echo ""
-
-# =============================================================================
-# Step 16: Initialize Optimism Contracts for TON Staking V3
-# =============================================================================
-echo -e "${YELLOW}Step 16: Initializing Optimism contracts for TON Staking V3...${NC}"
-
-SEIG_MANAGER_PROXY=$(jq -r '.seigManagerProxy' "$DEVNET_DIR/addresses.json")
-RAT_PROXY=$(jq -r '.ratProxy' "$DEVNET_DIR/addresses.json")
-OPTIMISM_PORTAL=$(jq -r '.OptimismPortalProxy' "$DEVNET_DIR/optimism-addresses.json")
-DISPUTE_GAME_FACTORY=$(jq -r '.DisputeGameFactoryProxy' "$DEVNET_DIR/optimism-addresses.json")
-SYSTEM_CONFIG_ADDR=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
-
-# --- 16.1: OptimismPortal2.setSeigManager() ---
-# Requires proxyAdminOwner - read from contract, then impersonate on Anvil
-PORTAL_ADMIN_OWNER=$(cast call "$OPTIMISM_PORTAL" "proxyAdminOwner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
-echo "  OptimismPortal proxyAdminOwner: $PORTAL_ADMIN_OWNER"
-
-cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-cast send "$OPTIMISM_PORTAL" "setSeigManager(address)" "$SEIG_MANAGER_PROXY" \
-    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-echo -e "${GREEN}  ✓ OptimismPortal2.setSeigManager set to $SEIG_MANAGER_PROXY${NC}"
-
-# --- 16.2: DisputeGameFactory.setRAT() ---
-DGF_OWNER=$(cast call "$DISPUTE_GAME_FACTORY" "owner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
-echo "  DisputeGameFactory owner: $DGF_OWNER"
-
-cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-cast send "$DISPUTE_GAME_FACTORY" "setRAT(address)" "$RAT_PROXY" \
-    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-echo -e "${GREEN}  ✓ DisputeGameFactory.setRAT set to $RAT_PROXY${NC}"
-
-# --- 16.3: DisputeGameFactory.setSystemConfig() ---
-cast send "$DISPUTE_GAME_FACTORY" "setSystemConfig(address)" "$SYSTEM_CONFIG_ADDR" \
-    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-echo -e "${GREEN}  ✓ DisputeGameFactory.setSystemConfig set to $SYSTEM_CONFIG_ADDR${NC}"
-
+# Set burntAmountAtDAO to 1 (non-zero to avoid mainnet fallback on chainId==1; skip if already set)
+CURRENT_BURNT=$(cast call "$SEIG_ADDR" "burntAmountAtDAO()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$CURRENT_BURNT" != "1" ]; then
+    cast send "$SEIG_ADDR" "setBurntAmountAtDAO(uint256)" "1" \
+        --private-key "$SEIG_ADMIN_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ burntAmountAtDAO set to 1${NC}"
+else
+    echo -e "${GREEN}  ✓ burntAmountAtDAO already 1${NC}"
+fi
 echo ""
 
 # =============================================================================

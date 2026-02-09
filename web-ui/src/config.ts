@@ -26,18 +26,29 @@ export const CONFIG = {
     layer2Registry: '0x05Aa229Aec102f78CE0E852A812a388F076Aa555',
 
     // V3 Components
-    rat: '0xc63d2a04762529edB649d7a4cC3E57A0085e8544',
-    validatorReward: '0xBa3e08b4753E68952031102518379ED2fDADcA30',
+    rat: '0x1a6a3e7Bb246158dF31d8f924B84D961669Ba4e5',
+    validatorReward: '0x23d351BA89eaAc4E328133Cb48e050064C219A1E',
 
     // Optimism Stack
-    systemConfig: '0x9833d27c6d44eed34d966c1b7069554efa4eb52f',
-    disputeGameFactory: '0x60c630e5f9448fa855fd3d89fc993fe5f05c0319',
+    systemConfig: '0x11e97e2173e571e51bf08da65f87e1d456df0755',
+    disputeGameFactory: '0x31fd2c50c690f28f9a295277d128d67acb83fa26',
   },
 
   // Optimism Service Accounts (from docker-compose env vars)
   // These are derived from private keys used by op-proposer and op-batcher
   proposerAddress: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',  // Anvil Account #1 (OP_PROPOSER_PRIVATE_KEY)
   batcherAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',   // Anvil Account #0 (OP_BATCHER_PRIVATE_KEY)
+
+  // Operational settings (from docker-compose env vars)
+  proposerSettings: {
+    proposalInterval: 300,    // OP_PROPOSER_PROPOSAL_INTERVAL (seconds)
+    pollInterval: 12,         // OP_PROPOSER_POLL_INTERVAL (seconds)
+    allowNonFinalized: true,  // OP_PROPOSER_ALLOW_NON_FINALIZED
+  },
+  batcherSettings: {
+    pollInterval: 2,          // OP_BATCHER_POLL_INTERVAL (seconds)
+    maxChannelDuration: 1,    // OP_BATCHER_MAX_CHANNEL_DURATION (L1 blocks)
+  },
 };
 
 // Test accounts (from Anvil)

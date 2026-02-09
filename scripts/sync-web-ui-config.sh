@@ -84,6 +84,7 @@ export const CONFIG = {
   chainId: 900,  // Local devnet
   rpcUrl: 'http://localhost:8546',
   l2RpcUrl: 'http://localhost:9545',
+  opNodeRpcUrl: 'http://localhost:7545',
   chainName: 'TON Staking V3 Sepolia Fork',
   nativeCurrency: {
     name: 'Ethereum',
@@ -111,6 +112,22 @@ export const CONFIG = {
     // Optimism Stack
     systemConfig: '${SYSTEM_CONFIG}',
     disputeGameFactory: '${DISPUTE_GAME_FACTORY}',
+  },
+
+  // Optimism Service Accounts (from docker-compose env vars)
+  // These are derived from private keys used by op-proposer and op-batcher
+  proposerAddress: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',  // Anvil Account #1 (OP_PROPOSER_PRIVATE_KEY)
+  batcherAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',   // Anvil Account #0 (OP_BATCHER_PRIVATE_KEY)
+
+  // Operational settings (from docker-compose env vars)
+  proposerSettings: {
+    proposalInterval: 300,    // OP_PROPOSER_PROPOSAL_INTERVAL (seconds)
+    pollInterval: 12,         // OP_PROPOSER_POLL_INTERVAL (seconds)
+    allowNonFinalized: true,  // OP_PROPOSER_ALLOW_NON_FINALIZED
+  },
+  batcherSettings: {
+    pollInterval: 2,          // OP_BATCHER_POLL_INTERVAL (seconds)
+    maxChannelDuration: 1,    // OP_BATCHER_MAX_CHANNEL_DURATION (L1 blocks)
   },
 };
 
