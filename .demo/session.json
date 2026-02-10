@@ -1,6 +1,7 @@
 {
   "status": "slashed",
   "message": "Slashing executed.",
+  "mode": "single",
   "operatorManager": "0x567b7B2165d7Aa03e347F060A95c84ff07FFF515",
   "candidateAddOn": "0x9b4E5060A51F6bf5A2EaBAA0a3Ced7A78d8532a2",
   "gameAddress": "0x6d619068437f8EcA37cE0938fb84B8a9c429e499",
@@ -8,9 +9,37 @@
   "rootClaim": "0xabcd000000000000000000000000000000000000000000000000000000000000",
   "extraData": "0x0000000000000000000000000000000000000000000000000000000000000064",
   "challenger": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+  "winningChallengers": [
+    "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+  ],
   "stakeBefore": "100000000000000000000000000000000",
   "stakeAfter": "0",
+  "stakeDelta": "100000000000000000000000000000000",
   "challengerBalanceBefore": "100000000000000000000000000000000",
   "challengerBalanceAfter": "110000000000000000000000000000000",
-  "lastUpdate": "2026-02-10T23:26:56+09:00"
+  "rewardDelta": "10000000000000000000000000000000",
+  "slashingTxHash": "0x0ba9bd75494299715a0921af2b6a16eaf28db08f20347476fca59e2c1a3c79cc",
+  "timeline": [
+    {
+      "step": "game_created",
+      "message": "Dispute game created",
+      "time": "2026-02-11T00:21:30+09:00"
+    },
+    {
+      "step": "challenger_won",
+      "message": "Challenger won the game",
+      "time": "2026-02-11T00:21:30+09:00"
+    },
+    {
+      "step": "ready",
+      "message": "Ready to slash operator",
+      "time": "2026-02-11T00:21:30+09:00"
+    },
+    {
+      "step": "slashed",
+      "message": "Operator slashed and rewards distributed",
+      "time": "2026-02-11T00:21:44+09:00"
+    }
+  ],
+  "lastUpdate": "2026-02-11T00:21:44+09:00"
 }

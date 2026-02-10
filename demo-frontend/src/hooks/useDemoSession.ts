@@ -15,7 +15,7 @@ export const useDemoSession = () => {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(load, 3000);
+    const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, []);
 

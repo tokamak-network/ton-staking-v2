@@ -26,7 +26,7 @@ const resolveGoBin = () => {
 export const createSessionRoutes = () => {
   const router = Router();
 
-  router.post("/start", (_req, res) => {
+  router.post("/start", (req, res) => {
     if (sessionPid) {
       return res.json({ ok: true, pid: sessionPid, message: "already running" });
     }
@@ -36,12 +36,14 @@ export const createSessionRoutes = () => {
       return res.status(500).json({ error: "go binary not found. Set GO_BIN or ensure go is in PATH." });
     }
 
+    const mode = req.body?.mode ?? "single";
+
     fs.mkdirSync(sessionDir, { recursive: true });
     fs.writeFileSync(logPath, "");
 
     const child = spawn(goBin, ["test", "-v", "-count=1", "-timeout", "24h", "-run", "TestDemoSession", "./slashing/..."], {
       cwd: path.join(config.rootDir, "op-e2e"),
-      env: process.env
+      env: { ...process.env, DEMO_MODE: mode }
     });
 
     sessionPid = child.pid ?? null;
@@ -58,7 +60,7 @@ export const createSessionRoutes = () => {
       fs.appendFileSync(logPath, `\n[session] exited with code ${code}\n`);
     });
 
-    res.json({ ok: true, pid: sessionPid });
+    res.json({ ok: true, pid: sessionPid, mode });
   });
 
   router.post("/slash", (_req, res) => {

@@ -35,7 +35,11 @@ export const api = {
     fetchJson<{ stopped: boolean }>(`/demo/stop/${runId}`, { method: "POST" }),
   getStatus: (runId: string) => fetchJson<DemoRun>(`/demo/status/${runId}`),
   getLogs: (runId: string) => fetchJson<{ logs: string[] }>(`/demo/logs/${runId}`),
-  startSession: () => fetchJson<{ ok: boolean; pid?: number | null }>("/session/start", { method: "POST" }),
+  startSession: (mode: "single" | "multi") =>
+    fetchJson<{ ok: boolean; pid?: number | null }>("/session/start", {
+      method: "POST",
+      body: JSON.stringify({ mode })
+    }),
   stopSession: () => fetchJson<{ ok: boolean }>("/session/stop", { method: "POST" }),
   slashSession: () => fetchJson<{ ok: boolean }>("/session/slash", { method: "POST" }),
   getSessionState: () => fetchJson<any>("/session/state"),
