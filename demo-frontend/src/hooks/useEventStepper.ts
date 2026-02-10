@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Deployments, EventsConfig, NetworksConfig } from "../lib/types";
 import {
   decodeEventWithAbi,
+  getEventNamesFromAbi,
   getEventTopicFromAbi,
   getProvider,
   isGameCreatedEvent,
   resolveAddress
 } from "../lib/chain";
 import { api } from "../lib/api";
+import { findBestMatch } from "../lib/string";
 
 interface CapturedEvent {
   stepKey: string;
@@ -24,6 +26,8 @@ interface UseEventStepperParams {
   runId?: string;
 }
 
+const AUTO_MATCH_THRESHOLD = 0.6;
+
 export const useEventStepper = ({
   eventsConfig,
   networks,
@@ -32,9 +36,11 @@ export const useEventStepper = ({
 }: UseEventStepperParams) => {
   const [markers, setMarkers] = useState<string[]>([]);
   const [captured, setCaptured] = useState<CapturedEvent[]>([]);
-  const [latestGame, setLatestGame] = useState<string | undefined>();
+  const [games, setGames] = useState<string[]>([]);
+  const [selectedGame, setSelectedGame] = useState<string | undefined>();
   const [abiMap, setAbiMap] = useState<Record<string, any[]>>({});
   const lastBlocksRef = useRef<{ l1?: number; l2?: number }>({});
+  const startBlocksRef = useRef<{ l1?: number; l2?: number }>({});
 
   const steps = eventsConfig?.steps ?? [];
   const l1Provider = useMemo(() => getProvider(networks, "l1"), [networks]);
@@ -43,8 +49,10 @@ export const useEventStepper = ({
   useEffect(() => {
     setMarkers([]);
     setCaptured([]);
-    setLatestGame(undefined);
+    setGames([]);
+    setSelectedGame(undefined);
     lastBlocksRef.current = {};
+    startBlocksRef.current = {};
   }, [runId]);
 
   useEffect(() => {
@@ -68,15 +76,27 @@ export const useEventStepper = ({
 
   useEffect(() => {
     const initBlocks = async () => {
-      if (l1Provider) {
-        lastBlocksRef.current.l1 = await l1Provider.getBlockNumber();
-      }
-      if (l2Provider) {
-        lastBlocksRef.current.l2 = await l2Provider.getBlockNumber();
+      try {
+        if (l1Provider) {
+          startBlocksRef.current.l1 = await l1Provider.getBlockNumber();
+        }
+        if (l2Provider) {
+          startBlocksRef.current.l2 = await l2Provider.getBlockNumber();
+        }
+      } catch {
+        // ignore RPC errors at init
       }
     };
     void initBlocks();
   }, [l1Provider, l2Provider, runId]);
+
+  useEffect(() => {
+    if (selectedGame) {
+      setMarkers([]);
+      setCaptured([]);
+      lastBlocksRef.current = { ...startBlocksRef.current };
+    }
+  }, [selectedGame]);
 
   useEffect(() => {
     if (!steps.length || !l1Provider || !l2Provider) return;
@@ -88,32 +108,56 @@ export const useEventStepper = ({
 
       for (const step of steps) {
         const provider = providers[step.network];
-        const address = resolveAddress(step.addressRef, deployments, latestGame);
+        const resolvedGame = selectedGame ?? games[games.length - 1];
+        const address = resolveAddress(step.addressRef, deployments, resolvedGame);
         const abi = abiMap[step.abi];
 
         if (!provider || !address || !abi || abi.length === 0) continue;
 
-        const fromBlock =
-          step.network === "l1"
-            ? lastBlocksRef.current.l1 ?? (await provider.getBlockNumber())
-            : lastBlocksRef.current.l2 ?? (await provider.getBlockNumber());
+        const eventNames = getEventNamesFromAbi(abi);
+        const exactMatch = eventNames.includes(step.event) ? step.event : null;
+        const { best, score } = findBestMatch(step.event, eventNames);
+        const resolvedEvent =
+          exactMatch ?? (score >= AUTO_MATCH_THRESHOLD ? best : null);
 
-        const toBlock = await provider.getBlockNumber();
-        if (toBlock < fromBlock) continue;
+        if (!resolvedEvent) continue;
 
-        let topic: string;
+        let fromBlock: number | undefined;
+        let toBlock: number;
+
         try {
-          topic = getEventTopicFromAbi(abi, step.event);
+          fromBlock =
+            step.network === "l1"
+              ? lastBlocksRef.current.l1 ?? startBlocksRef.current.l1
+              : lastBlocksRef.current.l2 ?? startBlocksRef.current.l2;
+
+          if (fromBlock === undefined) continue;
+
+          toBlock = await provider.getBlockNumber();
         } catch {
           continue;
         }
 
-        const logs = await provider.getLogs({
-          address,
-          fromBlock,
-          toBlock,
-          topics: [topic]
-        });
+        if (toBlock < fromBlock) continue;
+
+        let topic: string;
+        try {
+          topic = getEventTopicFromAbi(abi, resolvedEvent);
+        } catch {
+          continue;
+        }
+
+        let logs = [];
+        try {
+          logs = await provider.getLogs({
+            address,
+            fromBlock,
+            toBlock,
+            topics: [topic]
+          });
+        } catch {
+          continue;
+        }
 
         if (!active) return;
 
@@ -139,9 +183,12 @@ export const useEventStepper = ({
 
           if (isGameCreatedEvent(step)) {
             try {
-              const decoded = decodeEventWithAbi(abi, step.event, logs[0]);
+              const decoded = decodeEventWithAbi(abi, resolvedEvent, logs[0]);
               const game = decoded?.[0] as string | undefined;
-              if (game) setLatestGame(game);
+              if (game) {
+                setGames((prev) => (prev.includes(game) ? prev : [...prev, game]));
+                if (!selectedGame) setSelectedGame(game);
+              }
             } catch {
               // ignore decode errors
             }
@@ -164,7 +211,7 @@ export const useEventStepper = ({
       active = false;
       clearInterval(interval);
     };
-  }, [steps, deployments, latestGame, l1Provider, l2Provider, abiMap]);
+  }, [steps, deployments, selectedGame, games, l1Provider, l2Provider, abiMap]);
 
-  return { markers, captured, latestGame };
+  return { markers, captured, games, selectedGame, setSelectedGame };
 };

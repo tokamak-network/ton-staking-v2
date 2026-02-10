@@ -24,6 +24,8 @@ export const api = {
   getNetworks: () => fetchJson<NetworksConfig>("/config/networks"),
   getEvents: () => fetchJson<EventsConfig>("/config/events"),
   getAbi: (name: string) => fetchJson<any>(`/config/abi/${name}`),
+  getAbiEvents: (name: string) =>
+    fetchJson<{ events: string[] }>(`/config/abi/${name}/events`),
   startDemo: (scenarioKey: string) =>
     fetchJson<DemoRun>("/demo/start", {
       method: "POST",

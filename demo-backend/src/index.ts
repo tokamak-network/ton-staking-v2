@@ -5,6 +5,7 @@ import { DemoStore } from "./services/demoStore.js";
 import { DemoRunner } from "./services/demoRunner.js";
 import { createDemoRoutes } from "./routes/demoRoutes.js";
 import { createConfigRoutes } from "./routes/configRoutes.js";
+import { createRpcRoutes } from "./routes/rpcRoutes.js";
 
 const app = express();
 const store = new DemoStore();
@@ -19,6 +20,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/demo", createDemoRoutes(runner, store));
 app.use("/config", createConfigRoutes());
+app.use("/rpc", createRpcRoutes());
 
 app.listen(config.port, () => {
   console.log(`[demo-backend] running on port ${config.port}`);

@@ -19,6 +19,9 @@ import { useEventStepper } from "../hooks/useEventStepper";
 import { RpcStatusPanel } from "../components/RpcStatusPanel";
 import { ChallengerBalancesPanel } from "../components/ChallengerBalancesPanel";
 import { EventPanel } from "../components/EventPanel";
+import { AbiEventsPanel } from "../components/AbiEventsPanel";
+import { EventConfigWarnings } from "../components/EventConfigWarnings";
+import { GameSelector } from "../components/GameSelector";
 
 export default function Home() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -32,7 +35,13 @@ export default function Home() {
   const { status: run, logs, error } = useDemoStatus(runId);
   const logMarkers = useMemo(() => extractMarkers(logs), [logs]);
 
-  const { markers: eventMarkers, captured, latestGame } = useEventStepper({
+  const {
+    markers: eventMarkers,
+    captured,
+    games,
+    selectedGame,
+    setSelectedGame
+  } = useEventStepper({
     eventsConfig,
     networks,
     deployments,
@@ -40,6 +49,10 @@ export default function Home() {
   });
 
   const stepperMarkers = eventMarkers.length ? eventMarkers : logMarkers;
+
+  const abiNames = useMemo(() => {
+    return Array.from(new Set(eventsConfig?.steps?.map((s) => s.abi) ?? []));
+  }, [eventsConfig]);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -98,7 +111,15 @@ export default function Home() {
       </section>
 
       <section>
-        <EventPanel events={captured} latestGame={latestGame} />
+        <GameSelector
+          games={games}
+          selectedGame={selectedGame}
+          onSelect={setSelectedGame}
+        />
+      </section>
+
+      <section>
+        <EventPanel events={captured} />
       </section>
 
       <section>
@@ -107,6 +128,14 @@ export default function Home() {
 
       <section>
         <ChallengerBalancesPanel challengers={challengers} networks={networks} />
+      </section>
+
+      <section>
+        <EventConfigWarnings eventsConfig={eventsConfig} />
+      </section>
+
+      <section>
+        <AbiEventsPanel abiNames={abiNames} />
       </section>
 
       <section>

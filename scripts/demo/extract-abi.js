@@ -11,15 +11,10 @@ if (!contractName || !outputPathArg) {
 
 const rootDir = path.resolve(__dirname, "../..");
 const artifactsDir = path.join(rootDir, "artifacts");
-
-if (!fs.existsSync(artifactsDir)) {
-  console.error("Artifacts directory not found. Run `npx hardhat compile` first.");
-  process.exit(1);
-}
-
 const outputPath = path.resolve(rootDir, outputPathArg);
 
 const findArtifact = (dir) => {
+  if (!fs.existsSync(dir)) return null;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
@@ -40,7 +35,56 @@ const findArtifact = (dir) => {
   return null;
 };
 
-const abi = findArtifact(artifactsDir);
+const extractAbiFromGo = (fileContent) => {
+  const doubleQuoteRegex = new RegExp(
+    `${contractName}MetaData\\s*=\\s*&bind\\.MetaData\\{[^}]*ABI:\\s*"((?:\\\\.|[^"])*)"`,
+    "s"
+  );
+  const backtickRegex = new RegExp(
+    `${contractName}MetaData\\s*=\\s*&bind\\.MetaData\\{[^}]*ABI:\\s*\`([\\s\\S]*?)\``,
+    "s"
+  );
+
+  let match = fileContent.match(doubleQuoteRegex);
+  if (match && match[1]) {
+    const raw = match[1];
+    const decoded = JSON.parse(`"${raw}"`);
+    return JSON.parse(decoded);
+  }
+
+  match = fileContent.match(backtickRegex);
+  if (match && match[1]) {
+    return JSON.parse(match[1]);
+  }
+
+  return null;
+};
+
+const findGoAbi = (dir) => {
+  if (!fs.existsSync(dir)) return null;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const result = findGoAbi(fullPath);
+      if (result) return result;
+    }
+    if (entry.isFile() && entry.name.endsWith(".go")) {
+      const content = fs.readFileSync(fullPath, "utf8");
+      if (!content.includes(`${contractName}MetaData`)) continue;
+      const abi = extractAbiFromGo(content);
+      if (abi) return abi;
+    }
+  }
+  return null;
+};
+
+let abi = findArtifact(artifactsDir);
+
+if (!abi) {
+  const optimismDir = path.join(rootDir, "lib/optimism");
+  abi = findGoAbi(optimismDir);
+}
 
 if (!abi) {
   console.error(`ABI not found for contract: ${contractName}`);

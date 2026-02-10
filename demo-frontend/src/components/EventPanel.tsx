@@ -6,16 +6,12 @@ interface EventPanelProps {
     network: string;
     address: string;
   }>;
-  latestGame?: string;
 }
 
-export const EventPanel = ({ events, latestGame }: EventPanelProps) => {
+export const EventPanel = ({ events }: EventPanelProps) => {
   return (
     <div>
       <h3>On-Chain Events</h3>
-      {latestGame && (
-        <p style={{ color: "#8ea0bf" }}>Latest Game: {latestGame}</p>
-      )}
       <div
         style={{
           background: "#0d1320",

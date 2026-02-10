@@ -54,5 +54,18 @@ export const createConfigRoutes = () => {
     res.json(data);
   });
 
+  router.get("/abi/:name/events", (req, res) => {
+    const fileName = `${req.params.name}.json`;
+    const filePath = path.join(config.abisDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "ABI not found" });
+    }
+    const data = readJsonFile<any[]>(filePath);
+    const events = data
+      .filter((item) => item.type === "event")
+      .map((item) => item.name);
+    res.json({ events });
+  });
+
   return router;
 };

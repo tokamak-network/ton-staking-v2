@@ -24,21 +24,25 @@ export const useChallengerBalances = (
       const provider = getProvider(networks, "l1");
       if (!provider) return;
 
-      const token = new Contract(challengers.rewardToken.address, erc20Abi, provider);
-      const decimals = await token.decimals();
+      try {
+        const token = new Contract(challengers.rewardToken.address, erc20Abi, provider);
+        const decimals = await token.decimals();
 
-      const items: ChallengerBalance[] = [];
-      for (const challenger of challengers.challengers) {
-        const raw = await token.balanceOf(challenger.address);
-        const formatted = (Number(raw) / 10 ** decimals).toFixed(4);
-        items.push({
-          label: challenger.label,
-          address: challenger.address,
-          balance: formatted
-        });
+        const items: ChallengerBalance[] = [];
+        for (const challenger of challengers.challengers) {
+          const raw = await token.balanceOf(challenger.address);
+          const formatted = (Number(raw) / 10 ** decimals).toFixed(4);
+          items.push({
+            label: challenger.label,
+            address: challenger.address,
+            balance: formatted
+          });
+        }
+
+        setBalances(items);
+      } catch {
+        setBalances([]);
       }
-
-      setBalances(items);
     };
 
     void load();

@@ -1,11 +1,12 @@
 import { JsonRpcProvider, Interface, Log } from "ethers";
 import { Deployments, EventStepConfig, NetworksConfig } from "./types";
 
+const baseApiUrl =
+  process.env.NEXT_PUBLIC_DEMO_API_URL ?? "http://localhost:4000";
+
 export const getProvider = (networks: NetworksConfig | undefined, network: "l1" | "l2") => {
-  if (!networks) return null;
-  const config = networks[network] as { rpcUrl?: string };
-  if (!config?.rpcUrl) return null;
-  return new JsonRpcProvider(config.rpcUrl);
+  const proxyUrl = `${baseApiUrl}/rpc/${network}`;
+  return new JsonRpcProvider(proxyUrl);
 };
 
 export const resolveAddress = (
@@ -34,6 +35,9 @@ export const decodeEventWithAbi = (abi: any[], eventName: string, log: Log) => {
   const event = iface.getEvent(eventName);
   return iface.decodeEventLog(event, log.data, log.topics);
 };
+
+export const getEventNamesFromAbi = (abi: any[]) =>
+  abi.filter((item) => item.type === "event").map((item) => item.name);
 
 export const isGameCreatedEvent = (step: EventStepConfig) =>
   step.key === "GAME_CREATED";
