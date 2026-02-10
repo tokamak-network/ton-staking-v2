@@ -72,6 +72,8 @@ npm install
 
 # 매번
 npm run dev
+GO_BIN=$(command -v go) npm run dev
+
 
 접속: http://localhost:3000
 

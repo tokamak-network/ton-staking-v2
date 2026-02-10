@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
 import { config } from "../config.js";
@@ -9,6 +9,19 @@ let sessionPid: number | null = null;
 const sessionDir = path.join(config.rootDir, ".demo");
 const statePath = path.join(sessionDir, "session.json");
 const commandPath = path.join(sessionDir, "command.json");
+const logPath = path.join(sessionDir, "session.log");
+
+const resolveGoBin = () => {
+  if (process.env.GO_BIN) {
+    return process.env.GO_BIN;
+  }
+  try {
+    const output = execSync("command -v go").toString().trim();
+    return output;
+  } catch {
+    return null;
+  }
+};
 
 export const createSessionRoutes = () => {
   const router = Router();
@@ -18,17 +31,31 @@ export const createSessionRoutes = () => {
       return res.json({ ok: true, pid: sessionPid, message: "already running" });
     }
 
-    fs.mkdirSync(sessionDir, { recursive: true });
+    const goBin = resolveGoBin();
+    if (!goBin) {
+      return res.status(500).json({ error: "go binary not found. Set GO_BIN or ensure go is in PATH." });
+    }
 
-    const child = spawn("bash", ["-lc", "go test -v -timeout 24h -run TestDemoSession ./slashing/..."], {
+    fs.mkdirSync(sessionDir, { recursive: true });
+    fs.writeFileSync(logPath, "");
+
+    const child = spawn(goBin, ["test", "-v", "-count=1", "-timeout", "24h", "-run", "TestDemoSession", "./slashing/..."], {
       cwd: path.join(config.rootDir, "op-e2e"),
       env: process.env
     });
 
     sessionPid = child.pid ?? null;
 
-    child.on("exit", () => {
+    const appendLog = (data: Buffer) => {
+      fs.appendFileSync(logPath, data.toString());
+    };
+
+    child.stdout.on("data", appendLog);
+    child.stderr.on("data", appendLog);
+
+    child.on("exit", (code) => {
       sessionPid = null;
+      fs.appendFileSync(logPath, `\n[session] exited with code ${code}\n`);
     });
 
     res.json({ ok: true, pid: sessionPid });
@@ -46,6 +73,14 @@ export const createSessionRoutes = () => {
     }
     const data = fs.readFileSync(statePath, "utf8");
     res.send(data);
+  });
+
+  router.get("/logs", (_req, res) => {
+    if (!fs.existsSync(logPath)) {
+      return res.json({ logs: "" });
+    }
+    const data = fs.readFileSync(logPath, "utf8");
+    res.json({ logs: data });
   });
 
   router.post("/stop", (_req, res) => {

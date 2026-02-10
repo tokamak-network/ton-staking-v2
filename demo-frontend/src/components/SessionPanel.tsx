@@ -1,8 +1,24 @@
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useDemoSession } from "../hooks/useDemoSession";
 
 export const SessionPanel = () => {
   const { state } = useDemoSession();
+  const [logs, setLogs] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.getSessionLogs();
+        setLogs(data.logs ?? "");
+      } catch {
+        setLogs("");
+      }
+    };
+    void load();
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div>
@@ -32,6 +48,22 @@ export const SessionPanel = () => {
           <div>Challenger Balance After: {state.challengerBalanceAfter ?? "-"}</div>
         </div>
       )}
+
+      <h4 style={{ marginTop: 16 }}>Session Logs</h4>
+      <div
+        style={{
+          background: "#0d1320",
+          borderRadius: "8px",
+          padding: "12px",
+          height: "180px",
+          overflowY: "auto",
+          fontFamily: "monospace",
+          fontSize: "12px",
+          color: "#8ea0bf"
+        }}
+      >
+        {logs || "No logs yet."}
+      </div>
     </div>
   );
 };

@@ -1,7 +1,6 @@
 package slashing
 
 import (
-	"context"
 	"encoding/json"
 	"math/big"
 	"os"
@@ -9,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
@@ -87,9 +88,8 @@ func TestDemoSession(t *testing.T) {
 	statePath := filepath.Join(sessionDir, "session.json")
 	commandPath := filepath.Join(sessionDir, "command.json")
 
-	ctx := context.Background()
-
 	sys := rat.StartTONStakingSystem(t)
+	ctx := sys.Ctx
 	accounts := rat.SetupTestAccounts(t, sys)
 	contracts := rat.ConnectTestContracts(t, sys)
 	slashingContracts := connectSlashingContracts(t, sys)
@@ -128,7 +128,7 @@ func TestDemoSession(t *testing.T) {
 		GameAddress:             gameAddress.Hex(),
 		GameType:                gameType,
 	RootClaim:               common.BytesToHash(rootClaim[:]).Hex(),
-	ExtraData:               common.Bytes2Hex(extraData),
+	ExtraData:               hexutil.Encode(extraData),
 	Challenger:              accounts.Challenger.Addr.Hex(),
 	StakeBefore:             initialStake.String(),
 	ChallengerBalanceBefore: challengerBalanceBefore.String(),
@@ -160,7 +160,7 @@ func TestDemoSession(t *testing.T) {
 						state.Status = "error"
 						state.Message = "slashingCandidate failed: " + err.Error()
 					} else {
-						_, _ = waitMined(t, sys.L1Client, tx)
+						_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
 
 						finalStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
 						challengerBalanceAfter := getWTONBalance(t, sys, accounts.Challenger.Addr)
@@ -177,3 +177,5 @@ func TestDemoSession(t *testing.T) {
 			time.Sleep(2 * time.Second)
 	}
 	}
+}
+
