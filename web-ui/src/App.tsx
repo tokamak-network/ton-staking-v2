@@ -2394,7 +2394,7 @@ function App() {
                       className={activeTab === 'game-settings' ? 'is-active' : ''}
                       onClick={() => { setActiveTab('game-settings'); setSidebarOpen(false); }}
                     >
-                      ⚙️ 게임/출금 설정
+                      ⚙️ Game/Withdrawal Settings
                     </a>
                   </li>
                 </ul>
@@ -3700,7 +3700,7 @@ function App() {
                           </span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Init Bond (게임 생성 비용):</span>
+                          <span className="info-label">Init Bond (Game Creation Cost):</span>
                           <span>{parseFloat(proposerInfo.initBond).toFixed(6)} ETH</span>
                         </div>
                         <div className="info-row">
@@ -3708,16 +3708,16 @@ function App() {
                           <span className="badge">{proposerInfo.gameType === 0 ? '0 (FaultDisputeGame)' : proposerInfo.gameType}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Proposal Interval (설정):</span>
-                          <span className="badge">{CONFIG.proposerSettings.proposalInterval}s ({CONFIG.proposerSettings.proposalInterval / 60}분)</span>
+                          <span className="info-label">Proposal Interval (Config):</span>
+                          <span className="badge">{CONFIG.proposerSettings.proposalInterval}s ({CONFIG.proposerSettings.proposalInterval / 60}m)</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Poll Interval (설정):</span>
+                          <span className="info-label">Poll Interval (Config):</span>
                           <span>{CONFIG.proposerSettings.pollInterval}s</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">Allow Non-Finalized:</span>
-                          <span className="badge">{CONFIG.proposerSettings.allowNonFinalized ? 'Yes (safe_l2 기준)' : 'No (finalized_l2 기준)'}</span>
+                          <span className="badge">{CONFIG.proposerSettings.allowNonFinalized ? 'Yes (based on safe_l2)' : 'No (based on finalized_l2)'}</span>
                         </div>
                         <div className="info-row">
                           <span className="info-label">Total Games Created:</span>
@@ -3742,11 +3742,11 @@ function App() {
                       <p className="empty-state">Loading proposer info...</p>
                     )}
                     <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
-                      <strong>op-proposer 동작:</strong> 매 poll interval({CONFIG.proposerSettings.pollInterval}s)마다 L2 output root를 확인하고,
-                      proposal interval({CONFIG.proposerSettings.proposalInterval}s = {CONFIG.proposerSettings.proposalInterval / 60}분) 이후 root가 변경되었으면
-                      DisputeGameFactory.create()를 호출하여 새 게임을 생성합니다.
-                      게임 생성 시 initBond만큼의 ETH가 필요합니다.
-                      {CONFIG.proposerSettings.allowNonFinalized && ' (AllowNonFinalized: safe_l2 기준으로 제안)'}
+                      <strong>op-proposer behavior:</strong> Every poll interval ({CONFIG.proposerSettings.pollInterval}s), checks the L2 output root.
+                      If the root has changed after the proposal interval ({CONFIG.proposerSettings.proposalInterval}s = {CONFIG.proposerSettings.proposalInterval / 60}m),
+                      calls DisputeGameFactory.create() to create a new game.
+                      Requires initBond amount of ETH per game creation.
+                      {CONFIG.proposerSettings.allowNonFinalized && ' (AllowNonFinalized: proposes based on safe_l2)'}
                     </small>
                   </section>
 
@@ -3810,7 +3810,7 @@ function App() {
                           </span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Inferred Proposal Interval (중앙값):</span>
+                          <span className="info-label">Inferred Proposal Interval (Median):</span>
                           <span>{proposerInfo.inferredProposalInterval > 0 ? `${proposerInfo.inferredProposalInterval}s` : 'N/A'}</span>
                         </div>
                       </div>
@@ -3818,7 +3818,7 @@ function App() {
                       <p className="empty-state">Loading...</p>
                     )}
                     <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
-                      Proposal Interval은 게임 타임스탬프 차이의 중앙값에서 추론합니다. 설정값(OP_PROPOSER_PROPOSAL_INTERVAL)과 비교하세요.
+                      Proposal Interval is inferred from the median of game timestamp differences. Compare with the configured value (OP_PROPOSER_PROPOSAL_INTERVAL).
                     </small>
                   </section>
 
@@ -3859,7 +3859,7 @@ function App() {
                     <section className="card">
                       <h2>📋 Output Root Details</h2>
                       <small style={{display: 'block', marginBottom: '0.5rem', color: 'var(--text-light)'}}>
-                        행을 클릭하면 게임 상세 정보를 볼 수 있습니다.
+                        Click a row to view game details.
                       </small>
                       <div className="table-container">
                         <table className="games-table">
@@ -4104,11 +4104,11 @@ function App() {
                           <span className="badge">{batcherInfo.daType}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Poll Interval (설정):</span>
+                          <span className="info-label">Poll Interval (Config):</span>
                           <span>{CONFIG.batcherSettings.pollInterval}s</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">Max Channel Duration (설정):</span>
+                          <span className="info-label">Max Channel Duration (Config):</span>
                           <span>{CONFIG.batcherSettings.maxChannelDuration} L1 blocks</span>
                         </div>
                         <div className="info-row">
@@ -4127,7 +4127,7 @@ function App() {
                       <h2>📊 Batch Submission Metrics</h2>
                       <div className="info-list">
                         <div className="info-row">
-                          <span className="info-label">Recent Batch TXs (L1 스캔):</span>
+                          <span className="info-label">Recent Batch TXs (L1 Scan):</span>
                           <span className="badge">{batcherInfo.txCount}</span>
                         </div>
                         <div className="info-row">
@@ -4144,7 +4144,7 @@ function App() {
                         </div>
                       </div>
                       <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)' }}>
-                        최근 50개 L1 블록에서 Batcher→BatchInbox TX를 스캔하여 계산합니다.
+                        Calculated by scanning Batcher→BatchInbox TXs from the last 50 L1 blocks.
                       </small>
                     </section>
                   )}
@@ -4176,10 +4176,10 @@ function App() {
                         </div>
                       </div>
                       <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--text-light)', lineHeight: '1.6' }}>
-                        <strong>op-batcher 동작:</strong> 매 poll interval({CONFIG.batcherSettings.pollInterval}s)마다 새 L2 블록을 확인하고,
-                        channel로 묶어 압축 후 frame 단위로 분할하여 L1에 제출합니다.
-                        Max Channel Duration: {CONFIG.batcherSettings.maxChannelDuration} L1 block.
-                        DA Type이 blobs이면 EIP-4844 blob TX(type 3)로, calldata면 일반 TX로 제출합니다.
+                        <strong>op-batcher behavior:</strong> Every poll interval ({CONFIG.batcherSettings.pollInterval}s), checks for new L2 blocks,
+                        groups them into channels, compresses, splits into frames, and submits to L1.
+                        Max Channel Duration: {CONFIG.batcherSettings.maxChannelDuration} L1 blocks.
+                        If DA Type is blobs, submits via EIP-4844 blob TX (type 3); if calldata, uses regular TX.
                       </small>
                     </section>
                   )}
@@ -4266,19 +4266,19 @@ function App() {
                     <>
                       {/* Card 1: Dispute Game Settings */}
                       <section className="card">
-                        <h2>🎮 Dispute Game 설정</h2>
+                        <h2>🎮 Dispute Game Settings</h2>
                         <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
-                          컨트랙트: FaultDisputeGame impl (<code>{gameWithdrawalSettings.gameImplAddress}</code>)
-                          {gameWithdrawalSettings.gameProxy && <>, 참조 Proxy (<code>{gameWithdrawalSettings.gameProxy}</code>)</>}
+                          Contract: FaultDisputeGame impl (<code>{gameWithdrawalSettings.gameImplAddress}</code>)
+                          {gameWithdrawalSettings.gameProxy && <>, Ref Proxy (<code>{gameWithdrawalSettings.gameProxy}</code>)</>}
                         </p>
                         <div className="info-list">
                           <div className="info-row">
                             <span className="info-label">Max Clock Duration:</span>
-                            <span>{gameWithdrawalSettings.maxClockDuration}초 ({formatDuration(gameWithdrawalSettings.maxClockDuration)})</span>
+                            <span>{gameWithdrawalSettings.maxClockDuration}s ({formatDuration(gameWithdrawalSettings.maxClockDuration)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Clock Extension:</span>
-                            <span>{gameWithdrawalSettings.clockExtension}초 ({formatDuration(gameWithdrawalSettings.clockExtension)})</span>
+                            <span>{gameWithdrawalSettings.clockExtension}s ({formatDuration(gameWithdrawalSettings.clockExtension)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Max Game Depth:</span>
@@ -4305,36 +4305,36 @@ function App() {
 
                       {/* Card 2: Bond Withdrawal Settings (DelayedWETH) */}
                       <section className="card">
-                        <h2>💰 Bond 출금 설정 (DelayedWETH)</h2>
+                        <h2>💰 Bond Withdrawal Settings (DelayedWETH)</h2>
                         <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
-                          컨트랙트: <code>{gameWithdrawalSettings.wethAddress}</code>
+                          Contract: <code>{gameWithdrawalSettings.wethAddress}</code>
                         </p>
                         <div className="info-list">
                           <div className="info-row">
                             <span className="info-label">Withdrawal Delay:</span>
-                            <span>{gameWithdrawalSettings.wethDelay}초 ({formatDuration(gameWithdrawalSettings.wethDelay)})</span>
+                            <span>{gameWithdrawalSettings.wethDelay}s ({formatDuration(gameWithdrawalSettings.wethDelay)})</span>
                           </div>
                         </div>
                       </section>
 
                       {/* Card 3: Withdrawal Settings (OptimismPortal2) */}
                       <section className="card">
-                        <h2>🚪 출금 설정 (OptimismPortal2)</h2>
+                        <h2>🚪 Withdrawal Settings (OptimismPortal2)</h2>
                         <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
-                          컨트랙트: <code>{gameWithdrawalSettings.portalAddress}</code>
+                          Contract: <code>{gameWithdrawalSettings.portalAddress}</code>
                         </p>
                         <div className="info-list">
                           <div className="info-row">
                             <span className="info-label">Proof Maturity Delay:</span>
-                            <span>{gameWithdrawalSettings.proofMaturityDelay}초 ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})</span>
+                            <span>{gameWithdrawalSettings.proofMaturityDelay}s ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Dispute Game Finality Delay:</span>
-                            <span>{gameWithdrawalSettings.disputeGameFinalityDelay}초 ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})</span>
+                            <span>{gameWithdrawalSettings.disputeGameFinalityDelay}s ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Fast Withdrawal Response Period:</span>
-                            <span>{gameWithdrawalSettings.fastWithdrawalResponsePeriod}초 ({formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)})</span>
+                            <span>{gameWithdrawalSettings.fastWithdrawalResponsePeriod}s ({formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">RAT Contract:</span>
@@ -4349,14 +4349,14 @@ function App() {
 
                       {/* Card 4: RAT Verification Settings */}
                       <section className="card">
-                        <h2>🔍 RAT 검증 설정</h2>
+                        <h2>🔍 RAT Verification Settings</h2>
                         <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '10px' }}>
-                          컨트랙트: <code>{gameWithdrawalSettings.ratAddress}</code>
+                          Contract: <code>{gameWithdrawalSettings.ratAddress}</code>
                         </p>
                         <div className="info-list">
                           <div className="info-row">
                             <span className="info-label">Evidence Submission Period:</span>
-                            <span>{gameWithdrawalSettings.evidenceSubmissionPeriod}초 ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})</span>
+                            <span>{gameWithdrawalSettings.evidenceSubmissionPeriod}s ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Min Validators for Fast Withdrawal:</span>
@@ -4367,15 +4367,15 @@ function App() {
 
                       {/* Card 5: Timing Summary Table */}
                       <section className="card">
-                        <h2>📋 전체 타이밍 요약</h2>
+                        <h2>📋 Timing Summary</h2>
                         <div className="table-container">
                           <table>
                             <thead>
                               <tr>
-                                <th>설정</th>
-                                <th>값</th>
-                                <th>컨트랙트</th>
-                                <th>변경 가능</th>
+                                <th>Setting</th>
+                                <th>Value</th>
+                                <th>Contract</th>
+                                <th>Mutable</th>
                               </tr>
                             </thead>
                             <tbody>
