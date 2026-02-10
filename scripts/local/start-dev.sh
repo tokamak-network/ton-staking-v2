@@ -658,10 +658,21 @@ echo "  DisputeGameFactory: $DISPUTE_GAME_FACTORY_ADDRESS"
 docker compose -f "$COMPOSE_FILE" up -d l2-batcher l2-proposer
 echo -e "${GREEN}✓ Batcher and proposer started${NC}"
 
+# =============================================================================
+# Step 8: Build and start RAT clients
+# =============================================================================
+echo -e "${YELLOW}Step 8: Building and starting RAT clients...${NC}"
+
+# Build RAT clients (always rebuild to pick up code changes)
+echo "Building RAT client images..."
+docker compose -f "$COMPOSE_FILE" build rat-client-1 rat-client-2 rat-client-3
+echo -e "${GREEN}✓ RAT client images built${NC}"
+
 # Start RAT clients
 echo "Starting RAT clients..."
 docker compose -f "$COMPOSE_FILE" up -d rat-client-1 rat-client-2 rat-client-3
 echo -e "${GREEN}✓ RAT clients started (3 validators)${NC}"
+echo ""
 
 # Wait for L2 transaction indexing to complete
 echo ""
@@ -686,10 +697,6 @@ for i in {1..60}; do
     sleep 2
 done
 echo ""
-
-# =============================================================================
-# Step 8: (Mining already configured in Step 6.5)
-# =============================================================================
 
 # =============================================================================
 # Step 9: Bridge ETH from L1 to L2 (for gas fees)

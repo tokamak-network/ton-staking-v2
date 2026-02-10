@@ -3444,7 +3444,26 @@ function App() {
                   </section>
 
                   <section className="card">
-                    <h2>🎮 Recent Dispute Games ({enhancedGames.length || games.length})</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h2>🎮 Recent Dispute Games ({enhancedGames.length || games.length})</h2>
+                      <button
+                        onClick={async () => {
+                          try {
+                            setLoading(true);
+                            await loadGames();
+                          } catch (error: any) {
+                            console.error('Refresh failed:', error);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
+                      >
+                        {loading ? '⏳' : '🔄'} Refresh
+                      </button>
+                    </div>
                     <small style={{display: 'block', marginBottom: '0.75rem', color: 'var(--text-light)'}}>Click a row to view game details</small>
                     {(enhancedGames.length === 0 && games.length === 0) ? (
                       <p className="empty-state">No dispute games created yet</p>
@@ -4035,7 +4054,26 @@ function App() {
                   )}
 
                   <section className="card">
-                    <h2>🎮 Recent Games</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h2>🎮 Recent Games</h2>
+                      <button
+                        onClick={async () => {
+                          try {
+                            setLoading(true);
+                            await loadProposerInfo();
+                          } catch (error: any) {
+                            console.error('Refresh failed:', error);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
+                      >
+                        {loading ? '⏳' : '🔄'} Refresh
+                      </button>
+                    </div>
                     {proposerInfo && proposerInfo.recentGames.length > 0 ? (
                       <div className="table-container">
                         <table className="games-table">

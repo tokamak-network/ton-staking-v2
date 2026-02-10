@@ -20,9 +20,11 @@ services:
         # Complete cleanup of old data
         rm -rf /data/geth /data/geth.ipc /data/keystore /data/chaindata
         # Force clean init
-        geth init --datadir=/data /genesis/genesis-l2.json
+        geth init --state.scheme=hash --cache.preimages --datadir=/data /genesis/genesis-l2.json
         exec geth \
           --datadir=/data \
+          --state.scheme=hash \
+          --cache.preimages \
           --http \
           --http.addr=0.0.0.0 \
           --http.port=8545 \

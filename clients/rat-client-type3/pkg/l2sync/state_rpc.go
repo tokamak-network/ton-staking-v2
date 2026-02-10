@@ -2,6 +2,8 @@ package l2sync
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -100,6 +102,27 @@ type SortedAccount struct {
 // zeroHashHex is the zero hash used to detect end of pagination
 const zeroHashHex = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
+// convertNextToHex converts the Next pagination key to 0x-prefixed hex.
+// op-geth returns Next as base64-encoded bytes, while the RPC input requires 0x hex.
+func convertNextToHex(next string) (string, error) {
+	// Already hex-prefixed
+	if strings.HasPrefix(next, "0x") || strings.HasPrefix(next, "0X") {
+		return next, nil
+	}
+
+	// Try base64 decode
+	decoded, err := base64.StdEncoding.DecodeString(next)
+	if err != nil {
+		// Try base64 URL encoding
+		decoded, err = base64.URLEncoding.DecodeString(next)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode next key as base64: %w", err)
+		}
+	}
+
+	return "0x" + hex.EncodeToString(decoded), nil
+}
+
 // GetAccountRangeViaRPC fetches all accounts using debug_accountRange RPC with pagination
 func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumber string) (*AccountRangeResult, error) {
 	log.Printf("Fetching account range via RPC: block=%s", blockNumber)
@@ -114,11 +137,11 @@ func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumb
 		var result AccountRangeResult
 		err := rpcClient.CallContext(ctx, &result, "debug_accountRange",
 			blockNumber, // block number or "latest"
-			startKey,    // start address hash
+			startKey,    // start address hash (0x-prefixed hex)
 			1000,        // maxResults per page
 			false,       // excludeCode
 			false,       // excludeStorage
-			false,       // incompletes
+			false,       // incompletes (preimages available via --cache.preimages)
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to call debug_accountRange (page %d): %w", page, err)
@@ -140,7 +163,11 @@ func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumb
 			break
 		}
 
-		startKey = result.Next
+		// Next value may be base64-encoded (op-geth) - convert to 0x hex
+		startKey, err = convertNextToHex(result.Next)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert next key (page %d): %w", page, err)
+		}
 	}
 
 	combined := &AccountRangeResult{
