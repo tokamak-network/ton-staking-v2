@@ -33,3 +33,15 @@ export interface ChallengersConfig {
 export type Deployments = Record<string, string>;
 
 export type NetworksConfig = Record<string, unknown>;
+
+export interface EventStepConfig {
+  key: string;
+  network: "l1" | "l2";
+  addressRef: string;
+  signature: string;
+}
+
+export interface EventsConfig {
+  steps: EventStepConfig[];
+  notes?: string;
+}

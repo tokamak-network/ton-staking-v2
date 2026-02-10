@@ -27,6 +27,9 @@ export const config = {
   networksPath: process.env.DEMO_NETWORKS_PATH
     ? path.resolve(process.env.DEMO_NETWORKS_PATH)
     : path.join(rootDir, "demo-config/networks.json"),
+  eventsPath: process.env.DEMO_EVENTS_PATH
+    ? path.resolve(process.env.DEMO_EVENTS_PATH)
+    : path.join(rootDir, "demo-config/events.json"),
   scriptBase: process.env.DEMO_SCRIPT_BASE
     ? path.resolve(process.env.DEMO_SCRIPT_BASE)
     : rootDir

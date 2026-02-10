@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { ChallengersConfig, Deployments, NetworksConfig, Scenario, ScenarioConfig } from "../lib/types";
+import {
+  ChallengersConfig,
+  Deployments,
+  EventsConfig,
+  NetworksConfig,
+  Scenario,
+  ScenarioConfig
+} from "../lib/types";
 import { ScenarioSelector } from "../components/ScenarioSelector";
 import { Stepper } from "../components/Stepper";
 import { LogPanel } from "../components/LogPanel";
@@ -8,6 +15,10 @@ import { ConfigPanel } from "../components/ConfigPanel";
 import { RunControls } from "../components/RunControls";
 import { extractMarkers } from "../lib/formatters";
 import { useDemoStatus } from "../hooks/useDemoStatus";
+import { useEventStepper } from "../hooks/useEventStepper";
+import { RpcStatusPanel } from "../components/RpcStatusPanel";
+import { ChallengerBalancesPanel } from "../components/ChallengerBalancesPanel";
+import { EventPanel } from "../components/EventPanel";
 
 export default function Home() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -15,10 +26,20 @@ export default function Home() {
   const [deployments, setDeployments] = useState<Deployments>();
   const [challengers, setChallengers] = useState<ChallengersConfig>();
   const [networks, setNetworks] = useState<NetworksConfig>();
+  const [eventsConfig, setEventsConfig] = useState<EventsConfig>();
   const [runId, setRunId] = useState<string | undefined>();
 
   const { status: run, logs, error } = useDemoStatus(runId);
-  const markers = useMemo(() => extractMarkers(logs), [logs]);
+  const logMarkers = useMemo(() => extractMarkers(logs), [logs]);
+
+  const { markers: eventMarkers, captured, latestGame } = useEventStepper({
+    eventsConfig,
+    networks,
+    deployments,
+    runId
+  });
+
+  const stepperMarkers = eventMarkers.length ? eventMarkers : logMarkers;
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -30,6 +51,7 @@ export default function Home() {
       setDeployments(await api.getDeployments());
       setChallengers(await api.getChallengers());
       setNetworks(await api.getNetworks());
+      setEventsConfig(await api.getEvents());
     };
 
     void loadConfig();
@@ -72,7 +94,19 @@ export default function Home() {
       </section>
 
       <section>
-        <Stepper markers={markers} />
+        <Stepper markers={stepperMarkers} />
+      </section>
+
+      <section>
+        <EventPanel events={captured} latestGame={latestGame} />
+      </section>
+
+      <section>
+        <RpcStatusPanel networks={networks} />
+      </section>
+
+      <section>
+        <ChallengerBalancesPanel challengers={challengers} networks={networks} />
       </section>
 
       <section>

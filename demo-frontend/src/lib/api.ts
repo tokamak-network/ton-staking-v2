@@ -1,4 +1,4 @@
-import { ChallengersConfig, Deployments, DemoRun, NetworksConfig, ScenarioConfig } from "./types";
+import { ChallengersConfig, Deployments, DemoRun, EventsConfig, NetworksConfig, ScenarioConfig } from "./types";
 
 const baseUrl =
   process.env.NEXT_PUBLIC_DEMO_API_URL ?? "http://localhost:4000";
@@ -22,6 +22,7 @@ export const api = {
   getDeployments: () => fetchJson<Deployments>("/config/deployments"),
   getChallengers: () => fetchJson<ChallengersConfig>("/config/challengers"),
   getNetworks: () => fetchJson<NetworksConfig>("/config/networks"),
+  getEvents: () => fetchJson<EventsConfig>("/config/events"),
   startDemo: (scenarioKey: string) =>
     fetchJson<DemoRun>("/demo/start", {
       method: "POST",

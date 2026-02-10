@@ -30,5 +30,10 @@ export const createConfigRoutes = () => {
     res.json(data);
   });
 
+  router.get("/events", (_req, res) => {
+    const data = readJsonFile<Record<string, unknown>>(config.eventsPath);
+    res.json(data);
+  });
+
   return router;
 };

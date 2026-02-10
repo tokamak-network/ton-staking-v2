@@ -16,6 +16,10 @@
 - 데모 시나리오 리스트
 - backend가 script 실행시 이 설정을 사용
 
+### `events.json`
+- 이벤트 기반 Stepper 설정
+- 각 단계별 이벤트 시그니처/주소 정의
+
 ---
 
 ## Update Guide
@@ -28,3 +32,6 @@
 
 3. **Scenario 추가**
    - `scenarios.json`에 script 경로 및 테스트명을 추가하면 UI에 자동 반영됩니다.
+
+4. **이벤트 Stepper 설정**
+   - `events.json`의 시그니처 및 주소 참조(`addressRef`)를 실제 컨트랙트 이벤트에 맞게 업데이트하세요.

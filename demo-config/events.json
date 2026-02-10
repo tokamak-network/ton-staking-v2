@@ -1,0 +1,35 @@
+{
+  "steps": [
+    {
+      "key": "GAME_CREATED",
+      "network": "l1",
+      "addressRef": "deployment:disputeGameFactory",
+      "signature": "DisputeGameCreated(address indexed game, address indexed creator, uint8 gameType)"
+    },
+    {
+      "key": "CHALLENGERS_STARTED",
+      "network": "l2",
+      "addressRef": "game:latest",
+      "signature": "ClaimMade(uint256 indexed parentIndex, address indexed claimant, uint256 bond)"
+    },
+    {
+      "key": "SLASHING_DONE",
+      "network": "l1",
+      "addressRef": "deployment:seigManagerProxy",
+      "signature": "Slashed(address indexed layer2, address indexed challenger, uint256 amount)"
+    },
+    {
+      "key": "REWARD_DISTRIBUTED",
+      "network": "l1",
+      "addressRef": "deployment:seigManagerProxy",
+      "signature": "RewardDistributed(address indexed challenger, uint256 amount)"
+    },
+    {
+      "key": "COMPLETED",
+      "network": "l2",
+      "addressRef": "game:latest",
+      "signature": "Resolved(uint8 status)"
+    }
+  ],
+  "notes": "이벤트 시그니처는 실제 컨트랙트에 맞게 수정하세요."
+}
