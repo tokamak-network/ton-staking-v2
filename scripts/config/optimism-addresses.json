@@ -1,9 +1,0 @@
-{
-  "SystemConfigProxy": "0x11e97e2173e571e51bf08da65f87e1d456df0755",
-  "OptimismPortalProxy": "0x560bef593c58689bc0efc4fa97e37d1952e816a5",
-  "L1StandardBridgeProxy": "0x50f3f18a3b215162e5266746c62e24d738d8dbf0",
-  "L1CrossDomainMessengerProxy": "0x94399e360ae81de7bc62b6e7cf939a1545af4ae0",
-  "L1ERC721BridgeProxy": "0x282032a213bc505056f06ac91387510b0baa2f2a",
-  "OptimismMintableERC20FactoryProxy": "0x39b28fdc6eacb5ac605089ba5f040648e4032874",
-  "DisputeGameFactoryProxy": "0x31fd2c50c690f28f9a295277d128d67acb83fa26"
-}

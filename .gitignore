@@ -46,13 +46,8 @@ op-e2e/test-results.txt
 lib/tokamak-dao-contracts/
 test-results/
 
-# generated config files
-scripts/config/backup-*/
-scripts/config/genesis-l2-*.json
-scripts/config/l2-allocs-*.json
-scripts/config/optimism-addresses-*.json
-scripts/config/optimism-allocs-l1-*.json
-scripts/config/rollup-*.json
+# generated config files (devnet-specific data)
+scripts/config/
 
 # generated web-ui address files
 web-ui/public/addresses.json
