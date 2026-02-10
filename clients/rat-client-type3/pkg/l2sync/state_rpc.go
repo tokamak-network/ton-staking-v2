@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -21,6 +22,7 @@ import (
 type AccountRangeResult struct {
 	Root     string                  `json:"root"` // hex string without 0x prefix
 	Accounts map[string]*AccountInfo `json:"accounts"`
+	Next     string                  `json:"next"` // next start key for pagination
 }
 
 // GetRootHash returns the root as common.Hash
@@ -95,28 +97,62 @@ type SortedAccount struct {
 	Info    *AccountInfo
 }
 
-// GetAccountRangeViaRPC fetches all accounts using debug_accountRange RPC
+// zeroHashHex is the zero hash used to detect end of pagination
+const zeroHashHex = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+// GetAccountRangeViaRPC fetches all accounts using debug_accountRange RPC with pagination
 func GetAccountRangeViaRPC(ctx context.Context, rpcClient *rpc.Client, blockNumber string) (*AccountRangeResult, error) {
 	log.Printf("Fetching account range via RPC: block=%s", blockNumber)
 
-	var result AccountRangeResult
-	err := rpcClient.CallContext(ctx, &result, "debug_accountRange",
-		blockNumber, // block number or "latest"
-		"",          // start address (empty for beginning)
-		1000,        // maxResults (should be enough for dev test)
-		false,       // excludeCode
-		false,       // excludeStorage
-		false,       // incompletes
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call debug_accountRange: %w", err)
+	allAccounts := make(map[string]*AccountInfo)
+	var rootHash string
+	startKey := zeroHashHex // Start from beginning
+	page := 0
+
+	for {
+		page++
+		var result AccountRangeResult
+		err := rpcClient.CallContext(ctx, &result, "debug_accountRange",
+			blockNumber, // block number or "latest"
+			startKey,    // start address hash
+			1000,        // maxResults per page
+			false,       // excludeCode
+			false,       // excludeStorage
+			false,       // incompletes
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to call debug_accountRange (page %d): %w", page, err)
+		}
+
+		if rootHash == "" {
+			rootHash = result.Root
+		}
+
+		for k, v := range result.Accounts {
+			allAccounts[k] = v
+		}
+
+		log.Printf("Fetched account range page %d: pageCount=%d, totalCount=%d, next=%s",
+			page, len(result.Accounts), len(allAccounts), result.Next)
+
+		// Check if there are more accounts to fetch
+		if result.Next == "" || result.Next == zeroHashHex || len(result.Accounts) == 0 {
+			break
+		}
+
+		startKey = result.Next
 	}
 
-	log.Printf("Fetched accounts via RPC: count=%d, root=%s",
-		len(result.Accounts),
-		result.GetRootHash().Hex())
+	combined := &AccountRangeResult{
+		Root:     rootHash,
+		Accounts: allAccounts,
+	}
 
-	return &result, nil
+	log.Printf("Fetched all accounts via RPC: totalCount=%d, pages=%d, root=%s",
+		len(combined.Accounts), page,
+		combined.GetRootHash().Hex())
+
+	return combined, nil
 }
 
 // FindAdjacentLeavesViaRPC finds two adjacent leaves using RPC
@@ -151,6 +187,48 @@ func FindAdjacentLeavesViaRPC(
 			Key:     info.GetKey(),
 			Info:    info,
 		})
+	}
+
+	// 2.5. Add precompile accounts (0x01-0x09) which exist in state trie
+	// but are not returned by debug_accountRange
+	for i := 1; i <= 9; i++ {
+		addr := common.BytesToAddress([]byte{byte(i)})
+		key := crypto.Keccak256Hash(addr.Bytes())
+
+		// Check if already in the list
+		alreadyExists := false
+		for _, s := range sorted {
+			if s.Address == addr {
+				alreadyExists = true
+				break
+			}
+		}
+		if alreadyExists {
+			continue
+		}
+
+		proofResult, err := GetProofViaRPC(ctx, rpcClient, addr, blockHex)
+		if err != nil {
+			continue
+		}
+
+		balance := proofResult.Balance.ToInt()
+		if balance.Sign() > 0 || uint64(proofResult.Nonce) > 0 {
+			sorted = append(sorted, SortedAccount{
+				Address: addr,
+				Key:     key,
+				Info: &AccountInfo{
+					Balance: fmt.Sprintf("%x", balance),
+					Nonce:   uint64(proofResult.Nonce),
+					Root:    proofResult.StorageHash.Hex()[2:],
+					CodeHash: proofResult.CodeHash.Hex()[2:],
+					Address: addr.Hex(),
+					Key:     key.Hex()[2:],
+				},
+			})
+			log.Printf("Added precompile account: addr=%s, key=%s, balance=%s",
+				addr.Hex(), key.Hex(), balance.String())
+		}
 	}
 
 	// 3. Sort by key (address hash)
