@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { EventsConfig } from "../lib/types";
 import { useAbiEvents } from "../hooks/useAbiEvents";
 import { findBestMatch } from "../lib/string";
@@ -9,7 +10,10 @@ interface EventConfigWarningsProps {
 }
 
 export const EventConfigWarnings = ({ eventsConfig }: EventConfigWarningsProps) => {
-  const abiNames = Array.from(new Set(eventsConfig?.steps?.map((s) => s.abi) ?? []));
+  const abiNames = useMemo(
+    () => Array.from(new Set(eventsConfig?.steps?.map((s) => s.abi) ?? [])),
+    [eventsConfig]
+  );
   const { eventsMap, loading } = useAbiEvents(abiNames);
 
   const issues: string[] = [];

@@ -12,21 +12,21 @@
       "network": "l2",
       "addressRef": "game:latest",
       "abi": "FaultDisputeGame",
-      "event": "ClaimMade"
+      "event": "Move"
     },
     {
       "key": "SLASHING_DONE",
       "network": "l1",
       "addressRef": "deployment:seigManagerProxy",
       "abi": "SeigManager",
-      "event": "Slashed"
+      "event": "onSlashed"
     },
     {
       "key": "REWARD_DISTRIBUTED",
       "network": "l1",
-      "addressRef": "deployment:seigManagerProxy",
-      "abi": "SeigManager",
-      "event": "RewardDistributed"
+      "addressRef": "deployment:depositManagerProxy",
+      "abi": "DepositManager",
+      "event": "ChallengerRewarded"
     },
     {
       "key": "COMPLETED",

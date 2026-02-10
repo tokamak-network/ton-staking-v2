@@ -3,6 +3,7 @@ package devnet
 import (
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -10,8 +11,37 @@ import (
 	"github.com/ethereum-optimism/optimism/op-e2e/faultproofs"
 )
 
+func findProjectRoot() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	dir := wd
+	for {
+		devnetPath := filepath.Join(dir, ".devnet", "genesis-l1-staking-v3.json")
+		if _, err := os.Stat(devnetPath); err == nil {
+			return dir, nil
+	}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+	}
+		dir = parent
+	}
+
+	return "", os.ErrNotExist
+}
+
 func TestDevnetKeepAlive(t *testing.T) {
-	if _, err := os.Stat("../.devnet/genesis-l1-staking-v3.json"); err != nil {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Genesis file not found. Run from project root: make devnet-allocs-offline")
+	}
+
+	genesisPath := filepath.Join(root, ".devnet", "genesis-l1-staking-v3.json")
+	if _, err := os.Stat(genesisPath); err != nil {
 		t.Fatalf("Genesis file not found. Run from project root: make devnet-allocs-offline")
 	}
 
@@ -33,3 +63,5 @@ func TestDevnetKeepAlive(t *testing.T) {
 	case <-time.After(24 * time.Hour):
 		t.Log("Timeout reached. Stopping devnet...")
 	}
+}
+

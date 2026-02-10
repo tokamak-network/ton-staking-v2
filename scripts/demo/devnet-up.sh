@@ -27,3 +27,10 @@ PID=$!
 echo "$PID" > "$PID_FILE"
 echo "[devnet-up] pid=$PID"
 echo "[devnet-up] logs=$LOG_FILE"
+
+for i in {1..10}; do
+  if bash "$ROOT_DIR/scripts/demo/update-networks-from-log.sh"; then
+    break
+  fi
+  sleep 2
+done
