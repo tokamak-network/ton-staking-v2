@@ -30,6 +30,9 @@ export const config = {
   eventsPath: process.env.DEMO_EVENTS_PATH
     ? path.resolve(process.env.DEMO_EVENTS_PATH)
     : path.join(rootDir, "demo-config/events.json"),
+  abisDir: process.env.DEMO_ABIS_DIR
+    ? path.resolve(process.env.DEMO_ABIS_DIR)
+    : path.join(rootDir, "demo-config/abis"),
   scriptBase: process.env.DEMO_SCRIPT_BASE
     ? path.resolve(process.env.DEMO_SCRIPT_BASE)
     : rootDir

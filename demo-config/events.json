@@ -4,32 +4,37 @@
       "key": "GAME_CREATED",
       "network": "l1",
       "addressRef": "deployment:disputeGameFactory",
-      "signature": "DisputeGameCreated(address indexed game, address indexed creator, uint8 gameType)"
+      "abi": "DisputeGameFactory",
+      "event": "DisputeGameCreated"
     },
     {
       "key": "CHALLENGERS_STARTED",
       "network": "l2",
       "addressRef": "game:latest",
-      "signature": "ClaimMade(uint256 indexed parentIndex, address indexed claimant, uint256 bond)"
+      "abi": "FaultDisputeGame",
+      "event": "ClaimMade"
     },
     {
       "key": "SLASHING_DONE",
       "network": "l1",
       "addressRef": "deployment:seigManagerProxy",
-      "signature": "Slashed(address indexed layer2, address indexed challenger, uint256 amount)"
+      "abi": "SeigManager",
+      "event": "Slashed"
     },
     {
       "key": "REWARD_DISTRIBUTED",
       "network": "l1",
       "addressRef": "deployment:seigManagerProxy",
-      "signature": "RewardDistributed(address indexed challenger, uint256 amount)"
+      "abi": "SeigManager",
+      "event": "RewardDistributed"
     },
     {
       "key": "COMPLETED",
       "network": "l2",
       "addressRef": "game:latest",
-      "signature": "Resolved(uint8 status)"
+      "abi": "FaultDisputeGame",
+      "event": "Resolved"
     }
   ],
-  "notes": "이벤트 시그니처는 실제 컨트랙트에 맞게 수정하세요."
+  "notes": "ABI 기반 이벤트 매칭. demo-config/abis에서 ABI 로드 후 event 이름으로 찾습니다."
 }

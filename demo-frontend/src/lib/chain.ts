@@ -23,16 +23,14 @@ export const resolveAddress = (
   return ref;
 };
 
-export const getEventTopic = (signature: string) => {
-  const eventName = signature.split("(")[0];
-  const iface = new Interface([`event ${signature}`]);
+export const getEventTopicFromAbi = (abi: any[], eventName: string) => {
+  const iface = new Interface(abi);
   const event = iface.getEvent(eventName);
   return iface.getEventTopic(event);
 };
 
-export const decodeEvent = (signature: string, log: Log) => {
-  const eventName = signature.split("(")[0];
-  const iface = new Interface([`event ${signature}`]);
+export const decodeEventWithAbi = (abi: any[], eventName: string, log: Log) => {
+  const iface = new Interface(abi);
   const event = iface.getEvent(eventName);
   return iface.decodeEventLog(event, log.data, log.topics);
 };

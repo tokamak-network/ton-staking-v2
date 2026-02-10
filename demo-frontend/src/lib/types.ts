@@ -38,7 +38,8 @@ export interface EventStepConfig {
   key: string;
   network: "l1" | "l2";
   addressRef: string;
-  signature: string;
+  abi: string;
+  event: string;
 }
 
 export interface EventsConfig {

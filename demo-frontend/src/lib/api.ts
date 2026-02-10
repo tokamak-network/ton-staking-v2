@@ -23,6 +23,7 @@ export const api = {
   getChallengers: () => fetchJson<ChallengersConfig>("/config/challengers"),
   getNetworks: () => fetchJson<NetworksConfig>("/config/networks"),
   getEvents: () => fetchJson<EventsConfig>("/config/events"),
+  getAbi: (name: string) => fetchJson<any>(`/config/abi/${name}`),
   startDemo: (scenarioKey: string) =>
     fetchJson<DemoRun>("/demo/start", {
       method: "POST",

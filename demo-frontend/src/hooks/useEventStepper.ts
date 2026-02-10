@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Deployments, EventsConfig, NetworksConfig } from "../lib/types";
-import { decodeEvent, getEventTopic, getProvider, isGameCreatedEvent, resolveAddress } from "../lib/chain";
+import {
+  decodeEventWithAbi,
+  getEventTopicFromAbi,
+  getProvider,
+  isGameCreatedEvent,
+  resolveAddress
+} from "../lib/chain";
+import { api } from "../lib/api";
 
 interface CapturedEvent {
   stepKey: string;
@@ -26,6 +33,7 @@ export const useEventStepper = ({
   const [markers, setMarkers] = useState<string[]>([]);
   const [captured, setCaptured] = useState<CapturedEvent[]>([]);
   const [latestGame, setLatestGame] = useState<string | undefined>();
+  const [abiMap, setAbiMap] = useState<Record<string, any[]>>({});
   const lastBlocksRef = useRef<{ l1?: number; l2?: number }>({});
 
   const steps = eventsConfig?.steps ?? [];
@@ -38,6 +46,25 @@ export const useEventStepper = ({
     setLatestGame(undefined);
     lastBlocksRef.current = {};
   }, [runId]);
+
+  useEffect(() => {
+    const loadAbis = async () => {
+      const names = Array.from(new Set(steps.map((s) => s.abi)));
+      const results: Record<string, any[]> = {};
+      for (const name of names) {
+        try {
+          results[name] = await api.getAbi(name);
+        } catch {
+          results[name] = [];
+        }
+      }
+      setAbiMap(results);
+    };
+
+    if (steps.length > 0) {
+      void loadAbis();
+    }
+  }, [steps]);
 
   useEffect(() => {
     const initBlocks = async () => {
@@ -62,7 +89,9 @@ export const useEventStepper = ({
       for (const step of steps) {
         const provider = providers[step.network];
         const address = resolveAddress(step.addressRef, deployments, latestGame);
-        if (!provider || !address) continue;
+        const abi = abiMap[step.abi];
+
+        if (!provider || !address || !abi || abi.length === 0) continue;
 
         const fromBlock =
           step.network === "l1"
@@ -72,7 +101,13 @@ export const useEventStepper = ({
         const toBlock = await provider.getBlockNumber();
         if (toBlock < fromBlock) continue;
 
-        const topic = getEventTopic(step.signature);
+        let topic: string;
+        try {
+          topic = getEventTopicFromAbi(abi, step.event);
+        } catch {
+          continue;
+        }
+
         const logs = await provider.getLogs({
           address,
           fromBlock,
@@ -104,7 +139,7 @@ export const useEventStepper = ({
 
           if (isGameCreatedEvent(step)) {
             try {
-              const decoded = decodeEvent(step.signature, logs[0]);
+              const decoded = decodeEventWithAbi(abi, step.event, logs[0]);
               const game = decoded?.[0] as string | undefined;
               if (game) setLatestGame(game);
             } catch {
@@ -129,7 +164,7 @@ export const useEventStepper = ({
       active = false;
       clearInterval(interval);
     };
-  }, [steps, deployments, latestGame, l1Provider, l2Provider]);
+  }, [steps, deployments, latestGame, l1Provider, l2Provider, abiMap]);
 
   return { markers, captured, latestGame };
 };
