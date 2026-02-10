@@ -1,0 +1,18 @@
+{
+  "scenarios": [
+    {
+      "key": "multi-2",
+      "label": "Two Challengers Competing",
+      "description": "2명의 challenger가 동일 게임에서 경쟁하는 멀티 챌린저 시나리오",
+      "script": "scripts/demo/run-two-challengers.sh",
+      "testName": "TestMultiChallenger_TwoChallengersCompeting"
+    },
+    {
+      "key": "multi-3",
+      "label": "Three Challengers Reward Distribution",
+      "description": "3명의 challenger 보상 분배 시나리오 (멀티 챌린저 보상 분배)",
+      "script": "scripts/demo/run-three-challengers.sh",
+      "testName": "TestMultiChallenger_ThreeChallengersRewardDistribution"
+    }
+  ]
+}

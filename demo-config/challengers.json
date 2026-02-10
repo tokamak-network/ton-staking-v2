@@ -1,0 +1,21 @@
+{
+  "rewardToken": {
+    "symbol": "WTON",
+    "address": "0xc7fe936Ef0050a273667B2cb5940217a882A79e1"
+  },
+  "challengers": [
+    {
+      "label": "Challenger A",
+      "address": "0x0001"
+    },
+    {
+      "label": "Challenger B",
+      "address": "0x0002"
+    },
+    {
+      "label": "Challenger C",
+      "address": "0x0003"
+    }
+  ],
+  "notes": "devnet 실제 챌린저 계정으로 업데이트 필요"
+}

@@ -1,0 +1,92 @@
+:root {
+  color-scheme: dark;
+  font-family: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0b0f17;
+  color: #e6eef9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+h1, h2, h3 {
+  margin: 0 0 12px;
+}
+
+section {
+  background: #121826;
+  border: 1px solid #1d2638;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+button {
+  background: #2d6cdf;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge.running {
+  background: rgba(79, 142, 247, 0.2);
+  color: #8bb3ff;
+}
+
+.badge.success {
+  background: rgba(94, 201, 134, 0.2);
+  color: #7ce6a8;
+}
+
+.badge.failed {
+  background: rgba(255, 95, 95, 0.2);
+  color: #ff9a9a;
+}
+
+.badge.stopped {
+  background: rgba(255, 199, 80, 0.2);
+  color: #ffda7c;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table td {
+  padding: 6px 0;
+  border-bottom: 1px solid #1d2638;
+}
+
+.table td:first-child {
+  color: #8ea0bf;
+  width: 220px;
+}
