@@ -33,7 +33,7 @@ probe_chain_id() {
 L1_PORT=""
 L2_PORT=""
 
-for i in {1..15}; do
+for i in {1..60}; do
   ports=$(extract_ports | sort -u)
   if [ -z "$ports" ]; then
     echo "[update-networks] no ports found yet (try $i)"

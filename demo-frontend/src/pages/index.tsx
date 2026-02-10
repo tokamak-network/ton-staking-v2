@@ -22,6 +22,7 @@ import { EventPanel } from "../components/EventPanel";
 import { AbiEventsPanel } from "../components/AbiEventsPanel";
 import { EventConfigWarnings } from "../components/EventConfigWarnings";
 import { GameSelector } from "../components/GameSelector";
+import { SessionPanel } from "../components/SessionPanel";
 
 export default function Home() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -87,6 +88,10 @@ export default function Home() {
       <p style={{ color: "#8ea0bf" }}>
         DisputeGame에서 챌린저 승리 → Slashing → Reward 분배 과정을 UI에서 시각화합니다.
       </p>
+
+      <section>
+        <SessionPanel />
+      </section>
 
       <section>
         <ScenarioSelector

@@ -21,9 +21,13 @@ make devnet-allocs-offline
 # repo root (Devnet 계속 실행 (백그라운드))
 bash scripts/demo/devnet-up.sh
 
-- devnet 실행 로그: .devnet/devnet.log
+# 추가로 네트워크를 잡아주기위해 실행
+bash scripts/demo/update-networks-from-log.sh
+
+- devnet 실행 로그: tail -n 40 .devnet/devnet.log
 - devnet 종료:
 bash scripts/demo/devnet-down.sh
+rm -f .devnet/devnet.pid 
 
 
 ---

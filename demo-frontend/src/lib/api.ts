@@ -34,5 +34,9 @@ export const api = {
   stopDemo: (runId: string) =>
     fetchJson<{ stopped: boolean }>(`/demo/stop/${runId}`, { method: "POST" }),
   getStatus: (runId: string) => fetchJson<DemoRun>(`/demo/status/${runId}`),
-  getLogs: (runId: string) => fetchJson<{ logs: string[] }>(`/demo/logs/${runId}`)
+  getLogs: (runId: string) => fetchJson<{ logs: string[] }>(`/demo/logs/${runId}`),
+  startSession: () => fetchJson<{ ok: boolean; pid?: number | null }>("/session/start", { method: "POST" }),
+  stopSession: () => fetchJson<{ ok: boolean }>("/session/stop", { method: "POST" }),
+  slashSession: () => fetchJson<{ ok: boolean }>("/session/slash", { method: "POST" }),
+  getSessionState: () => fetchJson<any>("/session/state")
 };
