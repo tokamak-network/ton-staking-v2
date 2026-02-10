@@ -102,6 +102,9 @@ interface GameDetailInfo extends EnhancedGameInfo {
   startingBlockNumber: number;
   claims: ClaimDataInfo[];
   ratTestDetail: AttentionTestInfo | null;
+  proposerBond: string;        // proposer's initial bond (from claim[0])
+  proposerCredit: string;      // proposer's unclaimed credit
+  proposerAddress: string;     // proposer address (claim[0].claimant)
 }
 
 interface GameStatusSummary {
@@ -296,6 +299,7 @@ function App() {
   const [minValidatorsForFW, setMinValidatorsForFW] = useState<number>(0);
   const [factoryInfo, setFactoryInfo] = useState<{gameImpl: string; initBond: string} | null>(null);
   const [selectedGameDetail, setSelectedGameDetail] = useState<GameDetailInfo | null>(null);
+  const [selectedAttentionTest, setSelectedAttentionTest] = useState<AttentionTestInfo | null>(null);
   const [gameStatusSummary, setGameStatusSummary] = useState<GameStatusSummary>({ total: 0, inProgress: 0, challengerWins: 0, defenderWins: 0 });
   const [gameWithdrawalSettings, setGameWithdrawalSettings] = useState<GameWithdrawalSettings | null>(null);
 
@@ -1523,6 +1527,21 @@ function App() {
         }
       }
 
+      // Get proposer bond info from first claim (proposer is claim[0].claimant)
+      let proposerBond = '0';
+      let proposerCredit = '0';
+      let proposerAddr = '';
+      if (claims.length > 0) {
+        proposerAddr = claims[0].claimant;
+        proposerBond = claims[0].bond;
+        try {
+          const creditWei = await gameProxy.credit(proposerAddr);
+          proposerCredit = ethers.formatEther(creditWei);
+        } catch {
+          // credit not available (game not resolved yet)
+        }
+      }
+
       const detail: GameDetailInfo = {
         ...game,
         createdAt: Number(createdAt),
@@ -1531,6 +1550,9 @@ function App() {
         startingBlockNumber: Number(startingBlockNumber),
         claims,
         ratTestDetail,
+        proposerBond,
+        proposerCredit,
+        proposerAddress: proposerAddr,
       };
       setSelectedGameDetail(detail);
     } catch (e) {
@@ -1896,6 +1918,40 @@ function App() {
     if (m) result += ` ${m}m`;
     if (s) result += ` ${s}s`;
     return result;
+  };
+
+  const getDetailedGameStatus = (game: { status: number; claimCount: number; createdAt?: number; maxClockDuration?: number }): { label: string; badgeClass: string } => {
+    if (game.status === 1) return { label: 'Challenger Wins', badgeClass: 'badge-error' };
+    if (game.status === 2) return { label: 'Defender Wins', badgeClass: 'badge-success' };
+    // status === 0 (InProgress) - subdivide
+    const hasDispute = game.claimCount > 1;
+    const now = Math.floor(Date.now() / 1000);
+    const clockExpired = game.createdAt && game.maxClockDuration
+      ? now > game.createdAt + game.maxClockDuration
+      : false;
+    if (!hasDispute) {
+      if (clockExpired) return { label: 'Unchallenged', badgeClass: 'badge-info' };
+      return { label: 'Awaiting Challenge', badgeClass: '' };
+    } else {
+      if (clockExpired) return { label: 'Pending Resolution', badgeClass: 'badge-warning' };
+      return { label: 'Under Dispute', badgeClass: 'badge-warning' };
+    }
+  };
+
+  const getResolvedAtDisplay = (game: GameDetailInfo): string => {
+    if (game.resolvedAt > 0) return formatTimestamp(game.resolvedAt);
+    const hasDispute = game.claimCount > 1;
+    const now = Math.floor(Date.now() / 1000);
+    const clockExpired = game.createdAt && game.maxClockDuration
+      ? now > game.createdAt + game.maxClockDuration
+      : false;
+    if (!hasDispute) {
+      if (clockExpired) return 'Ready to resolve (unchallenged)';
+      return '- (no challenges yet)';
+    } else {
+      if (clockExpired) return 'Ready to resolve';
+      return '- (dispute in progress)';
+    }
   };
 
   // Parse transaction input data
@@ -2937,54 +2993,113 @@ function App() {
                     {attentionTests.length === 0 ? (
                       <p className="empty-state">No attention tests found</p>
                     ) : (
-                      <div className="table-container">
-                        <table className="validators-table">
-                          <thead>
-                            <tr>
-                              <th>Batch</th>
-                              <th>Validator</th>
-                              <th>Penalty</th>
-                              <th>Deadline</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {attentionTests.map((test, idx) => (
-                              <tr key={idx}>
-                                <td>#{test.batchIndex}</td>
-                                <td><code>{formatAddress(test.validator)}</code></td>
-                                <td>{parseFloat(test.bondAmount).toFixed(2)} WTON</td>
-                                <td>{formatTimestamp(test.deadline)}</td>
-                                <td>
-                                  {test.status === 5 ? (
-                                    <span className="badge badge-error">
-                                      Slashed (-{parseFloat(test.bondAmount).toFixed(2)} WTON)
-                                    </span>
-                                  ) : test.status === 3 ? (
-                                    <span className="badge badge-success">
-                                      Refunded (Evidence)
-                                    </span>
-                                  ) : test.status === 4 ? (
-                                    <span className="badge badge-success">
-                                      Refunded (Challenge Won)
-                                    </span>
-                                  ) : test.status === 1 ? (
-                                    <span className="badge badge-warning">
-                                      Awaiting Evidence
-                                    </span>
-                                  ) : test.status === 2 ? (
-                                    <span className="badge badge-warning">
-                                      Challenge Period
-                                    </span>
-                                  ) : (
-                                    <span className="badge">-</span>
-                                  )}
-                                </td>
+                      <>
+                        <div className="table-container">
+                          <table className="validators-table">
+                            <thead>
+                              <tr>
+                                <th>Batch</th>
+                                <th>Validator</th>
+                                <th>Penalty</th>
+                                <th>Deadline</th>
+                                <th>Status</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {attentionTests.map((test, idx) => (
+                                <tr
+                                  key={idx}
+                                  className={`clickable-row ${selectedAttentionTest?.testId === test.testId ? 'selected' : ''}`}
+                                  onClick={() => selectedAttentionTest?.testId === test.testId ? setSelectedAttentionTest(null) : setSelectedAttentionTest(test)}
+                                >
+                                  <td>#{test.batchIndex}</td>
+                                  <td><code>{formatAddress(test.validator)}</code></td>
+                                  <td>{parseFloat(test.bondAmount).toFixed(2)} WTON</td>
+                                  <td>{formatTimestamp(test.deadline)}</td>
+                                  <td>
+                                    {test.status === 5 ? (
+                                      <span className="badge badge-error">
+                                        Slashed (-{parseFloat(test.bondAmount).toFixed(2)} WTON)
+                                      </span>
+                                    ) : test.status === 3 ? (
+                                      <span className="badge badge-success">
+                                        Refunded (Evidence)
+                                      </span>
+                                    ) : test.status === 4 ? (
+                                      <span className="badge badge-success">
+                                        Refunded (Challenge Won)
+                                      </span>
+                                    ) : test.status === 1 ? (
+                                      <span className="badge badge-warning">
+                                        Awaiting Evidence
+                                      </span>
+                                    ) : test.status === 2 ? (
+                                      <span className="badge badge-warning">
+                                        Challenge Period
+                                      </span>
+                                    ) : (
+                                      <span className="badge">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {selectedAttentionTest && (
+                          <div className="game-detail-panel" style={{marginTop: '1rem'}}>
+                            <div className="detail-grid">
+                              <h3>Attention Test Details</h3>
+                              <div className="detail-row">
+                                <span className="detail-label">Test ID:</span>
+                                <code>{selectedAttentionTest.testId.substring(0, 18)}...</code>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Validator:</span>
+                                <code>{selectedAttentionTest.validator}</code>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Batch Index:</span>
+                                <span>#{selectedAttentionTest.batchIndex}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Batch Hash:</span>
+                                <code>{selectedAttentionTest.batchHash.substring(0, 18)}...</code>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Game Address:</span>
+                                <code>{selectedAttentionTest.gameAddress}</code>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Bond Amount:</span>
+                                <span>{parseFloat(selectedAttentionTest.bondAmount).toFixed(2)} WTON</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Created:</span>
+                                <span>{formatTimestamp(selectedAttentionTest.createdAt)}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Deadline:</span>
+                                <span>{formatTimestamp(selectedAttentionTest.deadline)}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Status:</span>
+                                <span className={`badge ${
+                                  selectedAttentionTest.status === 5 ? 'badge-error' :
+                                  selectedAttentionTest.status === 3 || selectedAttentionTest.status === 4 ? 'badge-success' : 'badge-warning'
+                                }`}>
+                                  {selectedAttentionTest.statusLabel}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">System Config:</span>
+                                <code>{selectedAttentionTest.systemConfig}</code>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
 
@@ -3351,19 +3466,18 @@ function App() {
                           </thead>
                           <tbody>
                             {enhancedGames.map((game, idx) => {
-                              const statusLabels: Record<number, string> = { 0: 'InProgress', 1: 'ChallengerWins', 2: 'DefenderWins' };
-                              const statusColors: Record<number, string> = { 0: '', 1: 'badge-error', 2: 'badge-success' };
+                              const detailedStatus = getDetailedGameStatus(game);
                               return (
                                 <tr
                                   key={idx}
                                   className={`clickable-row ${selectedGameDetail?.proxy === game.proxy ? 'selected' : ''}`}
-                                  onClick={() => loadGameDetail(game)}
+                                  onClick={() => selectedGameDetail?.proxy === game.proxy ? setSelectedGameDetail(null) : loadGameDetail(game)}
                                 >
                                   <td>{game.index}</td>
                                   <td><span className="badge">{game.gameType}</span></td>
                                   <td>
-                                    <span className={`badge ${statusColors[game.status] || ''}`}>
-                                      {statusLabels[game.status] || `Status(${game.status})`}
+                                    <span className={`badge ${detailedStatus.badgeClass}`}>
+                                      {detailedStatus.label}
                                     </span>
                                   </td>
                                   <td><code>{game.rootClaim.substring(0, 10)}...</code></td>
@@ -3371,7 +3485,15 @@ function App() {
                                   <td>{game.claimCount}</td>
                                   <td><code>{formatAddress(game.proxy)}</code></td>
                                   <td>{formatTimestamp(game.timestamp)}</td>
-                                  <td>{game.ratTestId ? '✅' : '-'}</td>
+                                  <td>
+                                    {game.ratTestId ? (
+                                      <span
+                                        style={{cursor: 'pointer', textDecoration: 'underline'}}
+                                        onClick={(e) => { e.stopPropagation(); selectedGameDetail?.proxy === game.proxy ? setSelectedGameDetail(null) : loadGameDetail(game); }}
+                                        title="View RAT test details"
+                                      >✅ View</span>
+                                    ) : '-'}
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -3417,8 +3539,8 @@ function App() {
                           </div>
                           <div className="info-row">
                             <span className="info-label">Status:</span>
-                            <span className={`badge ${selectedGameDetail.status === 1 ? 'badge-error' : selectedGameDetail.status === 2 ? 'badge-success' : ''}`}>
-                              {selectedGameDetail.status === 0 ? 'InProgress' : selectedGameDetail.status === 1 ? 'ChallengerWins' : 'DefenderWins'}
+                            <span className={`badge ${getDetailedGameStatus(selectedGameDetail).badgeClass}`}>
+                              {getDetailedGameStatus(selectedGameDetail).label}
                             </span>
                           </div>
                           <div className="info-row">
@@ -3439,12 +3561,38 @@ function App() {
                           </div>
                           <div className="info-row">
                             <span className="info-label">Resolved At:</span>
-                            <span>{selectedGameDetail.resolvedAt > 0 ? formatTimestamp(selectedGameDetail.resolvedAt) : 'Not resolved'}</span>
+                            <span>{getResolvedAtDisplay(selectedGameDetail)}</span>
                           </div>
                           <div className="info-row">
                             <span className="info-label">Max Clock Duration:</span>
                             <span>{selectedGameDetail.maxClockDuration}s ({Math.round(selectedGameDetail.maxClockDuration / 60)}m)</span>
                           </div>
+                          {selectedGameDetail.proposerAddress && (
+                            <>
+                              <div className="info-row">
+                                <span className="info-label">Proposer:</span>
+                                <code>{formatAddress(selectedGameDetail.proposerAddress)}</code>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Proposer Bond:</span>
+                                <span>{selectedGameDetail.proposerBond} ETH</span>
+                              </div>
+                              <div className="info-row">
+                                <span className="info-label">Bond Credit:</span>
+                                <span>
+                                  {selectedGameDetail.resolvedAt > 0 ? (
+                                    parseFloat(selectedGameDetail.proposerCredit) > 0 ? (
+                                      <span className="badge badge-warning">Unclaimed ({selectedGameDetail.proposerCredit} ETH)</span>
+                                    ) : (
+                                      <span className="badge badge-success">Claimed</span>
+                                    )
+                                  ) : (
+                                    <span className="badge">Pending (game not resolved)</span>
+                                  )}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         {/* RAT Test Info */}
@@ -3730,7 +3878,7 @@ function App() {
                                 <tr
                                   key={idx}
                                   className={`clickable-row ${selectedGameDetail?.index === root.index ? 'selected' : ''}`}
-                                  onClick={() => game && loadGameDetail(game)}
+                                  onClick={() => game && (selectedGameDetail?.index === root.index ? setSelectedGameDetail(null) : loadGameDetail(game))}
                                 >
                                   <td>{root.index}</td>
                                   <td>{root.l2Block}</td>
@@ -3757,8 +3905,8 @@ function App() {
                             </div>
                             <div className="info-row">
                               <span className="info-label">Status:</span>
-                              <span className={`badge ${selectedGameDetail.status === 1 ? 'badge-error' : selectedGameDetail.status === 2 ? 'badge-success' : ''}`}>
-                                {selectedGameDetail.status === 0 ? 'InProgress' : selectedGameDetail.status === 1 ? 'ChallengerWins' : 'DefenderWins'}
+                              <span className={`badge ${getDetailedGameStatus(selectedGameDetail).badgeClass}`}>
+                                {getDetailedGameStatus(selectedGameDetail).label}
                               </span>
                             </div>
                             <div className="info-row">
@@ -3779,12 +3927,38 @@ function App() {
                             </div>
                             <div className="info-row">
                               <span className="info-label">Resolved At:</span>
-                              <span>{selectedGameDetail.resolvedAt > 0 ? formatTimestamp(selectedGameDetail.resolvedAt) : 'Not resolved'}</span>
+                              <span>{getResolvedAtDisplay(selectedGameDetail)}</span>
                             </div>
                             <div className="info-row">
                               <span className="info-label">Max Clock Duration:</span>
                               <span>{selectedGameDetail.maxClockDuration}s ({Math.round(selectedGameDetail.maxClockDuration / 60)}m)</span>
                             </div>
+                            {selectedGameDetail.proposerAddress && (
+                              <>
+                                <div className="info-row">
+                                  <span className="info-label">Proposer:</span>
+                                  <code>{formatAddress(selectedGameDetail.proposerAddress)}</code>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Proposer Bond:</span>
+                                  <span>{selectedGameDetail.proposerBond} ETH</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Bond Credit:</span>
+                                  <span>
+                                    {selectedGameDetail.resolvedAt > 0 ? (
+                                      parseFloat(selectedGameDetail.proposerCredit) > 0 ? (
+                                        <span className="badge badge-warning">Unclaimed ({selectedGameDetail.proposerCredit} ETH)</span>
+                                      ) : (
+                                        <span className="badge badge-success">Claimed</span>
+                                      )
+                                    ) : (
+                                      <span className="badge">Pending (game not resolved)</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {/* RAT Test Info */}

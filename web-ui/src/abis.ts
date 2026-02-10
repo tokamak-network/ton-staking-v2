@@ -174,6 +174,8 @@ export const DISPUTE_GAME_ABI = [
   'function weth() view returns (address)',
   'function absolutePrestate() view returns (bytes32)',
   'function l2ChainId() view returns (uint256)',
+  'function credit(address) view returns (uint256)',
+  'function resolved() view returns (bool)',
 ];
 
 export const VALIDATOR_REWARD_ABI = [
