@@ -243,7 +243,11 @@ contract MockFaultDisputeGame3 is IDisputeGame {
         // Distribute bond to winner
         address bondRecipient = countered == address(0) ? subgameRootClaim.claimant : countered;
         _distributeBond(bondRecipient, subgameRootClaim);
-        _recordWinningChallenger(bondRecipient);
+        // Skip recording winning challenger for root claim (index 0) since child claims
+        // have already recorded their winners during their resolution.
+        if (_claimIndex != 0) {
+            _recordWinningChallenger(bondRecipient);
+        }
 
         // Percolate result up
         subgameRootClaim.counteredBy = countered;
@@ -285,8 +289,8 @@ contract MockFaultDisputeGame3 is IDisputeGame {
     function _recordWinningChallenger(address _recipient) internal {
         // Exclude game creator (proposer/defender)
         if (_recipient == GAME_CREATOR) return;
-        // Prevent duplicates
-        if (_isWinningChallenger[_recipient]) return;
+        // // Prevent duplicates
+        // if (_isWinningChallenger[_recipient]) return;
 
         _isWinningChallenger[_recipient] = true;
         winningChallengers.push(_recipient);

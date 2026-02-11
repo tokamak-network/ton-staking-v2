@@ -41,7 +41,7 @@ contract WinnerTrackingTest is BaseAdvancedSlashingTest {
     // ============================================
 
     function test_WinnerTracking_NoDuplicates() public {
-        console.log("\n=== Scenario: Winner Tracking - No Duplicates ===");
+        console.log("\n=== Scenario: Winner Tracking - Proportional Rewards Based on Attacks ===");
 
         uint256 stakeAmount = 10000 * 1e18;
         (address operatorManager, ) = _registerCandidateAndStake(
@@ -63,30 +63,65 @@ contract WinnerTrackingTest is BaseAdvancedSlashingTest {
         );
         game.initialize();
 
-        // Challenger calls step
+        // Challenger1 attacks root claim once
+        Claim claim1 = Claim.wrap(bytes32(uint256(1)));
         vm.prank(challenger);
-        game.step();
+        game.move(0, claim1, true);
 
-        // Try to add same challenger multiple times
-        game.addWinningChallenger(challenger);
-        game.addWinningChallenger(challenger);
-        game.addWinningChallenger(challenger);
+        // Challenger2 attacks root claim three times (should get 3x rewards)
+        Claim claim2 = Claim.wrap(bytes32(uint256(2)));
+        Claim claim3 = Claim.wrap(bytes32(uint256(3)));
+        Claim claim4 = Claim.wrap(bytes32(uint256(4)));
 
-        // Add another challenger
-        game.addWinningChallenger(challenger2);
-        game.addWinningChallenger(challenger2); // Duplicate
+        vm.prank(challenger2);
+        game.move(0, claim2, true); // First attack
+        vm.prank(challenger2);
+        game.move(0, claim3, true); // Second attack
+        vm.prank(challenger2);
+        game.move(0, claim4, true); // Third attack
+
+        // Resolve all child claims (challenger1: 1 time, challenger2: 3 times)
+        game.resolveClaim(1); // Resolves challenger's claim (recorded once)
+        game.resolveClaim(2); // Resolves challenger2's first claim (recorded once)
+        game.resolveClaim(3); // Resolves challenger2's second claim (recorded again)
+        game.resolveClaim(4); // Resolves challenger2's third claim (recorded again)
+
+        // Resolve root claim (should NOT record again due to our fix)
+        game.resolveClaim(0);
 
         game.resolve();
 
-        // Should only have 2 unique winners
-        assertEq(game.getWinningChallengersCount(), 2, "Should have only 2 unique winners");
+        // Should have 4 entries total: challenger1 (1x) + challenger2 (3x)
+        assertEq(game.getWinningChallengersCount(), 4, "Should have 4 entries total");
 
         address[] memory winners = game.getWinningChallengers();
         assertEq(winners[0], challenger, "First should be challenger");
         assertEq(winners[1], challenger2, "Second should be challenger2");
+        assertEq(winners[2], challenger2, "Third should be challenger2");
+        assertEq(winners[3], challenger2, "Fourth should be challenger2");
+
+        // Verify rewards are distributed proportionally
+        uint256 balance1Before = _getWtonBalance(challenger);
+        uint256 balance2Before = _getWtonBalance(challenger2);
+
+        _executeSlashing(operatorManager, gameType, rootClaim, extraData, address(game));
+
+        uint256 reward1 = _getWtonBalance(challenger) - balance1Before;
+        uint256 reward2 = _getWtonBalance(challenger2) - balance2Before;
+        uint256 totalReward = reward1 + reward2;
+
+        // Challenger1 has 1 entry, Challenger2 has 3 entries out of 4 total
+        // So reward1 should be 1/4 and reward2 should be 3/4
+        uint256 expectedReward1 = totalReward / 4;
+        uint256 expectedReward2 = (totalReward / 4) * 3;
+
+        assertEq(reward1, expectedReward1, "Challenger1 should get 1/4 of reward");
+        assertEq(reward2, expectedReward2, "Challenger2 should get 3/4 of reward");
 
         console.log("Winners count:", game.getWinningChallengersCount());
-        console.log("[OK] Duplicate prevention verified");
+        console.log("Challenger1 reward:", reward1, "(1/4)");
+        console.log("Challenger2 reward:", reward2, "(3/4)");
+        console.log("[OK] Proportional rewards verified - challenger2 gets 3x more for 3x attacks");
     }
 
     // ============================================

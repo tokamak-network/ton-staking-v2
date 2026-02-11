@@ -43,6 +43,7 @@ type DemoState struct {
 	ChallengerBalancesAfter  map[string]string `json:"challengerBalancesAfter"`
 	RewardDelta              string            `json:"rewardDelta"`
 	SlashingTxHash           string            `json:"slashingTxHash"`
+	SlashingRewardRate       string            `json:"slashingRewardRate"`
 	Timeline                 []TimelineEntry   `json:"timeline"`
 	LastUpdate               string            `json:"lastUpdate"`
 }
@@ -143,6 +144,7 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 
 	initialStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
 	challengerBalanceBefore := getWTONBalance(t, sys, accounts.Challenger.Addr)
+	rewardRate := getSlashingRewardRate(t, sys, slashingContracts)
 
 	rootClaim := [32]byte{0xAB, 0xCD}
 	_, gameAddress := rat.CreateDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
@@ -171,6 +173,7 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 		StakeBefore:              initialStake.String(),
 		ChallengerBalanceBefore:  challengerBalanceBefore.String(),
 		ChallengerBalancesBefore: map[string]string{accounts.Challenger.Addr.Hex(): challengerBalanceBefore.String()},
+		SlashingRewardRate:       rewardRate.String(),
 	}
 
 	addTimeline(&state, "game_created", "Dispute game created")
@@ -299,6 +302,7 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 	initialStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
 	winnerABalanceBefore := getWTONBalance(t, sys, winnerA)
 	winnerBBalanceBefore := getWTONBalance(t, sys, winnerB)
+	rewardRate := getSlashingRewardRate(t, sys, slashingContracts)
 
 	gameType := uint32(0)
 	l2BlockNumber := big.NewInt(rat.TestL2BlockNumber)
@@ -319,6 +323,7 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 		StakeBefore:              initialStake.String(),
 		ChallengerBalanceBefore:  new(big.Int).Add(winnerABalanceBefore, winnerBBalanceBefore).String(),
 		ChallengerBalancesBefore: map[string]string{winnerA.Hex(): winnerABalanceBefore.String(), winnerB.Hex(): winnerBBalanceBefore.String()},
+		SlashingRewardRate:       rewardRate.String(),
 	}
 
 	addTimeline(&state, "game_created", "Dispute game created (multi)")
