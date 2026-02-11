@@ -231,6 +231,63 @@ services:
       - ton-staking-network
     restart: unless-stopped
 
+  # Fast Withdrawal Node #1 (Anvil Account #3) - runs validator + aggregator
+  fw-node-1:
+    build:
+      context: ./clients/fast-withdrawal
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-fw-node-1
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork/fw-node-1-validator.yaml:/app/validator-config.yaml:ro
+      - ./.devnet-sepolia-fork/fw-node-1-aggregator.yaml:/app/aggregator-config.yaml:ro
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # Fast Withdrawal Node #2 (Anvil Account #4) - runs validator + aggregator
+  fw-node-2:
+    build:
+      context: ./clients/fast-withdrawal
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-fw-node-2
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork/fw-node-2-validator.yaml:/app/validator-config.yaml:ro
+      - ./.devnet-sepolia-fork/fw-node-2-aggregator.yaml:/app/aggregator-config.yaml:ro
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
+  # Fast Withdrawal Node #3 (Anvil Account #5) - runs validator + aggregator
+  fw-node-3:
+    build:
+      context: ./clients/fast-withdrawal
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: ton-staking-fw-node-3
+    depends_on:
+      l2-node:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.devnet-sepolia-fork/fw-node-3-validator.yaml:/app/validator-config.yaml:ro
+      - ./.devnet-sepolia-fork/fw-node-3-aggregator.yaml:/app/aggregator-config.yaml:ro
+    networks:
+      - ton-staking-network
+    restart: unless-stopped
+
 volumes:
   l2-execution-data:
 
