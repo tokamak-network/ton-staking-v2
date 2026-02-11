@@ -5,6 +5,11 @@ export const formatToken = (value: string | undefined, decimals = 27, precision 
     const base = 10n ** BigInt(decimals);
     const integer = big / base;
     const fraction = big % base;
+
+    if (precision === 0) {
+      return integer.toString();
+    }
+
     const fractionStr = fraction.toString().padStart(decimals, "0").slice(0, precision);
     return `${integer.toString()}.${fractionStr}`;
   } catch {

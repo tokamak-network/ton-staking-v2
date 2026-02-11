@@ -6,17 +6,11 @@ import {
   EventsConfig,
   NetworksConfig
 } from "../lib/types";
-import { Stepper } from "../components/Stepper";
-import { LogPanel } from "../components/LogPanel";
 import { ConfigPanel } from "../components/ConfigPanel";
-import { extractMarkers } from "../lib/formatters";
 import { useEventStepper } from "../hooks/useEventStepper";
 import { RpcStatusPanel } from "../components/RpcStatusPanel";
-import { ChallengerBalancesPanel } from "../components/ChallengerBalancesPanel";
-import { EventPanel } from "../components/EventPanel";
 import { AbiEventsPanel } from "../components/AbiEventsPanel";
 import { EventConfigWarnings } from "../components/EventConfigWarnings";
-import { GameSelector } from "../components/GameSelector";
 import { SessionPanel } from "../components/SessionPanel";
 
 export default function Home() {
@@ -25,20 +19,12 @@ export default function Home() {
   const [networks, setNetworks] = useState<NetworksConfig>();
   const [eventsConfig, setEventsConfig] = useState<EventsConfig>();
 
-  const {
-    markers: eventMarkers,
-    captured,
-    games,
-    selectedGame,
-    setSelectedGame
-  } = useEventStepper({
+  const { games, selectedGame, setSelectedGame } = useEventStepper({
     eventsConfig,
     networks,
     deployments,
     runId: "session"
   });
-
-  const stepperMarkers = eventMarkers.length ? eventMarkers : [];
 
   const abiNames = useMemo(() => {
     return Array.from(new Set(eventsConfig?.steps?.map((s) => s.abi) ?? []));
@@ -66,43 +52,19 @@ export default function Home() {
         <SessionPanel />
       </section>
 
-      <section>
-        <Stepper markers={stepperMarkers} />
-      </section>
-
-      <section>
-        <GameSelector
-          games={games}
-          selectedGame={selectedGame}
-          onSelect={setSelectedGame}
-        />
-      </section>
-
-      <section>
-        <EventPanel events={captured} />
-      </section>
-
-      <section>
+      <section className="section-panel">
         <RpcStatusPanel networks={networks} />
       </section>
 
-      <section>
-        <ChallengerBalancesPanel challengers={challengers} networks={networks} />
-      </section>
-
-      <section>
+      <section className="section-panel">
         <EventConfigWarnings eventsConfig={eventsConfig} />
       </section>
 
-      <section>
+      <section className="section-panel">
         <AbiEventsPanel abiNames={abiNames} />
       </section>
 
-      <section>
-        <LogPanel logs={extractMarkers([])} />
-      </section>
-
-      <section>
+      <section className="section-panel">
         <ConfigPanel deployments={deployments} challengers={challengers} networks={networks} />
       </section>
     </main>

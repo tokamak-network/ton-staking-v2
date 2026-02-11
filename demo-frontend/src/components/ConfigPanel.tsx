@@ -7,6 +7,8 @@ interface ConfigPanelProps {
   networks?: NetworksConfig;
 }
 
+const HIDDEN_DEPLOYMENT_KEYS = new Set(["mockLayer2", "operatorManager"]);
+
 export const ConfigPanel = ({ deployments, challengers, networks }: ConfigPanelProps) => {
   return (
     <div>
@@ -25,10 +27,12 @@ export const ConfigPanel = ({ deployments, challengers, networks }: ConfigPanelP
         <h4>Deployments</h4>
         {deployments ? (
           <KeyValueTable
-            entries={Object.entries(deployments).map(([key, value]) => ({
-              key,
-              value
-            }))}
+            entries={Object.entries(deployments)
+              .filter(([key]) => !HIDDEN_DEPLOYMENT_KEYS.has(key))
+              .map(([key, value]) => ({
+                key,
+                value
+              }))}
           />
         ) : (
           <p style={{ color: "#8ea0bf" }}>No deployment data.</p>

@@ -5,8 +5,8 @@ import { formatToken } from "../lib/formatToken";
 
 export const SessionPanel = () => {
   const { state, refresh } = useDemoSession();
-  const [logs, setLogs] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
+  const [logs, setLogs] = useState("");
   const [copied, setCopied] = useState(false);
 
   const loadLogs = async () => {
@@ -24,28 +24,45 @@ export const SessionPanel = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const formattedStakeBefore = formatToken(state?.stakeBefore);
-  const formattedStakeAfter = formatToken(state?.stakeAfter);
-  const formattedRewardDelta = formatToken(state?.rewardDelta);
-  const formattedBalanceBefore = formatToken(state?.challengerBalanceBefore);
-  const formattedBalanceAfter = formatToken(state?.challengerBalanceAfter);
+  const formatWton = (value?: string) => {
+    const formatted = formatToken(value, 27, 0);
+    return formatted === "-" ? "-" : `${formatted} WTON`;
+  };
 
-  const challengerBalancesBefore = state?.challengerBalancesBefore ?? {};
-  const challengerBalancesAfter = state?.challengerBalancesAfter ?? {};
-  const challengerAddresses = useMemo(() => {
-    const keys = new Set<string>();
-    Object.keys(challengerBalancesBefore).forEach((key) => keys.add(key));
-    Object.keys(challengerBalancesAfter).forEach((key) => keys.add(key));
-    return Array.from(keys);
-  }, [challengerBalancesBefore, challengerBalancesAfter]);
+  const formattedStakeBefore = formatWton(state?.stakeBefore);
+  const formattedStakeAfter = formatWton(state?.stakeAfter);
+  const formattedRewardDelta = formatWton(state?.rewardDelta);
+  const formattedBalanceBefore = formatWton(state?.challengerBalanceBefore);
+  const formattedBalanceAfter = formatWton(state?.challengerBalanceAfter);
 
-  const getDelta = (before?: string, after?: string) => {
-    if (!before || !after) return "-";
+  const formatBasisPoints = (value?: string) => {
+    if (!value) return "-";
     try {
-      const delta = BigInt(after) - BigInt(before);
-      return formatToken(delta.toString());
+      const bp = BigInt(value);
+      const integer = bp / 100n;
+      const fraction = (bp % 100n).toString().padStart(2, "0");
+      return `${integer.toString()}.${fraction}%`;
     } catch {
       return "-";
+    }
+  };
+
+  const formattedSlashingRewardRate = formatBasisPoints(state?.slashingRewardRate);
+
+  const statusClass = useMemo(() => {
+    if (state?.status === "slashed") return "badge badge-success";
+    if (state?.status === "ready") return "badge badge-info";
+    if (state?.status === "error") return "badge badge-danger";
+    return "badge badge-muted";
+  }, [state?.status]);
+
+  const handleReset = async () => {
+    try {
+      await api.resetSession();
+    } catch {
+      // ignore errors to keep UX simple
+    } finally {
+      await refresh();
     }
   };
 
@@ -62,134 +79,136 @@ export const SessionPanel = () => {
     }
   };
 
-  const handleReset = async () => {
-    try {
-      await api.resetSession();
-    } catch {
-      // ignore errors to keep UX simple
-    } finally {
-      setLogs("");
-      await refresh();
-    }
-  };
-
   return (
-    <div>
-      <h3>Interactive Demo Session</h3>
+    <div className="panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Interactive Demo Session</h3>
+          <p className="panel-subtitle">Slash flow status, rewards, and live session info.</p>
+        </div>
+        {state?.status && <span className={statusClass}>{state.status}</span>}
+      </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value as "single" | "multi")}
-          style={{ padding: "6px 10px", borderRadius: "6px" }}
-        >
-          <option value="single">Single Challenger</option>
-          <option value="multi">Two Challengers</option>
-        </select>
+      <div className="action-bar">
+        <div className="select-wrap">
+          <span className="select-icon">🎛️</span>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as "single" | "multi")}
+          >
+            <option value="single">Single Challenger</option>
+            <option value="multi">Two Challengers</option>
+          </select>
+        </div>
 
-        <button onClick={() => api.startSession(mode)}>Start Demo Session</button>
-        <button onClick={() => api.slashSession()} style={{ background: "#ef4444" }}>
-          Slash Operator
+        <button className="btn btn-primary" onClick={() => api.startSession(mode)}>
+          ▶️ Start Demo Session
         </button>
-        <button onClick={() => api.stopSession()} style={{ background: "#f59e0b" }}>
-          Stop Session
+        <button className="btn btn-danger" onClick={() => api.slashSession()}>
+          ⚔️ Slash Operator
         </button>
-        <button onClick={handleReset} style={{ background: "#6b7280" }}>
-          Reset Session
+        <button className="btn btn-warning" onClick={() => api.stopSession()}>
+          ⏹ Stop Session
+        </button>
+        <button className="btn btn-muted" onClick={handleReset}>
+          ♻️ Reset Session
         </button>
       </div>
 
       {!state ? (
-        <p style={{ color: "#8ea0bf" }}>No session state yet.</p>
+        <div className="empty-state">No session state yet.</div>
       ) : (
-        <div style={{ color: "#8ea0bf", fontSize: 14 }}>
-          <div>Status: {state.status}</div>
-          <div>Message: {state.message}</div>
-          <div>Mode: {state.mode}</div>
-          <div>OperatorManager: {state.operatorManager}</div>
-          <div>GameAddress: {state.gameAddress}</div>
-          <div>Challenger: {state.challenger}</div>
-          <div>Winning Challengers: {(state.winningChallengers || []).join(", ")}</div>
-          <div>Slashing Tx: {state.slashingTxHash || "-"}</div>
-
-          <div>Stake Before: {formattedStakeBefore} (raw: {state.stakeBefore})</div>
-          <div>Stake After: {formattedStakeAfter} (raw: {state.stakeAfter || "-"})</div>
-          <div>Reward Delta: {formattedRewardDelta} (raw: {state.rewardDelta || "-"})</div>
-
-          <div>Challenger Balance Before (Total): {formattedBalanceBefore}</div>
-          <div>Challenger Balance After (Total): {formattedBalanceAfter}</div>
+        <div className="card">
+          <div className="card-header">
+            <h4>Session Overview</h4>
+            <span className="muted">{state.message}</span>
+          </div>
+          <div className="kv-grid">
+            <div className="kv-item">
+              <div className="kv-label">Mode</div>
+              <div className="kv-value">{state.mode}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">OperatorManager</div>
+              <div className="kv-value mono">{state.operatorManager}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Game Address</div>
+              <div className="kv-value mono">{state.gameAddress}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Challenger</div>
+              <div className="kv-value mono">{state.challenger}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Winning Challengers</div>
+              <div className="kv-value mono">
+                {(state.winningChallengers || []).join(", ")}
+              </div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Slashing Tx</div>
+              <div className="kv-value mono">{state.slashingTxHash || "-"}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Stake Before</div>
+              <div className="kv-value">{formattedStakeBefore}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Stake After</div>
+              <div className="kv-value">{formattedStakeAfter}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Reward Delta</div>
+              <div className="kv-value">{formattedRewardDelta}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Slashing Reward Rate</div>
+              <div className="kv-value">{formattedSlashingRewardRate}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Challenger Balance (Before)</div>
+              <div className="kv-value">{formattedBalanceBefore}</div>
+            </div>
+            <div className="kv-item">
+              <div className="kv-label">Challenger Balance (After)</div>
+              <div className="kv-value">{formattedBalanceAfter}</div>
+            </div>
+          </div>
         </div>
       )}
 
-      {challengerAddresses.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <h4>Challenger Balances</h4>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Challenger</th>
-                <th>Before</th>
-                <th>After</th>
-                <th>Reward</th>
-              </tr>
-            </thead>
-            <tbody>
-              {challengerAddresses.map((address) => {
-                const before = challengerBalancesBefore[address];
-                const after = challengerBalancesAfter[address];
-                return (
-                  <tr key={address}>
-                    <td>{address}</td>
-                    <td>{formatToken(before)}</td>
-                    <td>{formatToken(after)}</td>
-                    <td>{getDelta(before, after)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="card">
+        <div className="card-header">
+          <h4>Timeline</h4>
+          <span className="muted">Recent flow checkpoints</span>
         </div>
-      )}
-
-      <h4 style={{ marginTop: 16 }}>Timeline</h4>
-      <ol style={{ color: "#8ea0bf", fontSize: 13 }}>
-        {(state?.timeline || []).map((item: any, idx: number) => (
-          <li key={`${item.step}-${idx}`}>
-            {item.time} - {item.step} - {item.message}
-          </li>
-        ))}
-      </ol>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
-        <h4 style={{ margin: 0 }}>Session Logs (last 200 lines)</h4>
-        <button
-          onClick={handleCopyLogs}
-          disabled={!logLines}
-          style={{
-            padding: "6px 10px",
-            borderRadius: "6px",
-            background: copied ? "#22c55e" : "#1f2937",
-            color: "#fff"
-          }}
-        >
-          {copied ? "Copied!" : "Copy logs"}
-        </button>
+        <ol className="timeline">
+          {(state?.timeline || []).map((item: any, idx: number) => (
+            <li key={`${item.step}-${idx}`}>
+              <span className="timeline-time">{item.time}</span>
+              <span className="timeline-step">{item.step}</span>
+              <span className="timeline-message">{item.message}</span>
+            </li>
+          ))}
+        </ol>
       </div>
-      <div
-        style={{
-          background: "#0d1320",
-          borderRadius: "8px",
-          padding: "16px",
-          height: "420px",
-          overflowY: "auto",
-          fontFamily: "monospace",
-          fontSize: "13px",
-          lineHeight: "1.5",
-          color: "#8ea0bf",
-          whiteSpace: "pre-wrap"
-        }}
-      >
-        {logLines || "No logs yet."}
+
+      <div className="card">
+        <div className="card-header logs-header">
+          <div>
+            <h4>Session Logs</h4>
+            <span className="muted">Last 200 lines</span>
+          </div>
+          <button
+            onClick={handleCopyLogs}
+            disabled={!logLines}
+            className={`btn btn-ghost ${copied ? "btn-success" : ""}`}
+          >
+            {copied ? "✅ Copied!" : "📋 Copy logs"}
+          </button>
+        </div>
+        <div className="logs-box">{logLines || "No logs yet."}</div>
       </div>
     </div>
   );
