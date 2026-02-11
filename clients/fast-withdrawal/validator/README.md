@@ -94,6 +94,8 @@ func main() {
 
 ## 테스트
 
+### Go 단위 테스트
+
 ```bash
 # 모든 테스트 실행
 go test ./...
@@ -103,6 +105,24 @@ go test ./pkg/signer/... -v
 go test ./pkg/p2p/... -v
 go test ./pkg/handler/... -v
 ```
+
+### Solidity E2E 테스트
+
+Fast Withdrawal E2E 테스트는 FFI를 통해 BLS 서명 도구를 호출합니다.
+테스트 실행 전 BLS 서명 도구를 빌드해야 합니다.
+
+```bash
+# 방법 1: 테스트 스크립트 사용 (권장)
+./scripts/test-fast-withdrawal.sh
+
+# 방법 2: 수동 빌드 후 테스트
+cd clients/fast-withdrawal/validator/cmd/bls-sign
+go build -o ../../bls-sign .
+cd ../../../../..
+forge test --match-contract FastWithdrawalE2ETest -vvv --ffi
+```
+
+BLS 서명 도구 (`cmd/bls-sign/main.go`)는 테스트에서 실제 BLS 서명을 생성하는 데 사용됩니다.
 
 ## 개발 상태
 
