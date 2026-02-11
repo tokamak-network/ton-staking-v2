@@ -82,6 +82,7 @@ interface EnhancedGameInfo extends GameInfo {
   l2BlockNumber: number;
   claimCount: number;
   ratTestId: string;
+  hasFastWithdrawal: boolean;
 }
 
 interface ClaimDataInfo {
@@ -302,6 +303,10 @@ function App() {
   const [selectedAttentionTest, setSelectedAttentionTest] = useState<AttentionTestInfo | null>(null);
   const [gameStatusSummary, setGameStatusSummary] = useState<GameStatusSummary>({ total: 0, inProgress: 0, challengerWins: 0, defenderWins: 0 });
   const [gameWithdrawalSettings, setGameWithdrawalSettings] = useState<GameWithdrawalSettings | null>(null);
+
+  // Fast Withdrawal state
+  const [fwStatus, setFwStatus] = useState<{ ready: boolean; blsCount: number; minRequired: number; responsePeriod: number; feeRate: string } | null>(null);
+  const [fwCheckResult, setFwCheckResult] = useState<{ hash: string; finalized: boolean } | null>(null);
 
   // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
@@ -1407,6 +1412,21 @@ function App() {
         console.warn('Failed to load factory info:', e);
       }
 
+      // Load FastWithdrawalExecuted events to match games
+      const fwGameSet = new Set<string>();
+      try {
+        const fwFilter = rat.filters.FastWithdrawalExecuted();
+        const fwEvents = await rat.queryFilter(fwFilter);
+        for (const ev of fwEvents) {
+          const parsed = rat.interface.parseLog({ topics: ev.topics as string[], data: ev.data });
+          if (parsed) {
+            fwGameSet.add(parsed.args[0].toLowerCase()); // gameProxy address
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load FW events:', e);
+      }
+
       for (let i = total - maxGames; i < total; i++) {
         try {
           const game = await factory.gameAtIndex(i);
@@ -1437,6 +1457,7 @@ function App() {
             l2BlockNumber: Number(l2Block),
             claimCount: Number(claimCount),
             ratTestId,
+            hasFastWithdrawal: fwGameSet.has(game[2].toLowerCase()),
           });
         } catch (e) {
           console.warn(`Failed to load enhanced game ${i}:`, e);
@@ -2938,58 +2959,12 @@ function App() {
                     )}
                   </section>
 
-                  <section className="card">
-                    <h2>🔑 BLS & Fast Withdrawal Status</h2>
-                    <div className="info-list">
-                      <div className="info-row">
-                        <span className="info-label">BLS-Enabled Validators:</span>
-                        <span className="badge badge-success">{blsValidators.length}</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Min Validators for Fast Withdrawal:</span>
-                        <span className="badge">{minValidatorsForFW}</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Fast Withdrawal Ready:</span>
-                        <span className={blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? 'status-success' : 'status-warning'}>
-                          {blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? '✅ Yes' : '⚠️ Not enough BLS validators'}
-                        </span>
-                      </div>
-                    </div>
-                    {validators.length > 0 && (
-                      <div className="table-container" style={{marginTop: '1rem'}}>
-                        <table className="validators-table">
-                          <thead>
-                            <tr>
-                              <th>Address</th>
-                              <th>Active</th>
-                              <th>BLS Key</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {validators.map((val, idx) => (
-                              <tr key={idx}>
-                                <td><code>{formatAddress(val.address)}</code></td>
-                                <td>
-                                  <span className={val.isActive ? 'status-online' : 'status-offline'}>
-                                    {val.isActive ? '🟢' : '🔴'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={blsValidators.includes(val.address.toLowerCase()) ? 'status-success' : 'status-warning'}>
-                                    {blsValidators.includes(val.address.toLowerCase()) ? '✅ Registered' : '❌ None'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </section>
+                  <h2 style={{ margin: '2rem 0 1rem', padding: '0.5rem 0', borderBottom: '2px solid #e2e8f0', color: 'var(--text-color)' }}>
+                    🧪 RAT (Random Attestation Test)
+                  </h2>
 
                   <section className="card">
-                    <h2>🧪 Attention Tests ({attentionTests.length})</h2>
+                    <h2>🧪 RAT Tests ({attentionTests.length})</h2>
                     {attentionTests.length === 0 ? (
                       <p className="empty-state">No attention tests found</p>
                     ) : (
@@ -3050,7 +3025,7 @@ function App() {
                         {selectedAttentionTest && (
                           <div className="game-detail-panel" style={{marginTop: '1rem'}}>
                             <div className="detail-grid">
-                              <h3>Attention Test Details</h3>
+                              <h3>RAT Test Details</h3>
                               <div className="detail-row">
                                 <span className="detail-label">Test ID:</span>
                                 <code>{selectedAttentionTest.testId.substring(0, 18)}...</code>
@@ -3100,6 +3075,60 @@ function App() {
                           </div>
                         )}
                       </>
+                    )}
+                  </section>
+
+                  <h2 style={{ margin: '2rem 0 1rem', padding: '0.5rem 0', borderBottom: '2px solid #e2e8f0', color: 'var(--text-color)' }}>
+                    ⚡ Fast Withdrawal (BLS)
+                  </h2>
+
+                  <section className="card">
+                    <h2>🔑 BLS & Fast Withdrawal Status</h2>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">BLS-Enabled Validators:</span>
+                        <span className="badge badge-success">{blsValidators.length}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Min Validators for Fast Withdrawal:</span>
+                        <span className="badge">{minValidatorsForFW}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Fast Withdrawal Ready:</span>
+                        <span className={blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? 'status-success' : 'status-warning'}>
+                          {blsValidators.length >= minValidatorsForFW && minValidatorsForFW > 0 ? '✅ Yes' : '⚠️ Not enough BLS validators'}
+                        </span>
+                      </div>
+                    </div>
+                    {validators.length > 0 && (
+                      <div className="table-container" style={{marginTop: '1rem'}}>
+                        <table className="validators-table">
+                          <thead>
+                            <tr>
+                              <th>Address</th>
+                              <th>Active</th>
+                              <th>BLS Key</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {validators.map((val, idx) => (
+                              <tr key={idx}>
+                                <td><code>{formatAddress(val.address)}</code></td>
+                                <td>
+                                  <span className={val.isActive ? 'status-online' : 'status-offline'}>
+                                    {val.isActive ? '🟢' : '🔴'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={blsValidators.includes(val.address.toLowerCase()) ? 'status-success' : 'status-warning'}>
+                                    {blsValidators.includes(val.address.toLowerCase()) ? '✅ Registered' : '❌ None'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </section>
 
@@ -3481,6 +3510,7 @@ function App() {
                               <th>Proxy</th>
                               <th>Created</th>
                               <th>RAT</th>
+                              <th>FW</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3511,6 +3541,11 @@ function App() {
                                         onClick={(e) => { e.stopPropagation(); selectedGameDetail?.proxy === game.proxy ? setSelectedGameDetail(null) : loadGameDetail(game); }}
                                         title="View RAT test details"
                                       >✅ View</span>
+                                    ) : '-'}
+                                  </td>
+                                  <td>
+                                    {game.hasFastWithdrawal ? (
+                                      <span className="badge badge-success">⚡ Yes</span>
                                     ) : '-'}
                                   </td>
                                 </tr>
@@ -3647,6 +3682,21 @@ function App() {
                             </div>
                           </>
                         )}
+
+                        {/* Fast Withdrawal Info */}
+                        <h3 style={{marginTop: '1.5rem'}}>⚡ Fast Withdrawal Info</h3>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Fast Withdrawal Executed:</span>
+                            <span>
+                              {selectedGameDetail.hasFastWithdrawal ? (
+                                <span className="badge badge-success">⚡ Yes</span>
+                              ) : (
+                                <span className="badge">No</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
 
                         {/* Claim Data Table */}
                         {selectedGameDetail.claims.length > 0 && (
@@ -5194,6 +5244,117 @@ function App() {
                       </button>
                     </div>
                     <small>Use Optimism SDK or official tools for withdrawal finalization</small>
+                  </section>
+
+                  <section className="card">
+                    <h2>⚡ Fast Withdrawal Status</h2>
+                    <p>Check fast withdrawal readiness and lookup withdrawal status</p>
+                    <div className="info-list">
+                      <div className="info-row">
+                        <span className="info-label">BLS Validators:</span>
+                        <span>
+                          {fwStatus ? (
+                            <span className={fwStatus.ready ? 'status-success' : 'status-warning'}>
+                              {fwStatus.blsCount} / {fwStatus.minRequired} required
+                              {fwStatus.ready ? ' ✅ Ready' : ' ⚠️ Not enough'}
+                            </span>
+                          ) : '-'}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Fast Withdrawal Response Period:</span>
+                        <span>{fwStatus ? `${fwStatus.responsePeriod}s (${Math.round(fwStatus.responsePeriod / 60)}m)` : '-'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Aggregator Fee Rate:</span>
+                        <span>{fwStatus ? `${fwStatus.feeRate}%` : '-'}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          setLoading(true);
+                          const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+                          const portal = new ethers.Contract(l2Info?.portal || '', OPTIMISM_PORTAL_ABI, l1Provider);
+                          const [blsVals, minFW, responsePeriod, feeRateRaw] = await Promise.all([
+                            rat.getActiveValidatorsWithBLS(CONFIG.contracts.systemConfig).catch(() => []),
+                            rat.minValidatorsForFastWithdrawal().catch(() => 0),
+                            portal.fastWithdrawalResponsePeriod().catch(() => 0),
+                            rat.aggregatorFeeRate().catch(() => 0n),
+                          ]);
+                          const blsCount = blsVals.length;
+                          const minRequired = Number(minFW);
+                          const period = Number(responsePeriod);
+                          const feeRate = (Number(feeRateRaw) / 100).toString();
+                          setFwStatus({
+                            ready: blsCount >= minRequired && minRequired > 0,
+                            blsCount,
+                            minRequired,
+                            responsePeriod: period,
+                            feeRate,
+                          });
+                        } catch (error: any) {
+                          console.error('Failed to load FW status:', error);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading || !l2Info?.portal}
+                      className="btn btn-secondary"
+                      style={{ marginTop: '0.5rem', marginBottom: '1rem' }}
+                    >
+                      {loading ? '⏳ Loading...' : '🔄 Load FW Status'}
+                    </button>
+
+                    <h3 style={{marginTop: '1rem'}}>🔍 Check Withdrawal Hash</h3>
+                    <div className="action-form">
+                      <input
+                        type="text"
+                        placeholder="Withdrawal Hash (bytes32)"
+                        className="input"
+                        id="fw-check-hash"
+                        style={{ fontFamily: 'monospace' }}
+                      />
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById('fw-check-hash') as HTMLInputElement;
+                          const hash = input.value.trim();
+                          if (!hash) {
+                            alert('Please enter a withdrawal hash');
+                            return;
+                          }
+                          try {
+                            setLoading(true);
+                            const portal = new ethers.Contract(l2Info?.portal || '', OPTIMISM_PORTAL_ABI, l1Provider);
+                            const finalized = await portal.fastFinalizedWithdrawals(hash);
+                            setFwCheckResult({ hash, finalized });
+                          } catch (error: any) {
+                            console.error('Failed to check FW hash:', error);
+                            alert(`❌ Failed: ${error.message || 'Unknown error'}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading || !l2Info?.portal}
+                        className="btn btn-primary"
+                      >
+                        {loading ? '⏳' : '🔍'} Check
+                      </button>
+                    </div>
+                    {fwCheckResult && (
+                      <div className="info-list" style={{marginTop: '1rem'}}>
+                        <div className="info-row">
+                          <span className="info-label">Withdrawal Hash:</span>
+                          <code>{fwCheckResult.hash.substring(0, 18)}...</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Fast Finalized:</span>
+                          <span className={fwCheckResult.finalized ? 'status-success' : 'status-warning'}>
+                            {fwCheckResult.finalized ? '✅ Yes' : '❌ No'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </section>
                 </div>
               )}

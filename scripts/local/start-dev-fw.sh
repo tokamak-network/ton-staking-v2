@@ -79,6 +79,16 @@ fi
 echo -e "${GREEN}All prerequisites met${NC}"
 echo ""
 
+# Check that Docker images are pre-built
+# Run ./scripts/local/build-docker-images.sh first if images don't exist
+if ! docker image inspect ton-staking-v2-fw-node-1 &>/dev/null; then
+    echo -e "${RED}Error: Docker images not built. Run first:${NC}"
+    echo "  ./scripts/local/build-docker-images.sh"
+    exit 1
+fi
+echo -e "${GREEN}Docker images found (pre-built)${NC}"
+echo ""
+
 # =============================================================================
 # Step 2: Start Anvil (Prague Hardfork - BLS precompiles enabled)
 # =============================================================================
@@ -391,11 +401,15 @@ if [ -d "$DEVNET_SEPOLIA_DIR" ]; then
     echo "  - Old data will be removed"
     echo "  - L2 volumes will be deleted in Step 7"
     echo ""
-    read -p "Continue with cleanup? [Y/n] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
-        echo "Aborted. Please run ./scripts/local/stop-dev-fw.sh first."
-        exit 1
+    if [ -t 0 ]; then
+        read -p "Continue with cleanup? [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
+            echo "Aborted. Please run ./scripts/local/stop-dev-fw.sh first."
+            exit 1
+        fi
+    else
+        echo "  Non-interactive mode: auto-cleaning old data"
     fi
     rm -rf "$DEVNET_SEPOLIA_DIR"
     echo -e "${GREEN}Old configuration removed${NC}"
@@ -693,16 +707,7 @@ echo -e "${GREEN}Batcher and proposer started${NC}"
 # =============================================================================
 echo -e "${YELLOW}Step 8: Building and starting RAT clients + FW services...${NC}"
 
-# Build RAT clients (always rebuild to pick up code changes)
-echo "Building RAT client images..."
-docker compose -f "$COMPOSE_FILE" build rat-client-1 rat-client-2 rat-client-3
-echo -e "${GREEN}RAT client images built${NC}"
-
-# Build FW node images (combined validator + aggregator)
-echo "Building Fast Withdrawal node images..."
-docker compose -f "$COMPOSE_FILE" build fw-node-1 fw-node-2 fw-node-3
-echo -e "${GREEN}FW node images built${NC}"
-
+# Images already pre-built in Step 1.5 (before Anvil started)
 # Start RAT clients (FW services start later after config is generated)
 echo "Starting RAT clients..."
 docker compose -f "$COMPOSE_FILE" up -d rat-client-1 rat-client-2 rat-client-3

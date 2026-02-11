@@ -126,6 +126,9 @@ export const RAT_ABI = [
   'function getActiveValidatorsWithBLS(address systemConfig) view returns (address[])',
   'function minValidatorsForFastWithdrawal() view returns (uint256)',
 
+  // Fast Withdrawal
+  'function aggregatorFeeRate() view returns (uint256)',
+
   // Config Parameters
   'function slashingPenalty() view returns (uint256)',
   'function validatorBuffer() view returns (uint256)',
@@ -146,6 +149,7 @@ export const RAT_ABI = [
   'event EvidenceSubmitted(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint32 batchIndex)',
   'event ValidatorSlashed(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 slashedAmount, bool removedFromSet)',
   'event BondRestored(bytes32 indexed testId, address indexed validator, address indexed systemConfig, address layer2, uint256 restoredAmount)',
+  'event FastWithdrawalExecuted(address indexed gameProxy, bytes32 indexed withdrawalHash, address indexed aggregator)',
 ];
 
 export const DISPUTE_GAME_FACTORY_ABI = [
@@ -215,6 +219,7 @@ export const OPTIMISM_PORTAL_ABI = [
   'function proofMaturityDelaySeconds() view returns (uint256)',
   'function disputeGameFinalityDelaySeconds() view returns (uint256)',
   'function seigManager() view returns (address)',
+  'function fastFinalizedWithdrawals(bytes32) view returns (bool)',
 ];
 
 export const L1_STANDARD_BRIDGE_ABI = [
