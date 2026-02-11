@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
+
+	"github.com/tokamak-network/ton-staking-v2/op-e2e/bindings"
 )
 
 type TimelineEntry struct {
@@ -152,7 +153,7 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 	rat.ResolveGame(t, sys, accounts.Challenger.Auth, gameAddress)
 
 	gameType := uint32(0)
-	l2BlockNumber := big.NewInt(100)
+	l2BlockNumber := big.NewInt(rat.TestL2BlockNumber)
 	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
 
 	state := DemoState{
@@ -231,81 +232,77 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 }
 
 func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
-	env := StartRealGameTestEnv(t)
-
-	sys := env.RATSystem
+	sys := rat.StartTONStakingSystem(t)
 	ctx := sys.Ctx
-
 	accounts := rat.SetupTestAccounts(t, sys)
 	contracts := rat.ConnectTestContracts(t, sys)
+	slashingContracts := connectSlashingContracts(t, sys)
 
 	operatorStake := new(big.Int).Mul(big.NewInt(100000), new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil))
 	rat.AdjustMinimumCollateral(t, sys, contracts, accounts.Deployer.Auth, operatorStake)
 
 	candidateAddOn, operatorManager, rollupConfig := registerOperatorWithCandidateAddOn(
-		t, sys, env.SlashingContracts, accounts.Validator.Auth, operatorStake,
+		t, sys, slashingContracts, accounts.Validator.Auth, operatorStake,
 	)
-	setupRATForValidator(t, sys, accounts, env.SlashingContracts, candidateAddOn, rollupConfig, operatorStake)
+	setupRATForValidator(t, sys, accounts, slashingContracts, candidateAddOn, rollupConfig, operatorStake)
 
-	aliceAddr := env.System.Cfg.Secrets.Addresses().Alice
-	bobAddr := env.System.Cfg.Secrets.Addresses().Bob
+	// Create dispute game on RAT chain
+	rootClaim := [32]byte{0xDE, 0xAD}
+	_, gameAddress := rat.CreateDisputeGame(t, sys, accounts.Proposer.Auth, rootClaim)
 
-	initialStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
-	aliceBalanceBefore := getWTONBalance(t, sys, aliceAddr)
-	bobBalanceBefore := getWTONBalance(t, sys, bobAddr)
+	// Two challengers attack the root claim with different claims
+	winnerA := accounts.Challenger.Addr
+	winnerB := accounts.Deployer.Addr
 
-	l2BlockNumber := uint64(1)
-	invalidRoot := common.HexToHash("0xdeadbeef")
-	game := env.CreateAlphabetGame(l2BlockNumber, invalidRoot)
+	claimA := [32]byte{0xAA, 0x01}
+	claimB := [32]byte{0xBB, 0x02}
 
-	key1 := env.System.Cfg.Secrets.Alice
-	key2 := env.System.Cfg.Secrets.Bob
+	rat.AttackClaim(t, sys, accounts.Challenger.Auth, gameAddress, claimA, rootClaim)
+	rat.AttackClaim(t, sys, accounts.Deployer.Auth, gameAddress, claimB, rootClaim)
 
-	multi := NewMultiChallengerEnv(env)
-	multi.AddChallenger(game, "challenger-1", key1)
-	multi.AddChallenger(game, "challenger-2", key2)
-	multi.WaitForAllChallengersToAct()
-
-	claim := game.RootClaim(env.Ctx)
-	correctTrace := game.CreateHonestActor(env.Ctx, "sequencer")
-
-	for claim.IsOutputRoot(env.Ctx) && !claim.IsOutputRootLeaf(env.Ctx) {
-		if claim.AgreesWithOutputRoot() {
-			claim = claim.WaitForCounterClaim(env.Ctx)
-			game.LogGameData(env.Ctx)
-		} else {
-			claim = claim.Attack(env.Ctx, common.Hash{0xba, 0xd0})
-			game.LogGameData(env.Ctx)
-		}
+	// Resolve claims to record both challengers as winners
+	game, err := bindings.NewFaultDisputeGame(gameAddress, sys.L1Client)
+	if err != nil {
+		t.Fatalf("failed to bind FaultDisputeGame: %v", err)
 	}
 
-	claim = claim.WaitForCounterClaim(env.Ctx)
-	game.LogGameData(env.Ctx)
+	maxClockDuration, err := game.MaxClockDuration(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		t.Fatalf("failed to read maxClockDuration: %v", err)
+	}
+	rat.AdvanceTimeAndMine(t, sys, int64(maxClockDuration)+1)
 
-	claim = correctTrace.AttackClaim(env.Ctx, claim)
-	for !claim.IsMaxDepth(env.Ctx) {
-		if claim.AgreesWithOutputRoot() {
-			claim = claim.WaitForCounterClaim(env.Ctx)
-			game.LogGameData(env.Ctx)
-		} else {
-			claim = correctTrace.AttackClaim(env.Ctx, claim)
-			game.LogGameData(env.Ctx)
-		}
+	// Resolve child subgames first (claim indices 1 and 2)
+	if tx, err := game.ResolveClaim(accounts.Challenger.Auth, big.NewInt(1), big.NewInt(0)); err == nil {
+		_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
+	} else {
+		t.Fatalf("resolveClaim(1) failed: %v", err)
+	}
+	if tx, err := game.ResolveClaim(accounts.Challenger.Auth, big.NewInt(2), big.NewInt(0)); err == nil {
+		_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
+	} else {
+		t.Fatalf("resolveClaim(2) failed: %v", err)
 	}
 
-	claim.WaitForCountered(env.Ctx)
-	game.LogGameData(env.Ctx)
+	// Resolve root subgame then resolve game
+	if tx, err := game.ResolveClaim(accounts.Challenger.Auth, big.NewInt(0), big.NewInt(0)); err == nil {
+		_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
+	} else {
+		t.Fatalf("resolveClaim(0) failed: %v", err)
+	}
+	if tx, err := game.Resolve(accounts.Challenger.Auth); err == nil {
+		_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
+	} else {
+		t.Fatalf("resolve game failed: %v", err)
+	}
 
-	const challengerWins types.GameStatus = 1
-	env.AdvanceTimeAndResolve(game, challengerWins)
-
-	rootClaimBytes := [32]byte(invalidRoot)
+	initialStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
+	winnerABalanceBefore := getWTONBalance(t, sys, winnerA)
+	winnerBBalanceBefore := getWTONBalance(t, sys, winnerB)
 
 	gameType := uint32(0)
-	extraData := common.LeftPadBytes(new(big.Int).SetUint64(l2BlockNumber).Bytes(), 32)
-
-	alice := env.System.Cfg.Secrets.Addresses().Alice
-	bob := env.System.Cfg.Secrets.Addresses().Bob
+	l2BlockNumber := big.NewInt(rat.TestL2BlockNumber)
+	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
 
 	state := DemoState{
 		Status:                   "ready",
@@ -313,19 +310,19 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 		Mode:                     "multi",
 		OperatorManager:          operatorManager.Hex(),
 		CandidateAddOn:           candidateAddOn.Hex(),
-		GameAddress:              game.Addr.Hex(),
+		GameAddress:              gameAddress.Hex(),
 		GameType:                 gameType,
-		RootClaim:                invalidRoot.Hex(),
+		RootClaim:                common.BytesToHash(rootClaim[:]).Hex(),
 		ExtraData:                hexutil.Encode(extraData),
-		Challenger:               accounts.Challenger.Addr.Hex(),
-		WinningChallengers:       []string{alice.Hex(), bob.Hex()},
+		Challenger:               winnerA.Hex() + "," + winnerB.Hex(),
+		WinningChallengers:       []string{winnerA.Hex(), winnerB.Hex()},
 		StakeBefore:              initialStake.String(),
-		ChallengerBalanceBefore:  new(big.Int).Add(aliceBalanceBefore, bobBalanceBefore).String(),
-		ChallengerBalancesBefore: map[string]string{alice.Hex(): aliceBalanceBefore.String(), bob.Hex(): bobBalanceBefore.String()},
+		ChallengerBalanceBefore:  new(big.Int).Add(winnerABalanceBefore, winnerBBalanceBefore).String(),
+		ChallengerBalancesBefore: map[string]string{winnerA.Hex(): winnerABalanceBefore.String(), winnerB.Hex(): winnerBBalanceBefore.String()},
 	}
 
 	addTimeline(&state, "game_created", "Dispute game created (multi)")
-	addTimeline(&state, "challengers_started", "Two challengers started")
+	addTimeline(&state, "challengers_started", "Two challengers attacked root claim")
 	addTimeline(&state, "challenger_won", "Challengers won the game")
 	addTimeline(&state, "ready", "Ready to slash operator")
 
@@ -341,13 +338,13 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 			if _, err := os.Stat(commandPath); err == nil {
 				cmd, err := readCommand(commandPath)
 				if err == nil && cmd.Action == "slash" {
-					tx, err := env.SlashingContracts.Layer2ManagerSlashing.SlashingCandidate(
+					tx, err := slashingContracts.Layer2ManagerSlashing.SlashingCandidate(
 						accounts.Challenger.Auth,
 						operatorManager,
 						gameType,
-						rootClaimBytes,
+						rootClaim,
 						extraData,
-						game.Addr,
+						gameAddress,
 					)
 					if err != nil {
 						state.Status = "error"
@@ -356,24 +353,25 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 						state.SlashingTxHash = tx.Hash().Hex()
 						_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
 
-						finalStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
-						aliceBalanceAfter := getWTONBalance(t, sys, aliceAddr)
-						bobBalanceAfter := getWTONBalance(t, sys, bobAddr)
+						finalStake := getStakeBalance(t, sys, slashingContracts, candidateAddOn, operatorManager)
+						winnerABalanceAfter := getWTONBalance(t, sys, winnerA)
+						winnerBBalanceAfter := getWTONBalance(t, sys, winnerB)
 
 						state.Status = "slashed"
 						state.Message = "Slashing executed."
 						state.StakeAfter = finalStake.String()
-						state.ChallengerBalanceAfter = new(big.Int).Add(aliceBalanceAfter, bobBalanceAfter).String()
+						state.ChallengerBalanceAfter = new(big.Int).Add(winnerABalanceAfter, winnerBBalanceAfter).String()
 						state.ChallengerBalancesAfter = map[string]string{
-							alice.Hex(): aliceBalanceAfter.String(),
-							bob.Hex():   bobBalanceAfter.String(),
+							winnerA.Hex(): winnerABalanceAfter.String(),
+							winnerB.Hex(): winnerBBalanceAfter.String(),
 						}
 
 						stakeDelta := new(big.Int).Sub(initialStake, finalStake)
 						rewardDelta := new(big.Int).Sub(
-							new(big.Int).Add(aliceBalanceAfter, bobBalanceAfter),
-							new(big.Int).Add(aliceBalanceBefore, bobBalanceBefore),
+							new(big.Int).Add(winnerABalanceAfter, winnerBBalanceAfter),
+							new(big.Int).Add(winnerABalanceBefore, winnerBBalanceBefore),
 						)
+
 						state.StakeDelta = stakeDelta.String()
 						state.RewardDelta = rewardDelta.String()
 
