@@ -30,8 +30,8 @@ export const CONFIG = {
     validatorReward: '0x23d351BA89eaAc4E328133Cb48e050064C219A1E',
 
     // Optimism Stack
-    systemConfig: '0x0c3bf85eefa4d9c0cc1e2790ff2d9dab82e38548',
-    disputeGameFactory: '0xda429abc07992197853d51dfea7fc197312c2f64',
+    systemConfig: '0x4f0641333d38d9aa7d6cea11fbf1749b026b9de0',
+    disputeGameFactory: '0x0e42028fcd8ef6685e731d8a8142072c28a5ecf7',
   },
 
   // Optimism Service Accounts (from docker-compose env vars)
