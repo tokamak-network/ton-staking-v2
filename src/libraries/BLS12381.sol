@@ -6,16 +6,14 @@ pragma solidity ^0.8.4;
  * @notice BLS12-381 signature verification library using EIP-2537 precompiles
  * @dev Reference: https://eips.ethereum.org/EIPS/eip-2537
  *
- * EIP-2537 Precompile Addresses (Pectra upgrade):
+ * EIP-2537 Precompile Addresses (Pectra / Prague):
  * - BLS12_G1ADD:         0x0b (11)
- * - BLS12_G1MUL:         0x0c (12)
- * - BLS12_G1MSM:         0x0d (13)
- * - BLS12_G2ADD:         0x0e (14)
- * - BLS12_G2MUL:         0x0f (15)
- * - BLS12_G2MSM:         0x10 (16)
- * - BLS12_PAIRING:       0x11 (17)
- * - BLS12_MAP_FP_TO_G1:  0x12 (18)
- * - BLS12_MAP_FP2_TO_G2: 0x13 (19)
+ * - BLS12_G1MSM:         0x0c (12)
+ * - BLS12_G2ADD:         0x0d (13)
+ * - BLS12_G2MSM:         0x0e (14)
+ * - BLS12_PAIRING:       0x0f (15)
+ * - BLS12_MAP_FP_TO_G1:  0x10 (16)
+ * - BLS12_MAP_FP2_TO_G2: 0x11 (17)
  *
  * Point Formats (EIP-2537 uses uncompressed points):
  * - G1: 128 bytes (64 bytes x + 64 bytes y, each zero-padded to 64 bytes)
@@ -47,29 +45,23 @@ library BLS12381 {
     /// @notice BLS12_G1ADD precompile address
     address internal constant BLS12_G1ADD = address(0x0b);
 
-    /// @notice BLS12_G1MUL precompile address
-    address internal constant BLS12_G1MUL = address(0x0c);
-
-    /// @notice BLS12_G1MSM precompile address (multi-scalar multiplication)
-    address internal constant BLS12_G1MSM = address(0x0d);
+    /// @notice BLS12_G1MSM precompile address (multi-scalar multiplication, also handles single MUL)
+    address internal constant BLS12_G1MSM = address(0x0c);
 
     /// @notice BLS12_G2ADD precompile address
-    address internal constant BLS12_G2ADD = address(0x0e);
+    address internal constant BLS12_G2ADD = address(0x0d);
 
-    /// @notice BLS12_G2MUL precompile address
-    address internal constant BLS12_G2MUL = address(0x0f);
-
-    /// @notice BLS12_G2MSM precompile address
-    address internal constant BLS12_G2MSM = address(0x10);
+    /// @notice BLS12_G2MSM precompile address (multi-scalar multiplication, also handles single MUL)
+    address internal constant BLS12_G2MSM = address(0x0e);
 
     /// @notice BLS12_PAIRING precompile address
-    address internal constant BLS12_PAIRING = address(0x11);
+    address internal constant BLS12_PAIRING = address(0x0f);
 
     /// @notice BLS12_MAP_FP_TO_G1 precompile address
-    address internal constant BLS12_MAP_FP_TO_G1 = address(0x12);
+    address internal constant BLS12_MAP_FP_TO_G1 = address(0x10);
 
     /// @notice BLS12_MAP_FP2_TO_G2 precompile address
-    address internal constant BLS12_MAP_FP2_TO_G2 = address(0x13);
+    address internal constant BLS12_MAP_FP2_TO_G2 = address(0x11);
 
     /// @notice SHA-256 precompile address
     address internal constant SHA256_PRECOMPILE = address(0x02);
@@ -96,7 +88,7 @@ library BLS12381 {
 
     /// @notice Negative G1 generator (precomputed for pairing)
     /// @dev Cached to avoid repeated encodePacked calls
-    bytes internal constant NEG_G1_GENERATOR = hex"0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00000000000000000000000000000000114d1d68560455a8ab7d76c8cf2e21f267816aee1db5079f66559cd5caac424f4e6f38ba8ecb715eb354dcd6b995c2ca";
+    bytes internal constant NEG_G1_GENERATOR = hex"0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00000000000000000000000000000000114d1d6855d545a8aa7d76c8cf2e21f267816aef1db507c96655b9d5caac42364e6f38ba0ecb751bad54dcd6b939c2ca";
 
     // ==========================================
     // Errors
@@ -418,15 +410,43 @@ library BLS12381 {
 
     /**
      * @notice Hash message to G2 point using BLS12_MAP_FP2_TO_G2
-     * @dev Implements simplified hash-to-curve following RFC 9380 structure
+     * @dev Implements hash-to-curve following RFC 9380 (hash_to_field + map_to_curve)
+     * @dev Uses a single expand_message_xmd call producing 256 bytes of uniform randomness
+     * @dev Parameters: count=2, m=2 (Fp2), L=64 → len_in_bytes = 2*2*64 = 256
      * @param messageHash 32 bytes message hash
      * @return G2 point
      */
     function hashToG2(bytes32 messageHash) internal view returns (G2Point memory) {
-        // Expand message to two Fp2 elements (256 bytes total)
-        // Each Fp2 element is 128 bytes (two 64-byte Fp elements)
-        bytes memory u0 = _hashToFp2(messageHash, 0);
-        bytes memory u1 = _hashToFp2(messageHash, 1);
+        // RFC 9380 expand_message_xmd: produce 256 bytes of uniform randomness
+        bytes memory uniformBytes = _expandMessageXMD(messageHash);
+
+        // Split into two Fp2 elements (128 bytes each)
+        bytes memory u0 = new bytes(FP2_SIZE);
+        bytes memory u1 = new bytes(FP2_SIZE);
+
+        assembly {
+            let src := add(uniformBytes, 0x20)
+            let u0Ptr := add(u0, 0x20)
+            let u1Ptr := add(u1, 0x20)
+
+            // Copy first 128 bytes to u0
+            mstore(u0Ptr, mload(src))
+            mstore(add(u0Ptr, 0x20), mload(add(src, 0x20)))
+            mstore(add(u0Ptr, 0x40), mload(add(src, 0x40)))
+            mstore(add(u0Ptr, 0x60), mload(add(src, 0x60)))
+
+            // Copy next 128 bytes to u1
+            mstore(u1Ptr, mload(add(src, 0x80)))
+            mstore(add(u1Ptr, 0x20), mload(add(src, 0xa0)))
+            mstore(add(u1Ptr, 0x40), mload(add(src, 0xc0)))
+            mstore(add(u1Ptr, 0x60), mload(add(src, 0xe0)))
+        }
+
+        // Reduce each 64-byte chunk mod p to get proper EIP-2537 Fp format
+        _reduceToFpFormat(u0, 0);   // u[0].c0: bytes 0-63
+        _reduceToFpFormat(u0, 64);  // u[0].c1: bytes 64-127
+        _reduceToFpFormat(u1, 0);   // u[1].c0: bytes 0-63 (originally 128-191)
+        _reduceToFpFormat(u1, 64);  // u[1].c1: bytes 64-127 (originally 192-255)
 
         // Map each Fp2 element to G2
         (bool success0, bytes memory q0) = BLS12_MAP_FP2_TO_G2.staticcall(u0);
@@ -443,70 +463,55 @@ library BLS12381 {
     }
 
     /**
-     * @notice Hash to Fp2 element for hash-to-curve using XMD-SHA256
-     * @dev Implements RFC 9380 expand_message_xmd with SHA-256 precompile
-     * @dev Produces a 128-byte Fp2 element (two 64-byte Fp elements)
-     * @param messageHash Message to hash
-     * @param index Index for domain separation (0 or 1)
-     * @return fp2 128 bytes Fp2 element
+     * @notice RFC 9380 expand_message_xmd with SHA-256, producing 256 bytes
+     * @dev DST: "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_"
+     * @dev ell = ceil(256 / 32) = 8 SHA-256 blocks
+     * @param messageHash 32-byte message to expand
+     * @return result 256 bytes of pseudo-random output
      */
-    function _hashToFp2(bytes32 messageHash, uint8 index) internal view returns (bytes memory fp2) {
-        // DST for BLS12-381 G2 hash-to-curve (RFC 9380)
+    function _expandMessageXMD(bytes32 messageHash) internal view returns (bytes memory result) {
         bytes memory dst = bytes("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_");
-        uint8 dstLen = uint8(dst.length); // 39 bytes
-
-        // RFC 9380 expand_message_xmd algorithm:
-        // We need 64 bytes per Fp element for proper reduction
-        // Total: 128 bytes = 4 blocks of 32 bytes (SHA-256 output)
+        uint8 dstLen = uint8(dst.length); // 39
 
         // Z_pad = I2OSP(0, s_in_bytes) where s_in_bytes = 64 for SHA-256
         bytes memory zPad = new bytes(64);
 
-        // l_i_b_str = I2OSP(len_in_bytes, 2) = I2OSP(128, 2) = 0x0080
-        // DST_prime = DST || I2OSP(len(DST), 1)
-
-        // b_0 = SHA256(Z_pad || msg || l_i_b_str || 0x00 || index || DST_prime)
+        // b_0 = SHA256(Z_pad || msg || l_i_b_str || I2OSP(0, 1) || DST_prime)
+        // l_i_b_str = I2OSP(256, 2) = 0x0100
         bytes32 b0 = _sha256(abi.encodePacked(
             zPad,
             messageHash,
-            uint16(128),  // l_i_b_str (big-endian)
-            uint8(0),
-            index,
+            uint16(256),  // l_i_b_str (big-endian)
+            uint8(0),     // I2OSP(0, 1)
             dst,
-            dstLen
+            dstLen        // DST_prime = DST || I2OSP(len(DST), 1)
         ));
 
-        // b_1 = SHA256(b_0 || 0x01 || DST_prime)
+        // b_1 = SHA256(b_0 || I2OSP(1, 1) || DST_prime)
         bytes32 b1 = _sha256(abi.encodePacked(b0, uint8(1), dst, dstLen));
 
-        // b_2 = SHA256(b_0 XOR b_1 || 0x02 || DST_prime)
+        // b_i = SHA256(strxor(b_0, b_{i-1}) || I2OSP(i, 1) || DST_prime)
         bytes32 b2 = _sha256(abi.encodePacked(b0 ^ b1, uint8(2), dst, dstLen));
-
-        // b_3 = SHA256(b_0 XOR b_2 || 0x03 || DST_prime)
         bytes32 b3 = _sha256(abi.encodePacked(b0 ^ b2, uint8(3), dst, dstLen));
-
-        // b_4 = SHA256(b_0 XOR b_3 || 0x04 || DST_prime)
         bytes32 b4 = _sha256(abi.encodePacked(b0 ^ b3, uint8(4), dst, dstLen));
+        bytes32 b5 = _sha256(abi.encodePacked(b0 ^ b4, uint8(5), dst, dstLen));
+        bytes32 b6 = _sha256(abi.encodePacked(b0 ^ b5, uint8(6), dst, dstLen));
+        bytes32 b7 = _sha256(abi.encodePacked(b0 ^ b6, uint8(7), dst, dstLen));
+        bytes32 b8 = _sha256(abi.encodePacked(b0 ^ b7, uint8(8), dst, dstLen));
 
-        // uniform_bytes = b_1 || b_2 || b_3 || b_4 (128 bytes)
-        // Split into two 64-byte chunks for Fp elements
-
-        // Allocate result
-        fp2 = new bytes(FP2_SIZE);
-
-        // Store uniform bytes: b1 || b2 || b3 || b4
+        // uniform_bytes = b_1 || b_2 || ... || b_8 (256 bytes)
+        result = new bytes(256);
         assembly {
-            let fp2Ptr := add(fp2, 0x20)
-            mstore(fp2Ptr, b1)
-            mstore(add(fp2Ptr, 0x20), b2)
-            mstore(add(fp2Ptr, 0x40), b3)
-            mstore(add(fp2Ptr, 0x60), b4)
+            let ptr := add(result, 0x20)
+            mstore(ptr, b1)
+            mstore(add(ptr, 0x20), b2)
+            mstore(add(ptr, 0x40), b3)
+            mstore(add(ptr, 0x60), b4)
+            mstore(add(ptr, 0x80), b5)
+            mstore(add(ptr, 0xa0), b6)
+            mstore(add(ptr, 0xc0), b7)
+            mstore(add(ptr, 0xe0), b8)
         }
-
-        // Convert to proper Fp2 format with modular reduction
-        // Each Fp: reduce 64-byte value mod p, then format as 16-byte padding + 48-byte value
-        _reduceToFpFormat(fp2, 0);   // Process c0 (bytes 0-63)
-        _reduceToFpFormat(fp2, 64);  // Process c1 (bytes 64-127)
     }
 
     /**
@@ -563,10 +568,14 @@ library BLS12381 {
             mstore(add(dstPtr, 16), word1)
 
             // Copy bytes 32-47 of reduced to dst+48
-            // Only need 16 bytes, but mstore writes 32
-            // The extra 16 bytes will be overwritten by next Fp or are beyond array
+            // Only need 16 bytes, but mstore writes 32 — use masking to
+            // avoid overwriting the adjacent Fp element's data
             let word2 := mload(add(srcPtr, 32))
-            mstore(add(dstPtr, 48), word2)
+            let existing := mload(add(dstPtr, 48))
+            mstore(add(dstPtr, 48), or(
+                and(word2, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000),
+                and(existing, 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff)
+            ))
         }
     }
 
@@ -580,23 +589,16 @@ library BLS12381 {
     function _mod512BitByP(bytes32 hi, bytes32 lo) internal pure returns (bytes memory result) {
         result = new bytes(48);
 
-        // p = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
-        //
+        // p is 381 bits (> 2^256), so any 256-bit value is automatically < p.
         // For a 512-bit value v = hi * 2^256 + lo:
-        // v mod p = ((hi mod p) * (2^256 mod p) + (lo mod p)) mod p
-        //
-        // 2^256 mod p = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
-        //
-        // Since hi and lo are each 256 bits and p is ~381 bits:
-        // - If hi == 0: result = lo mod p (simple comparison and subtraction)
-        // - If hi != 0: need full modular multiplication
+        // - If hi == 0: lo < 2^256 < p, no reduction needed
+        // - If hi != 0: binary long division by p (at most 132 iterations)
 
         if (hi == bytes32(0)) {
-            // Simple case: just reduce lo mod p
+            // lo < 2^256 < p, just copy
             _reduceSingleWord(lo, result);
         } else {
-            // Full reduction using the formula:
-            // result = (hi * R + lo) mod p where R = 2^256 mod p
+            // Full 512-bit reduction using binary long division
             _reduceFullValue(hi, lo, result);
         }
     }
@@ -624,205 +626,63 @@ library BLS12381 {
 
     /**
      * @notice Full modular reduction for 512-bit value
-     * @dev Computes (hi * 2^256 + lo) mod p using schoolbook multiplication
+     * @dev Computes (hi * 2^256 + lo) mod p using binary long division
+     * @dev Since p (381 bits) > 2^256, we operate on (uint256, uint256) pairs
+     * @dev Maximum 132 iterations (quotient < 2^132)
      * @param hi Upper 256 bits
      * @param lo Lower 256 bits
      * @param result Output buffer (48 bytes)
      */
     function _reduceFullValue(bytes32 hi, bytes32 lo, bytes memory result) internal pure {
-        // R = 2^256 mod p = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
-        // We need to compute (hi * R + lo) mod p
-        //
-        // Since hi * R can be up to ~637 bits (256 + 381), we need careful handling
-        //
-        // Approach: Use 128-bit limb arithmetic
-        // Split hi into 4 x 64-bit limbs: hi = h3*2^192 + h2*2^128 + h1*2^64 + h0
-        // Split R into limbs similarly
-        // Perform schoolbook multiplication, then reduce
+        uint256 vHi = uint256(hi);
+        uint256 vLo = uint256(lo);
 
-        // hi * R where R = 2^256 mod p fits in 256 bits
-        // Result can be up to 512 bits
-        uint256 hiVal = uint256(hi);
-        uint256 R = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001;
+        // p as two 256-bit words: p = pHi * 2^256 + pLo (381 bits total)
+        uint256 sHi = 0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7;
+        uint256 sLo = 0x64774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab;
 
-        // We need (hi * R + lo) mod p
-        // Since this requires 512-bit arithmetic, we split the computation:
-        // 1. Compute hi * R (up to 512 bits)
-        // 2. Add lo (may cause carry)
-        // 3. Reduce mod p
+        // Phase 1: Left-shift p to align with v's MSB (at most 131 shifts)
+        uint256 shifts;
+        for (uint256 i; i < 132; ++i) {
+            // Can't shift if MSB of sHi is set (would overflow 512 bits)
+            if (sHi >> 255 != 0) break;
 
-        // Compute hi * R using assembly for 512-bit result
-        uint256 prodLo;
-        uint256 prodHi;
+            // Compute (sHi, sLo) << 1
+            uint256 nHi = (sHi << 1) | (sLo >> 255);
+            uint256 nLo = sLo << 1;
 
-        assembly {
-            // mulmod gives us (hi * R) mod (2^256)
-            prodLo := mulmod(hiVal, R, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+            // Stop if shifted p would exceed v
+            if (nHi > vHi || (nHi == vHi && nLo > vLo)) break;
 
-            // For prodHi, we use the fact that hi * R = prodHi * 2^256 + prodLo
-            // prodHi = (hi * R - prodLo) / 2^256
-            // This is tricky in assembly, so we compute it differently:
-            // Use the identity: (a * b) >> 256 can be computed via:
-            // hi_result = (a * b - (a * b mod 2^256)) / 2^256
-
-            // Alternative: use two multiplications
-            // hi * R = (hi_high * 2^128 + hi_low) * R
-            //        = hi_high * R * 2^128 + hi_low * R
-
-            let hiHigh := shr(128, hiVal)
-            let hiLow := and(hiVal, 0xffffffffffffffffffffffffffffffff)
-
-            // hi_low * R (fits in ~384 bits since hiLow is 128 bits and R is 256 bits)
-            let loRLo := mul(hiLow, R)
-
-            // hi_high * R * 2^128 - this is the tricky part
-            // hi_high is 128 bits, R is 256 bits, so hi_high * R is ~384 bits
-            // Shifted by 128, it's ~512 bits total
-
-            // Actually, let's use a simpler approach:
-            // Compute prodLo = (hi * R) mod 2^256 using mul
-            prodLo := mul(hiVal, R)
-
-            // Compute prodHi using mulmod trick:
-            // (hi * R) / 2^256 = hi * (R / 2^256) + (hi * (R mod 2^256)) / 2^256
-            // Since R < 2^256, R / 2^256 = 0
-            // So prodHi comes from overflow of hi * R
-
-            // Use mul overflow detection:
-            // If hi * R overflows, prodHi = floor((hi * R) / 2^256)
-            // prodHi = hi * R / 2^256 (integer division)
-
-            // EVM doesn't have direct 512-bit multiply, so we approximate:
-            // For values where hi < 2^256 and R < 2^256:
-            // prodHi = (hi >> 128) * (R >> 128) + ((hi >> 128) * (R & mask) + (hi & mask) * (R >> 128)) >> 128
-
-            let mask128 := 0xffffffffffffffffffffffffffffffff
-            let hiH := shr(128, hiVal)
-            let hiL := and(hiVal, mask128)
-            let rH := shr(128, R)
-            let rL := and(R, mask128)
-
-            // hi * R = hiH*rH*2^256 + (hiH*rL + hiL*rH)*2^128 + hiL*rL
-            let term1 := mul(hiH, rH)  // This is prodHi base
-            let term2a := mul(hiH, rL)
-            let term2b := mul(hiL, rH)
-            let term3 := mul(hiL, rL)  // This contributes to prodLo
-
-            // prodLo = (term2a + term2b) << 128 + term3
-            // But we already have prodLo from mul(hi, R), which handles lower 256 bits
-
-            // prodHi = term1 + ((term2a + term2b) >> 128) + carry from prodLo
-            let term2Sum := add(term2a, term2b)
-            let term2Overflow := lt(term2Sum, term2a)  // Check for overflow in term2a + term2b
-
-            prodHi := add(term1, shr(128, term2Sum))
-            prodHi := add(prodHi, term2Overflow)  // Add overflow from term2 sum
-
-            // Check if lower part overflowed into prodHi
-            // (term2a + term2b) << 128 + term3 might overflow
-            let lowerPart := add(shl(128, term2Sum), term3)
-            let lowerOverflow := lt(lowerPart, term3)
-            prodHi := add(prodHi, lowerOverflow)
+            sHi = nHi;
+            sLo = nLo;
+            unchecked { ++shifts; }
         }
 
-        // Now add lo to (prodHi, prodLo)
-        uint256 sumLo;
-        uint256 sumHi;
-        assembly {
-            sumLo := add(prodLo, lo)
-            let carry := lt(sumLo, prodLo)
-            sumHi := add(prodHi, carry)
+        // Phase 2: Binary long division (subtract shifted p, then shift right)
+        for (uint256 i; i <= shifts; ++i) {
+            // If v >= shifted_p, subtract
+            if (vHi > sHi || (vHi == sHi && vLo >= sLo)) {
+                unchecked {
+                    uint256 newLo = vLo - sLo;
+                    uint256 borrow;
+                    assembly { borrow := lt(vLo, sLo) }
+                    vHi = vHi - sHi - borrow;
+                    vLo = newLo;
+                }
+            }
+
+            // Shift p right by 1
+            sLo = (sLo >> 1) | (sHi << 255);
+            sHi = sHi >> 1;
         }
 
-        // Now reduce (sumHi, sumLo) mod p
-        // Iteratively subtract p while value >= p
-        bytes memory pBytes = FIELD_MODULUS;
-
-        // Convert to bytes for comparison and subtraction
-        // sumHi || sumLo is 512 bits = 64 bytes
-        // We need to compare with p (48 bytes, or 64 bytes with padding)
-
-        // Store sum in temporary buffer
-        bytes memory sumBytes = new bytes(64);
-        assembly {
-            let ptr := add(sumBytes, 0x20)
-            mstore(ptr, sumHi)
-            mstore(add(ptr, 0x20), sumLo)
-        }
-
-        // Reduce: while sumBytes >= p (as 512-bit vs 384-bit), subtract p
-        // p extended to 64 bytes is: 16 zero bytes || p (48 bytes)
-
-        while (_isGreaterOrEqualP(sumBytes, pBytes)) {
-            _subtractP(sumBytes, pBytes);
-        }
-
-        // Copy lower 48 bytes to result (the reduced value)
-        // sumBytes now contains the result in the lower 48 bytes (indices 16-63)
+        // v = (vHi, vLo) is now v mod p (< 2^381)
+        // Encode as 48 bytes: [vHi as 16 bytes][vLo as 32 bytes]
         assembly {
             let resultPtr := add(result, 0x20)
-            let srcPtr := add(sumBytes, 0x20)
-
-            // Copy bytes 16-47 of sumBytes to result 0-31
-            mstore(resultPtr, mload(add(srcPtr, 16)))
-            // Copy bytes 48-63 of sumBytes to result 32-47
-            mstore(add(resultPtr, 32), mload(add(srcPtr, 48)))
-        }
-    }
-
-    /**
-     * @notice Check if 64-byte value >= 64-byte p (with padding)
-     * @param value 64-byte value
-     * @param p 64-byte modulus (16-byte padding + 48-byte value)
-     * @return True if value >= p
-     */
-    function _isGreaterOrEqualP(bytes memory value, bytes memory p) internal pure returns (bool) {
-        unchecked {
-            for (uint256 i = 0; i < 64; ++i) {
-                uint8 vByte = uint8(value[i]);
-                uint8 pByte;
-
-                // p is stored with 16-byte padding at the start
-                // For comparison, treat first 16 bytes of p as 0
-                if (i < 16) {
-                    pByte = 0;
-                } else {
-                    pByte = uint8(p[i - 16 + 16]); // p has 16-byte internal padding
-                }
-                // Actually, p (FIELD_MODULUS) is already 64 bytes with padding
-                pByte = uint8(p[i]);
-
-                if (vByte > pByte) return true;
-                if (vByte < pByte) return false;
-            }
-        }
-        return true; // Equal
-    }
-
-    /**
-     * @notice Subtract p from 64-byte value in place
-     * @param value 64-byte value (modified in place)
-     * @param p 64-byte modulus
-     */
-    function _subtractP(bytes memory value, bytes memory p) internal pure {
-        int256 borrow = 0;
-        unchecked {
-            for (uint256 i = 63; i < 64; --i) { // Loop from 63 down to 0
-                int256 v = int256(uint256(uint8(value[i])));
-                int256 pv = int256(uint256(uint8(p[i])));
-                int256 diff = v - pv - borrow;
-
-                if (diff < 0) {
-                    diff += 256;
-                    borrow = 1;
-                } else {
-                    borrow = 0;
-                }
-
-                value[i] = bytes1(uint8(uint256(diff)));
-
-                if (i == 0) break;
-            }
+            mstore(resultPtr, or(shl(128, vHi), shr(128, vLo)))
+            mstore(add(resultPtr, 32), shl(128, vLo))
         }
     }
 
