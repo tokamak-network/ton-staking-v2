@@ -37,6 +37,7 @@ type L1Config struct {
 	RPC                    string `yaml:"rpc"`
 	RATContract            string `yaml:"rat_contract"`
 	FastWithdrawalContract string `yaml:"fast_withdrawal_contract"` // Portal or dedicated contract
+	SystemConfig           string `yaml:"system_config"`            // L2 SystemConfig address
 }
 
 type L2Config struct {
@@ -110,6 +111,9 @@ func (c *Config) Validate() error {
 	}
 	if c.L1.RATContract == "" {
 		return fmt.Errorf("l1.rat_contract is required")
+	}
+	if c.L1.SystemConfig == "" {
+		return fmt.Errorf("l1.system_config is required")
 	}
 	if c.P2P.ListenAddr == "" {
 		return fmt.Errorf("p2p.listen_addr is required")

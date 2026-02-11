@@ -135,7 +135,11 @@ func NewAggregator(ctx context.Context, cfg *config.Config) (*Aggregator, error)
 	fmt.Printf("✅ Connected to L1: %s\n", cfg.L1.RPC)
 
 	// 1.5. RAT Contract 초기화
-	ratContract, err := contracts.NewRATContract(l1Client, common.HexToAddress(cfg.L1.RATContract))
+	ratContract, err := contracts.NewRATContract(
+		l1Client,
+		common.HexToAddress(cfg.L1.RATContract),
+		common.HexToAddress(cfg.L1.SystemConfig),
+	)
 	if err != nil {
 		cancel()
 		l1Client.Close()
@@ -144,6 +148,7 @@ func NewAggregator(ctx context.Context, cfg *config.Config) (*Aggregator, error)
 	agg.ratContract = ratContract
 
 	fmt.Printf("✅ RAT Contract initialized: %s\n", cfg.L1.RATContract)
+	fmt.Printf("   SystemConfig: %s\n", cfg.L1.SystemConfig)
 
 	// 1.6. L2 Proof Provider 초기화 (optional)
 	if cfg.L2.RPC != "" {
@@ -215,10 +220,15 @@ func NewAggregator(ctx context.Context, cfg *config.Config) (*Aggregator, error)
 	}
 	agg.l1Submitter = l1Sub
 
-	// 7. Validator set 로드 (TODO: 실제로는 RAT 컨트랙트에서 조회)
-	agg.validatorSet = agg.loadValidatorSet()
-
-	fmt.Printf("✅ Validator set loaded: %d validators\n", len(agg.validatorSet))
+	// 7. Validator set 로드 (RAT 컨트랙트에서 조회)
+	validatorSet, err := agg.loadValidatorSet()
+	if err != nil {
+		cancel()
+		network.Close()
+		l1Client.Close()
+		return nil, fmt.Errorf("failed to load validator set: %w", err)
+	}
+	agg.validatorSet = validatorSet
 
 	return agg, nil
 }
@@ -365,42 +375,27 @@ func (agg *Aggregator) handleUnanimousConsensus(requestID [32]byte, state *types
 }
 
 // loadValidatorSet Validator set 로드 (RAT 컨트랙트에서 조회)
-func (agg *Aggregator) loadValidatorSet() []common.Address {
+func (agg *Aggregator) loadValidatorSet() ([]common.Address, error) {
 	ctx, cancel := context.WithTimeout(agg.ctx, 30*time.Second)
 	defer cancel()
 
-	// RAT 컨트랙트에서 활성 검증자 조회
-	validators, err := agg.ratContract.GetActiveValidators(ctx)
+	// RAT 컨트랙트에서 활성 검증자 + BLS 키 일괄 조회
+	validatorInfos, err := agg.ratContract.GetActiveValidatorsWithBLS(ctx)
 	if err != nil {
-		fmt.Printf("⚠️  Failed to load validators from RAT contract: %v\n", err)
-		fmt.Printf("⚠️  Using mock validator set as fallback\n")
-
-		// Fallback: Mock validators
-		return []common.Address{
-			common.HexToAddress("0x0000000000000000000000000000000000000001"),
-			common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			common.HexToAddress("0x0000000000000000000000000000000000000003"),
-		}
+		return nil, fmt.Errorf("failed to load validators from RAT contract: %w", err)
 	}
 
-	// BLS 공개키가 등록된 검증자만 필터링
-	validValidators := make([]common.Address, 0, len(validators))
-	for _, validator := range validators {
-		pubKey, err := agg.ratContract.GetBLSPublicKey(ctx, validator)
-		if err != nil {
-			fmt.Printf("⚠️  Validator %s has no BLS key: %v\n", validator.Hex()[:10], err)
-			continue
-		}
-		if len(pubKey) == 0 {
-			fmt.Printf("⚠️  Validator %s has empty BLS key\n", validator.Hex()[:10])
-			continue
-		}
-		validValidators = append(validValidators, validator)
+	validators := make([]common.Address, len(validatorInfos))
+	for i, info := range validatorInfos {
+		validators[i] = info.Address
 	}
 
-	fmt.Printf("✅ Loaded %d validators with BLS keys (total: %d)\n", len(validValidators), len(validators))
+	fmt.Printf("✅ Loaded %d validators with BLS keys from RAT contract\n", len(validators))
+	for _, info := range validatorInfos {
+		fmt.Printf("   Validator: %s (BLS key: %d bytes)\n", info.Address.Hex(), len(info.BLSPublicKey))
+	}
 
-	return validValidators
+	return validators, nil
 }
 
 // refreshValidatorSet Validator set 주기적 갱신
@@ -413,7 +408,11 @@ func (agg *Aggregator) refreshValidatorSet() {
 		case <-agg.ctx.Done():
 			return
 		case <-ticker.C:
-			newSet := agg.loadValidatorSet()
+			newSet, err := agg.loadValidatorSet()
+			if err != nil {
+				fmt.Printf("⚠️  Failed to refresh validator set: %v\n", err)
+				continue
+			}
 			if len(newSet) > 0 {
 				agg.validatorSet = newSet
 				fmt.Printf("🔄 Validator set refreshed: %d validators\n", len(newSet))

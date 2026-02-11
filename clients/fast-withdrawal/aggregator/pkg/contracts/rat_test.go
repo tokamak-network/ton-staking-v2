@@ -11,13 +11,13 @@ import (
 
 func TestNewRATContract_NilClient(t *testing.T) {
 	address := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	systemConfig := common.HexToAddress("0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd")
 
-	contract, err := NewRATContract(nil, address)
+	contract, err := NewRATContract(nil, address, systemConfig)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// nil client로 생성은 가능 (실제 호출 시 에러 발생)
 	if contract == nil {
 		t.Error("Contract should not be nil")
 	}
@@ -26,13 +26,18 @@ func TestNewRATContract_NilClient(t *testing.T) {
 		t.Error("Contract address mismatch")
 	}
 
+	if contract.systemConfig != systemConfig {
+		t.Error("SystemConfig address mismatch")
+	}
+
 	t.Log("✅ RATContract created with nil client (will fail on actual calls)")
 }
 
 func TestRATContract_Struct(t *testing.T) {
 	address := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	systemConfig := common.HexToAddress("0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd")
 
-	contract, err := NewRATContract(nil, address)
+	contract, err := NewRATContract(nil, address, systemConfig)
 	if err != nil {
 		t.Fatalf("Failed to create contract: %v", err)
 	}
@@ -41,7 +46,6 @@ func TestRATContract_Struct(t *testing.T) {
 		t.Error("Address mismatch")
 	}
 
-	// ABI가 파싱되었는지 확인
 	if len(contract.abi.Methods) == 0 {
 		t.Error("ABI should have methods")
 	}
@@ -52,15 +56,15 @@ func TestRATContract_Struct(t *testing.T) {
 func TestValidatorInfo_Struct(t *testing.T) {
 	info := ValidatorInfo{
 		Address:      common.HexToAddress("0x1234567890123456789012345678901234567890"),
-		BLSPublicKey: make([]byte, 48), // BLS public key is 48 bytes
+		BLSPublicKey: make([]byte, 128), // EIP-2537 uncompressed G1 point
 	}
 
 	if info.Address == (common.Address{}) {
 		t.Error("Address should not be empty")
 	}
 
-	if len(info.BLSPublicKey) != 48 {
-		t.Errorf("BLS public key should be 48 bytes, got %d", len(info.BLSPublicKey))
+	if len(info.BLSPublicKey) != 128 {
+		t.Errorf("BLS public key should be 128 bytes (EIP-2537), got %d", len(info.BLSPublicKey))
 	}
 
 	t.Log("✅ ValidatorInfo struct works correctly")
@@ -72,12 +76,13 @@ func TestRAT_ABI_Parsing(t *testing.T) {
 		t.Fatalf("Failed to parse RAT ABI: %v", err)
 	}
 
-	// 필요한 메서드들이 있는지 확인
 	expectedMethods := []string{
-		"getActiveValidators",
-		"getBLSPublicKey",
+		"getActiveValidatorsWithBLS",
+		"getL2Validators",
+		"getValidatorBLSPubKey",
 		"getValidatorCount",
-		"isActiveValidator",
+		"isValidatorActive",
+		"hasValidatorBLSKey",
 	}
 
 	for _, method := range expectedMethods {
@@ -89,64 +94,58 @@ func TestRAT_ABI_Parsing(t *testing.T) {
 	t.Logf("✅ RAT ABI parsed successfully with %d methods", len(parsedABI.Methods))
 }
 
-func TestRAT_ABI_GetActiveValidators(t *testing.T) {
+func TestRAT_ABI_GetActiveValidatorsWithBLS(t *testing.T) {
 	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
 	if err != nil {
 		t.Fatalf("Failed to parse ABI: %v", err)
 	}
 
-	method, ok := parsedABI.Methods["getActiveValidators"]
+	method, ok := parsedABI.Methods["getActiveValidatorsWithBLS"]
 	if !ok {
-		t.Fatal("getActiveValidators method not found")
+		t.Fatal("getActiveValidatorsWithBLS method not found")
 	}
 
-	// 입력 파라미터가 없어야 함
-	if len(method.Inputs) != 0 {
-		t.Errorf("Expected 0 inputs, got %d", len(method.Inputs))
-	}
-
-	// 출력은 address[] 타입
-	if len(method.Outputs) != 1 {
-		t.Errorf("Expected 1 output, got %d", len(method.Outputs))
-	}
-
-	if method.Outputs[0].Type.String() != "address[]" {
-		t.Errorf("Expected address[] output, got %s", method.Outputs[0].Type.String())
-	}
-
-	t.Log("✅ getActiveValidators ABI is correct")
-}
-
-func TestRAT_ABI_GetBLSPublicKey(t *testing.T) {
-	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
-	if err != nil {
-		t.Fatalf("Failed to parse ABI: %v", err)
-	}
-
-	method, ok := parsedABI.Methods["getBLSPublicKey"]
-	if !ok {
-		t.Fatal("getBLSPublicKey method not found")
-	}
-
-	// 입력 파라미터는 address 1개
+	// 입력 파라미터: address systemConfig
 	if len(method.Inputs) != 1 {
 		t.Errorf("Expected 1 input, got %d", len(method.Inputs))
 	}
-
 	if method.Inputs[0].Type.String() != "address" {
 		t.Errorf("Expected address input, got %s", method.Inputs[0].Type.String())
+	}
+
+	// 출력: (address[], bytes[], uint256)
+	if len(method.Outputs) != 3 {
+		t.Errorf("Expected 3 outputs, got %d", len(method.Outputs))
+	}
+
+	t.Log("✅ getActiveValidatorsWithBLS ABI is correct")
+}
+
+func TestRAT_ABI_GetValidatorBLSPubKey(t *testing.T) {
+	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
+	if err != nil {
+		t.Fatalf("Failed to parse ABI: %v", err)
+	}
+
+	method, ok := parsedABI.Methods["getValidatorBLSPubKey"]
+	if !ok {
+		t.Fatal("getValidatorBLSPubKey method not found")
+	}
+
+	// 입력 파라미터: (address validator, address systemConfig)
+	if len(method.Inputs) != 2 {
+		t.Errorf("Expected 2 inputs, got %d", len(method.Inputs))
 	}
 
 	// 출력은 bytes 타입
 	if len(method.Outputs) != 1 {
 		t.Errorf("Expected 1 output, got %d", len(method.Outputs))
 	}
-
 	if method.Outputs[0].Type.String() != "bytes" {
 		t.Errorf("Expected bytes output, got %s", method.Outputs[0].Type.String())
 	}
 
-	t.Log("✅ getBLSPublicKey ABI is correct")
+	t.Log("✅ getValidatorBLSPubKey ABI is correct")
 }
 
 func TestRAT_ABI_GetValidatorCount(t *testing.T) {
@@ -160,16 +159,15 @@ func TestRAT_ABI_GetValidatorCount(t *testing.T) {
 		t.Fatal("getValidatorCount method not found")
 	}
 
-	// 입력 파라미터가 없어야 함
-	if len(method.Inputs) != 0 {
-		t.Errorf("Expected 0 inputs, got %d", len(method.Inputs))
+	// 입력: address systemConfig
+	if len(method.Inputs) != 1 {
+		t.Errorf("Expected 1 input, got %d", len(method.Inputs))
 	}
 
-	// 출력은 uint256 타입
+	// 출력: uint256
 	if len(method.Outputs) != 1 {
 		t.Errorf("Expected 1 output, got %d", len(method.Outputs))
 	}
-
 	if method.Outputs[0].Type.String() != "uint256" {
 		t.Errorf("Expected uint256 output, got %s", method.Outputs[0].Type.String())
 	}
@@ -177,67 +175,43 @@ func TestRAT_ABI_GetValidatorCount(t *testing.T) {
 	t.Log("✅ getValidatorCount ABI is correct")
 }
 
-func TestRAT_ABI_IsActiveValidator(t *testing.T) {
+func TestRAT_ABI_IsValidatorActive(t *testing.T) {
 	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
 	if err != nil {
 		t.Fatalf("Failed to parse ABI: %v", err)
 	}
 
-	method, ok := parsedABI.Methods["isActiveValidator"]
+	method, ok := parsedABI.Methods["isValidatorActive"]
 	if !ok {
-		t.Fatal("isActiveValidator method not found")
+		t.Fatal("isValidatorActive method not found")
 	}
 
-	// 입력 파라미터는 address 1개
-	if len(method.Inputs) != 1 {
-		t.Errorf("Expected 1 input, got %d", len(method.Inputs))
+	// 입력: (address validator, address systemConfig)
+	if len(method.Inputs) != 2 {
+		t.Errorf("Expected 2 inputs, got %d", len(method.Inputs))
 	}
 
-	if method.Inputs[0].Type.String() != "address" {
-		t.Errorf("Expected address input, got %s", method.Inputs[0].Type.String())
-	}
-
-	// 출력은 bool 타입
+	// 출력: bool
 	if len(method.Outputs) != 1 {
 		t.Errorf("Expected 1 output, got %d", len(method.Outputs))
 	}
-
 	if method.Outputs[0].Type.String() != "bool" {
 		t.Errorf("Expected bool output, got %s", method.Outputs[0].Type.String())
 	}
 
-	t.Log("✅ isActiveValidator ABI is correct")
+	t.Log("✅ isValidatorActive ABI is correct")
 }
 
-func TestRAT_ABI_Pack_GetActiveValidators(t *testing.T) {
+func TestRAT_ABI_Pack_GetActiveValidatorsWithBLS(t *testing.T) {
 	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
 	if err != nil {
 		t.Fatalf("Failed to parse ABI: %v", err)
 	}
 
-	data, err := parsedABI.Pack("getActiveValidators")
+	systemConfig := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	data, err := parsedABI.Pack("getActiveValidatorsWithBLS", systemConfig)
 	if err != nil {
-		t.Fatalf("Failed to pack getActiveValidators: %v", err)
-	}
-
-	// Function selector is 4 bytes
-	if len(data) != 4 {
-		t.Errorf("Expected 4 bytes (selector only), got %d", len(data))
-	}
-
-	t.Logf("✅ getActiveValidators packed: 0x%x", data)
-}
-
-func TestRAT_ABI_Pack_GetBLSPublicKey(t *testing.T) {
-	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
-	if err != nil {
-		t.Fatalf("Failed to parse ABI: %v", err)
-	}
-
-	validator := common.HexToAddress("0x1234567890123456789012345678901234567890")
-	data, err := parsedABI.Pack("getBLSPublicKey", validator)
-	if err != nil {
-		t.Fatalf("Failed to pack getBLSPublicKey: %v", err)
+		t.Fatalf("Failed to pack: %v", err)
 	}
 
 	// Function selector (4) + address (32) = 36 bytes
@@ -245,65 +219,71 @@ func TestRAT_ABI_Pack_GetBLSPublicKey(t *testing.T) {
 		t.Errorf("Expected 36 bytes, got %d", len(data))
 	}
 
-	t.Logf("✅ getBLSPublicKey packed: %d bytes", len(data))
+	t.Logf("✅ getActiveValidatorsWithBLS packed: 0x%x", data[:4])
 }
 
-func TestRAT_ABI_Pack_IsActiveValidator(t *testing.T) {
+func TestRAT_ABI_Pack_GetValidatorBLSPubKey(t *testing.T) {
 	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
 	if err != nil {
 		t.Fatalf("Failed to parse ABI: %v", err)
 	}
 
 	validator := common.HexToAddress("0x1234567890123456789012345678901234567890")
-	data, err := parsedABI.Pack("isActiveValidator", validator)
+	systemConfig := common.HexToAddress("0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd")
+	data, err := parsedABI.Pack("getValidatorBLSPubKey", validator, systemConfig)
 	if err != nil {
-		t.Fatalf("Failed to pack isActiveValidator: %v", err)
+		t.Fatalf("Failed to pack: %v", err)
 	}
 
-	// Function selector (4) + address (32) = 36 bytes
-	if len(data) != 36 {
-		t.Errorf("Expected 36 bytes, got %d", len(data))
+	// Function selector (4) + address (32) + address (32) = 68 bytes
+	if len(data) != 68 {
+		t.Errorf("Expected 68 bytes, got %d", len(data))
 	}
 
-	t.Logf("✅ isActiveValidator packed: %d bytes", len(data))
+	t.Logf("✅ getValidatorBLSPubKey packed: %d bytes", len(data))
+}
+
+func TestRAT_ABI_Pack_IsValidatorActive(t *testing.T) {
+	parsedABI, err := abi.JSON(strings.NewReader(ratABI))
+	if err != nil {
+		t.Fatalf("Failed to parse ABI: %v", err)
+	}
+
+	validator := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	systemConfig := common.HexToAddress("0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd")
+	data, err := parsedABI.Pack("isValidatorActive", validator, systemConfig)
+	if err != nil {
+		t.Fatalf("Failed to pack: %v", err)
+	}
+
+	// Function selector (4) + address (32) + address (32) = 68 bytes
+	if len(data) != 68 {
+		t.Errorf("Expected 68 bytes, got %d", len(data))
+	}
+
+	t.Logf("✅ isValidatorActive packed: %d bytes", len(data))
 }
 
 func TestValidatorInfo_BLSPublicKeySize(t *testing.T) {
-	// BLS12-381 public key sizes
-	// G1 (compressed): 48 bytes
-	// G2 (compressed): 96 bytes
-
-	testCases := []struct {
-		name string
-		size int
-	}{
-		{"G1 compressed (typical)", 48},
-		{"G2 compressed", 96},
+	// EIP-2537 BLS12-381 public key: 128 bytes (uncompressed G1 point)
+	info := ValidatorInfo{
+		Address:      common.HexToAddress("0x1234"),
+		BLSPublicKey: make([]byte, 128),
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			info := ValidatorInfo{
-				Address:      common.HexToAddress("0x1234"),
-				BLSPublicKey: make([]byte, tc.size),
-			}
-
-			if len(info.BLSPublicKey) != tc.size {
-				t.Errorf("Expected %d bytes, got %d", tc.size, len(info.BLSPublicKey))
-			}
-		})
+	if len(info.BLSPublicKey) != 128 {
+		t.Errorf("Expected 128 bytes, got %d", len(info.BLSPublicKey))
 	}
 
-	t.Log("✅ BLS public key sizes validated")
+	t.Log("✅ BLS public key size validated (128 bytes, EIP-2537)")
 }
 
 func TestValidatorInfo_EmptyBLSKey(t *testing.T) {
 	info := ValidatorInfo{
 		Address:      common.HexToAddress("0x1234567890123456789012345678901234567890"),
-		BLSPublicKey: []byte{}, // empty
+		BLSPublicKey: []byte{},
 	}
 
-	// Empty BLS key는 유효하지 않은 검증자를 나타냄
 	if len(info.BLSPublicKey) != 0 {
 		t.Error("BLS key should be empty")
 	}
@@ -315,15 +295,15 @@ func TestMultipleValidators(t *testing.T) {
 	validators := []ValidatorInfo{
 		{
 			Address:      common.HexToAddress("0x1111111111111111111111111111111111111111"),
-			BLSPublicKey: make([]byte, 48),
+			BLSPublicKey: make([]byte, 128),
 		},
 		{
 			Address:      common.HexToAddress("0x2222222222222222222222222222222222222222"),
-			BLSPublicKey: make([]byte, 48),
+			BLSPublicKey: make([]byte, 128),
 		},
 		{
 			Address:      common.HexToAddress("0x3333333333333333333333333333333333333333"),
-			BLSPublicKey: make([]byte, 48),
+			BLSPublicKey: make([]byte, 128),
 		},
 	}
 
@@ -331,7 +311,6 @@ func TestMultipleValidators(t *testing.T) {
 		t.Errorf("Expected 3 validators, got %d", len(validators))
 	}
 
-	// 각 검증자의 주소가 고유한지 확인
 	addressSet := make(map[common.Address]bool)
 	for _, v := range validators {
 		if addressSet[v.Address] {
@@ -344,7 +323,6 @@ func TestMultipleValidators(t *testing.T) {
 }
 
 func TestValidatorCount_BigInt(t *testing.T) {
-	// 검증자 수는 uint256으로 반환됨
 	counts := []*big.Int{
 		big.NewInt(0),
 		big.NewInt(1),
