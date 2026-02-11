@@ -220,6 +220,21 @@ export const OPTIMISM_PORTAL_ABI = [
   'function disputeGameFinalityDelaySeconds() view returns (uint256)',
   'function seigManager() view returns (address)',
   'function fastFinalizedWithdrawals(bytes32) view returns (bool)',
+  'function respectedGameType() view returns (uint32)',
+
+  // Withdrawal queries
+  'function provenWithdrawals(bytes32, address) view returns (address disputeGameProxy, uint64 timestamp)',
+  'function finalizedWithdrawals(bytes32) view returns (bool)',
+  'function numProofSubmitters(bytes32) view returns (uint256)',
+
+  // Withdrawal actions
+  'function proveWithdrawalTransaction(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data), uint256 disputeGameIndex, tuple(bytes32 version, bytes32 stateRoot, bytes32 messagePasserStorageRoot, bytes32 latestBlockhash), bytes[])',
+  'function finalizeWithdrawalTransaction(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data))',
+  'function proveAndRequestFastWithdrawal(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data), uint256 disputeGameIndex, tuple(bytes32 version, bytes32 stateRoot, bytes32 messagePasserStorageRoot, bytes32 latestBlockhash), bytes[]) payable',
+
+  // Events
+  'event WithdrawalProven(bytes32 indexed withdrawalHash, address indexed from, address indexed to)',
+  'event WithdrawalFinalized(bytes32 indexed withdrawalHash, bool success)',
 ];
 
 export const L1_STANDARD_BRIDGE_ABI = [
@@ -246,4 +261,10 @@ export const L2_STANDARD_BRIDGE_ABI = [
   'function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) payable',
   'function OTHER_BRIDGE() view returns (address)',
   'function deposits(address, address) view returns (uint256)',
+];
+
+export const L2_TO_L1_MESSAGE_PASSER_ABI = [
+  'function sentMessages(bytes32) view returns (bool)',
+  'function messageNonce() view returns (uint256)',
+  'event MessagePassed(uint256 indexed nonce, address indexed sender, address indexed target, uint256 value, uint256 gasLimit, bytes data, bytes32 withdrawalHash)',
 ];

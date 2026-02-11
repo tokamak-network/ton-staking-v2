@@ -6,7 +6,7 @@ import {
   LAYER2_MANAGER_ABI, L1_BRIDGE_REGISTRY_ABI, LAYER2_REGISTRY_ABI,
   RAT_ABI, DISPUTE_GAME_FACTORY_ABI, DISPUTE_GAME_ABI, SYSTEM_CONFIG_ABI,
   OPTIMISM_PORTAL_ABI, L1_STANDARD_BRIDGE_ABI, L2_STANDARD_BRIDGE_ABI, OPERATOR_MANAGER_ABI,
-  DELAYED_WETH_ABI
+  DELAYED_WETH_ABI, L2_TO_L1_MESSAGE_PASSER_ABI
 } from './abis';
 import './App.css';
 
@@ -249,6 +249,49 @@ interface GameWithdrawalSettings {
   minValidatorsForFW: number;
 }
 
+type WithdrawalStatus = 'initiated' | 'ready_to_prove' | 'proven' | 'ready_to_finalize' | 'finalized' | 'fast_verified' | 'fast_finalized';
+
+interface WithdrawalInfo {
+  l2TxHash: string;
+  l2BlockNumber: number;
+  nonce: bigint;
+  sender: string;
+  target: string;
+  value: bigint;
+  gasLimit: bigint;
+  data: string;
+  withdrawalHash: string;
+  status: WithdrawalStatus;
+  statusMessage: string;
+  nextAction: string;
+  gameIndex?: number;
+  gameProxy?: string;
+  gameL2Block?: number;
+  gameType?: number;
+  gameStatus?: number;
+  isGameRespected?: boolean;
+  provenTimestamp?: number;
+  provenGameProxy?: string;
+  proofMaturityDelay?: number;
+  disputeGameFinalityDelay?: number;
+  timeUntilFinalizable?: number;
+  isFastVerified?: boolean;
+  isFastFinalized?: boolean;
+}
+
+interface MerkleProofData {
+  outputRootProof: {
+    version: string;
+    stateRoot: string;
+    messagePasserStorageRoot: string;
+    latestBlockhash: string;
+  };
+  withdrawalProof: string[];
+  gameIndex: number;
+}
+
+const L2_TO_L1_MESSAGE_PASSER = '0x4200000000000000000000000000000000000016';
+
 function App() {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [l1Provider] = useState<ethers.JsonRpcProvider>(new ethers.JsonRpcProvider(CONFIG.rpcUrl));
@@ -307,6 +350,15 @@ function App() {
   // Fast Withdrawal state
   const [fwStatus, setFwStatus] = useState<{ ready: boolean; blsCount: number; minRequired: number; responsePeriod: number; feeRate: string } | null>(null);
   const [fwCheckResult, setFwCheckResult] = useState<{ hash: string; finalized: boolean } | null>(null);
+
+  // Withdrawal Tracker state
+  const [trackedWithdrawals, setTrackedWithdrawals] = useState<WithdrawalInfo[]>([]);
+  const [withdrawalTxHashInput, setWithdrawalTxHashInput] = useState('');
+  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState('');
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalInfo | null>(null);
+  const [withdrawalProofData, setWithdrawalProofData] = useState<MerkleProofData | null>(null);
+  const [lastWithdrawalResult, setLastWithdrawalResult] = useState<{ txHash: string; type: string } | null>(null);
 
   // User Balances (L1)
   const [ethBalance, setEthBalance] = useState<string>('0');
@@ -1919,6 +1971,515 @@ function App() {
     }
   };
 
+  // ========================
+  // Withdrawal Tracker Functions
+  // ========================
+
+  const lookupWithdrawalFromL2Tx = async (l2TxHash: string): Promise<WithdrawalInfo | null> => {
+    try {
+      const receipt = await l2Provider.getTransactionReceipt(l2TxHash);
+      if (!receipt) throw new Error('L2 transaction not found');
+
+      const iface = new ethers.Interface(L2_TO_L1_MESSAGE_PASSER_ABI);
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== L2_TO_L1_MESSAGE_PASSER.toLowerCase()) continue;
+        try {
+          const parsed = iface.parseLog({ topics: log.topics as string[], data: log.data });
+          if (parsed && parsed.name === 'MessagePassed') {
+            return {
+              l2TxHash,
+              l2BlockNumber: receipt.blockNumber,
+              nonce: parsed.args[0],
+              sender: parsed.args[1],
+              target: parsed.args[2],
+              value: parsed.args[3],
+              gasLimit: parsed.args[4],
+              data: parsed.args[5],
+              withdrawalHash: parsed.args[6],
+              status: 'initiated',
+              statusMessage: 'Withdrawal initiated on L2',
+              nextAction: 'Checking status...',
+            };
+          }
+        } catch {
+          // not a MessagePassed log
+        }
+      }
+      throw new Error('No MessagePassed event found in this transaction');
+    } catch (error: any) {
+      throw new Error(`Failed to lookup L2 tx: ${error.message}`);
+    }
+  };
+
+  const findCoveringGame = async (l2BlockNumber: number): Promise<{ gameIndex: number; gameProxy: string; gameL2Block: number; gameType: number; gameStatus: number; isRespected: boolean } | null> => {
+    try {
+      if (!l2Info?.portal) return null;
+      const factory = new ethers.Contract(CONFIG.contracts.disputeGameFactory, DISPUTE_GAME_FACTORY_ABI, l1Provider);
+      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, l1Provider);
+
+      const [gameCount, respectedType] = await Promise.all([
+        factory.gameCount(),
+        portal.respectedGameType().catch(() => 0),
+      ]);
+      const total = Number(gameCount);
+      const respectedGameType = Number(respectedType);
+      if (total === 0) return null;
+
+      console.log(`findCoveringGame: total=${total}, respectedGameType=${respectedGameType}, targetL2Block=${l2BlockNumber}`);
+
+      // Search backwards from the latest game
+      const searchCount = Math.min(total, 50);
+      for (let i = total - 1; i >= total - searchCount; i--) {
+        try {
+          const game = await factory.gameAtIndex(i);
+          const gameType = Number(game[0]);
+          const gameContract = new ethers.Contract(game[2], DISPUTE_GAME_ABI, l1Provider);
+          const [gameL2Block, gameStatus] = await Promise.all([
+            gameContract.l2BlockNumber(),
+            gameContract.status(),
+          ]);
+          const l2Block = Number(gameL2Block);
+          const status = Number(gameStatus);
+
+          // Skip games that resolved as CHALLENGER_WINS (status 1)
+          if (status === 1) continue;
+
+          if (l2Block >= l2BlockNumber) {
+            const isRespected = gameType === respectedGameType;
+            console.log(`findCoveringGame: found game #${i}, type=${gameType}, l2Block=${l2Block}, status=${status}, respected=${isRespected}`);
+            return { gameIndex: i, gameProxy: game[2], gameL2Block: l2Block, gameType, gameStatus: status, isRespected };
+          }
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('findCoveringGame error:', error);
+      return null;
+    }
+  };
+
+  const checkWithdrawalStatus = async (withdrawal: WithdrawalInfo): Promise<WithdrawalInfo> => {
+    try {
+      if (!l2Info?.portal) throw new Error('Portal address not available');
+
+      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, l1Provider);
+      const updated = { ...withdrawal };
+
+      // 1. Check if finalized
+      const [isFinalized, isFastFinalized] = await Promise.all([
+        portal.finalizedWithdrawals(withdrawal.withdrawalHash).catch(() => false),
+        portal.fastFinalizedWithdrawals(withdrawal.withdrawalHash).catch(() => false),
+      ]);
+
+      if (isFastFinalized) {
+        updated.status = 'fast_finalized';
+        updated.statusMessage = 'Fast withdrawal finalized';
+        updated.nextAction = 'Complete';
+        updated.isFastFinalized = true;
+        return updated;
+      }
+      if (isFinalized) {
+        updated.status = 'finalized';
+        updated.statusMessage = 'Withdrawal finalized';
+        updated.nextAction = 'Complete';
+        return updated;
+      }
+
+      // 2. Check if proven
+      const userAddr = address || withdrawal.sender;
+      const proven = await portal.provenWithdrawals(withdrawal.withdrawalHash, userAddr).catch(() => null);
+
+      if (proven && proven.timestamp > 0n) {
+        updated.provenTimestamp = Number(proven.timestamp);
+        updated.provenGameProxy = proven.disputeGameProxy;
+
+        // Check proof maturity and game resolution
+        const [maturityDelay, finalityDelay] = await Promise.all([
+          portal.proofMaturityDelaySeconds().catch(() => 0n),
+          portal.disputeGameFinalityDelaySeconds().catch(() => 0n),
+        ]);
+
+        updated.proofMaturityDelay = Number(maturityDelay);
+        updated.disputeGameFinalityDelay = Number(finalityDelay);
+
+        const now = Math.floor(Date.now() / 1000);
+        const proofAge = now - updated.provenTimestamp;
+
+        // Check if the dispute game is resolved
+        let gameResolved = false;
+        let gameResolvedAt = 0;
+        if (proven.disputeGameProxy && proven.disputeGameProxy !== ethers.ZeroAddress) {
+          try {
+            const gameContract = new ethers.Contract(proven.disputeGameProxy, DISPUTE_GAME_ABI, l1Provider);
+            const [gameStatus, resolvedAt] = await Promise.all([
+              gameContract.status(),
+              gameContract.resolvedAt().catch(() => 0),
+            ]);
+            // status 2 = DEFENDER_WINS (resolved in favor of the proposal)
+            gameResolved = Number(gameStatus) === 2;
+            gameResolvedAt = Number(resolvedAt);
+          } catch {
+            // game not accessible
+          }
+        }
+
+        const proofMature = proofAge >= Number(maturityDelay);
+        const gameFinalityMet = gameResolved && (now - gameResolvedAt >= Number(finalityDelay));
+
+        if (proofMature && gameFinalityMet) {
+          updated.status = 'ready_to_finalize';
+          updated.statusMessage = 'Ready to finalize';
+          updated.nextAction = 'Finalize Withdrawal';
+          updated.timeUntilFinalizable = 0;
+        } else {
+          updated.status = 'proven';
+          updated.statusMessage = 'Withdrawal proven, waiting for maturity';
+
+          // Calculate remaining time
+          const timeUntilProofMature = Math.max(0, Number(maturityDelay) - proofAge);
+          const timeUntilGameFinality = gameResolved ? Math.max(0, Number(finalityDelay) - (now - gameResolvedAt)) : Number(finalityDelay);
+          updated.timeUntilFinalizable = Math.max(timeUntilProofMature, timeUntilGameFinality);
+          updated.nextAction = `Wait ${Math.ceil(updated.timeUntilFinalizable / 60)}m`;
+        }
+        return updated;
+      }
+
+      // 3. Not proven yet - find covering game
+      const coveringGame = await findCoveringGame(withdrawal.l2BlockNumber);
+      if (coveringGame) {
+        updated.gameIndex = coveringGame.gameIndex;
+        updated.gameProxy = coveringGame.gameProxy;
+        updated.gameL2Block = coveringGame.gameL2Block;
+        updated.gameType = coveringGame.gameType;
+        updated.gameStatus = coveringGame.gameStatus;
+        updated.isGameRespected = coveringGame.isRespected;
+        updated.status = 'ready_to_prove';
+        updated.statusMessage = `Game #${coveringGame.gameIndex} (L2 block ${coveringGame.gameL2Block}) covers this withdrawal`;
+        updated.nextAction = coveringGame.isRespected ? 'Prove Withdrawal' : 'Prove Withdrawal (game not respected)';
+      } else {
+        updated.status = 'initiated';
+        updated.statusMessage = 'Waiting for dispute game to cover L2 block ' + withdrawal.l2BlockNumber;
+        updated.nextAction = 'Wait for game proposal';
+      }
+
+      return updated;
+    } catch (error: any) {
+      console.error('checkWithdrawalStatus error:', error);
+      return { ...withdrawal, statusMessage: `Error: ${error.message}` };
+    }
+  };
+
+  const generateMerkleProof = async (withdrawal: WithdrawalInfo): Promise<MerkleProofData | null> => {
+    try {
+      if (!withdrawal.gameProxy || withdrawal.gameIndex === undefined) {
+        throw new Error('No covering game found. Cannot generate proof.');
+      }
+
+      // Get game's L2 block number
+      const gameContract = new ethers.Contract(withdrawal.gameProxy, DISPUTE_GAME_ABI, l1Provider);
+      const gameL2Block = await gameContract.l2BlockNumber();
+      const blockTag = '0x' + BigInt(gameL2Block).toString(16);
+
+      // Get L2 block for stateRoot and latestBlockhash
+      const l2Block = await l2Provider.send('eth_getBlockByNumber', [blockTag, false]);
+      if (!l2Block) throw new Error('L2 block not found');
+
+      // Compute storage slot: keccak256(abi.encode(withdrawalHash, uint256(0)))
+      const storageSlot = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ['bytes32', 'uint256'],
+          [withdrawal.withdrawalHash, 0]
+        )
+      );
+
+      // Get proof from L2
+      const proof = await l2Provider.send('eth_getProof', [
+        L2_TO_L1_MESSAGE_PASSER,
+        [storageSlot],
+        blockTag,
+      ]);
+
+      if (!proof || !proof.storageProof || proof.storageProof.length === 0) {
+        throw new Error('Failed to get storage proof');
+      }
+
+      // Verify the withdrawal exists in L2 state (sentMessages[hash] = true)
+      const storageValue = proof.storageProof[0].value;
+      if (storageValue === '0x0' || storageValue === '0x') {
+        throw new Error('Withdrawal not found in L2 state at the game block. The withdrawal may not be included in this game.');
+      }
+
+      // Pre-validate: compute output root and verify it matches the game's rootClaim
+      const outputRootProof = {
+        version: ethers.ZeroHash,
+        stateRoot: l2Block.stateRoot,
+        messagePasserStorageRoot: proof.storageHash,
+        latestBlockhash: l2Block.hash,
+      };
+
+      const computedOutputRoot = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ['bytes32', 'bytes32', 'bytes32', 'bytes32'],
+          [outputRootProof.version, outputRootProof.stateRoot, outputRootProof.messagePasserStorageRoot, outputRootProof.latestBlockhash]
+        )
+      );
+
+      const rootClaim = await gameContract.rootClaim();
+      if (computedOutputRoot !== rootClaim) {
+        console.error('Output root mismatch!', { computedOutputRoot, rootClaim, outputRootProof });
+        throw new Error(`Output root mismatch: computed ${computedOutputRoot.substring(0, 18)}... vs game rootClaim ${rootClaim.substring(0, 18)}...`);
+      }
+
+      console.log('generateMerkleProof: output root verified, proof generated successfully');
+
+      return {
+        outputRootProof,
+        withdrawalProof: proof.storageProof[0].proof,
+        gameIndex: withdrawal.gameIndex,
+      };
+    } catch (error: any) {
+      console.error('generateMerkleProof error:', error);
+      throw new Error(`Failed to generate proof: ${error.message}`);
+    }
+  };
+
+  const proveWithdrawalTx = async (withdrawal: WithdrawalInfo, proofData: MerkleProofData) => {
+    if (!signer || !l2Info?.portal) {
+      alert('Please connect wallet first');
+      return;
+    }
+
+    try {
+      setWithdrawalLoading(true);
+
+      // Ensure we're on L1
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
+      });
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const browserSigner = await browserProvider.getSigner();
+      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, browserSigner);
+
+      const withdrawalTx = {
+        nonce: withdrawal.nonce,
+        sender: withdrawal.sender,
+        target: withdrawal.target,
+        value: withdrawal.value,
+        gasLimit: withdrawal.gasLimit,
+        data: withdrawal.data,
+      };
+
+      const tx = await portal.proveWithdrawalTransaction(
+        withdrawalTx,
+        proofData.gameIndex,
+        [
+          proofData.outputRootProof.version,
+          proofData.outputRootProof.stateRoot,
+          proofData.outputRootProof.messagePasserStorageRoot,
+          proofData.outputRootProof.latestBlockhash,
+        ],
+        proofData.withdrawalProof
+      );
+      await tx.wait();
+      alert('Withdrawal proven successfully!');
+
+      // Refresh status
+      const updated = await checkWithdrawalStatus(withdrawal);
+      setSelectedWithdrawal(updated);
+      setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
+    } catch (error: any) {
+      console.error('proveWithdrawal error:', error);
+      alert(`Failed to prove: ${error.message}`);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const proveAndRequestFastWithdrawalTx = async (withdrawal: WithdrawalInfo, proofData: MerkleProofData) => {
+    if (!signer || !l2Info?.portal) {
+      alert('Please connect wallet first');
+      return;
+    }
+
+    try {
+      setWithdrawalLoading(true);
+
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
+      });
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const browserSigner = await browserProvider.getSigner();
+      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, browserSigner);
+
+      const withdrawalTx = {
+        nonce: withdrawal.nonce,
+        sender: withdrawal.sender,
+        target: withdrawal.target,
+        value: withdrawal.value,
+        gasLimit: withdrawal.gasLimit,
+        data: withdrawal.data,
+      };
+
+      const tx = await portal.proveAndRequestFastWithdrawal(
+        withdrawalTx,
+        proofData.gameIndex,
+        [
+          proofData.outputRootProof.version,
+          proofData.outputRootProof.stateRoot,
+          proofData.outputRootProof.messagePasserStorageRoot,
+          proofData.outputRootProof.latestBlockhash,
+        ],
+        proofData.withdrawalProof,
+        { value: withdrawal.value }
+      );
+      await tx.wait();
+      alert('Prove + Fast Withdrawal requested successfully!');
+
+      const updated = await checkWithdrawalStatus(withdrawal);
+      setSelectedWithdrawal(updated);
+      setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
+    } catch (error: any) {
+      console.error('proveAndRequestFastWithdrawal error:', error);
+      alert(`Failed: ${error.message}`);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const finalizeWithdrawalTx = async (withdrawal: WithdrawalInfo) => {
+    if (!signer || !l2Info?.portal) {
+      alert('Please connect wallet first');
+      return;
+    }
+
+    try {
+      setWithdrawalLoading(true);
+
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
+      });
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const browserSigner = await browserProvider.getSigner();
+      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, browserSigner);
+
+      const withdrawalTx = {
+        nonce: withdrawal.nonce,
+        sender: withdrawal.sender,
+        target: withdrawal.target,
+        value: withdrawal.value,
+        gasLimit: withdrawal.gasLimit,
+        data: withdrawal.data,
+      };
+
+      const tx = await portal.finalizeWithdrawalTransaction(withdrawalTx);
+      await tx.wait();
+      alert('Withdrawal finalized successfully!');
+
+      const updated = await checkWithdrawalStatus(withdrawal);
+      setSelectedWithdrawal(updated);
+      setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
+    } catch (error: any) {
+      console.error('finalizeWithdrawal error:', error);
+      alert(`Failed: ${error.message}`);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const trackWithdrawal = async (txHash: string) => {
+    try {
+      setWithdrawalLoading(true);
+      setWithdrawalError('');
+
+      // Check for duplicates
+      if (trackedWithdrawals.find(w => w.l2TxHash.toLowerCase() === txHash.toLowerCase())) {
+        // Already tracked, just refresh status
+        const existing = trackedWithdrawals.find(w => w.l2TxHash.toLowerCase() === txHash.toLowerCase())!;
+        const updated = await checkWithdrawalStatus(existing);
+        setTrackedWithdrawals(prev => prev.map(w => w.l2TxHash.toLowerCase() === txHash.toLowerCase() ? updated : w));
+        setSelectedWithdrawal(updated);
+        return;
+      }
+
+      const withdrawal = await lookupWithdrawalFromL2Tx(txHash);
+      if (!withdrawal) {
+        setWithdrawalError('No withdrawal found in this transaction');
+        return;
+      }
+
+      const updated = await checkWithdrawalStatus(withdrawal);
+      setTrackedWithdrawals(prev => [updated, ...prev]);
+      setSelectedWithdrawal(updated);
+    } catch (error: any) {
+      setWithdrawalError(error.message);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const refreshAllWithdrawals = async () => {
+    try {
+      setWithdrawalLoading(true);
+      const updated = await Promise.all(trackedWithdrawals.map(w => checkWithdrawalStatus(w)));
+      setTrackedWithdrawals(updated);
+      if (selectedWithdrawal) {
+        const sel = updated.find(w => w.withdrawalHash === selectedWithdrawal.withdrawalHash);
+        if (sel) setSelectedWithdrawal(sel);
+      }
+    } catch (error: any) {
+      console.error('refreshAllWithdrawals error:', error);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: WithdrawalStatus): string => {
+    switch (status) {
+      case 'initiated': return '#6b7280';
+      case 'ready_to_prove': return '#3b82f6';
+      case 'proven': return '#f59e0b';
+      case 'ready_to_finalize': return '#8b5cf6';
+      case 'finalized': return '#10b981';
+      case 'fast_verified': return '#06b6d4';
+      case 'fast_finalized': return '#10b981';
+      default: return '#6b7280';
+    }
+  };
+
+  const getStatusLabel = (status: WithdrawalStatus): string => {
+    switch (status) {
+      case 'initiated': return 'Initiated';
+      case 'ready_to_prove': return 'Ready to Prove';
+      case 'proven': return 'Proven';
+      case 'ready_to_finalize': return 'Ready to Finalize';
+      case 'finalized': return 'Finalized';
+      case 'fast_verified': return 'Fast Verified';
+      case 'fast_finalized': return 'Fast Finalized';
+      default: return status;
+    }
+  };
+
+  const getStepNumber = (status: WithdrawalStatus): number => {
+    switch (status) {
+      case 'initiated': return 1;
+      case 'ready_to_prove': return 1;
+      case 'proven': return 3;
+      case 'ready_to_finalize': return 3;
+      case 'finalized': return 4;
+      case 'fast_verified': return 3;
+      case 'fast_finalized': return 4;
+      default: return 1;
+    }
+  };
+
   const formatAddress = (addr: string) => {
     return `${addr.substring(0, 6)}...${addr.substring(38)}`;
   };
@@ -2195,23 +2756,30 @@ function App() {
     try {
       const currentBlock = await l2Provider.getBlockNumber();
       const transactions: TransactionInfo[] = [];
-      
+      // L1 system deposit address - filter these out to show user txs
+      const DEPOSIT_TX_SOURCE = '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001';
+
       let loaded = 0;
-      for (let i = 0; i < 50 && loaded < count; i++) {
+      for (let i = 0; i < 200 && loaded < count; i++) {
         const blockNum = currentBlock - i;
         if (blockNum < 0) break;
-        
+
         const block = await l2Provider.getBlock(blockNum, true);
         if (block && block.transactions.length > 0) {
           const txs = block.transactions as any[];
           for (const txHash of txs) {
             if (loaded >= count) break;
-            
+
             try {
               const hash = typeof txHash === 'string' ? txHash : txHash.hash;
               const tx = await l2Provider.getTransaction(hash);
+              if (!tx) continue;
+
+              // Skip L1 system deposit transactions
+              if (tx.from.toLowerCase() === DEPOSIT_TX_SOURCE) continue;
+
               const receipt = await l2Provider.getTransactionReceipt(hash);
-              
+
               if (tx && receipt) {
                 transactions.push({
                   hash: tx.hash,
@@ -2233,7 +2801,7 @@ function App() {
           }
         }
       }
-      
+
       setL2Transactions(transactions);
     } catch (error) {
       console.error('Failed to load L2 transactions:', error);
@@ -5058,16 +5626,21 @@ function App() {
 
                                 // Withdraw ETH from L2
                                 const tx = await l2BridgeContract.bridgeETH(200000, '0x', { value: amountWei });
-                                await tx.wait();
-                                
-                                alert('✅ Withdrawal initiated! Now you need to wait for the challenge period (~7 days on mainnet, shorter on testnet) and then finalize on L1.');
+                                const receipt = await tx.wait();
+                                const l2TxHash = receipt?.hash || tx.hash;
+
                                 input.value = '';
-                                
+
                                 // Switch back to L1
                                 await window.ethereum.request({
                                   method: 'wallet_switchEthereumChain',
                                   params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
                                 });
+
+                                // Show result on screen and auto-track
+                                setLastWithdrawalResult({ txHash: l2TxHash, type: 'ETH' });
+                                setWithdrawalTxHashInput(l2TxHash);
+                                trackWithdrawal(l2TxHash);
                               } catch (error: any) {
                                 console.error('Withdrawal failed:', error);
                                 alert(`❌ Failed: ${error.message || 'Unknown error'}`);
@@ -5173,16 +5746,21 @@ function App() {
                                   200000,
                                   '0x'
                                 );
-                                await tx.wait();
-                                
-                                alert('✅ TON withdrawal initiated! Now you need to wait for the challenge period and then finalize on L1.');
+                                const tonReceipt = await tx.wait();
+                                const tonL2TxHash = tonReceipt?.hash || tx.hash;
+
                                 input.value = '';
-                                
+
                                 // Switch back to L1
                                 await window.ethereum.request({
                                   method: 'wallet_switchEthereumChain',
                                   params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
                                 });
+
+                                // Show result on screen and auto-track
+                                setLastWithdrawalResult({ txHash: tonL2TxHash, type: 'TON' });
+                                setWithdrawalTxHashInput(tonL2TxHash);
+                                trackWithdrawal(tonL2TxHash);
                               } catch (error: any) {
                                 console.error('TON withdrawal failed:', error);
                                 alert(`❌ Failed: ${error.message || 'Unknown error'}`);
@@ -5205,46 +5783,416 @@ function App() {
                     )}
                   </section>
 
+                  {/* Last Withdrawal Result */}
+                  {lastWithdrawalResult && (
+                    <section className="card" style={{ border: '2px solid #10b981' }}>
+                      <h2>Withdrawal Initiated</h2>
+                      <p>{lastWithdrawalResult.type} withdrawal submitted on L2. Track it below.</p>
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">L2 Transaction Hash:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <code style={{ fontSize: '0.85rem', wordBreak: 'break-all' }}>{lastWithdrawalResult.txHash}</code>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(lastWithdrawalResult.txHash);
+                              }}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setLastWithdrawalResult(null)}
+                        className="btn btn-secondary"
+                        style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}
+                      >
+                        Dismiss
+                      </button>
+                    </section>
+                  )}
+
+                  {/* Withdrawal Tracker */}
                   <section className="card">
-                    <h2>✅ Finalize Withdrawal on L1</h2>
-                    <p>Complete the withdrawal process after challenge period (prove and finalize)</p>
-                    <div className="warning-box" style={{ marginBottom: '1rem' }}>
-                      <p>⚠️ Advanced Feature: Requires withdrawal proof from L2 transaction.</p>
-                      <p>In production, you would need to:</p>
-                      <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
-                        <li>Wait for challenge period (7 days mainnet)</li>
-                        <li>Generate withdrawal proof using L2 transaction hash</li>
-                        <li>Call proveWithdrawalTransaction on OptimismPortal</li>
-                        <li>Wait for finalization period</li>
-                        <li>Call finalizeWithdrawalTransaction</li>
-                      </ul>
-                    </div>
+                    <h2>🔍 Withdrawal Tracker</h2>
+                    <p>Track L2 withdrawal status and execute prove/finalize on L1</p>
                     <div className="info-list" style={{ marginBottom: '1rem' }}>
                       <div className="info-row">
                         <span className="info-label">OptimismPortal:</span>
-                        <code>{l2Info?.portal}</code>
+                        <code>{l2Info?.portal || 'N/A'}</code>
                       </div>
                     </div>
-                    <div className="action-form">
+                    <div className="action-form" style={{ marginBottom: '0.5rem' }}>
                       <input
                         type="text"
-                        placeholder="L2 Withdrawal Transaction Hash"
+                        placeholder="L2 Withdrawal Transaction Hash (0x...)"
                         className="input"
-                        id="finalize-tx-hash"
-                        style={{ fontFamily: 'monospace' }}
+                        value={withdrawalTxHashInput}
+                        onChange={(e) => setWithdrawalTxHashInput(e.target.value)}
+                        style={{ fontFamily: 'monospace', flex: 1 }}
                       />
                       <button
                         onClick={() => {
-                          alert('⚠️ This is a placeholder. In production, you would need to implement:\n\n1. Fetch withdrawal proof from L2\n2. Submit proof to OptimismPortal\n3. Wait for dispute game resolution\n4. Finalize withdrawal\n\nUse official Optimism SDK for this functionality.');
+                          const hash = withdrawalTxHashInput.trim();
+                          if (!hash) {
+                            setWithdrawalError('Please enter a transaction hash');
+                            return;
+                          }
+                          trackWithdrawal(hash);
                         }}
-                        disabled={true}
-                        className="btn btn-secondary"
+                        disabled={withdrawalLoading}
+                        className="btn btn-primary"
                       >
-                        🔧 Finalize (Advanced - Coming Soon)
+                        {withdrawalLoading ? 'Loading...' : 'Track Withdrawal'}
                       </button>
                     </div>
-                    <small>Use Optimism SDK or official tools for withdrawal finalization</small>
+                    {trackedWithdrawals.length > 0 && (
+                      <button
+                        onClick={refreshAllWithdrawals}
+                        disabled={withdrawalLoading}
+                        className="btn btn-secondary"
+                        style={{ marginBottom: '0.5rem' }}
+                      >
+                        {withdrawalLoading ? 'Refreshing...' : 'Refresh All Status'}
+                      </button>
+                    )}
+                    {withdrawalError && (
+                      <div className="warning-box" style={{ marginTop: '0.5rem' }}>
+                        <p>{withdrawalError}</p>
+                      </div>
+                    )}
                   </section>
+
+                  {/* Withdrawal List */}
+                  {trackedWithdrawals.length > 0 && (
+                    <section className="card">
+                      <h2>📋 Tracked Withdrawals ({trackedWithdrawals.length})</h2>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left', padding: '0.5rem' }}>L2 Tx</th>
+                              <th style={{ textAlign: 'right', padding: '0.5rem' }}>Value</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem' }}>Status</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Next Action</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem' }}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trackedWithdrawals.map((w, idx) => (
+                              <tr key={idx} style={{
+                                borderBottom: '1px solid var(--border)',
+                                background: selectedWithdrawal?.withdrawalHash === w.withdrawalHash ? 'var(--bg-hover, rgba(59,130,246,0.1))' : 'transparent',
+                              }}>
+                                <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                                  {w.l2TxHash.substring(0, 10)}...{w.l2TxHash.substring(62)}
+                                </td>
+                                <td style={{ padding: '0.5rem', textAlign: 'right', fontSize: '0.85rem' }}>
+                                  {ethers.formatEther(w.value)} ETH
+                                </td>
+                                <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                  <span className="badge" style={{
+                                    background: getStatusColor(w.status),
+                                    color: 'white',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.8rem',
+                                  }}>
+                                    {getStatusLabel(w.status)}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>
+                                  {w.nextAction}
+                                </td>
+                                <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                  <button
+                                    onClick={() => setSelectedWithdrawal(w)}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                                  >
+                                    Details
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Withdrawal Detail */}
+                  {selectedWithdrawal && (
+                    <section className="card">
+                      <h2>📄 Withdrawal Detail</h2>
+
+                      {/* Progress Steps */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        margin: '1rem 0 1.5rem 0',
+                        padding: '1rem',
+                        background: 'var(--bg-secondary, #f9fafb)',
+                        borderRadius: '8px',
+                      }}>
+                        {[
+                          { step: 1, label: 'L2 Initiated' },
+                          { step: 2, label: 'Game Proposed' },
+                          { step: 3, label: 'Proven' },
+                          { step: 4, label: 'Finalized' },
+                        ].map(({ step, label }, i) => {
+                          const currentStep = getStepNumber(selectedWithdrawal.status);
+                          const isReady = selectedWithdrawal.status === 'ready_to_prove' && step === 2;
+                          const isComplete = step < currentStep || (step === currentStep && ['finalized', 'fast_finalized'].includes(selectedWithdrawal.status));
+                          const isCurrent = step === currentStep && !['finalized', 'fast_finalized'].includes(selectedWithdrawal.status);
+                          // step 2 is complete when status is ready_to_prove or beyond
+                          const step2Done = step === 2 && ['ready_to_prove', 'proven', 'ready_to_finalize', 'finalized', 'fast_verified', 'fast_finalized'].includes(selectedWithdrawal.status);
+
+                          return (
+                            <div key={step} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 'none' }}>
+                              <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  margin: '0 auto 4px',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 'bold',
+                                  background: (isComplete || step2Done) ? '#10b981' : (isCurrent || isReady) ? '#3b82f6' : '#d1d5db',
+                                  color: 'white',
+                                }}>
+                                  {(isComplete || step2Done) ? '\u2713' : step}
+                                </div>
+                                <div style={{
+                                  fontSize: '0.75rem',
+                                  color: (isComplete || step2Done) ? '#10b981' : (isCurrent || isReady) ? '#3b82f6' : '#9ca3af',
+                                  fontWeight: (isCurrent || isReady) ? 'bold' : 'normal',
+                                }}>
+                                  {label}
+                                </div>
+                              </div>
+                              {i < 3 && (
+                                <div style={{
+                                  flex: 1,
+                                  height: '2px',
+                                  background: (isComplete || step2Done) ? '#10b981' : '#d1d5db',
+                                  margin: '0 8px',
+                                  marginBottom: '20px',
+                                }} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Detail Info */}
+                      <div className="info-list">
+                        <div className="info-row">
+                          <span className="info-label">L2 Tx Hash:</span>
+                          <code style={{ fontSize: '0.85rem' }}>{selectedWithdrawal.l2TxHash}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">L2 Block:</span>
+                          <span>{selectedWithdrawal.l2BlockNumber}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Withdrawal Hash:</span>
+                          <code style={{ fontSize: '0.85rem' }}>{selectedWithdrawal.withdrawalHash}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Value:</span>
+                          <span>{ethers.formatEther(selectedWithdrawal.value)} ETH</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Target:</span>
+                          <code>{selectedWithdrawal.target}</code>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Status:</span>
+                          <span style={{ color: getStatusColor(selectedWithdrawal.status), fontWeight: 'bold' }}>
+                            {getStatusLabel(selectedWithdrawal.status)} - {selectedWithdrawal.statusMessage}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Dispute Game Info */}
+                      {(selectedWithdrawal.gameProxy || selectedWithdrawal.provenGameProxy) && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Dispute Game</h3>
+                          <div className="info-list">
+                            {selectedWithdrawal.gameProxy && (
+                              <>
+                                <div className="info-row">
+                                  <span className="info-label">Game Proxy:</span>
+                                  <code style={{ fontSize: '0.85rem' }}>{selectedWithdrawal.gameProxy}</code>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Game Index:</span>
+                                  <span>#{selectedWithdrawal.gameIndex}</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Game L2 Block:</span>
+                                  <span>{selectedWithdrawal.gameL2Block}</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Game Type:</span>
+                                  <span>{selectedWithdrawal.gameType}</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Game Status:</span>
+                                  <span>{selectedWithdrawal.gameStatus === 0 ? 'In Progress' : selectedWithdrawal.gameStatus === 1 ? 'Challenger Wins' : selectedWithdrawal.gameStatus === 2 ? 'Defender Wins' : String(selectedWithdrawal.gameStatus)}</span>
+                                </div>
+                                <div className="info-row">
+                                  <span className="info-label">Respected:</span>
+                                  <span style={{ color: selectedWithdrawal.isGameRespected ? '#10b981' : '#f59e0b' }}>
+                                    {selectedWithdrawal.isGameRespected ? 'Yes' : 'No (wasRespectedGameTypeWhenCreated = false)'}
+                                  </span>
+                                </div>
+                                {selectedWithdrawal.isGameRespected === false && (
+                                  <div className="warning-box" style={{ marginTop: '0.5rem' }}>
+                                    <p>This game's type ({selectedWithdrawal.gameType}) was not the respected game type when created. Standard prove may fail with InvalidDisputeGame.</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {selectedWithdrawal.provenGameProxy && selectedWithdrawal.provenGameProxy !== ethers.ZeroAddress && (
+                              <div className="info-row">
+                                <span className="info-label">Proven Game Proxy:</span>
+                                <code style={{ fontSize: '0.85rem' }}>{selectedWithdrawal.provenGameProxy}</code>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timing Info */}
+                      {selectedWithdrawal.provenTimestamp && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Timing</h3>
+                          <div className="info-list">
+                            <div className="info-row">
+                              <span className="info-label">Proven At:</span>
+                              <span>{new Date(selectedWithdrawal.provenTimestamp * 1000).toLocaleString()}</span>
+                            </div>
+                            {selectedWithdrawal.proofMaturityDelay !== undefined && (
+                              <div className="info-row">
+                                <span className="info-label">Proof Maturity Delay:</span>
+                                <span>{selectedWithdrawal.proofMaturityDelay}s ({Math.round(selectedWithdrawal.proofMaturityDelay / 60)}m)</span>
+                              </div>
+                            )}
+                            {selectedWithdrawal.disputeGameFinalityDelay !== undefined && (
+                              <div className="info-row">
+                                <span className="info-label">Game Finality Delay:</span>
+                                <span>{selectedWithdrawal.disputeGameFinalityDelay}s ({Math.round(selectedWithdrawal.disputeGameFinalityDelay / 60)}m)</span>
+                              </div>
+                            )}
+                            {selectedWithdrawal.timeUntilFinalizable !== undefined && selectedWithdrawal.timeUntilFinalizable > 0 && (
+                              <div className="info-row">
+                                <span className="info-label">Time Until Finalizable:</span>
+                                <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>
+                                  ~{Math.ceil(selectedWithdrawal.timeUntilFinalizable / 60)} minutes remaining
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {selectedWithdrawal.status === 'ready_to_prove' && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  setWithdrawalLoading(true);
+                                  const proofData = await generateMerkleProof(selectedWithdrawal);
+                                  if (proofData) {
+                                    setWithdrawalProofData(proofData);
+                                    await proveWithdrawalTx(selectedWithdrawal, proofData);
+                                  }
+                                } catch (error: any) {
+                                  alert(`Failed to generate proof: ${error.message}`);
+                                } finally {
+                                  setWithdrawalLoading(false);
+                                }
+                              }}
+                              disabled={withdrawalLoading || !signer}
+                              className="btn btn-primary"
+                            >
+                              {withdrawalLoading ? 'Processing...' : 'Prove (Standard)'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  setWithdrawalLoading(true);
+                                  const proofData = await generateMerkleProof(selectedWithdrawal);
+                                  if (proofData) {
+                                    setWithdrawalProofData(proofData);
+                                    await proveAndRequestFastWithdrawalTx(selectedWithdrawal, proofData);
+                                  }
+                                } catch (error: any) {
+                                  alert(`Failed: ${error.message}`);
+                                } finally {
+                                  setWithdrawalLoading(false);
+                                }
+                              }}
+                              disabled={withdrawalLoading || !signer}
+                              className="btn btn-primary"
+                              style={{ background: '#8b5cf6' }}
+                            >
+                              {withdrawalLoading ? 'Processing...' : 'Prove + Fast Withdrawal'}
+                            </button>
+                          </>
+                        )}
+
+                        {selectedWithdrawal.status === 'ready_to_finalize' && (
+                          <button
+                            onClick={() => finalizeWithdrawalTx(selectedWithdrawal)}
+                            disabled={withdrawalLoading || !signer}
+                            className="btn btn-primary"
+                            style={{ background: '#10b981' }}
+                          >
+                            {withdrawalLoading ? 'Processing...' : 'Finalize Withdrawal'}
+                          </button>
+                        )}
+
+                        {(selectedWithdrawal.status === 'finalized' || selectedWithdrawal.status === 'fast_finalized') && (
+                          <div style={{
+                            padding: '0.75rem 1rem',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid #10b981',
+                            borderRadius: '8px',
+                            color: '#10b981',
+                            fontWeight: 'bold',
+                          }}>
+                            Withdrawal Complete{selectedWithdrawal.status === 'fast_finalized' ? ' (Fast)' : ''}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            setWithdrawalLoading(true);
+                            const updated = await checkWithdrawalStatus(selectedWithdrawal);
+                            setSelectedWithdrawal(updated);
+                            setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
+                            setWithdrawalLoading(false);
+                          }}
+                          disabled={withdrawalLoading}
+                          className="btn btn-secondary"
+                        >
+                          {withdrawalLoading ? 'Refreshing...' : 'Refresh Status'}
+                        </button>
+                      </div>
+                    </section>
+                  )}
 
                   <section className="card">
                     <h2>⚡ Fast Withdrawal Status</h2>
