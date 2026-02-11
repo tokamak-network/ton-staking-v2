@@ -4,22 +4,23 @@ import { useDemoSession } from "../hooks/useDemoSession";
 import { formatToken } from "../lib/formatToken";
 
 export const SessionPanel = () => {
-  const { state } = useDemoSession();
+  const { state, refresh } = useDemoSession();
   const [logs, setLogs] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
   const [copied, setCopied] = useState(false);
 
+  const loadLogs = async () => {
+    try {
+      const data = await api.getSessionLogs();
+      setLogs(data.logs ?? "");
+    } catch {
+      setLogs("");
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await api.getSessionLogs();
-        setLogs(data.logs ?? "");
-      } catch {
-        setLogs("");
-      }
-    };
-    void load();
-    const interval = setInterval(load, 5000);
+    void loadLogs();
+    const interval = setInterval(loadLogs, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -39,6 +40,17 @@ export const SessionPanel = () => {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       alert("Failed to copy logs.");
+    }
+  };
+
+  const handleReset = async () => {
+    try {
+      await api.resetSession();
+    } catch {
+      // ignore errors to keep UX simple
+    } finally {
+      setLogs("");
+      await refresh();
     }
   };
 
@@ -62,6 +74,9 @@ export const SessionPanel = () => {
         </button>
         <button onClick={() => api.stopSession()} style={{ background: "#f59e0b" }}>
           Stop Session
+        </button>
+        <button onClick={handleReset} style={{ background: "#6b7280" }}>
+          Reset Session
         </button>
       </div>
 

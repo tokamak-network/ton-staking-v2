@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	rat "github.com/tokamak-network/ton-staking-v2/op-e2e/e2eutils/rat"
 )
 
@@ -242,22 +241,56 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 	)
 	setupRATForValidator(t, sys, accounts, env.SlashingContracts, candidateAddOn, rollupConfig, operatorStake)
 
+	aliceAddr := env.System.Cfg.Secrets.Addresses().Alice
+	bobAddr := env.System.Cfg.Secrets.Addresses().Bob
+	challengerBalanceBefore := new(big.Int).Add(
+		getWTONBalance(t, sys, aliceAddr),
+		getWTONBalance(t, sys, bobAddr),
+	)
+
 	initialStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
-	challengerBalanceBefore := getWTONBalance(t, sys, accounts.Challenger.Addr)
 
 	l2BlockNumber := uint64(1)
 	invalidRoot := common.HexToHash("0xdeadbeef")
 	game := env.CreateAlphabetGame(l2BlockNumber, invalidRoot)
 
-	key1, _ := crypto.HexToECDSA("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
-	key2, _ := crypto.HexToECDSA("7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6")
+	key1 := env.System.Cfg.Secrets.Alice
+	key2 := env.System.Cfg.Secrets.Bob
 
-	env.StartChallenger(game, "challenger-1", key1)
-	env.StartChallenger(game, "challenger-2", key2)
+	multi := NewMultiChallengerEnv(env)
+	multi.AddChallenger(game, "challenger-1", key1)
+	multi.AddChallenger(game, "challenger-2", key2)
+	multi.WaitForAllChallengersToAct()
 
-	rootClaimHelper := game.RootClaim(env.Ctx)
-	first := rootClaimHelper.WaitForCounterClaim(env.Ctx)
-	_ = rootClaimHelper.WaitForCounterClaim(env.Ctx, first)
+	claim := game.RootClaim(env.Ctx)
+	correctTrace := game.CreateHonestActor(env.Ctx, "sequencer")
+
+	for claim.IsOutputRoot(env.Ctx) && !claim.IsOutputRootLeaf(env.Ctx) {
+		if claim.AgreesWithOutputRoot() {
+			claim = claim.WaitForCounterClaim(env.Ctx)
+			game.LogGameData(env.Ctx)
+		} else {
+			claim = claim.Attack(env.Ctx, common.Hash{0xba, 0xd0})
+			game.LogGameData(env.Ctx)
+		}
+	}
+
+	claim = claim.WaitForCounterClaim(env.Ctx)
+	game.LogGameData(env.Ctx)
+
+	claim = correctTrace.AttackClaim(env.Ctx, claim)
+	for !claim.IsMaxDepth(env.Ctx) {
+		if claim.AgreesWithOutputRoot() {
+			claim = claim.WaitForCounterClaim(env.Ctx)
+			game.LogGameData(env.Ctx)
+		} else {
+			claim = correctTrace.AttackClaim(env.Ctx, claim)
+			game.LogGameData(env.Ctx)
+		}
+	}
+
+	claim.WaitForCountered(env.Ctx)
+	game.LogGameData(env.Ctx)
 
 	const challengerWins types.GameStatus = 1
 	env.AdvanceTimeAndResolve(game, challengerWins)
@@ -266,6 +299,9 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 
 	gameType := uint32(0)
 	extraData := common.LeftPadBytes(new(big.Int).SetUint64(l2BlockNumber).Bytes(), 32)
+
+	alice := env.System.Cfg.Secrets.Addresses().Alice
+	bob := env.System.Cfg.Secrets.Addresses().Bob
 
 	state := DemoState{
 		Status:                  "ready",
@@ -277,8 +313,8 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 		GameType:                gameType,
 		RootClaim:               invalidRoot.Hex(),
 		ExtraData:               hexutil.Encode(extraData),
-		Challenger:              accounts.Challenger.Addr.Hex(),
-		WinningChallengers:      []string{accounts.Challenger.Addr.Hex(), accounts.Validator.Addr.Hex()},
+		Challenger:              alice.Hex() + "," + bob.Hex(),
+		WinningChallengers:      []string{alice.Hex(), bob.Hex()},
 		StakeBefore:             initialStake.String(),
 		ChallengerBalanceBefore: challengerBalanceBefore.String(),
 	}
@@ -316,7 +352,11 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 						_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
 
 						finalStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
-						challengerBalanceAfter := getWTONBalance(t, sys, accounts.Challenger.Addr)
+
+						challengerBalanceAfter := new(big.Int).Add(
+							getWTONBalance(t, sys, aliceAddr),
+							getWTONBalance(t, sys, bobAddr),
+						)
 
 						state.Status = "slashed"
 						state.Message = "Slashing executed."

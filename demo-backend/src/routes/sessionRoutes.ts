@@ -23,6 +23,18 @@ const resolveGoBin = () => {
   }
 };
 
+const safeUnlink = (filePath: string) => {
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
+
+const clearSessionArtifacts = () => {
+  safeUnlink(statePath);
+  safeUnlink(commandPath);
+  safeUnlink(logPath);
+};
+
 export const createSessionRoutes = () => {
   const router = Router();
 
@@ -92,6 +104,18 @@ export const createSessionRoutes = () => {
       } catch {}
       sessionPid = null;
     }
+    res.json({ ok: true });
+  });
+
+  router.post("/reset", (_req, res) => {
+    if (sessionPid) {
+      try {
+        process.kill(sessionPid, "SIGTERM");
+      } catch {}
+      sessionPid = null;
+    }
+    fs.mkdirSync(sessionDir, { recursive: true });
+    clearSessionArtifacts();
     res.json({ ok: true });
   });
 

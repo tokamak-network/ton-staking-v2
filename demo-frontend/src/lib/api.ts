@@ -42,6 +42,7 @@ export const api = {
     }),
   stopSession: () => fetchJson<{ ok: boolean }>("/session/stop", { method: "POST" }),
   slashSession: () => fetchJson<{ ok: boolean }>("/session/slash", { method: "POST" }),
+  resetSession: () => fetchJson<{ ok: boolean }>("/session/reset", { method: "POST" }),
   getSessionState: () => fetchJson<any>("/session/state"),
   getSessionLogs: () => fetchJson<{ logs: string }>("/session/logs")
 };

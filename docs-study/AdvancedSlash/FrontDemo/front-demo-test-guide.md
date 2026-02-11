@@ -77,6 +77,10 @@ GO_BIN=$(command -v go) npm run dev
 
 접속: http://localhost:3000
 
+최종 종료
+chmod +x kill-all-services.sh (최초 1회)
+./kill-all-services.sh
+
 ---
 
 ## ✅ 5. UI에서 테스트
