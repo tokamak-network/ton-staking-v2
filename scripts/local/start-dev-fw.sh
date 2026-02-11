@@ -319,6 +319,27 @@ else
     echo -e "${RED}  OptimismPortal2.setSeigManager FAILED! Got: $VERIFY_SEIG${NC}"
 fi
 
+# --- 5.6.1b: OptimismPortal2.setRatContract() ---
+cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+cast send "$OPTIMISM_PORTAL" "setRatContract(address)" "$RAT_PROXY" \
+    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+
+VERIFY_RAT_PORTAL=$(cast call "$OPTIMISM_PORTAL" "ratContract()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$VERIFY_RAT_PORTAL" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo -e "${GREEN}  OptimismPortal2.setRatContract verified: $RAT_PROXY${NC}"
+else
+    echo -e "${RED}  OptimismPortal2.setRatContract FAILED! Got: $VERIFY_RAT_PORTAL${NC}"
+fi
+
+# --- 5.6.1c: OptimismPortal2.setFastWithdrawalResponsePeriod() ---
+FW_RESPONSE_PERIOD=600  # 10 minutes
+cast send "$OPTIMISM_PORTAL" "setFastWithdrawalResponsePeriod(uint256)" "$FW_RESPONSE_PERIOD" \
+    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+
+VERIFY_FW_PERIOD=$(cast call "$OPTIMISM_PORTAL" "fastWithdrawalResponsePeriod()(uint256)" --rpc-url "$RPC" 2>/dev/null)
+echo -e "${GREEN}  OptimismPortal2.fastWithdrawalResponsePeriod set to ${VERIFY_FW_PERIOD}s${NC}"
+
 # --- 5.6.2: DisputeGameFactory.setRAT() ---
 DGF_OWNER=$(cast call "$DISPUTE_GAME_FACTORY" "owner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
 echo "  DisputeGameFactory owner: $DGF_OWNER"

@@ -236,15 +236,33 @@ contract FastWithdrawalE2ETest is V3TestBase {
     bytes32 public testWithdrawalHash;
     bytes32 public testStateRoot;
 
-    // BLS Precompile addresses (EIP-2537)
+    // BLS Precompile addresses (EIP-2537 Final Spec - Pectra/Prague)
     address constant BLS12_G1ADD = address(0x0b);
-    address constant BLS12_G2ADD = address(0x0e);
-    address constant BLS12_PAIRING = address(0x11);
-    address constant BLS12_MAP_FP2_TO_G2 = address(0x13);
+    address constant BLS12_G2ADD = address(0x0d);
+    address constant BLS12_PAIRING = address(0x0f);
+    address constant BLS12_MAP_FP2_TO_G2 = address(0x11);
 
-    // Test BLS keys (128 bytes for G1, 256 bytes for G2)
-    bytes constant TEST_BLS_PUBKEY = hex"0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb0000000000000000000000000000000008b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1";
-    bytes constant TEST_BLS_SIGNATURE = hex"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001";
+    // BLS signing tool path (built from clients/fast-withdrawal/validator/cmd/bls-sign/)
+    string constant BLS_SIGN_BINARY = "clients/fast-withdrawal/validator/bls-sign";
+
+    // Real BLS keys for test validators (generated with keygen tool, chainId=31337)
+    // Validator1 (0x6001)
+    string constant VALIDATOR1_BLS_PRIVKEY = "0x9c33ed76f5490864d72551f35796016aa7d5f93174c2437de8f4ab11f5258d10";
+    bytes constant VALIDATOR1_BLS_PUBKEY = hex"0000000000000000000000000000000008dd19a9924e56482f1fb8fbb5fa665496948a95500938aac1a04f96e18b65753fd658ea31ebd65e36586b4ae3be864a000000000000000000000000000000000c9c677d1af0f283c1d8800ae5238fd8b7ce5e685c261d51cb1c8e3626410fdc78516cfadd9f5efa8f261b5dbd1216ef";
+    bytes constant VALIDATOR1_BLS_POP = hex"000000000000000000000000000000001185b0d867dd1319d682b6ee70ecc61be32c2de148d0d3ef2cec07e5c11fcac1f47e69cf3d4f8fd61a7b08af1aa2f398000000000000000000000000000000000da99cef12f89e624c7ef51608e96e46c6cfa0781297864024a86f3c6c73fdafc4dc6327bc9805766cd6cd8ab7ac0b3e000000000000000000000000000000000909bb5b50f4ada369ac68df8a87f9a66e11c701a1bad693fecb76c30a09188802ca682d01cff813af0c58e937eefabb0000000000000000000000000000000016e448f37800315500bfec7b5a87fc8141b7f3dd1df49a76896cf617d50b854d73a555807b900c13a66e0a1cc1fdecec";
+
+    // Validator2 (0x6002)
+    string constant VALIDATOR2_BLS_PRIVKEY = "0xfd72db178184bf8d3f0d7fedb559a5487952e9fca5484ab739aee3eaae9b3223";
+    bytes constant VALIDATOR2_BLS_PUBKEY = hex"000000000000000000000000000000000515b71131247e820dbf1a31d881cd954d578051aa692313481564e9747435c22a5a462009d89a4902f7f32055f3156f000000000000000000000000000000000d4ac3891d89cb8884bf2eb8fbf69cffac94065e03cc644e1b9ba0fd0772e5e478411af4522e09a28aa98c5e59919b28";
+    bytes constant VALIDATOR2_BLS_POP = hex"0000000000000000000000000000000001a8602c6d88ce5327d5e5c949c88007ea79ce4ab9044b941b4a0134c1ee768574687bcf5cbe81205c547369607b33d40000000000000000000000000000000000212ea6545b4decca5aaccac5186a20583da975c5e05ffccb1c152435f4923ef8ab370b1fb0cfbe313a58365b08cb96000000000000000000000000000000000dfd3dcb5ed1d2731b59f1cc8fa6d14ca2874821f34a49e1c1812562448f7eb1d0cade2d5ca269aa0a1d39c7dfe2b0be000000000000000000000000000000000d671495f0ece7376e7db2c5ec12b95a36bfb0ff95010631039193b6e819334b79053c543b34ecd6f133ba4b469d369e";
+
+    // Validator3 (0x6003)
+    string constant VALIDATOR3_BLS_PRIVKEY = "0x6ba4df8793eca8889975a0965783b3c530a8b6311c433dda4c3a13b0fdcd916a";
+    bytes constant VALIDATOR3_BLS_PUBKEY = hex"000000000000000000000000000000000d50b97cc57e49de3afefa05a6f3118067fb6ac6fc86f699736cfee1b9710b700c59478bfd56fffeaf6e9cc48ef49b1e00000000000000000000000000000000084a9c95e53f76f4270e4e5f4949462e07165a9c68701eeaede303a9de6372364d1c264c7fcc22e256d279d726b6cf5c";
+    bytes constant VALIDATOR3_BLS_POP = hex"000000000000000000000000000000000ee686d1cbc7112c2de5dfe90238f6389cbeeca7c9d8f15cd6374cc3675808433be388e30df9172cd7b7a2bc10fe6d12000000000000000000000000000000000e1665228fcce67ec65822036bc8d64b0fa1d6b59df880c27b1e05ebd0f9ee65e96615b120496925c00993a15a431417000000000000000000000000000000000651a0fe19745451c6fa8eacc93be2eb0ad49c00d25ab7ce2e30f9cc311c9f422c84f1992c54f89e44ec0af0cde6e99400000000000000000000000000000000093fd2139ea871eec049aa38c17efc99d849aa7926645421f3558f6b5d240022137f3797a86e2f006193c216ca06b7d4";
+
+    // Dummy BLS signature (256 bytes, for tests that revert before BLS verification)
+    bytes constant DUMMY_BLS_SIGNATURE = hex"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
     function setUp() public {
         _v3TestSetup();
@@ -303,6 +321,12 @@ contract FastWithdrawalE2ETest is V3TestBase {
         // ETHLockbox에 ETH 예치
         vm.deal(address(ethLockbox), 100 ether);
 
+        // BLS precompile mock 설정 (네이티브 미지원 시)
+        if (!_isBLSPrecompileNative()) {
+            _usingMockBLS = true;
+        }
+        _setupBLSMocks();
+
         // 테스트 출금 트랜잭션 설정
         testWithdrawal = Types.WithdrawalTransaction({
             nonce: 1,
@@ -329,21 +353,102 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // BLS Precompile Helpers
     // ==========================================
 
-    /// @notice Check if BLS precompiles are available (EIP-2537)
-    function _isBLSPrecompileAvailable() internal view returns (bool) {
-        // Try calling G1ADD with identity points
+    /// @notice Check if BLS precompiles are natively available (EIP-2537)
+    function _isBLSPrecompileNative() internal view returns (bool) {
         bytes memory input = new bytes(256);
         (bool success, bytes memory output) = BLS12_G1ADD.staticcall{gas: 50000}(input);
         return success && output.length == 128;
     }
 
-    /// @notice Skip test if BLS precompiles are not available
-    modifier onlyWithBLSPrecompiles() {
-        if (!_isBLSPrecompileAvailable()) {
-            // BLS precompiles not available - skip test
-            return;
+    /// @notice Setup mock BLS precompiles if native ones aren't available
+    /// @dev Uses vm.etch to deploy minimal bytecode at precompile addresses
+    /// @dev Mock behavior:
+    ///   - G1ADD (0x0b): returns first 128 bytes of calldata
+    ///   - G2ADD (0x0d): returns first 256 bytes of calldata
+    ///   - G2MSM (0x0e): returns first 256 bytes of calldata
+    ///   - PAIRING (0x0f): always returns 1 (valid)
+    ///   - MAP_FP_TO_G1 (0x10): returns 128 zero bytes
+    ///   - MAP_FP2_TO_G2 (0x11): returns 256 zero bytes
+    function _setupBLSMocks() internal {
+        if (_isBLSPrecompileNative()) return; // Skip if real precompiles available
+
+        // G1ADD: calldatacopy(0, 0, 128); return(0, 128)
+        vm.etch(BLS12_G1ADD, hex"608060006000376080600060003960806000f3");
+        // Actually simpler: PUSH1 0x80, PUSH1 0, PUSH1 0, CALLDATACOPY, PUSH1 0x80, PUSH1 0, RETURN
+        vm.etch(BLS12_G1ADD, hex"6080600060003760806000f3");
+
+        // G2ADD: calldatacopy(0, 0, 256); return(0, 256)
+        vm.etch(BLS12_G2ADD, hex"6101006000600037610100600060003961010060006000f3");
+        vm.etch(BLS12_G2ADD, hex"61010060006000376101006000f3");
+
+        // G2MSM (0x0e): calldatacopy(0, 0, 256); return(0, 256) - same as G2ADD
+        vm.etch(address(0x0e), hex"61010060006000376101006000f3");
+
+        // PAIRING: mstore(0, 1); return(0, 32) → always valid
+        vm.etch(BLS12_PAIRING, hex"600160005260206000f3");
+
+        // MAP_FP_TO_G1 (0x10): return(0, 128) → 128 zero bytes
+        vm.etch(address(0x10), hex"60806000f3");
+
+        // MAP_FP2_TO_G2: return(0, 256) → 256 zero bytes
+        vm.etch(BLS12_MAP_FP2_TO_G2, hex"6101006000f3");
+    }
+
+    bool internal _usingMockBLS;
+
+    /// @notice Check if we're using mocked BLS precompiles
+    function _isUsingMockBLS() internal view returns (bool) {
+        return _usingMockBLS;
+    }
+
+    // ==========================================
+    // BLS FFI Signing Helpers
+    // ==========================================
+
+    /// @notice Compute the BLS message hash matching RATFastWithdrawalLib.constructBLSMessage
+    function _computeBLSMessage(
+        RATFastWithdrawalLib.FastWithdrawalInput memory input
+    ) internal view returns (bytes32) {
+        return keccak256(abi.encode(
+            "TOKAMAK_FAST_WITHDRAWAL",
+            block.chainid,
+            input.systemConfig,
+            input.withdrawalHash,
+            input.stateRoot,
+            input.leafA,
+            input.leafB
+        ));
+    }
+
+    /// @notice Sign a BLS message using FFI (calls bls-sign Go binary)
+    /// @dev When using mock precompiles, returns dummy signature since verification is mocked
+    /// @param privateKeys Comma-separated 0x-prefixed private keys
+    /// @param messageHash 32-byte message hash to sign
+    /// @return Aggregated BLS signature (256 bytes)
+    function _signBLS(string memory privateKeys, bytes32 messageHash) internal returns (bytes memory) {
+        if (_isUsingMockBLS()) {
+            // With mock precompiles, PAIRING always returns 1, so any 256-byte signature works
+            return DUMMY_BLS_SIGNATURE;
         }
-        _;
+        string[] memory cmd = new string[](5);
+        cmd[0] = BLS_SIGN_BINARY;
+        cmd[1] = "--private-keys";
+        cmd[2] = privateKeys;
+        cmd[3] = "--message";
+        cmd[4] = vm.toString(messageHash);
+        return vm.ffi(cmd);
+    }
+
+    /// @notice Register validator with BLS key (two-step: registerValidator + registerBLSPublicKey)
+    function _registerValidatorWithBLS(
+        address validator,
+        bytes memory pubkey,
+        bytes memory pop
+    ) internal {
+        vm.prank(validator);
+        rat.registerValidator(address(mockSystemConfig));
+        vm.prank(validator);
+        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), pubkey, pop);
     }
 
     // ==========================================
@@ -520,20 +625,11 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // E2E: Full Flow with verifyAndExecuteFastWithdrawal
     // ==========================================
 
-    /// @notice 테스트: 실제 verifyAndExecuteFastWithdrawal 호출
-    /// @dev Phase 5-6를 실제로 테스트 - BLS precompile 필요 (EIP-2537, Pectra 이후)
-    /// @dev 현재 테스트 환경에서는 skip됨 - 실제 네트워크에서 fork 테스트로 검증 필요
-    function test_E2E_VerifyAndExecuteFastWithdrawal_WithBLS() public onlyWithBLSPrecompiles {
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-
-        // BLS 키 등록 (실제 precompile 필요)
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(
-            address(mockSystemConfig),
-            TEST_BLS_PUBKEY,
-            TEST_BLS_SIGNATURE
-        );
+    /// @notice 테스트: 단일 검증자 verifyAndExecuteFastWithdrawal 전체 흐름
+    /// @dev BLS precompile 필요 (EIP-2537, --evm-version prague), FFI로 BLS 서명 생성
+    function test_E2E_VerifyAndExecuteFastWithdrawal_WithBLS() public {
+        // 검증자 등록 + BLS 키 등록 (실제 PoP 검증)
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 1);
         assertTrue(ratFastWithdrawal.hasValidatorBLSKey(validator1, address(mockSystemConfig)));
@@ -567,6 +663,10 @@ contract FastWithdrawalE2ETest is V3TestBase {
             proofsB: proofsB
         });
 
+        // BLS 메시지 해시 계산 후 FFI로 서명
+        bytes32 blsMessage = _computeBLSMessage(input);
+        bytes memory blsSignature = _signBLS(VALIDATOR1_BLS_PRIVKEY, blsMessage);
+
         uint256 userBalanceBefore = withdrawUser.balance;
         uint256 aggregatorBalanceBefore = aggregator.balance;
         uint256 fee = 0.1 ether;
@@ -577,7 +677,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: fee}(
             testWithdrawal,
             input,
-            TEST_BLS_SIGNATURE
+            blsSignature
         );
 
         assertTrue(portal.withdrawalVerified(withdrawalHash), "Withdrawal should be verified");
@@ -594,23 +694,13 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // E2E: Multiple Validators with verifyAndExecuteFastWithdrawal
     // ==========================================
 
-    /// @dev BLS precompile 필요 - skip if not available
-    function test_E2E_VerifyAndExecute_MultipleValidators() public onlyWithBLSPrecompiles {
-        // 3명 검증자 등록 with BLS keys
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
-
-        vm.prank(validator2);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator2);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
-
-        vm.prank(validator3);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator3);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
+    /// @notice 테스트: 3명 검증자 집계 서명으로 Fast Withdrawal 실행
+    /// @dev BLS precompile 필요, FFI로 3개 키의 집계 BLS 서명 생성
+    function test_E2E_VerifyAndExecute_MultipleValidators() public {
+        // 3명 검증자 등록 with 각자 고유한 BLS keys
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
+        _registerValidatorWithBLS(validator2, VALIDATOR2_BLS_PUBKEY, VALIDATOR2_BLS_POP);
+        _registerValidatorWithBLS(validator3, VALIDATOR3_BLS_PUBKEY, VALIDATOR3_BLS_POP);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 3);
 
@@ -626,16 +716,25 @@ contract FastWithdrawalE2ETest is V3TestBase {
             systemConfig: address(mockSystemConfig),
             gameAddress: address(0),
             stateRoot: validStateRoot,
-            validatorBitmap: 7,
+            validatorBitmap: 7,  // 0b111 = all 3 validators
             leafA: leafA,
             leafB: leafB,
             proofsA: proofsA,
             proofsB: proofsB
         });
 
+        // 3개 개인키로 집계 BLS 서명 생성 (FFI)
+        bytes32 blsMessage = _computeBLSMessage(input);
+        string memory allKeys = string(abi.encodePacked(
+            VALIDATOR1_BLS_PRIVKEY, ",",
+            VALIDATOR2_BLS_PRIVKEY, ",",
+            VALIDATOR3_BLS_PRIVKEY
+        ));
+        bytes memory blsSignature = _signBLS(allKeys, blsMessage);
+
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, blsSignature);
 
         assertTrue(portal.fastFinalizedWithdrawals(withdrawalHash));
     }
@@ -644,17 +743,11 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // E2E: Non-Unanimous Bitmap Rejection
     // ==========================================
 
-    /// @dev BLS precompile 필요 - skip if not available
-    function test_E2E_VerifyAndExecute_NonUnanimous_Reverts() public onlyWithBLSPrecompiles {
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
-
-        vm.prank(validator2);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator2);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
+    /// @notice 테스트: 만장일치가 아닌 비트맵으로 revert
+    /// @dev 만장일치 체크에서 revert되므로 BLS 서명 검증 도달 전 실패
+    function test_E2E_VerifyAndExecute_NonUnanimous_Reverts() public {
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
+        _registerValidatorWithBLS(validator2, VALIDATOR2_BLS_PUBKEY, VALIDATOR2_BLS_POP);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 2);
 
@@ -670,7 +763,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
             systemConfig: address(mockSystemConfig),
             gameAddress: address(0),
             stateRoot: validStateRoot,
-            validatorBitmap: 1,
+            validatorBitmap: 1,  // Only validator1 signed (not unanimous for 2 validators)
             leafA: leafA,
             leafB: leafB,
             proofsA: proofsA,
@@ -680,27 +773,21 @@ contract FastWithdrawalE2ETest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalNotUnanimousError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, DUMMY_BLS_SIGNATURE);
     }
 
     // ==========================================
     // E2E: Minimum Validators Check
     // ==========================================
 
-    /// @dev BLS precompile 필요 - skip if not available
-    function test_E2E_VerifyAndExecute_InsufficientValidators_Reverts() public onlyWithBLSPrecompiles {
+    /// @notice 테스트: 최소 검증자 수 미달로 revert
+    /// @dev 최소 검증자 수 체크에서 revert되므로 BLS 서명 검증 도달 전 실패
+    function test_E2E_VerifyAndExecute_InsufficientValidators_Reverts() public {
         vm.prank(owner);
         ratFastWithdrawal.setMinValidatorsForFastWithdrawal(3);
 
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
-
-        vm.prank(validator2);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator2);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
+        _registerValidatorWithBLS(validator2, VALIDATOR2_BLS_PUBKEY, VALIDATOR2_BLS_POP);
 
         assertEq(rat.getActiveValidatorCount(address(mockSystemConfig)), 2);
 
@@ -716,7 +803,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
             systemConfig: address(mockSystemConfig),
             gameAddress: address(0),
             stateRoot: validStateRoot,
-            validatorBitmap: 3,
+            validatorBitmap: 3,  // Both validators signed, but need 3
             leafA: leafA,
             leafB: leafB,
             proofsA: proofsA,
@@ -726,7 +813,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalInsufficientValidatorsError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, DUMMY_BLS_SIGNATURE);
     }
 
     // ==========================================
@@ -761,12 +848,10 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // E2E Scenario: Fast Withdrawal 비활성화
     // ==========================================
 
-    /// @dev BLS precompile 필요 - skip if not available
-    function test_E2E_FastWithdrawal_DisabledReverts() public onlyWithBLSPrecompiles {
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
+    /// @notice 테스트: Fast Withdrawal 비활성화 시 revert
+    /// @dev 비활성화 체크에서 revert되므로 BLS 서명 검증 도달 전 실패
+    function test_E2E_FastWithdrawal_DisabledReverts() public {
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
 
         // Fast Withdrawal 비활성화 (최소 검증자 수 0)
         vm.prank(owner);
@@ -790,7 +875,7 @@ contract FastWithdrawalE2ETest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalDisabledError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, DUMMY_BLS_SIGNATURE);
     }
 
     // ==========================================
@@ -820,12 +905,10 @@ contract FastWithdrawalE2ETest is V3TestBase {
     // E2E Scenario: 수수료 분배 검증
     // ==========================================
 
-    /// @dev BLS precompile 필요 - skip if not available
-    function test_E2E_FastWithdrawal_FeeDistribution() public onlyWithBLSPrecompiles {
-        vm.prank(validator1);
-        rat.registerValidator(address(mockSystemConfig));
-        vm.prank(validator1);
-        ratFastWithdrawal.registerBLSPublicKey(address(mockSystemConfig), TEST_BLS_PUBKEY, TEST_BLS_SIGNATURE);
+    /// @notice 테스트: 수수료 분배 (10% aggregator, 90% validators)
+    /// @dev BLS precompile 필요, FFI로 BLS 서명 생성
+    function test_E2E_FastWithdrawal_FeeDistribution() public {
+        _registerValidatorWithBLS(validator1, VALIDATOR1_BLS_PUBKEY, VALIDATOR1_BLS_POP);
 
         bytes32 validStateRoot = _computeStateRootFromLeaves();
         (bytes32 leafA, bytes32 leafB, bytes[] memory proofsA, bytes[] memory proofsB) = _generateAdjacentLeavesProof(validStateRoot);
@@ -846,12 +929,16 @@ contract FastWithdrawalE2ETest is V3TestBase {
             proofsB: proofsB
         });
 
+        // FFI로 BLS 서명 생성
+        bytes32 blsMessage = _computeBLSMessage(input);
+        bytes memory blsSignature = _signBLS(VALIDATOR1_BLS_PRIVKEY, blsMessage);
+
         uint256 fee = 1 ether;
         uint256 aggregatorBalanceBefore = aggregator.balance;
 
         vm.deal(aggregator, 2 ether);
         vm.prank(aggregator);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: fee}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: fee}(testWithdrawal, input, blsSignature);
 
         // 10% to aggregator, 90% to validators
         uint256 expectedAggregatorFee = (fee * 1e26) / RAY;  // 0.1 ether

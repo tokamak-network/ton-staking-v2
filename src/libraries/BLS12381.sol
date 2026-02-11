@@ -83,8 +83,8 @@ library BLS12381 {
     bytes internal constant G1_GENERATOR_Y = hex"0000000000000000000000000000000008b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1";
 
     /// @notice G1 Generator y-coordinate negated (p - y) for pairing verification
-    /// @dev -y = 0x114d1d68560455a8ab7d76c8cf2e21f267816aee1db5079f66559cd5caac424f4e6f38ba8ecb715eb354dcd6b995c2ca
-    bytes internal constant G1_GENERATOR_NEG_Y = hex"00000000000000000000000000000000114d1d68560455a8ab7d76c8cf2e21f267816aee1db5079f66559cd5caac424f4e6f38ba8ecb715eb354dcd6b995c2ca";
+    /// @dev -y = 0x114d1d6855d545a8aa7d76c8cf2e21f267816aef1db507c96655b9d5caac42364e6f38ba0ecb751bad54dcd6b939c2ca
+    bytes internal constant G1_GENERATOR_NEG_Y = hex"00000000000000000000000000000000114d1d6855d545a8aa7d76c8cf2e21f267816aef1db507c96655b9d5caac42364e6f38ba0ecb751bad54dcd6b939c2ca";
 
     /// @notice Negative G1 generator (precomputed for pairing)
     /// @dev Cached to avoid repeated encodePacked calls
