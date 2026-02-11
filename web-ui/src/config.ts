@@ -27,11 +27,11 @@ export const CONFIG = {
 
     // V3 Components
     rat: '0x1a6a3e7Bb246158dF31d8f924B84D961669Ba4e5',
-    validatorReward: '0x23d351BA89eaAc4E328133Cb48e050064C219A1E',
+    validatorReward: '0x35D2F51DBC8b401B11fA3FE04423E0f5cd9fEDb4',
 
     // Optimism Stack
-    systemConfig: '0x02cd9dad598280aee6c47f46eca92e8f23684054',
-    disputeGameFactory: '0xae30b55abefa53f209b2ee2cec26f14beda4e3a1',
+    systemConfig: '0xecf558904405f7b662892ab7bb3544bea3beaf20',
+    disputeGameFactory: '0xc6b3e9c8ae8e523796b0ef6bbde5f2363d2d312e',
   },
 
   // Optimism Service Accounts (from docker-compose env vars)
