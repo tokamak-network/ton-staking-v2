@@ -128,6 +128,10 @@ export const RAT_ABI = [
 
   // Fast Withdrawal
   'function aggregatorFeeRate() view returns (uint256)',
+  'function fastWithdrawalFee() view returns (uint256)',
+  'function requestFastWithdrawal(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data), uint256 disputeGameIndex, tuple(bytes32 version, bytes32 stateRoot, bytes32 messagePasserStorageRoot, bytes32 latestBlockhash), bytes[], address systemConfig)',
+  'function reclaimFee(bytes32 withdrawalHash)',
+  'function pendingFees(bytes32) view returns (uint256 amount, address user, uint256 deadline)',
 
   // Config Parameters
   'function slashingPenalty() view returns (uint256)',
@@ -230,7 +234,6 @@ export const OPTIMISM_PORTAL_ABI = [
   // Withdrawal actions
   'function proveWithdrawalTransaction(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data), uint256 disputeGameIndex, tuple(bytes32 version, bytes32 stateRoot, bytes32 messagePasserStorageRoot, bytes32 latestBlockhash), bytes[])',
   'function finalizeWithdrawalTransaction(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data))',
-  'function proveAndRequestFastWithdrawal(tuple(uint256 nonce, address sender, address target, uint256 value, uint256 gasLimit, bytes data), uint256 disputeGameIndex, tuple(bytes32 version, bytes32 stateRoot, bytes32 messagePasserStorageRoot, bytes32 latestBlockhash), bytes[]) payable',
 
   // Events
   'event WithdrawalProven(bytes32 indexed withdrawalHash, address indexed from, address indexed to)',

@@ -317,73 +317,158 @@ SYSTEM_CONFIG_ADDR=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
 PORTAL_ADMIN_OWNER=$(cast call "$OPTIMISM_PORTAL" "proxyAdminOwner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
 echo "  OptimismPortal proxyAdminOwner: $PORTAL_ADMIN_OWNER"
 
-cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-cast send "$OPTIMISM_PORTAL" "setSeigManager(address)" "$SEIG_MANAGER_PROXY" \
-    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+CURRENT_SEIG=$(cast call "$OPTIMISM_PORTAL" "seigManager()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$CURRENT_SEIG" | tr '[:upper:]' '[:lower:]')" != "$(echo "$SEIG_MANAGER_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$OPTIMISM_PORTAL" "setSeigManager(address)" "$SEIG_MANAGER_PROXY" \
+        --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
 
-VERIFY_SEIG=$(cast call "$OPTIMISM_PORTAL" "seigManager()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
-if [ "$(echo "$VERIFY_SEIG" | tr '[:upper:]' '[:lower:]')" = "$(echo "$SEIG_MANAGER_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
-    echo -e "${GREEN}  OptimismPortal2.setSeigManager verified: $SEIG_MANAGER_PROXY${NC}"
+    VERIFY_SEIG=$(cast call "$OPTIMISM_PORTAL" "seigManager()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+    if [ "$(echo "$VERIFY_SEIG" | tr '[:upper:]' '[:lower:]')" = "$(echo "$SEIG_MANAGER_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+        echo -e "${GREEN}  OptimismPortal2.setSeigManager verified: $SEIG_MANAGER_PROXY${NC}"
+    else
+        echo -e "${RED}  OptimismPortal2.setSeigManager FAILED! Got: $VERIFY_SEIG${NC}"
+    fi
 else
-    echo -e "${RED}  OptimismPortal2.setSeigManager FAILED! Got: $VERIFY_SEIG${NC}"
+    echo -e "${GREEN}  OptimismPortal2.setSeigManager already set, skipping${NC}"
 fi
 
 # --- 5.6.1b: OptimismPortal2.setRatContract() ---
-cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-cast send "$OPTIMISM_PORTAL" "setRatContract(address)" "$RAT_PROXY" \
-    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+CURRENT_RAT_PORTAL=$(cast call "$OPTIMISM_PORTAL" "ratContract()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$CURRENT_RAT_PORTAL" | tr '[:upper:]' '[:lower:]')" != "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$OPTIMISM_PORTAL" "setRatContract(address)" "$RAT_PROXY" \
+        --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
 
-VERIFY_RAT_PORTAL=$(cast call "$OPTIMISM_PORTAL" "ratContract()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
-if [ "$(echo "$VERIFY_RAT_PORTAL" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
-    echo -e "${GREEN}  OptimismPortal2.setRatContract verified: $RAT_PROXY${NC}"
+    VERIFY_RAT_PORTAL=$(cast call "$OPTIMISM_PORTAL" "ratContract()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+    if [ "$(echo "$VERIFY_RAT_PORTAL" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+        echo -e "${GREEN}  OptimismPortal2.setRatContract verified: $RAT_PROXY${NC}"
+    else
+        echo -e "${RED}  OptimismPortal2.setRatContract FAILED! Got: $VERIFY_RAT_PORTAL${NC}"
+    fi
 else
-    echo -e "${RED}  OptimismPortal2.setRatContract FAILED! Got: $VERIFY_RAT_PORTAL${NC}"
+    echo -e "${GREEN}  OptimismPortal2.setRatContract already set, skipping${NC}"
 fi
 
 # --- 5.6.1c: OptimismPortal2.setFastWithdrawalResponsePeriod() ---
 FW_RESPONSE_PERIOD=600  # 10 minutes
-cast send "$OPTIMISM_PORTAL" "setFastWithdrawalResponsePeriod(uint256)" "$FW_RESPONSE_PERIOD" \
-    --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+CURRENT_FW_PERIOD=$(cast call "$OPTIMISM_PORTAL" "fastWithdrawalResponsePeriod()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_FW_PERIOD" != "$FW_RESPONSE_PERIOD" ]; then
+    cast rpc anvil_impersonateAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$OPTIMISM_PORTAL" "setFastWithdrawalResponsePeriod(uint256)" "$FW_RESPONSE_PERIOD" \
+        --from "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$PORTAL_ADMIN_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
 
-VERIFY_FW_PERIOD=$(cast call "$OPTIMISM_PORTAL" "fastWithdrawalResponsePeriod()(uint256)" --rpc-url "$RPC" 2>/dev/null)
-echo -e "${GREEN}  OptimismPortal2.fastWithdrawalResponsePeriod set to ${VERIFY_FW_PERIOD}s${NC}"
+    VERIFY_FW_PERIOD=$(cast call "$OPTIMISM_PORTAL" "fastWithdrawalResponsePeriod()(uint256)" --rpc-url "$RPC" 2>/dev/null)
+    echo -e "${GREEN}  OptimismPortal2.fastWithdrawalResponsePeriod set to ${VERIFY_FW_PERIOD}s${NC}"
+else
+    echo -e "${GREEN}  OptimismPortal2.fastWithdrawalResponsePeriod already set to ${FW_RESPONSE_PERIOD}s, skipping${NC}"
+fi
+
+# --- 5.6.1d: Verify Challenge Period Settings ---
+echo ""
+echo -e "${BLUE}  === Challenge Period Settings ===${NC}"
+PROOF_MATURITY=$(cast call "$OPTIMISM_PORTAL" "proofMaturityDelaySeconds()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+GAME_FINALITY=$(cast call "$OPTIMISM_PORTAL" "disputeGameFinalityDelaySeconds()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+TOTAL_CHALLENGE=$((PROOF_MATURITY + GAME_FINALITY))
+echo "  Proof Maturity Delay:        ${PROOF_MATURITY}s ($(echo "$PROOF_MATURITY / 60" | bc)m)"
+echo "  Game Finality Delay:         ${GAME_FINALITY}s ($(echo "$GAME_FINALITY / 60" | bc)m)"
+echo "  Total Challenge Period:      ${TOTAL_CHALLENGE}s ($(echo "$TOTAL_CHALLENGE / 60" | bc)m)"
+echo "  FW Response Period:          ${FW_RESPONSE_PERIOD}s ($(echo "$FW_RESPONSE_PERIOD / 60" | bc)m)"
+echo "  Evidence Submission Period:  600s (10m) [set in Step 13]"
+
+# Validate constraints
+if [ "$PROOF_MATURITY" -lt 600 ]; then
+    echo -e "${RED}  WARNING: Proof Maturity Delay (${PROOF_MATURITY}s) < Evidence Submission Period (600s)${NC}"
+    echo -e "${RED}  Withdrawals may finalize before evidence can be submitted!${NC}"
+fi
+if [ "$GAME_FINALITY" -lt 600 ]; then
+    echo -e "${YELLOW}  NOTE: Game Finality Delay (${GAME_FINALITY}s) < Evidence Submission Period (600s)${NC}"
+fi
+echo ""
 
 # --- 5.6.2: DisputeGameFactory.setRAT() ---
 DGF_OWNER=$(cast call "$DISPUTE_GAME_FACTORY" "owner()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
 echo "  DisputeGameFactory owner: $DGF_OWNER"
 
-cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
-cast send "$DISPUTE_GAME_FACTORY" "setRAT(address)" "$RAT_PROXY" \
-    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+CURRENT_DGF_RAT=$(cast call "$DISPUTE_GAME_FACTORY" "rat()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$CURRENT_DGF_RAT" | tr '[:upper:]' '[:lower:]')" != "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+    cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$DISPUTE_GAME_FACTORY" "setRAT(address)" "$RAT_PROXY" \
+        --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
 
-VERIFY_RAT=$(cast call "$DISPUTE_GAME_FACTORY" "rat()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
-if [ "$(echo "$VERIFY_RAT" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
-    echo -e "${GREEN}  DisputeGameFactory.setRAT verified: $RAT_PROXY${NC}"
+    VERIFY_RAT=$(cast call "$DISPUTE_GAME_FACTORY" "rat()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+    if [ "$(echo "$VERIFY_RAT" | tr '[:upper:]' '[:lower:]')" = "$(echo "$RAT_PROXY" | tr '[:upper:]' '[:lower:]')" ]; then
+        echo -e "${GREEN}  DisputeGameFactory.setRAT verified: $RAT_PROXY${NC}"
+    else
+        echo -e "${RED}  DisputeGameFactory.setRAT FAILED! Got: $VERIFY_RAT${NC}"
+    fi
 else
-    echo -e "${RED}  DisputeGameFactory.setRAT FAILED! Got: $VERIFY_RAT${NC}"
+    echo -e "${GREEN}  DisputeGameFactory.setRAT already set, skipping${NC}"
 fi
 
 # --- 5.6.3: DisputeGameFactory.setSystemConfig() ---
-cast send "$DISPUTE_GAME_FACTORY" "setSystemConfig(address)" "$SYSTEM_CONFIG_ADDR" \
-    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
-echo -e "${GREEN}  DisputeGameFactory.setSystemConfig set to $SYSTEM_CONFIG_ADDR${NC}"
+CURRENT_DGF_SYSCONFIG=$(cast call "$DISPUTE_GAME_FACTORY" "systemConfig()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+if [ "$(echo "$CURRENT_DGF_SYSCONFIG" | tr '[:upper:]' '[:lower:]')" != "$(echo "$SYSTEM_CONFIG_ADDR" | tr '[:upper:]' '[:lower:]')" ]; then
+    cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$DISPUTE_GAME_FACTORY" "setSystemConfig(address)" "$SYSTEM_CONFIG_ADDR" \
+        --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+
+    VERIFY_SYSCONFIG=$(cast call "$DISPUTE_GAME_FACTORY" "systemConfig()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+    if [ "$(echo "$VERIFY_SYSCONFIG" | tr '[:upper:]' '[:lower:]')" = "$(echo "$SYSTEM_CONFIG_ADDR" | tr '[:upper:]' '[:lower:]')" ]; then
+        echo -e "${GREEN}  DisputeGameFactory.setSystemConfig verified: $SYSTEM_CONFIG_ADDR${NC}"
+    else
+        echo -e "${RED}  DisputeGameFactory.setSystemConfig FAILED! Got: $VERIFY_SYSCONFIG${NC}"
+    fi
+else
+    echo -e "${GREEN}  DisputeGameFactory.setSystemConfig already set, skipping${NC}"
+fi
 
 # --- 5.6.4: DisputeGameFactory.setInitBond() ---
 # 0.0025 ETH (~10,000 KRW @ 1 ETH = 4,000,000 KRW)
 INIT_BOND_WEI="2500000000000000"
-cast send "$DISPUTE_GAME_FACTORY" "setInitBond(uint32,uint256)" 0 "$INIT_BOND_WEI" \
-    --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+CURRENT_INIT_BOND=$(cast call "$DISPUTE_GAME_FACTORY" "initBonds(uint32)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_INIT_BOND" != "$INIT_BOND_WEI" ] && ! echo "$CURRENT_INIT_BOND" | grep -q "2500000000000000"; then
+    cast rpc anvil_impersonateAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+    cast send "$DISPUTE_GAME_FACTORY" "setInitBond(uint32,uint256)" 0 "$INIT_BOND_WEI" \
+        --from "$DGF_OWNER" --rpc-url "$RPC" --unlocked > /dev/null 2>&1
+    cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
 
-VERIFY_INIT_BOND=$(cast call "$DISPUTE_GAME_FACTORY" "initBonds(uint32)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null)
-if [ "$VERIFY_INIT_BOND" = "$INIT_BOND_WEI" ] || echo "$VERIFY_INIT_BOND" | grep -q "2500000000000000"; then
-    echo -e "${GREEN}  DisputeGameFactory.setInitBond verified: 0.0025 ETH (gameType 0)${NC}"
+    VERIFY_INIT_BOND=$(cast call "$DISPUTE_GAME_FACTORY" "initBonds(uint32)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null)
+    if [ "$VERIFY_INIT_BOND" = "$INIT_BOND_WEI" ] || echo "$VERIFY_INIT_BOND" | grep -q "2500000000000000"; then
+        echo -e "${GREEN}  DisputeGameFactory.setInitBond verified: 0.0025 ETH (gameType 0)${NC}"
+    else
+        echo -e "${RED}  DisputeGameFactory.setInitBond FAILED! Got: $VERIFY_INIT_BOND (expected: $INIT_BOND_WEI)${NC}"
+    fi
 else
-    echo -e "${RED}  DisputeGameFactory.setInitBond FAILED! Got: $VERIFY_INIT_BOND (expected: $INIT_BOND_WEI)${NC}"
+    echo -e "${GREEN}  DisputeGameFactory.setInitBond already set to 0.0025 ETH, skipping${NC}"
 fi
 
-cast rpc anvil_stopImpersonatingAccount "$DGF_OWNER" --rpc-url "$RPC" > /dev/null 2>&1
+# --- 5.6.5: AnchorStateRegistry.setRespectedGameType(0) ---
+# Must be called by Guardian (Anvil Account #0) before any dispute game is created (op-proposer).
+ANCHOR_STATE_REGISTRY=$(cast call "$OPTIMISM_PORTAL" "anchorStateRegistry()(address)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+GUARDIAN_ADDR="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+if [ -n "$ANCHOR_STATE_REGISTRY" ] && [ "$(echo "$ANCHOR_STATE_REGISTRY" | tr '[:upper:]' '[:lower:]')" != "0x0000000000000000000000000000000000000000" ]; then
+    CURRENT_GAME_TYPE=$(cast call "$ANCHOR_STATE_REGISTRY" "respectedGameType()(uint32)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+    if [ "$CURRENT_GAME_TYPE" != "0" ]; then
+        cast rpc anvil_impersonateAccount "$GUARDIAN_ADDR" --rpc-url "$RPC" > /dev/null 2>&1
+        if cast send "$ANCHOR_STATE_REGISTRY" "setRespectedGameType(uint32)" 0 \
+            --from "$GUARDIAN_ADDR" --rpc-url "$RPC" --unlocked > /dev/null 2>&1; then
+            echo -e "${GREEN}  AnchorStateRegistry.setRespectedGameType(0) verified (Guardian = Anvil #0)${NC}"
+        else
+            echo -e "${RED}  AnchorStateRegistry.setRespectedGameType(0) FAILED! Ensure Guardian is 0xf39Fd6...${NC}"
+        fi
+        cast rpc anvil_stopImpersonatingAccount "$GUARDIAN_ADDR" --rpc-url "$RPC" > /dev/null 2>&1
+    else
+        echo -e "${GREEN}  AnchorStateRegistry.setRespectedGameType already set to 0, skipping${NC}"
+    fi
+else
+    echo -e "${YELLOW}  Skipping AnchorStateRegistry.setRespectedGameType (OptimismPortal2.anchorStateRegistry not found)${NC}"
+fi
 
 echo ""
 
@@ -1174,40 +1259,73 @@ RAT_TREASURY="$OPERATOR_ADDR"                              # Treasury = operator
 RAT_ATTENTION_COST="1000000000000000000000000000"         # 1 WTON = 1e27
 RAT_RELAXED_CHECK="true"                                   # Relaxed validator check enabled
 
-echo "  Setting RAT configuration..."
-cast send "$RAT" \
-    "setConfig((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,address,uint256,bool))" \
-    "($RAT_TRIGGER_PROBABILITY,$RAT_EVIDENCE_PERIOD,$RAT_SLASHING_PENALTY,$RAT_VALIDATOR_BUFFER,$RAT_MINIMUM_THRESHOLD,$RAT_MAX_VALIDATORS_PER_L2,$RAT_CHALLENGE_GAME_DURATION,$RAT_SAFETY_BUFFER,$RAT_TREASURY,$RAT_ATTENTION_COST,$RAT_RELAXED_CHECK)" \
-    --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+echo "  Checking RAT configuration..."
+CURRENT_EVIDENCE=$(cast call "$RAT" "evidenceSubmissionPeriod()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+CURRENT_PENALTY=$(cast call "$RAT" "slashingPenalty()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_EVIDENCE" != "$RAT_EVIDENCE_PERIOD" ] || [ "$CURRENT_PENALTY" != "$RAT_SLASHING_PENALTY" ]; then
+    echo "  Setting RAT configuration..."
+    cast send "$RAT" \
+        "setConfig((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,address,uint256,bool))" \
+        "($RAT_TRIGGER_PROBABILITY,$RAT_EVIDENCE_PERIOD,$RAT_SLASHING_PENALTY,$RAT_VALIDATOR_BUFFER,$RAT_MINIMUM_THRESHOLD,$RAT_MAX_VALIDATORS_PER_L2,$RAT_CHALLENGE_GAME_DURATION,$RAT_SAFETY_BUFFER,$RAT_TREASURY,$RAT_ATTENTION_COST,$RAT_RELAXED_CHECK)" \
+        --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
 
-# Verify configuration
-VERIFY_PENALTY=$(cast call "$RAT" "slashingPenalty()(uint256)" --rpc-url "$RPC")
-VERIFY_EVIDENCE=$(cast call "$RAT" "evidenceSubmissionPeriod()(uint256)" --rpc-url "$RPC")
-VERIFY_RELAXED=$(cast call "$RAT" "relaxedValidatorCheck()(bool)" --rpc-url "$RPC")
+    # Verify configuration
+    VERIFY_PENALTY=$(cast call "$RAT" "slashingPenalty()(uint256)" --rpc-url "$RPC")
+    VERIFY_EVIDENCE=$(cast call "$RAT" "evidenceSubmissionPeriod()(uint256)" --rpc-url "$RPC")
+    VERIFY_RELAXED=$(cast call "$RAT" "relaxedValidatorCheck()(bool)" --rpc-url "$RPC")
 
-echo -e "${GREEN}  RAT configured:${NC}"
-# Clean values and convert (WTON uses 27 decimals = RAY)
-PENALTY_CLEAN=$(echo "$VERIFY_PENALTY" | tr -d '[:space:]')
-EVIDENCE_CLEAN=$(echo "$VERIFY_EVIDENCE" | tr -d '[:space:]')
-echo "    Slashing Penalty: $(echo "$PENALTY_CLEAN" | awk '{printf "%.0f", $1/1e27}') WTON"
-echo "    Evidence Period: $EVIDENCE_CLEAN seconds ($(echo "$EVIDENCE_CLEAN" | awk '{printf "%.0f", $1/60}') minutes)"
-echo "    Relaxed Check: $VERIFY_RELAXED"
+    echo -e "${GREEN}  RAT configured:${NC}"
+    # Clean values and convert (WTON uses 27 decimals = RAY)
+    PENALTY_CLEAN=$(echo "$VERIFY_PENALTY" | tr -d '[:space:]')
+    EVIDENCE_CLEAN=$(echo "$VERIFY_EVIDENCE" | tr -d '[:space:]')
+    echo "    Slashing Penalty: $(echo "$PENALTY_CLEAN" | awk '{printf "%.0f", $1/1e27}') WTON"
+    echo "    Evidence Period: $EVIDENCE_CLEAN seconds ($(echo "$EVIDENCE_CLEAN" | awk '{printf "%.0f", $1/60}') minutes)"
+    echo "    Relaxed Check: $VERIFY_RELAXED"
+else
+    VERIFY_RELAXED=$(cast call "$RAT" "relaxedValidatorCheck()(bool)" --rpc-url "$RPC")
+    echo -e "${GREEN}  RAT configuration already set, skipping${NC}"
+    echo "    Slashing Penalty: $(echo "$CURRENT_PENALTY" | awk '{printf "%.0f", $1/1e27}') WTON"
+    echo "    Evidence Period: $CURRENT_EVIDENCE seconds ($(echo "$CURRENT_EVIDENCE" | awk '{printf "%.0f", $1/60}') minutes)"
+    echo "    Relaxed Check: $VERIFY_RELAXED"
+fi
 
 # --- Fast Withdrawal Parameters ---
 echo ""
-echo "  Setting Fast Withdrawal parameters..."
+echo "  Checking Fast Withdrawal parameters..."
 
 # Aggregator fee rate: 10% (1e26 in RAY = 0.1 * 1e27)
-cast send "$RAT" "setAggregatorFeeRate(uint256)" "100000000000000000000000000" \
-    --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+AGG_FEE_RATE_DESIRED="100000000000000000000000000"
+CURRENT_AGG_FEE=$(cast call "$RAT" "aggregatorFeeRate()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_AGG_FEE" != "$AGG_FEE_RATE_DESIRED" ]; then
+    cast send "$RAT" "setAggregatorFeeRate(uint256)" "$AGG_FEE_RATE_DESIRED" \
+        --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  Aggregator Fee Rate set to 10%${NC}"
+else
+    echo -e "${GREEN}  Aggregator Fee Rate already set to 10%, skipping${NC}"
+fi
 
 # Minimum validators for fast withdrawal: 3
-cast send "$RAT" "setMinValidatorsForFastWithdrawal(uint256)" 3 \
-    --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+MIN_VALIDATORS_DESIRED="3"
+CURRENT_MIN_VALIDATORS=$(cast call "$RAT" "minValidatorsForFastWithdrawal()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_MIN_VALIDATORS" != "$MIN_VALIDATORS_DESIRED" ]; then
+    cast send "$RAT" "setMinValidatorsForFastWithdrawal(uint256)" "$MIN_VALIDATORS_DESIRED" \
+        --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  Min Validators set to $MIN_VALIDATORS_DESIRED${NC}"
+else
+    echo -e "${GREEN}  Min Validators already set to $MIN_VALIDATORS_DESIRED, skipping${NC}"
+fi
 
-echo -e "${GREEN}  Fast Withdrawal parameters set:${NC}"
-echo "    Aggregator Fee Rate: 10%"
-echo "    Min Validators: 3"
+# Fast Withdrawal fee: 10 TON (10e18)
+FW_FEE_DESIRED="10000000000000000000"
+CURRENT_FW_FEE=$(cast call "$RAT" "fastWithdrawalFee()(uint256)" --rpc-url "$RPC" 2>/dev/null | tr -d '[:space:]')
+if [ "$CURRENT_FW_FEE" != "$FW_FEE_DESIRED" ]; then
+    cast send "$RAT" "setFastWithdrawalFee(uint256)" "$FW_FEE_DESIRED" \
+        --private-key "$MANAGER_KEY" --rpc-url "$RPC" > /dev/null 2>&1
+    echo -e "${GREEN}  Fast Withdrawal Fee set to 10 TON${NC}"
+else
+    echo -e "${GREEN}  Fast Withdrawal Fee already set to 10 TON, skipping${NC}"
+fi
+
 echo ""
 
 # =============================================================================
@@ -1399,6 +1517,14 @@ echo -e "${BLUE}=== L2 Registration ===${NC}"
 echo "Rollup Type:    3 (Optimism Bedrock DisputeGame)"
 echo "Operator:       $OPERATOR_ADDR"
 echo "OperatorManager: $OPERATOR_MANAGER"
+echo ""
+echo -e "${BLUE}=== Challenge Period ===${NC}"
+PROOF_MATURITY=$(cast call "$OPTIMISM_PORTAL" "proofMaturityDelaySeconds()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+GAME_FINALITY=$(cast call "$OPTIMISM_PORTAL" "disputeGameFinalityDelaySeconds()(uint256)" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}')
+echo "Proof Maturity Delay:   ${PROOF_MATURITY}s ($(echo "$PROOF_MATURITY / 60" | bc)m) - Prove 후 대기"
+echo "Game Finality Delay:    ${GAME_FINALITY}s ($(echo "$GAME_FINALITY / 60" | bc)m) - Game 종료 후 Airgap"
+echo "Total Challenge Period: $((PROOF_MATURITY + GAME_FINALITY))s ($(echo "(${PROOF_MATURITY} + ${GAME_FINALITY}) / 60" | bc)m)"
+echo "Evidence Period:        600s (10m) - RAT 증거 제출 기간"
 echo ""
 echo -e "${BLUE}=== Fast Withdrawal ===${NC}"
 echo "FW Nodes:       3 (each runs validator + aggregator)"

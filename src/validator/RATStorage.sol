@@ -230,6 +230,17 @@ contract RATStorage {
     /// @dev 1 이상이면 해당 값 이상의 검증자가 서명해야 Fast Withdrawal 가능
     uint256 public minValidatorsForFastWithdrawal;
 
+    /// @notice Fast Withdrawal 고정 수수료 (TON 단위, 10 TON = 10e18)
+    uint256 public fastWithdrawalFee;
+
+    /// @notice 대기 중인 수수료 정보
+    struct PendingFee {
+        uint256 amount;      // 수수료 금액
+        address user;        // 수수료 납부자
+        uint256 deadline;    // 빠른 출금 응답 기한
+    }
+    mapping(bytes32 => PendingFee) public pendingFees;
+
     // ==========================================
     // Modifiers (Note: onlyOwner is in Proxy, others in RAT implementation)
     // ==========================================

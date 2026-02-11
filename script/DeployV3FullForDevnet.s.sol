@@ -243,7 +243,7 @@ contract DeployV3FullForDevnet is Script {
 
     // DisputeGame parameters
     uint256 constant DISPUTE_GAME_INIT_BOND = 0.08 ether; // Init bond for creating games
-    uint256 constant RAT_EVIDENCE_PERIOD = 1 hours;
+    uint256 constant RAT_EVIDENCE_PERIOD = 600; // 10 minutes (must be <= proofMaturityDelaySeconds)
 
     // ==========================================
     // Deployed Addresses
@@ -1192,7 +1192,7 @@ contract DeployV3FullForDevnet is Script {
         RATProxy(payable(ratProxy)).setAliveImplementation2(ratFastWithdrawalImpl, true);
 
         // Step 2: Register selectors for RATFastWithdrawal functions
-        bytes4[] memory selectors = new bytes4[](9);
+        bytes4[] memory selectors = new bytes4[](12);
 
         // BLS Public Key Management
         selectors[0] = RATFastWithdrawal.registerValidatorWithBLS.selector;
@@ -1207,7 +1207,16 @@ contract DeployV3FullForDevnet is Script {
         selectors[7] = RATFastWithdrawal.setMinValidatorsForFastWithdrawal.selector;
         selectors[8] = RATFastWithdrawal.verifyAndExecuteFastWithdrawal.selector;
 
+        // Fast Withdrawal Fee Functions
+        selectors[9] = RATFastWithdrawal.setFastWithdrawalFee.selector;
+        selectors[10] = RATFastWithdrawal.requestFastWithdrawal.selector;
+        selectors[11] = RATFastWithdrawal.reclaimFee.selector;
+
         RATProxy(payable(ratProxy)).setSelectorImplementations2(selectors, ratFastWithdrawalImpl);
+
+        // Set Fast Withdrawal Fee to 10 TON
+        RATFastWithdrawal(payable(ratProxy)).setFastWithdrawalFee(10e18);
+        console.log("  Fast Withdrawal Fee set to 10 TON");
     }
 
     // Helper functions to avoid stack too deep

@@ -46,6 +46,17 @@ contract MockOptimismPortal2 is IOptimismPortal2ForRAT {
         fastFinalizedWithdrawals[withdrawalHash] = true;
         emit FastWithdrawalFinalized(withdrawalHash, _tx.sender, _tx.value);
     }
+
+    function proveAndRequestFastWithdrawal(
+        Types.WithdrawalTransaction memory,
+        uint256,
+        Types.OutputRootProof calldata,
+        bytes[] calldata
+    ) external override {}
+
+    function fastWithdrawalResponsePeriod() external pure override returns (uint256) {
+        return 600; // 10 minutes
+    }
 }
 
 /// @notice Mock ValidatorReward for receiving fees
@@ -813,7 +824,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // 게임에 클레임이 있으므로 revert되어야 함
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 
     /// @notice 게임에 클레임이 없으면 게임 클레임 체크를 통과해야 함
@@ -868,7 +879,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // FastWithdrawalGameHasClaimsError가 아닌 다른 에러 발생
         vm.prank(aggregator);
         vm.expectRevert(); // FastWithdrawalDisabledError 또는 다른 검증 실패
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 
     /// @notice gameAddress가 0이면 게임 클레임 체크를 건너뛰어야 함
@@ -916,7 +927,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // FastWithdrawalGameHasClaimsError가 발생하지 않음 (다른 에러 발생)
         vm.prank(aggregator);
         vm.expectRevert(); // FastWithdrawalDisabledError 또는 FastWithdrawalInsufficientValidatorsError
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 
     /// @notice 게임에 여러 클레임이 있는 경우도 실패해야 함
@@ -975,7 +986,7 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // 게임에 여러 클레임이 있으므로 revert되어야 함
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 
     /// @notice 게임 클레임 체크는 다른 검증보다 먼저 실행되어야 함
@@ -1030,6 +1041,6 @@ contract FastWithdrawalScenariosTest is V3TestBase {
         // (검증자 부족 에러가 아님)
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalGameHasClaimsError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(tx_, input, aggregatedSignature);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(tx_, input, aggregatedSignature);
     }
 }

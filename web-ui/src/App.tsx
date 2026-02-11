@@ -348,7 +348,7 @@ function App() {
   const [gameWithdrawalSettings, setGameWithdrawalSettings] = useState<GameWithdrawalSettings | null>(null);
 
   // Fast Withdrawal state
-  const [fwStatus, setFwStatus] = useState<{ ready: boolean; blsCount: number; minRequired: number; responsePeriod: number; feeRate: string } | null>(null);
+  const [fwStatus, setFwStatus] = useState<{ ready: boolean; blsCount: number; minRequired: number; responsePeriod: number; feeRate: string; fwFee: string } | null>(null);
   const [fwCheckResult, setFwCheckResult] = useState<{ hash: string; finalized: boolean } | null>(null);
 
   // Withdrawal Tracker state
@@ -558,7 +558,7 @@ function App() {
 
     const loadTabData = async () => {
       if (activeTab === 'validators') {
-        await Promise.all([loadAttentionTests(), loadValidatorEvents(), loadBLSInfo()]);
+        await Promise.all([loadAttentionTests(), loadValidatorEvents(), loadBLSInfo(), loadGameWithdrawalSettings()]);
       } else if (activeTab === 'games') {
         await loadEnhancedGames();
       } else if (activeTab === 'proposer') {
@@ -2315,7 +2315,17 @@ function App() {
 
       const browserProvider = new ethers.BrowserProvider(window.ethereum);
       const browserSigner = await browserProvider.getSigner();
-      const portal = new ethers.Contract(l2Info.portal, OPTIMISM_PORTAL_ABI, browserSigner);
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, browserSigner);
+
+      // RAT에서 고정 수수료 조회
+      const fwFee = await rat.fastWithdrawalFee();
+      console.log('Fast Withdrawal fee:', ethers.formatEther(fwFee), 'TON');
+
+      // TON approve
+      const tonContract = new ethers.Contract(CONFIG.contracts.ton, TON_ABI, browserSigner);
+      const approveTx = await tonContract.approve(CONFIG.contracts.rat, fwFee);
+      await approveTx.wait();
+      console.log('TON approved for RAT');
 
       const withdrawalTx = {
         nonce: withdrawal.nonce,
@@ -2326,7 +2336,7 @@ function App() {
         data: withdrawal.data,
       };
 
-      const tx = await portal.proveAndRequestFastWithdrawal(
+      const tx = await rat.requestFastWithdrawal(
         withdrawalTx,
         proofData.gameIndex,
         [
@@ -2336,7 +2346,7 @@ function App() {
           proofData.outputRootProof.latestBlockhash,
         ],
         proofData.withdrawalProof,
-        { value: withdrawal.value }
+        CONFIG.contracts.systemConfig,
       );
       await tx.wait();
       alert('Prove + Fast Withdrawal requested successfully!');
@@ -2345,8 +2355,37 @@ function App() {
       setSelectedWithdrawal(updated);
       setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
     } catch (error: any) {
-      console.error('proveAndRequestFastWithdrawal error:', error);
+      console.error('requestFastWithdrawal error:', error);
       alert(`Failed: ${error.message}`);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const reclaimFeeTx = async (withdrawalHash: string) => {
+    if (!signer) {
+      alert('Please connect wallet first');
+      return;
+    }
+
+    try {
+      setWithdrawalLoading(true);
+
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }],
+      });
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const browserSigner = await browserProvider.getSigner();
+      const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, browserSigner);
+
+      const tx = await rat.reclaimFee(withdrawalHash);
+      await tx.wait();
+      alert('Fee reclaimed successfully!');
+    } catch (error: any) {
+      console.error('reclaimFee error:', error);
+      alert(`Failed to reclaim fee: ${error.message}`);
     } finally {
       setWithdrawalLoading(false);
     }
@@ -4984,13 +5023,22 @@ function App() {
                             <span className="info-label">Proof Maturity Delay:</span>
                             <span>{gameWithdrawalSettings.proofMaturityDelay}s ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})</span>
                           </div>
+                          <div style={{ padding: '0.25rem 0 0.5rem 1rem', fontSize: '0.85em', color: '#9ca3af' }}>
+                            출금 증명(prove) 후 finalize까지 기다려야 하는 최소 시간. 이 기간 동안 잘못된 증명에 대해 챌린지할 수 있습니다.
+                          </div>
                           <div className="info-row">
                             <span className="info-label">Dispute Game Finality Delay:</span>
                             <span>{gameWithdrawalSettings.disputeGameFinalityDelay}s ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})</span>
                           </div>
+                          <div style={{ padding: '0.25rem 0 0.5rem 1rem', fontSize: '0.85em', color: '#9ca3af' }}>
+                            Dispute Game이 resolve된 후 추가로 대기하는 안전 기간 (Airgap). Game 결과가 확정된 후에도 비정상적 상황에 대비합니다.
+                          </div>
                           <div className="info-row">
                             <span className="info-label">Fast Withdrawal Response Period:</span>
                             <span>{gameWithdrawalSettings.fastWithdrawalResponsePeriod}s ({formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)})</span>
+                          </div>
+                          <div style={{ padding: '0.25rem 0 0.5rem 1rem', fontSize: '0.85em', color: '#9ca3af' }}>
+                            Fast Withdrawal 요청 후 RAT 검증자들이 BLS 서명을 제출할 수 있는 기간. 이 기간 내에 충분한 서명이 모이면 챌린지 기간 없이 즉시 출금됩니다.
                           </div>
                           <div className="info-row">
                             <span className="info-label">RAT Contract:</span>
@@ -5001,6 +5049,108 @@ function App() {
                             <code>{gameWithdrawalSettings.seigManagerOnPortal}</code>
                           </div>
                         </div>
+                      </section>
+
+                      {/* Card 3.5: Challenge Period Summary */}
+                      <section className="card">
+                        <h2>🛡️ Challenge Period (챌린지 기간)</h2>
+                        <p style={{ fontSize: '0.85em', color: '#888', marginBottom: '15px' }}>
+                          Prove 후 Finalize까지의 보안 대기 기간. 두 딜레이 모두 Evidence Submission Period 이상이어야 합니다.
+                        </p>
+                        <div style={{
+                          background: 'rgba(139, 92, 246, 0.05)',
+                          border: '1px solid rgba(139, 92, 246, 0.2)',
+                          borderRadius: '12px',
+                          padding: '1.25rem',
+                          marginBottom: '1rem',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                            <div style={{ background: '#3b82f6', color: 'white', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                              1. Prove
+                            </div>
+                            <div style={{ color: '#9ca3af', fontSize: '1.2em' }}>→</div>
+                            <div style={{ background: '#f59e0b', color: 'white', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                              2. Proof Maturity ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})
+                            </div>
+                            <div style={{ color: '#9ca3af', fontSize: '1.2em' }}>+</div>
+                            <div style={{ background: '#f97316', color: 'white', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                              3. Game Finality ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})
+                            </div>
+                            <div style={{ color: '#9ca3af', fontSize: '1.2em' }}>→</div>
+                            <div style={{ background: '#10b981', color: 'white', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                              4. Finalize
+                            </div>
+                          </div>
+                          <div style={{
+                            background: 'rgba(139, 92, 246, 0.1)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 1rem',
+                            textAlign: 'center',
+                          }}>
+                            <span style={{ fontSize: '0.85em', color: '#9ca3af' }}>Total Challenge Period: </span>
+                            <span style={{ fontSize: '1.1em', fontWeight: 'bold', color: '#8b5cf6' }}>
+                              {formatDuration(gameWithdrawalSettings.proofMaturityDelay + gameWithdrawalSettings.disputeGameFinalityDelay)}
+                            </span>
+                            <span style={{ fontSize: '0.85em', color: '#9ca3af' }}>
+                              {' '}({gameWithdrawalSettings.proofMaturityDelay + gameWithdrawalSettings.disputeGameFinalityDelay}s)
+                            </span>
+                          </div>
+                        </div>
+                        <div className="info-list">
+                          <div className="info-row">
+                            <span className="info-label">Proof Maturity Delay:</span>
+                            <span>
+                              {gameWithdrawalSettings.proofMaturityDelay}s ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})
+                              {gameWithdrawalSettings.proofMaturityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod && (
+                                <span style={{ color: '#ef4444', marginLeft: '0.5rem', fontWeight: 'bold' }}>(too short!)</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Game Finality Delay:</span>
+                            <span>
+                              {gameWithdrawalSettings.disputeGameFinalityDelay}s ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})
+                              {gameWithdrawalSettings.disputeGameFinalityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod && (
+                                <span style={{ color: '#ef4444', marginLeft: '0.5rem', fontWeight: 'bold' }}>(too short!)</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Evidence Submission Period:</span>
+                            <span>{gameWithdrawalSettings.evidenceSubmissionPeriod}s ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})</span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">FW Response Period:</span>
+                            <span>{gameWithdrawalSettings.fastWithdrawalResponsePeriod}s ({formatDuration(gameWithdrawalSettings.fastWithdrawalResponsePeriod)})</span>
+                          </div>
+                        </div>
+                        {(gameWithdrawalSettings.proofMaturityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod ||
+                          gameWithdrawalSettings.disputeGameFinalityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod) && (
+                          <div style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '2px solid rgba(239, 68, 68, 0.4)',
+                            borderRadius: '10px',
+                            padding: '1rem',
+                            marginTop: '1rem',
+                          }}>
+                            <div style={{ fontWeight: 'bold', color: '#ef4444', marginBottom: '0.5rem' }}>
+                              Constraint Violations
+                            </div>
+                            {gameWithdrawalSettings.proofMaturityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod && (
+                              <div style={{ fontSize: '0.9em', color: '#fca5a5', marginBottom: '0.25rem' }}>
+                                Proof Maturity Delay ({formatDuration(gameWithdrawalSettings.proofMaturityDelay)})
+                                {' < '}Evidence Submission Period ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})
+                              </div>
+                            )}
+                            {gameWithdrawalSettings.disputeGameFinalityDelay < gameWithdrawalSettings.evidenceSubmissionPeriod && (
+                              <div style={{ fontSize: '0.9em', color: '#fca5a5' }}>
+                                Game Finality Delay ({formatDuration(gameWithdrawalSettings.disputeGameFinalityDelay)})
+                                {' < '}Evidence Submission Period ({formatDuration(gameWithdrawalSettings.evidenceSubmissionPeriod)})
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </section>
 
                       {/* Card 4: RAT Verification Settings */}
@@ -6084,21 +6234,65 @@ function App() {
                             {selectedWithdrawal.proofMaturityDelay !== undefined && (
                               <div className="info-row">
                                 <span className="info-label">Proof Maturity Delay:</span>
-                                <span>{selectedWithdrawal.proofMaturityDelay}s ({Math.round(selectedWithdrawal.proofMaturityDelay / 60)}m)</span>
+                                <span>{(() => {
+                                  const s = selectedWithdrawal.proofMaturityDelay!;
+                                  const d = Math.floor(s / 86400);
+                                  const h = Math.floor((s % 86400) / 3600);
+                                  const m = Math.floor((s % 3600) / 60);
+                                  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                })()} <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>(Prove 후 챌린지 대기 기간)</span></span>
                               </div>
                             )}
                             {selectedWithdrawal.disputeGameFinalityDelay !== undefined && (
                               <div className="info-row">
                                 <span className="info-label">Game Finality Delay:</span>
-                                <span>{selectedWithdrawal.disputeGameFinalityDelay}s ({Math.round(selectedWithdrawal.disputeGameFinalityDelay / 60)}m)</span>
+                                <span>{(() => {
+                                  const s = selectedWithdrawal.disputeGameFinalityDelay!;
+                                  const d = Math.floor(s / 86400);
+                                  const h = Math.floor((s % 86400) / 3600);
+                                  const m = Math.floor((s % 3600) / 60);
+                                  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                })()} <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>(Dispute Game 종료 후 추가 안전 대기)</span></span>
+                              </div>
+                            )}
+                            {selectedWithdrawal.proofMaturityDelay !== undefined && selectedWithdrawal.disputeGameFinalityDelay !== undefined && (
+                              <div className="info-row">
+                                <span className="info-label">Total Challenge Period:</span>
+                                <span style={{ fontWeight: 'bold' }}>{(() => {
+                                  const s = selectedWithdrawal.proofMaturityDelay! + selectedWithdrawal.disputeGameFinalityDelay!;
+                                  const d = Math.floor(s / 86400);
+                                  const h = Math.floor((s % 86400) / 3600);
+                                  const m = Math.floor((s % 3600) / 60);
+                                  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                })()}</span>
+                              </div>
+                            )}
+                            {selectedWithdrawal.proofMaturityDelay !== undefined && (
+                              <div className="info-row">
+                                <span className="info-label">Earliest Finalize At:</span>
+                                <span style={{ fontWeight: 'bold', color: '#8b5cf6' }}>
+                                  {new Date((selectedWithdrawal.provenTimestamp + selectedWithdrawal.proofMaturityDelay!) * 1000).toLocaleString()}
+                                </span>
                               </div>
                             )}
                             {selectedWithdrawal.timeUntilFinalizable !== undefined && selectedWithdrawal.timeUntilFinalizable > 0 && (
                               <div className="info-row">
-                                <span className="info-label">Time Until Finalizable:</span>
+                                <span className="info-label">Time Remaining:</span>
                                 <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>
-                                  ~{Math.ceil(selectedWithdrawal.timeUntilFinalizable / 60)} minutes remaining
+                                  {(() => {
+                                    const s = selectedWithdrawal.timeUntilFinalizable!;
+                                    const d = Math.floor(s / 86400);
+                                    const h = Math.floor((s % 86400) / 3600);
+                                    const m = Math.ceil((s % 3600) / 60);
+                                    return d > 0 ? `~${d}d ${h}h ${m}m remaining` : h > 0 ? `~${h}h ${m}m remaining` : `~${m}m remaining`;
+                                  })()}
                                 </span>
+                              </div>
+                            )}
+                            {selectedWithdrawal.timeUntilFinalizable !== undefined && selectedWithdrawal.timeUntilFinalizable === 0 && selectedWithdrawal.status === 'ready_to_finalize' && (
+                              <div className="info-row">
+                                <span className="info-label">Time Remaining:</span>
+                                <span style={{ color: '#10b981', fontWeight: 'bold' }}>Ready to finalize now!</span>
                               </div>
                             )}
                           </div>
@@ -6129,27 +6323,32 @@ function App() {
                             >
                               {withdrawalLoading ? 'Processing...' : 'Prove (Standard)'}
                             </button>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  setWithdrawalLoading(true);
-                                  const proofData = await generateMerkleProof(selectedWithdrawal);
-                                  if (proofData) {
-                                    setWithdrawalProofData(proofData);
-                                    await proveAndRequestFastWithdrawalTx(selectedWithdrawal, proofData);
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    setWithdrawalLoading(true);
+                                    const proofData = await generateMerkleProof(selectedWithdrawal);
+                                    if (proofData) {
+                                      setWithdrawalProofData(proofData);
+                                      await proveAndRequestFastWithdrawalTx(selectedWithdrawal, proofData);
+                                    }
+                                  } catch (error: any) {
+                                    alert(`Failed: ${error.message}`);
+                                  } finally {
+                                    setWithdrawalLoading(false);
                                   }
-                                } catch (error: any) {
-                                  alert(`Failed: ${error.message}`);
-                                } finally {
-                                  setWithdrawalLoading(false);
-                                }
-                              }}
-                              disabled={withdrawalLoading || !signer}
-                              className="btn btn-primary"
-                              style={{ background: '#8b5cf6' }}
-                            >
-                              {withdrawalLoading ? 'Processing...' : 'Prove + Fast Withdrawal'}
-                            </button>
+                                }}
+                                disabled={withdrawalLoading || !signer}
+                                className="btn btn-primary"
+                                style={{ background: '#8b5cf6', width: '100%' }}
+                              >
+                                {withdrawalLoading ? 'Processing...' : 'Prove + Fast Withdrawal'}
+                              </button>
+                              <small style={{ color: 'var(--text-light)', fontSize: '0.75rem' }}>
+                                Fee: {fwStatus?.fwFee || '?'} TON
+                              </small>
+                            </div>
                           </>
                         )}
 
@@ -6175,6 +6374,17 @@ function App() {
                           }}>
                             Withdrawal Complete{selectedWithdrawal.status === 'fast_finalized' ? ' (Fast)' : ''}
                           </div>
+                        )}
+
+                        {selectedWithdrawal.status === 'proven' && (
+                          <button
+                            onClick={() => reclaimFeeTx(selectedWithdrawal.withdrawalHash)}
+                            disabled={withdrawalLoading || !signer}
+                            className="btn btn-secondary"
+                            style={{ background: '#ef4444' }}
+                          >
+                            {withdrawalLoading ? 'Processing...' : 'Reclaim Fee (if deadline passed)'}
+                          </button>
                         )}
 
                         <button
@@ -6217,6 +6427,10 @@ function App() {
                         <span className="info-label">Aggregator Fee Rate:</span>
                         <span>{fwStatus ? `${fwStatus.feeRate}%` : '-'}</span>
                       </div>
+                      <div className="info-row">
+                        <span className="info-label">Fast Withdrawal Fee:</span>
+                        <span>{fwStatus ? `${fwStatus.fwFee} TON` : '-'}</span>
+                      </div>
                     </div>
                     <button
                       onClick={async () => {
@@ -6224,22 +6438,25 @@ function App() {
                           setLoading(true);
                           const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
                           const portal = new ethers.Contract(l2Info?.portal || '', OPTIMISM_PORTAL_ABI, l1Provider);
-                          const [blsVals, minFW, responsePeriod, feeRateRaw] = await Promise.all([
+                          const [blsVals, minFW, responsePeriod, feeRateRaw, fwFeeRaw] = await Promise.all([
                             rat.getActiveValidatorsWithBLS(CONFIG.contracts.systemConfig).catch(() => []),
                             rat.minValidatorsForFastWithdrawal().catch(() => 0),
                             portal.fastWithdrawalResponsePeriod().catch(() => 0),
                             rat.aggregatorFeeRate().catch(() => 0n),
+                            rat.fastWithdrawalFee().catch(() => 0n),
                           ]);
                           const blsCount = blsVals.length;
                           const minRequired = Number(minFW);
                           const period = Number(responsePeriod);
                           const feeRate = (Number(feeRateRaw) / 100).toString();
+                          const fwFee = ethers.formatEther(fwFeeRaw);
                           setFwStatus({
                             ready: blsCount >= minRequired && minRequired > 0,
                             blsCount,
                             minRequired,
                             responsePeriod: period,
                             feeRate,
+                            fwFee,
                           });
                         } catch (error: any) {
                           console.error('Failed to load FW status:', error);

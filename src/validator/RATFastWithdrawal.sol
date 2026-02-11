@@ -9,6 +9,7 @@ import {RATFastWithdrawalLib} from "../libraries/RATFastWithdrawalLib.sol";
 import {ILayer2Manager} from "../layer2/interfaces/ILayer2Manager.sol";
 import {IValidatorReward} from "./IValidatorReward.sol";
 import {IDisputeGame} from "./interfaces/IDisputeGame.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // OptimismPortal2 인터페이스 (Fast Withdrawal용)
 interface IOptimismPortal2ForRAT {
@@ -23,9 +24,20 @@ interface IOptimismPortal2ForRAT {
 
     /// @notice Fast Withdrawal로 완료된 출금인지 확인
     function fastFinalizedWithdrawals(bytes32 _withdrawalHash) external view returns (bool);
+
+    /// @notice 출금 증명 + 빠른 출금 요청 (RAT만 호출 가능)
+    function proveAndRequestFastWithdrawal(
+        Types.WithdrawalTransaction memory _tx,
+        uint256 _disputeGameIndex,
+        Types.OutputRootProof calldata _outputRootProof,
+        bytes[] calldata _withdrawalProof
+    ) external;
+
+    /// @notice Fast Withdrawal 응답 기한
+    function fastWithdrawalResponsePeriod() external view returns (uint256);
 }
 
-// Types 라이브러리 (Optimism)
+// OutputRootProof (Optimism Types 호환)
 library Types {
     struct WithdrawalTransaction {
         uint256 nonce;
@@ -34,6 +46,13 @@ library Types {
         uint256 value;
         uint256 gasLimit;
         bytes data;
+    }
+
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
     }
 }
 
@@ -69,6 +88,9 @@ error FastWithdrawalInsufficientValidatorsError();
 error FastWithdrawalGameHasClaimsError();
 error InvalidAggregatorFeeRateError();
 error InvalidMinValidatorsError();
+error InsufficientFastWithdrawalFeeError();
+error FeeAlreadyClaimedError();
+error FeeNotReclaimableError();
 
 /**
  * @title RATFastWithdrawal
@@ -121,6 +143,15 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
 
     /// @notice 최소 검증자 수 변경 이벤트
     event MinValidatorsForFastWithdrawalUpdated(uint256 newMinValidators);
+
+    /// @notice Fast Withdrawal 수수료 변경 이벤트
+    event FastWithdrawalFeeUpdated(uint256 newFee);
+
+    /// @notice Fast Withdrawal 요청 이벤트
+    event FastWithdrawalRequested(bytes32 indexed withdrawalHash, address indexed user, uint256 amount, uint256 fee, uint256 deadline);
+
+    /// @notice 수수료 환불 이벤트
+    event FeeReclaimed(bytes32 indexed withdrawalHash, address indexed user, uint256 amount);
 
     /// @notice 검증자 등록 이벤트 (BLS 포함 등록용)
     event ValidatorRegistered(
@@ -312,6 +343,71 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         emit MinValidatorsForFastWithdrawalUpdated(minValidators);
     }
 
+    /// @notice Fast Withdrawal 고정 수수료 설정 (TON 단위)
+    /// @param fee 수수료 금액 (예: 10 TON = 10e18)
+    function setFastWithdrawalFee(uint256 fee) external onlyOwner {
+        fastWithdrawalFee = fee;
+        emit FastWithdrawalFeeUpdated(fee);
+    }
+
+    /// @notice 빠른 출금 요청 (TON 수수료 납부 + Portal prove)
+    /// @dev 호출 전 TON.approve(RAT, fastWithdrawalFee) 필요
+    /// @param _tx 출금 트랜잭션
+    /// @param _disputeGameIndex 분쟁 게임 인덱스
+    /// @param _outputRootProof OutputRootProof
+    /// @param _withdrawalProof 출금 증명
+    /// @param _systemConfig SystemConfig 주소
+    function requestFastWithdrawal(
+        Types.WithdrawalTransaction memory _tx,
+        uint256 _disputeGameIndex,
+        Types.OutputRootProof calldata _outputRootProof,
+        bytes[] calldata _withdrawalProof,
+        address _systemConfig
+    ) external whenNotPaused {
+        uint256 fee = fastWithdrawalFee;
+        if (fee == 0) revert InsufficientFastWithdrawalFeeError();
+
+        // TON 수수료 수령
+        IERC20(ton).transferFrom(msg.sender, address(this), fee);
+
+        address portal = _getOptimismPortal(_systemConfig);
+        if (portal == address(0)) revert FastWithdrawalPortalNotSetError();
+
+        // Portal 빠른 출금 증명 호출 (RAT만 호출 가능)
+        IOptimismPortal2ForRAT(portal).proveAndRequestFastWithdrawal(
+            _tx, _disputeGameIndex, _outputRootProof, _withdrawalProof
+        );
+
+        // 수수료 저장
+        bytes32 withdrawalHash = keccak256(abi.encode(
+            _tx.nonce, _tx.sender, _tx.target, _tx.value, _tx.gasLimit, _tx.data
+        ));
+        uint256 deadline = block.timestamp + IOptimismPortal2ForRAT(portal).fastWithdrawalResponsePeriod();
+        pendingFees[withdrawalHash] = PendingFee({
+            amount: fee,
+            user: msg.sender,
+            deadline: deadline
+        });
+
+        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, fee, deadline);
+    }
+
+    /// @notice 기한 초과 시 TON 수수료 환불
+    /// @dev FW Response Period + 10 블록 이후 회수 가능
+    /// @param _withdrawalHash 출금 해시
+    function reclaimFee(bytes32 _withdrawalHash) external {
+        PendingFee memory fee = pendingFees[_withdrawalHash];
+        if (fee.amount == 0) revert FeeAlreadyClaimedError();
+        if (block.timestamp <= fee.deadline + 120) revert FeeNotReclaimableError(); // +120s ≈ 10 blocks
+        if (processedWithdrawals[_withdrawalHash]) revert FeeAlreadyClaimedError();
+
+        // 수수료 삭제 후 TON 반환
+        delete pendingFees[_withdrawalHash];
+        IERC20(ton).transfer(fee.user, fee.amount);
+
+        emit FeeReclaimed(_withdrawalHash, fee.user, fee.amount);
+    }
+
     /// @notice BLS 집계 서명 + 인접 리프 증명으로 빠른 출금 실행
     /// @dev Aggregator가 호출 (누구나 가능, 수수료 인센티브)
     /// @dev 최적화: calldata 직접 사용, 중복 메모리 복사 제거
@@ -331,7 +427,7 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         Types.WithdrawalTransaction calldata _tx,
         RATFastWithdrawalLib.FastWithdrawalInput calldata input,
         bytes calldata _aggregatedSignature
-    ) external payable ifFree whenNotPaused {
+    ) external ifFree whenNotPaused {
         // 사전 검증 (portal 주소 반환받아 재사용)
         address portal = _validateFastWithdrawalPreconditions(input, _tx);
 
@@ -423,8 +519,10 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         IOptimismPortal2ForRAT(portal).setWithdrawalVerified(input.withdrawalHash);
         IOptimismPortal2ForRAT(portal).fastWithdrawalFinalize(_tx);
 
-        // 수수료 분배 (라이브러리 사용)
-        RATFastWithdrawalLib.distributeFees(msg.value, msg.sender, validatorReward, aggregatorFeeRate);
+        // pendingFees에서 TON 수수료 가져와서 분배
+        uint256 fee = pendingFees[input.withdrawalHash].amount;
+        delete pendingFees[input.withdrawalHash];
+        RATFastWithdrawalLib.distributeFees(fee, msg.sender, validatorReward, aggregatorFeeRate, ton);
 
         emit FastWithdrawalExecuted(input.withdrawalHash, _tx.sender, _tx.value, msg.sender);
     }
@@ -522,6 +620,4 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
         return _portal;
     }
 
-    /// @notice Fast Withdrawal 수수료 수령을 위한 receive 함수
-    receive() external payable {}
 }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {BLS12381} from "../libraries/BLS12381.sol";
 import {AdjacentLeavesVerifier} from "../libraries/AdjacentLeavesVerifier.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title RATFastWithdrawalLib
@@ -184,13 +185,14 @@ library RATFastWithdrawalLib {
         return result;
     }
 
-    /// @notice Fast Withdrawal 수수료 분배
-    /// @dev RAT 컨트랙트에서 msg.value를 파라미터로 전달받아야 함
+    /// @notice Fast Withdrawal TON 수수료 분배
+    /// @dev TON ERC20 토큰으로 수수료 분배
     function distributeFees(
         uint256 totalFee,
         address aggregator,
         address validatorReward,
-        uint256 aggregatorFeeRate
+        uint256 aggregatorFeeRate,
+        address tonToken
     ) internal {
         if (totalFee == 0) return;
 
@@ -200,21 +202,19 @@ library RATFastWithdrawalLib {
         // 집계자 수수료 계산
         uint256 aggregatorFee = (totalFee * aggregatorFeeRate) / RAY;
         uint256 validatorFees;
-        
+
         unchecked {
             validatorFees = totalFee - aggregatorFee;
         }
 
-        // 집계자 수수료 전송
+        // 집계자 수수료 전송 (TON)
         if (aggregatorFee > 0 && aggregator != address(0)) {
-            (bool success, ) = payable(aggregator).call{value: aggregatorFee}("");
-            if (!success) revert AggregatorFeeTransferFailedError();
+            IERC20(tonToken).transfer(aggregator, aggregatorFee);
         }
 
-        // 검증자 수수료 전송 (남은 전부)
+        // 검증자 수수료 전송 (TON → ValidatorReward)
         if (validatorFees > 0 && validatorReward != address(0)) {
-            (bool success, ) = payable(validatorReward).call{value: validatorFees}("");
-            if (!success) revert ValidatorFeeTransferFailedError();
+            IERC20(tonToken).transfer(validatorReward, validatorFees);
         }
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "../helpers/V3TestBase.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RATFastWithdrawal, Types, IOptimismPortal2ForRAT} from "../../../src/validator/RATFastWithdrawal.sol";
 import {RATFastWithdrawalLib} from "../../../src/libraries/RATFastWithdrawalLib.sol";
 import {BLS12381} from "../../../src/libraries/BLS12381.sol";
@@ -72,7 +73,6 @@ contract MockOptimismPortal2Full is IOptimismPortal2ForRAT {
         address indexed user,
         uint256 amount,
         bytes32 stateRoot,
-        uint256 feePaid,
         uint256 deadline
     );
     event WithdrawalVerifiedByRAT(bytes32 indexed withdrawalHash);
@@ -112,7 +112,7 @@ contract MockOptimismPortal2Full is IOptimismPortal2ForRAT {
     function proveAndRequestFastWithdrawal(
         Types.WithdrawalTransaction memory _tx,
         bytes32 stateRoot
-    ) external payable returns (bytes32) {
+    ) external returns (bytes32) {
         _assertNotPaused();
         if (_isUnsafeTarget(_tx.target)) revert OptimismPortal_BadTarget();
 
@@ -121,8 +121,27 @@ contract MockOptimismPortal2Full is IOptimismPortal2ForRAT {
         uint256 deadline = block.timestamp + fastWithdrawalResponsePeriod;
         fastWithdrawalDeadlines[withdrawalHash] = deadline;
 
-        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, stateRoot, msg.value, deadline);
+        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, stateRoot, deadline);
         return withdrawalHash;
+    }
+
+    /// @notice RAT에서 호출하는 4-param 버전 (실제 Portal 시그니처와 동일)
+    function proveAndRequestFastWithdrawal(
+        Types.WithdrawalTransaction memory _tx,
+        uint256,
+        Types.OutputRootProof calldata,
+        bytes[] calldata
+    ) external {
+        if (msg.sender != ratContract) revert OptimismPortal_OnlyRAT();
+        _assertNotPaused();
+        if (_isUnsafeTarget(_tx.target)) revert OptimismPortal_BadTarget();
+
+        bytes32 withdrawalHash = _hashWithdrawal(_tx);
+        provenWithdrawals[withdrawalHash] = true;
+        uint256 deadline = block.timestamp + fastWithdrawalResponsePeriod;
+        fastWithdrawalDeadlines[withdrawalHash] = deadline;
+
+        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, bytes32(0), deadline);
     }
 
     function setWithdrawalVerified(bytes32 _withdrawalHash) external override {
@@ -159,6 +178,16 @@ contract MockOptimismPortal2Full is IOptimismPortal2ForRAT {
         }
     }
 
+    function proveWithdrawalTransaction(
+        Types.WithdrawalTransaction memory _tx,
+        uint256,
+        Types.OutputRootProof calldata,
+        bytes[] calldata
+    ) external {
+        bytes32 withdrawalHash = _hashWithdrawal(_tx);
+        provenWithdrawals[withdrawalHash] = true;
+    }
+
     function isProven(bytes32 withdrawalHash) external view returns (bool) {
         return provenWithdrawals[withdrawalHash];
     }
@@ -189,14 +218,21 @@ contract MockOptimismPortal2Full is IOptimismPortal2ForRAT {
     }
 }
 
-/// @notice Mock ValidatorReward that can receive ETH fees
+/// @notice Mock ValidatorReward that can receive TON fees
 contract MockValidatorRewardE2E {
     uint256 public totalFeesReceived;
     mapping(address => bool) public registeredValidators;
     mapping(address => address[]) public validatorL2s;
+    address public tonToken;
 
-    receive() external payable {
-        totalFeesReceived += msg.value;
+    function setTonToken(address _ton) external {
+        tonToken = _ton;
+    }
+
+    /// @notice Track TON balance as fees received
+    function getTotalFeesReceived() external view returns (uint256) {
+        if (tonToken == address(0)) return 0;
+        return IERC20(tonToken).balanceOf(address(this));
     }
 
     function registerValidatorToL2(address validator, address systemConfig) external {
@@ -287,6 +323,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         ratFastWithdrawal = RATFastWithdrawal(payable(address(rat)));
 
         validatorRewardE2E = new MockValidatorRewardE2E();
+        validatorRewardE2E.setTonToken(ton);
         rat.setValidatorReward(address(validatorRewardE2E));
 
         // Fast Withdrawal 활성화 (최소 검증자 수 1명)
@@ -393,6 +430,17 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         proofsB[1] = abi.encodePacked(nodeCD);
     }
 
+    /// @notice Set pendingFees on RAT for testing (simulates requestFastWithdrawal)
+    /// @dev pendingFees mapping is at storage slot 39 in RATFastWithdrawal
+    function _setPendingFee(bytes32 withdrawalHash, uint256 amount, address user, uint256 deadline) internal {
+        bytes32 baseSlot = keccak256(abi.encode(withdrawalHash, uint256(39)));
+        vm.store(address(ratProxy), baseSlot, bytes32(amount));
+        vm.store(address(ratProxy), bytes32(uint256(baseSlot) + 1), bytes32(uint256(uint160(user))));
+        vm.store(address(ratProxy), bytes32(uint256(baseSlot) + 2), bytes32(deadline));
+        // Mint TON to RAT so it can distribute fees
+        MockTON(ton).mint(address(ratProxy), amount);
+    }
+
     /// @notice Generate valid state root from leaves
     function _computeStateRootFromLeaves() internal pure returns (bytes32) {
         bytes32 leafA = keccak256("leaf_A");
@@ -452,7 +500,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(withdrawUser, 2 ether);
         vm.prank(withdrawUser);
-        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal{value: 0.01 ether}(
+        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal(
             testWithdrawal,
             validStateRoot
         );
@@ -472,13 +520,15 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         });
 
         uint256 userBalanceBefore = withdrawUser.balance;
-        uint256 aggregatorBalanceBefore = aggregator.balance;
-        uint256 fee = 0.1 ether;
+        uint256 fee = 10e18; // 10 TON
 
-        vm.deal(aggregator, 1 ether);
+        // Set pendingFees (simulates requestFastWithdrawal storing the TON fee)
+        _setPendingFee(withdrawalHash, fee, withdrawUser, block.timestamp + 600);
+
+        uint256 aggregatorTonBefore = MockTON(ton).balanceOf(aggregator);
         vm.prank(aggregator);
 
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: fee}(
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(
             testWithdrawal,
             input,
             TEST_BLS_SIGNATURE
@@ -490,8 +540,8 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         assertEq(withdrawUser.balance, userBalanceBefore + 1 ether, "User should receive ETH");
 
         uint256 expectedAggregatorFee = (fee * 1e26) / RAY;
-        assertEq(aggregator.balance, aggregatorBalanceBefore + 1 ether - fee + expectedAggregatorFee);
-        assertEq(validatorRewardE2E.totalFeesReceived(), fee - expectedAggregatorFee);
+        assertEq(MockTON(ton).balanceOf(aggregator), aggregatorTonBefore + expectedAggregatorFee);
+        assertEq(validatorRewardE2E.getTotalFeesReceived(), fee - expectedAggregatorFee);
     }
 
     // ==========================================
@@ -523,7 +573,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(withdrawUser, 2 ether);
         vm.prank(withdrawUser);
-        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal{value: 0.01 ether}(testWithdrawal, validStateRoot);
+        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal(testWithdrawal, validStateRoot);
 
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
@@ -539,7 +589,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(testWithdrawal, input, TEST_BLS_SIGNATURE);
 
         assertTrue(portal.fastFinalizedWithdrawals(withdrawalHash));
     }
@@ -567,7 +617,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(withdrawUser, 2 ether);
         vm.prank(withdrawUser);
-        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal{value: 0.01 ether}(testWithdrawal, validStateRoot);
+        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal(testWithdrawal, validStateRoot);
 
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
@@ -584,7 +634,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalNotUnanimousError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(testWithdrawal, input, TEST_BLS_SIGNATURE);
     }
 
     // ==========================================
@@ -613,7 +663,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(withdrawUser, 2 ether);
         vm.prank(withdrawUser);
-        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal{value: 0.01 ether}(testWithdrawal, validStateRoot);
+        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal(testWithdrawal, validStateRoot);
 
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
@@ -630,7 +680,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalInsufficientValidatorsError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(testWithdrawal, input, TEST_BLS_SIGNATURE);
     }
 
     // ==========================================
@@ -666,7 +716,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
         vm.deal(aggregator, 1 ether);
         vm.prank(aggregator);
         vm.expectRevert(FastWithdrawalDisabledError.selector);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: 0.1 ether}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(testWithdrawal, input, TEST_BLS_SIGNATURE);
     }
 
     // ==========================================
@@ -685,7 +735,7 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
 
         vm.deal(withdrawUser, 2 ether);
         vm.prank(withdrawUser);
-        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal{value: 0.01 ether}(testWithdrawal, validStateRoot);
+        bytes32 withdrawalHash = portal.proveAndRequestFastWithdrawal(testWithdrawal, validStateRoot);
 
         RATFastWithdrawalLib.FastWithdrawalInput memory input = RATFastWithdrawalLib.FastWithdrawalInput({
             withdrawalHash: withdrawalHash,
@@ -699,18 +749,21 @@ contract FastWithdrawalE2EForkTest is V3TestBase {
             proofsB: proofsB
         });
 
-        uint256 fee = 1 ether;
-        uint256 aggregatorBalanceBefore = aggregator.balance;
+        uint256 fee = 10e18; // 10 TON
 
-        vm.deal(aggregator, 2 ether);
+        // Set pendingFees (simulates requestFastWithdrawal storing the TON fee)
+        _setPendingFee(withdrawalHash, fee, withdrawUser, block.timestamp + 600);
+
+        uint256 aggregatorTonBefore = MockTON(ton).balanceOf(aggregator);
+
         vm.prank(aggregator);
-        ratFastWithdrawal.verifyAndExecuteFastWithdrawal{value: fee}(testWithdrawal, input, TEST_BLS_SIGNATURE);
+        ratFastWithdrawal.verifyAndExecuteFastWithdrawal(testWithdrawal, input, TEST_BLS_SIGNATURE);
 
-        // 10% to aggregator, 90% to validators
-        uint256 expectedAggregatorFee = (fee * 1e26) / RAY;  // 0.1 ether
-        uint256 expectedValidatorFee = fee - expectedAggregatorFee;  // 0.9 ether
+        // 10% to aggregator, 90% to validators (in TON)
+        uint256 expectedAggregatorFee = (fee * 1e26) / RAY;  // 1 TON
+        uint256 expectedValidatorFee = fee - expectedAggregatorFee;  // 9 TON
 
-        assertEq(aggregator.balance, aggregatorBalanceBefore + 2 ether - fee + expectedAggregatorFee);
-        assertEq(validatorRewardE2E.totalFeesReceived(), expectedValidatorFee);
+        assertEq(MockTON(ton).balanceOf(aggregator), aggregatorTonBefore + expectedAggregatorFee);
+        assertEq(validatorRewardE2E.getTotalFeesReceived(), expectedValidatorFee);
     }
 }
