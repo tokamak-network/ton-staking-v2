@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useDemoSession } from "../hooks/useDemoSession";
 import { formatToken } from "../lib/formatToken";
@@ -29,6 +29,25 @@ export const SessionPanel = () => {
   const formattedRewardDelta = formatToken(state?.rewardDelta);
   const formattedBalanceBefore = formatToken(state?.challengerBalanceBefore);
   const formattedBalanceAfter = formatToken(state?.challengerBalanceAfter);
+
+  const challengerBalancesBefore = state?.challengerBalancesBefore ?? {};
+  const challengerBalancesAfter = state?.challengerBalancesAfter ?? {};
+  const challengerAddresses = useMemo(() => {
+    const keys = new Set<string>();
+    Object.keys(challengerBalancesBefore).forEach((key) => keys.add(key));
+    Object.keys(challengerBalancesAfter).forEach((key) => keys.add(key));
+    return Array.from(keys);
+  }, [challengerBalancesBefore, challengerBalancesAfter]);
+
+  const getDelta = (before?: string, after?: string) => {
+    if (!before || !after) return "-";
+    try {
+      const delta = BigInt(after) - BigInt(before);
+      return formatToken(delta.toString());
+    } catch {
+      return "-";
+    }
+  };
 
   const logLines = logs.split("\n").slice(-200).join("\n");
 
@@ -97,8 +116,38 @@ export const SessionPanel = () => {
           <div>Stake After: {formattedStakeAfter} (raw: {state.stakeAfter || "-"})</div>
           <div>Reward Delta: {formattedRewardDelta} (raw: {state.rewardDelta || "-"})</div>
 
-          <div>Challenger Balance Before: {formattedBalanceBefore}</div>
-          <div>Challenger Balance After: {formattedBalanceAfter}</div>
+          <div>Challenger Balance Before (Total): {formattedBalanceBefore}</div>
+          <div>Challenger Balance After (Total): {formattedBalanceAfter}</div>
+        </div>
+      )}
+
+      {challengerAddresses.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <h4>Challenger Balances</h4>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Challenger</th>
+                <th>Before</th>
+                <th>After</th>
+                <th>Reward</th>
+              </tr>
+            </thead>
+            <tbody>
+              {challengerAddresses.map((address) => {
+                const before = challengerBalancesBefore[address];
+                const after = challengerBalancesAfter[address];
+                return (
+                  <tr key={address}>
+                    <td>{address}</td>
+                    <td>{formatToken(before)}</td>
+                    <td>{formatToken(after)}</td>
+                    <td>{getDelta(before, after)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

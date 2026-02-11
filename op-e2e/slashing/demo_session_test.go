@@ -22,26 +22,28 @@ type TimelineEntry struct {
 }
 
 type DemoState struct {
-	Status                  string          `json:"status"`
-	Message                 string          `json:"message"`
-	Mode                    string          `json:"mode"`
-	OperatorManager         string          `json:"operatorManager"`
-	CandidateAddOn          string          `json:"candidateAddOn"`
-	GameAddress             string          `json:"gameAddress"`
-	GameType                uint32          `json:"gameType"`
-	RootClaim               string          `json:"rootClaim"`
-	ExtraData               string          `json:"extraData"`
-	Challenger              string          `json:"challenger"`
-	WinningChallengers      []string        `json:"winningChallengers"`
-	StakeBefore             string          `json:"stakeBefore"`
-	StakeAfter              string          `json:"stakeAfter"`
-	StakeDelta              string          `json:"stakeDelta"`
-	ChallengerBalanceBefore string          `json:"challengerBalanceBefore"`
-	ChallengerBalanceAfter  string          `json:"challengerBalanceAfter"`
-	RewardDelta             string          `json:"rewardDelta"`
-	SlashingTxHash          string          `json:"slashingTxHash"`
-	Timeline                []TimelineEntry `json:"timeline"`
-	LastUpdate              string          `json:"lastUpdate"`
+	Status                   string            `json:"status"`
+	Message                  string            `json:"message"`
+	Mode                     string            `json:"mode"`
+	OperatorManager          string            `json:"operatorManager"`
+	CandidateAddOn           string            `json:"candidateAddOn"`
+	GameAddress              string            `json:"gameAddress"`
+	GameType                 uint32            `json:"gameType"`
+	RootClaim                string            `json:"rootClaim"`
+	ExtraData                string            `json:"extraData"`
+	Challenger               string            `json:"challenger"`
+	WinningChallengers       []string          `json:"winningChallengers"`
+	StakeBefore              string            `json:"stakeBefore"`
+	StakeAfter               string            `json:"stakeAfter"`
+	StakeDelta               string            `json:"stakeDelta"`
+	ChallengerBalanceBefore  string            `json:"challengerBalanceBefore"`
+	ChallengerBalanceAfter   string            `json:"challengerBalanceAfter"`
+	ChallengerBalancesBefore map[string]string `json:"challengerBalancesBefore"`
+	ChallengerBalancesAfter  map[string]string `json:"challengerBalancesAfter"`
+	RewardDelta              string            `json:"rewardDelta"`
+	SlashingTxHash           string            `json:"slashingTxHash"`
+	Timeline                 []TimelineEntry   `json:"timeline"`
+	LastUpdate               string            `json:"lastUpdate"`
 }
 
 type DemoCommand struct {
@@ -154,19 +156,20 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 	extraData := common.LeftPadBytes(l2BlockNumber.Bytes(), 32)
 
 	state := DemoState{
-		Status:                  "ready",
-		Message:                 "Game resolved. Ready to slash.",
-		Mode:                    "single",
-		OperatorManager:         operatorManager.Hex(),
-		CandidateAddOn:          candidateAddOn.Hex(),
-		GameAddress:             gameAddress.Hex(),
-		GameType:                gameType,
-		RootClaim:               common.BytesToHash(rootClaim[:]).Hex(),
-		ExtraData:               hexutil.Encode(extraData),
-		Challenger:              accounts.Challenger.Addr.Hex(),
-		WinningChallengers:      []string{accounts.Challenger.Addr.Hex()},
-		StakeBefore:             initialStake.String(),
-		ChallengerBalanceBefore: challengerBalanceBefore.String(),
+		Status:                   "ready",
+		Message:                  "Game resolved. Ready to slash.",
+		Mode:                     "single",
+		OperatorManager:          operatorManager.Hex(),
+		CandidateAddOn:           candidateAddOn.Hex(),
+		GameAddress:              gameAddress.Hex(),
+		GameType:                 gameType,
+		RootClaim:                common.BytesToHash(rootClaim[:]).Hex(),
+		ExtraData:                hexutil.Encode(extraData),
+		Challenger:               accounts.Challenger.Addr.Hex(),
+		WinningChallengers:       []string{accounts.Challenger.Addr.Hex()},
+		StakeBefore:              initialStake.String(),
+		ChallengerBalanceBefore:  challengerBalanceBefore.String(),
+		ChallengerBalancesBefore: map[string]string{accounts.Challenger.Addr.Hex(): challengerBalanceBefore.String()},
 	}
 
 	addTimeline(&state, "game_created", "Dispute game created")
@@ -207,6 +210,9 @@ func runSingleDemoSession(t *testing.T, statePath, commandPath string) {
 						state.Message = "Slashing executed."
 						state.StakeAfter = finalStake.String()
 						state.ChallengerBalanceAfter = challengerBalanceAfter.String()
+						state.ChallengerBalancesAfter = map[string]string{
+							accounts.Challenger.Addr.Hex(): challengerBalanceAfter.String(),
+						}
 
 						stakeDelta := new(big.Int).Sub(initialStake, finalStake)
 						rewardDelta := new(big.Int).Sub(challengerBalanceAfter, challengerBalanceBefore)
@@ -243,12 +249,10 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 
 	aliceAddr := env.System.Cfg.Secrets.Addresses().Alice
 	bobAddr := env.System.Cfg.Secrets.Addresses().Bob
-	challengerBalanceBefore := new(big.Int).Add(
-		getWTONBalance(t, sys, aliceAddr),
-		getWTONBalance(t, sys, bobAddr),
-	)
 
 	initialStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
+	aliceBalanceBefore := getWTONBalance(t, sys, aliceAddr)
+	bobBalanceBefore := getWTONBalance(t, sys, bobAddr)
 
 	l2BlockNumber := uint64(1)
 	invalidRoot := common.HexToHash("0xdeadbeef")
@@ -304,19 +308,20 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 	bob := env.System.Cfg.Secrets.Addresses().Bob
 
 	state := DemoState{
-		Status:                  "ready",
-		Message:                 "Game resolved with two challengers. Ready to slash.",
-		Mode:                    "multi",
-		OperatorManager:         operatorManager.Hex(),
-		CandidateAddOn:          candidateAddOn.Hex(),
-		GameAddress:             game.Addr.Hex(),
-		GameType:                gameType,
-		RootClaim:               invalidRoot.Hex(),
-		ExtraData:               hexutil.Encode(extraData),
-		Challenger:              alice.Hex() + "," + bob.Hex(),
-		WinningChallengers:      []string{alice.Hex(), bob.Hex()},
-		StakeBefore:             initialStake.String(),
-		ChallengerBalanceBefore: challengerBalanceBefore.String(),
+		Status:                   "ready",
+		Message:                  "Game resolved with two challengers. Ready to slash.",
+		Mode:                     "multi",
+		OperatorManager:          operatorManager.Hex(),
+		CandidateAddOn:           candidateAddOn.Hex(),
+		GameAddress:              game.Addr.Hex(),
+		GameType:                 gameType,
+		RootClaim:                invalidRoot.Hex(),
+		ExtraData:                hexutil.Encode(extraData),
+		Challenger:               accounts.Challenger.Addr.Hex(),
+		WinningChallengers:       []string{alice.Hex(), bob.Hex()},
+		StakeBefore:              initialStake.String(),
+		ChallengerBalanceBefore:  new(big.Int).Add(aliceBalanceBefore, bobBalanceBefore).String(),
+		ChallengerBalancesBefore: map[string]string{alice.Hex(): aliceBalanceBefore.String(), bob.Hex(): bobBalanceBefore.String()},
 	}
 
 	addTimeline(&state, "game_created", "Dispute game created (multi)")
@@ -352,19 +357,23 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 						_, _ = bind.WaitMined(ctx, sys.L1Client, tx)
 
 						finalStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
-
-						challengerBalanceAfter := new(big.Int).Add(
-							getWTONBalance(t, sys, aliceAddr),
-							getWTONBalance(t, sys, bobAddr),
-						)
+						aliceBalanceAfter := getWTONBalance(t, sys, aliceAddr)
+						bobBalanceAfter := getWTONBalance(t, sys, bobAddr)
 
 						state.Status = "slashed"
 						state.Message = "Slashing executed."
 						state.StakeAfter = finalStake.String()
-						state.ChallengerBalanceAfter = challengerBalanceAfter.String()
+						state.ChallengerBalanceAfter = new(big.Int).Add(aliceBalanceAfter, bobBalanceAfter).String()
+						state.ChallengerBalancesAfter = map[string]string{
+							alice.Hex(): aliceBalanceAfter.String(),
+							bob.Hex():   bobBalanceAfter.String(),
+						}
 
 						stakeDelta := new(big.Int).Sub(initialStake, finalStake)
-						rewardDelta := new(big.Int).Sub(challengerBalanceAfter, challengerBalanceBefore)
+						rewardDelta := new(big.Int).Sub(
+							new(big.Int).Add(aliceBalanceAfter, bobBalanceAfter),
+							new(big.Int).Add(aliceBalanceBefore, bobBalanceBefore),
+						)
 						state.StakeDelta = stakeDelta.String()
 						state.RewardDelta = rewardDelta.String()
 
