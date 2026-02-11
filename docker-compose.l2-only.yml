@@ -152,7 +152,7 @@ services:
       - OP_PROPOSER_LOG_LEVEL=info
       # Anvil account #1 private key
       - OP_PROPOSER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
-      - OP_PROPOSER_PROPOSAL_INTERVAL=300s
+      - OP_PROPOSER_PROPOSAL_INTERVAL=120s
       - OP_PROPOSER_ALLOW_NON_FINALIZED=true
     command: op-proposer --log.level=info
     networks:
