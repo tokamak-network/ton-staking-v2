@@ -56,3 +56,6 @@ web-ui/public/optimism-addresses.json
 # untitled/temp files
 src/stake/managers/Untitled
 /tests/
+
+# compiled binaries
+clients/fast-withdrawal/validator/bls-sign
