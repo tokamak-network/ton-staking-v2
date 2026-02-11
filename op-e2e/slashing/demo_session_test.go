@@ -245,7 +245,6 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 	initialStake := getStakeBalance(t, sys, env.SlashingContracts, candidateAddOn, operatorManager)
 	challengerBalanceBefore := getWTONBalance(t, sys, accounts.Challenger.Addr)
 
-	// use invalid root claim to force challenger win
 	l2BlockNumber := uint64(1)
 	invalidRoot := common.HexToHash("0xdeadbeef")
 	game := env.CreateAlphabetGame(l2BlockNumber, invalidRoot)
@@ -255,6 +254,10 @@ func runMultiDemoSession(t *testing.T, statePath, commandPath string) {
 
 	env.StartChallenger(game, "challenger-1", key1)
 	env.StartChallenger(game, "challenger-2", key2)
+
+	rootClaimHelper := game.RootClaim(env.Ctx)
+	first := rootClaimHelper.WaitForCounterClaim(env.Ctx)
+	_ = rootClaimHelper.WaitForCounterClaim(env.Ctx, first)
 
 	const challengerWins types.GameStatus = 1
 	env.AdvanceTimeAndResolve(game, challengerWins)

@@ -7,6 +7,7 @@ export const SessionPanel = () => {
   const { state } = useDemoSession();
   const [logs, setLogs] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -29,6 +30,17 @@ export const SessionPanel = () => {
   const formattedBalanceAfter = formatToken(state?.challengerBalanceAfter);
 
   const logLines = logs.split("\n").slice(-200).join("\n");
+
+  const handleCopyLogs = async () => {
+    if (!logLines) return;
+    try {
+      await navigator.clipboard.writeText(logLines);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      alert("Failed to copy logs.");
+    }
+  };
 
   return (
     <div>
@@ -84,16 +96,31 @@ export const SessionPanel = () => {
         ))}
       </ol>
 
-      <h4 style={{ marginTop: 16 }}>Session Logs (last 200 lines)</h4>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
+        <h4 style={{ margin: 0 }}>Session Logs (last 200 lines)</h4>
+        <button
+          onClick={handleCopyLogs}
+          disabled={!logLines}
+          style={{
+            padding: "6px 10px",
+            borderRadius: "6px",
+            background: copied ? "#22c55e" : "#1f2937",
+            color: "#fff"
+          }}
+        >
+          {copied ? "Copied!" : "Copy logs"}
+        </button>
+      </div>
       <div
         style={{
           background: "#0d1320",
           borderRadius: "8px",
-          padding: "12px",
-          height: "180px",
+          padding: "16px",
+          height: "420px",
           overflowY: "auto",
           fontFamily: "monospace",
-          fontSize: "12px",
+          fontSize: "13px",
+          lineHeight: "1.5",
           color: "#8ea0bf",
           whiteSpace: "pre-wrap"
         }}

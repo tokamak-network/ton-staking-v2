@@ -4,17 +4,12 @@ import {
   ChallengersConfig,
   Deployments,
   EventsConfig,
-  NetworksConfig,
-  Scenario,
-  ScenarioConfig
+  NetworksConfig
 } from "../lib/types";
-import { ScenarioSelector } from "../components/ScenarioSelector";
 import { Stepper } from "../components/Stepper";
 import { LogPanel } from "../components/LogPanel";
 import { ConfigPanel } from "../components/ConfigPanel";
-import { RunControls } from "../components/RunControls";
 import { extractMarkers } from "../lib/formatters";
-import { useDemoStatus } from "../hooks/useDemoStatus";
 import { useEventStepper } from "../hooks/useEventStepper";
 import { RpcStatusPanel } from "../components/RpcStatusPanel";
 import { ChallengerBalancesPanel } from "../components/ChallengerBalancesPanel";
@@ -25,16 +20,10 @@ import { GameSelector } from "../components/GameSelector";
 import { SessionPanel } from "../components/SessionPanel";
 
 export default function Home() {
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [selectedScenario, setSelectedScenario] = useState<string>("");
   const [deployments, setDeployments] = useState<Deployments>();
   const [challengers, setChallengers] = useState<ChallengersConfig>();
   const [networks, setNetworks] = useState<NetworksConfig>();
   const [eventsConfig, setEventsConfig] = useState<EventsConfig>();
-  const [runId, setRunId] = useState<string | undefined>();
-
-  const { status: run, logs, error } = useDemoStatus(runId);
-  const logMarkers = useMemo(() => extractMarkers(logs), [logs]);
 
   const {
     markers: eventMarkers,
@@ -46,10 +35,10 @@ export default function Home() {
     eventsConfig,
     networks,
     deployments,
-    runId
+    runId: "session"
   });
 
-  const stepperMarkers = eventMarkers.length ? eventMarkers : logMarkers;
+  const stepperMarkers = eventMarkers.length ? eventMarkers : [];
 
   const abiNames = useMemo(() => {
     return Array.from(new Set(eventsConfig?.steps?.map((s) => s.abi) ?? []));
@@ -57,11 +46,6 @@ export default function Home() {
 
   useEffect(() => {
     const loadConfig = async () => {
-      const scenarioData: ScenarioConfig = await api.getScenarios();
-      setScenarios(scenarioData.scenarios ?? []);
-      if (scenarioData.scenarios?.length) {
-        setSelectedScenario(scenarioData.scenarios[0].key);
-      }
       setDeployments(await api.getDeployments());
       setChallengers(await api.getChallengers());
       setNetworks(await api.getNetworks());
@@ -70,17 +54,6 @@ export default function Home() {
 
     void loadConfig();
   }, []);
-
-  const startDemo = async () => {
-    if (!selectedScenario) return;
-    const runData = await api.startDemo(selectedScenario);
-    setRunId(runData.id);
-  };
-
-  const stopDemo = async () => {
-    if (!runId) return;
-    await api.stopDemo(runId);
-  };
 
   return (
     <main>
@@ -91,24 +64,6 @@ export default function Home() {
 
       <section>
         <SessionPanel />
-      </section>
-
-      <section>
-        <ScenarioSelector
-          scenarios={scenarios}
-          selected={selectedScenario}
-          onChange={setSelectedScenario}
-        />
-      </section>
-
-      <section>
-        <RunControls
-          run={run}
-          onStart={startDemo}
-          onStop={stopDemo}
-          isRunning={run?.status === "running"}
-        />
-        {error && <p style={{ color: "#ff9a9a" }}>Error: {error}</p>}
       </section>
 
       <section>
@@ -144,7 +99,7 @@ export default function Home() {
       </section>
 
       <section>
-        <LogPanel logs={logs} />
+        <LogPanel logs={extractMarkers([])} />
       </section>
 
       <section>
