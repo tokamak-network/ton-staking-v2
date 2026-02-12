@@ -200,6 +200,7 @@ test-permission-security:
 
 # Run all slashing tests (all categories)
 # Note: Requires Go workspace (uses lib/optimism packages)
+# Note: -parallel 4 limits concurrent tests to avoid resource exhaustion
 test-slashing-all:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found"; \
@@ -208,7 +209,7 @@ test-slashing-all:
 		echo "  make devnet-allocs-offline"; \
 		exit 1; \
 	fi
-	go test -v -timeout 60m ./slashing/...
+	DEMO_TEST=false go test -v -timeout 60m -parallel 4 ./slashing/...
 
 # ============================================================================
 # Real FaultDisputeGame Integration Tests
@@ -218,6 +219,8 @@ test-slashing-all:
 # Run all slashing tests with Full Optimism devnet
 # This is the comprehensive test suite for TON slashing with real dispute games
 # Note: Requires Go workspace (uses lib/optimism packages)
+# Note: -parallel 4 limits concurrent tests to avoid resource exhaustion
+#       (each test spawns Anvil or Full Devnet instances)
 test-slashing-devnet:
 	@if [ ! -f "../.devnet/genesis-l1-staking-v3.json" ]; then \
 		echo "Error: Genesis file not found. Run 'make devnet-allocs-offline' first."; \
@@ -227,7 +230,7 @@ test-slashing-devnet:
 	@echo "Using real FaultDisputeGame.sol and op-challenger service"
 	@echo "Expected runtime: ~90 seconds per test"
 	@echo ""
-	go test -v -timeout 60m ./slashing/...
+	DEMO_TEST=false go test -v -timeout 60m -parallel 4 ./slashing/...
 
 # Clean build artifacts
 clean:

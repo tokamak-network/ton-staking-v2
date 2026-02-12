@@ -101,6 +101,13 @@ func addTimeline(state *DemoState, step, message string) {
 }
 
 func TestDemoSession(t *testing.T) {
+	// This test is an interactive demo that polls for commands via .demo/command.json.
+	// It runs an infinite loop and never terminates on its own.
+	// Set DEMO_TEST=false to skip this test in automated test runs.
+	if os.Getenv("DEMO_TEST") == "false" {
+		t.Skip("Skipping interactive demo test (DEMO_TEST=false)")
+	}
+
 	root, err := findProjectRootForDemo()
 	if err != nil {
 		t.Fatalf("project root not found")
