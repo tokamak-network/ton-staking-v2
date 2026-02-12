@@ -26,7 +26,7 @@ func TestNewL1Monitor_NilClient(t *testing.T) {
 func TestFastWithdrawalRequestedTopic(t *testing.T) {
 	// 이벤트 시그니처 검증
 	expected := crypto.Keccak256Hash(
-		[]byte("FastWithdrawalRequested(bytes32,address,uint256,uint8,uint256,bytes32,uint256,uint256)"),
+		[]byte("FastWithdrawalRequested(bytes32,address,uint256,uint256,uint256,uint256,bytes32,address)"),
 	)
 
 	if fastWithdrawalRequestedTopic != expected {
@@ -38,62 +38,67 @@ func TestFastWithdrawalRequestedTopic(t *testing.T) {
 }
 
 func TestFastWithdrawalEvent_Struct(t *testing.T) {
+	tenTON := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18))
 	event := &FastWithdrawalEvent{
-		RequestID:   [32]byte{1, 2, 3},
-		User:        common.HexToAddress("0x1234567890123456789012345678901234567890"),
-		Amount:      big.NewInt(1000000000000000000),
-		Timestamp:   1700000000,
-		BlockNumber: 12345678,
-		TxHash:      common.HexToHash("0xabcd"),
-		RollupType:  3,
-		GameIndex:   big.NewInt(42),
-		OutputRoot:  [32]byte{0xaa, 0xbb},
-		L2BlockNum:  1000000,
-	}
-
-	if event.RollupType != 3 {
-		t.Errorf("Unexpected rollup type: %d", event.RollupType)
+		WithdrawalHash: [32]byte{1, 2, 3},
+		User:           common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		Amount:         big.NewInt(1e17), // 0.1 ETH
+		Fee:            tenTON,
+		Deadline:       1700000000,
+		GameIndex:      big.NewInt(8),
+		OutputRoot:     [32]byte{0xaa, 0xbb},
+		SystemConfig:   common.HexToAddress("0xecf558904405f7b662892ab7bb3544bea3beaf20"),
+		BlockNumber:    12345678,
+		TxHash:         common.HexToHash("0xabcd"),
 	}
 
 	if event.BlockNumber != 12345678 {
 		t.Errorf("Unexpected block number: %d", event.BlockNumber)
 	}
 
-	if event.Amount.Cmp(big.NewInt(1000000000000000000)) != 0 {
+	if event.Amount.Cmp(big.NewInt(1e17)) != 0 {
 		t.Error("Unexpected amount")
+	}
+
+	if event.Fee.Cmp(tenTON) != 0 {
+		t.Error("Unexpected fee")
+	}
+
+	if event.GameIndex.Cmp(big.NewInt(8)) != 0 {
+		t.Errorf("Unexpected game index: %s", event.GameIndex.String())
 	}
 
 	t.Log("✅ FastWithdrawalEvent struct works correctly")
 }
 
 func TestParseEventManual(t *testing.T) {
-	// 테스트용 L1Monitor 생성 (ABI 파싱만 필요)
 	monitor := &L1Monitor{}
 
-	// 이벤트 데이터 구성 (192 bytes minimum)
+	// 이벤트 데이터 구성 (192 bytes = 6 * 32)
 	data := make([]byte, 192)
 
-	// amount (uint256) at offset 0 - 1 ETH
-	amount := common.LeftPadBytes(big.NewInt(1000000000000000000).Bytes(), 32)
+	// amount (uint256) at offset 0 - 0.1 ETH
+	amount := common.LeftPadBytes(big.NewInt(1e17).Bytes(), 32)
 	copy(data[0:32], amount)
 
-	// rollupType (uint8) at offset 32 - 마지막 바이트만 사용
-	data[63] = 3
+	// fee (uint256) at offset 32 - 10 TON
+	fee := common.LeftPadBytes(new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18)).Bytes(), 32)
+	copy(data[32:64], fee)
 
-	// gameIndex (uint256) at offset 64
-	gameIndex := common.LeftPadBytes(big.NewInt(42).Bytes(), 32)
-	copy(data[64:96], gameIndex)
+	// deadline (uint256) at offset 64
+	deadline := common.LeftPadBytes(big.NewInt(1700000000).Bytes(), 32)
+	copy(data[64:96], deadline)
 
-	// outputRoot (bytes32) at offset 96
-	copy(data[96:128], common.HexToHash("0xaabbccdd").Bytes())
+	// gameIndex (uint256) at offset 96
+	gameIdx := common.LeftPadBytes(big.NewInt(8).Bytes(), 32)
+	copy(data[96:128], gameIdx)
 
-	// l2BlockNumber (uint256) at offset 128
-	l2Block := common.LeftPadBytes(big.NewInt(1000000).Bytes(), 32)
-	copy(data[128:160], l2Block)
+	// outputRoot (bytes32) at offset 128
+	copy(data[128:160], common.HexToHash("0xaabbccdd").Bytes())
 
-	// timestamp (uint256) at offset 160
-	timestamp := common.LeftPadBytes(big.NewInt(1700000000).Bytes(), 32)
-	copy(data[160:192], timestamp)
+	// sysConfig (address) at offset 160
+	sysConfig := common.LeftPadBytes(common.HexToAddress("0xecf558904405f7b662892ab7bb3544bea3beaf20").Bytes(), 32)
+	copy(data[160:192], sysConfig)
 
 	// 로그 생성
 	log := &types.Log{
@@ -113,7 +118,7 @@ func TestParseEventManual(t *testing.T) {
 		TxHash:      log.TxHash,
 		Raw:         *log,
 	}
-	copy(event.RequestID[:], log.Topics[1].Bytes())
+	copy(event.WithdrawalHash[:], log.Topics[1].Bytes())
 	event.User = common.BytesToAddress(log.Topics[2].Bytes())
 
 	// 수동 파싱
@@ -123,20 +128,26 @@ func TestParseEventManual(t *testing.T) {
 	}
 
 	// 검증
-	if parsedEvent.RollupType != 3 {
-		t.Errorf("Unexpected rollup type: %d", parsedEvent.RollupType)
+	if parsedEvent.Amount.Cmp(big.NewInt(1e17)) != 0 {
+		t.Errorf("Unexpected amount: %s", parsedEvent.Amount.String())
 	}
 
-	if parsedEvent.GameIndex.Cmp(big.NewInt(42)) != 0 {
+	expectedFee := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18))
+	if parsedEvent.Fee.Cmp(expectedFee) != 0 {
+		t.Errorf("Unexpected fee: %s", parsedEvent.Fee.String())
+	}
+
+	if parsedEvent.Deadline != 1700000000 {
+		t.Errorf("Unexpected deadline: %d", parsedEvent.Deadline)
+	}
+
+	if parsedEvent.GameIndex.Cmp(big.NewInt(8)) != 0 {
 		t.Errorf("Unexpected game index: %s", parsedEvent.GameIndex.String())
 	}
 
-	if parsedEvent.L2BlockNum != 1000000 {
-		t.Errorf("Unexpected L2 block: %d", parsedEvent.L2BlockNum)
-	}
-
-	if parsedEvent.Timestamp != 1700000000 {
-		t.Errorf("Unexpected timestamp: %d", parsedEvent.Timestamp)
+	expectedSysConfig := common.HexToAddress("0xecf558904405f7b662892ab7bb3544bea3beaf20")
+	if parsedEvent.SystemConfig != expectedSysConfig {
+		t.Errorf("Unexpected sysConfig: %s", parsedEvent.SystemConfig.Hex())
 	}
 
 	t.Log("✅ Manual event parsing works correctly")
@@ -145,9 +156,8 @@ func TestParseEventManual(t *testing.T) {
 func TestParseEventManual_InsufficientData(t *testing.T) {
 	monitor := &L1Monitor{}
 
-	// 짧은 데이터 (192 bytes 미만)
 	log := &types.Log{
-		Data: make([]byte, 100), // 너무 짧음
+		Data: make([]byte, 160), // 192 bytes 미만
 	}
 
 	event := &FastWithdrawalEvent{}
@@ -178,21 +188,26 @@ func TestConfig_Struct(t *testing.T) {
 }
 
 func TestFastWithdrawalRequestedData_Struct(t *testing.T) {
+	tenTON := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18))
 	data := FastWithdrawalRequestedData{
-		Amount:        big.NewInt(1000000),
-		RollupType:    3,
-		GameIndex:     big.NewInt(42),
-		OutputRoot:    [32]byte{1, 2, 3},
-		L2BlockNumber: big.NewInt(1000000),
-		Timestamp:     big.NewInt(1700000000),
+		Amount:       big.NewInt(1e17),
+		Fee:          tenTON,
+		Deadline:     big.NewInt(1700000000),
+		GameIndex:    big.NewInt(8),
+		OutputRoot:   [32]byte{1, 2, 3},
+		SystemConfig: common.HexToAddress("0xecf558904405f7b662892ab7bb3544bea3beaf20"),
 	}
 
-	if data.RollupType != 3 {
-		t.Errorf("Unexpected rollup type: %d", data.RollupType)
-	}
-
-	if data.Amount.Cmp(big.NewInt(1000000)) != 0 {
+	if data.Amount.Cmp(big.NewInt(1e17)) != 0 {
 		t.Error("Unexpected amount")
+	}
+
+	if data.Fee.Cmp(tenTON) != 0 {
+		t.Error("Unexpected fee")
+	}
+
+	if data.GameIndex.Cmp(big.NewInt(8)) != 0 {
+		t.Error("Unexpected game index")
 	}
 
 	t.Log("✅ FastWithdrawalRequestedData struct works correctly")

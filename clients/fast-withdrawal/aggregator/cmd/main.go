@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"math/big"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -29,13 +31,16 @@ var (
 	version    = "0.1.0"
 )
 
+// fallbackDelay Aggregator 인계 대기 시간 (priority 1당 30초)
+const fallbackDelay = 30 * time.Second
+
 // Aggregator 메인 서비스 구조체
 type Aggregator struct {
 	cfg *config.Config
 
 	// Clients
-	l1Client       *ethclient.Client
-	ratContract    *contracts.RATContract
+	l1Client        *ethclient.Client
+	ratContract     *contracts.RATContract
 	l2ProofProvider *l2proof.L2ProofProvider
 
 	// Components
@@ -46,7 +51,10 @@ type Aggregator struct {
 	l1Submitter   *submitter.L1Submitter
 
 	// Validator set (from RAT contract)
-	validatorSet []common.Address
+	validatorSet     []common.Address
+	sortedValidators []common.Address // 주소순 정렬 (round-robin용)
+	myAddress        common.Address   // 이 노드의 validator 주소
+	myValidatorIndex int              // 정렬된 목록에서의 인덱스 (-1이면 미포함)
 
 	// Context
 	ctx    context.Context
@@ -171,6 +179,7 @@ func NewAggregator(ctx context.Context, cfg *config.Config) (*Aggregator, error)
 		DHTNamespace:    cfg.P2P.DHTNamespace,
 		WithdrawalTopic: cfg.P2P.WithdrawalTopic,
 		AggregatorAddr:  common.HexToAddress(cfg.Aggregator.Address),
+		SystemConfig:    cfg.L1.SystemConfig,
 	})
 	if err != nil {
 		cancel()
@@ -230,7 +239,36 @@ func NewAggregator(ctx context.Context, cfg *config.Config) (*Aggregator, error)
 	}
 	agg.validatorSet = validatorSet
 
+	// Round-robin용 정렬 및 자기 인덱스 계산
+	agg.myAddress = common.HexToAddress(cfg.Aggregator.Address)
+	agg.updateSortedValidators()
+
 	return agg, nil
+}
+
+// updateSortedValidators validator set을 주소순 정렬하고 자기 인덱스를 계산
+func (agg *Aggregator) updateSortedValidators() {
+	sorted := make([]common.Address, len(agg.validatorSet))
+	copy(sorted, agg.validatorSet)
+	sort.Slice(sorted, func(i, j int) bool {
+		return bytes.Compare(sorted[i].Bytes(), sorted[j].Bytes()) < 0
+	})
+	agg.sortedValidators = sorted
+
+	agg.myValidatorIndex = -1
+	for i, addr := range sorted {
+		if addr == agg.myAddress {
+			agg.myValidatorIndex = i
+			break
+		}
+	}
+
+	if agg.myValidatorIndex >= 0 {
+		fmt.Printf("📋 Round-robin: my index = %d/%d in sorted validator set\n",
+			agg.myValidatorIndex, len(sorted))
+	} else {
+		fmt.Printf("⚠️  My address %s not found in validator set\n", agg.myAddress.Hex())
+	}
 }
 
 // Start Aggregator 서비스 시작
@@ -273,54 +311,105 @@ func (agg *Aggregator) Start(startBlock *big.Int) error {
 // handleWithdrawalRequest L1에서 감지된 출금 요청 처리
 func (agg *Aggregator) handleWithdrawalRequest(event *monitor.FastWithdrawalEvent) {
 	fmt.Printf("\n📨 New Fast Withdrawal Request detected!\n")
-	fmt.Printf("   RequestID: %x\n", event.RequestID[:8])
+	fmt.Printf("   WithdrawalHash: %x\n", event.WithdrawalHash[:8])
 	fmt.Printf("   User: %s\n", event.User.Hex())
 	fmt.Printf("   Amount: %s\n", event.Amount.String())
+	fmt.Printf("   Fee: %s\n", event.Fee.String())
+	fmt.Printf("   Deadline: %d\n", event.Deadline)
 	fmt.Printf("   Block: %d\n", event.BlockNumber)
 
 	// 1. Validator set 확인
-	if len(agg.validatorSet) < agg.cfg.FastWithdrawal.MinValidators {
+	n := len(agg.sortedValidators)
+	if n < agg.cfg.FastWithdrawal.MinValidators {
 		fmt.Printf("❌ Not enough validators: %d < %d\n",
-			len(agg.validatorSet),
-			agg.cfg.FastWithdrawal.MinValidators)
+			n, agg.cfg.FastWithdrawal.MinValidators)
 		return
 	}
 
-	// 2. SignatureRequest 생성
+	if agg.myValidatorIndex < 0 {
+		fmt.Printf("⚠️  My address not in validator set, skipping aggregation\n")
+		return
+	}
+
+	// 2. Round-robin: 블록 번호 기반으로 이번 차례 결정
+	selectedIdx := int(event.BlockNumber % uint64(n))
+	selectedAddr := agg.sortedValidators[selectedIdx]
+	myPriority := (agg.myValidatorIndex - selectedIdx + n) % n
+
+	if myPriority > 0 {
+		// 내 차례가 아님 → 타임아웃 후 인계 대기
+		delay := time.Duration(myPriority) * fallbackDelay
+		fmt.Printf("⏳ Not my turn (block %d → validator[%d] = %s)\n",
+			event.BlockNumber, selectedIdx, selectedAddr.Hex()[:10])
+		fmt.Printf("   My priority: %d, fallback in %v\n", myPriority, delay)
+		go agg.fallbackAggregation(event, delay)
+		return
+	}
+
+	// 내 차례!
+	fmt.Printf("🎯 My turn to aggregate! (block %d → validator[%d] = %s)\n",
+		event.BlockNumber, selectedIdx, selectedAddr.Hex()[:10])
+	agg.executeAggregation(event)
+}
+
+// executeAggregation 실제 aggregation 실행 (서명 수집 시작 + 브로드캐스트)
+func (agg *Aggregator) executeAggregation(event *monitor.FastWithdrawalEvent) {
+	// 1. SignatureRequest 생성
 	chainID, err := agg.l1Client.ChainID(agg.ctx)
 	if err != nil {
 		fmt.Printf("❌ Failed to get chain ID: %v\n", err)
 		return
 	}
 
-	deadline := uint64(time.Now().Unix()) + uint64(agg.cfg.FastWithdrawal.ResponseTimeout)
-
 	req := &types.SignatureRequest{
-		RequestID:   event.RequestID,
-		User:        event.User,
-		Amount:      event.Amount,
-		ChainID:     chainID,
-		Deadline:    deadline,
-		RollupType:  event.RollupType,
-		GameIndex:   event.GameIndex,
-		OutputRoot:  event.OutputRoot,
-		BlockNumber: event.L2BlockNum,
+		RequestID:  event.WithdrawalHash,
+		User:       event.User,
+		Amount:     event.Amount,
+		ChainID:    chainID,
+		Deadline:   event.Deadline,
+		RollupType: 3, // Type 3: OPTIMISM_BEDROCK_WITH_DISPUTE_GAME
+		GameIndex:  event.GameIndex,
+		OutputRoot: event.OutputRoot,
 	}
 
-	// 3. Collector에 요청 등록
+	// 2. Collector에 요청 등록
 	if err := agg.sigCollector.StartRequest(req, agg.validatorSet); err != nil {
 		fmt.Printf("❌ Failed to start signature collection: %v\n", err)
 		return
 	}
 
-	// 4. Validators에게 서명 요청 브로드캐스트
+	// 3. Validators에게 서명 요청 브로드캐스트
 	if err := agg.network.BroadcastRequest(agg.ctx, req); err != nil {
 		fmt.Printf("❌ Failed to broadcast request: %v\n", err)
 		return
 	}
 
 	fmt.Printf("✅ Signature request broadcasted to %d validators\n", len(agg.validatorSet))
-	fmt.Printf("   Deadline: %s\n", time.Unix(int64(deadline), 0).Format(time.RFC3339))
+	fmt.Printf("   Deadline: %s\n", time.Unix(int64(event.Deadline), 0).Format(time.RFC3339))
+}
+
+// fallbackAggregation 선출된 aggregator가 처리하지 않을 경우 인계
+func (agg *Aggregator) fallbackAggregation(event *monitor.FastWithdrawalEvent, delay time.Duration) {
+	select {
+	case <-time.After(delay):
+		// 이미 이 노드에서 처리 중인지 확인
+		if _, exists := agg.sigCollector.GetState(event.WithdrawalHash); exists {
+			fmt.Printf("⏭️  Request %x already in progress, skipping fallback\n",
+				event.WithdrawalHash[:8])
+			return
+		}
+		// 기한 초과 확인
+		if time.Now().Unix() > int64(event.Deadline) {
+			fmt.Printf("⏭️  Request %x expired, skipping fallback\n",
+				event.WithdrawalHash[:8])
+			return
+		}
+		fmt.Printf("🔄 Primary aggregator timed out, taking over for %x\n",
+			event.WithdrawalHash[:8])
+		agg.executeAggregation(event)
+	case <-agg.ctx.Done():
+		return
+	}
 }
 
 // handleSignatureResponse Validator로부터 받은 서명 응답 처리
@@ -415,6 +504,7 @@ func (agg *Aggregator) refreshValidatorSet() {
 			}
 			if len(newSet) > 0 {
 				agg.validatorSet = newSet
+				agg.updateSortedValidators()
 				fmt.Printf("🔄 Validator set refreshed: %d validators\n", len(newSet))
 			}
 		}

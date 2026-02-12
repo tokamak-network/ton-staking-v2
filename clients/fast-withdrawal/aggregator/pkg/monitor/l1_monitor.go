@@ -15,30 +15,30 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// FastWithdrawalRequested 이벤트 ABI
+// FastWithdrawalRequested 이벤트 ABI (RAT contract)
 // event FastWithdrawalRequested(
 //
-//	bytes32 indexed requestId,
+//	bytes32 indexed withdrawalHash,
 //	address indexed user,
 //	uint256 amount,
-//	uint8 rollupType,
+//	uint256 fee,
+//	uint256 deadline,
 //	uint256 gameIndex,
 //	bytes32 outputRoot,
-//	uint256 l2BlockNumber,
-//	uint256 timestamp
+//	address systemConfig
 //
 // );
 const fastWithdrawalEventABI = `[{
 	"anonymous": false,
 	"inputs": [
-		{"indexed": true, "internalType": "bytes32", "name": "requestId", "type": "bytes32"},
+		{"indexed": true, "internalType": "bytes32", "name": "withdrawalHash", "type": "bytes32"},
 		{"indexed": true, "internalType": "address", "name": "user", "type": "address"},
 		{"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
-		{"indexed": false, "internalType": "uint8", "name": "rollupType", "type": "uint8"},
+		{"indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256"},
+		{"indexed": false, "internalType": "uint256", "name": "deadline", "type": "uint256"},
 		{"indexed": false, "internalType": "uint256", "name": "gameIndex", "type": "uint256"},
 		{"indexed": false, "internalType": "bytes32", "name": "outputRoot", "type": "bytes32"},
-		{"indexed": false, "internalType": "uint256", "name": "l2BlockNumber", "type": "uint256"},
-		{"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
+		{"indexed": false, "internalType": "address", "name": "systemConfig", "type": "address"}
 	],
 	"name": "FastWithdrawalRequested",
 	"type": "event"
@@ -46,9 +46,10 @@ const fastWithdrawalEventABI = `[{
 
 var (
 	// FastWithdrawalRequested event signature
-	// keccak256("FastWithdrawalRequested(bytes32,address,uint256,uint8,uint256,bytes32,uint256,uint256)")
+	// keccak256("FastWithdrawalRequested(bytes32,address,uint256,uint256,uint256,uint256,bytes32,address)")
+	// params: withdrawalHash(indexed), user(indexed), amount, fee, deadline, gameIndex, outputRoot, portal
 	fastWithdrawalRequestedTopic = crypto.Keccak256Hash(
-		[]byte("FastWithdrawalRequested(bytes32,address,uint256,uint8,uint256,bytes32,uint256,uint256)"),
+		[]byte("FastWithdrawalRequested(bytes32,address,uint256,uint256,uint256,uint256,bytes32,address)"),
 	)
 )
 
@@ -64,18 +65,16 @@ type L1Monitor struct {
 
 // FastWithdrawalEvent Fast Withdrawal 이벤트
 type FastWithdrawalEvent struct {
-	RequestID   [32]byte
-	User        common.Address
-	Amount      *big.Int
-	Timestamp   uint64
-	BlockNumber uint64
-	TxHash      common.Hash
-
-	// Type3 specific
-	RollupType uint8
-	GameIndex  *big.Int
-	OutputRoot [32]byte
-	L2BlockNum uint64
+	WithdrawalHash [32]byte
+	User           common.Address
+	Amount         *big.Int
+	Fee            *big.Int
+	Deadline       uint64
+	GameIndex      *big.Int
+	OutputRoot     [32]byte
+	SystemConfig   common.Address
+	BlockNumber    uint64
+	TxHash         common.Hash
 
 	// Raw event data
 	Raw types.Log
@@ -204,9 +203,14 @@ func (m *L1Monitor) processBlocks(ctx context.Context, fromBlock, toBlock *big.I
 
 		if event != nil && m.onWithdrawalRequest != nil {
 			fmt.Printf("📨 FastWithdrawalRequested:\n")
-			fmt.Printf("   RequestID: %x\n", event.RequestID[:8])
+			fmt.Printf("   WithdrawalHash: %x\n", event.WithdrawalHash[:8])
 			fmt.Printf("   User: %s\n", event.User.Hex())
 			fmt.Printf("   Amount: %s\n", event.Amount.String())
+			fmt.Printf("   Fee: %s\n", event.Fee.String())
+			fmt.Printf("   Deadline: %d\n", event.Deadline)
+			fmt.Printf("   GameIndex: %s\n", event.GameIndex.String())
+			fmt.Printf("   OutputRoot: %x\n", event.OutputRoot[:8])
+			fmt.Printf("   SystemConfig: %s\n", event.SystemConfig.Hex())
 			fmt.Printf("   Block: %d\n", event.BlockNumber)
 
 			m.onWithdrawalRequest(event)
@@ -218,12 +222,12 @@ func (m *L1Monitor) processBlocks(ctx context.Context, fromBlock, toBlock *big.I
 
 // FastWithdrawalRequestedData non-indexed 이벤트 데이터
 type FastWithdrawalRequestedData struct {
-	Amount        *big.Int
-	RollupType    uint8
-	GameIndex     *big.Int
-	OutputRoot    [32]byte
-	L2BlockNumber *big.Int
-	Timestamp     *big.Int
+	Amount       *big.Int
+	Fee          *big.Int
+	Deadline     *big.Int
+	GameIndex    *big.Int
+	OutputRoot   [32]byte
+	SystemConfig common.Address
 }
 
 // parseEvent 로그를 이벤트로 파싱
@@ -245,8 +249,8 @@ func (m *L1Monitor) parseEvent(log *types.Log) (*FastWithdrawalEvent, error) {
 		Raw:         *log,
 	}
 
-	// Topic[1]: requestId (indexed bytes32)
-	copy(event.RequestID[:], log.Topics[1].Bytes())
+	// Topic[1]: withdrawalHash (indexed bytes32)
+	copy(event.WithdrawalHash[:], log.Topics[1].Bytes())
 
 	// Topic[2]: user (indexed address)
 	event.User = common.BytesToAddress(log.Topics[2].Bytes())
@@ -261,18 +265,17 @@ func (m *L1Monitor) parseEvent(log *types.Log) (*FastWithdrawalEvent, error) {
 		}
 
 		event.Amount = data.Amount
-		event.RollupType = data.RollupType
+		event.Fee = data.Fee
+		event.Deadline = data.Deadline.Uint64()
 		event.GameIndex = data.GameIndex
 		event.OutputRoot = data.OutputRoot
-		event.L2BlockNum = data.L2BlockNumber.Uint64()
-		event.Timestamp = data.Timestamp.Uint64()
+		event.SystemConfig = data.SystemConfig
 	} else {
 		// Data가 없으면 기본값 사용
 		event.Amount = big.NewInt(0)
-		event.RollupType = 3
+		event.Fee = big.NewInt(0)
+		event.Deadline = 0
 		event.GameIndex = big.NewInt(0)
-		event.L2BlockNum = 0
-		event.Timestamp = uint64(time.Now().Unix())
 	}
 
 	return event, nil
@@ -290,22 +293,21 @@ func (m *L1Monitor) parseEventManual(log *types.Log, event *FastWithdrawalEvent)
 	// amount (uint256) - offset 0
 	event.Amount = new(big.Int).SetBytes(data[0:32])
 
-	// rollupType (uint8) - offset 32 (마지막 1 byte)
-	event.RollupType = data[63]
+	// fee (uint256) - offset 32
+	event.Fee = new(big.Int).SetBytes(data[32:64])
 
-	// gameIndex (uint256) - offset 64
-	event.GameIndex = new(big.Int).SetBytes(data[64:96])
+	// deadline (uint256) - offset 64
+	deadline := new(big.Int).SetBytes(data[64:96])
+	event.Deadline = deadline.Uint64()
 
-	// outputRoot (bytes32) - offset 96
-	copy(event.OutputRoot[:], data[96:128])
+	// gameIndex (uint256) - offset 96
+	event.GameIndex = new(big.Int).SetBytes(data[96:128])
 
-	// l2BlockNumber (uint256) - offset 128
-	l2BlockNum := new(big.Int).SetBytes(data[128:160])
-	event.L2BlockNum = l2BlockNum.Uint64()
+	// outputRoot (bytes32) - offset 128
+	copy(event.OutputRoot[:], data[128:160])
 
-	// timestamp (uint256) - offset 160
-	timestamp := new(big.Int).SetBytes(data[160:192])
-	event.Timestamp = timestamp.Uint64()
+	// systemConfig (address) - offset 160 (마지막 20 bytes)
+	event.SystemConfig = common.BytesToAddress(data[160:192])
 
 	return event, nil
 }

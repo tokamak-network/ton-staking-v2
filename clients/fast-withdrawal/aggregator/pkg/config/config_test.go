@@ -146,8 +146,9 @@ func TestConfig_Validate(t *testing.T) {
 					PrivateKey: "0xkey",
 				},
 				L1: L1Config{
-					RPC:         "http://localhost:8545",
-					RATContract: "0xrat",
+					RPC:          "http://localhost:8545",
+					RATContract:  "0xrat",
+					SystemConfig: "0xsysconfig",
 				},
 				P2P: P2PConfig{
 					ListenAddr: "/ip4/0.0.0.0/tcp/9001",
@@ -201,7 +202,7 @@ func TestConfig_Validate(t *testing.T) {
 			errMsg:    "l1.rat_contract is required",
 		},
 		{
-			name: "missing listen addr",
+			name: "missing system config",
 			config: Config{
 				Aggregator: AggregatorConfig{
 					Address:    "0x1234",
@@ -210,6 +211,22 @@ func TestConfig_Validate(t *testing.T) {
 				L1: L1Config{
 					RPC:         "http://localhost:8545",
 					RATContract: "0xrat",
+				},
+			},
+			expectErr: true,
+			errMsg:    "l1.system_config is required",
+		},
+		{
+			name: "missing listen addr",
+			config: Config{
+				Aggregator: AggregatorConfig{
+					Address:    "0x1234",
+					PrivateKey: "0xkey",
+				},
+				L1: L1Config{
+					RPC:          "http://localhost:8545",
+					RATContract:  "0xrat",
+					SystemConfig: "0xsysconfig",
 				},
 			},
 			expectErr: true,

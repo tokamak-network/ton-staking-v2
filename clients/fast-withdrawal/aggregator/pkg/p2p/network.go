@@ -11,6 +11,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/tokamak-network/ton-staking-v2/clients/fast-withdrawal/aggregator/pkg/types"
@@ -45,13 +46,35 @@ type Config struct {
 	DHTNamespace    string
 	WithdrawalTopic string
 	AggregatorAddr  common.Address
+	SystemConfig    string // SystemConfig 주소 — mDNS/DHT 네임스페이스에 사용
+}
+
+// mdnsNotifee mDNS 피어 디스커버리 핸들러
+type mdnsNotifee struct {
+	h host.Host
+}
+
+func (n *mdnsNotifee) HandlePeerFound(pi peer.AddrInfo) {
+	if pi.ID == n.h.ID() {
+		return
+	}
+	fmt.Printf("🔍 mDNS: discovered peer %s\n", pi.ID.String())
+	if err := n.h.Connect(context.Background(), pi); err != nil {
+		fmt.Printf("   Warning: failed to connect to mDNS peer: %v\n", err)
+	} else {
+		fmt.Printf("   ✅ Connected to mDNS peer: %s\n", pi.ID.String())
+	}
 }
 
 // NewAggregatorNetwork Aggregator 네트워크 생성
 func NewAggregatorNetwork(ctx context.Context, cfg *Config) (*AggregatorNetwork, error) {
-	// 기본값 설정
+	// 기본값 설정 — SystemConfig 주소로 네임스페이스 스코핑
 	if cfg.DHTNamespace == "" {
-		cfg.DHTNamespace = DefaultDHTNamespace
+		if cfg.SystemConfig != "" {
+			cfg.DHTNamespace = "/tokamak-rat/" + cfg.SystemConfig
+		} else {
+			cfg.DHTNamespace = DefaultDHTNamespace
+		}
 	}
 	if cfg.WithdrawalTopic == "" {
 		cfg.WithdrawalTopic = DefaultWithdrawalTopic
@@ -79,11 +102,23 @@ func NewAggregatorNetwork(ctx context.Context, cfg *Config) (*AggregatorNetwork,
 		return nil, fmt.Errorf("failed to bootstrap DHT: %w", err)
 	}
 
-	// Bootstrap peers 연결
+	// Bootstrap peers 연결 (상용: 잘 알려진 부트노드 사용)
 	if len(cfg.BootstrapPeers) > 0 {
 		if err := connectBootstrapPeers(ctx, h, cfg.BootstrapPeers); err != nil {
 			fmt.Printf("Warning: failed to connect to some bootstrap peers: %v\n", err)
 		}
+	}
+
+	// mDNS 피어 디스커버리 (로컬 네트워크/Docker에서 자동 발견)
+	mdnsServiceName := "tokamak-rat-validators"
+	if cfg.SystemConfig != "" {
+		mdnsServiceName = "tokamak-rat-" + cfg.SystemConfig[:10]
+	}
+	mdnsSvc := mdns.NewMdnsService(h, mdnsServiceName, &mdnsNotifee{h: h})
+	if err := mdnsSvc.Start(); err != nil {
+		fmt.Printf("Warning: mDNS discovery failed to start: %v\n", err)
+	} else {
+		fmt.Printf("🔍 mDNS discovery started (service: %s)\n", mdnsServiceName)
 	}
 
 	// GossipSub pubsub 설정
@@ -199,7 +234,12 @@ func (an *AggregatorNetwork) handleMessage(ctx context.Context, data []byte) {
 	// SignatureResponse 파싱
 	var resp types.SignatureResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
-		// SignatureRequest일 수도 있음 (무시)
+		return
+	}
+
+	// SignatureRequest가 GossipSub 릴레이로 들어올 수 있음 — 필터링
+	// 유효한 SignatureResponse는 반드시 Signature와 Validator가 있어야 함
+	if len(resp.Signature) == 0 || resp.Validator == (common.Address{}) {
 		return
 	}
 

@@ -14,8 +14,12 @@ import (
 
 func init() {
 	// BLS12-381 초기화 (aggregator.go와 중복되지만 안전을 위해)
-	_ = bls.Init(bls.BLS12_381)
-	_ = bls.SetETHmode(bls.EthModeDraft07)
+	if err := bls.Init(bls.BLS12_381); err != nil {
+		panic(fmt.Sprintf("failed to init BLS: %v", err))
+	}
+	if err := bls.SetETHmode(bls.EthModeDraft07); err != nil {
+		panic(fmt.Sprintf("failed to set ETH mode: %v", err))
+	}
 }
 
 // SignatureCollector BLS 서명 수집 및 관리
