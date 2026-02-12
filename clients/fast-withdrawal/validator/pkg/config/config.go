@@ -31,8 +31,9 @@ type ValidatorConfig struct {
 }
 
 type L1Config struct {
-	RPC         string `yaml:"rpc"`
-	RATContract string `yaml:"rat_contract"`
+	RPC          string `yaml:"rpc"`
+	RATContract  string `yaml:"rat_contract"`
+	SystemConfig string `yaml:"system_config"` // mDNS/DHT 디스커버리용
 }
 
 type L2Config struct {

@@ -12,8 +12,12 @@ import (
 
 func init() {
 	// BLS12-381 초기화
-	_ = bls.Init(bls.BLS12_381)
-	_ = bls.SetETHmode(bls.EthModeDraft07)
+	if err := bls.Init(bls.BLS12_381); err != nil {
+		panic(fmt.Sprintf("failed to init BLS: %v", err))
+	}
+	if err := bls.SetETHmode(bls.EthModeDraft07); err != nil {
+		panic(fmt.Sprintf("failed to set ETH mode: %v", err))
+	}
 }
 
 // BLSSigner BLS12-381 서명 생성
@@ -40,9 +44,21 @@ func NewBLSSigner(privateKeyHex string) (*BLSSigner, error) {
 	}
 
 	// SecretKey 생성
+	// keygen(gnark-crypto)이 little-endian hex로 출력하므로
+	// EthModeDraft07에서 Deserialize가 big-endian을 기대할 수 있음.
+	// 양쪽 엔디안 모두 시도하여 호환성 보장.
 	var privKey bls.SecretKey
+
+	// 방법 1: 원본 바이트로 Deserialize (little-endian)
 	if err := privKey.Deserialize(privKeyBytes); err != nil {
-		return nil, fmt.Errorf("failed to deserialize secret key: %w", err)
+		// 방법 2: 바이트 순서 반전 후 시도 (big-endian → little-endian)
+		reversed := make([]byte, 32)
+		for i := range 32 {
+			reversed[i] = privKeyBytes[31-i]
+		}
+		if err := privKey.Deserialize(reversed); err != nil {
+			return nil, fmt.Errorf("failed to deserialize secret key (tried both endians): %w", err)
+		}
 	}
 
 	// PublicKey 생성 (G1)

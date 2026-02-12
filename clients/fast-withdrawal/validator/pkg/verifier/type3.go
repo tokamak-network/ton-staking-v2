@@ -3,7 +3,6 @@ package verifier
 import (
 	"context"
 	"fmt"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -52,55 +51,25 @@ func NewType3Verifier(cfg *Type3Config) (*Type3Verifier, error) {
 }
 
 // ValidateWithdrawal 출금 요청 검증
+// Output root는 L1 Portal에서 이미 검증됨 (proveWithdrawalTransaction).
+// Validator는 L2에서 withdrawal 존재만 확인.
 func (v *Type3Verifier) ValidateWithdrawal(ctx context.Context, req *p2p.SignatureRequest) error {
-	// 1. DisputeGame 상태 확인 (L1)
-	// TODO: DisputeGameFactory에서 game 조회하여 상태 확인
-	// - Game이 resolved 되었는지?
-	// - Claim이 없는지? (분쟁 중이 아닌지)
-
+	// 1. DisputeGame 확인 (L1)
 	fmt.Printf("   [Type3] Checking DisputeGame (GameIndex: %s)...\n", req.GameIndex.String())
+	// TODO: DisputeGameFactory.games(gameIndex) 호출하여 game 상태 확인
+	// 현재는 L1 FastWithdrawalRequested 이벤트에서 검증된 것으로 신뢰
 
-	// Mock: 일단 통과
-	// 실제로는 DisputeGameFactory.games(gameIndex) 호출
+	// 2. Output root는 L1에서 이미 검증됨 (RAT → Portal.proveWithdrawalTransaction)
+	// Validator가 재계산하지 않음 — RAT 테스트와 동일한 방식
+	fmt.Printf("   [Type3] OutputRoot: %s (L1-verified, skipping recomputation)\n",
+		common.BytesToHash(req.OutputRoot[:]).Hex())
 
-	// 2. L2 블록 상태 확인
-	fmt.Printf("   [Type3] Checking L2 block %d...\n", req.BlockNumber)
-
-	header, err := v.l2Client.HeaderByNumber(ctx, big.NewInt(int64(req.BlockNumber)))
-	if err != nil {
-		return fmt.Errorf("failed to get L2 block header: %w", err)
-	}
-
-	stateRoot := header.Root
-	blockHash := header.Hash()
-
-	fmt.Printf("   [Type3] L2 StateRoot: %s\n", stateRoot.Hex())
-	fmt.Printf("   [Type3] L2 BlockHash: %s\n", blockHash.Hex())
-
-	// 3. OutputRoot 계산 및 검증
-	computedOutputRoot, err := v.computeOutputRoot(ctx, stateRoot, blockHash, req.BlockNumber)
-	if err != nil {
-		return fmt.Errorf("failed to compute output root: %w", err)
-	}
-
-	fmt.Printf("   [Type3] Computed OutputRoot: %s\n", computedOutputRoot.Hex())
-	fmt.Printf("   [Type3] Expected OutputRoot: %s\n", common.BytesToHash(req.OutputRoot[:]).Hex())
-
-	// OutputRoot 비교
-	if computedOutputRoot != common.BytesToHash(req.OutputRoot[:]) {
-		return fmt.Errorf("output root mismatch: computed=%s, expected=%s",
-			computedOutputRoot.Hex(),
-			common.BytesToHash(req.OutputRoot[:]).Hex())
-	}
-
-	fmt.Printf("   [Type3] ✅ OutputRoot verified\n")
-
-	// 4. 출금 트랜잭션 존재 확인 (L2ToL1MessagePasser storage)
+	// 3. L2에서 withdrawal 존재 확인 (L2ToL1MessagePasser storage)
 	withdrawalHash := v.computeWithdrawalHash(&req.WithdrawalTx)
-
 	fmt.Printf("   [Type3] Checking withdrawal existence (hash: %s)...\n", withdrawalHash.Hex())
 
-	exists, err := v.checkWithdrawalExists(ctx, withdrawalHash, req.BlockNumber)
+	// 최신 L2 블록 기준으로 확인 (nil = latest)
+	exists, err := v.checkWithdrawalExists(ctx, withdrawalHash)
 	if err != nil {
 		return fmt.Errorf("failed to check withdrawal existence: %w", err)
 	}
@@ -112,40 +81,6 @@ func (v *Type3Verifier) ValidateWithdrawal(ctx context.Context, req *p2p.Signatu
 	fmt.Printf("   [Type3] ✅ Withdrawal exists in L2\n")
 
 	return nil
-}
-
-// computeOutputRoot OutputRoot 계산
-// OutputRoot = keccak256(version || stateRoot || messagePasserStorageRoot || blockHash)
-func (v *Type3Verifier) computeOutputRoot(
-	ctx context.Context,
-	stateRoot common.Hash,
-	blockHash common.Hash,
-	blockNumber uint64,
-) (common.Hash, error) {
-	// L2ToL1MessagePasser의 storage root 조회
-	blockNum := big.NewInt(int64(blockNumber))
-
-	// eth_getProof로 MessagePasser storage root 가져오기
-	// Note: go-ethereum의 ethclient는 getProof를 직접 지원하지 않으므로
-	// 일단 간단하게 계산 (실제로는 RPC 호출 필요)
-
-	// Mock: stateRoot를 그대로 사용 (테스트용)
-	messagePasserStorageRoot := stateRoot
-
-	// OutputV0 계산
-	version := [32]byte{} // Version 0
-
-	data := make([]byte, 0, 128)
-	data = append(data, version[:]...)
-	data = append(data, stateRoot[:]...)
-	data = append(data, messagePasserStorageRoot[:]...)
-	data = append(data, blockHash[:]...)
-
-	outputRoot := crypto.Keccak256Hash(data)
-
-	_ = blockNum // 사용
-
-	return outputRoot, nil
 }
 
 // computeWithdrawalHash 출금 해시 계산
@@ -166,23 +101,20 @@ func (v *Type3Verifier) computeWithdrawalHash(tx *p2p.WithdrawalTransaction) com
 	return common.BytesToHash(data)
 }
 
-// checkWithdrawalExists L2에서 출금 존재 확인
+// checkWithdrawalExists L2에서 출금 존재 확인 (최신 블록 기준)
 func (v *Type3Verifier) checkWithdrawalExists(
 	ctx context.Context,
 	withdrawalHash common.Hash,
-	blockNumber uint64,
 ) (bool, error) {
 	// L2ToL1MessagePasser storage에서 withdrawal 확인
 	// storage[withdrawalHash] != 0 이면 존재
 
-	// eth_getStorageAt 호출
-	blockNum := big.NewInt(int64(blockNumber))
-
+	// eth_getStorageAt 호출 (nil = latest block)
 	storageValue, err := v.l2Client.StorageAt(
 		ctx,
 		v.messagePasserAddr,
 		withdrawalHash,
-		blockNum,
+		nil,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to get storage: %w", err)

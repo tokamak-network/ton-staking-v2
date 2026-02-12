@@ -48,24 +48,6 @@ func TestComputeWithdrawalHash(t *testing.T) {
 	t.Logf("✅ Withdrawal hash computed: %s", hash.Hex())
 }
 
-func TestComputeOutputRoot(t *testing.T) {
-	verifier := &Type3Verifier{}
-
-	stateRoot := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
-	blockHash := common.HexToHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-
-	outputRoot, err := verifier.computeOutputRoot(context.Background(), stateRoot, blockHash, 12345)
-	if err != nil {
-		t.Fatalf("Failed to compute output root: %v", err)
-	}
-
-	if outputRoot == (common.Hash{}) {
-		t.Error("Output root is empty")
-	}
-
-	t.Logf("✅ Output root computed: %s", outputRoot.Hex())
-}
-
 // TestType3Verifier_MockValidation Mock으로 전체 플로우 테스트
 func TestType3Verifier_MockValidation(t *testing.T) {
 	t.Skip("Requires live L1/L2 RPC - skipping")

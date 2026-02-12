@@ -115,6 +115,7 @@ func main() {
 		DHTNamespace:    cfg.P2P.DHTNamespace,
 		WithdrawalTopic: cfg.P2P.WithdrawalTopic,
 		ValidatorAddr:   common.HexToAddress(cfg.Validator.Address),
+		SystemConfig:    cfg.L1.SystemConfig,
 	})
 	if err != nil {
 		fmt.Printf("❌ Failed to initialize libp2p node: %v\n", err)
