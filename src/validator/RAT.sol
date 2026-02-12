@@ -699,8 +699,10 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         if (test.status != AttentionTestStatus.EvidencePeriod) revert TestAlreadyRespondedError();
         if (block.timestamp > test.deadline) revert DeadlinePassedError();
 
-        // 증거 검증 (TODO: 실제 증거 검증 로직)
-        _verifyEvidence(test.batchHash, evidence);
+        // 증거 검증 (롤업 타입별 라이브러리 사용, evidenceType = 1: StateLeaf 고정)
+        if (!_verifyEvidenceWithType(systemConfig, testId, test.batchHash, 1, evidence)) {
+            revert EmptyEvidenceError();
+        }
 
         // === Effects: 상태 업데이트 ===
         test.status = AttentionTestStatus.RestoredByEvidence;
@@ -778,19 +780,7 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         return pool.validators[randomIndex];
     }
 
-    /// @notice 증거 검증
-    function _verifyEvidence(bytes32 /* batchHash */, bytes calldata evidence)
-        internal
-        pure
-    {
-        // TODO: 실제 증거 검증 로직 구현
-        // - Fraud Proof 검증
-        // - State Leaf 검증
-        // - 기타 증거 타입 검증
-        if (evidence.length == 0) revert EmptyEvidenceError();
-    }
-
-    /// @notice 증거 검증 (rat-client 버전 - 롤업 타입별 + 증거 타입별 라이브러리 사용)
+    /// @notice 증거 검증 (롤업 타입별 + 증거 타입별 라이브러리 사용)
     /// @dev systemConfig의 롤업 타입과 evidenceType에 따라 적절한 검증 라이브러리를 호출
     /// @param systemConfig SystemConfig 주소 (롤업 타입 확인용)
     /// @param testId RAT 테스트 ID
@@ -804,7 +794,7 @@ contract RAT is ProxyStorage, AccessibleCommon, RATStorage, IRAT {
         bytes32 batchHash,
         uint8 evidenceType,
         bytes calldata evidenceData
-    ) internal view returns (bool) {
+    ) internal view virtual returns (bool) {
         // Evidence 데이터가 비어있으면 실패
         if (evidenceData.length == 0) {
             return false;

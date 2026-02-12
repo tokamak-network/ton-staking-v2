@@ -17,12 +17,17 @@ import {RATStorage} from "../../../src/validator/RATStorage.sol";
 import {RATConfigParams} from "../../../src/validator/RATTypes.sol";
 import {RefactorCoinageSnapshotI} from "../../../src/stake/interfaces/RefactorCoinageSnapshotI.sol";
 
-/// @notice Mock FaultDisputeGame that provides systemConfig() for RAT.resolveClaim()
+/// @notice Mock FaultDisputeGame that provides systemConfig() and rootClaim() for RAT
 contract MockFaultDisputeGame {
     address public systemConfig;
+    bytes32 public rootClaim;
 
     constructor(address _systemConfig) {
         systemConfig = _systemConfig;
+    }
+
+    function setRootClaim(bytes32 _rootClaim) external {
+        rootClaim = _rootClaim;
     }
 }
 

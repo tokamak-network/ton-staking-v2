@@ -5,10 +5,25 @@ import "forge-std/Test.sol";
 import "../../../script/DeployV3Full.s.sol";
 import {SimpleMockSystemConfig} from "../../../src/mocks/SimpleMockSystemConfig.sol";
 import {RAT} from "../../../src/validator/RAT.sol";
+import {RATProxy} from "../../../src/validator/RATProxy.sol";
 import {Layer2Registry} from "../../../src/stake/Layer2Registry.sol";
 
 // Shared Mock contracts
 import {MockDAOCommitteeProxy, IDAOCommitteeProxy2} from "./V3TestMocks.sol";
+
+/// @notice 테스트용 RAT - _verifyEvidenceWithType를 override하여 기본 검증만 수행
+/// @dev Patricia Merkle Trie proof 없이 증거 제출 흐름 테스트 가능
+contract TestRAT is RAT {
+    function _verifyEvidenceWithType(
+        address,
+        bytes32,
+        bytes32,
+        uint8,
+        bytes calldata evidenceData
+    ) internal view override returns (bool) {
+        return evidenceData.length > 0;
+    }
+}
 
 // DAO Contracts
 import {DAOCommitteeProxy2} from "../../../src/proxy/DAOCommitteeProxy2.sol";

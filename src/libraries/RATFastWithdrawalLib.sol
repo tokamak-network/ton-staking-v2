@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {BLS12381} from "../libraries/BLS12381.sol";
-import {AdjacentLeavesVerifier} from "../libraries/AdjacentLeavesVerifier.sol";
+import {Type3EvidenceVerifier} from "../validator/libraries/Type3EvidenceVerifier.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -25,12 +25,9 @@ library RATFastWithdrawalLib {
         bytes32 withdrawalHash;
         address systemConfig;
         address gameAddress;
-        bytes32 stateRoot;
+        bytes32 stateRoot;          // BLS 메시지에서 사용 (evidence 내 stateRoot와 일치해야 함)
         uint256 validatorBitmap;
-        bytes32 leafA;
-        bytes32 leafB;
-        bytes[] proofsA;
-        bytes[] proofsB;
+        bytes   stateLeafEvidence;  // Type3EvidenceVerifier.StateLeafEvidence ABI 인코딩
     }
 
     // Note: RAT 컨트랙트의 ValidatorRegistration 구조체 참조
@@ -86,8 +83,7 @@ library RATFastWithdrawalLib {
             input.systemConfig,
             input.withdrawalHash,
             input.stateRoot,
-            input.leafA,
-            input.leafB
+            keccak256(input.stateLeafEvidence)
         ));
     }
 
@@ -107,17 +103,12 @@ library RATFastWithdrawalLib {
         }
     }
 
-    /// @notice 인접 리프 증명 검증
-    function verifyAdjacentLeaves(
-        FastWithdrawalInput calldata input
+    /// @notice 상태 리프 증거 검증 (Type3EvidenceVerifier 사용)
+    function verifyStateLeafEvidence(
+        FastWithdrawalInput calldata input,
+        bytes32 rootClaim
     ) internal pure {
-        if (!AdjacentLeavesVerifier.verify(
-            input.stateRoot,
-            input.leafA,
-            input.leafB,
-            input.proofsA,
-            input.proofsB
-        )) {
+        if (!Type3EvidenceVerifier.verifyStateLeaf(rootClaim, input.stateLeafEvidence)) {
             revert FastWithdrawalInvalidAdjacentLeavesError();
         }
     }

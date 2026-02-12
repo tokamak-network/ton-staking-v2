@@ -6,7 +6,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RATFastWithdrawal, Types, IOptimismPortal2ForRAT} from "../../../src/validator/RATFastWithdrawal.sol";
 import {RATFastWithdrawalLib} from "../../../src/libraries/RATFastWithdrawalLib.sol";
 import {BLS12381} from "../../../src/libraries/BLS12381.sol";
-import {AdjacentLeavesVerifier} from "../../../src/libraries/AdjacentLeavesVerifier.sol";
 import {
     FastWithdrawalDisabledError,
     FastWithdrawalAlreadyProcessedError,
@@ -245,6 +244,17 @@ contract MockValidatorRewardE2E {
     }
 
     function syncValidatorReward(address, address) external {}
+}
+
+/// @notice 테스트용 RATFastWithdrawal - _verifyStateLeaf를 override하여 Patricia proof 없이 테스트
+/// @dev TestRAT 패턴과 동일: 증거 검증을 건너뛰고 데이터 존재 여부만 확인
+contract TestRATFastWithdrawal is RATFastWithdrawal {
+    function _verifyStateLeaf(
+        RATFastWithdrawalLib.FastWithdrawalInput calldata input
+    ) internal view override {
+        // stateLeafEvidence가 존재하는지만 확인 (실제 Patricia proof 검증 생략)
+        require(input.stateLeafEvidence.length > 0, "ERR_EMPTY_EVIDENCE");
+    }
 }
 
 /// @title FastWithdrawalE2ETest

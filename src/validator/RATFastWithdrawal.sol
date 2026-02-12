@@ -148,7 +148,16 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
     event FastWithdrawalFeeUpdated(uint256 newFee);
 
     /// @notice Fast Withdrawal 요청 이벤트
-    event FastWithdrawalRequested(bytes32 indexed withdrawalHash, address indexed user, uint256 amount, uint256 fee, uint256 deadline);
+    event FastWithdrawalRequested(
+        bytes32 indexed withdrawalHash,
+        address indexed user,
+        uint256 amount,
+        uint256 fee,
+        uint256 deadline,
+        uint256 gameIndex,
+        bytes32 outputRoot,
+        address systemConfig
+    );
 
     /// @notice 수수료 환불 이벤트
     event FeeReclaimed(bytes32 indexed withdrawalHash, address indexed user, uint256 amount);
@@ -389,7 +398,7 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
             deadline: deadline
         });
 
-        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, fee, deadline);
+        emit FastWithdrawalRequested(withdrawalHash, msg.sender, _tx.value, fee, deadline, _disputeGameIndex, _outputRootProof.stateRoot, _systemConfig);
     }
 
     /// @notice 기한 초과 시 TON 수수료 환불
@@ -478,11 +487,20 @@ contract RATFastWithdrawal is ProxyStorage, AccessibleCommon, RATStorage {
             aggregatedPubKey
         );
 
-        // 인접 리프 증명 검증 (라이브러리 사용)
-        RATFastWithdrawalLib.verifyAdjacentLeaves(input);
+        // 상태 리프 증거 검증 (Type3EvidenceVerifier 사용, RAT submitEvidence와 동일)
+        _verifyStateLeaf(input);
 
         // 검증 통과 → 실행
         _executeFastWithdrawal(input, _tx, portal);
+    }
+
+    /// @notice 상태 리프 증거 검증 (virtual for testing)
+    /// @dev DisputeGame에서 rootClaim을 조회하고 Type3EvidenceVerifier로 검증
+    function _verifyStateLeaf(
+        RATFastWithdrawalLib.FastWithdrawalInput calldata input
+    ) internal view virtual {
+        bytes32 rootClaim = IDisputeGame(input.gameAddress).rootClaim();
+        RATFastWithdrawalLib.verifyStateLeafEvidence(input, rootClaim);
     }
 
     /// @notice Fast Withdrawal 사전 조건 검증
