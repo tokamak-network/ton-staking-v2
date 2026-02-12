@@ -30,8 +30,8 @@ export const CONFIG = {
     validatorReward: '0x35D2F51DBC8b401B11fA3FE04423E0f5cd9fEDb4',
 
     // Optimism Stack
-    systemConfig: '0xecf558904405f7b662892ab7bb3544bea3beaf20',
-    disputeGameFactory: '0xc6b3e9c8ae8e523796b0ef6bbde5f2363d2d312e',
+    systemConfig: '0x7a3bbdb910fc064dcb6fcaf51d738b3e6b4ce306',
+    disputeGameFactory: '0xba76894c0fe71a53cb12d3c541c5bfece2d8a297',
   },
 
   // Optimism Service Accounts (from docker-compose env vars)
@@ -41,7 +41,7 @@ export const CONFIG = {
 
   // Operational settings (from docker-compose env vars)
   proposerSettings: {
-    proposalInterval: 120,    // OP_PROPOSER_PROPOSAL_INTERVAL (seconds)
+    proposalInterval: 300,    // OP_PROPOSER_PROPOSAL_INTERVAL (seconds)
     pollInterval: 12,         // OP_PROPOSER_POLL_INTERVAL (seconds)
     allowNonFinalized: true,  // OP_PROPOSER_ALLOW_NON_FINALIZED
   },

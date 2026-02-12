@@ -277,6 +277,10 @@ interface WithdrawalInfo {
   timeUntilFinalizable?: number;
   isFastVerified?: boolean;
   isFastFinalized?: boolean;
+  pendingFeeAmount?: bigint;
+  pendingFeeDeadline?: number;
+  l1ProveTxHash?: string;
+  isFastWithdrawal?: boolean;
 }
 
 interface MerkleProofData {
@@ -350,6 +354,7 @@ function App() {
   // Fast Withdrawal state
   const [fwStatus, setFwStatus] = useState<{ ready: boolean; blsCount: number; minRequired: number; responsePeriod: number; feeRate: string; fwFee: string } | null>(null);
   const [fwCheckResult, setFwCheckResult] = useState<{ hash: string; finalized: boolean } | null>(null);
+  const [fwFeeDisplay, setFwFeeDisplay] = useState<string | null>(null);
 
   // Withdrawal Tracker state
   const [trackedWithdrawals, setTrackedWithdrawals] = useState<WithdrawalInfo[]>([]);
@@ -585,6 +590,15 @@ function App() {
       if (interval) clearInterval(interval);
     };
   }, [activeTab]);
+
+  // Auto-load fast withdrawal fee when provider is available
+  useEffect(() => {
+    if (!l1Provider) return;
+    const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+    rat.fastWithdrawalFee().then((fee: bigint) => {
+      setFwFeeDisplay(ethers.formatEther(fee));
+    }).catch(() => {});
+  }, [l1Provider]);
 
   const initializeProvider = async () => {
     try {
@@ -2087,13 +2101,38 @@ function App() {
         return updated;
       }
 
-      // 2. Check if proven
+      // 2. Check if proven (try user address first, then RAT, then Portal for fast withdrawals)
+      // Fast withdrawal path: RAT calls Portal.proveAndRequestFastWithdrawal()
+      //   → Portal does this.proveWithdrawalTransaction() (external self-call)
+      //   → provenWithdrawals[hash][Portal_address] is set (msg.sender = Portal itself)
       const userAddr = address || withdrawal.sender;
-      const proven = await portal.provenWithdrawals(withdrawal.withdrawalHash, userAddr).catch(() => null);
+      let proven = await portal.provenWithdrawals(withdrawal.withdrawalHash, userAddr).catch(() => null);
+
+      // If not proven by user, check if proven by RAT
+      if (!proven || proven.timestamp === 0n) {
+        proven = await portal.provenWithdrawals(withdrawal.withdrawalHash, CONFIG.contracts.rat).catch(() => null);
+      }
+
+      // If not proven by RAT, check if proven by Portal itself (fast withdrawal self-call)
+      if (!proven || proven.timestamp === 0n) {
+        proven = await portal.provenWithdrawals(withdrawal.withdrawalHash, l2Info.portal).catch(() => null);
+      }
 
       if (proven && proven.timestamp > 0n) {
         updated.provenTimestamp = Number(proven.timestamp);
         updated.provenGameProxy = proven.disputeGameProxy;
+
+        // Check if fast withdrawal was requested (has pending fee in RAT)
+        try {
+          const rat = new ethers.Contract(CONFIG.contracts.rat, RAT_ABI, l1Provider);
+          const pendingFee = await rat.pendingFees(withdrawal.withdrawalHash);
+          if (pendingFee.amount > 0n) {
+            updated.pendingFeeAmount = pendingFee.amount;
+            updated.pendingFeeDeadline = Number(pendingFee.deadline);
+          }
+        } catch {
+          // RAT not accessible or no pending fee
+        }
 
         // Check proof maturity and game resolution
         const [maturityDelay, finalityDelay] = await Promise.all([
@@ -2284,11 +2323,13 @@ function App() {
         ],
         proofData.withdrawalProof
       );
-      await tx.wait();
+      const receipt = await tx.wait();
       alert('Withdrawal proven successfully!');
 
-      // Refresh status
+      // Refresh status and save L1 tx hash
       const updated = await checkWithdrawalStatus(withdrawal);
+      updated.l1ProveTxHash = receipt.hash;
+      updated.isFastWithdrawal = false;
       setSelectedWithdrawal(updated);
       setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
     } catch (error: any) {
@@ -2348,10 +2389,12 @@ function App() {
         proofData.withdrawalProof,
         CONFIG.contracts.systemConfig,
       );
-      await tx.wait();
+      const receipt = await tx.wait();
       alert('Prove + Fast Withdrawal requested successfully!');
 
       const updated = await checkWithdrawalStatus(withdrawal);
+      updated.l1ProveTxHash = receipt.hash;
+      updated.isFastWithdrawal = true;
       setSelectedWithdrawal(updated);
       setTrackedWithdrawals(prev => prev.map(w => w.withdrawalHash === updated.withdrawalHash ? updated : w));
     } catch (error: any) {
@@ -6170,6 +6213,17 @@ function App() {
                             {getStatusLabel(selectedWithdrawal.status)} - {selectedWithdrawal.statusMessage}
                           </span>
                         </div>
+                        {selectedWithdrawal.l1ProveTxHash && (
+                          <div className="info-row">
+                            <span className="info-label">L1 Prove Tx:</span>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                              {selectedWithdrawal.l1ProveTxHash.slice(0, 10)}...{selectedWithdrawal.l1ProveTxHash.slice(-8)}
+                              {selectedWithdrawal.isFastWithdrawal && (
+                                <span style={{ marginLeft: '0.5rem', color: '#8b5cf6', fontWeight: 'bold' }}>Fast Withdrawal</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Dispute Game Info */}
@@ -6231,6 +6285,18 @@ function App() {
                               <span className="info-label">Proven At:</span>
                               <span>{new Date(selectedWithdrawal.provenTimestamp * 1000).toLocaleString()}</span>
                             </div>
+                            {selectedWithdrawal.pendingFeeAmount && selectedWithdrawal.pendingFeeAmount > 0n && (
+                              <div className="info-row">
+                                <span className="info-label">FW Fee:</span>
+                                <span>{ethers.formatEther(selectedWithdrawal.pendingFeeAmount)} TON
+                                  {selectedWithdrawal.pendingFeeDeadline && (
+                                    <span style={{ color: '#9ca3af', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                                      (deadline: {new Date(selectedWithdrawal.pendingFeeDeadline * 1000).toLocaleString()})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                             {selectedWithdrawal.proofMaturityDelay !== undefined && (
                               <div className="info-row">
                                 <span className="info-label">Proof Maturity Delay:</span>
@@ -6346,7 +6412,7 @@ function App() {
                                 {withdrawalLoading ? 'Processing...' : 'Prove + Fast Withdrawal'}
                               </button>
                               <small style={{ color: 'var(--text-light)', fontSize: '0.75rem' }}>
-                                Fee: {fwStatus?.fwFee || '?'} TON
+                                Fee: {fwFeeDisplay ?? fwStatus?.fwFee ?? '...'} TON
                               </small>
                             </div>
                           </>
@@ -6376,14 +6442,16 @@ function App() {
                           </div>
                         )}
 
-                        {selectedWithdrawal.status === 'proven' && (
+                        {selectedWithdrawal.pendingFeeAmount && selectedWithdrawal.pendingFeeAmount > 0n &&
+                         selectedWithdrawal.pendingFeeDeadline && selectedWithdrawal.pendingFeeDeadline < Math.floor(Date.now() / 1000) &&
+                         selectedWithdrawal.status !== 'fast_finalized' && (
                           <button
                             onClick={() => reclaimFeeTx(selectedWithdrawal.withdrawalHash)}
                             disabled={withdrawalLoading || !signer}
                             className="btn btn-secondary"
                             style={{ background: '#ef4444' }}
                           >
-                            {withdrawalLoading ? 'Processing...' : 'Reclaim Fee (if deadline passed)'}
+                            {withdrawalLoading ? 'Processing...' : `Reclaim Fee (${ethers.formatEther(selectedWithdrawal.pendingFeeAmount)} TON)`}
                           </button>
                         )}
 
@@ -6448,8 +6516,9 @@ function App() {
                           const blsCount = blsVals.length;
                           const minRequired = Number(minFW);
                           const period = Number(responsePeriod);
-                          const feeRate = (Number(feeRateRaw) / 100).toString();
+                          const feeRate = (Number(feeRateRaw) * 100 / 1e27).toFixed(1);
                           const fwFee = ethers.formatEther(fwFeeRaw);
+                          setFwFeeDisplay(fwFee);
                           setFwStatus({
                             ready: blsCount >= minRequired && minRequired > 0,
                             blsCount,
