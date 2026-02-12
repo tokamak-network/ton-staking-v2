@@ -1425,6 +1425,7 @@ generate_fw_node_config() {
     BLS_PRIV=$(grep "BLS_PRIVATE_KEY=" "$DEVNET_SEPOLIA_DIR/bls-keys-${NAME}.env" | cut -d= -f2)
 
     # Validator config
+    local SYSTEM_CONFIG_ADDR_V=$(jq -r '.systemConfig' "$DEVNET_DIR/addresses.json")
     cat > "$DEVNET_SEPOLIA_DIR/fw-node-${NUM}-validator.yaml" <<FWEOF
 validator:
   address: "${ADDR}"
@@ -1433,6 +1434,7 @@ validator:
 l1:
   rpc: "http://host.docker.internal:${L1_PORT}"
   rat_contract: "${RAT_ADDR}"
+  system_config: "${SYSTEM_CONFIG_ADDR_V}"
 
 l2:
   rpc: "http://l2-execution:8545"

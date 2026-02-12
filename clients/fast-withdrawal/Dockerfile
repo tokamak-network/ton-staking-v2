@@ -2,7 +2,7 @@
 # Each node runs both binaries - any validator can aggregate and submit.
 
 # Stage 1: Build validator
-FROM golang:1.22-alpine AS validator-builder
+FROM golang:1.24-alpine AS validator-builder
 
 WORKDIR /app
 

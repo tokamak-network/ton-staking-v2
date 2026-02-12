@@ -9,6 +9,8 @@ optimizer_runs = 100
 solc_version = "0.8.19"
 build_info = true
 extra_output = ["evm.bytecode", "evm.deployedBytecode", "metadata"]
+ignored_warnings_from = ["test/"]
+ignored_error_codes = [2018, 5574, 5667]
 
 [profile.production]
 via_ir = true
@@ -17,6 +19,7 @@ optimizer_runs = 200
 solc_version = "0.8.19"
 build_info = true
 extra_output = ["evm.bytecode", "evm.deployedBytecode", "metadata"]
+
 
 remappings = [
   '@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/',
@@ -30,22 +33,7 @@ runs = 256
 ffi = true
 
 [lint]
-enabled = false
-exclude_paths = ["lib/"]
-exclude_lints = [
-    "mixed-case-function",
-    "mixed-case-variable",
-    "unaliased-plain-import",
-    "pascal-case-struct",
-    "unwrapped-modifier-logic",
-    "screaming-snake-case-const",
-    "unused-import",
-    "unsafe-typecast",
-    "asm-keccak256",
-    "erc20-unchecked-transfer",
-    "unsafe-cheatcode",
-    "incorrect-shift"
-]
+lint_on_build = false
 
 # Allow script to read/write deployment files
 fs_permissions = [
