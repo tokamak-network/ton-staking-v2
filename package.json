@@ -7,11 +7,11 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.2.0",
-    "@typechain/hardhat": "^9.1.0",
+    "@typechain/hardhat": "^6.0.0",
     "@types/node": "^20.19.27",
     "hardhat": "^2.28.2",
     "ts-node": "^10.9.2",
-    "typechain": "^8.3.2",
+    "typechain": "^4.0.3",
     "typescript": "^5.9.3"
   }
 }

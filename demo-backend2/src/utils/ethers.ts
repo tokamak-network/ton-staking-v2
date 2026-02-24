@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
+import { config } from "../config.js";
 
 export function getProvider(): ethers.JsonRpcProvider {
-  return new ethers.JsonRpcProvider(process.env.HARDHAT_RPC_URL || "http://127.0.0.1:8545");
+  return new ethers.JsonRpcProvider(config.hardhatRpcUrl);
 }
 
 export function getSigner(privateKey?: string): ethers.Wallet {
@@ -26,6 +27,9 @@ export async function getContract(
   return new ethers.Contract(address, abi, signerOrProvider || provider);
 }
 
+import * as fs from "fs";
+import * as path from "path";
+
 // ABI Definitions (simplified - load from actual contract files in production)
 export const FAULT_DISPUTE_GAME_ABI = [
   "function attack(uint32 parentClaim, bytes32 claim) external returns (uint256)",
@@ -41,12 +45,12 @@ export const FAULT_DISPUTE_GAME_ABI = [
   "event GameResolved(address indexed winner, uint256 bondAmount, bytes32 rootClaim)",
 ];
 
-export const FAULT_DISPUTE_GAME_FACTORY_ABI = [
-  "function create(bytes32 rootClaim, bytes extraData) external returns (address)",
-  "function gameImplementation() external view returns (address)",
-  "function initBond() external view returns (uint256)",
-  "event DisputeGameCreated(address indexed disputeProxy, bytes32 indexed rootClaim, bytes extraData)",
-];
+// ✅ Use real ABI from demo-config2
+const PROJECT_ROOT = path.resolve(__dirname, "../../..");
+const DISPUTE_FACTORY_ABI_PATH = path.join(PROJECT_ROOT, "demo-config2/abis/DisputeGameFactory.json");
+const disputeFactoryAbiJson = JSON.parse(fs.readFileSync(DISPUTE_FACTORY_ABI_PATH, "utf-8"));
+
+export const FAULT_DISPUTE_GAME_FACTORY_ABI = disputeFactoryAbiJson;
 
 export const SEIG_MANAGER_ABI = [
   "function distributeBond(uint256 gameIndex) external",

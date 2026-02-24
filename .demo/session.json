@@ -1,45 +1,60 @@
 {
-  "status": "ready",
-  "message": "Game resolved. Ready to slash.",
-  "mode": "single",
+  "status": "slashed",
+  "message": "Slashing executed.",
+  "mode": "multi",
   "operatorManager": "0xE143abf286dCDf65E7d995e4f3a7eF6e48671501",
   "candidateAddOn": "0x9b4E5060A51F6bf5A2EaBAA0a3Ced7A78d8532a2",
   "gameAddress": "0xC4dd635CdD36786794fA2B94f39d3aC3334451B5",
   "gameType": 0,
-  "rootClaim": "0xabcd000000000000000000000000000000000000000000000000000000000000",
+  "rootClaim": "0xdead000000000000000000000000000000000000000000000000000000000000",
   "extraData": "0x0000000000000000000000000000000000000000000000000000000000000064",
-  "challenger": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+  "challenger": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc,0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
   "winningChallengers": [
-    "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+    "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
   ],
   "stakeBefore": "100000000000000000000000000000000",
-  "stakeAfter": "",
-  "stakeDelta": "",
-  "challengerBalanceBefore": "100000000000000000000000000000000",
-  "challengerBalanceAfter": "",
+  "stakeAfter": "0",
+  "stakeDelta": "100000000000000000000000000000000",
+  "challengerBalanceBefore": "200000000000000000000000000000000",
+  "challengerBalanceAfter": "210000000000000000000000000000000",
   "challengerBalancesBefore": {
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "100000000000000000000000000000000",
     "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc": "100000000000000000000000000000000"
   },
-  "challengerBalancesAfter": null,
-  "rewardDelta": "",
-  "slashingTxHash": "",
+  "challengerBalancesAfter": {
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "105000000000000000000000000000000",
+    "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc": "105000000000000000000000000000000"
+  },
+  "rewardDelta": "10000000000000000000000000000000",
+  "slashingTxHash": "0x74ff8fdc05493739dcafe911d5abf0610ae450fa0b5e83f6136cc7d76f6a4289",
   "slashingRewardRate": "1000",
   "timeline": [
     {
       "step": "game_created",
-      "message": "Dispute game created",
-      "time": "2026-02-12T18:09:07+09:00"
+      "message": "Dispute game created (multi)",
+      "time": "2026-02-25T01:30:50+09:00"
+    },
+    {
+      "step": "challengers_started",
+      "message": "Two challengers attacked root claim",
+      "time": "2026-02-25T01:30:50+09:00"
     },
     {
       "step": "challenger_won",
-      "message": "Challenger won the game",
-      "time": "2026-02-12T18:09:07+09:00"
+      "message": "Challengers won the game",
+      "time": "2026-02-25T01:30:50+09:00"
     },
     {
       "step": "ready",
       "message": "Ready to slash operator",
-      "time": "2026-02-12T18:09:07+09:00"
+      "time": "2026-02-25T01:30:50+09:00"
+    },
+    {
+      "step": "slashed",
+      "message": "Operator slashed and rewards distributed",
+      "time": "2026-02-25T02:04:45+09:00"
     }
   ],
-  "lastUpdate": "2026-02-12T18:09:07+09:00"
+  "lastUpdate": "2026-02-25T02:04:45+09:00"
 }
